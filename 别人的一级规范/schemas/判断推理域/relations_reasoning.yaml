@@ -1,0 +1,715 @@
+schema_name: relations_reasoning
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_reasoning.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研判断推理域关系类型定义——可观测维度类关系和研究推理类关系（不含推理运行相关关系）。
+
+relation_defaults:
+  direction: directed
+  history_policy: preserve_history
+  deletion_policy: no_physical_delete_without_migration
+  relation_instance_id_pattern: "REL-{YYYYMMDD}-{serial}"
+  relation_status_values: [candidate, confirmed, archived]
+  required_instance_fields: [id, type, sourceId, targetId, recordStatus]
+  inheritance_rule: 实例文件可在容器级声明默认 recordStatus；若关系实例未显式填写 recordStatus，可继承容器默认值。正式入库时系统应补齐为实例字段。
+  inverse_of_note: >
+    关系类型中的 inverse_of 字段为可选项，声明该关系的逻辑反向关系名。
+    当两方关系类型均已定义时，inverse_of 直接引用对方关系类型名；
+    当反向关系未实例化时（如 companyBelongsToIndustry 的逆 industryContainsCompany），
+    inverse_of 仅声明逆关系名供推理引擎做双向遍历推导，不要求实例化该逆关系。
+
+relation_types:
+  observedOn:
+    zh_name: 变量挂载对象
+    group: observable_dimension_relations
+    source_types: [StateVariable]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 状态变量挂载于某研究标的对象；宏观、政策类变量可不挂载。
+    properties:
+      observationScope:
+        zh_name: 观测范围
+        type: string
+        required: false
+
+  observationBindsVariable:
+    zh_name: 观测归属变量
+    group: observable_dimension_relations
+    source_types: [StateVariableObservation]
+    target_types: [StateVariable]
+    direction: directed
+    cardinality: many_to_one
+    inverse_of: variableHasObservation
+    description: 观测值归属于某状态变量。
+    properties: {}
+
+  propagatesFrom:
+    zh_name: 传导来源变量
+    group: observable_dimension_relations
+    source_types: [StateVariablePropagation]
+    target_types: [StateVariable]
+    direction: directed
+    cardinality: many_to_one
+    description: 状态传导逻辑的源变量。
+    properties: {}
+
+  propagatesTo:
+    zh_name: 传导目标变量
+    group: observable_dimension_relations
+    source_types: [StateVariablePropagation]
+    target_types: [StateVariable]
+    direction: directed
+    cardinality: many_to_one
+    description: 状态传导逻辑的目标变量。
+    properties: {}
+
+  derivedFromVariable:
+    zh_name: 派生指标输入
+    group: observable_dimension_relations
+    source_types: [DerivedMetric]
+    target_types: [StateVariable, StateVariableObservation, Company, Asset, Industry, Segment, Product, Material]
+    direction: directed
+    cardinality: many_to_many
+    description: DerivedMetric 的计算输入。Function 不直接写对象，输入必须显式可追溯。
+    properties:
+      inputRole:
+        zh_name: 输入角色
+        type: string
+        required: false
+
+  metricObservedOn:
+    zh_name: 派生指标挂载对象
+    group: observable_dimension_relations
+    source_types: [DerivedMetric]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 派生指标挂载于研究对象；语义等同 observedOn，但源类型为 DerivedMetric。
+    properties:
+      observationScope:
+        zh_name: 观测范围
+        type: string
+        required: false
+
+  eventRelatesToEvent:
+    zh_name: 事件关联事件
+    group: research_reasoning_relations
+    source_types: [Event]
+    target_types: [Event]
+    direction: directed
+    cardinality: many_to_many
+    description: 事件之间的触发、使能、缓解、替代、反向或共现关系。
+    properties:
+      eventRelationType:
+        zh_name: 事件关系类型
+        type: enum
+        enum: [triggers, enables, mitigates, supersedes, contradicts, co_occurs_with]
+        required: true
+      relationBasis:
+        zh_name: 关系依据
+        type: string
+        required: false
+
+  eventAffectsVariable:
+    zh_name: 事件影响变量
+    group: research_reasoning_relations
+    source_types: [Event]
+    target_types: [StateVariable]
+    direction: directed
+    cardinality: many_to_many
+    description: 事件对状态变量产生方向性影响，是事件图谱进入状态变量推理的显式入口。
+    properties:
+      effectDirection:
+        zh_name: 影响方向
+        type: enum
+        enum: [up, down, stable, divergent, unknown]
+        required: true
+      effectMechanism:
+        zh_name: 影响机制
+        type: string
+        required: false
+      lagDescription:
+        zh_name: 时间滞后
+        type: string
+        required: false
+
+  eventProducesObservation:
+    zh_name: 事件产生观测
+    group: research_reasoning_relations
+    source_types: [Event]
+    target_types: [StateVariableObservation]
+    direction: directed
+    cardinality: many_to_many
+    description: 事件产生或直接对应某条状态变量观测，用于追溯事实观测的事件来源。
+    properties:
+      observationRole:
+        zh_name: 观测角色
+        type: string
+        required: false
+
+  eventTriggersPropagation:
+    zh_name: 事件触发传导模式
+    group: research_reasoning_relations
+    source_types: [Event]
+    target_types: [StateVariablePropagation]
+    direction: directed
+    cardinality: many_to_many
+    description: 事件触发或解释某个状态变量传导模式；用于连接事件层和状态理解层。
+    properties: {}
+
+  observationIndicatesPropagation:
+    zh_name: 观测指示传导模式
+    group: research_reasoning_relations
+    source_types: [StateVariableObservation]
+    target_types: [StateVariablePropagation]
+    direction: directed
+    cardinality: many_to_many
+    description: 状态变量观测指示某个传导模式已发生或正在发生。
+    properties: {}
+
+  propagationSupportsHypothesis:
+    zh_name: 传导模式支持假设
+    group: research_reasoning_relations
+    source_types: [StateVariablePropagation]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    description: 状态变量传导模式支持形成或维持某个状态假设。
+    properties: {}
+
+  judgmentRelatesToJudgment:
+    zh_name: 判断关联判断
+    group: research_reasoning_relations
+    source_types: [JudgmentOutput]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_many
+    description: 判断输出之间的依赖、替代、细化、更新或冲突关系。
+    properties:
+      judgmentRelationType:
+        zh_name: 判断关系类型
+        type: enum
+        enum: [depends_on, alternative_to, refines, supersedes, conflicts_with]
+        required: true
+      relationBasis:
+        zh_name: 关系依据
+        type: string
+        required: false
+
+  anchoredOn:
+    zh_name: 事件挂载对象
+    group: research_reasoning_relations
+    source_types: [Event]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 事件挂载于某研究标的对象；宏观、政策类事件可不挂载。
+    properties:
+      anchorRole:
+        zh_name: 挂载角色
+        type: string
+        required: false
+
+  basedOnEvent:
+    zh_name: 假设由事件引发
+    group: research_reasoning_relations
+    source_types: [StateHypothesis]
+    target_types: [Event]
+    direction: directed
+    cardinality: many_to_many
+    description: 状态假设由某事件引发。
+    properties: {}
+
+  basedOnObservation:
+    zh_name: 假设基于观测
+    group: research_reasoning_relations
+    source_types: [StateHypothesis]
+    target_types: [StateVariableObservation]
+    direction: directed
+    cardinality: many_to_many
+    description: 状态假设直接基于某条状态变量观测；用于追溯假设的事实依据。
+    properties: {}
+
+  hypothesisBindsVariable:
+    zh_name: 假设绑定变量
+    group: research_reasoning_relations
+    source_types: [StateHypothesis]
+    target_types: [StateVariable]
+    direction: directed
+    cardinality: many_to_one
+    inverse_of: variableHasHypothesis
+    description: 状态假设绑定某状态变量。
+    properties: {}
+
+  competesWithHypothesis:
+    zh_name: 假设互为竞争
+    group: research_reasoning_relations
+    source_types: [StateHypothesis]
+    target_types: [StateHypothesis]
+    direction: symmetric_single_edge
+    cardinality: many_to_many
+    description: 两个假设互为竞争解释；只需在任一方向建立一条。
+    properties: {}
+
+  supersedesHypothesis:
+    zh_name: 新假设替代原假设
+    group: research_reasoning_relations
+    source_types: [StateHypothesis]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: hypothesisSupersededBy
+    description: 新假设替代原假设，原假设保留历史记录。
+    semantics:
+      source: new_hypothesis
+      target: old_hypothesis
+    properties: {}
+
+  dependsOnHypothesis:
+    zh_name: 假设依赖前提假设
+    group: research_reasoning_relations
+    source_types: [StateHypothesis]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: hypothesisDependedOnBy
+    description: 当前假设以另一假设成立为前提。
+    semantics:
+      source: dependent_hypothesis
+      target: prerequisite_hypothesis
+    system_effect: 前提假设被阻断时，系统提示重新评估依赖它的假设和判断。
+    properties: {}
+
+  signalBasedOnObservation:
+    zh_name: 信号来源观测值
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [StateVariableObservation]
+    direction: directed
+    cardinality: many_to_many
+    description: 信号直接基于某条状态变量观测值，用于来源追溯。
+    properties: {}
+
+  signalBasedOnEvent:
+    zh_name: 信号来源事件
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [Event]
+    direction: directed
+    cardinality: many_to_many
+    description: 信号直接源自某事件；用于表达事件本身的信号含义。
+    properties: {}
+
+  supportsHypothesis:
+    zh_name: 信号支持假设
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: hypothesisSupportedBySignal
+    description: validation 信号支持某状态假设。
+    source_field_constraints:
+      signalRole: validation
+    effect_active_when:
+      signalStatus: active
+    properties:
+      supportStrength:
+        zh_name: 支持力度
+        type: enum
+        enum: [strong, medium, weak]
+        required: true
+      relevanceNote:
+        zh_name: 相关性说明
+        type: string
+        required: false
+
+  tracksHypothesis:
+    zh_name: 信号跟踪假设
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    description: tracking 信号持续观察某状态假设。
+    source_field_constraints:
+      signalRole: tracking
+    effect_active_when:
+      signalStatus: active
+    properties: {}
+
+  weakensHypothesis:
+    zh_name: 信号削弱假设
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    description: weakening 信号削弱某状态假设。
+    source_field_constraints:
+      signalRole: weakening
+    effect_active_when:
+      signalStatus: active
+    properties:
+      weakenStrength:
+        zh_name: 削弱强度
+        type: enum
+        enum: [strong, medium, weak]
+        required: true
+
+  blocksHypothesis:
+    zh_name: 信号阻断假设
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: hypothesisBlockedBySignal
+    description: blocking 信号阻断某状态假设，使其中止。
+    source_field_constraints:
+      signalRole: blocking
+    effect_active_when:
+      signalStatus: active
+    properties:
+      blockReason:
+        zh_name: 阻断原因
+        type: string
+        required: true
+
+  judgmentAnchoredOn:
+    zh_name: 判断挂载对象
+    group: research_reasoning_relations
+    source_types: [JudgmentOutput]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 判断输出挂载于具体研究标的对象。
+    properties:
+      anchorRole:
+        zh_name: 挂载角色
+        type: string
+        required: false
+
+  basedOnHypothesis:
+    zh_name: 判断基于假设
+    group: research_reasoning_relations
+    source_types: [JudgmentOutput]
+    target_types: [StateHypothesis]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: hypothesisBasisForJudgment
+    description: 判断输出基于某状态假设。
+    properties: {}
+
+  supportsJudgment:
+    zh_name: 信号支持判断
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_many
+    description: validation 信号直接支持某判断输出。
+    source_field_constraints:
+      signalRole: validation
+    effect_active_when:
+      signalStatus: active
+    properties:
+      supportStrength:
+        zh_name: 支持力度
+        type: enum
+        enum: [strong, medium, weak]
+        required: true
+      relevanceNote:
+        zh_name: 相关性说明
+        type: string
+        required: false
+
+  catalyzesJudgment:
+    zh_name: 信号催化判断
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_many
+    description: catalyst 信号推动判断进入正式触发或缩短兑现窗口。
+    source_field_constraints:
+      signalRole: catalyst
+    effect_active_when:
+      signalStatus: active
+    properties:
+      catalystRole:
+        zh_name: 催化角色
+        type: string
+        required: true
+      expectedLeadTime:
+        zh_name: 预计前置时间
+        type: string
+        required: false
+
+  tracksJudgment:
+    zh_name: 信号跟踪判断
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_many
+    description: tracking 信号持续观察某判断输出。
+    source_field_constraints:
+      signalRole: tracking
+    effect_active_when:
+      signalStatus: active
+    properties: {}
+
+  weakensJudgment:
+    zh_name: 信号削弱判断
+    group: research_reasoning_relations
+    source_types: [Signal]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_many
+    description: weakening 信号直接削弱某判断输出。
+    source_field_constraints:
+      signalRole: weakening
+    effect_active_when:
+      signalStatus: active
+    properties:
+      weakenStrength:
+        zh_name: 削弱强度
+        type: enum
+        enum: [strong, medium, weak]
+        required: true
+
+  expectationAnchoredOn:
+    zh_name: 预期挂载对象
+    group: research_reasoning_relations
+    source_types: [MarketExpectation]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 市场预期挂载到具体研究标的对象；宏观或政策预期应在 relationBasis 中说明适用范围。
+    properties:
+      anchorRole:
+        zh_name: 挂载角色
+        type: string
+        required: false
+      relationBasis:
+        zh_name: 挂载依据
+        type: string
+        required: false
+
+  expectationBasedOnObservation:
+    zh_name: 预期基于观测
+    group: research_reasoning_relations
+    source_types: [MarketExpectation]
+    target_types: [StateVariableObservation]
+    direction: directed
+    cardinality: many_to_many
+    description: 市场预期基于某条状态变量观测、估算或数据读数。
+    properties: {}
+
+  expectationBasedOnEvent:
+    zh_name: 预期基于事件
+    group: research_reasoning_relations
+    source_types: [MarketExpectation]
+    target_types: [Event]
+    direction: directed
+    cardinality: many_to_many
+    description: 市场预期基于某个已发生事件或披露。
+    properties: {}
+
+  expectationSupersedesExpectation:
+    zh_name: 新预期替代旧预期
+    group: research_reasoning_relations
+    source_types: [MarketExpectation]
+    target_types: [MarketExpectation]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: expectationSupersededBy
+    description: 新的预期截面替代旧预期截面，旧预期保留用于历史回放和复盘。
+    semantics:
+      source: new_expectation
+      target: old_expectation
+    properties:
+      supersedeReason:
+        zh_name: 替代原因
+        type: string
+        required: false
+
+  judgmentComparedWithExpectation:
+    zh_name: 判断对比预期
+    group: research_reasoning_relations
+    source_types: [JudgmentOutput]
+    target_types: [MarketExpectation]
+    direction: directed
+    cardinality: many_to_many
+    description: 判断输出与某个市场预期、价格隐含预期、管理层指引或研究员自身预期进行比较，以识别预期差。
+    properties:
+      comparisonRole:
+        zh_name: 比较角色
+        type: enum
+        enum: [consensus_gap, implied_pricing_gap, guidance_gap, internal_vs_market_gap, positioning_gap]
+        required: true
+      gapDirection:
+        zh_name: 预期差方向
+        type: enum
+        enum: [positive, negative, neutral, mixed, unknown]
+        required: true
+      gapMagnitude:
+        zh_name: 预期差幅度
+        type: string
+        required: false
+      comparisonBasis:
+        zh_name: 比较依据
+        type: string
+        required: true
+
+  impactDerivedFrom:
+    zh_name: 资产影响来源判断
+    group: research_reasoning_relations
+    source_types: [AssetImpact]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_one
+    inverse_of: judgmentHasAssetImpact
+    description: 资产影响来源于某判断输出。
+    properties: {}
+
+  impactsAsset:
+    zh_name: 资产影响作用资产
+    group: research_reasoning_relations
+    source_types: [AssetImpact]
+    target_types: [Asset]
+    direction: directed
+    cardinality: many_to_one
+    inverse_of: assetImpactedBy
+    description: 资产影响作用于某资产标的。
+    properties: {}
+
+  impactReferencesExpectation:
+    zh_name: 资产影响引用预期
+    group: research_reasoning_relations
+    source_types: [AssetImpact]
+    target_types: [MarketExpectation]
+    direction: directed
+    cardinality: many_to_many
+    description: AssetImpact 引用用于判断定价状态和预期差的 MarketExpectation。
+    properties:
+      expectationRole:
+        zh_name: 预期角色
+        type: enum
+        enum: [baseline, consensus, implied_pricing, guidance, internal_reference, positioning]
+        required: true
+      relationNote:
+        zh_name: 关系说明
+        type: string
+        required: false
+
+  thesisAnchoredOn:
+    zh_name: 命题挂载对象
+    group: research_reasoning_relations
+    source_types: [InvestmentThesis]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 投资命题挂载于具体研究标的对象。
+    properties:
+      anchorRole:
+        zh_name: 挂载角色
+        type: string
+        required: false
+
+  thesisContainsJudgment:
+    zh_name: 命题包含判断
+    group: research_reasoning_relations
+    source_types: [InvestmentThesis]
+    target_types: [JudgmentOutput]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: judgmentContainedInThesis
+    description: 投资命题包含某判断输出。
+    properties: {}
+
+  simulationUsesPath:
+    zh_name: 模拟使用路径或算子
+    group: scenario_simulation_relations
+    source_types: [ScenarioSimulation]
+    target_types: [ScenarioPath, ConductionTemplate, StateVariablePropagation]
+    direction: directed
+    cardinality: many_to_many
+    description: 情景模拟使用的路径模板、传导模板或变量传导算子。
+    properties: {}
+
+  simulationAnchoredOn:
+    zh_name: 模拟挂载对象
+    group: scenario_simulation_relations
+    source_types: [ScenarioSimulation]
+    target_types: [Industry, Segment, Company, Product, Material, Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 情景模拟对应的研究对象或资产标的。
+    properties: {}
+
+  inputToSimulation:
+    zh_name: 假设输入归属模拟
+    group: scenario_simulation_relations
+    source_types: [HypotheticalInput]
+    target_types: [ScenarioSimulation]
+    direction: directed
+    cardinality: many_to_one
+    description: 假设性输入归属于一次情景模拟。
+    properties: {}
+
+  simulatedImpactFromSimulation:
+    zh_name: 模拟影响来自模拟
+    group: scenario_simulation_relations
+    source_types: [SimulatedImpact]
+    target_types: [ScenarioSimulation]
+    direction: directed
+    cardinality: many_to_one
+    description: SimulatedImpact 由哪次 ScenarioSimulation 产生。
+    properties: {}
+
+  simulatedImpactsAsset:
+    zh_name: 模拟影响资产
+    group: scenario_simulation_relations
+    source_types: [SimulatedImpact]
+    target_types: [Asset]
+    direction: directed
+    cardinality: many_to_many
+    description: 模拟产物对资产的假设性影响；不得替代正式 impactsAsset。
+    properties: {}
+
+  monitorWatches:
+    zh_name: 监控订阅目标
+    group: monitoring_relations
+    source_types: [Monitor]
+    target_types: [StateVariable, StateHypothesis, JudgmentOutput, ObjectSet]
+    direction: directed
+    cardinality: many_to_many
+    description: Monitor 订阅的变量、假设、判断或对象集合。
+    properties:
+      watchRole:
+        zh_name: 监控角色
+        type: enum
+        enum: [primary, context]
+        required: true
+
+  monitorTriggeredSignal:
+    zh_name: 监控触发信号
+    group: monitoring_relations
+    source_types: [Monitor]
+    target_types: [Signal]
+    direction: directed
+    cardinality: many_to_many
+    description: Monitor 命中条件后触发生成的 Signal。
+    properties:
+      triggerReason:
+        zh_name: 触发原因
+        type: string
+        required: true
+

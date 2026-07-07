@@ -1,0 +1,154 @@
+schema_name: rules_governance
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_governance.yaml
+  actions_schema: actions_governance.yaml
+  policies_schema: policies_governance.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: '治理域轻量 Rule Registry。它承载 ActionProposal、ActionFollowup、审核、权限和补丁闭环的 可复用门禁；ActionAudit
+  记录动作已执行，ActionFollowup 记录动作后发生了什么以及能触发什么。
+
+  '
+action_preconditions:
+- rule_id: governance.action_precondition.proposal_registered_action
+  rule_name: ActionProposal 引用已注册 Action 规则
+  rule_type: action_precondition
+  rule_binding: action
+  description: ActionProposal.proposedActionType 必须存在于 actions_*.yaml。
+  input_objects:
+  - ActionProposal
+  condition:
+    format: registry_lookup
+    expression: proposedActionType in derived action_types
+  output: proposal_admitted or block_next_action
+  used_by_actions:
+  - CreateActionProposal
+  - ExecuteApprovedActionProposal
+  evidence_requirement: decision_log_or_proposal_reason_required
+  confidence_effect: unknown action blocks execution.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - action_proposal_registered_action_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+trigger_rules:
+- rule_id: governance.trigger.followup_to_next_action
+  rule_name: 后续信号触发下游动作规则
+  rule_type: trigger
+  rule_binding: automate_flow
+  description: ActionFollowup 只能触发已注册 Action、ActionProposal、ReviewRecord 或 PatchRequest 候选。
+  input_objects:
+  - ActionFollowup
+  - ActionAudit
+  - ActionProposal
+  condition:
+    format: enum_and_registry_lookup
+    expression: terminalHandling in allowed values and nextActionType in action_types when present.
+  output: trigger_next_action or no_followup_required
+  automate_binding:
+    trigger_sources: [ActionFollowup]
+    condition_refs:
+      - policies_validation.action_followup_gate
+      - policies_governance.action_side_effect_governance
+    followup_kinds: []
+    downstream_actions: []
+    routing_note: 下游动作由 Action.trigger_followup.allowed_next_actions 与 terminalHandling 决定。
+  used_by_actions: []
+  evidence_requirement: source_action_audit_required
+  confidence_effect: invalid follow-up blocks next action.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - followup_routing_gate
+  execution: declarative
+  execution_note: 由 AutomateFlow / followup 路由策略评估；不进 action.rule_refs。
+permission_rules:
+- rule_id: governance.permission.no_direct_write_from_followup
+  rule_name: 后续信号不得直写正式资产规则
+  rule_type: permission
+  rule_binding: action
+  description: ActionFollowup 只能作为触发线索或审计上下文，不能直接修改 shared 正式资产。
+  input_objects:
+  - ActionFollowup
+  - ActionAudit
+  - PatchRequest
+  condition:
+    format: policy_ref
+    expression: policies_governance.action_side_effect_governance
+  output: proposal_only or enqueue_review
+  used_by_actions:
+  - RecordActionFollowup
+  - ExecuteApprovedActionProposal
+  evidence_requirement: action_audit_required
+  confidence_effect: direct write attempt is blocked.
+  failure_handling: enqueue_review
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - followup_no_direct_write
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+promotion_rules:
+- rule_id: governance.promotion.review_to_patch_request_gate
+  rule_name: 复盘缺口晋升补丁候选规则
+  rule_type: promotion
+  rule_binding: action
+  description: 单次 ReviewRecord 默认沉淀到复盘和方法修正；只有重复、结构性或 owner 明确确认的缺口才晋升为 PatchRequest
+    候选。
+  input_objects:
+  - ReviewRecord
+  - PatchRequest
+  - MetricSnapshot
+  condition:
+    format: aggregation_gate
+    expression: feedbackScope=ontology_gap and (structuralGap=true or repeated aggregationKey
+      threshold reached).
+  output: candidate_patch_request or bias_log_item
+  used_by_actions:
+  - RecordReviewOutcome
+  - CreatePatchRequest
+  evidence_requirement: review_record_and_gap_basis_required
+  confidence_effect: missing aggregation keeps feedback in personal method revision.
+  failure_handling: downgrade_to_observation
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - review_to_patch_request_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+blocking_rules:
+- rule_id: governance.blocking.ai_direct_write_to_shared
+  rule_name: AI 不得绕过提案直写正式资产规则
+  rule_type: blocking
+  rule_binding: action
+  description: AI 生成内容默认进入 candidate、staging 或 review；正式写回必须通过 ActionProposal、ActionAudit、ReviewRecord
+    或 PatchRequest。
+  input_objects:
+  - ActionProposal
+  - ActionAudit
+  - ReviewRecord
+  - PatchRequest
+  condition:
+    format: write_path_check
+    expression: ai_origin writes to shared require approved action proposal or patch
+      ledger item.
+  output: write_allowed or block_next_action
+  used_by_actions:
+  - CreateActionProposal
+  - SubmitActionProposalForReview
+  - ExecuteApprovedActionProposal
+  evidence_requirement: approved_proposal_or_patch_ledger_required
+  confidence_effect: direct write attempt is blocked.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - ai_direct_write_to_shared_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。

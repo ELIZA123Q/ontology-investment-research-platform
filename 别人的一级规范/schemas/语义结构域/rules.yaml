@@ -1,0 +1,151 @@
+schema_name: rules_ontology
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_ontology.yaml
+  actions_schema: actions_ontology.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: '语义结构域轻量 Rule Registry。对象字段表达静态属性，actions_ontology.yaml 表达对象 可接受的动态行为入口；本文件只声明对象边界、对象准入、关系端点和语义状态变更的可复用规则。
+
+  '
+validation_rules:
+- rule_id: semantic.validation.concept_object_mapping_gate
+  rule_name: 概念到正式对象映射相容规则
+  rule_type: validation
+  rule_binding: action
+  description: Concept 只有在需要被证据、事件、状态变量、判断或资产影响稳定引用时，才可映射为正式对象。
+  input_objects:
+  - Concept
+  - ConceptBoundary
+  - Industry
+  - Segment
+  - Company
+  - Product
+  - Material
+  - Asset
+  - ObjectSet
+  condition:
+    format: boundary_and_usage_check
+    expression: concept has resolved boundary and target object type matches declared
+      research usage.
+  output: mapping_allowed or boundary_review_required
+  used_by_actions:
+  - MapConceptToObject
+  - UnmapConceptFromObject
+  - DecideConceptBoundary
+  evidence_requirement: boundary_source_or_review_note_required
+  confidence_effect: unresolved boundary blocks formal mapping.
+  failure_handling: enqueue_review
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - concept_object_mapping_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+promotion_rules:
+- rule_id: semantic.promotion.candidate_object_admission_gate
+  rule_name: 候选对象正式准入规则
+  rule_type: promotion
+  rule_binding: action
+  description: 候选对象转正式对象前必须具备稳定 ID、对象类型、语义边界、来源或治理说明和必要关系。
+  input_objects:
+  - Concept
+  - Industry
+  - Segment
+  - Company
+  - Product
+  - Material
+  - Asset
+  - ObjectSet
+  - ActionAudit
+  condition:
+    format: required_fields_and_relations
+    expression: candidate has stable id, type, name, owner bundle, source/review note,
+      and required semantic relations.
+  output: formal_object or admission_review_item
+  used_by_actions:
+  - ApproveCandidateObject
+  - CreateIndustry
+  - CreateSegment
+  - CreateCompany
+  - CreateProduct
+  - CreateMaterial
+  - CreateAsset
+  evidence_requirement: source_or_review_record_required
+  confidence_effect: missing admission evidence blocks active status.
+  failure_handling: require_manual_review
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - candidate_object_admission_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+blocking_rules:
+- rule_id: semantic.blocking.relation_endpoint_owner_gate
+  rule_name: 语义关系端点与 owner 归属阻断规则
+  rule_type: blocking
+  rule_binding: action
+  description: 创建语义关系时，关系端点类型、方向和 owner bundle 必须合法；跨 owner 修改只能生成补丁候选。
+  input_objects:
+  - Industry
+  - Segment
+  - Company
+  - Product
+  - Material
+  - Asset
+  - ObjectSet
+  - PatchRequest
+  condition:
+    format: endpoint_and_owner_lookup
+    expression: relation endpoints match relation schema and mutable owner is current
+      bundle or patch path is declared.
+  output: relation_allowed or candidate_patch_request
+  used_by_actions:
+  - CreateOntologyRelation
+  - RejectCandidateRelation
+  - CreatePatchRequest
+  evidence_requirement: endpoint_source_or_patch_reason_required
+  confidence_effect: invalid endpoint blocks relation creation.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - semantic_relation_endpoint_owner_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+action_preconditions:
+- rule_id: semantic.action_precondition.object_state_change_via_action
+  rule_name: 语义对象状态变更必须经由动作规则
+  rule_type: action_precondition
+  rule_binding: action
+  description: 语义对象的废弃、合并、拆分和候选晋升必须通过已定义 Action 执行，并产生 ActionAudit。
+  input_objects:
+  - Concept
+  - Industry
+  - Segment
+  - Company
+  - Product
+  - Material
+  - Asset
+  - ActionAudit
+  condition:
+    format: action_audit_required
+    expression: state transition is requested by registered action and outputs.create_action_audit=true.
+  output: state_transition_allowed or block_next_action
+  used_by_actions:
+  - UpdateOntologyObject
+  - DeprecateOntologyObject
+  - MergeOntologyObject
+  - SplitOntologyObject
+  - ApproveCandidateObject
+  evidence_requirement: action_reason_required
+  confidence_effect: direct state mutation is blocked.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - semantic_state_change_action_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。

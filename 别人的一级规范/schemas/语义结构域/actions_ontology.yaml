@@ -1,0 +1,1192 @@
+schema_name: actions_ontology
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_ontology.yaml
+  relations_schema: relations_ontology.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研语义结构域动作定义——概念层和研究标的的创建、更新、废弃和关系管理动作。actor_roles、trigger_types、action_groups、audit_policy
+  等公共定义见 common.yaml。
+actions:
+  CreateConceptScheme:
+    zh_name: 创建概念体系
+    group: create
+    actor_roles:
+    - system
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: ConceptScheme
+    target_type: ConceptScheme
+    field_inputs:
+      required:
+      - name
+      - scopeName
+      - schemeVersion
+      - description
+      - authorityPolicy
+      optional:
+      - language
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> ConceptScheme
+    preconditions:
+    - type: scope_identified
+      description: 已识别行业、主题或研究范围，需要建立概念口径集合。
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  CreateConcept:
+    zh_name: 创建概念
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Concept
+    target_type: Concept
+    field_inputs:
+      required:
+      - name
+      - definition
+      - conceptType
+      - scopeStatus
+      - definitionStatus
+      optional:
+      - aliases
+      - englishName
+      - inclusionRationale
+      - exclusionRationale
+      - sourceRequirement
+    relation_inputs:
+      required:
+        conceptInScheme:
+          input: conceptSchemeId
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Concept
+    preconditions:
+    - type: object_exists
+      object_type: ConceptScheme
+      input: conceptSchemeId
+    - type: definition_has_scope_role
+      description: 概念必须说明在当前本体中的范围状态。
+    side_effects: []
+    outputs:
+      create_relations:
+      - conceptInScheme
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  DecideConceptBoundary:
+    zh_name: 记录概念边界裁定
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: ConceptBoundary
+    target_type: ConceptBoundary
+    field_inputs:
+      required:
+      - title
+      - decisionType
+      - decisionText
+      - appliesToScope
+      optional:
+      - boundaryCondition
+      - reviewNote
+    relation_inputs:
+      required:
+        boundaryForConcept:
+          input: conceptId
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> ConceptBoundary
+    preconditions:
+    - type: object_exists
+      object_type: Concept
+      input: conceptId
+    - type: boundary_decision_explained
+      description: 边界裁定必须说明纳入、排除、相邻、交叉或延后的理由。
+    side_effects:
+    - type: trigger_followup
+      event_id: semantic.followup.decide_concept_boundary.action_completed
+      event_name: ConceptBoundaryDecided
+      followup_kind: action_completed
+      terminal_handling: no_followup_required
+      allowed_next_actions: []
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_relations:
+      - boundaryForConcept
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.validation.concept_object_mapping_gate
+  CreateIndustry:
+    zh_name: 创建产业对象
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Industry
+    target_type: Industry
+    field_inputs:
+      required:
+      - name
+      - description
+      optional:
+      - aliases
+      - englishName
+      - industryCode
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Industry
+    preconditions:
+    - type: industry_in_scope
+      description: 产业必须在研究范围内，或由 in_scope Concept 通过 conceptMapsToObject 映射。
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.promotion.candidate_object_admission_gate
+  CreateSegment:
+    zh_name: 创建产业链环节对象
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Segment
+    target_type: Segment
+    field_inputs:
+      required:
+      - name
+      - description
+      optional:
+      - aliases
+      - englishName
+      - positionInChain
+    relation_inputs:
+      required:
+        segmentBelongsToIndustry:
+          input: industryId
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Segment
+    preconditions:
+    - type: object_exists
+      object_type: Industry
+      input: industryId
+    side_effects: []
+    outputs:
+      create_relations:
+      - segmentBelongsToIndustry
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.promotion.candidate_object_admission_gate
+  CreateCompany:
+    zh_name: 创建公司对象
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Company
+    target_type: Company
+    field_inputs:
+      required:
+      - name
+      - description
+      optional:
+      - aliases
+      - englishName
+      - ticker
+      - exchange
+    relation_inputs:
+      required:
+        companyBelongsToIndustry:
+          input: industryId
+      optional:
+        companyParticipatesInSegment:
+          input: segmentId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Company
+    preconditions:
+    - type: object_exists
+      object_type: Industry
+      input: industryId
+    side_effects: []
+    outputs:
+      create_relations:
+      - companyBelongsToIndustry
+      create_relations_if_inputs_present:
+      - companyParticipatesInSegment
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.promotion.candidate_object_admission_gate
+  CreateProduct:
+    zh_name: 创建产品对象
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Product
+    target_type: Product
+    field_inputs:
+      required:
+      - name
+      - description
+      optional:
+      - aliases
+      - englishName
+      - productType
+    relation_inputs:
+      required:
+        productProducedBy:
+          input: companyId
+      optional:
+        productBelongsToSegment:
+          input: segmentId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Product
+    preconditions:
+    - type: object_exists
+      object_type: Company
+      input: companyId
+    side_effects: []
+    outputs:
+      create_relations:
+      - productProducedBy
+      create_relations_if_inputs_present:
+      - productBelongsToSegment
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.promotion.candidate_object_admission_gate
+  CreateMaterial:
+    zh_name: 创建材料对象
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Material
+    target_type: Material
+    field_inputs:
+      required:
+      - name
+      - description
+      optional:
+      - aliases
+      - englishName
+      - materialType
+    relation_inputs:
+      required:
+        materialBelongsToIndustry:
+          input: industryId
+      optional:
+        materialUsedInSegment:
+          input: segmentId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Material
+    preconditions:
+    - type: object_exists
+      object_type: Industry
+      input: industryId
+    side_effects: []
+    outputs:
+      create_relations:
+      - materialBelongsToIndustry
+      create_relations_if_inputs_present:
+      - materialUsedInSegment
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.promotion.candidate_object_admission_gate
+  CreateAsset:
+    zh_name: 创建资产对象
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Asset
+    target_type: Asset
+    field_inputs:
+      required:
+      - name
+      - description
+      - assetType
+      optional:
+      - aliases
+      - englishName
+      - ticker
+      - exchange
+    relation_inputs:
+      optional:
+        assetLinkedToIndustry:
+          input: industryId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Asset
+    preconditions:
+    - type: asset_type_valid
+      description: Asset 可表达股票、债券、期货、ETF 等投资标的类型。
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - assetLinkedToIndustry
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - semantic.promotion.candidate_object_admission_gate
+  CreateObjectSet:
+    zh_name: 创建对象集合
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: researcher_initiated
+    creates_object: ObjectSet
+    target_type: ObjectSet
+    field_inputs:
+      required:
+      - name
+      - setType
+      - memberObjectType
+      - refreshPolicy
+      optional:
+      - selectionRule
+    relation_inputs:
+      optional:
+        setContainsMember:
+          input: memberObjectIds
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> ObjectSet
+    preconditions:
+    - type: object_set_definition_valid
+      description: rule_based 或 hybrid 集合必须提供 selectionRule；static_enumerated 集合必须提供成员或保留空集合说明。
+    tool_descriptor:
+      nl_description: 创建一个可复用研究对象集合，用于批量推理、监控或场景加载。
+      when_to_use: 用户需要公司池、资产篮子、主题暴露集合或按规则筛选对象时使用。
+      parameter_schema:
+      - name
+      - setType
+      - memberObjectType
+      - refreshPolicy
+      - selectionRule
+      - memberObjectIds
+      not_for: 不用于创建 Company、Asset 等正式对象本身。
+      emits:
+      - ObjectSet
+      - setContainsMember
+      - ActionAudit
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - setContainsMember
+      - sourceOf
+      create_action_audit: true
+  ResolveObjectSet:
+    zh_name: 解析对象集合成员
+    group: update
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto
+    target_type: ObjectSet
+    parameters:
+      required:
+      - objectSetId
+      optional:
+      - asOfTime
+      - forceRefresh
+    authorization:
+      allowed_roles:
+      - system
+      - researcher
+    function_ref:
+      functionId: resolve_object_set
+      functionVersion: v1
+      inputContract:
+      - ObjectSet
+      - selectionRule
+      outputContract:
+      - member_ids
+      - memberCountSnapshot
+      purity: reads_observations
+      refresh_policy: on_demand
+    preconditions:
+    - type: object_set_exists
+      object_type: ObjectSet
+      input: objectSetId
+    effects:
+    - type: update_fields
+      target: ObjectSet
+      allowed_fields:
+      - memberCountSnapshot
+      - lastResolvedAt
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      invalid_selection_rule: enqueue_review
+      input_missing: block_next_action
+    output_contract:
+      required_outputs:
+      - ObjectSet
+      - ActionAudit
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  UpdateObjectSetMembers:
+    zh_name: 更新对象集合成员
+    group: update
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: ObjectSet
+    parameters:
+      required:
+      - objectSetId
+      - memberObjectIds
+      - actionReason
+      optional: []
+    authorization:
+      allowed_roles:
+      - researcher
+    preconditions:
+    - type: object_set_allows_manual_membership
+      description: 仅 static_enumerated 或 hybrid 集合允许手动维护成员。
+    effects:
+    - type: create_relation
+      target: setContainsMember
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      invalid_member_type: block_next_action
+    output_contract:
+      required_outputs:
+      - setContainsMember
+      - ActionAudit
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  CreateOntologyRelation:
+    zh_name: 创建或确认本体关系
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - relationType
+      - sourceObjectId
+      - targetObjectId
+      optional:
+      - relationProperties
+      - evidenceBasis
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Relation
+    preconditions:
+    - type: both_endpoints_exist
+      description: 关系两端对象必须已存在且可解析。
+    - type: relation_type_valid
+      description: relationType 必须在 relations.yaml 中已定义，且 source/target 类型匹配。
+    threshold_checks:
+    - check_id: ontology_relation_admission_gate
+      policy_ref: policies_governance.quality_gates.relation_endpoint_resolution
+      description: 只检查端点、方向、类型和证据完整性；行业关系强度、子类型和业务参数由 bundle 扩展 policy 定义。
+    policy_refs:
+    - common.object_relation_action_metamodel.relation_contract
+    - common.action_effect_contract
+    - policies_governance.cross_bundle_governance
+    rule_refs:
+    - semantic.blocking.relation_endpoint_owner_gate
+    effects:
+    - type: create_relation
+      target: Relation
+      allowed_fields:
+      - id
+      - type
+      - sourceId
+      - targetId
+      - recordStatus
+      - properties
+      - relationProperties
+      - domainSpecificProperties
+      - scenarioProperties
+      - evidenceRefs
+      - confidence
+      - validFrom
+      - validTo
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: relation
+      field: recordStatus
+      from: []
+      to: candidate
+    failure_handling:
+      unresolved_endpoint: enqueue_review
+      invalid_relation_type: block_next_action
+      cross_bundle_owner_mismatch: create_patch_request
+      missing_evidence: enqueue_review
+    output_contract:
+      required_outputs:
+      - relation_instance
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+      default_recordStatus: candidate
+    audit_required: true
+    side_effects:
+    - type: trigger_followup
+      event_id: semantic.followup.create_ontology_relation.action_completed
+      event_name: OntologyRelationCreated
+      followup_kind: action_completed
+      terminal_handling: no_followup_required
+      allowed_next_actions: []
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_relation: true
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  UpdateOntologyObject:
+    zh_name: 更新本体对象属性
+    group: update
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: researcher_initiated
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - targetObjectId
+      - updatedFields
+      optional:
+      - updateReason
+      - evidenceBasis
+    preconditions:
+    - type: object_exists
+      description: 被更新的对象必须已存在。
+    - type: updated_fields_defined_in_schema
+      description: updatedFields 中的字段必须在 objects.yaml 中已定义。
+    - type: direct_state_field_editing_not_allowed
+      description: 状态字段只能通过状态流转动作变更，不能直接编辑。
+    threshold_checks:
+    - check_id: ontology_object_update_gate
+      policy_ref: policies_governance.quality_gates.traceability_backlink
+      description: 字段更新应有原因、证据或治理记录；具体业务字段取值约束由 owner bundle policy 定义。
+    policy_refs:
+    - common.object_relation_action_metamodel.object_contract
+    - common.action_effect_contract
+    - policies_governance.cross_bundle_governance
+    rule_refs:
+    - semantic.action_precondition.object_state_change_via_action
+    effects:
+    - type: update_fields
+      target: Object
+      forbidden_fields:
+      - id
+      - type
+      - recordStatus
+      - lifecycle_field
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions: []
+    failure_handling:
+      schema_field_missing: block_next_action
+      state_field_update_requested: enqueue_review
+      cross_bundle_owner_mismatch: create_patch_request
+      evidence_missing: enqueue_review
+    output_contract:
+      required_outputs:
+      - updated_object_snapshot
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+    audit_required: true
+    side_effects: []
+    outputs:
+      update_object_fields: true
+      create_action_audit: true
+  DeprecateOntologyObject:
+    zh_name: 标记对象废弃或不再适用
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: researcher_initiated_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - targetObjectId
+      - deprecationReason
+      optional:
+      - supersededById
+      - evidenceBasis
+    preconditions:
+    - type: object_exists
+      description: 被废弃的对象必须已存在。
+    - type: deprecation_reason_provided
+      description: 必须说明废弃原因，可选注明替代对象。
+    - type: no_dangling_relations
+      description: 废弃前需检查是否存在依赖该对象的关系；存在时需先处理或一并废弃。
+    threshold_checks:
+    - check_id: ontology_object_deprecation_gate
+      policy_ref: policies_governance.review_queue.item_types.deprecation_review
+      description: 废弃不删除历史；存在下游依赖时进入审核或补丁流程。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.cross_bundle_governance
+    rule_refs:
+    - semantic.action_precondition.object_state_change_via_action
+    effects:
+    - type: deprecate_object
+      target: Object
+      allowed_state_values:
+      - deprecated
+      - superseded
+      - archived
+    - type: update_relation
+      target: dependent_relations
+      condition: only_when_dependency_plan_exists
+    - type: emit_audit
+      target: ActionAudit
+    - type: create_patch_request
+      target: PatchRequest
+      condition: cross_bundle_or_structural_change
+    side_effects:
+    - type: create_patch_request
+      payload_fields:
+      - source_bundle_id
+      - owner_bundle_id
+      - target_asset_id
+      - operation
+      - rationale
+    - type: trigger_followup
+      event_id: semantic.followup.deprecate_ontology_object.action_completed
+      event_name: ObjectStructureChanged
+      followup_kind: action_completed
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    state_transitions:
+    - target: Object
+      field: recordStatus
+      from:
+      - candidate
+      - draft
+      - review_pending
+      - active
+      - confirmed
+      to:
+      - deprecated
+      - superseded
+      - archived
+    failure_handling:
+      dangling_relations_exist: enqueue_review
+      missing_reason: block_next_action
+      cross_bundle_owner_mismatch: create_patch_request
+    output_contract:
+      required_outputs:
+      - updated_object_status
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+      - dependent_relation_updates
+    audit_required: true
+    outputs:
+      mark_object_deprecated: true
+      create_action_audit: true
+  MergeOntologyObject:
+    zh_name: 合并重复本体对象
+    group: update
+    actor_roles:
+    - researcher
+    - industry_owner
+    - data_admin
+    trigger: researcher_initiated_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - canonicalObjectId
+      - duplicateObjectIds
+      - mergeReason
+      optional:
+      - aliasMergePlan
+      - relationMigrationPlan
+      - evidenceBasis
+    preconditions:
+    - type: canonical_object_exists
+      description: 保留对象必须存在且类型清楚。
+    - type: duplicate_objects_resolved
+      description: 待合并对象必须可解析，且与保留对象属于同一可合并对象类型或已有人工确认。
+    - type: downstream_migration_plan_exists
+      description: 必须说明别名、关系、证据引用、判断锚点和场景引用如何迁移。
+    effects:
+    - type: update_fields
+      target: canonical_object
+      allowed_fields:
+      - aliases
+      - description
+      - sourceRefs
+      - mergeMetadata
+    - type: update_relation
+      target: dependent_relations
+    - type: deprecate_object
+      target: duplicate_objects
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: duplicate_objects
+      field: recordStatus
+      from:
+      - candidate
+      - draft
+      - review_pending
+      - active
+      - confirmed
+      to:
+      - superseded
+      - archived
+    failure_handling:
+      target_type_conflict: enqueue_review
+      missing_migration_plan: block_next_action
+      downstream_reference_conflict: create_patch_request
+    output_contract:
+      required_outputs:
+      - canonical_object_snapshot
+      - superseded_object_ids
+      - relation_migration_summary
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+    side_effects:
+    - type: trigger_followup
+      event_id: semantic.followup.merge_ontology_object.action_completed
+      event_name: ObjectStructureChanged
+      followup_kind: action_completed
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_object_fields: true
+      update_dependent_relations: true
+      mark_object_deprecated: true
+      create_action_audit: true
+    rule_refs:
+    - semantic.action_precondition.object_state_change_via_action
+  SplitOntologyObject:
+    zh_name: 拆分过粗本体对象
+    group: update
+    actor_roles:
+    - researcher
+    - industry_owner
+    - data_admin
+    trigger: researcher_initiated_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - sourceObjectId
+      - splitTargets
+      - splitReason
+      optional:
+      - relationMigrationPlan
+      - evidenceBasis
+    preconditions:
+    - type: source_object_exists
+      description: 被拆分对象必须存在。
+    - type: split_targets_typed
+      description: 每个拆分目标必须声明对象类型、名称、边界和候选来源。
+    - type: downstream_migration_plan_exists
+      description: 必须说明原关系、证据引用、判断锚点和场景引用如何迁移。
+    effects:
+    - type: create_object
+      target: split_target_objects
+    - type: update_relation
+      target: dependent_relations
+    - type: deprecate_object
+      target: source_object
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: source_object
+      field: recordStatus
+      from:
+      - candidate
+      - draft
+      - review_pending
+      - active
+      - confirmed
+      to:
+      - superseded
+      - archived
+    failure_handling:
+      split_target_missing_boundary: enqueue_review
+      missing_migration_plan: block_next_action
+      downstream_reference_conflict: create_patch_request
+    output_contract:
+      required_outputs:
+      - candidate_split_objects
+      - relation_migration_summary
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+    side_effects:
+    - type: trigger_followup
+      event_id: semantic.followup.split_ontology_object.action_completed
+      event_name: ObjectStructureChanged
+      followup_kind: action_completed
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_candidate_objects: true
+      update_dependent_relations: true
+      mark_object_deprecated: true
+      create_action_audit: true
+    rule_refs:
+    - semantic.action_precondition.object_state_change_via_action
+  MapConceptToObject:
+    zh_name: 概念映射到稳定语义对象
+    group: create
+    actor_roles:
+    - researcher
+    - industry_owner
+    trigger: researcher_initiated_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - conceptId
+      - targetObjectId
+      - mappingRole
+      - mappingBasis
+      optional:
+      - evidenceBasis
+    preconditions:
+    - type: concept_exists
+      object_type: Concept
+      input: conceptId
+    - type: target_is_stable_semantic_object
+      description: targetObjectId 只能是 Industry、Segment、Company、Product、Material、Asset
+        或 ObjectSet。
+    - type: mapping_not_runtime_or_reasoning_object
+      description: 不得把 Concept 直接映射到 Event、StateVariable、Signal、JudgmentOutput 等运行时或推理对象。
+    effects:
+    - type: create_relation
+      target: conceptMapsToObject
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      invalid_target_type: block_next_action
+      mapping_conflict: enqueue_review
+      missing_basis: enqueue_review
+    output_contract:
+      required_outputs:
+      - conceptMapsToObject
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    side_effects: []
+    outputs:
+      create_relation: conceptMapsToObject
+      create_action_audit: true
+    rule_refs:
+    - semantic.validation.concept_object_mapping_gate
+  UnmapConceptFromObject:
+    zh_name: 取消概念到对象映射
+    group: update
+    actor_roles:
+    - researcher
+    - industry_owner
+    trigger: researcher_initiated_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - conceptMapsToObjectRelationId
+      - unmapReason
+      optional:
+      - replacementConceptId
+      - replacementObjectId
+      - evidenceBasis
+    preconditions:
+    - type: mapping_relation_exists
+      description: 待取消映射必须是 conceptMapsToObject 关系。
+    - type: downstream_usage_checked
+      description: 取消映射前必须检查证据、判断、场景和对象集合是否依赖该映射。
+    effects:
+    - type: update_relation
+      target: conceptMapsToObject
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: relation
+      field: recordStatus
+      from:
+      - candidate
+      - confirmed
+      to: archived
+    failure_handling:
+      downstream_usage_exists: enqueue_review
+      missing_reason: block_next_action
+      replacement_conflict: create_patch_request
+    output_contract:
+      required_outputs:
+      - updated_relation_status
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+    side_effects: []
+    outputs:
+      update_relation: conceptMapsToObject
+      create_action_audit: true
+    rule_refs:
+    - semantic.validation.concept_object_mapping_gate
+  ApproveCandidateObject:
+    zh_name: 批准候选对象为正式对象
+    group: review
+    actor_roles:
+    - reviewer
+    - industry_owner
+    - data_admin
+    trigger: system_prompt_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - candidateObjectId
+      - approvalBasis
+      optional:
+      - reviewRecordId
+      - evidenceBasis
+    preconditions:
+    - type: candidate_object_exists
+      description: 候选对象必须存在且 recordStatus 为 candidate、draft 或 review_pending。
+    - type: source_endpoint_type_checks_passed
+      description: 通过来源校验、端点校验、类型校验和必要的人工确认。
+    effects:
+    - type: update_fields
+      target: candidate_object
+      allowed_fields:
+      - recordStatus
+      - reviewedBy
+      - reviewedAt
+      - approvalBasis
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: Object
+      field: recordStatus
+      from:
+      - candidate
+      - draft
+      - review_pending
+      to:
+      - active
+      - confirmed
+    failure_handling:
+      missing_source_or_endpoint: enqueue_review
+      type_conflict: enqueue_review
+      duplicate_object_detected: block_next_action
+    output_contract:
+      required_outputs:
+      - approved_object_snapshot
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    side_effects:
+    - type: trigger_followup
+      event_id: semantic.followup.approve_candidate_object.action_completed
+      event_name: ObjectCandidateApproved
+      followup_kind: action_completed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - CreateActionProposal
+      - CreatePatchRequest
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_object_status: true
+      create_action_audit: true
+    rule_refs:
+    - semantic.action_precondition.object_state_change_via_action
+    - semantic.promotion.candidate_object_admission_gate
+  RejectCandidateRelation:
+    zh_name: 拒绝候选关系
+    group: review
+    actor_roles:
+    - reviewer
+    - industry_owner
+    - data_admin
+    trigger: system_prompt_reviewer_confirm
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - candidateRelationId
+      - rejectReason
+      optional:
+      - reviewRecordId
+      - evidenceBasis
+    preconditions:
+    - type: candidate_relation_exists
+      description: 候选关系必须存在且 recordStatus 为 candidate 或 review_pending。
+    - type: rejection_reason_provided
+      description: 必须说明拒绝原因，如端点错误、类型错误、证据不足或关系越界到判断推理域。
+    effects:
+    - type: update_relation
+      target: candidate_relation
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: relation
+      field: recordStatus
+      from:
+      - candidate
+      - review_pending
+      to: rejected
+    failure_handling:
+      missing_reason: block_next_action
+      relation_not_candidate: enqueue_review
+      downstream_usage_exists: enqueue_review
+    output_contract:
+      required_outputs:
+      - updated_relation_status
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    side_effects: []
+    outputs:
+      update_relation_status: true
+      create_action_audit: true
+    rule_refs:
+    - semantic.blocking.relation_endpoint_owner_gate

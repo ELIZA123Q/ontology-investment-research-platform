@@ -1,0 +1,226 @@
+schema_name: contract_index
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+canonical_rule: 本文件只声明核心契约的权威位置与派生规则；不得复制对象、关系、动作、枚举的完整名称清单。
+description: >
+  机器可读的权威位置索引。对象、关系、动作、枚举和公共契约的名称清单
+  由 validate_core.py 从 owner files 动态派生，避免在索引文件里重复维护
+  第二份 schema。policy block 只登记跨文件引用所需的少量入口。
+
+contract_index:
+  indexing_policy:
+    source_of_truth: owner_files
+    layout_strategy: domain_first_slim_layout
+    layout_contract_ref: schemas/工程交付与Bundle契约/policies_engineering.yaml.domain_first_schema_layout
+    derived_symbol_sets:
+      - object_types
+      - relation_types
+      - action_types
+      - rule_sets
+      - event_sets
+      - common_enums
+      - public_contracts
+    explicit_symbol_sets:
+      - required_policy_blocks
+    no_symbol_copy_rule: >
+      object_types、relation_types、action_types、common_enums 和 public_contracts
+      不得在本文件逐项列举；校验器必须从唯一 owner file 派生 symbol index。
+
+  authority_sets:
+    domain_first_slim_layout:
+      indexing_mode: transitional_alias_layout
+      description: >
+        五个职责层是 schema 第一维；objects、relations、actions、rules、events、contracts、functions
+        是每个职责层内部的第二维。第一阶段保留文件名，物理目录先拆分到治理域和工程交付与Bundle契约。
+      domains:
+        语义结构域:
+          objects: {alias_to: schemas/语义结构域/objects_ontology.yaml}
+          relations: {alias_to: schemas/语义结构域/relations_ontology.yaml}
+          actions: {alias_to: schemas/语义结构域/actions_ontology.yaml}
+          rules: {alias_to: schemas/语义结构域/rules.yaml}
+          events: {alias_to: schemas/语义结构域/events.yaml, note: deprecated；权威契约在 actions_ontology.yaml#side_effects.trigger_followup。}
+          contracts: {alias_to: schemas/语义结构域/actions_ontology.yaml, note: 语义域暂无独立 contracts 文件，先由 actions/relations schema 与 common contracts 承载。}
+        证据域:
+          objects: {alias_to: schemas/证据域/objects_evidence.yaml}
+          relations: {alias_to: schemas/证据域/relations_evidence.yaml}
+          actions: {alias_to: schemas/证据域/actions_evidence.yaml}
+          rules: {alias_to: schemas/证据域/rules.yaml}
+          events: {alias_to: schemas/证据域/events.yaml, note: deprecated；权威契约在 actions_evidence.yaml#side_effects.trigger_followup。}
+          contracts: {alias_to: schemas/证据域/policies_evidence.yaml}
+        判断推理域:
+          objects: {alias_to: schemas/判断推理域/objects_reasoning.yaml}
+          relations: {alias_to: schemas/判断推理域/relations_reasoning.yaml}
+          actions: {alias_to: schemas/判断推理域/actions_reasoning.yaml}
+          rules: {alias_to: schemas/判断推理域/rules.yaml}
+          events: {alias_to: schemas/判断推理域/events.yaml, note: deprecated；权威契约在 actions_reasoning.yaml#side_effects.trigger_followup。}
+          contracts: {alias_to: schemas/判断推理域/policies_reasoning.yaml}
+        治理域:
+          objects: {alias_to: schemas/治理域/objects_governance.yaml}
+          relations: {alias_to: schemas/治理域/relations_governance.yaml}
+          actions: {alias_to: schemas/治理域/actions_governance.yaml}
+          rules: {alias_to: schemas/治理域/rules.yaml}
+          events: {alias_to: schemas/治理域/events.yaml, note: deprecated；权威契约在 actions_governance.yaml#side_effects.trigger_followup。}
+          functions: {alias_to: schemas/治理域/objects_governance_logic.yaml, future_file: schemas/治理域/functions.yaml}
+          policies: {alias_to: schemas/治理域/policies_governance.yaml}
+        工程交付与Bundle契约:
+          contracts:
+            aliases_to:
+              - schemas/工程交付与Bundle契约/policies_engineering.yaml
+              - schemas/工程交付与Bundle契约/contracts_runtime.yaml
+              - schemas/工程交付与Bundle契约/contracts_workspace.yaml
+              - schemas/工程交付与Bundle契约/contracts_data_service.yaml
+        平台编排:
+          contracts:
+            aliases_to:
+              - schemas/平台编排/contracts_platform.yaml
+          policies: {alias_to: schemas/工程交付与Bundle契约/policies_validation.yaml}
+    schema_file_groups:
+      indexing_mode: explicit_file_groups
+      description: 大 schema 文件的正式聚合入口；owner 文件只登记 schema_parts，符号集合由 part 文件聚合派生。
+      groups:
+        reasoning_objects:
+          aggregate_owner: schemas/判断推理域/objects_reasoning.yaml
+          parts:
+            - schemas/判断推理域/objects_reasoning_observable.yaml
+            - schemas/判断推理域/objects_reasoning_judgment.yaml
+            - schemas/判断推理域/objects_reasoning_logic.yaml
+            - schemas/判断推理域/objects_reasoning_simulation.yaml
+        governance_objects:
+          aggregate_owner: schemas/治理域/objects_governance.yaml
+          parts:
+            - schemas/治理域/objects_governance_patch.yaml
+            - schemas/治理域/objects_governance_logic.yaml
+            - schemas/治理域/objects_governance_run_audit.yaml
+        common_contracts:
+          aggregate_owner: schemas/common.yaml
+          parts:
+            - schemas/common_identity.yaml
+            - schemas/common_enums.yaml
+            - schemas/public_contracts.yaml
+    object_types:
+      indexing_mode: derived_from_owner_files
+      top_level_key: object_types
+      unique_key: object_type_name
+      schema_path_template: object_types.{name}
+      owner_files:
+        语义结构域: schemas/语义结构域/objects_ontology.yaml
+        判断推理域: schemas/判断推理域/objects_reasoning.yaml
+        证据域: schemas/证据域/objects_evidence.yaml
+        治理域: schemas/治理域/objects_governance.yaml
+    relation_types:
+      indexing_mode: derived_from_owner_files
+      top_level_key: relation_types
+      unique_key: relation_type_name
+      schema_path_template: relation_types.{name}
+      owner_files:
+        语义结构域: schemas/语义结构域/relations_ontology.yaml
+        判断推理域: schemas/判断推理域/relations_reasoning.yaml
+        证据域: schemas/证据域/relations_evidence.yaml
+        治理域: schemas/治理域/relations_governance.yaml
+    action_types:
+      indexing_mode: derived_from_owner_files
+      top_level_key: actions
+      unique_key: action_type_name
+      schema_path_template: actions.{name}
+      owner_files:
+        语义结构域: schemas/语义结构域/actions_ontology.yaml
+        判断推理域: schemas/判断推理域/actions_reasoning.yaml
+        证据域: schemas/证据域/actions_evidence.yaml
+        治理域: schemas/治理域/actions_governance.yaml
+    common_enums:
+      indexing_mode: derived_from_owner_file
+      top_level_key: common_enums
+      unique_key: enum_name
+      schema_path_template: common_enums.{name}
+      owner_file: schemas/common.yaml
+    public_contracts:
+      indexing_mode: derived_from_owner_file
+      top_level_key: public_contracts
+      unique_key: contract_name
+      schema_path_template: public_contracts.{name}
+      owner_file: schemas/common.yaml
+      ignored_keys: [description]
+    policy_blocks:
+      indexing_mode: explicit_required_blocks
+      unique_key: policy_block_name
+      schema_path_template: "{schema_file}.{name}"
+      owner_files:
+        reasoning: schemas/判断推理域/policies_reasoning.yaml
+        evidence: schemas/证据域/policies_evidence.yaml
+        governance: schemas/治理域/policies_governance.yaml
+        engineering: schemas/工程交付与Bundle契约/policies_engineering.yaml
+        validation: schemas/工程交付与Bundle契约/policies_validation.yaml
+    rule_sets:
+      indexing_mode: derived_from_owner_files
+      top_level_key: "*_rules"
+      unique_key: rule_id
+      schema_path_template: "{owner_file}.{rule_set}.{rule_id}"
+      owner_files:
+        语义结构域: schemas/语义结构域/rules.yaml
+        判断推理域: schemas/判断推理域/rules.yaml
+        证据域: schemas/证据域/rules.yaml
+        治理域: schemas/治理域/rules.yaml
+    event_sets:
+      indexing_mode: derived_from_owner_files
+      top_level_key: event_model.event_families
+      unique_key: event_id
+      schema_path_template: "{owner_file}.event_model.event_families.events.{event_id}"
+      owner_files:
+        语义结构域: schemas/语义结构域/events.yaml
+        判断推理域: schemas/判断推理域/events.yaml
+        证据域: schemas/证据域/events.yaml
+        治理域: schemas/治理域/events.yaml
+
+  required_policy_blocks:
+    retrieval_policy: schemas/治理域/policies_governance.yaml
+    action_proposal_policy: schemas/治理域/policies_governance.yaml
+    metrics_policy: schemas/治理域/policies_governance.yaml
+    layer_gates: schemas/判断推理域/policies_reasoning.yaml
+    independent_source_criteria: schemas/判断推理域/policies_reasoning.yaml
+    rule_registry_gate: schemas/工程交付与Bundle契约/policies_validation.yaml
+    action_followup_side_effect_gate: schemas/工程交付与Bundle契约/policies_validation.yaml
+    action_followup_gate: schemas/工程交付与Bundle契约/policies_validation.yaml
+    action_rule_binding_gate: schemas/工程交付与Bundle契约/policies_validation.yaml
+    validation_policy: schemas/工程交付与Bundle契约/policies_validation.yaml
+
+  logic_layer_authority:
+    source: references/06_能力暴露与运行消费规范.md#5-logic-分层与平台术语对齐
+    ontology_platform_alignment:
+      ObjectType_LinkType: [object_types, relation_types]
+      ActionType: action_types
+      Function: [LogicFunction, LogicBlock]
+      ObjectView: ObjectViewSpec
+      Automate: AutomateFlow
+    rules:
+      - Rule Registry 中的 inference rule、InferenceRule 兼容对象、ConductionTemplate 和 ScenarioPath 只声明 What。
+      - LogicFunction 和 LogicBlock 是唯一 How 执行原语。
+      - ScenarioModel、capability_index 和 loading_rules 只选择 Which。
+      - ActionType、ActionProposal 和 ActionAudit 是唯一 Do 写回链路。
+
+  human_reference_docs:
+    description: >
+      references/ 下领域规范的人类说明；不是项目总入口。
+      项目总入口见 README.md；平台编排见 PLATFORM.md；任务执行见 PIPELINE.md；
+      目录边界见 PROJECT_ARCHITECTURE.md；工厂与运行端分工见 FACTORY_RUNTIME.md。
+    project_entrypoints:
+      readme: README.md
+      platform: PLATFORM.md
+      pipeline: PIPELINE.md
+      architecture: PROJECT_ARCHITECTURE.md
+      factory_runtime: FACTORY_RUNTIME.md
+    domain_references:
+      overview: references/00_框架概述.md
+      语义结构域: references/01_语义结构域规范.md
+      判断推理域: references/02_判断推理域规范.md
+      证据域: references/03_证据域规范.md
+      治理域: references/04_治理域规范.md
+      工程交付与Bundle契约: references/05_工程交付与Bundle契约.md
+      运行消费: references/06_能力暴露与运行消费规范.md
+
+  drift_guards:
+    - 对象、关系和动作名称在对应 schema 文件集合内必须全局唯一。
+    - common_enums 和 public_contracts 只能在 schemas/common.yaml 聚合的 schema_parts 定义，域 schema 只能引用。
+    - policy block 不得复制对象、关系、动作或枚举定义，只能引用 schema path。
+    - ActionFollowup 契约只在 actions_*.yaml 的 trigger_followup side effect 登记；events.yaml 已 deprecated；判断推理域 Event 仍是外部研究事件对象。
+    - bundle shared/_index 只索引业务资产实例，不得成为核心 schema 的第二事实源。

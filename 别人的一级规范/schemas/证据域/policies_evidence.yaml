@@ -1,0 +1,755 @@
+schema_name: policies_evidence
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  objects_schema: objects_evidence.yaml
+  relations_schema: relations_evidence.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: >
+  投研本体证据层规范。定义 source_documents.yaml、evidence_episodes.yaml、evidence_claims.yaml、evidence_facts.yaml 四个 bundle 证据模块的结构契约：
+  证据摄入管道、证据矩阵、claim-fact-对象映射索引、证据新鲜度过滤规则、
+  证据图谱校验规则。EvidenceEpisode、EvidenceClaim、EvidenceFact 的对象字段
+  对象定义见各域 objects_*.yaml schema，本文件定义证据对象的组织、索引和校验方式。
+
+# ============================================================
+# 证据摄入管道
+# ============================================================
+evidence_ingestion_pipeline:
+  description: >
+    证据从原始材料到正式本体的摄入管道。每个阶段有明确的输入、输出和质量闸门。
+    管道不是单向的——下游反馈（推理缺口、评测失败）可以触发新的摄入。
+
+  stages:
+    - stage: 1_material_intake
+      input: 原始材料（PDF、网页、数据流、历史案例、推理反馈、评测反馈）
+      output: SourceDocument + EvidenceEpisode
+      gate: 来源可信度检查、格式解析、去重
+      actor: [system]
+
+    - stage: 2_claim_extraction
+      input: EvidenceEpisode
+      output: EvidenceClaim（candidate 状态）
+      gate: claim 必须能追溯 episode、来源位置、业务时间
+      actor: [system, researcher]
+      rules:
+        - restricted_item、rumor_or_unverified、author_judgment、forecast、guidance 类型 claim 不得自动升级。
+        - 每个 claim 记录 sourceStatementType（fact / estimate）。
+        - 来源可靠性不等于主张可信度；主张可信度需结合 claimType、原文位置、一手来源、交叉验证、利益相关和冲突状态。
+        - 一条 EvidenceClaim 只表达一个最小可复核主张；多对象、多时间、多指标、多方向或多因果关系必须拆分。
+        - claim 无法追溯到 episode 或 source document 时 → quarantined 或 rejected。
+
+    - stage: 3_claim_normalization
+      input: EvidenceClaim（candidate）
+      output: EvidenceClaim（normalized）+ EvidenceFact（candidate）
+      gate: 归一化去重、冲突检测、跨 episode 归并
+      actor: [system]
+      rules:
+        - 多个 claim 描述同一事实时归并为 EvidenceFact。
+        - 矛盾 claim 进入 evidence_conflict_record。
+        - normalized 只代表已完成对象映射、口径归一和原文定位，不代表可被正式推理引用。
+
+    - stage: 4_fact_validation
+      input: EvidenceFact（candidate）
+      output: EvidenceFact（normalized / active / invalidated / superseded / rejected / quarantined / conflicted）
+      gate: 来源交叉验证、时间有效性检查、一致性检查
+      actor: [system, researcher]
+      rules:
+        - 新事实否定旧事实时，旧事实标记为 invalidated 或 superseded。
+        - EvidenceFact 不是最终事实裁决，只是当前证据下可引用的结构化事实候选。
+        - unresolved 冲突对应的 EvidenceClaim 或 EvidenceFact 应标记为 conflicted，不得支撑判断升级。
+        - 不得物理删除旧事实。
+
+    - stage: 5_evidence_export
+      input: EvidenceFact（active）+ EvidenceClaim（active）
+      output: candidate patch evidence / observation candidate / signal candidate
+      gate: 不直接创建 PatchRequest；由判断推理域、优化 Skill 或治理域消费。只有优化 Skill 正式合并后才进入 objects.yaml 等主干模块。
+      actor: [system]
+      note: v1.1 改名（原 5_ontology_feed）。PatchRequest 和 PatchLedgerItem 归属治理域，证据域只输出候选变更依据。
+
+evidence_domain_boundary:
+  description: >
+    证据域不直接生成投资判断，不直接形成资产影响，不直接修改正式对象和正式关系，
+    也不直接裁决所有冲突。证据域只负责把原始材料拆解为可定位、可归一、可复核、
+    可追溯的来源、主张和事实候选。
+  forbidden_direct_outputs:
+    - investment_judgment
+    - asset_impact
+    - formal_object_mutation
+    - formal_relation_mutation
+    - final_truth_adjudication
+  handoff_rules:
+    object_or_relation_change: 语义结构域动作或治理域 PatchRequest 承接。
+    state_reading: 判断推理域 StateVariableObservation 承接。
+    hypothesis_signal_judgment_impact: 判断推理域 StateHypothesis、Signal、JudgmentOutput、AssetImpact 承接。
+    conflict_permission_patch_release: 治理域 ReviewRecord、权限审核和 PatchRequest 承接。
+
+claim_splitting_policy:
+  description: EvidenceClaim 是最小可复核主张单元。
+  split_when_sentence_contains_multiple:
+    - objects
+    - time_points_or_periods
+    - metrics
+    - directions
+    - causal_links
+    - claim_types
+  quality_rules:
+    - 同一句话中事实、预测、管理层指引、作者判断和原因解释必须拆分为不同 EvidenceClaim。
+    - 拆分后每条 EvidenceClaim 必须保留原文定位和同一 source chain。
+    - 不得把 forecast、guidance、author_judgment 或 assumption 归并成 reported_fact。
+
+claim_type_taxonomy:
+  description: 新抽取优先使用细粒度主张类型；历史 claimType 保持兼容。
+  recommended_types:
+    reported_fact:
+      meaning: 材料声称已经发生的事实。
+      downstream: [Event, EvidenceFact]
+    data_point:
+      meaning: 表格、财报、数据库中的数值点。
+      downstream: [StateVariableObservation]
+    estimate:
+      meaning: 估算值。
+      downstream: [StateVariableObservation, MarketExpectation]
+      confidence_rule: 低于可核验 data_point 一档。
+    forecast:
+      meaning: 对未来的预测。
+      downstream: [MarketExpectation, author_judgment_evidence]
+    guidance:
+      meaning: 管理层指引。
+      downstream: [MarketExpectation]
+    author_judgment:
+      meaning: 作者判断。
+      downstream: [StateHypothesis_candidate, JudgmentOutput_candidate]
+      fact_usage: forbidden
+    assumption:
+      meaning: 假设前提。
+      downstream: [StateHypothesis, HypotheticalInput]
+    rumor_or_unverified:
+      meaning: 未证实信息。
+      downstream: [quarantine_or_low_confidence_candidate]
+      fact_usage: forbidden
+    correction:
+      meaning: 更正或修订。
+      downstream: [claimInvalidatesClaim, claimSupersedesClaim, factInvalidatesFact, factSupersedesFact]
+  legacy_mappings:
+    fact_observation: [reported_fact, data_point]
+    validation_signal: validation_evidence
+    falsification_condition: falsification_evidence
+
+evidence_status_ladder:
+  description: 证据状态分层，防止候选证据直接进入正式推理。
+  statuses:
+    candidate:
+      meaning: 自动抽取或人工录入的候选证据，尚未完成定位、归一、冲突和来源检查。
+      allowed_usage: [hint_only]
+      forbidden_usage: [judgment_upgrade]
+    normalized:
+      meaning: 已完成对象映射、口径归一和原文定位，但尚未通过可信度检查。
+      allowed_usage: [supplement_evidence, conflict_detection, manual_review]
+    active:
+      meaning: 来源可追溯、原文可定位、类型清楚、冲突可控，允许被推理引用。
+      allowed_usage: [observation_basis, signal_basis, expectation_basis, judgment_basis]
+    quarantined:
+      meaning: 来源、权限、冲突或可信度存在问题，暂时隔离。
+      allowed_usage: [verification_queue_only]
+    rejected:
+      meaning: 被明确拒绝的主张或事实候选。
+      allowed_usage: [audit_only]
+    invalidated:
+      meaning: 曾经有效，但被新证据证明失效。
+      allowed_usage: [retrospect]
+    superseded:
+      meaning: 被更新版本替代。
+      allowed_usage: [version_history]
+    conflicted:
+      meaning: 与其他证据存在未裁决冲突。
+      allowed_usage: [low_confidence_reference, conflict_review]
+      forbidden_usage: [formal_judgment_upgrade]
+
+reasoning_export_contract:
+  description: 证据导出给判断推理域时的对象承接契约。
+  mappings:
+    occurred_fact:
+      evidence_output: reported_fact
+      reasoning_target: Event
+    numeric_data_point:
+      evidence_output: data_point
+      reasoning_target: StateVariableObservation
+    merged_claim_result:
+      evidence_output: EvidenceFact
+      reasoning_target: cited_basis
+    expectation_source:
+      evidence_output: [guidance, forecast, implied_pricing_basis]
+      reasoning_target: MarketExpectation
+    judgment_or_assumption_hint:
+      evidence_output: [author_judgment, assumption, forecast]
+      reasoning_target: [StateHypothesis_candidate, JudgmentOutput_candidate]
+    hypothesis_effect_evidence:
+      evidence_output: [validation_evidence, falsification_evidence]
+      reasoning_target: Signal
+    uncertain_or_conflicted:
+      evidence_output: [rumor_or_unverified, conflicted, low_reliability]
+      reasoning_target: [supplement_queue, conflict_review, low_confidence_signal]
+  export_rules:
+    - candidate 和 normalized 证据默认只作为线索，不支撑判断升级。
+    - conflicted、quarantined、rejected 证据不得作为 formalTrigger 依据。
+    - 导出必须附带 source chain、businessTime、validFrom/validTo、markings、freshness_score 和 conflict_status。
+
+derivative_marking_chain_policy:
+  description: 受限材料参与生成派生对象时的权限链路规则。
+  rule: >
+    一旦受限材料参与生成 EvidenceClaim、EvidenceFact、StateVariableObservation、Signal、
+    JudgmentOutput 或 AssetImpact，派生对象必须记录受限来源链路；即使后续内容被摘要、
+    改写或归并，也不得丢失原始权限标记。
+  required_fields_or_relations: [sourceOf, claimCitesSource, factSupportedByClaim, markings]
+  enforcement: block_on_barrier_or_enqueue_review
+
+# ============================================================
+# 证据矩阵
+# ============================================================
+evidence_matrix:
+  description: >
+    证据矩阵是证据 bundle 模块的核心索引结构，以研究对象（Industry、Company 等）
+    和状态变量为轴，组织所有相关的 EvidenceClaim 和 EvidenceFact。
+    推理 Skill 通过证据矩阵快速定位目标对象和变量的可用证据。
+
+  matrix_axes:
+    row_axis:
+      description: 研究对象或状态变量。
+      types: [Industry, Segment, Company, Product, Material, Asset, StateVariable, Event]
+    column_axis:
+      description: 证据维度和时间切片。
+      dimensions:
+        - dimension: reported_facts
+          description: 已发生事实类 claim（claimType=reported_fact；历史 fact_observation 可兼容映射）。
+        - dimension: data_points
+          description: 数值点类 claim（claimType=data_point），优先导出为状态变量观测候选。
+        - dimension: fact_observations
+          description: 历史事实观测类 claim（claimType=fact_observation），兼容 reported_fact 与 data_point。
+        - dimension: estimates
+          description: 估算类 claim（claimType=estimate）
+        - dimension: guidance
+          description: 管理层指引类 claim（claimType=guidance），优先导出为 MarketExpectation。
+        - dimension: validation_evidence
+          description: 可用于验证的证据（claimType=validation_signal / validation_evidence）。validation_signal 为历史命名，不等于判断推理域 Signal。
+        - dimension: falsification_evidence
+          description: 可用于证伪的证据（claimType=falsification_condition / falsification_evidence）。falsification_condition 为历史命名。
+        - dimension: transmission
+          description: 传导逻辑类 claim（claimType=transmission_logic）
+        - dimension: forecasts
+          description: 预测类 claim（claimType=forecast），受限使用
+        - dimension: scenario_paths
+          description: 情景路径类 claim（claimType=scenario_path）
+        - dimension: author_judgments
+          description: 作者判断类 claim（claimType=author_judgment），受限使用
+        - dimension: rumors_or_unverified
+          description: 未证实信息类 claim（claimType=rumor_or_unverified），默认隔离或低可信使用。
+        - dimension: corrections
+          description: 更正或修订类 claim（claimType=correction），用于失效或替代旧主张/事实。
+
+  cell_structure:
+    description: 矩阵中每个单元格的结构。
+    fields:
+      targetObjectId:
+        type: object_ref
+        required: true
+      dimension:
+        type: enum
+        required: true
+      businessTimeRange:
+        type: time_window
+        required: true
+      claimIds:
+        type: array
+        required: true
+        description: 该单元格包含的 EvidenceClaim ID 列表。
+      factIds:
+        type: array
+        required: false
+        description: 归并后的 EvidenceFact ID 列表。
+      activeClaimCount:
+        type: integer
+        required: true
+      invalidatedClaimCount:
+        type: integer
+        required: true
+      highestReliability:
+        type: enum
+        enum: [high, medium, low]
+        required: true
+      evidenceSummary:
+        type: string
+        required: false
+        description: 该单元格证据的聚合摘要。
+
+# ============================================================
+# Claim-Fact-对象映射索引
+# ============================================================
+claim_object_index:
+  description: >
+    从 EvidenceClaim / EvidenceFact 到本体对象的反向索引。
+    与证据矩阵互补——矩阵以对象为轴，索引以 claim/fact 为轴。
+
+  claim_index_entry:
+    fields:
+      claimId:
+        type: object_ref
+        required: true
+      supportsObjectIds:
+        type: array
+        required: true
+        description: 该 claim 支持的本体对象 ID 列表（通过 claimSupportsObject 关系）。
+      supportsRelationIds:
+        type: array
+        required: false
+        description: 该 claim 支持的关系实例 ID（通过 claimSupportsRelation 关系）。
+      invalidatesClaimIds:
+        type: array
+        required: false
+        description: 该 claim 使之失效的其他 claim ID。
+      triggersPatchIds:
+        type: array
+        required: false
+        description: 该 claim 触发的 PatchRequest ID。
+
+  fact_index_entry:
+    fields:
+      factId:
+        type: object_ref
+        required: true
+      sourceClaimIds:
+        type: array
+        required: true
+      mappedObjectIds:
+        type: array
+        required: false
+        description: 经优化 Skill 合并后对应的正式本体对象 ID。
+
+# ============================================================
+# 证据新鲜度过滤规则
+# ============================================================
+evidence_freshness_filter:
+  description: >
+    推理 Skill 从证据矩阵中选取证据时的新鲜度过滤规则。
+    与 governance.yaml retrieval_policy.freshness_policy 互补——
+    freshness_policy 定义"什么数据需要多新鲜"，本段定义"如何判断一条 claim 是否仍新鲜"。
+
+  freshness_check_fields:
+    - field: validTo
+      rule: validTo 不为空且早于目标 business_time → 已过期，排除。
+    - field: validFrom
+      rule: validFrom 晚于目标 business_time → 尚未生效，排除或延后使用。
+    - field: businessTime
+      rule: 主张描述的业务发生时间；新鲜度判断优先看 businessTime 而非 SourceDocument.publishTime。
+    - field: invalidatedAt
+      rule: invalidatedAt 不为空且早于目标 business_time → 已失效，排除。
+    - field: supersededBy
+      rule: supersededBy 不为空 → 被替代，使用替代 claim。
+    - field: claimStatus
+      rule: claimStatus 为 candidate、normalized 时仅作线索；quarantined、rejected、conflicted 默认排除正式推理。v1.1 新增。
+    - field: sourceReliability
+      rule: sourceReliability 低于阈值 → 仅作线索，不支撑关键判断。v1.1 新增。
+
+  freshness_scoring:
+    description: 当无法精确判断是否过期时，根据新鲜度得分决定是否降权使用。
+    factors:
+      - factor: time_distance
+        weight: 0.4
+        description: claim 的 observedAt 与目标 business_time 的时间距离。
+      - factor: source_reliability
+        weight: 0.3
+        description: claim 来源的可信度等级。
+      - factor: claim_type
+        weight: 0.2
+        description: fact_observation 新鲜度衰减慢于 forecast。
+      - factor: cross_validation_count
+        weight: 0.1
+        description: 被其他独立来源 claim 交叉验证的次数。
+    threshold:
+      high_confidence: score >= 0.7
+      usable_with_caution: 0.4 <= score < 0.7
+      exclude: score < 0.4
+
+  claim_type_decay:
+    description: 不同类型 claim 的新鲜度半衰期。v1.1 扩展：增加 scenario_path、author_judgment 类型；validation_signal / falsification_condition 与 validation_evidence / falsification_evidence 共享相同半衰期。
+    rules:
+      - claimType: reported_fact
+        half_life: 365 days
+        description: 已发生事实相对稳定，但仍受有效期和更正影响。
+      - claimType: data_point
+        half_life: 365 days
+        description: 数值点按其业务时间和有效期判断新鲜度。
+      - claimType: fact_observation
+        half_life: 365 days
+        description: 事实观测相对稳定。
+      - claimType: estimate
+        half_life: 90 days
+        description: 估算值随时间快速折旧。
+      - claimType: forecast
+        half_life: 30 days
+        description: 预测类 claim 衰减最快。
+      - claimType: guidance
+        half_life: 90 days
+        description: 管理层指引按披露窗口和更新频率衰减。
+      - claimType: rumor_or_unverified
+        half_life: 7 days
+        description: 未证实信息只能短期作为待核查线索。
+      - claimType: correction
+        half_life: 365 days
+        description: 更正类主张用于替代或失效旧证据，按被修订对象有效期处理。
+      - claimType: validation_signal
+        half_life: 90 days
+        description: 验证类证据有效期有限。validation_evidence 共享相同半衰期。
+      - claimType: falsification_condition
+        half_life: 90 days
+        description: 证伪类证据有效期有限。falsification_evidence 共享相同半衰期。
+      - claimType: transmission_logic
+        half_life: 180 days
+        description: 传导逻辑相对稳定但需定期复核。
+      - claimType: scenario_path
+        half_life: 90 days
+        description: 情景路径需随环境变化复核。v1.1 新增。
+      - claimType: author_judgment
+        half_life: 30 days
+        description: 作者观点时效性较强。v1.1 新增。
+
+# ============================================================
+# freshness_scoring_functions — 新鲜度评分子函数定义
+# ============================================================
+# v1.2 新增。补充 freshness_scoring 中定义了权重但子函数未形式化的问题。
+# 定义 timeDecay、sourceAuthority、claimTypeWeight、crossValidationBonus
+# 的具体计算公式和参数。
+
+freshness_scoring_functions:
+  description: >
+    新鲜度得分各子函数的计算定义。当前 freshness_scoring 定义了权重
+    （time_distance 0.4、source_reliability 0.3、claim_type 0.2、
+    cross_validation_count 0.1），但子函数未形式化。
+    本段补全各子函数的具体计算方式。
+
+  timeDecay:
+    zh_name: 时间衰减函数
+    description: 基于 claimType 半衰期和观测时间距离计算时间衰减得分。
+    formula: "exp(-ln(2) * days_since_observation / half_life_days)"
+    parameters:
+      days_since_observation:
+        type: number
+        description: "|observedAt - target_business_time| 的天数"
+      half_life_days:
+        type: number
+        description: 从 claim_type_decay 查询对应 claimType 的 half_life（转换为天数）。
+    output_range: [0, 1]
+    edge_cases:
+      - condition: "days_since_observation == 0"
+        result: 1.0
+      - condition: "days_since_observation >= 5 * half_life_days"
+        result: "0.0（视为完全过期，等效于新鲜度得分最低）"
+
+  sourceAuthority:
+    zh_name: 来源权威度函数
+    description: 将 sourceReliability 和 sourceForm 映射为 0-1 数值。
+    base_mapping:
+      high: 1.0
+      medium: 0.6
+      low: 0.3
+    sourceForm_modifiers:
+      - condition: "sourceForm IS original_file OR official_page OR database_feed"
+        multiplier: 1.0
+      - condition: "sourceForm IS research_report OR broker_page"
+        multiplier: 0.9
+      - condition: "sourceForm IS data_feed"
+        multiplier: 0.85
+      - condition: "sourceForm IS manual_input"
+        multiplier: 0.7
+      - condition: "sourceForm IS repost_page"
+        multiplier: 0.5
+      - condition: "sourceForm IS ai_summary"
+        multiplier: 0.4
+    output_range: [0, 1]
+    edge_cases:
+      - condition: "sourceReliability IS null OR unknown"
+        result: "default 0.5（中性假设）"
+
+  claimTypeWeight:
+    zh_name: 主张类型权重函数
+    description: 基于 claimType 的新鲜度稳定性映射为 0-1 数值。
+    mapping:
+      reported_fact: 1.0
+      data_point: 1.0
+      fact_observation: 1.0
+      transmission_logic: 0.9
+      asset_mapping: 0.8
+      estimate: 0.7
+      guidance: 0.6
+      validation_evidence: 0.7
+      falsification_evidence: 0.7
+      validation_signal: 0.7
+      falsification_condition: 0.7
+      scenario_path: 0.6
+      forecast: 0.4
+      author_judgment: 0.3
+      rumor_or_unverified: 0.1
+      correction: 0.8
+      restricted_item: 0.0
+
+  crossValidationBonus:
+    zh_name: 交叉验证加分函数
+    description: 被独立来源交叉验证的额外加分。
+    formula: "min(0.3, cross_validation_count * 0.1)"
+    parameters:
+      cross_validation_count:
+        type: integer
+        description: >
+          其他独立来源 Claim 中 normalizedKey 匹配的次数。
+          独立性判断依据：不同 sourceDocumentId 或不同 sourceOwner。
+    max_bonus: 0.3
+
+  composite_score:
+    zh_name: 综合新鲜度得分
+    formula: >
+      timeDecay() * 0.4 +
+      sourceAuthority() * 0.3 +
+      claimTypeWeight() * 0.2 +
+      min(crossValidationBonus(), 0.3) * 0.1
+    output_range: [0, 1]
+    validation: 权重之和 = 1.0（由 machine_validation_rules 校验）
+
+# ============================================================
+# claim_type_deprecation_schedule — claimType 废弃枚举值迁移时间表
+# ============================================================
+# v1.2 新增。当前 validation_signal / falsification_condition 与推荐使用的
+# validation_evidence / falsification_evidence 并存，尚无正式废弃时间线。
+
+claim_type_deprecation_schedule:
+  description: >
+    claimType 中标记为 legacy 的枚举值（validation_signal、falsification_condition）
+    的废弃时间表和迁移指南。解决两套命名长期并存导致的实现混淆问题。
+
+  deprecated_claim_types:
+    - legacy_value: validation_signal
+      status: legacy
+      recommended_replacement: validation_evidence
+      deprecated_since: "2026-06-10"
+      sunset_date: "2027-01-01"
+      current_phase: coexistence
+      migration_note: >
+        validation_signal 是历史命名，易与判断推理域 Signal 混淆。
+        v2 推荐使用 validation_evidence 以消除概念混淆。
+        现有数据可保留旧值，新数据优先使用 validation_evidence。
+      migration_phases:
+        - phase: 1_coexistence
+          period: "至 2026-12-31"
+          action: "新 claim 使用 validation_evidence；旧 claim 保留 validation_signal；consumer 两值均正常处理"
+        - phase: 2_transition
+          period: "2027-01-01 至 2027-06-30"
+          action: "consumer 自动映射 validation_signal → validation_evidence 并发出 WARN；新数据禁止使用旧值"
+        - phase: 3_removal
+          period: "2027-07-01 起"
+          action: "schema 中移除 validation_signal 枚举值；consumer 遇到旧值视为 schema violation（ERROR）"
+
+    - legacy_value: falsification_condition
+      status: legacy
+      recommended_replacement: falsification_evidence
+      deprecated_since: "2026-06-10"
+      sunset_date: "2027-01-01"
+      current_phase: coexistence
+      migration_note: >
+        falsification_condition 是历史命名。v2 推荐使用 falsification_evidence。
+        迁移节奏与 validation_signal 保持一致。
+      migration_phases:
+        - phase: 1_coexistence
+          period: "至 2026-12-31"
+          action: "新 claim 使用 falsification_evidence；旧 claim 保留 falsification_condition"
+        - phase: 2_transition
+          period: "2027-01-01 至 2027-06-30"
+          action: "consumer 自动映射 falsification_condition → falsification_evidence 并 WARN"
+        - phase: 3_removal
+          period: "2027-07-01 起"
+          action: "schema 中移除 falsification_condition 枚举值；consumer 遇到旧值视为 schema violation（ERROR）"
+
+  consumer_compatibility:
+    description: 所有消费端（推理 Skill、评测 Skill、优化 Skill、历史回放）应遵循兼容规则。
+    compatibility_rule: >
+      当遇到 validation_signal 或 falsification_condition 时：
+      - 在第 1 阶段（共存期）：正常处理，不发出警告
+      - 在第 2 阶段（过渡期）：自动映射到推荐值并发出 WARN
+      - 在第 3 阶段（移除后）：视为 schema violation，记录 ERROR 并拒绝处理
+
+# ============================================================
+# 证据冲突记录
+# ============================================================
+evidence_conflict_record:
+  description: >
+    当两个或多个 EvidenceClaim 对同一事实、对象或关系给出矛盾主张时，
+    记录冲突并进入治理队列。冲突不自动裁决——需人工或优化 Skill 处理。
+
+  conflict_entry:
+    fields:
+      conflictId:
+        type: string
+        required: true
+        pattern: ECF-YYYYMMDD-serial
+      conflictingClaimIds:
+        type: array
+        required: true
+        minItems: 2
+      targetObjectId:
+        type: object_ref
+        required: false
+        description: 冲突涉及的本体对象。
+      conflictType:
+        type: enum
+        enum: [factual, directional, temporal, scoping, attribution, source_quality, methodology]
+        required: true
+        description: >
+          factual — 事实矛盾（A 说是 X，B 说是 Y）；
+          directional — 方向矛盾（A 说上升，B 说下降）；
+          temporal — 时间矛盾（同一事实宣称不同时间）；
+          scoping — 范围矛盾（同一术语适用范围不同）；
+          attribution — 归因矛盾（同一结果归因于不同原因）；
+          source_quality — 来源可信度差异导致的冲突（v1.1 新增）；
+          methodology — 统计口径或估算方法冲突（v1.1 新增）。
+      resolutionStatus:
+        type: enum
+        enum: [unresolved, resolved_by_source_authority, resolved_by_freshness, resolved_by_manual, deferred]
+        required: true
+        default: unresolved
+      resolutionNote:
+        type: string
+        required: false
+      detectedAt:
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+
+# ============================================================
+# 证据图谱校验规则
+# ============================================================
+evidence_graph_validation:
+  description: 证据图谱的全局校验规则，用于证据 bundle 模块的完整性检查。
+
+  rules:
+    - id: every_claim_has_episode_or_source
+      severity: error
+      description: 每个 EvidenceClaim 必须通过 claimFromEpisode 追溯到 EvidenceEpisode，或通过 sourceOf 追溯到 SourceDocument。
+
+    - id: every_episode_has_source_or_feedback
+      severity: error
+      description: 每个 EvidenceEpisode 必须有关联的 SourceDocument（source_material 类型），或明确标记为 feedback 类型（reasoning_feedback、evaluation_feedback）。
+
+    - id: every_fact_has_source_claims
+      severity: error
+      description: 每个 EvidenceFact.sourceClaimIds 必须非空且所有 ID 可解析。
+
+    - id: invalidated_claims_retain_history
+      severity: error
+      description: claimStatus=invalidated 或 superseded 的 claim 必须保留完整历史，不得物理删除。
+
+    - id: no_orphan_claims_in_matrix
+      severity: warn
+      description: 证据矩阵中的 claim 必须存在于 evidence_claims.yaml，反之亦然。
+
+    - id: conflict_records_resolved_timely
+      severity: warn
+      description: evidence_conflict_record 中 resolutionStatus=unresolved 超过 30 天的记录应升级到 governance review_queue。
+
+    - id: restricted_items_not_promoted
+      severity: error
+      description: claimType=restricted_item、rumor_or_unverified、author_judgment、forecast、guidance 不得自动升级为 EvidenceFact active。
+
+    - id: claim_freshness_respected
+      severity: warn
+      description: 推理 Skill 选取证据时必须执行 evidence_freshness_filter；新鲜度判断应优先使用 businessTime 和 validFrom/validTo，使用过期 claim 需在 InferenceRun 中记录理由。
+
+    - id: evidence_matrix_covers_in_scope_concepts
+      severity: warn
+      description: 证据矩阵应覆盖所有 scopeStatus=in_scope 的 Concept 所映射的对象。未覆盖的对象进入 governance unresolved_items.missing_evidence。
+
+    - id: ai_summary_not_sole_fact_source
+      severity: error
+      description: AI 摘要（sourceForm=ai_summary）不得作为 EvidenceFact active 状态的唯一支撑来源。v1.1 新增。
+
+    - id: claim_not_signal
+      severity: warn
+      description: EvidenceClaim 不得直接生成 Signal。必须由判断推理域根据关系和规则解释为 Signal。v1.1 新增。
+
+    - id: fact_not_observation
+      severity: warn
+      description: EvidenceFact 不得直接生成 StateVariableObservation。必须经过判断推理域或优化流程采纳。v1.1 新增。
+
+    - id: evidence_domain_no_direct_ontology_write
+      severity: error
+      description: 证据域不得直接修改正式本体对象、正式关系或推理判断。只能输出候选变更依据。v1.1 新增。
+
+    - id: evidence_fact_not_final_truth
+      severity: error
+      description: EvidenceFact 只是结构化事实候选，不得被消费端当作最终事实裁决或真相库。
+
+    - id: candidate_or_normalized_not_for_judgment_upgrade
+      severity: error
+      description: claimStatus/factStatus 为 candidate 或 normalized 的证据只能作为线索，不得支撑 JudgmentOutput 升级。
+
+    - id: conflicted_evidence_blocks_formal_upgrade
+      severity: error
+      description: claimStatus/factStatus=conflicted 且冲突未裁决时，不得支撑 formalTrigger 或高置信 AssetImpact。
+
+    - id: source_reliability_not_claim_reliability
+      severity: warn
+      description: SourceDocument.sourceReliability 不得直接复制为 EvidenceClaim.reliabilityScore 或 EvidenceFact.confidenceScore。
+
+    - id: derivative_markings_preserved
+      severity: error
+      description: 受限 SourceDocument 派生出的 Claim、Fact、Observation、Signal、JudgmentOutput 或 AssetImpact 必须保留来源链路和最严格 markings。
+
+    - id: optimization_export_with_metadata
+      severity: warn
+      description: 证据输出给优化 Skill 时必须附带来源、支撑 Claim、冲突状态、新鲜度评分和可靠性评分。v1.1 新增。
+
+action_gate_binding_policy:
+  description: >
+    actions_evidence.yaml 中的 ActivateEvidenceClaim 和 ValidateEvidenceFact
+    只表达状态变化入口和 effect 类型；来源权重、交叉验证、冲突处理和新鲜度阈值
+    由本文件 policy、行业 bundle 或 scenario pack 扩展 policy 定义。
+  action_bindings:
+    ActivateEvidenceClaim:
+      gate_refs: [evidence_status_ladder, evidence_ingestion_pipeline.3_claim_normalization, evidence_freshness_filter, evidence_conflict_record]
+      default_failure_destinations: [quarantined, rejected, review_queue]
+      allowed_effects: [update_fields, enqueue_review, emit_audit]
+      required_audit: ActionAudit
+    ValidateEvidenceFact:
+      gate_refs: [evidence_status_ladder, evidence_ingestion_pipeline.4_fact_validation, evidence_conflict_record, evidence_graph_validation]
+      default_failure_destinations: [quarantined, rejected, review_queue]
+      allowed_effects: [update_fields, enqueue_review, emit_audit]
+      required_audit: ActionAudit
+    ExportEvidenceForReasoning:
+      gate_refs: [reasoning_export_contract, evidence_freshness_filter, derivative_marking_chain_policy]
+      default_failure_destinations: [review_queue, block_next_action]
+      allowed_effects: [propagate_markings, block_on_barrier, emit_audit]
+      required_audit: ActionAudit
+  override_contract:
+    fields: [policy_id, owner_bundle_id, scenario_id, claim_type_scope, overridden_thresholds, override_reason, review_record_id]
+    rules:
+      - bundle 或 scenario 可覆盖来源权重、最低交叉验证数量、冲突升级时限和 freshness 参数。
+      - 不得覆盖“AI 摘要不得作为 active EvidenceFact 唯一来源”和“冲突保留双方证据”的公共底线。
+      - 覆盖规则被采用时必须写入 ActionAudit 或 RuleApplication。
+
+# ============================================================
+# 与正式证据模块和 bundle workbench 的关系
+# ============================================================
+bundle_workbench_mapping:
+  description: >
+    正式 bundle 只保存已审核的 SourceDocument、EvidenceEpisode、EvidenceClaim 和 EvidenceFact；
+    摄入过程、候选事实、冲突处理和校验报告位于外置 bundle workbench。
+
+  in_bundle_evidence_modules:
+    - evidence_matrix（摘要视图）
+    - claim_object_index（摘要视图）
+    - evidence_conflict_records（摘要）
+    - evidence_freshness_summary
+
+  in_bundle_workbench:
+    - staging/candidate_claims.yaml
+    - staging/candidate_facts.yaml
+    - production_reports/evidence_graph_validation_report.md
+    - production_reports/evidence_conflict_report.md

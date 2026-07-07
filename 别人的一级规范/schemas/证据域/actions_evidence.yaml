@@ -1,0 +1,1074 @@
+schema_name: actions_evidence
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_evidence.yaml
+  relations_schema: relations_evidence.yaml
+  relations_governance_schema: ../治理域/relations_governance.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研证据域动作定义——证据摄入、主张抽取与归一、事实验证、冲突记录、证据导出。本文件只定义证据域动作和证据域对象状态机摘要；actor_roles、trigger_types、action_groups、audit_policy
+  等公共动作定义见 common.yaml。
+actions:
+  CreateEvidenceEpisode:
+    zh_name: 创建证据 Episode
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto
+    creates_object: EvidenceEpisode
+    target_type: EvidenceEpisode
+    state_transition:
+      field: episodeStatus
+      from: []
+      to: created
+    field_inputs:
+      required:
+      - title
+      - episodeType
+      - ingestedAt
+      - sourceReliability
+      - episodeStatus
+      optional:
+      - sourceDocumentId
+      - sourcePathOrUrl
+      - publishTime
+      - businessTime
+      - originalLocation
+      - textSpan
+      - limitations
+      - groupId
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> EvidenceEpisode
+        episodeMentionsObject:
+          input: mentionedObjectId
+    preconditions:
+    - type: source_or_feedback_detected
+      description: 存在可追溯材料、历史案例、推理反馈、评测反馈或结构化数据输入。
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      - episodeMentionsObject
+      create_action_audit: true
+  CreateEvidenceClaim:
+    zh_name: 创建证据主张
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: EvidenceClaim
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+    field_inputs:
+      required:
+      - claimText
+      - normalizedClaim
+      - claimType
+      - claimStatus
+      optional:
+      - sourceStatementType
+      - evidenceLocation
+      - confidence
+      - allowedTargetObjectTypes
+      - mustNotMapTo
+      - scope
+      - restrictions
+    initial_values:
+      claimStatus: candidate
+    relation_inputs:
+      required:
+        claimFromEpisode:
+          input: evidenceEpisodeId
+      optional:
+        claimSupportsObject:
+          input: supportedObjectId
+        claimSupportsRelation:
+          input: patchRequestId
+        claimInvalidatesClaim:
+          input: invalidatedClaimId
+        claimTriggersPatch:
+          input: patchRequestId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> EvidenceClaim
+    preconditions:
+    - type: object_exists
+      object_type: EvidenceEpisode
+      input: evidenceEpisodeId
+    - type: claim_has_source_location
+      description: 证据主张必须能追溯 episode、来源文档或原文位置；无法追溯时只能 quarantined 或 rejected。
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.create_evidence_claim.evidence_claim_created
+      event_name: EvidenceClaimCreated
+      followup_kind: evidence_claim_created
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - NormalizeEvidenceClaim
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_relations:
+      - claimFromEpisode
+      create_relations_if_inputs_present:
+      - claimSupportsObject
+      - claimSupportsRelation
+      - claimInvalidatesClaim
+      - claimTriggersPatch
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - evidence.quality.claim_source_traceability
+  CreateEvidenceFact:
+    zh_name: 创建证据事实
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: EvidenceFact
+    target_type: EvidenceFact
+    state_transition:
+      field: factStatus
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+    field_inputs:
+      required:
+      - factText
+      - normalizedFact
+      - factStatus
+      - sourceClaimIds
+      optional:
+      - factScope
+      - confidence
+    initial_values:
+      factStatus: candidate
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> EvidenceFact
+    preconditions:
+    - type: source_claims_exist
+      description: sourceClaimIds 必须能解析到 EvidenceClaim。
+    effects:
+    - type: create_object
+      target: EvidenceFact
+      default_status: candidate
+    - type: propagate_markings
+      target: EvidenceFact
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      source_claim_missing: block_next_action
+      marking_conflict: enqueue_review
+    output_contract:
+      required_outputs:
+      - EvidenceFact
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+    rule_refs:
+    - evidence.action_precondition.fact_claim_support_required
+  RegisterSourceDocument:
+    zh_name: 登记来源文档
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto
+    creates_object: SourceDocument
+    target_type: SourceDocument
+    state_transition:
+      field: recordStatus
+      from: []
+      to: candidate
+    field_inputs:
+      required:
+      - title
+      - documentType
+      - sourceForm
+      - sourceReliability
+      optional:
+      - publishTime
+      - author
+      - publisher
+      - content
+      - originalUrl
+      - filePath
+      - capturedAt
+      - citationLocator
+      - language
+      - sourceOwner
+      - accessLevel
+    preconditions:
+    - type: source_material_identified
+      description: 存在可识别的原始材料、文件或数据流。
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.register_source_document.action_completed
+      event_name: SourceDocumentRegistered
+      followup_kind: action_completed
+      terminal_handling: no_followup_required
+      allowed_next_actions: []
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_action_audit: true
+  ExtractEvidenceClaim:
+    zh_name: 从 Episode 抽取 EvidenceClaim
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: EvidenceClaim
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from: []
+      to: candidate
+    field_inputs:
+      required:
+      - claimText
+      - normalizedClaim
+      - claimType
+      - sourceEpisodeId
+      optional:
+      - sourceDocumentId
+      - citationLocator
+      - subjectObjectIds
+      - relatedVariableIds
+      - value
+      - direction
+      - magnitude
+      - reliabilityScore
+      - extractionConfidence
+      - normalizedKey
+      - sourceStatementType
+      - evidenceLocation
+      - restrictions
+    initial_values:
+      claimStatus: candidate
+    relation_inputs:
+      required:
+        claimFromEpisode:
+          input: evidenceEpisodeId
+      optional:
+        claimCitesSource:
+          input: sourceDocumentId
+        claimSupportsObject:
+          input: supportedObjectId
+    preconditions:
+    - type: object_exists
+      object_type: EvidenceEpisode
+      input: evidenceEpisodeId
+    - type: claim_has_source_location
+      description: 证据主张必须能追溯 episode、来源文档或原文位置；无法追溯时只能 quarantined 或 rejected。
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.extract_evidence_claim.evidence_claim_created
+      event_name: EvidenceClaimCreated
+      followup_kind: evidence_claim_created
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - NormalizeEvidenceClaim
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_relations:
+      - claimFromEpisode
+      create_relations_if_inputs_present:
+      - claimCitesSource
+      - claimSupportsObject
+      create_action_audit: true
+    rule_refs:
+    - evidence.quality.claim_source_traceability
+    - evidence.validation.claim_type_location_compatibility
+  NormalizeEvidenceClaim:
+    zh_name: 归一化 EvidenceClaim
+    group: state_transition
+    actor_roles:
+    - system
+    trigger: system_auto
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - candidate
+      to: normalized
+    field_inputs:
+      required:
+      - targetClaimId
+      optional:
+      - normalizedKey
+      - mergedClaimIds
+      - dedupAction
+    preconditions:
+    - type: object_exists
+      object_type: EvidenceClaim
+      input: targetClaimId
+    - type: candidate_or_active
+      description: 只能对 candidate 或 active 状态的 Claim 执行归一化。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      update_target_fields: true
+      create_action_audit: true
+    rule_refs:
+    - evidence.quality.claim_source_traceability
+    - evidence.validation.claim_type_location_compatibility
+  ActivateEvidenceClaim:
+    zh_name: 激活 EvidenceClaim
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - candidate
+      - normalized
+      to: active
+    preconditions:
+    - type: claim_has_source
+      description: Claim 必须能追溯到 Episode 或 SourceDocument。
+    - type: not_restricted
+      description: claimType 不得为 restricted_item；author_judgment、forecast 需人工确认。
+    threshold_checks:
+    - check_id: evidence_claim_activation_gate
+      policy_ref: policies_evidence.evidence_ingestion_pipeline.stages.3_claim_normalization
+      description: 激活只检查来源、定位、受限类型、冲突和归一化门禁；具体来源权重和场景阈值由证据 policy 或 bundle 扩展 policy
+        定义。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_evidence.evidence_freshness_filter
+    - policies_governance.review_queue
+    rule_refs:
+    - evidence.validation.claim_type_location_compatibility
+    effects:
+    - type: update_fields
+      target: EvidenceClaim
+      allowed_fields:
+      - claimStatus
+      - confirmedBy
+      - confirmedAt
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: EvidenceClaim
+      field: claimStatus
+      from:
+      - candidate
+      - normalized
+      to: active
+    failure_handling:
+      missing_source: quarantined
+      restricted_item: enqueue_review
+      conflict_detected: enqueue_review
+      insufficient_evidence: block_next_action
+    output_contract:
+      required_outputs:
+      - EvidenceClaim
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    audit_required: true
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.activate_evidence_claim.evidence_claim_validated
+      event_name: EvidenceClaimValidated
+      followup_kind: evidence_claim_validated
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - ExportEvidenceForReasoning
+      - ExportEvidenceForOptimization
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  RejectEvidenceClaim:
+    zh_name: 拒绝 EvidenceClaim
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - candidate
+      - normalized
+      - conflicted
+      to: rejected
+    field_inputs:
+      required:
+      - actionReason
+    preconditions:
+    - type: target_claim_candidate
+      description: 只能拒绝 candidate、normalized 或 conflicted 状态的 EvidenceClaim。
+    - type: rejection_reason_provided
+      description: actionReason 必须说明拒绝依据。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  QuarantineEvidenceClaim:
+    zh_name: 隔离 EvidenceClaim
+    group: state_transition
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - candidate
+      - normalized
+      - active
+      - conflicted
+      to: quarantined
+    field_inputs:
+      required:
+      - actionReason
+    preconditions:
+    - type: target_claim_candidate_or_active
+      description: 只能隔离 candidate、normalized、active 或 conflicted 状态的 EvidenceClaim。
+    - type: quarantine_reason_provided
+      description: actionReason 必须说明隔离依据。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+    rule_refs:
+    - evidence.blocking.restricted_source_usage_gate
+  InvalidateEvidenceClaim:
+    zh_name: 标记 EvidenceClaim 失效
+    group: state_transition
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - active
+      - conflicted
+      to: invalidated
+    field_inputs:
+      required:
+      - invalidatedBy
+      optional:
+      - actionReason
+    preconditions:
+    - type: target_claim_active
+      description: 只能失效 active 状态的 EvidenceClaim。
+    - type: invalidating_claim_exists
+      description: invalidatedBy 必须能解析到有效 EvidenceClaim 或 EvidenceFact。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  SupersedeEvidenceClaim:
+    zh_name: 替代 EvidenceClaim
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - active
+      - conflicted
+      to: superseded
+    relation_inputs:
+      required:
+        claimSupersedesClaim:
+          input: newClaimId_to_oldClaimId
+    preconditions:
+    - type: target_claim_active
+      description: 只能替代 active 状态的 EvidenceClaim。
+    - type: superseding_claim_exists
+      description: newClaimId_to_oldClaimId 必须能解析到替代 Claim 与被替代 Claim。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_relation: claimSupersedesClaim
+      create_action_audit: true
+  ValidateEvidenceFact:
+    zh_name: 校验 EvidenceFact
+    group: state_transition
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    target_type: EvidenceFact
+    state_transition:
+      field: factStatus
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+    field_inputs:
+      required:
+      - validationMethod
+      optional:
+      - confidenceScore
+      - conflictIds
+      - actionReason
+    preconditions:
+    - type: source_claims_exist
+      description: sourceClaimIds 必须非空且可解析。
+    - type: cross_validation_done
+      description: 应执行交叉验证、时间有效性和一致性检查。
+    threshold_checks:
+    - check_id: evidence_fact_validation_gate
+      policy_ref: policies_evidence.evidence_ingestion_pipeline.stages.4_fact_validation
+      description: 校验引用来源交叉验证、时间有效性、一致性和冲突处理规则；具体阈值由 evidence policy 或 bundle 扩展 policy
+        覆盖。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_evidence.evidence_conflict_record
+    - policies_evidence.evidence_freshness_filter
+    - policies_governance.review_queue
+    rule_refs:
+    - evidence.action_precondition.fact_claim_support_required
+    effects:
+    - type: update_fields
+      target: EvidenceFact
+      allowed_fields:
+      - factStatus
+      - confidenceScore
+      - invalidatedAt
+      - invalidatedBy
+      - supersedes
+      - supersededBy
+    - type: enqueue_review
+      target: review_queue
+      condition: conflict_or_low_confidence
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: EvidenceFact
+      field: factStatus
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+    failure_handling:
+      source_claim_missing: block_next_action
+      conflict_unresolved: enqueue_review
+      low_reliability_or_ai_summary_only: quarantined
+      insufficient_cross_validation: rejected
+    side_effects:
+    - type: enqueue_review
+      payload_fields:
+      - review_queue_type
+      - target_object_id
+      - reason
+      - owner_bundle_id
+    - type: trigger_followup
+      event_id: evidence.followup.validate_evidence_fact.evidence_claim_validated
+      event_name: EvidenceClaimValidated
+      followup_kind: evidence_claim_validated
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - ExportEvidenceForReasoning
+      - ExportEvidenceForOptimization
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    output_contract:
+      required_outputs:
+      - EvidenceFact
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - evidence_conflict_record
+    audit_required: true
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  RecordEvidenceConflict:
+    zh_name: 记录证据冲突
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - conflictingClaimIds
+      - conflictType
+      optional:
+      - targetObjectId
+      - conflictNote
+    relation_inputs:
+      optional:
+        claimConflictsWithClaim:
+          input: conflictingClaimIds
+        factConflictsWithFact:
+          input: conflictingFactIds
+    preconditions:
+    - type: at_least_two_claims_or_facts
+      description: conflictingClaimIds 或 conflictingFactIds 至少包含 2 个元素。
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.record_evidence_conflict.human_review_requested
+      event_name: EvidenceConflictRecorded
+      followup_kind: human_review_requested
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_relations_if_inputs_present:
+      - claimConflictsWithClaim
+      - factConflictsWithFact
+      create_action_audit: true
+  MarkEvidenceClaimConflicted:
+    zh_name: 标记 EvidenceClaim 冲突
+    group: state_transition
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    target_type: EvidenceClaim
+    state_transition:
+      field: claimStatus
+      from:
+      - candidate
+      - normalized
+      - active
+      to: conflicted
+    field_inputs:
+      required:
+      - conflictId
+      - actionReason
+    preconditions:
+    - type: conflict_record_exists
+      description: conflictId 必须能解析到 evidence_conflict_record 或 claimConflictsWithClaim
+        关系。
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.mark_evidence_claim_conflicted.human_review_requested
+      event_name: EvidenceConflictRecorded
+      followup_kind: human_review_requested
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  MarkEvidenceFactConflicted:
+    zh_name: 标记 EvidenceFact 冲突
+    group: state_transition
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    target_type: EvidenceFact
+    state_transition:
+      field: factStatus
+      from:
+      - candidate
+      - normalized
+      - active
+      to: conflicted
+    field_inputs:
+      required:
+      - conflictId
+      - actionReason
+    preconditions:
+    - type: conflict_record_exists
+      description: conflictId 必须能解析到 evidence_conflict_record 或 factConflictsWithFact
+        关系。
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.mark_evidence_fact_conflicted.human_review_requested
+      event_name: EvidenceConflictRecorded
+      followup_kind: human_review_requested
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+    rule_refs:
+    - evidence.action_precondition.fact_claim_support_required
+  ExportEvidenceForReasoning:
+    zh_name: 导出证据供判断推理域消费
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - evidenceIds
+      - exportType
+      optional:
+      - targetBusinessTime
+      - freshnessFilterEnabled
+    preconditions:
+    - type: evidence_exists
+      description: evidenceIds 必须能解析到 EvidenceClaim 或 EvidenceFact。
+    - type: freshness_filter_applied
+      description: 如启用新鲜度过滤，排除过期、失效和被替代的证据。
+    - type: markings_authorized
+      description: 调用方必须具备 evidenceIds 对应 markings 的消费权限。
+    effects:
+    - type: propagate_markings
+      target: evidence_export
+    - type: block_on_barrier
+      target: evidence_export
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      evidence_missing: block_next_action
+      clearance_failed: block_next_action
+      barrier_violation: enqueue_review
+    output_contract:
+      required_outputs:
+      - evidence_export
+      - ActionAudit
+    side_effects:
+    - type: trigger_followup
+      event_id: evidence.followup.export_evidence_for_reasoning.action_completed
+      event_name: EvidenceExportedForReasoning
+      followup_kind: action_completed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - CreateInferenceRun
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_action_audit: true
+    rule_refs:
+    - evidence.blocking.restricted_source_usage_gate
+  ExportEvidenceForOptimization:
+    zh_name: 导出证据供优化 Skill 消费
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: null
+    target_type: null
+    field_inputs:
+      required:
+      - evidenceIds
+      optional:
+      - suggestedChangeType
+      - uncertaintyNote
+    preconditions:
+    - type: evidence_exists
+      description: evidenceIds 必须能解析到 EvidenceClaim 或 EvidenceFact。
+    - type: candidate_patch_evidence
+      description: 输出候选变更依据，不直接创建 PatchRequest。PatchRequest 由优化 Skill 或治理域生成。
+    side_effects: []
+    outputs:
+      create_action_audit: true
+    rule_refs:
+    - evidence.blocking.restricted_source_usage_gate
+state_machine_summary:
+  SourceDocument:
+    field: recordStatus
+    initial: candidate
+    transitions:
+    - action: RegisterSourceDocument
+      from: []
+      to: candidate
+    - action: RegisterSourceDocument
+      from:
+      - candidate
+      to:
+      - parsed
+      - archived
+      - quarantined
+      - deprecated
+  EvidenceEpisode:
+    field: episodeStatus
+    initial: created
+    transitions:
+    - action: CreateEvidenceEpisode
+      from: []
+      to: created
+    - action: CreateEvidenceEpisode
+      from:
+      - created
+      to:
+      - parsed
+      - partial
+      - failed
+      - quarantined
+      - completed
+  EvidenceClaim:
+    field: claimStatus
+    initial: candidate
+    transitions:
+    - action: CreateEvidenceClaim
+      from: []
+      to: candidate
+    - action: ExtractEvidenceClaim
+      from: []
+      to: candidate
+    - action: NormalizeEvidenceClaim
+      from:
+      - candidate
+      to: normalized
+    - action: ActivateEvidenceClaim
+      from:
+      - candidate
+      - normalized
+      to: active
+    - action: RejectEvidenceClaim
+      from:
+      - candidate
+      - normalized
+      - conflicted
+      to: rejected
+    - action: QuarantineEvidenceClaim
+      from:
+      - candidate
+      - normalized
+      - active
+      - conflicted
+      to: quarantined
+    - action: InvalidateEvidenceClaim
+      from:
+      - active
+      - conflicted
+      to: invalidated
+    - action: SupersedeEvidenceClaim
+      from:
+      - active
+      - conflicted
+      to: superseded
+    - action: MarkEvidenceClaimConflicted
+      from:
+      - candidate
+      - normalized
+      - active
+      to: conflicted
+    - action: CreateEvidenceClaim
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+  EvidenceFact:
+    field: factStatus
+    initial: candidate
+    transitions:
+    - action: CreateEvidenceFact
+      from: []
+      to: candidate
+    - action: ValidateEvidenceFact
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+    - action: MarkEvidenceFactConflicted
+      from:
+      - candidate
+      - normalized
+      - active
+      to: conflicted
+    - action: CreateEvidenceFact
+      from:
+      - candidate
+      to:
+      - normalized
+      - active
+      - invalidated
+      - superseded
+      - rejected
+      - quarantined
+      - conflicted
+machine_validation_rules:
+- id: action_target_type_must_exist
+  description: 每个 action.target_type 必须引用 objects.yaml 中存在的对象类型。
+- id: state_transition_field_must_exist
+  description: 每个 state_transition.field 必须是 target_type 的字段。
+- id: action_input_fields_must_exist_or_be_action_local
+  description: field_inputs 中对象字段必须存在；actionReason、rejectReason、supplementRequest
+    是动作本地输入。
+- id: state_transition_values_must_be_allowed
+  description: from/to 状态值必须落在对象生命周期字段的 enum 内。
+- id: every_action_creates_audit
+  description: 除非显式声明豁免，每个动作输出必须 create_action_audit=true。
+- id: state_machine_summary_consistent_with_actions
+  description: 'state_machine_summary 中每条 transition 必须在 actions 的对应 action 的 state_transition
+    中有等价定义（同 field、同 from/to）；反之亦然。 有 lifecycle_field 的对象类型，其 initial_state 在 objects.yaml
+    和 state_machine_summary 中必须一致。
+
+    '
+  severity: error

@@ -1,0 +1,11 @@
+schema_name: events_governance
+schema_version: 0.2.0
+namespace: investment_ontology
+status: deprecated
+depends_on:
+  actions_schema: actions_governance.yaml
+canonical_rule: >
+  动作后续信号契约已迁入 actions_governance.yaml 的 side_effects(type=trigger_followup)。
+  治理域仍是 ActionFollowup 落库与跨域 follow-up 路由枢纽；事件定义不再独立于 Action。
+migrated_to: schemas/治理域/actions_governance.yaml
+migration_note: ActionFollowup 是 Action side effect，不是独立 schema 桶。

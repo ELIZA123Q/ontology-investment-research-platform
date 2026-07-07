@@ -1,0 +1,468 @@
+schema_name: objects_reasoning_judgment
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on: ../common.yaml
+
+object_types:
+  StateHypothesis:
+    zh_name: 状态假设
+    category: research_reasoning
+    managed_by: researcher
+    description: 研究员对状态变量未来走向的方向性判断。
+    lifecycle_field: hypothesisStatus
+    initial_state: proposed
+    terminal_states: [deprecated]
+    fields:
+      title:
+        zh_name: 假设标题
+        type: string
+        required: true
+        source_note: 由 03 半导体示例反推补充。
+      hypothesisContent:
+        zh_name: 假设内容
+        type: string
+        required: true
+        source_note: 由 03 半导体示例反推补充。
+      direction:
+        zh_name: 方向
+        type: enum
+        enum: [up, down, stable, divergent]
+        required: true
+      magnitude:
+        zh_name: 幅度
+        type: string
+        required: false
+      timeHorizon:
+        zh_name: 有效时间窗口
+        type: time_window
+        time_type: business_time
+        required: true
+      horizonBucket:
+        zh_name: 标准时间尺度
+        type: enum
+        enum_ref: timeHorizonBucket
+        required: true
+        description: 将自然语言时间窗口映射到标准桶，便于同一判断在 T+1W/T+1M/T+1Q/T+1Y 等尺度分别复盘。
+      basis:
+        zh_name: 立论依据
+        type: string
+        required: true
+      falsificationCriteria:
+        zh_name: 证伪标准
+        type: string
+        required: true
+      requiredValidationCriteria:
+        zh_name: 升级验证门槛
+        type: string
+        required: false
+      keyRisks:
+        zh_name: 关键风险
+        type: string
+        required: false
+      hypothesisStatus:
+        zh_name: 假设状态
+        type: enum
+        enum: [proposed, active, blocked, deprecated]
+        required: true
+        generated_default: proposed
+      proposedBy:
+        zh_name: 提出人
+        type: string
+        required: true
+      proposedAt:
+        zh_name: 提出时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [hypothesisBindsVariable]
+    optional_relations: [basedOnEvent, basedOnObservation, competesWithHypothesis, supersedesHypothesis, dependsOnHypothesis, sourceOf]
+    quality_rules:
+      - 假设必须绑定一个 StateVariable。
+      - 假设必须声明标准时间尺度；不同时间尺度允许存在不同甚至相反的假设。
+      - 阻断状态只能由 BlockHypothesis 动作产生。
+      - 恢复被阻断假设时，须先更新或撤销 blocking 信号，再执行 ActivateHypothesis。
+
+  Signal:
+    zh_name: 信号
+    category: research_reasoning
+    managed_by: system_or_researcher
+    description: 支持、催化、跟踪、削弱或阻断假设和判断的证据或观察。
+    lifecycle_field: signalStatus
+    initial_state: active
+    terminal_states: []
+    fields:
+      title:
+        zh_name: 标题
+        type: string
+        required: true
+      signalType:
+        zh_name: 信号类型
+        type: string
+        required: true
+      signalRole:
+        zh_name: 信号角色
+        type: enum
+        enum: [validation, catalyst, tracking, weakening, blocking]
+        required: true
+      signalContent:
+        zh_name: 信号内容
+        type: string
+        required: true
+      statementType:
+        zh_name: 表述类型
+        type: enum
+        enum: [fact, forecast, assumption, judgment, recommendation]
+        required: true
+      observationTime:
+        zh_name: 信号业务时间
+        type: datetime
+        time_type: business_time
+        required: true
+      reliability:
+        zh_name: 可信度
+        type: enum
+        enum: [high, medium, low]
+        required: true
+      validityWindow:
+        zh_name: 有效时间窗口
+        type: time_window
+        time_type: business_time
+        required: true
+      signalStatus:
+        zh_name: 信号状态
+        type: enum
+        enum: [active, stale, withdrawn, invalidated]
+        required: true
+        generated_default: active
+      recordedAt:
+        zh_name: 录入时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations:
+      - one_role_compatible_effect_relation
+    optional_relations: [signalBasedOnObservation, signalBasedOnEvent, sourceOf]
+    role_compatible_relations:
+      validation: [supportsHypothesis, supportsJudgment]
+      catalyst: [catalyzesJudgment]
+      tracking: [tracksHypothesis, tracksJudgment]
+      weakening: [weakensHypothesis, weakensJudgment]
+      blocking: [blocksHypothesis]
+    quality_rules:
+      - 一个 Signal 只有一个 signalRole；同一事实同时承担催化和验证作用时，应拆成两条 Signal 或明确主角色。
+      - blocking 信号只能通过 blocksHypothesis 作用于 StateHypothesis，不能直接阻断 JudgmentOutput。
+      - Signal 的 markings 必须由全部输入证据和观测按 propagation_rule 计算，不得低于输入。
+
+  JudgmentOutput:
+    zh_name: 判断输出
+    category: research_reasoning
+    managed_by: researcher
+    description: 研究员基于假设形成的方向性结论。
+    lifecycle_field: judgmentStatus
+    initial_state: candidate
+    terminal_states: [resolved, downgraded, blocked, expired, deprecated]
+    fields:
+      title:
+        zh_name: 标题
+        type: string
+        required: true
+      judgmentContent:
+        zh_name: 判断内容
+        type: string
+        required: true
+      judgmentStatus:
+        zh_name: 判断状态
+        type: enum
+        enum: [candidate, watchlist, active, formalTrigger, resolved, downgraded, blocked, expired, deprecated]
+        required: true
+        generated_default: candidate
+      competingExplanations:
+        zh_name: 竞争解释
+        type: string
+        required: false
+        required_before_state: active
+      scenarioTag:
+        zh_name: 情景标签
+        type: enum
+        enum: [base, upside, downside]
+        required: false
+        description: 表示该判断属于基准、乐观或悲观情景；用于刻画真实投研中的多路径思考。
+      confidenceLevel:
+        zh_name: 判断置信度
+        type: enum
+        enum: [high, medium, low]
+        required: false
+        description: 研究员对判断成立概率和证据充分性的综合分级，不替代信号数量和审核。
+      nextValidationCheckpoint:
+        zh_name: 下一验证点
+        type: string
+        required: false
+        description: 该判断下一步最应观察的事件、数据或调研问题。
+      expectedEvidenceDate:
+        zh_name: 预期验证时间
+        type: datetime
+        time_type: business_time
+        required: false
+        description: 下一验证点预计出现或更新的业务时间。
+      timeHorizon:
+        zh_name: 预期时间窗口
+        type: time_window
+        time_type: business_time
+        required: true
+        source_note: 由 03 半导体示例反推补充。
+      horizonBucket:
+        zh_name: 标准时间尺度
+        type: enum
+        enum_ref: timeHorizonBucket
+        required: true
+        description: 判断必须明确适用尺度；同一对象可在不同 horizonBucket 下保留不同判断。
+      createdAt:
+        zh_name: 创建时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+      lastUpdatedAt:
+        zh_name: 最近更新时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [judgmentAnchoredOn, basedOnHypothesis]
+    optional_relations: [supportsJudgment, catalyzesJudgment, tracksJudgment, weakensJudgment, judgmentRelatesToJudgment, judgmentComparedWithExpectation, sourceOf]
+    quality_rules:
+      - JudgmentOutput 必须挂载到具体研究标的对象。
+      - JudgmentOutput 必须声明 timeHorizon 和 horizonBucket，禁止输出无时间尺度的泛化结论。
+      - 进入 active 前必须填写 competingExplanations。
+      - active 至少需要一个 validation Signal；formalTrigger 至少需要两条独立 validation Signal、预期差检查和资产影响门禁。
+      - downgraded 与 blocked 判断保留历史记录，但不得作为高置信结论直接派生新的 AssetImpact。
+      - JudgmentOutput 的 markings 必须继承输入 Signal、EvidenceClaim 和 EvidenceFact 的最严格标记。
+
+  MarketExpectation:
+    zh_name: 市场预期
+    category: research_reasoning
+    managed_by: system_or_researcher
+    description: 某研究对象在某业务时间和时间尺度下的市场、管理层、卖方、自身或价格隐含预期。MarketExpectation 记录"当时市场或研究者以为什么会发生"，不代表事实已经发生，也不等于投资结论。
+    fields:
+      expectationType:
+        zh_name: 预期类型
+        type: enum
+        enum_ref: expectationType
+        required: true
+      expectationSubject:
+        zh_name: 预期对象或变量
+        type: string
+        required: true
+        description: 预期针对的对象、指标或状态变量，如收入增速、毛利率、订单、估值倍数或政策强度。
+      expectedValue:
+        zh_name: 预期值
+        type: string
+        required: true
+        description: 可以是数值、区间、方向或定性口径；需保留原始口径。
+      expectedValueStructured:
+        zh_name: 结构化预期值
+        type: object
+        required: false
+        description: 定量或区间类预期的结构化表达，用于自动比较、回测和复盘。expectedValue 保留原始口径；本字段提供可计算口径。
+        properties:
+          metric:
+            zh_name: 指标名称
+            type: string
+          operator:
+            zh_name: 比较符
+            type: enum
+            enum: [eq, gt, gte, lt, lte, range, direction, qualitative]
+          value:
+            zh_name: 单点值
+            type: number
+          lowerBound:
+            zh_name: 区间下限
+            type: number
+          upperBound:
+            zh_name: 区间上限
+            type: number
+          unit:
+            zh_name: 单位
+            type: string
+          baseline:
+            zh_name: 比较基准
+            type: string
+          direction:
+            zh_name: 方向
+            type: enum
+            enum: [up, down, stable, divergent, unknown]
+      expectedDirection:
+        zh_name: 预期方向
+        type: enum
+        enum: [up, down, stable, divergent, unknown]
+        required: false
+      timeHorizon:
+        zh_name: 预期时间窗口
+        type: time_window
+        time_type: business_time
+        required: true
+      horizonBucket:
+        zh_name: 标准时间尺度
+        type: enum
+        enum_ref: timeHorizonBucket
+        required: true
+      asOf:
+        zh_name: 预期截面时间
+        type: datetime
+        time_type: business_time
+        required: true
+        description: 该预期在现实中被观察或可代表市场状态的业务时间。
+      sourceDescription:
+        zh_name: 预期来源说明
+        type: string
+        required: true
+        description: 说明预期来自一致预期、价格隐含、管理层指引、卖方观点、买方自身判断或市场叙事。
+      confidenceLevel:
+        zh_name: 预期置信度
+        type: enum
+        enum_ref: confidenceLevel
+        required: false
+      pricingStatus:
+        zh_name: 定价状态
+        type: enum
+        enum_ref: pricedInAssessment
+        required: false
+        description: 当前价格是否已经反映该预期。
+      recordedAt:
+        zh_name: 录入时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [expectationAnchoredOn]
+    optional_relations: [expectationBasedOnObservation, expectationBasedOnEvent, expectationSupersedesExpectation, sourceOf]
+    quality_rules:
+      - MarketExpectation 必须明确 asOf 和 horizonBucket，避免用事后共识污染历史判断。
+      - MarketExpectation 只记录当时预期，不直接推出 AssetImpact；预期差必须通过 JudgmentOutput 或 AssetImpact 显式比较。
+      - 价格隐含预期、卖方一致预期和研究员自身预期应拆成不同 MarketExpectation 实例。
+      - 可量化预期应填写 expectedValueStructured；结构化字段与 expectedValue 原文同时保留。
+      - 同一 anchorObjectId、expectationType、expectationSubject、horizonBucket、asOf 截面下只允许一条 active MarketExpectation；新截面使用 expectationSupersedesExpectation 承接历史。
+
+  AssetImpact:
+    zh_name: 资产影响
+    category: research_reasoning
+    managed_by: system_or_researcher
+    description: 判断对资产标的的预期影响。
+    fields:
+      impactDescription:
+        zh_name: 影响描述
+        type: string
+        required: false
+        source_note: 由 03 半导体示例反推补充。
+      impactDirection:
+        zh_name: 影响方向
+        type: enum
+        enum: [positive, negative, neutral]
+        required: true
+      impactMagnitude:
+        zh_name: 影响幅度
+        type: enum
+        enum: [large, medium, small]
+        required: true
+      timeHorizon:
+        zh_name: 影响时间窗口
+        type: time_window
+        time_type: business_time
+        required: true
+      horizonBucket:
+        zh_name: 标准时间尺度
+        type: enum
+        enum_ref: timeHorizonBucket
+        required: true
+        description: 资产影响必须绑定标准时间尺度；短期价格反应和长期基本面兑现不得混为一条影响。
+      expectationGapDirection:
+        zh_name: 预期差方向
+        type: enum
+        enum_ref: expectationGapDirection
+        required: true
+        description: 研究判断相对已记录 MarketExpectation 的偏离方向。
+      expectationGapStatus:
+        zh_name: 预期差状态
+        type: enum
+        enum_ref: expectationGapStatus
+        required: false
+      expectationGapMagnitude:
+        zh_name: 预期差幅度
+        type: string
+        required: false
+        description: 预期差的数值、区间或定性幅度，如 EPS 高 5-8%、毛利率高 1.3ppt。
+      expectationGapBasis:
+        zh_name: 预期差依据
+        type: string
+        required: false
+        description: 说明与哪些 MarketExpectation、价格隐含或一致预期比较得出该预期差。
+      pricedInAssessment:
+        zh_name: 定价反映程度
+        type: enum
+        enum: [underpriced, fairly_priced, priced_in, overreacted, unknown]
+        required: false
+        description: 判断当前是否已被市场充分反映；用于区分基本面正确和投资有效。新实例优先同时记录 MarketExpectation.pricingStatus。
+      consensusGap:
+        zh_name: 市场预期差
+        type: string
+        required: false
+        description: 兼容字段。新实例优先使用 expectationGapDirection / expectationGapMagnitude / expectationGapBasis，并通过 impactReferencesExpectation 关联 MarketExpectation。
+      valuationAnchor:
+        zh_name: 估值锚
+        type: string
+        required: false
+        description: 用于解释资产影响的估值口径、可比对象或关键估值变量；不是目标价。
+      marketExpectationNote:
+        zh_name: 市场预期说明
+        type: string
+        required: false
+        description: 对市场是否已经交易该逻辑、预期差在哪里、何时可能收敛的文字说明。
+      assessedAt:
+        zh_name: 评估录入时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [impactDerivedFrom, impactsAsset]
+    optional_relations: [impactReferencesExpectation]
+    quality_rules:
+      - 资产影响表达研究判断对资产的预期影响，不是交易指令、仓位建议或目标价。
+      - 非 neutral/unknown 的资产影响必须说明预期差方向；若 expectationGapDirection 不为 unknown，应关联至少一个 MarketExpectation 或填写 expectationGapBasis。
+      - 不同 horizonBucket 的资产影响应拆分记录，不能把短期流动性冲击和长期基本面兑现合并为一条。
+      - AssetImpact 的 markings 必须继承 JudgmentOutput、Signal 和证据输入的最严格标记。
+
+  InvestmentThesis:
+    zh_name: 投资命题
+    category: research_reasoning
+    managed_by: researcher
+    description: 围绕同一研究对象的多条判断的长期管理容器。
+    lifecycle_field: thesisStatus
+    initial_state: watchlist
+    terminal_states: [deprecated]
+    fields:
+      title:
+        zh_name: 标题
+        type: string
+        required: true
+      summary:
+        zh_name: 摘要
+        type: string
+        required: true
+      thesisStatus:
+        zh_name: 命题状态
+        type: enum
+        enum: [watchlist, active, deprecated]
+        required: true
+      createdAt:
+        zh_name: 创建时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [thesisAnchoredOn]
+    optional_relations: [thesisContainsJudgment, sourceOf]
+
+  # —— InferenceRule：可复用的推理规则 ——

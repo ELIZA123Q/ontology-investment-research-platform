@@ -1,0 +1,497 @@
+schema_name: objects_evidence
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on: ../common.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研证据域对象类型定义——来源文档（SourceDocument）、证据摄入事件（EvidenceEpisode）、证据主张（EvidenceClaim）、证据事实候选（EvidenceFact）。公共枚举和域映射见 common.yaml。
+relation_direction_note: optional_relations 中的 sourceOf 表示该对象允许被 SourceDocument -> object 的来源关系追溯；证据域内部优先使用 episodeFromSource、claimCitesSource、factSupportedByClaim。
+
+# ============================================================
+# 域三：证据域 — 来源 + 摄入 + 主张 + 事实
+# ============================================================
+
+object_types:
+
+  SourceDocument:
+    zh_name: 来源文档
+    category: source_and_record
+    managed_by: system_or_researcher
+    description: 信号、观测值和判断的原始来源。v1.1 扩展：增加文件路径、定位信息、语言、来源机构和访问权限字段。
+    lifecycle_field: recordStatus
+    initial_state: candidate
+    terminal_states: [archived]
+    fields:
+      title:
+        zh_name: 标题
+        type: string
+        required: true
+      documentType:
+        zh_name: 文档类型
+        type: string
+        required: true
+      publishTime:
+        zh_name: 发布时间
+        type: datetime
+        time_type: business_time
+        required: false
+      author:
+        zh_name: 作者/机构
+        type: string
+        required: false
+      publisher:
+        zh_name: 发布机构
+        type: string
+        required: false
+        source_note: 由 03 半导体示例反推补充。
+      content:
+        zh_name: 内容
+        type: string
+        required: false
+      sourceForm:
+        zh_name: 来源形态
+        type: enum
+        enum: [original_pdf, official_page, broker_page, repost_page, ai_summary, data_feed, manual_input, research_report, database_feed, original_file]
+        required: true
+      sourceReliability:
+        zh_name: 来源可信度
+        type: enum
+        enum: [high, medium, low]
+        required: true
+      canonicalSourceId:
+        zh_name: 规范来源 ID
+        type: string
+        required: true
+        description: >
+          用于来源去重和独立来源判定的稳定主键。原始来源可使用 DOI、公告编号、
+          交易所披露编号、数据库记录 ID、规范化 originalUrl 或文件内容哈希；
+          repost_page、ai_summary、manual_input 应继承其原始来源的 canonicalSourceId。
+      originalUrl:
+        zh_name: 原始链接
+        type: string
+        required: false
+        source_note: 由 03 半导体示例反推补充。
+      filePath:
+        zh_name: 文件路径
+        type: string
+        required: false
+        source_note: v1.1 新增。本地文件的存储路径。
+      capturedAt:
+        zh_name: 系统采集时间
+        type: datetime
+        time_type: system_time
+        required: false
+        source_note: v1.1 新增。与 recordedAt 分工：capturedAt 为采集时间，recordedAt 为入库时间。
+      citationLocator:
+        zh_name: 定位信息
+        type: string
+        required: false
+        source_note: v1.1 新增。页码、段落、表格、时间戳等具体定位。
+      language:
+        zh_name: 语言
+        type: string
+        required: false
+        source_note: v1.1 新增。
+      sourceOwner:
+        zh_name: 来源机构或作者
+        type: string
+        required: false
+        source_note: v1.1 新增。与 author 互补：author 为原始作者，sourceOwner 为来源机构。
+      accessLevel:
+        zh_name: 访问与权限等级
+        type: string
+        required: false
+        source_note: 兼容字段。新实例优先使用公共字段 markings；accessLevel 可映射到 markings.confidentiality。
+        preferred_mapping:
+          public: markings.confidentiality=public
+          internal: markings.confidentiality=internal
+          restricted: markings.confidentiality=restricted
+          mnpi: markings.confidentiality=mnpi
+      recordedAt:
+        zh_name: 录入时间
+        type: datetime
+        time_type: system_time
+        required: false
+        generated_by: system
+    required_relations: []
+    optional_relations: [sourceOf]
+    quality_rules:
+      - AI 摘要只能作为线索，不得单独作为正式对象入库依据。
+      - sourceForm=ai_summary 的 SourceDocument 不得作为 EvidenceFact active 状态的唯一支撑来源（v1.1 新增）。
+      - canonicalSourceId 是独立来源判定主键；转载、摘要和人工转录应继承原始来源 canonicalSourceId。
+      - 无法确认原始来源的 repost_page、ai_summary、manual_input 只作为线索，不计入独立来源数量。
+      - sourceReliability 只评价来源文档本身，不得直接复制为 EvidenceClaim.reliabilityScore 或 EvidenceFact.confidenceScore。
+      - 来源可靠不代表其中每条主张可靠；管理层展望、卖方预测、作者判断和利益相关表述必须按 claimType 分拆并单独定级。
+      - SourceDocument 的 markings 是证据链合规标记的起点；缺省继承 bundle manifest.default_markings。
+
+  EvidenceEpisode:
+    zh_name: 证据摄入事件
+    category: source_and_record
+    managed_by: system_or_researcher
+    description: 一次材料、历史案例、推理反馈、评测反馈或结构化数据的摄入与抽取事件；用于把来源、抽取时间、业务时间和后续 claim 关联起来。v1.1 扩展：增加解析器版本、抽取提示词版本、摄入路径、操作人等审计字段。
+    lifecycle_field: episodeStatus
+    initial_state: created
+    terminal_states: [completed, failed, rejected, quarantined]
+    fields:
+      title:
+        zh_name: 标题
+        type: string
+        required: true
+      episodeType:
+        zh_name: Episode 类型
+        type: enum
+        enum: [source_material, historical_case, reasoning_feedback, evaluation_feedback, manual_note, structured_data, material_ingestion]
+        required: true
+      sourceDocumentId:
+        zh_name: 来源文档 ID（单数，兼容旧引用）
+        type: object_ref
+        required: false
+        source_note: v1.1 保留兼容。新代码优先使用 sourceDocumentIds。
+      sourceDocumentIds:
+        zh_name: 来源文档 ID 列表（复数，v1.1 新增）
+        type: array
+        required: false
+        source_note: v1.1 新增。支持一个 Episode 关联多个 SourceDocument。
+      sourcePathOrUrl:
+        zh_name: 来源路径或链接
+        type: string
+        required: false
+      intakePath:
+        zh_name: 摄入路径
+        type: string
+        required: false
+        source_note: v1.1 新增。如上传、爬取、接口同步、人工录入。
+      publishTime:
+        zh_name: 来源发布时间
+        type: datetime
+        time_type: business_time
+        required: false
+      businessTime:
+        zh_name: 业务时间或区间
+        type: time_window
+        time_type: business_time
+        required: false
+      ingestedAt:
+        zh_name: 摄入时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+      sourceReliability:
+        zh_name: 来源可信度
+        type: enum
+        enum: [high, medium, low]
+        required: true
+      episodeStatus:
+        zh_name: Episode 状态
+        type: enum
+        enum: [ingested, parsed, partially_parsed, quarantined, rejected, created, partial, completed, failed]
+        required: true
+        default: ingested
+      parserVersion:
+        zh_name: 解析器版本
+        type: string
+        required: false
+        source_note: v1.1 新增。
+      extractionPromptVersion:
+        zh_name: 抽取提示词版本
+        type: string
+        required: false
+        source_note: v1.1 新增。
+      confidence:
+        zh_name: 摄入置信度
+        type: number
+        value_range: [0, 1]
+        required: false
+        source_note: v1.1 新增。
+      operator:
+        zh_name: 操作人或系统来源
+        type: string
+        required: false
+        source_note: v1.1 新增。
+      originalLocation:
+        zh_name: 原始位置
+        type: string
+        required: false
+      textSpan:
+        zh_name: 文本范围
+        type: string
+        required: false
+      limitations:
+        zh_name: 限制条件
+        type: array
+        required: false
+      groupId:
+        zh_name: 命名空间
+        type: string
+        required: false
+        description: 用于隔离行业、本体版本、客户或任务上下文；不替代 ontology_id。
+      caseSignature:
+        zh_name: 历史案例签名
+        type: object
+        required: false
+        required_when: episodeType=historical_case
+        description: >
+          historical_case 的可检索特征向量，用于按事件原型、变量组合、
+          结构位置和结果变量寻找相似历史案例。类比结果只能作为候选推理依据。
+        properties:
+          eventPrototype:
+            type: string
+            required: true
+          keyVariableIds:
+            type: array
+            required: true
+          structuralPosition:
+            type: array
+            required: true
+          timeHorizonBucket:
+            type: enum
+            enum_ref: timeHorizonBucket
+            required: true
+          outcomeVariableIds:
+            type: array
+            required: true
+          boundaryConditions:
+            type: array
+            required: false
+          analogyTags:
+            type: array
+            required: false
+    required_relations: []
+    optional_relations: [sourceOf, episodeMentionsObject]
+    quality_rules:
+      - EvidenceEpisode 是证据摄入和追溯单元，不是正式业务对象。
+      - 每个从材料、回放或推理反馈生成的 EvidenceClaim 应能追溯到至少一个 EvidenceEpisode。
+      - episodeType=historical_case 时必须填写 caseSignature，支持按特征检索和类比回放。
+
+  EvidenceClaim:
+    zh_name: 证据主张
+    category: source_and_record
+    managed_by: system_or_researcher
+    description: 从 EvidenceEpisode 中抽取或整理出的最小可追溯主张，承载事实、估算、预测、传导、信号、反证、情景或资产映射线索。
+    lifecycle_field: claimStatus
+    initial_state: candidate
+    terminal_states: [invalidated, superseded, rejected, quarantined]
+    fields:
+      claimText:
+        zh_name: 原始主张摘要
+        type: string
+        required: true
+      normalizedClaim:
+        zh_name: 归一化主张
+        type: string
+        required: true
+      claimType:
+        zh_name: 主张类型
+        type: enum
+        enum: [reported_fact, data_point, estimate, forecast, guidance, author_judgment, assumption, rumor_or_unverified, correction, fact_observation, transmission_logic, validation_signal, falsification_condition, validation_evidence, falsification_evidence, scenario_path, asset_mapping, restricted_item]
+        required: true
+        # v2 推荐优先使用 reported_fact / data_point / guidance / rumor_or_unverified / correction 等更细粒度类型。
+        # fact_observation 为历史通用类型，兼容 reported_fact 和 data_point 的旧数据。
+        # validation_signal: 历史命名 = validation_evidence。EvidenceClaim ≠ Signal。
+        # falsification_condition: 历史命名 = falsification_evidence。
+        # v2 推荐使用 validation_evidence / falsification_evidence。当前阶段并存。
+      claimStatus:
+        zh_name: 主张状态
+        type: enum
+        enum: [candidate, normalized, active, invalidated, superseded, rejected, quarantined, conflicted]
+        required: true
+        default: candidate
+      sourceStatementType:
+        zh_name: 来源表述类型
+        type: enum
+        enum: [fact, estimate]
+        required: false
+      evidenceLocation:
+        zh_name: 证据位置
+        type: string
+        required: false
+      sourceEpisodeId:
+        zh_name: 来源摄入事件 ID
+        type: object_ref
+        required: false
+        source_note: v1.1 新增。与 claimFromEpisode 互补；关系表达追溯，字段用于索引。
+      sourceDocumentId:
+        zh_name: 来源文档 ID
+        type: object_ref
+        required: false
+        source_note: v1.1 新增。直接引用 SourceDocument 的快捷追溯。
+      citationLocator:
+        zh_name: 引用定位
+        type: string
+        required: false
+        source_note: v1.1 新增。页码、段落、表格、时间戳等细粒度定位。
+      subjectObjectIds:
+        zh_name: 涉及的本体对象
+        type: array
+        required: false
+        source_note: v1.1 新增。该 Claim 涉及的 formal object 或候选对象 ID。
+      relatedVariableIds:
+        zh_name: 涉及的状态变量
+        type: array
+        required: false
+        source_note: v1.1 新增。该 Claim 涉及的 StateVariable ID。
+      value:
+        zh_name: 数值
+        type: string
+        required: false
+        source_note: v1.1 新增。从 Claim 抽取的结构化数值。
+      direction:
+        zh_name: 方向
+        type: enum
+        enum: [up, down, stable, divergent, unknown]
+        required: false
+        source_note: v1.1 新增。从 Claim 抽取的方向信息。
+      magnitude:
+        zh_name: 幅度
+        type: string
+        required: false
+        source_note: v1.1 新增。从 Claim 抽取的幅度信息。
+      confidence:
+        zh_name: 主张置信度（保留兼容）
+        type: number
+        value_range: [0, 1]
+        required: false
+      reliabilityScore:
+        zh_name: 可靠性评分
+        type: number
+        value_range: [0, 1]
+        required: false
+        source_note: v1.1 新增。推荐使用，替代 confidence 作为证据可靠性度量。
+      extractionConfidence:
+        zh_name: 抽取置信度
+        type: number
+        value_range: [0, 1]
+        required: false
+        source_note: v1.1 新增。AI 抽取该 Claim 时的置信度，与 reliabilityScore 分工。
+      normalizedKey:
+        zh_name: 归一化键
+        type: string
+        required: false
+        source_note: v1.1 新增。去重和跨 episode 归并的归一化标识。
+      allowedTargetObjectTypes:
+        zh_name: 允许映射对象类型
+        type: array
+        required: false
+      mustNotMapTo:
+        zh_name: 禁止映射目标
+        type: array
+        required: false
+      scope:
+        zh_name: 适用范围
+        type: string
+        required: false
+      restrictions:
+        zh_name: 使用限制
+        type: array
+        required: false
+    required_relations: []
+    optional_relations: [claimFromEpisode, claimCitesSource, claimSupportsObject, claimSupportsRelation, claimInvalidatesClaim, claimSupersedesClaim, claimConflictsWithClaim, claimTriggersPatch, sourceOf]
+    quality_rules:
+      - EvidenceClaim 是证据图谱的最小主张单元；不得直接等同于正式本体对象、关系或判断。
+      - 一条 EvidenceClaim 只表达一个最小可复核主张；包含多个对象、时间、指标、方向或因果关系时必须拆分。
+      - EvidenceClaim 不等于判断推理域 Signal。Claim 回答"材料说了什么"，Signal 回答"在推理链中起什么作用"。
+      - SourceDocument.sourceReliability 不得直接等同于主张可信度；reliabilityScore 应结合主张类型、原文位置、一手来源、交叉验证、利益相关和冲突状态计算。
+      - restricted_item、rumor_or_unverified、author_judgment、forecast、guidance 类型不得直接升级为事实观测。
+      - claimType=restricted_item 必须映射到 markings.confidentiality=restricted 或更高。
+      - claimStatus=candidate 的主张只能作为线索；normalized 可进入补证和冲突检测；active 才可被推理正式引用；conflicted 未裁决时不得支撑判断升级。
+      - claimStatus 失效或被替代时，必须保留历史并记录 invalidatedBy 或 supersededBy。
+
+  EvidenceFact:
+    zh_name: 证据事实
+    category: source_and_record
+    managed_by: system_or_researcher
+    description: 由一个或多个 EvidenceClaim 归并出的结构化事实候选；可用于生成观测、事件、信号或关系候选，但不能绕过优化 Skill 写入正式本体。EvidenceFact 不等于判断推理域 StateVariableObservation——Fact 是证据域结构化事实候选，Observation 是判断推理域正式观测对象。
+    lifecycle_field: factStatus
+    initial_state: candidate
+    terminal_states: [invalidated, superseded, rejected, quarantined]
+    fields:
+      factText:
+        zh_name: 事实文本
+        type: string
+        required: true
+      normalizedFact:
+        zh_name: 归一化事实
+        type: string
+        required: true
+      factType:
+        zh_name: 事实类型
+        type: string
+        required: false
+        source_note: v1.1 新增。对应 claimType 分类，标记该 Fact 的事实类型。
+      factStatus:
+        zh_name: 事实状态
+        type: enum
+        enum: [candidate, normalized, active, invalidated, superseded, rejected, quarantined, conflicted]
+        required: true
+        default: candidate
+      factScope:
+        zh_name: 事实范围
+        type: string
+        required: false
+      subjectObjectIds:
+        zh_name: 涉及的本体对象
+        type: array
+        required: false
+        source_note: v1.1 新增。该 Fact 涉及的 formal object 或候选对象 ID。
+      relatedVariableIds:
+        zh_name: 涉及的状态变量
+        type: array
+        required: false
+        source_note: v1.1 新增。该 Fact 涉及的 StateVariable ID。
+      value:
+        zh_name: 数值
+        type: string
+        required: false
+        source_note: v1.1 新增。从归并 Claim 中提取的结构化数值。
+      direction:
+        zh_name: 方向
+        type: enum
+        enum: [up, down, stable, divergent, unknown]
+        required: false
+        source_note: v1.1 新增。从归并 Claim 中提取的方向信息。
+      magnitude:
+        zh_name: 幅度
+        type: string
+        required: false
+        source_note: v1.1 新增。从归并 Claim 中提取的幅度信息。
+      confidence:
+        zh_name: 事实置信度（保留兼容）
+        type: number
+        value_range: [0, 1]
+        required: false
+      confidenceScore:
+        zh_name: 综合置信度
+        type: number
+        value_range: [0, 1]
+        required: false
+        source_note: v1.1 新增。推荐使用，综合多 Claim 交叉验证后的置信度。
+      conflictIds:
+        zh_name: 相关冲突记录
+        type: array
+        required: false
+        source_note: v1.1 新增。关联的 evidence_conflict_record ID。
+      validationMethod:
+        zh_name: 校验方式
+        type: string
+        required: false
+        source_note: v1.1 新增。如 cross_validation、temporal_check、source_authority 等。
+      normalizedKey:
+        zh_name: 归一化键
+        type: string
+        required: false
+        source_note: v1.1 新增。去重和跨 Fact 归并的归一化标识。
+      sourceClaimIds:
+        zh_name: 来源主张 ID
+        type: array
+        required: true
+    required_relations: []
+    optional_relations: [factSupportedByClaim, factSupportsObject, factSupportsRelation, factInvalidatesFact, factSupersedesFact, factConflictsWithFact, factTriggersPatch, sourceOf]
+    quality_rules:
+      - EvidenceFact 必须由 EvidenceClaim 支撑，不得凭模型常识生成。
+      - EvidenceFact 不是最终事实裁决，只表示当前证据下可被引用的结构化事实候选。
+      - EvidenceFact 是否可用于推理升级，取决于来源可靠性、独立来源数量、冲突状态、新鲜度和治理状态。
+      - EvidenceFact 只能作为正式对象、观测、信号或关系的候选来源。
+      - EvidenceFact 不等于 StateVariableObservation。必须经过判断推理域或优化流程采纳后才能创建正式观测对象。
+      - factStatus=candidate 或 normalized 的事实只可作为线索或待审核候选；conflicted、quarantined、rejected 不得作为正式推理依据。
+      - AI 摘要不得作为 EvidenceFact active 状态的唯一支撑来源（v1.1 新增）。

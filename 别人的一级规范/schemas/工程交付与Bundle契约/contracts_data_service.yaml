@@ -1,0 +1,67 @@
+schema_name: contracts_data_service
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+canonical_rule: >
+  数据产品与语义绑定是工程运行契约，不是正式本体对象；bundle 只登记可解析引用和降级策略，
+  不保存连接凭据，也不把“已绑定”误写成“已有可信观测”。
+description: P1a 最小语义数据服务契约，覆盖数据产品目录、状态变量绑定和运行前解析结果。
+
+data_product_descriptor_contract:
+  artifact_role: platform_data_product_catalog_entry
+  is_formal_ontology_object: false
+  canonical_registry: registries/data_product_registry.yaml
+  required_fields:
+    - data_product_id
+    - display_name
+    - product_type
+    - status
+    - access_mode
+    - output_contract
+    - freshness_capability
+    - credential_policy
+    - failure_behavior
+  product_type_values: [document_retrieval, structured_observation]
+  status_values: [draft, active, paused, deprecated]
+  access_mode_values: [public_retrieval, governed_manual_entry]
+  credential_policy_values: [runtime_secret_reference_only, no_credentials_required]
+  forbidden_fields: [api_key, access_token, password, secret, credentials]
+  activation_rule: active 只表示产品入口可用，不表示某一变量已有当期观测或满足证据门禁。
+
+semantic_data_binding_contract:
+  artifact_role: scenario_variable_to_data_product_binding
+  is_formal_ontology_object: false
+  canonical_location: industry_bundles/<bundle_id>/scenario_packs/<scenario_id>/data_bindings.yaml
+  required_top_level_fields: [binding_contract_ref, scenario_id, bindings]
+  required_binding_fields:
+    - binding_id
+    - target_ref
+    - target_kind
+    - data_product_ref
+    - resolution_mode
+    - binding_status
+    - value_contract
+    - freshness_policy_ref
+    - on_missing
+  target_kind_values: [state_variable, evidence_slot]
+  resolution_mode_values: [document_extracted_observation, governed_manual_observation]
+  binding_status_values: [declared, partially_bound, manual_authorized, active, blocked]
+  on_missing_values: [block_with_gap, observation_only, request_manual_input]
+  forbidden_fields: [api_key, access_token, password, secret, credentials]
+  truth_boundary: >
+    binding_status 描述接线成熟度，不描述数据真值；只有运行期解析结果和可追溯证据/人工观测
+    才能形成 RuntimeEvidenceSnapshot 或 StateVariableObservation 候选。
+
+data_service_resolution_contract:
+  artifact_role: per_run_binding_preflight
+  persistence_scope: per_run
+  required_fields:
+    - scenario_id
+    - checked_at
+    - binding_results
+    - unresolved_bindings
+    - overall_status
+  overall_status_values: [ready, degraded, blocked, not_configured]
+  binding_result_status_values: [resolvable, manual_input_required, unavailable, invalid]
+  write_boundary: 解析结果可进入 reasoning_result 或 RuntimeEvidenceSnapshot；不得写回正式 bundle 资产。
+

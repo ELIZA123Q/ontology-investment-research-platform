@@ -1,0 +1,1722 @@
+schema_name: actions_governance
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_governance.yaml
+  relations_schema: relations_governance.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研治理域动作定义——推理运行、审核、补丁管理、层级升级/降级、未解析项处理、质量门禁、审计和复盘动作。本文件只定义治理域动作和治理域对象状态机摘要；actor_roles、trigger_types、action_groups、audit_policy
+  等公共动作定义见 common.yaml。
+actions:
+  CreatePatchRequest:
+    zh_name: 创建补丁请求
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: PatchRequest
+    target_type: PatchRequest
+    state_transition:
+      field: reviewStatus
+      from:
+      - pending
+      - supplementRequired
+      to:
+      - approved
+      - rejected
+      - supplementRequired
+      - merged
+      - superseded
+    field_inputs:
+      required:
+      - patchRequestTitle
+      - operation
+      - targetLayer
+      - reason
+      - semanticRisk
+      - reviewStatus
+      optional:
+      - targetFile
+      - targetPath
+      - targetId
+      - evidenceEpisodeIds
+      - evidenceClaimIds
+      - mergePrecondition
+    initial_values:
+      reviewStatus: pending
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> PatchRequest
+    preconditions:
+    - type: patch_has_reason
+      description: 补丁请求必须说明来源、理由、目标层和风险；证据不足时只能 pending 或 supplementRequired。
+    threshold_checks:
+    - check_id: patch_request_admission_gate
+      policy_ref: policies_governance.cross_bundle_governance.cross_bundle_patch_policy
+      description: PatchRequest 表达候选变更；跨 owner bundle 改动必须通过本动作进入 owner 审核。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.cross_bundle_governance
+    - policies_engineering.bundle_manifest_contract
+    rule_refs:
+    - governance.promotion.review_to_patch_request_gate
+    - semantic.blocking.relation_endpoint_owner_gate
+    effects:
+    - type: create_object
+      target: PatchRequest
+      default_status: pending
+    - type: enqueue_review
+      target: review_queue
+    - type: emit_audit
+      target: ActionAudit
+    side_effects:
+    - type: enqueue_review
+      payload_fields:
+      - review_queue_type
+      - target_object_id
+      - reason
+      - owner_bundle_id
+    - type: trigger_followup
+      event_id: governance.followup.create_patch_request.bundle_gap_detected
+      event_name: BundleGapDetected
+      followup_kind: bundle_gap_detected
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    state_transitions:
+    - target: PatchRequest
+      field: reviewStatus
+      from: []
+      to: pending
+    failure_handling:
+      missing_reason: block_next_action
+      missing_owner_bundle: enqueue_review
+      evidence_insufficient: supplementRequired
+    output_contract:
+      required_outputs:
+      - PatchRequest
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - sourceOf
+    audit_required: true
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  AppendPatchLedgerItem:
+    zh_name: 追加补丁账本项
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: PatchLedgerItem
+    target_type: PatchLedgerItem
+    field_inputs:
+      required:
+      - patchId
+      - baseOntologyVersion
+      - operation
+      - mergeStatus
+      - mergeReason
+      optional:
+      - patchRequestId
+      - baseHash
+      - mergedAt
+      - targetFile
+      - targetPath
+      - targetId
+      - evidenceEpisodeIds
+      - evidenceClaimIds
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> PatchLedgerItem
+    preconditions:
+    - type: optimizer_decision_exists
+      description: 只有本体优化 Skill 的合并、拒绝、延后或失败决策才能追加 patch ledger。
+    threshold_checks:
+    - check_id: patch_ledger_append_gate
+      policy_ref: policies_governance.patch_conflict_detection
+      description: 合并、拒绝、延后、失败、回滚和迁移都必须追加账本项；合并前检查 baseHash、owner 和跨包写入规则。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.cross_bundle_governance
+    - policies_governance.patch_conflict_detection
+    rule_refs: []
+    effects:
+    - type: create_object
+      target: PatchLedgerItem
+    - type: emit_audit
+      target: ActionAudit
+    - type: trigger_next_action
+      target: RunQualityGateCheck
+      condition: mergeStatus_is_merged
+    side_effects:
+    - type: trigger_next_action
+      payload_fields:
+      - next_action_type
+      - trigger_reason
+      - required_inputs
+    state_transitions:
+    - target: PatchRequest
+      field: reviewStatus
+      from:
+      - approved
+      - pending
+      - supplementRequired
+      to:
+      - merged
+      - rejected
+      - superseded
+    failure_handling:
+      missing_optimizer_decision: block_next_action
+      base_hash_conflict: enqueue_review
+      external_owner_without_patch: block_next_action
+    output_contract:
+      required_outputs:
+      - PatchLedgerItem
+      - ActionAudit
+      optional_outputs:
+      - quality_gate_recheck_report
+      - rejected_patch_record
+    audit_required: true
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  CreateActionProposal:
+    zh_name: 创建动作提案
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - ai_agent
+    trigger: agent_proposed_researcher_confirm
+    creates_object: ActionProposal
+    target_type: ActionProposal
+    field_inputs:
+      required:
+      - proposedActionType
+      - proposalStatus
+      - riskLevel
+      - reviewRequirement
+      - executionScope
+      - writebackMode
+      - targetType
+      - inputPayload
+      - proposalReason
+      - proposedBy
+      - proposedAt
+      optional:
+      - targetIds
+      - decisionLogRef
+    initial_values:
+      proposalStatus: proposed
+    preconditions:
+    - type: action_type_registered
+      description: proposedActionType 必须引用 actions_*.yaml 中已定义的 Action。
+    - type: writeback_not_direct_for_high_risk
+      description: riskLevel 为 high 或 core_change_required 时不得使用 direct_writeback。
+    threshold_checks:
+    - check_id: action_proposal_admission_gate
+      policy_ref: policies_governance.action_proposal_policy
+      description: 高风险提案必须进入 review_queue；低风险提案可按 write_policy 自动执行或等待确认。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.action_proposal_policy
+    rule_refs:
+    - governance.action_precondition.proposal_registered_action
+    - governance.blocking.ai_direct_write_to_shared
+    effects:
+    - type: create_action_proposal
+      target: ActionProposal
+      default_status: proposed
+    - type: record_decision_log
+      target: decisionLogRef
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: ActionProposal
+      field: proposalStatus
+      from: []
+      to: proposed
+    failure_handling:
+      unknown_action_type: block_next_action
+      high_risk_without_review: enqueue_review
+      missing_decision_log: enqueue_review
+    output_contract:
+      required_outputs:
+      - ActionProposal
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    audit_required: true
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.create_action_proposal.action_completed
+      event_name: ActionProposalCreated
+      followup_kind: action_completed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - SubmitActionProposalForReview
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_action_audit: true
+  SubmitActionProposalForReview:
+    zh_name: 提交动作提案审核
+    group: review
+    actor_roles:
+    - researcher
+    - system
+    - ai_agent
+    trigger: system_auto_with_researcher_confirmation
+    target_type: ActionProposal
+    state_transition:
+      field: proposalStatus
+      from:
+      - proposed
+      - supplementRequired
+      to: review_pending
+    field_inputs:
+      required:
+      - reviewReason
+      optional:
+      - requiredReviewerRole
+    preconditions:
+    - type: proposal_exists
+    - type: proposal_requires_review
+      description: riskLevel、reviewRequirement、writebackMode 或 markings 要求人工审核。
+    threshold_checks:
+    - check_id: action_proposal_review_gate
+      policy_ref: policies_governance.action_proposal_policy
+      description: 需要审核的 ActionProposal 必须生成 ReviewRecord 或进入 review_queue。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.action_proposal_policy
+    - policies_governance.review_queue
+    rule_refs:
+    - governance.blocking.ai_direct_write_to_shared
+    effects:
+    - type: update_fields
+      target: ActionProposal
+      allowed_fields:
+      - proposalStatus
+    - type: stage_action_proposal
+      target: review_queue
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: ActionProposal
+      field: proposalStatus
+      from:
+      - proposed
+      - supplementRequired
+      to: review_pending
+    failure_handling:
+      missing_proposal: block_next_action
+      missing_review_reason: block_next_action
+    output_contract:
+      required_outputs:
+      - ActionProposal
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    audit_required: true
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.submit_action_proposal_for_review.human_review_requested
+      event_name: HumanReviewRequested
+      followup_kind: human_review_requested
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - ApproveReview
+      - RejectReview
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_action_audit: true
+  ExecuteApprovedActionProposal:
+    zh_name: 执行已批准动作提案
+    group: state_transition
+    actor_roles:
+    - system
+    trigger: system_auto
+    target_type: ActionProposal
+    state_transition:
+      field: proposalStatus
+      from:
+      - approved
+      to: executed
+    field_inputs:
+      required:
+      - executionReason
+      optional:
+      - executionResultRef
+    preconditions:
+    - type: proposal_approved
+    - type: action_inputs_still_valid
+      description: 执行前重新校验 targetIds、markings、owner_bundle_id、as-of 和 Action preconditions。
+    threshold_checks:
+    - check_id: action_proposal_execution_gate
+      policy_ref: policies_governance.action_proposal_policy
+      description: 已批准提案执行前必须重新确认权限、状态和目标对象未失效。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.action_proposal_policy
+    - policies_governance.action_side_effect_governance
+    rule_refs:
+    - governance.action_precondition.proposal_registered_action
+    - governance.blocking.ai_direct_write_to_shared
+    - governance.permission.no_direct_write_from_followup
+    effects:
+    - type: execute_action_proposal
+      target: proposedActionType
+    - type: record_decision_log
+      target: executionResultRef
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: ActionProposal
+      field: proposalStatus
+      from:
+      - approved
+      to: executed
+    failure_handling:
+      approval_missing: block_next_action
+      target_changed_after_approval: enqueue_review
+      execution_failed: failed
+    output_contract:
+      required_outputs:
+      - ActionProposal
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - PatchRequest
+    audit_required: true
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  CreateInferenceRun:
+    zh_name: 创建推理运行记录
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: InferenceRun
+    target_type: InferenceRun
+    state_transition:
+      field: runStatus
+      from: []
+      to: initializing
+    field_inputs:
+      required:
+      - question
+      - ontologyVersion
+      - runStatus
+      - runAt
+      optional:
+      - businessTime
+      - centerObjects
+      - usedRelationIds
+      - usedEvidenceClaimIds
+      - excludedInvalidClaimIds
+      - reasoningChain
+      - confidence
+      - ontologyFeedback
+      - candidatePatchRequestIds
+    relation_inputs:
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> InferenceRun
+    preconditions:
+    - type: ontology_bundle_available
+      description: 推理运行必须记录所使用的本体版本；无法读取本体时 runStatus=blocked 或 failed。
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.create_inference_run.inference_rule_matched
+      event_name: InferenceRuleMatched
+      followup_kind: inference_rule_matched
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - RecordReasoningStep
+      - CreateJudgmentOutput
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload_inline
+    - type: trigger_followup
+      event_id: governance.followup.create_inference_run.bundle_gap_detected
+      event_name: BundleGapDetected
+      followup_kind: bundle_gap_detected
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    - type: trigger_followup
+      event_id: governance.followup.create_inference_run.data_stale_detected
+      event_name: DataStaleDetected
+      followup_kind: data_stale_detected
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      - EvaluateMonitor
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - scenarioId
+        - runtimeDataRequirementKey
+        - freshnessPolicyRef
+        - staleReason
+        - onMissingBehavior
+        forbidden:
+        - external_research_event_payload
+        - ontology_feedback_payload
+    - type: trigger_followup
+      event_id: governance.followup.create_inference_run.data_requirement_breached
+      event_name: DataRequirementBreached
+      followup_kind: data_requirement_breached
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - scenarioId
+        - runtimeDataRequirementKey
+        - requiredForFormalJudgment
+        - onMissingBehavior
+        forbidden:
+        - external_research_event_payload
+        - ontology_feedback_payload
+    outputs:
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+    rule_refs: []
+    inference_consumer_rule_refs:
+    - reasoning.inference.event_to_state_hypothesis.minimum_trace
+    - reasoning.scoring.confidence_composition.minimum_chain
+  RecordActionFollowup:
+    zh_name: 记录动作后续信号
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: ActionFollowup
+    target_type: ActionFollowup
+    field_inputs:
+      required:
+      - eventName
+      - eventType
+      - eventStatus
+      - emittedAt
+      - emittedByActionType
+      - triggeringActionAuditId
+      - payloadSummary
+      - terminalHandling
+      optional:
+      - targetObjectIds
+      - nextActionType
+      - failureReason
+    initial_values:
+      eventStatus: emitted
+    relation_inputs:
+      required:
+        followupEmittedBy:
+          input: triggeringActionAuditId
+      optional:
+        followupTriggersProposal:
+          input: actionProposalId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> ActionFollowup
+    preconditions:
+    - type: action_audit_exists
+      object_type: ActionAudit
+      input: triggeringActionAuditId
+    - type: followup_not_research_event
+      description: ActionFollowup 只能记录 Action side effect 语义下的动作后续信号；外部政策、订单、价格、技术或公司研究事件必须使用
+        Event。
+    threshold_checks:
+    - check_id: followup_routing_gate
+      policy_ref: policies_validation.action_followup_gate
+      description: 后续动作必须是已注册 Action 或明确 no_followup_required。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.action_side_effect_governance
+    - policies_validation.action_followup_gate
+    rule_refs:
+    - governance.permission.no_direct_write_from_followup
+    effects:
+    - type: create_object
+      target: ActionFollowup
+      default_status: candidate
+    - type: create_relation
+      target: followupEmittedBy
+    - type: emit_audit
+      target: ActionAudit
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.record_action_followup.data_stale_detected
+      event_name: DataStaleDetected
+      followup_kind: data_stale_detected
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      - EvaluateMonitor
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - scenarioId
+        - runtimeDataRequirementKey
+        - freshnessPolicyRef
+        - staleReason
+        - onMissingBehavior
+        forbidden:
+        - external_research_event_payload
+        - ontology_feedback_payload
+    - type: trigger_followup
+      event_id: governance.followup.record_action_followup.data_requirement_breached
+      event_name: DataRequirementBreached
+      followup_kind: data_requirement_breached
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - CreateActionProposal
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - scenarioId
+        - runtimeDataRequirementKey
+        - requiredForFormalJudgment
+        - onMissingBehavior
+        forbidden:
+        - external_research_event_payload
+        - ontology_feedback_payload
+    - type: trigger_followup
+      event_id: governance.followup.record_action_followup.action_failed
+      event_name: ActionFailed
+      followup_kind: action_failed
+      terminal_handling: block_next_action
+      allowed_next_actions: []
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        - failureReason
+        forbidden:
+        - external_research_event_payload
+    failure_handling:
+      missing_action_audit: block_next_action
+      business_event_detected: block_next_action
+      invalid_next_action: block_next_action
+    output_contract:
+      required_outputs:
+      - ActionFollowup
+      - followupEmittedBy
+      - ActionAudit
+      optional_outputs:
+      - followupTriggersProposal
+      - ReviewRecord
+    audit_required: true
+    outputs:
+      create_relations:
+      - followupEmittedBy
+      create_relations_if_inputs_present:
+      - followupTriggersProposal
+      - sourceOf
+      create_action_audit: true
+  ApproveReview:
+    zh_name: 审核通过
+    group: review
+    actor_roles:
+    - reviewer
+    trigger: system_prompt_reviewer_confirm
+    target_type: ReviewRecord
+    reviewed_object_types:
+    - JudgmentOutput
+    - MarketExpectation
+    - AssetImpact
+    - InvestmentThesis
+    - StateHypothesis
+    - Signal
+    - PatchRequest
+    - PatchLedgerItem
+    - ActionProposal
+    - LogicFunction
+    - ObjectViewSpec
+    - EvalRun
+    - EvalResult
+    - InferenceRun
+    - ActionAudit
+    state_transition:
+      field: reviewResult
+      from:
+      - pending
+      - supplementRequired
+      to: approved
+    field_inputs:
+      optional:
+      - reviewNotes
+    preconditions:
+    - type: review_record_exists
+    threshold_checks:
+    - check_id: review_approval_gate
+      policy_ref: policies_governance.review_queue
+      description: 审核通过只表示 reviewer 批准对应状态流转或补丁处理；具体业务门槛由被审核对象所属 policy/rule 决定。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.review_queue
+    rule_refs: []
+    effects:
+    - type: update_fields
+      target: ReviewRecord
+      allowed_fields:
+      - reviewResult
+      - reviewedBy
+      - reviewedAt
+      - reviewNotes
+    - type: trigger_next_action
+      target: corresponding_state_transition
+      condition: reviewed_object_policy_passed
+    - type: emit_audit
+      target: ActionAudit
+    side_effects:
+    - type: trigger_next_action
+      payload_fields:
+      - next_action_type
+      - trigger_reason
+      - required_inputs
+    - type: trigger_followup
+      event_id: governance.followup.approve_review.review_record_completed
+      event_name: ReviewRecordCompleted
+      followup_kind: review_record_completed
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      - AppendPatchLedgerItem
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    state_transitions:
+    - target: ReviewRecord
+      field: reviewResult
+      from:
+      - pending
+      - supplementRequired
+      to: approved
+    failure_handling:
+      reviewed_object_gate_failed: block_next_action
+      missing_review_record: block_next_action
+    output_contract:
+      required_outputs:
+      - ReviewRecord
+      - ActionAudit
+      optional_outputs:
+      - PatchLedgerItem
+      - target_state_transition
+    audit_required: true
+    outputs:
+      update_review_record: true
+      trigger_corresponding_state_transition_if_any: true
+      create_action_audit: true
+  RejectReview:
+    zh_name: 审核拒绝
+    group: review
+    actor_roles:
+    - reviewer
+    trigger: system_prompt_reviewer_confirm
+    target_type: ReviewRecord
+    reviewed_object_types:
+    - JudgmentOutput
+    - MarketExpectation
+    - AssetImpact
+    - InvestmentThesis
+    - StateHypothesis
+    - Signal
+    - PatchRequest
+    - PatchLedgerItem
+    - ActionProposal
+    - LogicFunction
+    - ObjectViewSpec
+    - EvalRun
+    - EvalResult
+    - InferenceRun
+    - ActionAudit
+    state_transition:
+      field: reviewResult
+      from:
+      - pending
+      - supplementRequired
+      to: rejected
+    field_inputs:
+      required:
+      - reviewNotes
+      optional:
+      - rejectReason
+    preconditions:
+    - type: review_record_exists
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.reject_review.review_record_completed
+      event_name: ReviewRecordCompleted
+      followup_kind: review_record_completed
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      - AppendPatchLedgerItem
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_review_record: true
+      keep_reviewed_object_state_unchanged: true
+      create_action_audit: true
+  RequestSupplement:
+    zh_name: 要求补充材料
+    group: review
+    actor_roles:
+    - reviewer
+    trigger: system_prompt_reviewer_confirm
+    target_type: ReviewRecord
+    reviewed_object_types:
+    - JudgmentOutput
+    - MarketExpectation
+    - AssetImpact
+    - InvestmentThesis
+    - StateHypothesis
+    - Signal
+    - PatchRequest
+    - PatchLedgerItem
+    - ActionProposal
+    - LogicFunction
+    - ObjectViewSpec
+    - EvalRun
+    - EvalResult
+    - InferenceRun
+    - ActionAudit
+    state_transition:
+      field: reviewResult
+      from:
+      - pending
+      to: supplementRequired
+    field_inputs:
+      required:
+      - supplementRequest
+    preconditions:
+    - type: review_record_exists
+    threshold_checks:
+    - check_id: supplement_request_gate
+      policy_ref: policies_governance.review_queue
+      description: 补证请求不改变被审核对象的正式状态，只记录缺口并阻断后续入库或升级动作。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_governance.review_queue
+    rule_refs: []
+    effects:
+    - type: update_fields
+      target: ReviewRecord
+      allowed_fields:
+      - reviewResult
+      - reviewNotes
+      - supplementRequest
+    - type: block_next_action
+      target: reviewed_object_state_transition
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: ReviewRecord
+      field: reviewResult
+      from:
+      - pending
+      to: supplementRequired
+    failure_handling:
+      missing_review_record: block_next_action
+      missing_supplement_request: block_next_action
+    output_contract:
+      required_outputs:
+      - ReviewRecord
+      - ActionAudit
+      optional_outputs:
+      - unresolved_items
+      - review_queue
+    audit_required: true
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.request_supplement.human_review_requested
+      event_name: HumanReviewRequested
+      followup_kind: human_review_requested
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - ApproveReview
+      - RejectReview
+      - RequestSupplement
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      update_review_record: true
+      create_action_audit: true
+  RecordReviewOutcome:
+    zh_name: 记录复盘结论
+    group: retrospect
+    actor_roles:
+    - researcher
+    - reviewer
+    trigger: researcher_initiated_reviewer_confirm
+    creates_object: ReviewRecord
+    target_type: ReviewRecord
+    reviewed_object_types:
+    - JudgmentOutput
+    - AssetImpact
+    - InvestmentThesis
+    field_inputs:
+      required:
+      - fundamentalCorrect
+      - timingCorrect
+      - catalystEffective
+      - assetImpactRealized
+      - outcomeStatus
+      - actualOutcomeSummary
+      - reviewBusinessTime
+      - retrospectHorizonBucket
+      - reviewedBy
+      optional:
+      - expectationGapReviewed
+      - pricingReviewed
+      - scenarioReviewed
+      - effectiveEvidenceIds
+      - overlookedCounterEvidenceIds
+      - methodRevisionSuggestion
+      - feedbackScope
+      - aggregationKey
+      - structuralGap
+      - aggregationEvidenceCount
+      - followupPatchRequestIds
+      - reviewNotes
+      system_generated:
+      - reviewType
+      - reviewResult
+      - reviewedAt
+    initial_values:
+      reviewType: retrospect
+      reviewResult: approved
+    relation_inputs:
+      required:
+        reviewFor:
+          input: reviewedObjectId
+    preconditions:
+    - type: reviewed_object_has_terminal_or_formal_state
+      object_types:
+      - JudgmentOutput
+      - AssetImpact
+      - InvestmentThesis
+    - type: retrospect_dimensions_present
+      fields:
+      - fundamentalCorrect
+      - timingCorrect
+      - catalystEffective
+      - assetImpactRealized
+      - outcomeStatus
+      - actualOutcomeSummary
+      - reviewBusinessTime
+      - retrospectHorizonBucket
+    - type: no_future_leakage_into_original_context
+      description: 后验结果只能写入 ReviewRecord，不得回写到原判断创建时点的 EvidenceClaim、MarketExpectation
+        或 InferenceRun 输入上下文。
+    side_effects:
+    - type: trigger_followup
+      event_id: governance.followup.record_review_outcome.review_record_completed
+      event_name: ReviewRecordCompleted
+      followup_kind: review_record_completed
+      terminal_handling: create_patch_request_candidate
+      allowed_next_actions:
+      - CreatePatchRequest
+      - AppendPatchLedgerItem
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload
+    outputs:
+      create_review_record: true
+      create_relation: reviewFor
+      create_action_audit: true
+    rule_refs:
+    - governance.promotion.review_to_patch_request_gate
+governance_actions:
+  description: '治理动作是本体长期健康运行的操作接口。与 actions 中的领域动作不同， 治理动作关注的是本体结构本身的演化——什么内容升入本体层、什么降级到应用层、
+    什么未解析项如何裁决、质量门禁不通过如何修复。
+
+    '
+  action_categories:
+    layer_management:
+      description: 三层权限边界之间的内容升降级。
+    unresolved_resolution:
+      description: 未解析项的裁决和清理。
+    quality_gate_remediation:
+      description: 质量门禁不通过后的修复和重检。
+    review_queue_management:
+      description: 审核队列的批量操作和优先级管理。
+  actions:
+    ProposeLayerPromotion:
+      zh_name: 提议内容升级
+      category: layer_management
+      actor_roles:
+      - researcher
+      - industry_owner
+      trigger: researcher_initiated
+      description: '提议将应用层或行业扩展层中稳定复用的内容升级到上一层。 升级前需回答：跨行业通用性、是否无法用现有结构表达、是否影响已有结构、
+        是否有清晰定义和禁止用法。
+
+        '
+      target_content:
+        types:
+        - Concept
+        - StateVariable
+        - StateVariablePropagation
+        - Signal
+        - InferenceRule
+        - ConductionTemplate
+      field_inputs:
+        required:
+        - targetId
+        - currentLayer
+        - proposedLayer
+        - promotionRationale
+        - reuseEvidence
+        optional:
+        - crossIndustryApplicability
+        - impactAssessment
+        - prohibitedUsage
+      preconditions:
+      - type: content_is_stable
+        description: 内容在 currentLayer 中被多人、多次、稳定复用。
+      - type: promotion_criteria_met
+        description: 四个升级问题已明确回答。
+      outputs:
+        creates:
+        - ReviewRecord（reviewType=admission
+        - reviewResult=pending）
+        - ActionAudit
+      followup: ApproveLayerPromotion 或 RejectLayerPromotion
+    ApproveLayerPromotion:
+      zh_name: 批准内容升级
+      category: layer_management
+      actor_roles:
+      - reviewer
+      trigger: system_prompt_reviewer_confirm
+      description: 审核通过内容从低层升级到高层。
+      target_type: ReviewRecord
+      state_transition:
+        field: reviewResult
+        from:
+        - pending
+        to: approved
+      field_inputs:
+        required:
+        - reviewNotes
+      outputs:
+        updates:
+        - 被审核对象 governanceLayer → proposedLayer
+        - ReviewRecord
+        creates: ActionAudit
+    RejectLayerPromotion:
+      zh_name: 拒绝内容升级
+      category: layer_management
+      actor_roles:
+      - reviewer
+      trigger: system_prompt_reviewer_confirm
+      target_type: ReviewRecord
+      state_transition:
+        field: reviewResult
+        from:
+        - pending
+        to: rejected
+      field_inputs:
+        required:
+        - reviewNotes
+        - rejectReason
+      outputs:
+        updates: ReviewRecord
+        creates: ActionAudit
+    ProposeLayerDemotion:
+      zh_name: 提议内容降级
+      category: layer_management
+      actor_roles:
+      - industry_owner
+      trigger: researcher_initiated
+      description: '提议将长期无人使用、填充率低、只被单一行业使用、与已有结构重复 或维护成本高于使用价值的内容降级或废弃。
+
+        '
+      target_content:
+        types:
+        - Concept
+        - StateVariable
+        - StateVariablePropagation
+        - Signal
+        - InferenceRule
+      field_inputs:
+        required:
+        - targetId
+        - currentLayer
+        - proposedAction
+        - demotionRationale
+        optional:
+        - migrationPlan
+        - affectedDownstreamIds
+      preconditions:
+      - type: demotion_criteria_met
+        description: 满足降级或废弃评估标准（低频使用、单一行业、重复、成本>价值）。
+      outputs:
+        creates:
+        - ReviewRecord（reviewType=admission）
+        - ActionAudit
+    ResolveUnmappedConcept:
+      zh_name: 裁决未映射概念
+      category: unresolved_resolution
+      actor_roles:
+      - industry_owner
+      trigger: system_prompt_industry_owner_confirm
+      description: '对 unresolved_items.unmapped_concepts 中的 in_scope Concept 进行裁决：
+        创建 conceptMapsToObject 映射、标记为 out_of_scope、或拆分为多个概念。
+
+        '
+      target_content:
+        types:
+        - Concept
+      field_inputs:
+        required:
+        - conceptId
+        - resolutionType
+        optional:
+        - targetObjectIds
+        - newScopeStatus
+        - resolutionNote
+      resolution_types:
+      - map_to_existing: 映射到已存在的对象实例 → 创建 conceptMapsToObject 关系
+      - create_new_object: 创建新的业务对象并映射 → 触发 Create[ObjectType] 动作
+      - change_scope: 修改 scopeStatus（如 in_scope → adjacent）
+      - split_concept: 拆分为多个子概念后分别映射
+      - defer_with_reason: 延后并记录原因
+      outputs:
+        updates: Concept 映射或 scopeStatus
+        removes_from: unresolved_items.unmapped_concepts
+        creates: ActionAudit
+    ResolveDanglingRelation:
+      zh_name: 裁决悬空关系
+      category: unresolved_resolution
+      actor_roles:
+      - industry_owner
+      trigger: system_prompt_industry_owner_confirm
+      description: '对 unresolved_items.dangling_relations 中端点无法解析的关系进行裁决： 修复端点、删除关系、或标记对象为
+        missing。
+
+        '
+      field_inputs:
+        required:
+        - relationId
+        - resolutionType
+        - resolutionNote
+      resolution_types:
+      - fix_endpoint: 更新关系端点指向正确对象
+      - create_missing_object: 创建缺失的对象实例
+      - mark_as_template_only: 保留为模板关系，不参与推理
+      - deprecate_relation: 废弃该关系实例
+      outputs:
+        updates: 关系端点或状态
+        removes_from: unresolved_items.dangling_relations
+        creates: ActionAudit
+    ResolveConflictingClaims:
+      zh_name: 裁决证据冲突
+      category: unresolved_resolution
+      actor_roles:
+      - researcher
+      - reviewer
+      trigger: researcher_initiated_reviewer_confirm
+      description: '对 unresolved_items.conflicting_claims 中的矛盾证据进行裁决。
+
+        '
+      field_inputs:
+        required:
+        - conflictId
+        - resolutionType
+        - winningClaimIds
+        - resolutionNote
+      resolution_types:
+      - source_authority: 以来源权威等级高者为准
+      - freshness: 以时间更近者为准
+      - manual_override: 人工裁定
+      - defer: 延后等待更多证据
+      outputs:
+        updates:
+        - EvidenceClaim claimStatus（败方 invalidated）
+        - evidence_conflict_record resolutionStatus
+        removes_from: unresolved_items.conflicting_claims
+        creates: ActionAudit
+      followup: 败方 claim 的 invalidatedBy 指向胜方 claim
+    TriggerQualityGateRecheck:
+      zh_name: 触发质量门禁重检
+      category: quality_gate_remediation
+      actor_roles:
+      - system
+      trigger: system_auto
+      description: '当本体发生变更（对象新增/修改、关系变更、patch 合并）后， 系统自动触发相关质量门禁的重检。
+
+        '
+      trigger_conditions:
+      - 本体优化 Skill 合并 PatchLedgerItem 后
+      - 对象或关系创建/修改/废弃后
+      - 概念映射变更后
+      gates_to_recheck:
+      - concept_object_mapping
+      - traceability_backlink
+      - relation_endpoint_resolution
+      - no_duplicate_ids
+      - state_machine_validity
+      - signal_role_relation_compatibility
+      - evidence_freshness_check
+      - patch_audit_integrity
+      - unresolved_item_indexing
+      - artifact_separation
+      outputs:
+        creates:
+        - quality_gate_recheck_report
+        - ActionAudit
+      on_failure: 失败的门禁项进入 governance review_queue，阻止 release。
+    PrioritizeReviewItem:
+      zh_name: 调整审核项优先级
+      category: review_queue_management
+      actor_roles:
+      - industry_owner
+      trigger: researcher_initiated
+      description: 手动提升或降低 review_queue 中某审核项的优先级。
+      field_inputs:
+        required:
+        - reviewItemId
+        - newPriority
+        - reason
+      outputs:
+        updates: review_queue item priority
+        creates: ActionAudit
+    BatchApproveLowRiskReviews:
+      zh_name: 批量批准低风险审核
+      category: review_queue_management
+      actor_roles:
+      - industry_owner
+      trigger: researcher_initiated
+      description: '对语义风险低（semanticRisk=low）且无冲突的审核项批量批准。 不得对 semanticRisk=high 或
+        core_change_required 的项目使用批处理。
+
+        '
+      field_inputs:
+        required:
+        - reviewItemIds
+        - batchRationale
+      preconditions:
+      - type: all_items_low_risk
+        description: 所有被批处理的项目 semanticRisk=low。
+      - type: no_conflicts
+        description: 项目之间无互相依赖或冲突。
+      outputs:
+        batch_approves: ReviewRecord（reviewResult=approved）
+        creates: ActionAudit（batch）
+    SubmitReviewItem:
+      zh_name: 提交审核项
+      category: review_queue_management
+      actor_roles:
+      - researcher
+      - industry_owner
+      - system
+      trigger: researcher_initiated
+      description: 将候选对象、关系、规则、模板、概念边界、冲突或废弃提议提交到审核队列。
+      target_content:
+        types:
+        - Object
+        - Relation
+        - InferenceRule
+        - ConductionTemplate
+        - Concept
+        - PatchRequest
+      field_inputs:
+        required:
+        - reviewType
+        - targetType
+        - targetId
+        - priority
+        optional:
+        - requiredReviewerRole
+        - relatedEvidenceIds
+        - relatedPatchRequestId
+      outputs:
+        creates:
+        - ReviewRecord（reviewStatus=pending）
+        - ActionAudit
+    CreatePatchRequest:
+      zh_name: 创建补丁请求
+      category: layer_management
+      actor_roles:
+      - researcher
+      - industry_owner
+      - system
+      trigger: researcher_initiated
+      description: '由缺口发现、历史回放、评测、推理反馈、证据输出或人工修订创建候选补丁请求。 PatchRequest 不代表正式本体已经变化，必须经过治理流程处理后才能影响正式模块。
+
+        '
+      target_content:
+        types:
+        - Object
+        - Relation
+        - InferenceRule
+        - ConductionTemplate
+        - ScenarioPath
+        - Signal
+      field_inputs:
+        required:
+        - sourceType
+        - sourceId
+        - operation
+        - rationale
+        - impactScope
+        optional:
+        - target_file
+        - target_path
+        - target_id
+        - proposedChange
+        - evidenceIds
+        - riskLevel
+      outputs:
+        creates:
+        - PatchRequest（patchStatus=pending）
+        - ActionAudit
+    DecidePatchRequest:
+      zh_name: 裁决补丁请求
+      category: layer_management
+      actor_roles:
+      - reviewer
+      trigger: system_prompt_reviewer_confirm
+      description: 接受、拒绝或递延补丁请求。接受后触发 PatchLedgerItem 创建和正式合并流程。
+      target_type: PatchRequest
+      state_transition:
+        field: patchStatus
+        from:
+        - pending
+        to:
+        - accepted
+        - rejected
+        - deferred
+      field_inputs:
+        required:
+        - decision
+        - decisionReason
+      outputs:
+        updates: PatchRequest.patchStatus
+        creates: ActionAudit
+      followup: AppendPatchLedgerItem（当 decision=accepted 时）
+    AppendPatchLedgerItem:
+      zh_name: 追加补丁账本项
+      category: layer_management
+      actor_roles:
+      - system
+      - reviewer
+      trigger: system_auto
+      description: '补丁处理的 append-only 审计记录。创建后不可修改；如需修正，应追加新的账本项。
+
+        '
+      target_type: PatchRequest
+      field_inputs:
+        required:
+        - patchRequestId
+        - baseOntologyVersion
+        - newOntologyVersion
+        - operation
+        - target
+        - mergeStatus
+        optional:
+        - mergeReason
+        - mergedBy
+        - validationResult
+        - rollbackPlan
+      outputs:
+        creates:
+        - PatchLedgerItem
+        - ActionAudit
+        triggers: TriggerQualityGateRecheck
+    RecordActionAudit:
+      zh_name: 记录动作审计
+      category: quality_gate_remediation
+      actor_roles:
+      - system
+      trigger: system_auto
+      description: '记录跨域共享的关键操作审计，包括对象创建、状态流转、补丁合并、审核通过、废弃、回滚等。高频生产审计进入 bundle_workbenches/<bundle_id>/production_reports/，运行审计进入 team_workspaces/<workspace_id>/runs/；正式治理域只保留关键审计索引和摘要。
+
+        '
+      target_content:
+        types:
+        - Object
+        - Relation
+        - PatchRequest
+        - ReviewRecord
+        - Signal
+        - StateHypothesis
+        - JudgmentOutput
+      field_inputs:
+        required:
+        - actionType
+        - actor
+        - targetType
+        - targetId
+        - beforeState
+        - afterState
+        - reason
+        optional:
+        - evidenceIds
+        - patchRequestId
+        - reviewId
+        - ontologyVersion
+        - validationResult
+      outputs:
+        creates: ActionAudit
+    EscalateUnresolvedItem:
+      zh_name: 升级未解析项
+      category: unresolved_resolution
+      actor_roles:
+      - system
+      - industry_owner
+      trigger: system_auto
+      description: '将长期未处理的未解析项（如超过 30 天未解决的冲突、超过 90 天未处理的悬挂关系） 升级到 review_queue 以触发人工关注。
+
+        '
+      target_content:
+        types: unresolved_items 中的任意项
+      field_inputs:
+        required:
+        - unresolvedItemType
+        - unresolvedItemId
+        - escalationReason
+        - daysUnresolved
+      outputs:
+        creates:
+        - ReviewRecord（reviewType=对应审核类型）
+        - ActionAudit
+        updates: unresolved_item priority → escalated
+    MarkObjectDeprecated:
+      zh_name: 标记对象废弃
+      category: layer_management
+      actor_roles:
+      - industry_owner
+      - reviewer
+      trigger: researcher_initiated
+      description: '标记对象、关系、规则或模板为 deprecated、retired 或 superseded。 不物理删除历史数据，必须记录废弃原因、替代对象和影响范围。
+
+        '
+      target_content:
+        types:
+        - Object
+        - Relation
+        - InferenceRule
+        - ConductionTemplate
+        - ScenarioPath
+        - Signal
+        - Concept
+      state_transition:
+        field: recordStatus 或对应废弃字段
+        from:
+        - confirmed
+        - active
+        to:
+        - deprecated
+        - retired
+        - superseded
+      field_inputs:
+        required:
+        - targetId
+        - deprecationReason
+        optional:
+        - supersededByIds
+        - affectedDownstreamIds
+        - migrationPlan
+      outputs:
+        updates: 目标对象废弃状态
+        creates: ActionAudit
+    RecordGovernanceDecision:
+      zh_name: 记录治理决议
+      category: layer_management
+      actor_roles:
+      - reviewer
+      trigger: system_prompt_reviewer_confirm
+      description: '记录治理层面的正式决议，如跨层升级批准、schema 变更接受、规范口径确认等。
+
+        '
+      field_inputs:
+        required:
+        - decisionType
+        - decisionSubject
+        - decision
+        - decisionReason
+        - affectedModules
+        optional:
+        - relatedReviewIds
+        - relatedPatchRequestIds
+        - migrationPlan
+      outputs:
+        creates: ActionAudit
+        may_create: PatchRequest（如需 schema 变更）
+    RunQualityGateCheck:
+      zh_name: 执行质量门禁检查
+      category: quality_gate_remediation
+      actor_roles:
+      - system
+      trigger: system_auto
+      description: '对 bundle 执行完整的质量门禁检查，生成检查报告。 可对所有门禁全量检查，也可针对变更范围增量检查。
+
+        '
+      field_inputs:
+        required:
+        - checkScope
+        optional:
+        - targetModules
+        - changedObjectIds
+        - changedRelationIds
+      outputs:
+        creates:
+        - quality_gate_check_report
+        - ActionAudit
+      on_failure: 失败的门禁项记录到 review_queue，阻止 release。
+    UpdateRetrievalPolicy:
+      zh_name: 更新检索策略
+      category: quality_gate_remediation
+      actor_roles:
+      - industry_owner
+      - reviewer
+      trigger: researcher_initiated
+      description: '更新 retrieval_policy 中的 entry_points、traversal_order、required_checks、
+        freshness_policy、fallback_policy、blocking_rules 或 artifact_policy。 更新后必须触发质量门禁重检以确认新策略与
+        bundle 兼容。
+
+        '
+      target_type: retrieval_policy
+      field_inputs:
+        required:
+        - updatedSections
+        - changeRationale
+        optional:
+        - oldValues
+        - newValues
+        - impactOnExistingSkills
+      outputs:
+        updates: retrieval_policy 对应字段
+        creates: ActionAudit
+      followup: TriggerQualityGateRecheck
+governance_action_audit_policy:
+  description: "治理动作的审计遵循 actions 的 audit_policy： - 每个治理动作执行后创建 ActionAudit。 - 需要审核的治理动作（ProposeLayerPromotion、ResolveConflictingClaims\
+    \ 等）\n  同时创建 ReviewRecord。\n- 治理动作的 ActionAudit.targetObject 指向被治理的对象（Concept、Relation\
+    \ 等）。 - governance_actions 中的动作不应绕过 actions 中定义的领域动作直接修改对象状态。\n  例如 ProposeLayerPromotion\
+    \ 修改 governanceLayer 时必须通过标准的 Update 类动作执行字段变更。\n"
+state_machine_summary:
+  PatchRequest:
+    field: reviewStatus
+    initial: pending
+    transitions:
+    - action: CreatePatchRequest
+      from: []
+      to: pending
+    - action: CreatePatchRequest
+      from:
+      - pending
+      - supplementRequired
+      to:
+      - approved
+      - rejected
+      - supplementRequired
+      - merged
+      - superseded
+  InferenceRun:
+    field: runStatus
+    transitions:
+    - action: CreateInferenceRun
+      from: []
+      to: initializing
+    - note: initializing/retrieving/evaluating → terminal 为系统内部转换，状态取值见 common.yaml
+        inferenceRunStatus，动作流转见 CreateInferenceRun.state_transition。
+  InferenceRule:
+    field: ruleStatus
+    initial: draft
+    transitions:
+    - action: CreateInferenceRule
+      from: []
+      to: draft
+    - action: DeprecateInferenceRule
+      from:
+      - draft
+      - active
+      to: deprecated
+machine_validation_rules:
+- id: action_target_type_must_exist
+  description: 每个 action.target_type 必须引用 objects.yaml 中存在的对象类型。
+- id: state_transition_field_must_exist
+  description: 每个 state_transition.field 必须是 target_type 的字段。
+- id: action_input_fields_must_exist_or_be_action_local
+  description: field_inputs 中对象字段必须存在；actionReason、rejectReason、supplementRequest
+    是动作本地输入。
+- id: state_transition_values_must_be_allowed
+  description: from/to 状态值必须落在对象生命周期字段的 enum 内。
+- id: every_action_creates_audit
+  description: 除非显式声明豁免，每个动作输出必须 create_action_audit=true。
+- id: state_machine_summary_consistent_with_actions
+  description: 'state_machine_summary 中每条 transition 必须在 actions 的对应 action 的 state_transition
+    中有等价定义（同 field、同 from/to）；反之亦然。 有 lifecycle_field 的对象类型，其 initial_state 在 objects.yaml
+    和 state_machine_summary 中必须一致。
+
+    '
+  severity: error

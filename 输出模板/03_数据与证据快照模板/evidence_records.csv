@@ -1,0 +1,1 @@
+evidence_id,execution_id,requirement_id,source_run_id,source_id,source_date,source_locator,claim_text,statement_nature,normalized_fact,evidence_role,grounds_input_ids,evidence_profile_refs,state_variable_ids,quality_status,source_authority,traceability,independence,time_relevance,scope_match,conflict_group_id,notes

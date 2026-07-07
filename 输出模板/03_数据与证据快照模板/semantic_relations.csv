@@ -1,0 +1,1 @@
+relation_id,execution_id,requirement_id,relation_type,source_instance_id,target_instance_id,relation_scope,valid_from,valid_to,verification_status,source_run_refs,evidence_refs,notes

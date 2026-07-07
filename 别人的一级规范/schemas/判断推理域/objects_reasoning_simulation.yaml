@@ -1,0 +1,193 @@
+schema_name: objects_reasoning_simulation
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on: ../common.yaml
+
+object_types:
+  Monitor:
+    zh_name: 监控订阅
+    category: research_reasoning
+    managed_by: researcher_or_system
+    description: 对状态变量、假设、判断或对象集合的条件订阅。命中条件时触发信号生成、复盘入队或通知，把被动复盘升级为主动跟踪。
+    lifecycle_field: monitorStatus
+    initial_state: active
+    terminal_states: [paused, deprecated]
+    fields:
+      name:
+        zh_name: 监控名称
+        type: string
+        required: true
+      monitorTargetType:
+        zh_name: 监控目标类型
+        type: enum
+        enum_ref: monitorTargetType
+        required: true
+      triggerCondition:
+        zh_name: 触发条件
+        type: object
+        required: true
+        description: 复用 InferenceRule.triggerCondition 的 format/expression 结构，必须可机器评估。
+      triggerAction:
+        zh_name: 触发动作
+        type: enum
+        enum_ref: monitorTriggerAction
+        required: true
+      monitorStatus:
+        zh_name: 监控状态
+        type: enum
+        enum_ref: monitorStatus
+        required: true
+        generated_default: active
+      cooldown:
+        zh_name: 冷却窗口
+        type: string
+        required: false
+        description: 重复触发的最小间隔，防止告警风暴。
+      createdAt:
+        zh_name: 创建时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [monitorWatches]
+    optional_relations: [monitorTriggeredSignal, sourceOf]
+    quality_rules:
+      - triggerCondition 必须可机器评估，不得只写模糊自然语言。
+      - Monitor 触发产物仍必须通过对应 Action 和 ActionAudit，不得绕过写入口。
+
+  ScenarioSimulation:
+    zh_name: 情景模拟
+    category: research_reasoning
+    managed_by: researcher
+    description: 一次反事实 what-if 运行。基于假设性输入，沿 StateVariablePropagation 或 ConductionTemplate 传播，产出假设性 SimulatedImpact，不写入正式资产。
+    lifecycle_field: simulationStatus
+    initial_state: draft
+    terminal_states: [discarded, promoted]
+    fields:
+      name:
+        zh_name: 模拟名称
+        type: string
+        required: true
+      scenarioType:
+        zh_name: 情景类型
+        type: enum
+        enum_ref: scenarioType
+        required: true
+      baselineRunId:
+        zh_name: 基准运行 ID
+        type: object_ref
+        required: false
+        description: 指向作为对比基准的 InferenceRun 或 ScenarioSimulation。
+      asOfTime:
+        zh_name: 时点基准
+        type: datetime
+        time_type: business_time
+        required: false
+      propagationDepth:
+        zh_name: 最大传播深度
+        type: integer
+        required: false
+      simulationStatus:
+        zh_name: 模拟状态
+        type: enum
+        enum_ref: simulationStatus
+        required: true
+        generated_default: draft
+      createdAt:
+        zh_name: 创建时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: [simulationUsesPath]
+    optional_relations: [simulationAnchoredOn, sourceOf]
+    quality_rules:
+      - ScenarioSimulation 是反事实运行，产物默认隔离于正式资产；采纳须经 PatchRequest。
+      - 假设性输入必须标记 hypothetical，不得污染真实 StateVariableObservation。
+
+  HypotheticalInput:
+    zh_name: 假设性输入
+    category: research_reasoning
+    managed_by: researcher_or_system
+    description: 模拟的输入扰动，形态对齐变量观测，但 isHypothetical 必须为 true。
+    fields:
+      targetVariableId:
+        zh_name: 目标变量 ID
+        type: object_ref
+        required: true
+      hypotheticalValue:
+        zh_name: 假设值
+        type: string
+        required: true
+      shockType:
+        zh_name: 冲击类型
+        type: enum
+        enum_ref: shockType
+        required: true
+      isHypothetical:
+        zh_name: 是否假设输入
+        type: boolean
+        required: true
+        generated_default: true
+    required_relations: [inputToSimulation]
+    optional_relations: [sourceOf]
+    quality_rules:
+      - HypotheticalInput 不得通过 observationBindsVariable 写入真实观测链。
+      - HypotheticalInput 只能服务 ScenarioSimulation。
+
+  SimulatedImpact:
+    zh_name: 模拟资产影响
+    category: research_reasoning
+    managed_by: system
+    description: 情景模拟产出的假设性资产影响，字段对齐 AssetImpact 但隔离于正式库。
+    fields:
+      impactDirection:
+        zh_name: 影响方向
+        type: enum
+        enum_ref: impactDirection
+        required: true
+      impactMagnitude:
+        zh_name: 影响幅度
+        type: enum
+        enum_ref: impactMagnitude
+        required: false
+      propagationTrace:
+        zh_name: 传播轨迹
+        type: array
+        required: true
+        description: 经过的 StateVariablePropagation、ConductionTemplate 或 ScenarioPath 序列。
+      confidenceLevel:
+        zh_name: 置信度
+        type: enum
+        enum_ref: confidenceLevel
+        required: false
+    required_relations: [simulatedImpactFromSimulation, simulatedImpactsAsset]
+    optional_relations: [sourceOf]
+    quality_rules:
+      - SimulatedImpact 不得使用 impactsAsset 正式关系；正式化必须经 PromoteSimulation 和 PatchRequest。
+      - SimulatedImpact 的 markings 必须继承全部输入。
+# ============================================================
+# 判断推理域机器校验规则（从 reasoning.yaml 迁入）
+# ============================================================
+reasoning_machine_validation_rules:
+  - id: rule_input_output_types_must_exist
+    description: InferenceRule.inputObjectTypes 和 outputObjectTypes 必须引用 objects.yaml 中存在的对象类型。
+  - id: active_rule_must_not_inline_legacy_logic_blocks
+    description: active InferenceRule 不得携带 legacy logicBlocks；复杂执行逻辑必须通过 functionRef 指向 LogicFunction。
+  - id: function_backed_rule_requires_function_ref
+    description: executionMode=function_backed 的 InferenceRule 必须声明 functionRef。
+  - id: rule_output_contract_requires_audit
+    description: InferenceRule.outputContract 存在时必须声明 requiredAudit=true。
+  - id: conduction_template_variables_must_exist
+    description: ConductionTemplate.fromVariableId 和 toVariableId 必须引用存在的 StateVariable 实例。
+  - id: scenario_path_assumptions_must_exist
+    description: ScenarioPath.keyAssumptions 中的 StateHypothesis ID 必须存在。
+  - id: deprecated_rule_not_referenced
+    description: ruleStatus=deprecated 的 InferenceRule 不得被新的 InferenceRun 引用。
+  - id: scenario_paths_mutually_exclusive_triggers
+    description: 同一研究对象下 base/upside/downside ScenarioPath 的 triggerConditions 应互斥。
+  - id: derived_metric_requires_function_and_input
+    description: DerivedMetric 必须声明 functionRef，并至少通过 derivedFromVariable 指向一个输入。
+  - id: simulation_assets_must_remain_hypothetical
+    description: HypotheticalInput 不得绑定真实观测；SimulatedImpact 不得使用正式 impactsAsset 关系。

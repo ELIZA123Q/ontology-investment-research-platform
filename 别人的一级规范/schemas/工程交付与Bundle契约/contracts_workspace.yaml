@@ -1,0 +1,333 @@
+schema_name: contracts_workspace
+schema_version: 1.0.0
+namespace: investment_ontology
+status: active
+canonical_rule: >
+  正式 bundle、bundle workbench 与 team workspace 是三个独立写入面；任何目录不得兼任另一类目录的事实源。
+description: 团队判断工作区、本体生产工作台、研究任务契约、判断记录、候选筛选和运行时证据快照契约。
+
+bundle_workbench_contract:
+  canonical_location: bundle_workbenches/<bundle_id>/
+  required_directories: [research_memory, staging, reviews, sources, production_reports, patch_requests]
+  allowed_content:
+    - 原始材料索引与搜索结果
+    - 候选对象、关系、变量、规则和证据
+    - 待审核 PatchRequest、ReviewRecord 与隔离资产
+    - 生产、回放、迁移和校验报告
+  forbidden_content:
+    - 被消费端当作正式资产的 active/confirmed 资产副本
+    - team workspace 的个人或团队判断状态
+  write_boundary: 生产 Skill 只写 workbench；正式晋升必须经审核动作写入 owner bundle。
+
+production_task_contract:
+  artifact_role: factory_production_intake
+  is_formal_ontology_object: false
+  canonical_location: bundle_workbenches/<bundle_id>/production_reports/runs/<run_id>/production_task.json
+  required_fields: [task_id, bundle_id, scenario_id, production_goal, as_of, source_refs, accepted_feedback_types, formal_bundle_write, execution_sequence, created_at]
+  accepted_feedback_types: [CapabilityGap, EvidenceGap, CandidateObservation]
+  execution_sequence: ["01", "16", "15"]
+  formal_bundle_write: false
+
+team_workspace_contract:
+  canonical_location: team_workspaces/<workspace_id>/
+  required_directories: [judgments, retrospects, bias, promotion_assessments, runs, runtime_evidence_snapshots]
+  manifest_required_fields: [workspace_id, workspace_type, owner_team, status, bundle_refs, access_policy, release_member, runtime_loading_policy, directories]
+  workspace_type_values: [research_team]
+  release_member: false
+  runtime_loading_policy:
+    default: forbidden
+    ordinary_question_persistence: disabled
+    allowed_exception: 用户明确要求验证或继续跟踪某条 JudgmentRecord 时，只能把该记录作为待验证 thesis 输入。
+    forbidden_uses: [formal_fact, formal_rule, confirmed_signal, direct_asset_impact_basis]
+
+research_mission_contract:
+  artifact_role: per_run_orchestration_contract
+  is_formal_ontology_object: false
+  participates_in_formal_runtime_loading: false
+  canonical_location: team_workspaces/<workspace_id>/runs/<run_id>/research_mission.json
+  return_only_when_workspace_missing: true
+  required_fields:
+    - mission_id
+    - mission_revision
+    - status
+    - raw_user_request
+    - intake_mode
+    - intent_type
+    - research_subject
+    - scope
+    - as_of
+    - time_horizons
+    - output_mode
+    - target_audience
+    - persistence_mode
+    - provided_material_refs
+    - source_preferences
+    - access_constraints
+    - critical_ambiguities
+    - requirement_items
+    - requirement_refs
+    - bundle_match_candidates
+    - scenario_match_candidates
+    - route_decision_ref
+    - acceptance_criteria
+    - created_at
+  status_values: [draft, confirmed, routed, blocked, superseded]
+  intake_mode_values: [fast_intake, interactive_discovery]
+  persistence_mode_values: [none, per_run]
+  allowed_uses: [task_routing, source_search_handoff, runtime_preflight, candidate_production_handoff, run_audit]
+  forbidden_uses: [formal_evidence, formal_ontology_asset, automatic_shared_write, judgment_record_substitute]
+  write_policy:
+    formal_bundle_write: false
+    workbench_staging_write: false
+    judgment_record_write: false
+  revision_policy: 同一 run 内 append-only 保留修订；后续版本以 superseded 标记旧版本，不覆盖审计事实。
+
+requirement_coverage_map_contract:
+  artifact_role: minimal_task_coverage_map
+  is_formal_ontology_object: false
+  required_item_fields: [requirement_item_id, scenario_ids, evidence_slot_refs, coverage_status, route_action, match_reason]
+  optional_derived_fields: [question_type_refs, variable_refs, rule_refs, data_binding_refs, runtime_requirement_ids, capability_ids, target_skill]
+  coverage_status_values: [covered, partial, not_covered]
+  p0_scope: 只维护需求条目到场景、证据槽和路由的最小映射；对象、变量、规则、数据服务、测试和 Skill 版本映射由后续运行或编译阶段派生。
+
+patch_request_gap_contract:
+  artifact_role: workbench_patch_classification
+  is_formal_ontology_object: false
+  gap_category_values: [requirement_change, data_gap, structural_gap, runtime_failure]
+  gap_category_meanings:
+    requirement_change: 研究范围、问题类型或 acceptance criteria 变化；通常影响 question_map、runtime_data_requirements 或路由。
+    data_gap: 结构可覆盖但当期数据/证据/绑定不可解析；优先补证或 data_bindings，不默认改本体结构。
+    structural_gap: 对象、关系、变量、规则或场景 pack 缺失；需 PatchRequest 或 extend_scenario。
+    runtime_failure: 运行门禁失败、Golden Case 回归失败或 capability 不可执行；优先修 runtime/绑定/评测。
+  required_on_patch_request: [gapCategory]
+  write_boundary: PatchRequest 只进入 bundle workbench；不得因缺口分析自动写入正式 bundle。
+
+mission_impact_report_contract:
+  artifact_role: requirement_change_impact_audit
+  is_formal_ontology_object: false
+  canonical_location: team_workspaces/<workspace_id>/runs/<run_id>/mission_impact_report.json
+  report_version: 0.1.0
+  required_fields:
+    - report_version
+    - baseline_run_id
+    - revised_question
+    - impact_summary
+    - affected_assets
+    - bundle_mutation_policy
+  bundle_mutation_policy_value: no_automatic_rebuild
+  orchestration_rule: impact 分析只读 baseline mission 与 bundle refs，输出受影响资产清单；不静默重建 bundle 或 workbench staging。
+
+candidate_asset_package_contract:
+  artifact_role: factory_candidate_handoff
+  is_formal_ontology_object: false
+  canonical_location: bundle_workbenches/<bundle_id>/staging/packages/<package_id>/candidate_asset_package.yaml
+  required_fields:
+    - package_version
+    - package_id
+    - bundle_id
+    - scenario_id
+    - production_run_id
+    - source_registry_ref
+    - evidence_claim_refs
+    - candidate_assets
+    - formal_updates
+    - package_hash
+    - created_at
+  status_values: [candidate, review_pending, approved, rejected, promoted]
+  write_boundary: 15 只生成 CandidateAssetPackage；不得写 industry_bundles。
+  formal_update_policy:
+    allowed_targets: [shared/evidence_index/, shared/reasoning_assets/, shared/semantic_objects/, shared/semantic_relations/, scenario_packs/]
+    forbidden_targets: [00_bundle_manifest.yaml, runtime_contracts/, bundle_workbenches/, team_workspaces/]
+
+review_decision_contract:
+  artifact_role: human_promotion_gate
+  canonical_location: bundle_workbenches/<bundle_id>/reviews/<review_id>.yaml
+  required_fields: [review_version, review_id, package_id, package_hash, reviewer, decision, rationale, decided_at]
+  decision_values: [approved, rejected]
+  mutation_rule: ReviewDecision 本身不修改正式 Bundle。
+
+promotion_receipt_contract:
+  artifact_role: formal_bundle_write_audit
+  canonical_location: bundle_workbenches/<bundle_id>/production_reports/<promotion_id>.yaml
+  required_fields:
+    - receipt_version
+    - promotion_id
+    - package_id
+    - review_id
+    - bundle_id
+    - previous_bundle_version
+    - new_bundle_version
+    - changed_files
+    - runtime_package_required
+    - promoted_at
+  sole_writer_rule: promote 是 CandidateAssetPackage 写入正式 Bundle 的唯一业务入口。
+
+runtime_package_manifest_contract:
+  artifact_role: self_contained_runtime_package
+  is_formal_ontology_object: false
+  manifest_version: 1.0.0
+  canonical_location: runtime_packages/<package_id>/<package_version>/manifest.yaml
+  required_fields:
+    - manifest_version
+    - runtime_package_id
+    - package_version
+    - bundle_id
+    - bundle_version
+    - scenario_id
+    - compatible_runtime_version
+    - runtime_profile
+    - capabilities
+    - artifacts
+    - checksums
+    - compiled_at
+  required_artifacts:
+    - runtime_profile.json
+    - schemas/reasoning_result.schema.json
+    - schemas/runtime_evidence_snapshot.schema.json
+    - prompts/research_report.md
+    - golden_cases/index.yaml
+    - negative_cases.yaml
+    - checksums.json
+  self_contained_rule: RuntimePackage 脱离 Factory 仓后仍须可校验、加载和运行。
+  forbidden_content: [factory_absolute_path, factory_relative_path, workbench_candidate, review_queue, factory_run_log, team_workspace_state]
+
+skill_package_manifest_contract:
+  artifact_role: deprecated_display_alias_for_runtime_package
+  is_formal_ontology_object: false
+  manifest_version: 0.1.0
+  canonical_location: skills/<scenario_id>/manifest.yaml
+  required_fields:
+    - manifest_version
+    - skill_package_id
+    - skill_name
+    - bundle_id
+    - bundle_version
+    - scenario_id
+    - scenario_model_ref
+    - bundle_lock_hash
+    - bundle_lock_paths
+    - compatible_runner_version
+    - capabilities
+    - data_binding_refs
+    - compiled_at
+    - source_contract
+  required_artifacts:
+    - SKILL.md
+    - tools/schema.json
+    - golden_cases/index.yaml
+    - negative_cases.yaml
+    - agent_publication_profile.yaml
+  version_lock_rule: bundle_lock_hash 变更后 validate 必须失败或警告，需重新 compile 并更新 Skill 包。
+  consumption_boundary: 工程侧统一使用 RuntimePackage；Skill 包只作为对外展示名称。
+
+route_decision_contract:
+  artifact_role: orchestration_decision
+  route_action_values: [produce_evidence, scenario_covered, target_framework, extend_scenario, optimize_existing, cold_start, clarify, blocked]
+  max_route_hops: 3
+  execution_rule: 00 只输出路由；平台编排器调用下游 Skill，并记录 visited_route_actions 防止循环。
+  evidence_preflight_rule: 场景结构命中不等于证据充分；是否补证由下游 runtime evidence gate 最终裁决。
+  structural_gap_rule: 只有对象、关系、变量、规则或场景结构缺失才进入 extend_scenario；普通数据缺失不得触发本体补丁。
+
+judgment_record_contract:
+  artifact_role: workspace_workflow_record
+  is_formal_ontology_object: false
+  participates_in_formal_runtime_loading: false
+  required_fields:
+    - record_id
+    - workspace_id
+    - author_id
+    - created_at
+    - raw_statement
+    - anchor_refs
+    - scenario_ref
+    - assumptions
+    - candidate_variables
+    - required_data
+    - supporting_signals
+    - falsification_conditions
+    - next_review_at
+    - status
+    - promotion_assessment
+  status_values: [captured, tracking, due, reviewed, archived]
+  allowed_uses: [candidate_production, retrospect_analysis, audit_trace, explicit_thesis_validation]
+  forbidden_uses: [automatic_shared_write, formal_evidence, automatic_runtime_preload]
+
+promotion_assessment_contract:
+  required_fields: [disposition, rationale, candidate_asset_types, aggregation_key, occurrence_count, recommended_action]
+  disposition_values: [record_only, retrospect_pool, ontology_candidate]
+  candidate_asset_types:
+    - StateVariable
+    - ConductionTemplate
+    - InferenceRule
+    - SignalPattern
+    - CounterEvidencePattern
+    - ScenarioModel
+    - ScenarioPath
+    - RuntimeDataRequirement
+    - EvidenceRequirement
+    - OutputContract
+  aggregation_threshold_default: 3
+  candidate_gate:
+    allow_when_any:
+      - occurrence_count >= 3 across independent JudgmentRecord or historical cases
+      - structural_gap = true and industry_owner explicitly proposes promotion
+    result: candidate_asset_or_patch_request_only
+  no_automatic_promotion_rule: 达到次数门槛只允许生成候选资产或 PatchRequest，不得自动写入正式 bundle。
+
+runtime_evidence_snapshot_contract:
+  artifact_role: per_run_ephemeral_evidence
+  canonical_location: runtime-local://runs/<run_id>/runtime_evidence_snapshot.json
+  required_fields:
+    - snapshot_id
+    - run_id
+    - bundle_id
+    - scenario_id
+    - as_of
+    - created_at
+    - requirement_results
+    - adopted_sources
+    - rejected_sources
+    - observation_candidates
+    - freshness_summary
+    - unresolved_gaps
+    - markings
+  allowed_source_modes: [public_retrieval, researcher_upload, researcher_manual_entry]
+  formal_asset_status: never
+  ownership: OntoRuntime
+  automatic_factory_write: false
+  automatic_bundle_write: false
+  promotion_boundary: >
+    快照只能支撑当次推理；如需沉淀为正式 EvidenceClaim、EvidenceFact 或 StateVariableObservation，
+    必须进入 bundle workbench，完成证据归一、来源定位、冲突检查和准入审核。
+
+runtime_to_factory_feedback_contract:
+  artifact_role: non_authoritative_production_hint
+  is_formal_ontology_object: false
+  allowed_types: [CapabilityGap, EvidenceGap, CandidateObservation]
+  required_fields: [feedback_id, feedback_type, source_run_id, bundle_id, scenario_id, as_of, payload, created_at]
+  allowed_destination: OntoFactory production intake
+  forbidden_uses: [formal_evidence, formal_ontology_asset, automatic_promotion, direct_bundle_write]
+
+factory_run_manifest_contract:
+  artifact_role: per_run_factory_audit
+  is_formal_ontology_object: false
+  canonical_location: bundle_workbenches/<bundle_id>/production_reports/runs/<run_id>/factory_production_manifest.json
+  manifest_version: 1.0.0
+  orchestrator: ProductionOrchestrator
+  pipeline_sequence: [production_task, source_registration, evidence_normalization, candidate_asset_generation]
+  orchestration_rule: >
+    ProductionOrchestrator 只编排 workbench 生产链；不得写 formal bundle；
+    CandidateAssetPackage 须经 ReviewDecision 批准后由 promote 晋升。
+
+mission_run_manifest_contract:
+  artifact_role: deprecated_path_a
+  status: retired
+  note: 路径 A mission_run_manifest 已退役，请使用 factory_run_manifest_contract
+
+direct_cutover_migration_contract:
+  temporary_artifacts_allowed: [migration_script, migration_report, path_mapping]
+  completion_gate:
+    - 旧目录不存在。
+    - 旧目录不再是读取源、写入源、校验源或发布源。
+    - 正式 bundle 与 workbench 分别通过对应校验，Factory 不保留活动 team workspace。
+    - 全仓活动契约与代码不存在旧路径引用。

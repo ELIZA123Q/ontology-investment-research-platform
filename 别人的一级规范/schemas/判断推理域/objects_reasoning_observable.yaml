@@ -1,0 +1,408 @@
+schema_name: objects_reasoning_observable
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on: ../common.yaml
+
+object_types:
+  StateVariable:
+    zh_name: 状态变量
+    category: observable_dimension
+    managed_by: researcher_or_system
+    description: 稳定可观察维度，定义持续观察什么口径，不记录具体读数。
+    fields:
+      name:
+        zh_name: 名称
+        type: string
+        required: true
+      variableType:
+        zh_name: 变量类型
+        type: enum
+        enum: [quantitative, qualitative]
+        required: true
+      category:
+        zh_name: 类别
+        type: enum
+        enum_ref: state_variable_categories
+        required: true
+      description:
+        zh_name: 描述
+        type: string
+        required: true
+      observationFrequency:
+        zh_name: 观测频率
+        type: string
+        required: true
+      unit:
+        zh_name: 计量单位
+        type: string
+        required: false
+        rule: 定量变量必填；定性变量可填阶段标签或描述。
+      sourceType:
+        zh_name: 来源类型
+        type: enum
+        enum: [platform_predefined, industry_template, reusable_researcher_defined, temporary_researcher_defined]
+        required: true
+      variableScope:
+        zh_name: 变量适用范围
+        type: string
+        required: false
+      referenceBaseline:
+        zh_name: 参考基准
+        type: string
+        required: false
+        source_note: 由 03 半导体示例反推补充，用于保存历史区间、同业均值或管理层目标等比较基准。
+      normalizedKey:
+        zh_name: 归一化键
+        type: string
+        required: false
+        description: >
+          去重和跨 agent 归并的归一化标识。当多个 agent 或多次运行创建
+          语义相同的 StateVariable 时，通过 normalizedKey 统一识别。
+          格式建议：{category}_{name}_{scope}_NORMALIZED。
+          例如：profitability_gross_margin_semiconductor_NORMALIZED。
+        source_note: v1.2 新增。用于防止同义变量重复创建导致的传导链断裂。
+    required_relations: []
+    optional_relations: [observedOn]
+    quality_rules:
+      - 状态变量必须能持续观察、能时间比较、能形成方向性假设、能参与传导。
+      - 状态主题不是正式对象，不能直接作为 StateVariable 入库。
+
+  StateVariableObservation:
+    zh_name: 状态变量观测
+    category: observable_dimension
+    managed_by: system_or_researcher
+    description: 某状态变量在某一业务时间点的事实性读数或明确来源估算。
+    fields:
+      observedValue:
+        zh_name: 观测值
+        type: string
+        required: true
+      valueType:
+        zh_name: 数值类型
+        type: enum
+        enum: [actual, estimated]
+        required: true
+      observationScope:
+        zh_name: 观测适用范围
+        type: string
+        required: false
+      observationNote:
+        zh_name: 观测说明
+        type: string
+        required: false
+        source_note: 由 03 半导体示例反推补充。
+      observationTime:
+        zh_name: 观测业务时间
+        type: datetime
+        time_type: business_time
+        required: true
+      observationSourceName:
+        zh_name: 来源名称
+        type: string
+        required: true
+      sourceStatementType:
+        zh_name: 来源表述类型
+        type: enum
+        enum: [fact, estimate]
+        required: true
+      recordedAt:
+        zh_name: 录入时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+      direction:
+        zh_name: 变化方向
+        type: enum
+        enum: [up, down, stable, longer, shorter, tighter, looser, faster, slower, divergent, unknown]
+        required: false
+        description: 相对基准的变化方向；机器推理优先消费本字段而非 observedValue 中的自然语言。
+      baselineValue:
+        zh_name: 基准值
+        type: string
+        required: false
+        description: 历史区间、正常水平、管理层目标或同业均值等比较基准。
+      deltaValue:
+        zh_name: 变化幅度
+        type: string
+        required: false
+      deltaUnit:
+        zh_name: 变化单位
+        type: string
+        required: false
+      confidenceScore:
+        zh_name: 观测置信度
+        type: enum
+        enum: [high, medium_high, medium, medium_low, low, unverified]
+        required: false
+      evidenceFactRefs:
+        zh_name: 证据事实引用
+        type: array
+        required: false
+        description: 支撑本观测的 EvidenceFact ID 列表；与 legacy evidenceFactRef 可并存。
+      updateFrequency:
+        zh_name: 更新频率
+        type: string
+        required: false
+      decayRule:
+        zh_name: 失效规则
+        type: string
+        required: false
+        description: 多久不更新则视为 stale 或需重新验证，如 90 天无新证据则降级。
+    required_relations: [observationBindsVariable]
+    optional_relations: [sourceOf]
+    quality_rules:
+      - 观测只记录事实或估算读数，不包含方向性判断。
+      - forecast、guidance、recommendation 不得作为 StateVariableObservation 的 observedValue，须转为 Signal 或 StateHypothesis 的依据。
+      - 由受限证据生成的观测必须按 classification_markings.propagation_rule 继承标记。
+
+  StateVariablePropagation:
+    zh_name: 状态传导逻辑
+    category: observable_dimension
+    managed_by: researcher_or_industry_owner
+    description: 两个状态变量之间可复用的传导机制。
+    fields:
+      sourceVariableId:
+        zh_name: 源变量 ID
+        type: object_ref
+        required: true
+        description: 机器遍历传导图时使用的源 StateVariable；必须与 propagatesFrom 关系目标一致。
+      targetVariableId:
+        zh_name: 目标变量 ID
+        type: object_ref
+        required: true
+        description: 机器遍历传导图时使用的目标 StateVariable；必须与 propagatesTo 关系目标一致。
+      direction:
+        zh_name: 传导方向
+        type: enum
+        enum: [source_to_target]
+        required: true
+        description: 本对象只表达一条有向传导边；反向逻辑应建为另一条 StateVariablePropagation。
+      sign:
+        zh_name: 传导符号
+        type: enum
+        enum: [positive, negative, mixed, unknown]
+        required: true
+        description: 源变量上行对目标变量的方向影响；复杂非单调关系用 mixed 并在 boundaryConditions 中说明。
+      elasticityHint:
+        zh_name: 弹性提示
+        type: object
+        required: false
+        description: 定量弹性或定性强弱提示；不具备定量估计时可只填 qualitativeStrength。
+        properties:
+          mode:
+            type: enum
+            enum: [quantitative, qualitative, unknown]
+          value:
+            type: number
+          unit:
+            type: string
+          qualitativeStrength:
+            type: enum
+            enum: [strong, medium, weak, unknown]
+      lagRange:
+        zh_name: 结构化时滞范围
+        type: object
+        required: true
+        properties:
+          min:
+            type: number
+            required: false
+          max:
+            type: number
+            required: false
+          unit:
+            type: enum
+            enum: [day, week, month, quarter, year, event_driven, unknown]
+            required: true
+          description:
+            type: string
+            required: false
+      boundaryConditions:
+        zh_name: 边界条件
+        type: array
+        required: true
+        items:
+          type: object
+          properties:
+            conditionId:
+              type: string
+              required: true
+            condition:
+              type: string
+              required: true
+            effect:
+              type: enum
+              enum: [weakens, blocks, reverses, delays, amplifies]
+              required: true
+      confidencePrior:
+        zh_name: 传导先验置信度
+        type: enum
+        enum: [high, medium, low, unverified]
+        required: true
+        description: 进入 confidence_composition 前的边级先验，不替代历史校准指标。
+      evidenceRefs:
+        zh_name: 证据引用
+        type: array
+        required: true
+        description: 支撑此传导边的 EvidenceClaim、EvidenceFact、SourceDocument 或历史案例 ID。
+      propagationLogic:
+        zh_name: 传导机制
+        type: string
+        required: true
+      directionMapping:
+        zh_name: 方向映射
+        type: string
+        required: true
+      lagDescription:
+        zh_name: 时间滞后
+        type: string
+        required: false
+      causalConfidence:
+        zh_name: 因果置信度
+        type: enum
+        enum: [high, medium, low, unverified]
+        required: false
+      historicalSupport:
+        zh_name: 历史验证
+        type: string
+        required: false
+    required_relations: [propagatesFrom, propagatesTo]
+    optional_relations: [sourceOf]
+    quality_rules:
+      - 变量层面的可复用因果逻辑用 StateVariablePropagation 表达。
+      - 机器遍历只消费 sourceVariableId、targetVariableId、direction、sign、lagRange、boundaryConditions、confidencePrior 和 evidenceRefs；文字字段只作解释。
+      - sourceVariableId/targetVariableId 必须与 propagatesFrom/propagatesTo 关系保持一致。
+      - 具体研究中假设之间的前提依赖用 dependsOnHypothesis 表达。
+
+  DerivedMetric:
+    zh_name: 派生指标
+    category: observable_dimension
+    managed_by: researcher_or_system
+    description: 由 Function 从一个或多个 StateVariable、Observation 或对象字段计算得到的派生量，如估值倍数、同比、同业分位和加权暴露。DerivedMetric 不是手填观测。
+    fields:
+      name:
+        zh_name: 指标名称
+        type: string
+        required: true
+      metricType:
+        zh_name: 指标类型
+        type: enum
+        enum_ref: metricType
+        required: true
+      functionRef:
+        zh_name: 函数引用
+        type: object
+        required: true
+        description: 引用 common.public_contracts.function_contract。
+        properties:
+          functionId:
+            type: string
+            required: true
+          functionVersion:
+            type: string
+            required: true
+          inputContract:
+            type: object
+            required: true
+          outputContract:
+            type: object
+            required: true
+          purity:
+            type: enum
+            enum: [pure, reads_observations, reads_external]
+            required: true
+          refresh_policy:
+            type: enum
+            enum_ref: refreshPolicy
+            required: false
+      unit:
+        zh_name: 计量单位
+        type: string
+        required: false
+      refreshPolicy:
+        zh_name: 刷新策略
+        type: enum
+        enum_ref: refreshPolicy
+        required: true
+      lastComputedAt:
+        zh_name: 最近计算时间
+        type: datetime
+        time_type: system_time
+        required: false
+        generated_by: system
+    required_relations: [derivedFromVariable]
+    optional_relations: [observedOn, metricObservedOn, sourceOf]
+    quality_rules:
+      - DerivedMetric 由 Function 计算，不得作为手填 StateVariableObservation 入库。
+      - 输入变量变化时按 refreshPolicy 重算；引用方必须记录 functionId 和 functionVersion。
+      - Function 只读不写；写入 DerivedMetric 计算结果必须通过 Action 和审计。
+
+  Event:
+    zh_name: 事件
+    category: research_reasoning
+    managed_by: system_or_researcher
+    description: 客观发生的外部事实，研究推理的起点。
+    fields:
+      title:
+        zh_name: 标题
+        type: string
+        required: true
+      eventType:
+        zh_name: 事件类型
+        type: string
+        required: true
+      eventTime:
+        zh_name: 事件业务时间
+        type: datetime
+        time_type: business_time
+        required: true
+      description:
+        zh_name: 描述
+        type: string
+        required: true
+      eventEvidenceType:
+        zh_name: 事件依据类型
+        type: enum
+        enum: [disclosure, marketData, news, policy, researchInput]
+        required: true
+      isComposite:
+        zh_name: 是否复合事件
+        type: boolean
+        required: false
+        default: false
+        description: true 表示本事件由多个子事件组成，子事件通过 eventRelatesToEvent.co_occurs_with 或 triggers 关联。
+      compositeEventType:
+        zh_name: 复合事件类型
+        type: string
+        required: false
+        description: 如 demand_supply_mismatch、policy_chain、technology_shift；仅 isComposite=true 时填写。
+      eventStatus:
+        zh_name: 事件状态
+        type: enum
+        enum: [candidate, observation, tracking, validated, invalidated, stale]
+        required: false
+        initial_state: candidate
+        description: 事件在推理链中的生命周期状态，流转规则见 policies_reasoning.reasoning_judgment_lifecycle。
+      timeWindow:
+        zh_name: 时间窗口
+        type: string
+        required: false
+        description: 如 2026Q2、近期、FY26；用于事件截面与历史回放。
+      parentEventId:
+        zh_name: 父事件 ID
+        type: object_ref
+        required: false
+        description: 子事件指向复合父事件。
+      recordedAt:
+        zh_name: 录入时间
+        type: datetime
+        time_type: system_time
+        required: true
+        generated_by: system
+    required_relations: []
+    optional_relations: [anchoredOn, eventRelatesToEvent, eventAffectsVariable, eventProducesObservation, eventTriggersPropagation, sourceOf]
+    quality_rules:
+      - Event 必须是具体已发生事实，不是事件模板。
+

@@ -1,0 +1,307 @@
+schema_name: common_enums
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研本体公共定义——时间类型、ID规则、公共枚举、公共契约、域映射、状态变量类别、去重策略、关系公共约束和动作公共约束。本文件被所有域专属 objects_*.yaml、relations_*.yaml、actions_*.yaml 和 policies_*.yaml 引用。actor_roles、trigger_types、action_groups 和 audit_policy 属于跨域公共动作定义，只在 common.yaml 定义；各域 actions 文件只定义本域动作并引用这些公共约束。
+
+object_categories:
+  conceptual_definition:
+    zh_name: 概念定义类
+    description: 定义研究范围、术语、边界、同义词和概念到业务对象的映射依据。
+  research_target:
+    zh_name: 研究标的类
+    description: 现实世界锚点，承载产业、公司、产品、材料和资产标的。
+  observable_dimension:
+    zh_name: 可观测维度类
+    description: 定义可观察变量、观测事实和变量之间的传导逻辑。
+  research_reasoning:
+    zh_name: 研究推理类
+    description: 承载事件、假设、信号、判断、资产影响和长期命题。
+  source_and_record:
+    zh_name: 来源与记录类
+    description: 支撑来源追溯、动作留痕、审核和复盘。
+
+object_domains:
+  description: >
+    域→类别的显式映射。域（domain）是投研工作流的四个阶段，
+    每个域包含一个或多个对象类别（category）。relations.yaml 的
+    relation_groups[*].domain 和 actions.yaml 的域分段注释均引用此枚举。
+  domains:
+    语义结构域:
+      zh_name: 语义结构域
+      description: 定义研究范围、术语边界、研究标的及标的间结构关系。
+      categories: [conceptual_definition, research_target]
+      object_types:
+        - ConceptScheme
+        - Concept
+        - ConceptBoundary
+        - Industry
+        - Segment
+        - Company
+        - Product
+        - Material
+        - Asset
+        - ObjectSet
+    判断推理域:
+      zh_name: 判断推理域
+      description: 承载可观测维度定义、观测数据、变量传导、事件、假设、信号、判断、资产影响和投资命题。
+      categories: [observable_dimension, research_reasoning]
+      object_types:
+        - StateVariable
+        - StateVariableObservation
+        - StateVariablePropagation
+        - DerivedMetric
+        - Event
+        - StateHypothesis
+        - Signal
+        - JudgmentOutput
+        - MarketExpectation
+        - AssetImpact
+        - InvestmentThesis
+        - ScenarioModel
+        - InferenceRule
+        - ConductionTemplate
+        - ScenarioPath
+        - Monitor
+        - ScenarioSimulation
+        - HypotheticalInput
+        - SimulatedImpact
+    证据域:
+      zh_name: 证据域
+      description: 支撑来源追溯、证据摄入、主张抽取与事实归并。
+      categories: [source_and_record]
+      object_types:
+        - SourceDocument
+        - EvidenceEpisode
+        - EvidenceClaim
+        - EvidenceFact
+    治理域:
+      zh_name: 治理域
+      description: 承载变更管理、审核记录、推理运行轨迹和审计日志。
+      categories: [source_and_record, research_reasoning]
+      object_types:
+        - PatchRequest
+        - PatchLedgerItem
+        - ActionProposal
+        - LogicFunction
+        - LogicBlock
+        - AutomateFlow
+        - ObjectViewSpec
+        - EvalCase
+        - EvalSuite
+        - EvalRun
+        - EvalResult
+        - MetricSnapshot
+        - InferenceRun
+        - RuleApplication
+        - ReasoningStep
+        - ActionFollowup
+        - ActionAudit
+        - ReviewRecord
+  domain_enum:
+    description: relations.yaml、actions.yaml 和其他 consumer 可引用的域枚举值。
+    values: [语义结构域, 判断推理域, 证据域, 治理域, 工程交付与Bundle契约]
+
+deprecated_domain_aliases:
+  description: 历史域名只作为迁移解释存在；任务型本地 schemas/ 不得保留旧域目录。
+  aliases:
+    本体域:
+      canonical_domain: 语义结构域
+      status: deprecated
+    推理域:
+      canonical_domain: 判断推理域
+      status: deprecated
+    治理与工程域:
+      canonical_domain: 治理域
+      status: deprecated
+
+state_variable_categories:
+  macro_economic_condition: 经济态势
+  monetary_liquidity: 货币流动性
+  fx_and_trade: 汇率与外贸
+  top_level_policy: 顶层调控
+  geopolitical_disturbance: 地缘扰动
+  supply_demand_price: 供需与量价
+  industry_cycle: 行业周期
+  competitive_landscape: 竞争格局
+  sector_policy: 细分政策
+  technology_iteration: 技术迭代
+  profitability: 盈利能力
+  expense_structure: 费用结构
+  revenue_quality: 收入质量
+  asset_pricing: 资产定价
+  operating_efficiency: 运营效率
+  product_competitiveness: 产品竞争力
+  governance_and_risk: 治理与风险
+
+variable_dedup_rules:
+  description: StateVariable 去重与归并策略。配合 StateVariable.normalizedKey 字段，防止不同 agent 或不同轮次创建语义相同的变量。
+  strategies:
+    - strategy: exact_normalizedKey_match
+      priority: 1
+      description: normalizedKey 完全匹配的 StateVariable 视为同一变量，合并时保留最早创建的 ID。
+      auto_execute: true
+      action: merge_to_earliest_id
+    - strategy: name_category_scope_match
+      priority: 2
+      description: name 编辑距离 < 3 且 category 和 observedOn scope 相同时，标记为疑似重复，进入 governance review_queue。
+      auto_execute: false
+      action: flag_for_review
+    - strategy: edit_distance_match
+      priority: 3
+      description: name 编辑距离 < 3 且 category 相同但 scope 不同时，标记为候选重复，不自动合并。
+      auto_execute: false
+      action: flag_for_review
+  merge_authority:
+    description: 只有 ontology_core 或 industry_extension 层的 StateVariable 可作为归一化基准。
+    layer_priority:
+      - ontology_core
+      - industry_extension
+      - team_workspace
+    fields_to_preserve_on_merge: [id, createdAt, sourceType]
+    fields_to_update_on_merge: [description, observationFrequency, referenceBaseline, normalizedKey]
+  conflict_resolution:
+    description: 当两个归并策略产生不同结果时，进入 governance review_queue（reviewType=conflict_review）。
+
+
+reasoning_pattern_taxonomy:
+  description: >
+    可复用推理结构的伞契约。核心规范使用 StateVariablePropagation、
+    ConductionTemplate 和 ScenarioPath 承载不同层级的推理结构，避免在多个对象中重复表达同一类逻辑。
+  shared_contract:
+    inputs: 显式声明消费的变量、事件、观测、证据、关系或情景参数。
+    logic: 使用结构化条件、传导逻辑、路径节点或规则块表达，不把复杂逻辑写入 Action。
+    outputs: 声明可能产生的假设、信号、判断、资产影响、模拟产物、补丁或审计记录。
+    status: 使用 ruleStatus 或 templateStatus 管理 draft、active、deprecated 等生命周期。
+  pattern_types:
+    state_variable_propagation:
+      object_type: StateVariablePropagation
+      purpose: 表达变量到变量的可复用因果或方向传导逻辑，也承接原 StateChange 的方向性状态变化模式。
+    conduction_template:
+      object_type: ConductionTemplate
+      purpose: 表达推理执行时从变量 A 推导变量 B 需要检查的信号、反证、边界条件和时滞。
+    scenario_path:
+      object_type: ScenarioPath
+      purpose: 表达从当前状态到未来结果的条件路径、关键假设、互斥情景和证伪条件。
+  migration_policy:
+    deprecated_object_type: StateChange
+    preferred_object_type: StateVariablePropagation
+    operation: migrate
+    rule: 新实例不得创建 StateChange；原 StateChange.sourceVariableId、direction、magnitude、boundaryConditions、affectedVariables 迁入 StateVariablePropagation 的传导字段和 propagatesFrom/propagatesTo 关系。
+
+common_enums:
+  bundleType: [core_contract, industry_bundle, theme_bundle, event_family_bundle, company_asset_bundle, scenario_pack]
+  bundleStatus: [draft, active, deprecated, superseded, archived]
+  scopeType: [industry, supply_chain, product_track, company_research, company_asset, cross_industry_theme, event_family, scenario, policy_theme, macro_theme, event_theme, uncertain]
+  conceptType: [industry_scope, supply_chain_scope, product_or_technology, material_or_input, company_role, policy_theme, macro_theme, event_theme, asset_scope, term]
+  conceptScopeStatus: [in_scope, out_of_scope, adjacent, overlap, disputed, unknown]
+  conceptDefinitionStatus: [draft, source_supported, reviewed, deprecated]
+  boundaryDecisionType: [include, exclude, adjacent, overlap]
+  conceptMappingRole: [defines_scope, maps_to_industry, maps_to_segment, maps_to_product, maps_to_material, maps_to_company, maps_to_asset, maps_to_object_set, alias_only]
+  objectSetType: [static_enumerated, rule_based, hybrid]
+  objectSetMemberType: [Company, Asset, Product, Material, Segment, Industry, mixed]
+  variableType: [quantitative, qualitative]
+  stateVariableSourceType: [platform_predefined, industry_template, reusable_researcher_defined, temporary_researcher_defined]
+  observationValueType: [actual, estimated]
+  sourceStatementType: [fact, estimate]
+  hypothesisDirection: [up, down, stable, divergent]
+  hypothesisStatus: [proposed, active, blocked, deprecated]
+  signalRole: [validation, catalyst, tracking, weakening, blocking]
+  signalStatus: [candidate, active, stale, withdrawn, invalidated, rejected, quarantined]
+  statementType: [fact, forecast, assumption, judgment, recommendation]
+  reliability: [high, medium, low]
+  judgmentStatus: [candidate, watchlist, active, formalTrigger, resolved, downgraded, blocked, expired, deprecated]
+  timeHorizonBucket: [t_plus_1w, t_plus_1m, t_plus_1q, t_plus_1y, multi_year, event_driven, unspecified]
+  expectationType: [consensus, implied_pricing, management_guidance, buy_side_internal, sell_side_view, market_narrative, positioning, other]
+  expectationGapDirection: [positive, negative, neutral, mixed, unknown]
+  expectationGapStatus: [exists, none, contested, unknown]
+  impactDirection: [positive, negative, neutral]
+  impactMagnitude: [large, medium, small]
+  scenarioTag: [base, upside, downside]
+  confidenceLevel: [high, medium, low]
+  originType: [human_entered, source_extracted, system_computed, ai_derived]
+  pricedInAssessment: [underpriced, fairly_priced, priced_in, overreacted, unknown]
+  thesisStatus: [watchlist, active, deprecated]
+  sourceForm: [original_pdf, official_page, broker_page, repost_page, ai_summary, data_feed, manual_input, research_report, database_feed, original_file]
+  # preferred_mapping（v2 推荐口径）: original_pdf→original_file, broker_page→research_report
+  # 当前阶段新旧值并存，consumer 应兼容所有枚举值。
+  sourceReliability: [high, medium, low]
+  episodeType: [source_material, historical_case, reasoning_feedback, evaluation_feedback, manual_note, structured_data, material_ingestion]
+  # material_ingestion 等同于 source_material，v2 推荐使用 material_ingestion。当前阶段并存。
+  episodeStatus: [ingested, parsed, partially_parsed, quarantined, rejected, created, partial, completed, failed]
+  # created/partial/completed/failed 为 v1.1 推荐口径；ingested/parsed/partially_parsed 为历史命名。当前阶段并存。
+  claimType: [reported_fact, data_point, estimate, forecast, guidance, author_judgment, assumption, rumor_or_unverified, correction, fact_observation, transmission_logic, validation_signal, falsification_condition, validation_evidence, falsification_evidence, scenario_path, asset_mapping, restricted_item]
+  # v2 推荐优先使用 reported_fact / data_point / guidance / rumor_or_unverified / correction 等更细粒度类型；fact_observation 等历史值继续兼容。
+  # validation_signal: 历史命名，等同于 validation_evidence。证据域 Claim 不等于判断推理域 Signal。
+  # falsification_condition: 历史命名，等同于 falsification_evidence。
+  # v2 推荐使用 validation_evidence / falsification_evidence 以消除概念混淆。当前阶段两套命名并存。
+  claimStatus: [candidate, normalized, active, invalidated, superseded, rejected, quarantined, conflicted]
+  factStatus: [candidate, normalized, active, invalidated, superseded, rejected, quarantined, conflicted]
+  patchOperation: [add, modify, retire, merge, split, supplement_evidence, revise_relation, add_blocking_signal, reject, defer, migrate]
+  patchReviewStatus: [pending, approved, rejected, supplementRequired, merged, superseded]
+  patchMergeStatus: [not_started, merged, rejected, deferred, failed]
+  semanticRisk: [low, medium, high, core_change_required]
+  actionProposalStatus: [proposed, review_pending, approved, rejected, supplementRequired, executed, failed, superseded]
+  actionRiskLevel: [low, medium, high, core_change_required]
+  reviewRequirement: [none, researcher_confirm, reviewer_confirm, owner_confirm]
+  executionScope: [user_scoped, project_scoped, system_scoped]
+  writebackMode: [proposal_only, staged_review, approved_action, direct_writeback]
+  functionStatus: [draft, active, deprecated, superseded]
+  functionWritePermission: [read_only, propose_action, execute_approved_action]
+  functionOutputType: [string, structured_object, object_refs, action_proposal, ontology_edit]
+  logicBlockType: [read_objects, retrieve_evidence, transform, llm_summarize, deterministic_check, build_action_proposal, apply_action, render_output]
+  blockFailureHandling: [block_run, lower_confidence, enqueue_review, continue_with_gap]
+  objectViewStatus: [draft, active, deprecated]
+  objectViewTargetType: [Industry, Segment, Company, Product, Material, Asset, StateVariable, JudgmentOutput, ScenarioPath, ObjectSet]
+  evalCaseStatus: [draft, active, archived]
+  evalSuiteStatus: [draft, active, archived]
+  evalRunStatus: [created, running, completed, failed]
+  evalResultStatus: [passed, failed, needs_review]
+  metricWindow: [run, daily, weekly, monthly, rolling_7d, rolling_30d]
+  metricStatus: [normal, warning, critical, unknown]
+  inferenceRunStatus: [initializing, retrieving, evaluating, completed, partial, blocked, failed]
+  reviewType: [admission, admission_review, evidence_review, conflict_review, status_review, state_upgrade, state_upgrade_review, signal_status_update, retrospect, boundary_review, patch_review, compliance_review, deprecation_review, barrier_review, marking_downgrade]
+  reviewResult: [pending, approved, rejected, supplementRequired]
+  reviewFeedbackScope: [personal_method_revision, ontology_gap]
+  executionStatus: [success, failed]
+  actionFollowupKind: [evidence_claim_created, evidence_claim_validated, state_variable_observation_recorded, data_freshness_changed, data_stale_detected, data_requirement_breached, state_hypothesis_proposed, inference_rule_matched, judgment_output_drafted, human_review_requested, review_record_completed, bundle_gap_detected, action_failed, action_completed]
+  actionFollowupStatus: [emitted, consumed, ignored, failed]
+  assetType: [equity, bond, futures, fund, index, commodity, fx, other]
+  governanceLayer: [ontology_core, industry_extension, team_workspace]
+  recordStatus: [candidate, draft, review_pending, active, confirmed, rejected, deprecated, superseded, quarantined, archived]
+  retrospectOutcomeStatus: [realized, partially_realized, not_realized, inverted, too_early, unassessable]
+  retrospectDimensionResult: [correct, partly_correct, incorrect, unassessable]
+  ruleCategory: [event_to_variable, variable_to_variable, variable_to_hypothesis, hypothesis_to_judgment, judgment_to_expectation, judgment_to_impact, signal_evaluation, counter_check, market_expectation, expectation_gap_check, catalyst_detection, blocking_evaluation]
+  ruleStatus: [draft, active, deprecated, superseded]
+  changeDirection: [increase, decrease, stabilize, diverge, unknown]
+  changeMagnitude: [large, medium, small, unquantified]
+  templateStatus: [draft, active, deprecated]
+  scenarioType: [base, upside, downside, stress, alternative]
+  scenarioModelType: [event_impact, supply_chain, policy_shock, company_research, asset_exposure, evidence_ingestion, generic_research]
+  scenarioModelStatus: [draft, active, deprecated, superseded]
+  orchestrationRole: [router, evidence_summarizer, graph_context_loader, deterministic_checker, reasoning_chain_builder, action_proposal_builder, report_renderer, scenario_model_runner]
+  orchestrationStepType: [llm_route, graph_query, evidence_lookup, metric_calculation, deterministic_check, rule_check, invoke_function, llm_reasoning, action_proposal, report_render]
+  orchestrationToolType: [llm, graph, evidence_index, metric_function, policy_gate, rule_engine, logic_function, action_engine, renderer]
+  llmDecisionBoundary: [route_only, summarize_only, propose_only, explain_only, forbidden]
+  enforcementLevel: [schema_enforced, policy_gate, skill_must_check, human_review_required, reference_only]
+  failureBehavior: [block_with_gap, downgrade_to_observation, enqueue_review, create_patch_request_candidate, lower_confidence, ask_user_for_clarification, block_conclusion, observation_only]
+  monitorStatus: [active, paused, deprecated]
+  monitorTargetType: [StateVariable, StateHypothesis, JudgmentOutput, ObjectSet]
+  monitorTriggerAction: [emit_tracking_signal, emit_weakening_signal, enqueue_retrospect, emit_notification]
+  simulationStatus: [draft, running, completed, discarded, promoted]
+  runMode: [live, replay, backtest]
+  metricType: [ratio, growth_rate, percentile, weighted_exposure, spread, zscore, composite]
+  refreshPolicy: [on_demand, on_input_change, scheduled]
+  shockType: [absolute, relative, level_set, direction_only]
+  relationCardinality: [one_to_one, one_to_many, many_to_one, many_to_many, symmetric_single_edge]
+
+field_type_notes:
+  string: 自由文本。
+  enum: 必须取 enum 中的一个值。
+  number: 数值。
+  datetime: ISO-8601 日期或日期时间。
+  time_window: 时间区间或可解释的期限描述。
+  array: 列表。
+  object_ref: 对象引用，正式关联应优先用 relations.yaml 中的关系表达。
+  any: 审计快照，允许保存结构化或非结构化旧值和新值。

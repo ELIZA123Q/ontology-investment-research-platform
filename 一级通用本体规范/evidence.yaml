@@ -1,0 +1,428 @@
+schema_name: ontology_evidence
+schema_version: 1.0.0
+status: active
+depends_on: [common.yaml, semantic.yaml]
+description: 证据域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
+
+object_types:
+  SourceDocument:
+    id: SourceDocument
+    name: 来源文档
+    description: 原始材料、数据文件或人工记录的来源载体。
+    primary_key: id
+    title_property: title
+    validity: true
+    properties:
+      title: {type: string, required: true, description: 来源标题或稳定名称。}
+      sourceType: {type: enum, required: true, allowed_values: [filing, report, news, transcript, dataset, policy, manual, other], description: 来源载体类型。}
+      publisher: {type: string, required: false, description: 发布者或来源机构。}
+      publishedAt: {type: datetime, required: false, description: 来源发布时间。}
+      location: {type: string, required: true, description: 文件、链接或其他稳定定位。}
+      accessScope: {type: enum, required: true, allowed_values: [public, internal, restricted], description: 来源访问范围。}
+      sourceReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 来源可靠程度。}
+      status: {type: enum, required: true, allowed_values: [candidate, active, invalidated, superseded], description: 来源生命周期状态。}
+      createdAt: {type: datetime, required: true, description: 来源登记时间。}
+  EvidenceClaim:
+    id: EvidenceClaim
+    name: 证据主张
+    description: 从来源中提取的一条最小、可定位的说法。
+    primary_key: id
+    title_property: statement
+    validity: true
+    properties:
+      statement: {type: string, required: true, description: 一条最小可复核说法。}
+      claimType: {type: enum, required: true, allowed_values: [reported_fact, data_point, estimate, forecast, guidance, author_judgment, assumption, unverified, correction], description: 主张内容类型。}
+      locator: {type: string, required: true, description: 页码、段落、表格单元格或记录位置。}
+      businessTime: {type: datetime, required: false, description: 主张所描述事项的业务时间。}
+      claimConfidence: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 主张可信度。}
+      originalSourceId: {type: string, required: false, description: 转述内容追溯到的原始来源。}
+      status: {type: enum, required: true, allowed_values: [candidate, active, conflicted, invalidated, superseded], description: 主张生命周期状态。}
+      createdAt: {type: datetime, required: true, description: 主张形成时间。}
+  EvidenceFact:
+    id: EvidenceFact
+    name: 证据事实
+    description: 由一条或多条主张归一得到的结构化事实候选。
+    primary_key: id
+    title_property: statement
+    validity: true
+    properties:
+      statement: {type: string, required: true, description: 归一后的事实候选。}
+      factType: {type: enum, required: true, allowed_values: [occurrence, measurement, attribute, relationship], description: 事实候选类型。}
+      businessTime: {type: datetime, required: true, description: 事实候选对应的业务时间。}
+      normalizedValue: {type: any, required: false, description: 可结构化时记录的归一值。}
+      unit: {type: string, required: false, description: 归一值单位。}
+      factConfidence: {type: enum, required: true, allowed_values: [low, medium, high], description: 事实候选可信度。}
+      status: {type: enum, required: true, allowed_values: [candidate, active, conflicted, invalidated, superseded], description: 事实候选生命周期状态。}
+      createdAt: {type: datetime, required: true, description: 事实候选形成时间。}
+
+relation_types:
+  claimCitesSource:
+    id: claimCitesSource
+    name: 主张引用来源
+    description: 主张来自来源中的具体位置。
+    source_types: [EvidenceClaim]
+    target_types: [SourceDocument]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties:
+      locator: {type: string, required: true, description: 主张在来源中的位置。}
+  sourcePublishedBy:
+    id: sourcePublishedBy
+    name: 来源由组织发布
+    description: 来源文档由可稳定识别的组织机构发布；publisher 文本继续保留原始展示值。
+    source_types: [SourceDocument]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  claimAbout:
+    id: claimAbout
+    name: 主张涉及对象
+    description: 主张涉及某个稳定语义对象；状态变量通过推理域的观测或事件间接关联。
+    source_types: [EvidenceClaim]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      mentionRole: {type: string, required: false, description: 目标在主张中的角色。}
+  factSupportedByClaim:
+    id: factSupportedByClaim
+    name: 事实由主张支撑
+    description: 事实候选由一条或多条主张支撑。
+    source_types: [EvidenceFact]
+    target_types: [EvidenceClaim]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      supportRole: {type: enum, required: true, allowed_values: [primary, corroborating, contextual], description: 主张对事实候选的支撑角色。}
+  factAbout:
+    id: factAbout
+    name: 事实涉及对象
+    description: 事实候选描述某个稳定语义对象；状态变量通过推理域的观测或事件间接关联。
+    source_types: [EvidenceFact]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  conflictsWith:
+    id: conflictsWith
+    name: 证据冲突
+    description: 两项同类型证据存在尚未裁决的矛盾。
+    source_types: [EvidenceClaim, EvidenceFact]
+    target_types: [EvidenceClaim, EvidenceFact]
+    direction: symmetric
+    cardinality: many_to_many
+    evidence_required: false
+    same_type_required: true
+    properties:
+      conflictType: {type: string, required: true, description: 冲突类别。}
+      conflictScope: {type: string, required: false, description: 冲突范围。}
+  supersedes:
+    id: supersedes
+    name: 证据替代
+    description: 新证据替代同类型旧证据。
+    source_types: [EvidenceClaim, EvidenceFact]
+    target_types: [EvidenceClaim, EvidenceFact]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    same_type_required: true
+    properties:
+      supersedeReason: {type: string, required: true, description: 替代原因。}
+  invalidates:
+    id: invalidates
+    name: 证据失效
+    description: 新证据使同类型旧证据不再适用。
+    source_types: [EvidenceClaim, EvidenceFact]
+    target_types: [EvidenceClaim, EvidenceFact]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    same_type_required: true
+    properties:
+      invalidationReason: {type: string, required: true, description: 失效原因。}
+
+action_types:
+  RegisterSource:
+    id: RegisterSource
+    name: 登记来源
+    description: 登记可定位来源并评估来源可靠性。
+    target_types: [SourceDocument]
+    parameters: [title, sourceType, publisher, publisherRef, publishedAt, location, accessScope]
+    preconditions: [来源可定位]
+    effects: [create_SourceDocument, set_sourceReliability, create_sourcePublishedBy_if_provided]
+    outputs: [SourceDocument]
+    rule_refs: [source_traceability]
+    function_ref: AssessSourceReliability
+    logic_refs: []
+    write_scope: [SourceDocument, sourcePublishedBy]
+  ExtractClaim:
+    id: ExtractClaim
+    name: 抽取主张
+    description: 从来源指定位置形成最小主张候选。
+    target_types: [EvidenceClaim]
+    parameters: [sourceRef, locator, contentRange]
+    preconditions: [来源已登记]
+    effects: [create_EvidenceClaim, create_claimCitesSource]
+    outputs: [EvidenceClaim]
+    rule_refs: [claim_atomicity, source_traceability]
+    function_ref: ExtractClaims
+    logic_refs: [SourceToClaimLogic]
+    write_scope: [EvidenceClaim, claimCitesSource]
+  NormalizeClaim:
+    id: NormalizeClaim
+    name: 归一主张
+    description: 对齐主张中的对象、时间、数值和单位，不改变原始陈述。
+    target_types: [EvidenceClaim]
+    parameters: [claimRef, semanticRefs, unit, businessTime]
+    preconditions: [主张可追溯]
+    effects: [update_claim_normalization, create_claimAbout]
+    outputs: [EvidenceClaim]
+    rule_refs: [business_time_required]
+    function_ref: NormalizeClaimValue
+    logic_refs: []
+    write_scope: [EvidenceClaim, claimAbout]
+  SynthesizeFact:
+    id: SynthesizeFact
+    name: 归并事实候选
+    description: 根据有效主张形成结构化事实候选。
+    target_types: [EvidenceFact]
+    parameters: [claimRefs, normalizationBasis, businessTime]
+    preconditions: [至少一条有效主张]
+    effects: [create_EvidenceFact, create_factSupportedByClaim]
+    outputs: [EvidenceFact]
+    rule_refs: [fact_requires_claim, original_source_independence, source_claim_reliability_separation, conflict_preservation]
+    function_ref: AssessClaimConfidence
+    logic_refs: [ClaimToFactLogic]
+    write_scope: [EvidenceFact, factSupportedByClaim]
+  RecordEvidenceConflict:
+    id: RecordEvidenceConflict
+    name: 记录证据冲突
+    description: 建立冲突关系并保留双方证据。
+    target_types: [conflictsWith]
+    parameters: [leftEvidenceRef, rightEvidenceRef, conflictType, conflictScope]
+    preconditions: [两项证据同类型且可比较]
+    effects: [create_conflictsWith, mark_conflicted]
+    outputs: [conflict_record]
+    rule_refs: [conflict_preservation]
+    function_ref: DetectEvidenceConflict
+    logic_refs: [ConflictHandlingLogic]
+    write_scope: [EvidenceClaim, EvidenceFact, conflictsWith]
+  SupersedeEvidence:
+    id: SupersedeEvidence
+    name: 替代证据
+    description: 用更具时效或权威性的同类型证据替代旧证据。
+    target_types: [supersedes]
+    parameters: [newEvidenceRef, oldEvidenceRef, reason, effectiveAt]
+    preconditions: [新旧证据同类型且口径一致]
+    effects: [create_supersedes, mark_old_superseded]
+    outputs: [evidence_status]
+    rule_refs: [conflict_preservation]
+    function_ref: null
+    logic_refs: [ConflictHandlingLogic]
+    write_scope: [EvidenceClaim, EvidenceFact, supersedes]
+  InvalidateEvidence:
+    id: InvalidateEvidence
+    name: 使证据失效
+    description: 在存在明确反证或适用条件终止时使旧证据失效。
+    target_types: [invalidates]
+    parameters: [newEvidenceRef, oldEvidenceRef, reason, effectiveAt]
+    preconditions: [存在明确反证或适用条件终止]
+    effects: [create_invalidates, mark_old_invalidated]
+    outputs: [evidence_status]
+    rule_refs: [conflict_preservation]
+    function_ref: null
+    logic_refs: [ConflictHandlingLogic]
+    write_scope: [EvidenceClaim, EvidenceFact, invalidates]
+
+functions:
+  ExtractClaims:
+    id: ExtractClaims
+    name: 主张抽取
+    description: 从来源指定范围识别最小主张候选。
+    inputs: [SourceDocument, contentRange]
+    outputs: [claimCandidates]
+    reads: [SourceDocument]
+    writes: []
+    deterministic: false
+    side_effects: false
+    version: 1.0.0
+  NormalizeClaimValue:
+    id: NormalizeClaimValue
+    name: 主张口径归一
+    description: 对齐对象、时间、数值和单位。
+    inputs: [EvidenceClaim, semanticRefs, targetUnit]
+    outputs: [normalizedClaim]
+    reads: [EvidenceClaim, semantic_object]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  AssessSourceReliability:
+    id: AssessSourceReliability
+    name: 来源可靠性评价
+    description: 评价来源本身的可靠程度。
+    inputs: [sourceType, publisher, traceability]
+    outputs: [sourceReliability]
+    reads: [SourceDocument]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  AssessClaimConfidence:
+    id: AssessClaimConfidence
+    name: 主张可信度评价
+    description: 结合来源、主张类型、冲突和独立来源评价可信度。
+    inputs: [EvidenceClaim, sourceReliability, conflictRefs, independentSourceCount]
+    outputs: [claimConfidence, confidenceBasis]
+    reads: [SourceDocument, EvidenceClaim, EvidenceFact]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  DetectEvidenceConflict:
+    id: DetectEvidenceConflict
+    name: 证据冲突检测
+    description: 识别口径、数值、时间或方向冲突。
+    inputs: [evidenceRefs]
+    outputs: [conflictCandidates]
+    reads: [EvidenceClaim, EvidenceFact]
+    writes: []
+    deterministic: false
+    side_effects: false
+    version: 1.0.0
+  CalculateEvidenceFreshness:
+    id: CalculateEvidenceFreshness
+    name: 证据新鲜度计算
+    description: 根据业务时间、有效期和评估时点判断适用性。
+    inputs: [businessTime, validFrom, validTo, evaluationTime]
+    outputs: [freshness]
+    reads: [EvidenceClaim, EvidenceFact]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+
+logic_flows:
+  SourceToClaimLogic:
+    id: SourceToClaimLogic
+    name: 来源到主张逻辑
+    description: 从可定位来源形成分类清楚的最小主张。
+    inputs: [SourceDocument, contentRange]
+    steps:
+      - {id: validate_source, rule_refs: [source_traceability]}
+      - {id: extract_claims, function_ref: ExtractClaims}
+      - {id: validate_atomicity, rule_refs: [claim_atomicity]}
+    outputs: [EvidenceClaim]
+    fallback: 无法定位时不生成正式主张。
+  ClaimToFactLogic:
+    id: ClaimToFactLogic
+    name: 主张到事实逻辑
+    description: 对齐主张并形成可追溯事实候选。
+    inputs: [claimRefs]
+    steps:
+      - {id: normalize, function_ref: NormalizeClaimValue}
+      - {id: count_independent_sources, rule_refs: [original_source_independence]}
+      - {id: separate_source_claim_reliability, rule_refs: [source_claim_reliability_separation]}
+      - {id: detect_conflict, function_ref: DetectEvidenceConflict, rule_refs: [conflict_preservation]}
+      - {id: validate_support, rule_refs: [fact_requires_claim]}
+    outputs: [EvidenceFact, conflict_record]
+    fallback: 冲突未解时保持 conflicted。
+  ConflictHandlingLogic:
+    id: ConflictHandlingLogic
+    name: 证据冲突处理逻辑
+    description: 区分冲突、替代和失效，不静默覆盖证据。
+    inputs: [evidenceRefs]
+    steps:
+      - {id: detect_conflict, function_ref: DetectEvidenceConflict}
+      - {id: preserve_conflict, rule_refs: [conflict_preservation]}
+      - {id: classify_outcome, uses: [conflictsWith, supersedes, invalidates]}
+    outputs: [conflict_record, supersede_candidate, invalidation_candidate]
+    fallback: 无法裁定时只记录冲突。
+  FreshnessEvaluationLogic:
+    id: FreshnessEvaluationLogic
+    name: 证据新鲜度逻辑
+    description: 根据业务时间和有效期判断证据当前适用性。
+    inputs: [evidenceRef, evaluationTime]
+    steps:
+      - {id: require_business_time, rule_refs: [business_time_required]}
+      - {id: calculate_freshness, function_ref: CalculateEvidenceFreshness}
+    outputs: [freshness]
+    fallback: 时间缺失时降低可信度。
+
+rules:
+  source_traceability:
+    id: source_traceability
+    name: 来源可追溯
+    description: 来源和主张位置必须可访问或可复核。
+    rule_type: validation
+    applies_to: [SourceDocument, EvidenceClaim]
+    condition: SourceDocument.location 非空，EvidenceClaim.locator 非空。
+    result: 允许来源或主张进入后续处理。
+    priority: 100
+    failure_handling: keep_candidate_or_reject
+  claim_atomicity:
+    id: claim_atomicity
+    name: 主张最小化
+    description: 一条主张只表达一个核心断言。
+    rule_type: validation
+    applies_to: [EvidenceClaim]
+    condition: statement 不混合多个对象、时间、数值或因果断言。
+    result: 允许主张归一。
+    priority: 90
+    failure_handling: split_claim
+  source_claim_reliability_separation:
+    id: source_claim_reliability_separation
+    name: 来源与主张可靠性分离
+    description: 来源可靠性不得直接复制为主张可信度。
+    rule_type: scoring
+    applies_to: [SourceDocument, EvidenceClaim]
+    condition: claimConfidence 独立考虑主张类型、位置、冲突和独立来源。
+    result: 产生独立主张可信度。
+    priority: 80
+    failure_handling: recalculate_claim_confidence
+  fact_requires_claim:
+    id: fact_requires_claim
+    name: 事实必须有主张支撑
+    description: 事实候选至少由一条有效主张支撑。
+    rule_type: validation
+    applies_to: [EvidenceFact]
+    condition: 至少存在一条 factSupportedByClaim。
+    result: 允许创建事实候选。
+    priority: 100
+    failure_handling: reject_fact
+  original_source_independence:
+    id: original_source_independence
+    name: 独立来源追溯
+    description: 转述同一原始来源不得重复计算独立来源。
+    rule_type: scoring
+    applies_to: [EvidenceClaim]
+    condition: 按 originalSourceId 或可追溯来源去重。
+    result: 产生独立来源计数。
+    priority: 70
+    failure_handling: merge_source_count
+  conflict_preservation:
+    id: conflict_preservation
+    name: 冲突保留
+    description: 未裁决冲突不得删除任一方或静默覆盖。
+    rule_type: blocking
+    applies_to: [EvidenceClaim, EvidenceFact]
+    condition: 存在未解决 conflictsWith。
+    result: 证据状态保持 conflicted。
+    priority: 100
+    failure_handling: preserve_both_sides
+  business_time_required:
+    id: business_time_required
+    name: 业务时间完整
+    description: 动态内容必须有业务时间或明确说明缺失。
+    rule_type: validation
+    applies_to: [EvidenceClaim, EvidenceFact]
+    condition: businessTime 非空，或 claimType 表明该内容没有业务时间。
+    result: 允许新鲜度评价。
+    priority: 80
+    failure_handling: lower_confidence

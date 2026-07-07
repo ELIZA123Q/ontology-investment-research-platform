@@ -1,0 +1,574 @@
+schema_name: public_contracts
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研本体公共定义——时间类型、ID规则、公共枚举、公共契约、域映射、状态变量类别、去重策略、关系公共约束和动作公共约束。本文件被所有域专属 objects_*.yaml、relations_*.yaml、actions_*.yaml 和 policies_*.yaml 引用。actor_roles、trigger_types、action_groups 和 audit_policy 属于跨域公共动作定义，只在 common.yaml 定义；各域 actions 文件只定义本域动作并引用这些公共约束。
+
+public_contracts:
+  description: 跨 Skill 共享的数据契约。各 Skill 的输入输出 schema 可以扩展字段，但不得另行定义冲突的枚举或最小字段。
+  scope_type:
+    description: 本体研究范围的唯一权威枚举，适用于 ontology_scope.scope_type、评测 scope_type、历史回放 primary_scope_type 和优化 selected_playbook.scope_type。
+    type: enum
+    enum:
+      - industry
+      - supply_chain
+      - product_track
+      - company_research
+      - company_asset
+      - cross_industry_theme
+      - event_family
+      - scenario
+      - policy_theme
+      - macro_theme
+      - event_theme
+      - uncertain
+    legacy_aliases:
+      product_technology:
+        maps_to: product_track
+        reason: 旧评测与历史回放字段用于表达产品、技术路线、商业化和替代关系，应与冷启动/优化的 product_track 对齐。
+      company:
+        maps_to: company_research
+        reason: 旧历史回放字段 company 表达公司研究范围。
+      industry_chain:
+        maps_to: null
+        reason: 旧历史回放字段语义过宽，需根据研究主轴映射为 industry 或 supply_chain，并记录映射依据。
+      asset_portfolio:
+        maps_to: null
+        reason: 资产组合不是本体研究范围类型，应作为 validation_profile 或应用场景记录。
+      material_driven:
+        maps_to: null
+        reason: 材料驱动是优化来源或构建方式，不是本体研究范围类型。
+      multi_ontology:
+        maps_to: null
+        reason: 多本体组合是 composition_type，不是单一本体范围类型。
+    required_usage:
+      - 冷启动输出使用 ontology_scope.scope_type。
+      - 优化输入读取 base_ontology.ontology_scope.scope_type，输出 optimization_report.selected_playbook.scope_type。
+      - 评测输入与输出使用 scope_type；旧 ontology_type 只能作为兼容输入，必须映射后记录。
+      - 历史回放使用 primary_scope_type；旧 primary_ontology_type 只能作为兼容输入，必须映射后记录。
+  optimization_plan_item_minimum_contract:
+    description: 所有上游诊断、评测、历史回放和缺口发现输出的 optimization_plan，以及优化 Skill 输出的 next_optimization_plan，都必须满足的最小任务单契约。
+    required_fields:
+      plan_id:
+        type: string
+        description: 计划项唯一标识。
+      optimization_goal:
+        type: string
+        description: 本轮要修复或验证的具体目标。
+      target_gaps:
+        type: array
+        items: string
+        description: 目标缺口、组件或问题描述。
+      suggested_operations:
+        type: array
+        items: enum
+        enum: [add, split, merge, downgrade, supplement_evidence, revise_relation, add_blocking_signal, defer, reject]
+        description: 建议动作，只表达任务意图，不等于已执行修改。
+      required_materials:
+        type: array
+        items: string
+        description: 最低必需材料类型或证据来源。
+      minimum_evidence_level:
+        type: enum
+        enum: [no_evidence, single_source_candidate, single_report, multi_source, multi_source_supported, official_source_supported, historical_case, ontology_feedback, expert_confirmed, review_confirmed]
+        description: 执行该任务前至少需要达到的证据等级。
+      priority:
+        type: enum
+        enum: [high, medium, low]
+        description: 任务优先级。
+      stop_condition:
+        type: string
+        description: 何时停止扩张、进入执行或拒绝该计划。
+    optional_extension_fields:
+      - next_round
+      - source_question_ids
+      - source_question_tier
+      - source_issue_ids
+      - source_gap_ids
+      - source_diagnostic_ids
+      - suggested_materials
+      - owner_role
+      - continue_or_stop_condition
+      - quality_expected_delta
+
+  classification_markings:
+    description: 合规与信息隔离标记。标记独立于 governanceLayer 和 recordStatus，用于访问控制、信息墙和数据许可约束。
+    marking_dimensions:
+      confidentiality:
+        enum: [public, internal, restricted, mnpi]
+        ordered: true
+        order: [public, internal, restricted, mnpi]
+        description: 保密级别，按 public < internal < restricted < mnpi 递增。
+      information_barrier:
+        enum: [none, research_wall, buy_side_only, sell_side_only, deal_team, conflict]
+        mutually_exclusive: [research_wall, buy_side_only, sell_side_only, deal_team]
+        description: 信息墙隔离域；跨互斥隔离域的派生结果标记为 conflict 并进入 barrier_review。
+      license_scope:
+        enum: [unrestricted, internal_use_only, no_redistribution, vendor_restricted]
+        ordered: true
+        order: [unrestricted, internal_use_only, no_redistribution, vendor_restricted]
+        description: 数据源许可范围，按限制强度递增。
+    propagation_rule:
+      description: 派生对象的 markings 等于全部输入对象 markings 在每个维度上的最严格上界。
+      applies_to: [EvidenceFact, StateVariableObservation, Signal, JudgmentOutput, AssetImpact, DerivedMetric, SimulatedImpact]
+      confidentiality: 取输入中最高级别。
+      information_barrier: 输入跨多个互斥隔离域时，结果标记为 conflict 并进入 review_queue。
+      license_scope: 取输入中最严格许可。
+    enforcement:
+      consumer_filter: 消费型 Skill 加载资产时按调用方 clearance 过滤；不满足 clearance 的对象不得进入推理上下文。
+      write_block: 违反 information_barrier 的派生写入被 block_next_action 阻断并 enqueue_review。
+      audit: marking 的赋值、提升与降级必须写 ActionAudit；降级必须经 reviewType=marking_downgrade。
+
+  as_of_reconstruction:
+    description: 时点重建契约。历史回放、复盘和回测必须声明 asOfTime，且只能消费该时点之前已被系统获知的证据与对象。
+    as_of_field: asOfTime
+    visibility_rule: 对象、证据、观测对某次 as-of 运行可见，当且仅当 learnedAt <= asOfTime；缺 learnedAt 时回退 observedAt <= asOfTime，并记录降级。
+    exclusion_handling: 不可见对象不得进入推理上下文；被排除项写入 InferenceRun.excludedByAsOf。
+    required_on: [InferenceRun.runMode=replay, InferenceRun.runMode=backtest, ReviewRecord.reviewType=retrospect]
+    violation: 消费 learnedAt > asOfTime 的证据时校验失败，运行标记 invalid_replay。
+
+  function_contract:
+    description: 函数契约。纯计算 Function 只读不写；LogicFunction 可编排多个 LogicBlock 并生成 ActionProposal，但不得绕过 Action 直接改正式对象、关系或证据。
+    required_fields: [functionId, functionVersion, inputContract, outputContract, purity]
+    purity_enum: [pure, reads_observations, reads_external]
+    refresh_policy_enum: [on_demand, on_input_change, scheduled]
+    logic_function_required_fields: [functionId, functionVersion, orchestrationRole, inputContract, outputContract, executionScope, blockRefs, writePermission, reviewPolicy]
+    logic_block_required_fields: [blockId, blockType, toolType, inputRefs, outputRef, onFailure]
+    execution_scope_enum_ref: executionScope
+    orchestration_role_enum_ref: orchestrationRole
+    write_permission_enum_ref: functionWritePermission
+    block_type_enum_ref: logicBlockType
+    tool_type_enum_ref: orchestrationToolType
+    output_type_enum_ref: functionOutputType
+    constraints:
+      - 纯计算 Function 不得创建、更新或废弃对象和关系。
+      - LogicFunction 需要写回时只能输出 ActionProposal 或调用已声明 Action；不得直接写 shared 正式资产。
+      - LogicBlock 每步只读取当前步骤必要对象和字段，运行记录必须写入 loaded_assets 或等价字段。
+      - reads_observations 和 reads_external 必须声明 refresh_policy。
+      - Function 输出作为派生量被引用时，引用方记录 functionId 和 functionVersion。
+      - Action 改状态，Function 算派生量，InferenceRule 推判断。
+
+  enforcement_contract:
+    description: 规则、场景模型和能力索引共享的责任契约，说明由 schema、policy、Skill 还是人工审核保证，并声明失败后的统一处理。
+    applies_to: [InferenceRule, ScenarioModel, capability_index]
+    required_fields: [enforcement_levels, primary_enforcer, failure_behavior]
+    enforcement_level_enum_ref: enforcementLevel
+    failure_behavior_enum_ref: failureBehavior
+    constraints:
+      - schema_enforced 只能用于字段、枚举、引用、状态或目录契约等可由脚本确定性验证的规则。
+      - policy_gate 必须能追溯到 policy、quality gate、loading_rules、ScenarioModel deterministicChecks 或 rule_check。
+      - skill_must_check 表示消费型 Skill 必须显式检查，缺失时不得静默形成正式资产影响候选。
+      - human_review_required 必须进入 ReviewRecord、review_queue 或 ActionProposal。
+      - reference_only 只允许用于解释、导航或摘要，不得作为正式判断依据。
+
+  confidence_composition:
+    description: >
+      多跳推理链的统一置信度组合契约。公共层只定义组合方法和记录字段，
+      行业 bundle 可在 policy 覆盖具体权重，但不得绕过证据独立性、新鲜度、
+      反证和历史校准四类因素。
+    discrete_mapping:
+      high: {score: 0.80, interval: [0.70, 0.95]}
+      medium: {score: 0.55, interval: [0.40, 0.70]}
+      low: {score: 0.30, interval: [0.10, 0.40]}
+      unverified: {score: 0.15, interval: [0.00, 0.30]}
+    chain_method:
+      default: logit_weighted_product
+      explanation: >
+        多跳传导先把每一跳置信度转为 score，再按证据独立性、新鲜度、
+        反证惩罚和历史校准权重调整；链路总分不得高于最薄弱关键跳的上限。
+    modifiers:
+      independent_source_bonus:
+        basis: independentSourceCount
+        cap: 0.10
+      freshness_decay:
+        basis: freshness_policy_ref and business_time_delta
+        floor: 0.60
+      counter_evidence_penalty:
+        weakening: -0.15
+        blocking: block_conclusion
+      historical_calibration_weight:
+        basis: MetricSnapshot for InferenceRule/ConductionTemplate/ScenarioPath
+        metrics: [hit_rate, brier_score, calibration_error, false_positive_rate, avg_lag_error, coverage_rate]
+    required_trace_fields:
+      - inputConfidence
+      - evidenceIndependence
+      - freshnessAdjustment
+      - counterEvidenceAdjustment
+      - historicalCalibrationWeight
+      - outputConfidenceScore
+      - confidenceCompositionMethod
+
+  runtime_asset_header_contract:
+    description: >
+      运行时资产暴露头。不替换 id/type/recordStatus；通过 runtime_asset_registry 或内联 runtime_exposure
+      为工作台提供统一消费视图。权威定义见 schemas/工程交付与Bundle契约/contracts_runtime.yaml。
+    recommended_registry_path: shared/_index/runtime_asset_registry.yaml
+    required_fields: [asset_id, asset_type, status, confirmation_status, runtime_exposure, summary_for_runtime, refs, source_path]
+    runtime_exposure_fields: [include_in_runtime, load_mode, priority, token_budget_level]
+    confirmation_status_values: [confirmed, candidate, rejected, needs_review]
+    record_status_to_confirmation:
+      confirmed: confirmed
+      active: confirmed
+      candidate: candidate
+      draft: candidate
+      review_pending: needs_review
+      rejected: rejected
+      deprecated: rejected
+    admission_rule: >
+      recordStatus active/confirmed + confirmation_status=confirmed + include_in_runtime=true 可进入工作台推理；
+      candidate/draft/needs_review 仅 staging；deprecated/rejected 禁止推理。
+
+  capability_layer_contract:
+    description: 能力层索引契约。capability_index 只做导航和加载裁剪，不复制完整对象、证据或规则。
+    recommended_path: shared/_index/capability_index.yaml
+    required_item_fields: [capability_id, input_contract, output_contract, bound_scenario_models, required_refs, deterministic_gates, failure_behavior]
+    recommended_capabilities: [CaptureJudgment, AnalyzeEventImpact, RunCounterCheck, EvaluateMarketExpectationGap, GenerateAssetImpactCandidate, ReplayHistoricalCase]
+    forbidden_capability_names: [GenerateValuationConclusion]
+    constraints:
+      - 能力输出必须遵守 global_research_output_boundary。
+      - CaptureJudgment 必须声明 JudgmentRecord 契约并写入外部 team workspace；AnalyzeEventImpact 仅在用户明确要求持续跟踪或复盘时持久化 JudgmentRecord，普通问题不得自动创建长期记录。
+      - bound_scenario_models 指向 ScenarioModel；bound_logic_functions 指向 LogicFunction.functionId。
+      - failure_behavior 使用 common_enums.failureBehavior。
+      - 能力层不新增平行 domain、capability、reference 目录，仍通过 shared、scenario_packs、governance 和 schemas 消费。
+
+  enum_deprecation_policy:
+    description: 公共枚举的废弃、迁移和兼容规则。枚举值变更必须先进入兼容期，再由迁移补丁收口。
+    deprecation_states: [active, deprecated_pending_migration, retired]
+    required_fields_for_deprecation:
+      - enum_name
+      - deprecated_value
+      - preferred_value
+      - migration_operation
+      - effective_from
+      - review_record_id
+    migration_operation_enum_ref: patchOperation
+    consumer_rule: consumer 读取枚举时接受 active 和 deprecated_pending_migration；写入新实例时使用 active 值；retired 值只允许在历史记录中保留。
+    patch_rule: 枚举迁移必须生成 PatchRequest.operation=migrate，并由 PatchLedgerItem 记录迁移结果。
+
+relation_defaults:
+  direction: directed
+  history_policy: preserve_history
+  deletion_policy: no_physical_delete_without_migration
+  relation_instance_id_pattern: "REL-{YYYYMMDD}-{serial}"
+  relation_status_values: [candidate, draft, review_pending, active, confirmed, rejected, deprecated, superseded, quarantined, archived]
+  cardinality_enum: [one_to_one, one_to_many, many_to_one, many_to_many, symmetric_single_edge]
+  required_instance_fields: [id, type, sourceId, targetId, recordStatus, owner_bundle_id, evidenceRefs]
+  required_common_fields: [id, type, sourceId, targetId, recordStatus, owner_bundle_id, evidenceRefs, confidence, validFrom, validTo]
+  schema_definition_fields: [relationType, from, to, direction]
+  public_extension_slots: [properties, relationProperties, domainSpecificProperties, scenarioProperties, extensionFields]
+  inheritance_rule: 实例文件可在容器级声明默认 recordStatus；若关系实例未显式填写 recordStatus，可继承容器默认值。正式入库时系统应补齐为实例字段。
+  inverse_of_note: >
+    关系类型中的 inverse_of 字段为可选项，声明该关系的逻辑反向关系名。
+    当两方关系类型均已定义时，inverse_of 直接引用对方关系类型名；
+    当反向关系未实例化时（如 companyBelongsToIndustry 的逆 industryContainsCompany），
+    inverse_of 仅声明逆关系名供推理引擎做双向遍历推导，不要求实例化该逆关系。
+
+relation_extraction_contract:
+  purpose: 指导 AI 从文档或案例中抽取关系实例。
+  output_shape:
+    id: 关系实例 ID，遵循 relation_instance_id_pattern。
+    type: relation_types 中的关系类型。
+    sourceId: 源对象实例 ID。
+    targetId: 目标对象实例 ID。
+    properties: 关系属性；无属性时为空对象。
+    owner_bundle_id: 关系实例唯一维护归属。
+    evidenceRefs: 来源文档、段落或观测引用。
+    confidence: 关系抽取或确认置信度。
+    validFrom: 关系开始适用的业务时间。
+    validTo: 关系停止适用的业务时间；未知时留空。
+    extractionConfidence: 0 到 1 的置信度。
+    recordStatus: candidate 或 confirmed。
+  rules:
+    - 不允许只用自然语言暗示关系；凡参与推理链的连接必须形成关系实例。
+    - 概念层的上位、包含、交叉、排除、边界裁定和对象映射必须形成概念关系实例；不得只写在说明文中。
+    - sourceId 和 targetId 必须先能解析到对象实例；无法解析时放入 unresolved_relations。
+    - Signal 的效果关系必须遵守 signalRole 约束。
+    - blocking 只能通过 blocksHypothesis 指向 StateHypothesis，不得直接指向 JudgmentOutput。
+    - StateVariablePropagation 的变量端点必须用 propagatesFrom 和 propagatesTo 两条关系表达。
+    - 方向性状态变化模式统一使用 StateVariablePropagation 表达；不得新建 StateChange 实例。
+    - 业务结构图谱必须优先使用 target_graph_relations 中的显式关系；不得只用自然语言、排序或 positionInChain 暗示上下游、替代、依赖或公司关系。
+    - 业务结构关系的关系类型只负责约束端点类型，具体语义必须写入对应 relationType 属性；缺少端点或语义时放入 unresolved_relations 或材料缺口。
+    - 关系 schema 只定义端点类型、方向、公共属性和扩展槽位，不穷举具体行业关系属性。
+    - 图谱生成和推理只能消费显式关系，不能让模型凭行业常识、对象排序或 positionInChain 自动补边。
+    - relationSubType、strength、capacityExposure、supplyDependence、technologyGeneration、pricingSensitivity 等业务属性应由行业 bundle 或 scenario pack 扩展定义。
+    - 当一条边需要自身生命周期、独立证据、三个以上业务属性或需要被推理、复盘单独引用时，应升级为关联对象（association object）加两条关系；StateVariablePropagation 通过 propagatesFrom / propagatesTo 表达变量间关联对象模式。
+
+attribute_contract:
+  description: 对象属性、关系属性、证据、规则和场景属性的裁决契约。字段只承载稳定状态；连接、来源和推理逻辑必须进入对应结构。
+  object_attribute_policy:
+    purpose: 描述对象自身稳定属性、生命周期、治理归属和可展示元数据。
+    allowed: [name, description, aliases, status, classification, scope, lifecycle, owner_bundle_id, normalizedKey]
+    forbidden:
+      - 不得用对象字段表达上游、下游、替代、依赖、支持、影响、属于、映射等连接。
+      - 不得把证据来源、引用位置、推理条件或行业阈值写成对象自由文本。
+    target_structure: 应建模为连接的内容写 Relation；应建模为证据的内容写 EvidenceClaim/EvidenceFact；应建模为逻辑的内容写 InferenceRule/Policy。
+  relation_attribute_policy:
+    purpose: 描述两个端点之间连接的方向、有效期、强度、证据和边上业务属性。
+    required_instance_fields: [id, type, sourceId, targetId, recordStatus, owner_bundle_id, evidenceRefs, confidence, validFrom, validTo]
+    allowed_extension_slots: [properties, relationProperties, domainSpecificProperties, scenarioProperties, extensionFields]
+    forbidden:
+      - 不得创建无端点、无方向或无证据依据的业务关系。
+      - 不得把长期可复用关系只保存在 scenarioProperties 中。
+    promotion_rule: scenarioProperties 中具备跨场景复用价值的属性必须通过 PatchRequest 合入 owner bundle。
+  evidence_attribute_policy:
+    purpose: 保存材料来源、引用位置、原始陈述、归一事实、冲突和可信度。
+    rule: 对象和关系只引用 evidenceRefs；EvidenceClaim/EvidenceFact 承载证据正文和定位。
+  rule_attribute_policy:
+    purpose: 保存条件、门禁、传导、输出、失败处理和可复用推理逻辑。
+    rule: Action 不承载复杂判断逻辑；Action 通过 policy_refs、rule_refs 或 function_ref 消费规则。
+  scenario_attribute_policy:
+    purpose: 保存局部加载、局部阈值和场景裁剪信息。
+    rule: scenario_pack 不复制完整实体；局部属性只影响当前场景运行，复用时提交 PatchRequest。
+
+object_relation_action_metamodel:
+  description: Object、Relation、Action 的公共元模型。核心规范只定义公共结构和扩展机制；具体行业属性名、关系子类型、阈值取值、状态升级条件和场景参数由业务 bundle 或 scenario pack 定义。
+  object_contract:
+    role: 对象承载自身状态、业务字段、生命周期和治理归属。
+    common_fields: [id, type, governanceLayer, recordStatus, owner_bundle_id, external_ref, markings, normalizedKey, validFrom, validTo, observedAt, learnedAt, invalidatedAt, supersedes, supersededBy]
+    extension_slots: [properties, domainProperties, scenarioProperties, extensionFields]
+    constraints:
+      - 对象不得用自然语言字段替代应显式建模的关系。
+      - AI 生成对象默认进入 candidate、draft 或 review_pending，不得直接 active。
+  relation_contract:
+    role: 关系承载对象之间的显式连接、方向、强度、来源、有效期、证据和边上属性。
+    required_common_fields: [id, type, sourceId, targetId, recordStatus, owner_bundle_id, evidenceRefs, confidence, validFrom, validTo]
+    compatible_schema_fields: [relationType, from, to, direction]
+    compatible_instance_fields: [id, type, sourceId, targetId, recordStatus, owner_bundle_id, properties, relationProperties, domainSpecificProperties, scenarioProperties, extensionFields, evidenceRefs, confidence, validFrom, validTo]
+    extension_slots: [relationProperties, domainSpecificProperties, scenarioProperties, extensionFields]
+    constraints:
+      - 任何参与推理、图谱生成或状态传导的连接必须是关系实例。
+      - 核心规范不写死行业 relationSubType、强度、产能、供给依赖、技术代际或价格敏感度枚举。
+  action_contract:
+    role: Action 是改变对象和关系状态的合法入口，不是业务推理代码函数。
+    recommended_sections:
+      - trigger
+      - parameters_or_field_inputs
+      - authorization
+      - preconditions
+      - policy_refs
+      - rule_refs
+      - inference_consumer_rule_refs
+      - validation_checks
+      - effects
+      - state_transitions
+      - side_effects
+      - failure_handling
+      - output_contract
+      - audit
+    compatibility_policy:
+      preferred_new_shape: [effects, state_transitions, output_contract]
+      compatible_legacy_sections: [field_inputs, relation_inputs, outputs]
+      rule: 新增或重写 Action 优先使用 effects/state_transitions/output_contract；旧字段只作为兼容输入保留，不承载复杂业务判断。
+    action_contract_types:
+      basic_create:
+        required_sections: [actor_roles, trigger, field_inputs, preconditions, outputs]
+        description: 创建候选对象或轻量记录；必须输出 ActionAudit。
+      controlled_write:
+        required_sections: [actor_roles, trigger, parameters, authorization, preconditions, policy_refs, effects, failure_handling, output_contract]
+        description: 写入对象字段、关系或证据状态；适用于入库、补丁和跨包写入。
+      state_transition:
+        required_sections: [actor_roles, trigger, parameters, authorization, preconditions, threshold_checks, policy_refs, rule_refs, effects, state_transitions, failure_handling, output_contract]
+        description: 改变对象、关系、信号、判断、补丁或规则状态。
+      governance_side_effect:
+        required_sections: [actor_roles, trigger, parameters, authorization, preconditions, side_effects, output_contract]
+        description: 触发审核、通知、补证、后续任务、外部回调或质量门禁。
+      function_backed:
+        required_sections: [actor_roles, trigger, parameters, authorization, function_ref, preconditions, effects, failure_handling, output_contract]
+        description: 复杂逻辑由函数或规则运行承接，Action 只定义输入、权限、效果和审计。
+    required_sections: [trigger, preconditions, effects, failure_handling, output_contract, audit]
+    compatibility_sections: [field_inputs, relation_inputs, outputs]
+    constraints:
+      - actions 文件定义动作模板、可产生的 effect 类型和状态流转出口。
+      - 阈值、判断逻辑、状态升级条件和字段变更细节应放在 policies、InferenceRule、ConductionTemplate、ScenarioPath、行业 bundle 或 scenario pack 扩展 policy 中。
+      - Action 执行结果必须记录到 ActionAudit；涉及审核、规则应用或补丁的，还应记录 ReviewRecord、RuleApplication 或 PatchRequest/PatchLedgerItem。
+
+action_effect_contract:
+  description: 跨域 Action Effect / State Transition 公共结构。各域 actions 文件引用本契约，不在动作模板中写死行业阈值或复杂业务逻辑。
+  allowed_effect_types:
+    create_object: 创建对象实例，默认 recordStatus 为 candidate/draft/review_pending。
+    update_fields: 更新非状态字段；状态字段必须走 state_transitions。
+    create_relation: 创建显式关系实例。
+    update_relation: 更新关系公共字段或关系属性。
+    deprecate_object: 标记对象废弃、替代或失效，不物理删除。
+    enqueue_review: 创建或加入 review_queue。
+    create_patch_request: 创建 PatchRequest，表达候选变更而非直接合并。
+    create_action_proposal: 创建 ActionProposal，表达人或 AI 拟提交的可审核业务事务。
+    stage_action_proposal: 将 ActionProposal 放入 staged review 或 review_queue。
+    execute_action_proposal: 执行已批准 ActionProposal 中声明的 Action，仍必须产生 ActionAudit。
+    record_decision_log: 记录提案生成、审核或执行过程的决策日志引用。
+    record_metric_snapshot: 记录函数、Action、评测或运行的指标快照。
+    emit_audit: 写入 ActionAudit。
+    block_next_action: 阻断后续动作并记录失败原因。
+    trigger_next_action: 触发后续动作或补证流程。
+    trigger_followup: 声明 Action 执行后的后续信号；ActionFollowup 只能驱动后续 ActionProposal、AutomateFlow 或审核流程，不得替代研究 Event，也不得绕过 ActionAudit 直接写正式资产。
+    emit_notification: 触发通知记录；通知目标、原因和载荷必须进入 ActionAudit 或 ReviewRecord。
+    call_external_task: 触发外部任务、webhook 或工作流；核心规范只记录契约和审计，不直接实现外部调用。
+    propagate_markings: 派生写入时按 classification_markings.propagation_rule 计算标记。
+    block_on_barrier: 信息墙或许可违规时阻断写入并进入 review_queue。
+  action_template_fields:
+    parameters:
+      description: Action 对外输入接口；每个参数声明名称、类型、必填性、默认值、可见性和来源。
+    authorization:
+      description: 谁能执行该动作；可引用 actor_roles、owner_bundle、review_owner 或权限策略。
+    trigger:
+      description: 触发来源，可引用 trigger_types 或场景 policy 的 trigger。
+    preconditions:
+      description: 前置条件，只描述结构性条件和输入约束。
+    threshold_checks:
+      description: 阈值检查引用 policy_id、gate_id 或 rule_id；具体取值可由 bundle 覆盖。
+    policy_refs:
+      description: 引用 policies_*.yaml、bundle policy 或 scenario policy。
+    rule_refs:
+      description: 引用各域 rules.yaml 中 rule_binding=action 的规则 ID；简单声明式门禁优先写此处。
+    inference_consumer_rule_refs:
+      description: 引用 rule_binding=inference_asset 的规则 ID；由 InferenceRun、RuleApplication 或推理 Skill 消费，不进 rule_refs。
+    validation_checks:
+      description: 可选统一校验索引。mode=declarative 引用 rule_refs；mode=function 引用 LogicFunction，承接复杂校验。function_backed Action 的执行逻辑写在顶层 function_ref，不重复写入 validation_checks。
+      fields:
+        check_id: 稳定检查 ID，如 gate_signal_role 或 custom_clearance_check。
+        mode: declarative 或 function。
+        rule_ref: mode=declarative 时必填，须为 action 型 Rule Registry 规则。
+        function_ref: mode=function 时必填，结构与顶层 function_ref 相同。
+    effects:
+      description: 一个或多个 allowed_effect_types。
+    state_transitions:
+      description: 对象或关系状态字段的 from/to 变化；不得绕过 Action 直接编辑。
+    failure_handling:
+      description: 不满足条件时进入 rejected、quarantined、supplementRequired、review_queue、PatchRequest 或 block_next_action。
+    side_effects:
+      description: 通知、审核队列、补丁请求、外部任务、ActionFollowup 和后续动作；不得绕过 ActionAudit。
+    followup_side_effect:
+      description: ActionFollowup 契约写在 Action.side_effects 中 type=trigger_followup 的条目里，由 RecordActionFollowup 落库。
+      required_fields: [event_id, event_name, followup_kind, terminal_handling, allowed_next_actions, payload_fields, payload_contract]
+      payload_fields: [event_name, event_type, source_action_audit_id, payload_summary, terminal_handling]
+      record_via_action: RecordActionFollowup
+      not_research_event: true
+    rule_execution_contract:
+      description: Rule Registry 是 Action 校验规则的复用库；声明式门禁挂 Action.rule_refs，推理资产挂 Action.inference_consumer_rule_refs，不与 Action 平行成第四套逻辑。
+      rule_registry_role: 复用库与索引；action 型规则双向绑定 Action.rule_refs；inference_asset 型规则双向绑定 Action.inference_consumer_rule_refs。
+      rule_binding_values:
+        action: 门禁/晋升/阻断/前置条件；通过 actions.rule_refs 双向绑定。
+        inference_asset: 推理/评分规则；由 InferenceRule、LogicFunction 或 InferenceRun 消费，不进 action.rule_refs。
+        automate_flow: 新鲜度、Monitor、ActionFollowup 路由；由 AutomateFlow 与 scenario policy 消费，不进 action.rule_refs。
+      execution_values:
+        declarative: 门禁/触发规则默认；由 schema、policy、skill 或校验脚本执行，不要求 functionRef。
+        declarative_with_optional_function_ref: inference 规则默认；可资产化为 InferenceRule 并挂 functionRef。
+        functionRef: 仅当声明式表达不足时使用；必须填写 function_ref 指向 LogicFunction。
+      function_ref_required_when: functionRef
+      function_ref_forbidden_when: declarative
+    function_boundary_contract:
+      description: LogicFunction 四层分工；避免同一业务逻辑在 Rule Registry 与 InferenceRule 重复表达。
+      layers:
+        action_execution:
+          declarative_gates: rule_refs
+          complex_validation: validation_checks(mode=function).function_ref
+          function_backed_execution: function_ref
+          note: 仅白名单 function_backed Action 允许顶层 function_ref；其余 Action 不得把执行逻辑写进 function_ref。
+        rule_registry:
+          declarative: condition + execution=declarative；不得写 function_ref。
+          inference_index: execution=declarative_with_optional_function_ref；可资产化为 InferenceRule，condition 只做索引。
+          function_backed_rule: execution=functionRef；必须写 function_ref 并挂 inference_binding.function_refs 或 canonical_inference_rule_ids。
+        inference_asset:
+          canonical: InferenceRule.functionRef + RuleApplication 审计。
+          registry_link: inference_binding.function_refs / canonical_inference_rule_ids 指向 canonical 资产，禁止与 rules.yaml.condition 各写一套实现。
+        scenario_orchestration:
+          invoke_via: ScenarioModel.invoke_function / scenario pack loading_rules。
+          note: 场景编排调用 LogicFunction，不绕过 Action 直接写正式资产。
+      forbidden_patterns:
+        - 非 function_backed Action 声明顶层 function_ref
+        - function_backed Action 在 validation_checks 中重复声明 mode=function
+        - rule_binding=action 的规则同时写 function_ref 与冗长 condition 实现
+        - inference_asset 规则写 function_ref 却缺少 inference_binding.function_refs 或 canonical_inference_rule_ids
+    function_ref:
+      description: 函数型动作引用的函数、版本、输入输出契约和失败处理策略。支持 inline（functionId/functionVersion/inputContract/outputContract）或 indirect（source_field/contract_ref 指向对象字段）。
+    tool_descriptor:
+      description: 可选。把该 Action 暴露为 agent 工具的描述符；不改变执行语义，只供任务型 Skill 生成工具清单。
+      fields:
+        nl_description: 一句话说明该工具做什么。
+        when_to_use: 触发场景与适用边界。
+        parameter_schema: 引用 parameters 或 field_inputs 的机读参数子集。
+        not_for: 不该调用该工具的场景。
+        emits: 产出对象、关系、状态和审计摘要。
+    output_contract:
+      description: 执行后必须产出的对象、关系、审计、审核、补丁或运行记录。
+    audit:
+      description: ActionAudit 必填项、审核要求和审计落点。
+
+task_loading_rules:
+  description: 默认不全文加载全部 schema、reference 和 policy。任务型 Skill 应按任务场景加载必要契约，能用 validate_core.py 或 validate_bundle.py 校验的，不要求模型手工全文阅读。
+  default_rule: 默认只加载 SKILL.md、必要索引和任务相关的 schema/policy/reference；场景推理优先加载 scenario_pack/loading_rules.yaml。
+  task_profiles:
+    research_mission_intake:
+      load_first: [schemas/common.yaml, schemas/工程交付与Bundle契约/contracts_workspace.yaml, registries/bundle_registry.yaml]
+      load_if_needed: [schemas/工程交付与Bundle契约/contracts_runtime.yaml]
+      forbidden_default_load: [bundle_workbenches, team_workspaces/*/judgments, industry_bundles/*/shared/semantic_objects, industry_bundles/*/shared/reasoning_assets]
+    cold_start:
+      load_first: [schemas/common.yaml, schemas/语义结构域/objects_ontology.yaml, schemas/语义结构域/relations_ontology.yaml, schemas/语义结构域/actions_ontology.yaml, schemas/判断推理域/objects_reasoning.yaml, schemas/治理域/objects_governance.yaml]
+      load_if_needed: [schemas/证据域/objects_evidence.yaml, schemas/证据域/policies_evidence.yaml]
+    evidence_normalization:
+      load_first: [schemas/common.yaml, schemas/证据域/objects_evidence.yaml, schemas/证据域/relations_evidence.yaml, schemas/证据域/actions_evidence.yaml, schemas/证据域/policies_evidence.yaml]
+      load_if_needed: [schemas/语义结构域/objects_ontology.yaml]
+    object_relation_completion:
+      load_first: [schemas/common.yaml, schemas/语义结构域/objects_ontology.yaml, schemas/语义结构域/relations_ontology.yaml, schemas/语义结构域/actions_ontology.yaml]
+      load_if_needed: [schemas/证据域/objects_evidence.yaml, schemas/治理域/objects_governance.yaml]
+    reasoning:
+      load_first: [scenario_pack/loading_rules.yaml, scenario_pack/object_refs.yaml, scenario_pack/variable_refs.yaml, scenario_pack/evidence_refs.yaml, scenario_pack/rule_refs.yaml]
+      load_if_needed: [schemas/判断推理域/policies_reasoning.yaml, schemas/治理域/objects_governance.yaml]
+    ontology_optimization:
+      load_first: [schemas/治理域/objects_governance.yaml, schemas/治理域/policies_governance.yaml, schemas/工程交付与Bundle契约/policies_engineering.yaml]
+      load_if_needed: [被修改域的 objects_*.yaml, 被修改域的 relations_*.yaml, 被修改域的 actions_*.yaml]
+    bundle_validation:
+      preferred_method: scripts/validate_bundle.py
+      rule: 优先运行校验脚本，再按错误路径加载局部 schema 和实例文件。
+  contract_index_rule: 核心概念、枚举、对象、关系、动作、公共契约和 policy 的权威位置由 schemas/contract_index.yaml 维护。
+
+actor_roles:
+  researcher:
+    zh_name: 研究员
+    responsibilities: 创建假设、判断和复盘结论；确认 AI 候选对象；提交需审核内容。
+  reviewer:
+    zh_name: 审核人
+    responsibilities: 对关键状态变更、信号状态更新和复盘记录执行流程确认。
+  industry_owner:
+    zh_name: 行业负责人
+    responsibilities: 审核假设激活、判断升级、替代假设和阻断信号。
+  data_admin:
+    zh_name: 数据管理员
+    responsibilities: 维护主数据、数据映射、字段质量和权限配置。
+  system:
+    zh_name: 系统
+    responsibilities: 检测前置条件、自动触发动作、生成动作记录、候选记录和推理链视图。
+  ai_agent:
+    zh_name: AI Agent
+    responsibilities: 按权限读取最小必要上下文，生成 ActionProposal、推理链、缺口反馈或函数输出，不直接绕过 Action 写回正式资产。
+
+trigger_types:
+  system_auto: 前置条件由系统检测，满足后自动执行。
+  system_auto_with_researcher_confirmation: 系统或 AI 生成候选，研究员确认后入库。
+  system_prompt_industry_owner_confirm: 系统检测到条件后提示，行业负责人确认后生效。
+  system_prompt_reviewer_confirm: 系统检测到条件后提示，审核人确认后生效。
+  researcher_initiated: 研究员主动发起。
+  researcher_initiated_reviewer_confirm: 研究员发起，审核人确认后生效。
+  researcher_initiated_industry_owner_confirm: 研究员发起，行业负责人确认后生效。
+  agent_proposed_researcher_confirm: AI Agent 生成提案，研究员确认后进入审核或执行。
+
+action_groups:
+  create:
+    zh_name: 创建类动作
+  update:
+    zh_name: 更新类动作
+  state_transition:
+    zh_name: 状态变更类动作
+  review:
+    zh_name: 审核类动作
+  retrospect:
+    zh_name: 复盘类动作
+
+audit_policy:
+  create_action_audit_for_every_action: true
+  action_audit_object: ActionAudit
+  action_audit_is_immutable: true
+  direct_state_field_editing_allowed: false
+  direct_relation_mutation_without_action_allowed: false
+  action_instance_id_pattern: "ACT-{YYYYMMDD}-{serial}"

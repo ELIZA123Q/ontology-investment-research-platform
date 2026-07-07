@@ -1,0 +1,121 @@
+schema_name: rules_evidence
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_evidence.yaml
+  actions_schema: actions_evidence.yaml
+  policies_schema: policies_evidence.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: '证据域轻量 Rule Registry。它把可复用、可引用、可测试的证据质量、冲突、权限和导出门禁 从 policy 叙述中提炼出来，供证据动作和判断推理动作引用。
+
+  '
+quality_rules:
+- rule_id: evidence.quality.claim_source_traceability
+  rule_name: EvidenceClaim 来源可追溯规则
+  rule_type: quality
+  rule_binding: action
+  description: EvidenceClaim 必须能追溯到 EvidenceEpisode、SourceDocument 或原文位置；否则只能隔离或拒绝。
+  input_objects:
+  - EvidenceClaim
+  - EvidenceEpisode
+  - SourceDocument
+  condition:
+    format: required_fields
+    expression: sourceEpisodeId or sourceDocumentId or evidenceLocation must be present.
+  output: normalized_candidate or quarantined
+  used_by_actions:
+  - CreateEvidenceClaim
+  - ExtractEvidenceClaim
+  - NormalizeEvidenceClaim
+  evidence_requirement: source_location_required
+  confidence_effect: missing source sets confidence to low and prevents active status.
+  failure_handling: quarantined
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - evidence_claim_traceability_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+validation_rules:
+- rule_id: evidence.validation.claim_type_location_compatibility
+  rule_name: 主张类型与原文定位相容规则
+  rule_type: validation
+  rule_binding: action
+  description: reported_fact、data_point、forecast、guidance、author_judgment 等主张类型必须保留可复核位置和业务时间。
+  input_objects:
+  - EvidenceClaim
+  - EvidenceEpisode
+  - SourceDocument
+  condition:
+    format: enum_and_required_fields
+    expression: claimType determines required source location, business time, and
+      confidence basis fields.
+  output: claim_type_allowed or normalization_required
+  used_by_actions:
+  - ExtractEvidenceClaim
+  - NormalizeEvidenceClaim
+  - ActivateEvidenceClaim
+  evidence_requirement: original_location_and_claim_type_required
+  confidence_effect: incompatible claim type prevents activation.
+  failure_handling: require_manual_review
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - claim_type_location_compatibility_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+blocking_rules:
+- rule_id: evidence.blocking.restricted_source_usage_gate
+  rule_name: 受限来源导出阻断规则
+  rule_type: blocking
+  rule_binding: action
+  description: 受限、内幕或信息墙冲突来源生成的证据不得无标记导出给推理或优化。
+  input_objects:
+  - SourceDocument
+  - EvidenceClaim
+  - EvidenceFact
+  condition:
+    format: classification_marking_check
+    expression: derived evidence inherits strictest source classification before export.
+  output: export_allowed or permission_review_required
+  used_by_actions:
+  - ExportEvidenceForReasoning
+  - ExportEvidenceForOptimization
+  - QuarantineEvidenceClaim
+  evidence_requirement: source_marking_chain_required
+  confidence_effect: missing marking blocks export.
+  failure_handling: enqueue_review
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - restricted_source_export_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+action_preconditions:
+- rule_id: evidence.action_precondition.fact_claim_support_required
+  rule_name: 事实候选必须有主张支撑规则
+  rule_type: action_precondition
+  rule_binding: action
+  description: EvidenceFact 必须由一条或多条 EvidenceClaim 支撑，并记录归并口径、冲突状态和置信度。
+  input_objects:
+  - EvidenceFact
+  - EvidenceClaim
+  condition:
+    format: relation_and_fields_required
+    expression: factSupportedByClaim count >= 1 and merge basis is present.
+  output: fact_validation_allowed or evidence_gap
+  used_by_actions:
+  - CreateEvidenceFact
+  - ValidateEvidenceFact
+  - MarkEvidenceFactConflicted
+  evidence_requirement: supporting_claims_required
+  confidence_effect: missing claim support blocks fact validation.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - evidence_fact_claim_support_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。

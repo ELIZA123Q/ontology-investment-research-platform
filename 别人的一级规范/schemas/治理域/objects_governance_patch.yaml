@@ -1,0 +1,226 @@
+schema_name: objects_governance_patch
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on: ../common.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研治理域对象类型定义——补丁管理（PatchRequest/PatchLedgerItem）、补丁处理和结构性资产变更请求。公共枚举和域映射见 common.yaml。
+relation_direction_note: optional_relations 中的 sourceOf 表示该对象允许被 SourceDocument -> object 的来源关系追溯；不表示该对象作为 sourceOf 的 source。
+
+# ============================================================
+# 域四：治理域 — 补丁管理
+# ============================================================
+
+object_types:
+  PatchRequest:
+    zh_name: 本体补丁请求
+    category: source_and_record
+    managed_by: system_or_researcher
+    description: 由缺口发现、历史回放、评测、推理反馈或人工修订提出的候选改动请求；正式合并必须经过优化 Skill。
+    lifecycle_field: reviewStatus
+    initial_state: pending
+    terminal_states: [approved, rejected, merged, superseded]
+    fields:
+      patchRequestTitle:
+        zh_name: 补丁请求标题
+        type: string
+        required: true
+      operation:
+        zh_name: 建议操作
+        type: enum
+        enum_ref: patchOperation
+        required: true
+      targetLayer:
+        zh_name: 目标层
+        type: string
+        required: true
+      targetFile:
+        zh_name: 目标文件
+        type: string
+        required: false
+      targetPath:
+        zh_name: 目标路径
+        type: string
+        required: false
+      targetId:
+        zh_name: 目标 ID
+        type: string
+        required: false
+      reason:
+        zh_name: 原因
+        type: string
+        required: true
+      semanticRisk:
+        zh_name: 语义风险
+        type: enum
+        enum: [low, medium, high, core_change_required]
+        required: true
+      reviewStatus:
+        zh_name: 审核状态
+        type: enum
+        enum_ref: patchReviewStatus
+        required: true
+        default: pending
+      evidenceEpisodeIds:
+        zh_name: 证据 Episode ID
+        type: array
+        required: false
+      evidenceClaimIds:
+        zh_name: 证据 Claim ID
+        type: array
+        required: false
+      mergePrecondition:
+        zh_name: 合并前置条件
+        type: string
+        required: false
+    required_relations: []
+    optional_relations: [sourceOf]
+    quality_rules:
+      - PatchRequest 只能表达候选改动，不代表正式本体已经变化。
+      - PatchRequest 面向结构性资产变更，强调本体或 bundle 是否需要改；不得替代一次具体动作的 ActionProposal。
+      - 涉及正式对象、关系、动作或推理语义的改动必须由优化 Skill 审核并合并。
+
+  PatchLedgerItem:
+    zh_name: 补丁账本项
+    category: source_and_record
+    managed_by: system
+    description: 优化 Skill 对 PatchRequest 的 append-only 合并、拒绝、延后或失败记录，用于审计本体增量演化。
+    immutable: true
+    fields:
+      patchId:
+        zh_name: 补丁 ID
+        type: string
+        required: true
+      patchRequestId:
+        zh_name: 补丁请求 ID
+        type: object_ref
+        required: false
+      baseOntologyVersion:
+        zh_name: 基座版本
+        type: string
+        required: true
+      baseHash:
+        zh_name: 基座 Hash
+        type: string
+        required: false
+      operation:
+        zh_name: 执行操作
+        type: enum
+        enum_ref: patchOperation
+        required: true
+      mergeStatus:
+        zh_name: 合并状态
+        type: enum
+        enum_ref: patchMergeStatus
+        required: true
+      mergedAt:
+        zh_name: 合并时间
+        type: datetime
+        time_type: system_time
+        required: false
+      targetFile:
+        zh_name: 目标文件
+        type: string
+        required: false
+      targetPath:
+        zh_name: 目标路径
+        type: string
+        required: false
+      targetId:
+        zh_name: 目标 ID
+        type: string
+        required: false
+      evidenceEpisodeIds:
+        zh_name: 证据 Episode ID
+        type: array
+        required: false
+      evidenceClaimIds:
+        zh_name: 证据 Claim ID
+        type: array
+        required: false
+      mergeReason:
+        zh_name: 合并理由
+        type: string
+        required: true
+    required_relations: []
+    optional_relations: [sourceOf]
+    quality_rules:
+      - PatchLedgerItem 创建后不可修改；修正应追加新的账本项。
+      - 每次正式本体增量合并、拒绝或延后都必须能回溯到 PatchRequest、证据或治理原因。
+      - PatchLedgerItem 只记录补丁处理结果，不表达新的候选变更意图；新的变更必须创建新的 PatchRequest。
+
+  ActionProposal:
+    zh_name: 动作提案
+    category: source_and_record
+    managed_by: system_or_researcher
+    description: 人或 AI Agent 拟提交的可审核业务事务；它引用既有 Action 类型和输入载荷，只有获准后才能执行写回。
+    lifecycle_field: proposalStatus
+    initial_state: proposed
+    terminal_states: [executed, rejected, failed, superseded]
+    fields:
+      proposedActionType:
+        zh_name: 拟执行动作类型
+        type: string
+        required: true
+      proposalStatus:
+        zh_name: 提案状态
+        type: enum
+        enum_ref: actionProposalStatus
+        required: true
+        default: proposed
+      riskLevel:
+        zh_name: 风险等级
+        type: enum
+        enum_ref: actionRiskLevel
+        required: true
+      reviewRequirement:
+        zh_name: 审核要求
+        type: enum
+        enum_ref: reviewRequirement
+        required: true
+      executionScope:
+        zh_name: 执行权限域
+        type: enum
+        enum_ref: executionScope
+        required: true
+      writebackMode:
+        zh_name: 写回模式
+        type: enum
+        enum_ref: writebackMode
+        required: true
+      targetType:
+        zh_name: 目标类型
+        type: string
+        required: true
+      targetIds:
+        zh_name: 目标 ID 列表
+        type: array
+        required: false
+      inputPayload:
+        zh_name: 动作输入载荷
+        type: object
+        required: true
+      proposalReason:
+        zh_name: 提案原因
+        type: string
+        required: true
+      decisionLogRef:
+        zh_name: 决策日志引用
+        type: string
+        required: false
+      proposedBy:
+        zh_name: 提案来源
+        type: string
+        required: true
+      proposedAt:
+        zh_name: 提案时间
+        type: datetime
+        time_type: system_time
+        required: true
+    required_relations: []
+    optional_relations: [auditFor, reviewFor, sourceOf]
+    quality_rules:
+      - ActionProposal 只能引用 actions_*.yaml 已定义的动作，不得自造写回语义。
+      - ActionProposal 面向一次可执行动作，强调能不能执行；结构性本体或 bundle 变更应生成 PatchRequest。
+      - high 或 core_change_required 风险不得使用 reviewRequirement=none。
+      - proposalStatus=executed 必须能通过 ActionAudit 追溯到实际执行。

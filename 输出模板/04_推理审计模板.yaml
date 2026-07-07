@@ -1,0 +1,122 @@
+document_type: reasoning_audit
+schema_version: 1.3.0
+
+metadata:
+  task_id: ""
+  execution_id: ""
+  judgment_as_of: ""
+  report_ref: "<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md"
+  source_01_ref: "<核心主题>投研需求说明-<YYYYMMDD>-<当日序号>.md"
+  source_02_logic_ref: "<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
+  source_02_view_ref: "<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
+  preparation_ref: "<核心主题>数据与证据准备模板-<YYYYMMDD>-<当日序号>.md"
+  snapshot_ref: "<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/manifest.csv"
+  audit_status: draft
+
+evidence_admission:
+  quality_status: failed
+  coverage_unit_total: 0
+  evidence_backed_unit_count: 0
+  evidence_coverage_rate: 0.0
+  confidence_ceiling: low
+  allowed_scope: ""
+  blocked_coverage_refs: []
+  interpretation: "证据覆盖只表示变量—锚点的可追溯准入情况，不直接表示业务结论强度。"
+
+overall_judgment:
+  conclusion_level: insufficient_evidence
+  confidence: low
+  statement: ""
+  scope:
+    time: ""
+    geography: ""
+    value_chain: ""
+    objects: []
+  downgrade_reasons: []
+
+claim_register:
+  - claim_id: C-01
+    report_section: "1"
+    reader_label: "暂不可判断"
+    statement: ""
+    scope: ""
+    time_horizon: ""
+    conclusion_level: insufficient_evidence
+    confidence: low
+    path_refs: []
+    evidence_refs: []
+    uncertainty_refs: []
+    invalidation_conditions: []
+
+uncertainty_register:
+  - uncertainty_id: U-01
+    tier: decisive
+    statement: ""
+    affects_claim_refs: [C-01]
+    current_gap: ""
+    observation_signal: ""
+    update_trigger: ""
+    judgment_change: ""
+    gap_refs: []
+
+ontology_context:
+  ontology_refs: []
+  object_type_refs: []
+  relation_type_refs: []
+  event_refs: []
+  propagation_template_refs: []
+  rule_refs: []
+  candidate_structure_used: false
+  missing_ontology_items: []
+
+path_results:
+  - node_id: ""
+    path_id: ""
+    node_name: ""
+    status: insufficient_evidence
+    question: ""
+    input_refs: []
+    evidence_refs: []
+    counter_evidence_refs: []
+    gap_refs: []
+    state_variable_refs: []
+    template_refs: []
+    rule_refs: []
+    downstream_effect: ""
+
+state_variable_results:
+  - state_variable_id: ""
+    business_group: ""
+    scope: ""
+    judgment: ""
+    inference_allowed: blocked
+    coverage_unit_refs: []
+    path_refs: []
+    evidence_refs: []
+    uncertainty_refs: []
+    evidence_boundary: ""
+
+data_logic:
+  metrics: []
+  formulas:
+    - name: ""
+      expression: ""
+      interpretation: ""
+      claim_refs: []
+      evidence_refs: []
+  timing_and_scope_notes: []
+
+compliance_check:
+  report_and_audit_paired: false
+  all_report_claims_registered: false
+  all_path_nodes_covered: false
+  all_state_variables_covered: false
+  all_coverage_units_referenced: false
+  evidence_refs_resolve: false
+  no_evidence_duplication: true
+  no_buy_sell_advice: true
+  no_target_price: true
+  no_return_forecast: true
+  no_position_advice: true
+  body_free_of_audit_terms: false
+  coverage_not_used_as_judgment_strength: false

@@ -1,0 +1,2002 @@
+schema_name: actions_reasoning
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_reasoning.yaml
+  relations_schema: relations_reasoning.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研判断推理域动作定义——事件、变量、观测、假设、信号、判断、资产影响、投资命题和推理规则的创建与状态流转动作。公共动作定义（actor_roles、trigger_types、action_groups、audit_policy）见
+  common.yaml。
+actions:
+  CreateEvent:
+    zh_name: 记录事件
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Event
+    target_type: Event
+    field_inputs:
+      required:
+      - title
+      - eventType
+      - eventTime
+      - description
+      - eventEvidenceType
+      optional: []
+      system_generated:
+      - recordedAt
+    relation_inputs:
+      optional:
+        anchoredOn:
+          input: anchorObjectId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Event
+    preconditions:
+    - type: source_fact_detected
+      description: 来源文档或数据流中存在可识别的外部事实。
+    side_effects:
+    - type: trigger_followup
+      event_id: reasoning.followup.create_event.action_completed
+      event_name: ResearchEventCreated
+      followup_kind: action_completed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - CreateStateHypothesis
+      - CreateInferenceRun
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload_inline
+    outputs:
+      create_relations_if_inputs_present:
+      - anchoredOn
+      - sourceOf
+      create_action_audit: true
+  CreateStateVariable:
+    zh_name: 定义状态变量
+    group: create
+    actor_roles:
+    - researcher
+    - system
+    trigger: researcher_initiated
+    creates_object: StateVariable
+    target_type: StateVariable
+    field_inputs:
+      required:
+      - name
+      - variableType
+      - category
+      - description
+      - observationFrequency
+      - sourceType
+      optional:
+      - unit
+      - variableScope
+      - referenceBaseline
+    relation_inputs:
+      optional:
+        observedOn:
+          input: anchorObjectId
+    preconditions:
+    - type: pass_granularity_rule
+      description: 变量必须能持续观察、能时间比较、能形成假设、能参与传导。
+    side_effects: []
+    outputs:
+      create_relations_if_inputs_present:
+      - observedOn
+      create_action_audit: true
+  CreateStateVariableObservation:
+    zh_name: 记录观测值
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto
+    creates_object: StateVariableObservation
+    target_type: StateVariableObservation
+    field_inputs:
+      required:
+      - observedValue
+      - valueType
+      - observationTime
+      - observationSourceName
+      - sourceStatementType
+      optional:
+      - observationScope
+      - observationNote
+      system_generated:
+      - recordedAt
+    relation_inputs:
+      required:
+        observationBindsVariable:
+          input: stateVariableId
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> StateVariableObservation
+    preconditions:
+    - type: object_exists
+      object_type: StateVariable
+      input: stateVariableId
+    - type: observation_is_fact_or_estimate
+      description: 观测值不得混入 forecast、guidance、recommendation 或方向性判断。
+    side_effects:
+    - type: trigger_followup
+      event_id: reasoning.followup.create_state_variable_observation.state_variable_observation_recorded
+      event_name: StateVariableObservationRecorded
+      followup_kind: state_variable_observation_recorded
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - EvaluateMonitor
+      - AddSignal
+      - CreateInferenceRun
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - stateVariableId
+        - observationTime
+        - recordedAt
+        - freshnessPolicyRef
+        forbidden:
+        - external_research_event_payload_inline
+    - type: trigger_followup
+      event_id: reasoning.followup.create_state_variable_observation.data_freshness_changed
+      event_name: DataFreshnessChanged
+      followup_kind: data_freshness_changed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - EvaluateMonitor
+      - CreateInferenceRun
+      - AddSignal
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - runtimeDataRequirementKey
+        - freshnessPolicyRef
+        - previousFreshnessBucket
+        - currentFreshnessBucket
+        forbidden:
+        - external_research_event_payload_inline
+        - ontology_feedback_payload
+    outputs:
+      create_relations:
+      - observationBindsVariable
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+    rule_refs: []
+  CreateStateHypothesis:
+    zh_name: 创建状态假设
+    group: create
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    creates_object: StateHypothesis
+    target_type: StateHypothesis
+    field_inputs:
+      required:
+      - title
+      - hypothesisContent
+      - direction
+      - basis
+      - falsificationCriteria
+      - timeHorizon
+      - horizonBucket
+      - proposedBy
+      optional:
+      - magnitude
+      - requiredValidationCriteria
+      - keyRisks
+      system_generated:
+      - hypothesisStatus
+      - proposedAt
+    initial_values:
+      hypothesisStatus: proposed
+    relation_inputs:
+      required:
+        hypothesisBindsVariable:
+          input: stateVariableId
+      optional:
+        basedOnEvent:
+          input: eventId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> StateHypothesis
+    preconditions:
+    - type: object_exists
+      object_type: StateVariable
+      input: stateVariableId
+    side_effects:
+    - type: trigger_followup
+      event_id: reasoning.followup.create_state_hypothesis.state_hypothesis_proposed
+      event_name: StateHypothesisProposed
+      followup_kind: state_hypothesis_proposed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - AddSignal
+      - CreateJudgmentOutput
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload_inline
+    outputs:
+      create_relations:
+      - hypothesisBindsVariable
+      create_relations_if_inputs_present:
+      - basedOnEvent
+      - sourceOf
+      create_action_audit: true
+    rule_refs: []
+    inference_consumer_rule_refs:
+    - reasoning.inference.event_to_state_hypothesis.minimum_trace
+  CreateStateVariablePropagation:
+    zh_name: 定义传导逻辑
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: StateVariablePropagation
+    target_type: StateVariablePropagation
+    field_inputs:
+      required:
+      - propagationLogic
+      - directionMapping
+      optional:
+      - lagDescription
+      - boundaryConditions
+      - causalConfidence
+      - historicalSupport
+    relation_inputs:
+      required:
+        propagatesFrom:
+          input: sourceVariableId
+        propagatesTo:
+          input: targetVariableId
+    preconditions:
+    - type: object_exists
+      object_type: StateVariable
+      input: sourceVariableId
+    - type: object_exists
+      object_type: StateVariable
+      input: targetVariableId
+    side_effects: []
+    outputs:
+      create_relations:
+      - propagatesFrom
+      - propagatesTo
+      create_action_audit: true
+  AddSignal:
+    zh_name: 添加信号
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: Signal
+    target_type: Signal
+    field_inputs:
+      required:
+      - title
+      - signalType
+      - signalRole
+      - signalContent
+      - statementType
+      - observationTime
+      - reliability
+      - validityWindow
+      optional: []
+      system_generated:
+      - signalStatus
+      - recordedAt
+    initial_values:
+      signalStatus: candidate
+    relation_inputs:
+      required_one_of:
+      - supportsHypothesis
+      - supportsJudgment
+      - catalyzesJudgment
+      - tracksHypothesis
+      - tracksJudgment
+      - weakensHypothesis
+      - blocksHypothesis
+      - weakensJudgment
+      optional:
+        signalBasedOnObservation:
+          input: observationId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Signal
+    role_relation_map:
+      validation:
+      - supportsHypothesis
+      - supportsJudgment
+      catalyst:
+      - catalyzesJudgment
+      tracking:
+      - tracksHypothesis
+      - tracksJudgment
+      weakening:
+      - weakensHypothesis
+      - weakensJudgment
+      blocking:
+      - blocksHypothesis
+    preconditions:
+    - type: target_exists
+      description: targetHypothesisId 或 targetJudgmentId 指向的对象必须存在。
+    - type: signal_role_matches_relation
+      description: signalRole 必须与建立的效果关系匹配。
+    threshold_checks:
+    - check_id: signal_creation_gate
+      policy_ref: policies_reasoning.layer_gates.FG_STATE_TO_SIGNAL
+      description: 创建 Signal 只形成候选信号及角色兼容关系；是否 active 由 ActivateSignal 引用 policy/rule
+        后完成。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_reasoning.layer_gates.FG_STATE_TO_SIGNAL
+    rule_refs:
+    - reasoning.validation.signal_role_relation_compatibility
+    effects:
+    - type: create_object
+      target: Signal
+      default_status: candidate
+    - type: create_relation
+      target: role_compatible_relation
+    - type: propagate_markings
+      target: Signal
+    - type: emit_audit
+      target: ActionAudit
+    state_transitions:
+    - target: Signal
+      field: signalStatus
+      from: []
+      to: candidate
+    failure_handling:
+      target_missing: block_next_action
+      role_relation_mismatch: block_next_action
+      evidence_missing: enqueue_review
+    output_contract:
+      required_outputs:
+      - Signal
+      - role_compatible_relation
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    audit_required: true
+    automatic_followup:
+      when:
+        signalRole: blocking
+        relation: blocksHypothesis
+      action_prompt: ActivateSignal 或 BlockHypothesis 前置审核
+    side_effects: []
+    outputs:
+      create_role_compatible_relation: true
+      create_relations_if_inputs_present:
+      - signalBasedOnObservation
+      - sourceOf
+      create_action_audit: true
+  ActivateSignal:
+    zh_name: 激活信号
+    group: state_transition
+    actor_roles:
+    - researcher
+    - industry_owner
+    trigger: system_auto_with_researcher_confirmation
+    target_type: Signal
+    creates_object: null
+    state_transition:
+      field: signalStatus
+      from:
+      - candidate
+      to: active
+    preconditions:
+    - type: signal_has_source_or_basis
+      description: Signal 必须能追溯到 StateVariableObservation、Event、SourceDocument、EvidenceFact
+        或人工审核依据。
+    - type: signal_role_matches_relation
+      description: signalRole 必须与效果关系兼容。
+    threshold_checks:
+    - check_id: signal_activation_gate
+      policy_ref: policies_reasoning.layer_gates.FG_STATE_TO_SIGNAL
+      description: 具体信号强度、独立来源和场景门槛由 policies_reasoning 或 bundle/scenario policy 定义。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_reasoning.layer_gates.FG_STATE_TO_SIGNAL
+    - policies_governance.review_queue
+    rule_refs:
+    - reasoning.blocking.active_blocking_signal
+    - reasoning.validation.signal_role_relation_compatibility
+    effects:
+    - type: update_fields
+      target: Signal
+      allowed_fields:
+      - signalStatus
+    - type: emit_audit
+      target: ActionAudit
+    - type: trigger_next_action
+      target: BlockHypothesis
+      condition: signalRole_is_blocking
+    side_effects:
+    - type: trigger_next_action
+      payload_fields:
+      - next_action_type
+      - trigger_reason
+      - required_inputs
+    state_transitions:
+    - target: Signal
+      field: signalStatus
+      from:
+      - candidate
+      to: active
+    failure_handling:
+      missing_source: enqueue_review
+      role_relation_mismatch: block_next_action
+      insufficient_policy_threshold: block_next_action
+    output_contract:
+      required_outputs:
+      - Signal
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - RuleApplication
+    audit_required: true
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  UpdateSignal:
+    zh_name: 修改信号内容
+    group: update
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: Signal
+    field_inputs:
+      updatable:
+      - signalContent
+      - reliability
+      - validityWindow
+    preconditions:
+    - type: target_state_is
+      field: signalStatus
+      value: active
+    side_effects: []
+    outputs:
+      update_target_fields: true
+      create_action_audit: true
+  LinkHypotheses:
+    zh_name: 建立假设间关系
+    group: create
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: StateHypothesis
+    field_inputs:
+      required:
+      - relationshipType
+    relation_inputs:
+      required_one_of:
+      - dependsOnHypothesis
+      - competesWithHypothesis
+    allowed_relationshipType_values:
+    - dependsOn
+    - competesWith
+    preconditions:
+    - type: object_exists
+      object_type: StateHypothesis
+      input: sourceHypothesisId
+    - type: object_exists
+      object_type: StateHypothesis
+      input: targetHypothesisId
+    side_effects: []
+    outputs:
+      create_relation: dependsOnHypothesis_or_competesWithHypothesis
+      create_action_audit: true
+  CreateJudgmentOutput:
+    zh_name: 创建判断输出
+    group: create
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    creates_object: JudgmentOutput
+    target_type: JudgmentOutput
+    field_inputs:
+      required:
+      - title
+      - judgmentContent
+      - timeHorizon
+      - horizonBucket
+      optional:
+      - competingExplanations
+      - scenarioTag
+      - confidenceLevel
+      - nextValidationCheckpoint
+      - expectedEvidenceDate
+      system_generated:
+      - judgmentStatus
+      - createdAt
+      - lastUpdatedAt
+    initial_values:
+      judgmentStatus: candidate
+    relation_inputs:
+      required:
+        judgmentAnchoredOn:
+          input: anchorObjectId
+        basedOnHypothesis:
+          input: basisHypothesisIds
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> JudgmentOutput
+    preconditions:
+    - type: at_least_one_related_hypothesis_has_state
+      relation: basedOnHypothesis
+      state_field: hypothesisStatus
+      state_values:
+      - proposed
+      - active
+      description: 个人判断流允许先用 proposed 假设捕捉 candidate 判断；升级到 watchlist/active/formalTrigger
+        仍由后续门禁要求 active 假设和证据检查。
+    - type: time_horizon_declared
+      fields:
+      - timeHorizon
+      - horizonBucket
+      description: 判断必须声明有效时间窗口和标准时间尺度。
+    threshold_checks:
+    - check_id: judgment_creation_gate
+      policy_ref: policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT
+      description: 创建 JudgmentOutput 只进入 candidate；升级到 watchlist/active/formalTrigger
+        由后续状态流转动作和 policy gate 控制。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT
+    rule_refs: []
+    inference_consumer_rule_refs:
+    - reasoning.scoring.confidence_composition.minimum_chain
+    effects:
+    - type: create_object
+      target: JudgmentOutput
+      default_status: candidate
+    - type: create_relation
+      target:
+      - judgmentAnchoredOn
+      - basedOnHypothesis
+    - type: propagate_markings
+      target: JudgmentOutput
+    - type: block_on_barrier
+      target: JudgmentOutput
+    - type: emit_audit
+      target: ActionAudit
+    - type: trigger_next_action
+      target: UpgradeJudgmentToWatchlist
+      condition: required_relations_exist
+    side_effects:
+    - type: trigger_next_action
+      payload_fields:
+      - next_action_type
+      - trigger_reason
+      - required_inputs
+    - type: trigger_followup
+      event_id: reasoning.followup.create_judgment_output.judgment_output_drafted
+      event_name: JudgmentOutputDrafted
+      followup_kind: judgment_output_drafted
+      terminal_handling: enqueue_review
+      allowed_next_actions:
+      - CreateActionProposal
+      - CreateMonitor
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload_inline
+    state_transitions:
+    - target: JudgmentOutput
+      field: judgmentStatus
+      from: []
+      to: candidate
+    failure_handling:
+      no_active_hypothesis: block_next_action
+      missing_time_horizon: block_next_action
+      missing_anchor: enqueue_review
+    output_contract:
+      required_outputs:
+      - JudgmentOutput
+      - judgmentAnchoredOn
+      - basedOnHypothesis
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    audit_required: true
+    automatic_followup:
+      when:
+        relations_exist_any:
+        - basedOnHypothesis
+      action: UpgradeJudgmentToWatchlist
+    outputs:
+      create_relations:
+      - judgmentAnchoredOn
+      - basedOnHypothesis
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  CreateMarketExpectation:
+    zh_name: 创建市场预期
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: MarketExpectation
+    target_type: MarketExpectation
+    field_inputs:
+      required:
+      - expectationType
+      - expectationSubject
+      - expectedValue
+      - timeHorizon
+      - horizonBucket
+      - asOf
+      - sourceDescription
+      optional:
+      - expectedDirection
+      - confidenceLevel
+      - pricingStatus
+      system_generated:
+      - recordedAt
+    relation_inputs:
+      required:
+        expectationAnchoredOn:
+          input: anchorObjectId
+      optional:
+        expectationBasedOnObservation:
+          input: observationId
+        expectationBasedOnEvent:
+          input: eventId
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> MarketExpectation
+    preconditions:
+    - type: expectation_time_context_present
+      fields:
+      - asOf
+      - timeHorizon
+      - horizonBucket
+      description: 预期必须记录截面时间和适用时间尺度，避免事后预期污染历史判断。
+    - type: anchor_object_exists
+      description: anchorObjectId 指向的研究标的对象必须存在。
+    side_effects: []
+    outputs:
+      create_relations:
+      - expectationAnchoredOn
+      create_relations_if_inputs_present:
+      - expectationBasedOnObservation
+      - expectationBasedOnEvent
+      - sourceOf
+      create_action_audit: true
+  CreateAssetImpact:
+    zh_name: 创建资产影响
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto_with_researcher_confirmation
+    creates_object: AssetImpact
+    target_type: AssetImpact
+    field_inputs:
+      required:
+      - impactDirection
+      - impactMagnitude
+      - timeHorizon
+      - horizonBucket
+      - expectationGapDirection
+      optional:
+      - impactDescription
+      - expectationGapStatus
+      - expectationGapMagnitude
+      - expectationGapBasis
+      - pricedInAssessment
+      - consensusGap
+      - valuationAnchor
+      - marketExpectationNote
+      system_generated:
+      - assessedAt
+    relation_inputs:
+      required:
+        impactDerivedFrom:
+          input: judgmentId
+        impactsAsset:
+          input: assetId
+      optional:
+        impactReferencesExpectation:
+          input: marketExpectationIds
+    preconditions:
+    - type: object_exists
+      object_type: JudgmentOutput
+      input: judgmentId
+    - type: source_judgment_not_downgraded_or_blocked
+      object_type: JudgmentOutput
+      input: judgmentId
+      description: downgraded 或 blocked 判断不得直接派生新的高置信 AssetImpact。
+    - type: object_exists
+      object_type: Asset
+      input: assetId
+    - type: expectation_gap_addressed
+      description: 资产影响必须至少填写 expectationGapDirection；若不为 unknown，应关联 MarketExpectation
+        或填写 expectationGapBasis。
+    - type: expectation_baseline_or_downgrade_reason_present
+      description: 没有 MarketExpectation 或价格隐含预期时，只能生成观察级影响草案，并记录预期缺口和降置信度原因。
+    threshold_checks:
+    - check_id: asset_impact_admission_gate
+      policy_ref: policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT
+      description: 资产影响入库需要判断来源、资产端点、时间尺度和预期差检查；具体影响幅度阈值由业务 bundle 或 scenario policy
+        定义。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_reasoning.asset_pricing_observation_contract
+    - policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT
+    rule_refs:
+    - reasoning.blocking.active_blocking_signal
+    effects:
+    - type: create_object
+      target: AssetImpact
+      default_status: candidate
+    - type: create_relation
+      target:
+      - impactDerivedFrom
+      - impactsAsset
+    - type: propagate_markings
+      target: AssetImpact
+    - type: block_on_barrier
+      target: AssetImpact
+    - type: emit_audit
+      target: ActionAudit
+    - type: enqueue_review
+      target: review_queue
+      condition: expectation_context_missing_or_confidence_low
+    side_effects:
+    - type: enqueue_review
+      payload_fields:
+      - review_queue_type
+      - target_object_id
+      - reason
+      - owner_bundle_id
+    state_transitions:
+    - target: AssetImpact
+      field: recordStatus
+      from: []
+      to: candidate
+    failure_handling:
+      judgment_missing: block_next_action
+      asset_missing: block_next_action
+      expectation_gap_missing: enqueue_review
+      policy_threshold_failed: block_next_action
+    output_contract:
+      required_outputs:
+      - AssetImpact
+      - impactDerivedFrom
+      - impactsAsset
+      - ActionAudit
+      optional_outputs:
+      - impactReferencesExpectation
+      - ReviewRecord
+    audit_required: true
+    outputs:
+      create_relations:
+      - impactDerivedFrom
+      - impactsAsset
+      create_relations_if_inputs_present:
+      - impactReferencesExpectation
+      create_action_audit: true
+  CreateInvestmentThesis:
+    zh_name: 创建投资命题
+    group: create
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    creates_object: InvestmentThesis
+    target_type: InvestmentThesis
+    field_inputs:
+      required:
+      - title
+      - summary
+      - thesisStatus
+      optional: []
+      system_generated:
+      - createdAt
+    relation_inputs:
+      required:
+        thesisAnchoredOn:
+          input: anchorObjectId
+      optional:
+        thesisContainsJudgment:
+          input: judgmentIds
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> InvestmentThesis
+    preconditions:
+    - type: stable_long_term_logic_exists
+      description: 围绕同一标的存在多条判断，研究员认为有长期跟踪价值。
+    side_effects: []
+    outputs:
+      create_relations:
+      - thesisAnchoredOn
+      create_relations_if_inputs_present:
+      - thesisContainsJudgment
+      - sourceOf
+      create_action_audit: true
+  ActivateHypothesis:
+    zh_name: 激活假设
+    group: state_transition
+    actor_roles:
+    - industry_owner
+    trigger: system_prompt_industry_owner_confirm
+    target_type: StateHypothesis
+    state_transition:
+      field: hypothesisStatus
+      from:
+      - proposed
+      - blocked
+      to: active
+    preconditions:
+    - type: fields_present
+      fields:
+      - direction
+      - basis
+      - falsificationCriteria
+    - type: activation_evidence_present
+      description: 至少满足一项：存在 active validation Signal 通过 supportsHypothesis 支持该假设；存在
+        basedOnObservation 或 basedOnEvent 事实依据；行业负责人填写激活豁免理由。
+      any_of:
+      - relation: supportsHypothesis
+        signalRole: validation
+        signalStatus: active
+      - relation: basedOnObservation
+      - relation: basedOnEvent
+      - field: activationOverrideReason
+    - type: validation_criteria_checked
+      field: requiredValidationCriteria
+      description: 若 requiredValidationCriteria 已填写，行业负责人需确认门槛已满足或说明豁免理由。
+    - type: no_active_blocking_signal
+      relation: blocksHypothesis
+      signalStatus: active
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  BlockHypothesis:
+    zh_name: 阻断假设
+    group: state_transition
+    actor_roles:
+    - industry_owner
+    trigger: system_prompt_industry_owner_confirm
+    target_type: StateHypothesis
+    state_transition:
+      field: hypothesisStatus
+      from:
+      - proposed
+      - active
+      to: blocked
+    preconditions:
+    - type: active_blocking_signal_exists
+      relation: blocksHypothesis
+      signalRole: blocking
+      signalStatus: active
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+      system_prompts:
+      - 重新评估依赖该假设的 StateHypothesis。
+      - 重新评估基于该假设的 JudgmentOutput。
+  UpdateSignalStatus:
+    zh_name: 更新信号状态
+    group: state_transition
+    actor_roles:
+    - researcher
+    - reviewer
+    trigger: researcher_initiated_reviewer_confirm
+    target_type: Signal
+    state_transition:
+      field: signalStatus
+      from:
+      - active
+      to:
+      - stale
+      - withdrawn
+      - invalidated
+    field_inputs:
+      required:
+      - actionReason
+    preconditions:
+    - type: evidence_or_reason_present
+      description: 必须说明信号强度下降、来源失效或影响消除的依据。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+      create_review_record: true
+      system_prompts:
+      - 重新评估相关 StateHypothesis。
+      - 重新评估相关 JudgmentOutput。
+  SupersedeHypothesis:
+    zh_name: 新假设替代原假设
+    group: state_transition
+    actor_roles:
+    - industry_owner
+    trigger: system_prompt_industry_owner_confirm
+    target_type: StateHypothesis
+    state_transition:
+      field: hypothesisStatus
+      from:
+      - active
+      - blocked
+      to: deprecated
+    relation_inputs:
+      required:
+        supersedesHypothesis:
+          input: newHypothesisId_to_oldHypothesisId
+    preconditions:
+    - type: replacing_hypothesis_is_active
+      object_type: StateHypothesis
+      input: newHypothesisId
+    - type: target_is_old_hypothesis
+      input: oldHypothesisId
+    side_effects: []
+    outputs:
+      update_old_hypothesis_state: true
+      create_relation: supersedesHypothesis
+      create_action_audit: true
+  DeprecateHypothesis:
+    zh_name: 废弃假设
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: StateHypothesis
+    state_transition:
+      field: hypothesisStatus
+      from:
+      - proposed
+      - active
+      - blocked
+      - deprecated
+      to: deprecated
+    field_inputs:
+      required:
+      - actionReason
+    preconditions: []
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  UpgradeJudgmentToWatchlist:
+    zh_name: 升级判断：候选到观察中
+    action_family: UpgradeJudgment
+    group: state_transition
+    actor_roles:
+    - system
+    trigger: system_auto
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - candidate
+      to: watchlist
+    preconditions:
+    - type: relation_exists_any
+      relations:
+      - basedOnHypothesis
+      - judgmentAnchoredOn
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  UpgradeJudgmentToActive:
+    zh_name: 升级判断：观察中到有效
+    action_family: UpgradeJudgment
+    group: state_transition
+    actor_roles:
+    - industry_owner
+    trigger: system_prompt_industry_owner_confirm
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - watchlist
+      to: active
+    preconditions:
+    - type: active_validation_signal_count
+      relation: supportsJudgment
+      minimum_count: 1
+      independent_sources_required: false
+      alternative_rule: 一条 validation 信号即可进入 active；正式触发另行要求两条独立验证信号。
+      policy_ref: policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT.trigger_conditions.fg3_validation_signal_count
+    - type: field_present
+      field: competingExplanations
+    - type: fields_present
+      fields:
+      - timeHorizon
+      - horizonBucket
+    - type: expectation_context_checked
+      description: 若判断将派生资产影响，必须已记录 MarketExpectation，或在判断中明确预期不可得和置信度折减原因。
+    - type: at_least_one_basis_hypothesis_active
+      relation: basedOnHypothesis
+    threshold_checks:
+    - check_id: judgment_active_upgrade_gate
+      policy_ref: policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT
+      description: 公共模板引用判断升级门禁；active 至少要求一条验证信号，信号强度和替代规则可由行业 bundle 或 scenario
+        pack 覆盖。
+    policy_refs:
+    - common.action_effect_contract
+    - policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT
+    - policies_governance.review_queue
+    rule_refs:
+    - reasoning.blocking.active_blocking_signal
+    - reasoning.promotion.judgment_active_gate
+    effects:
+    - type: update_fields
+      target: JudgmentOutput
+      allowed_fields:
+      - judgmentStatus
+    - type: enqueue_review
+      target: review_queue
+    - type: emit_audit
+      target: ActionAudit
+    side_effects:
+    - type: enqueue_review
+      payload_fields:
+      - review_queue_type
+      - target_object_id
+      - reason
+      - owner_bundle_id
+    state_transitions:
+    - target: JudgmentOutput
+      field: judgmentStatus
+      from:
+      - watchlist
+      to: active
+    failure_handling:
+      threshold_failed: block_next_action
+      market_expectation_missing: enqueue_review
+      active_blocking_signal_exists: block_next_action
+    output_contract:
+      required_outputs:
+      - JudgmentOutput
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+      - RuleApplication
+    audit_required: true
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+      create_review_record: true
+  UpgradeJudgmentToFormalTrigger:
+    zh_name: 升级判断：有效到正式触发
+    action_family: UpgradeJudgment
+    group: state_transition
+    actor_roles:
+    - industry_owner
+    trigger: system_prompt_industry_owner_confirm
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - active
+      to: formalTrigger
+    preconditions:
+    - type: formal_validation_signal_count
+      relation: supportsJudgment
+      minimum_count: 2
+      independent_sources_required: true
+      policy_ref: policies_reasoning.layer_gates.FG_SIGNAL_TO_JUDGMENT.trigger_conditions.fg3_formal_trigger_validation_signal_count
+    - type: expectation_gap_checked
+      relation: judgmentComparedWithExpectation
+      minimum_count: 1
+      description: formalTrigger 必须完成预期差检查；无可比预期时应降级为 observation/active 跟踪，不进入正式触发。
+    - type: active_catalyst_signal_exists
+      relation: catalyzesJudgment
+      signalRole: catalyst
+      signalStatus: active
+    - type: asset_impact_gate_passed_or_not_applicable
+      description: 若要派生 AssetImpact，必须有 MarketExpectation 或明确 expectationGapBasis，并完成定价状态检查。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+      create_review_record: true
+  DowngradeJudgment:
+    zh_name: 降级判断
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - candidate
+      - watchlist
+      - active
+      - formalTrigger
+      to: downgraded
+    field_inputs:
+      required:
+      - actionReason
+      optional:
+      - downgradeReasonCategory
+    preconditions:
+    - type: reason_present
+      description: 必须说明证据不足、预期不可比、竞争解释更强、催化不足或定价已反映等降级原因。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  BlockJudgment:
+    zh_name: 阻断判断
+    group: state_transition
+    actor_roles:
+    - researcher
+    - reviewer
+    trigger: researcher_initiated_reviewer_confirm
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - candidate
+      - watchlist
+      - active
+      - formalTrigger
+      to: blocked
+    field_inputs:
+      required:
+      - actionReason
+      optional:
+      - blockingSignalId
+      - blockedHypothesisId
+    preconditions:
+    - type: blocking_reason_present
+      description: 必须说明核心假设被反证、关键条件不成立或 active blocking Signal 存在。
+    - type: related_hypothesis_or_blocking_signal_present
+      description: 应关联被阻断的 StateHypothesis 或触发阻断的 Signal。
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+      create_review_record: true
+  ResolveJudgment:
+    zh_name: 结束判断
+    group: state_transition
+    actor_roles:
+    - researcher
+    - reviewer
+    trigger: researcher_initiated_reviewer_confirm
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - active
+      - formalTrigger
+      - downgraded
+      - blocked
+      to:
+      - resolved
+      - expired
+    field_inputs:
+      required:
+      - actionReason
+    preconditions:
+    - type: time_window_ended_or_researcher_started_review
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+      create_review_record: true
+      followup_action: RecordReviewOutcome
+  DeprecateJudgment:
+    zh_name: 废弃判断
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: JudgmentOutput
+    state_transition:
+      field: judgmentStatus
+      from:
+      - candidate
+      - watchlist
+      - active
+      - formalTrigger
+      - resolved
+      - downgraded
+      - blocked
+      - expired
+      - deprecated
+      to: deprecated
+    field_inputs:
+      required:
+      - actionReason
+    preconditions: []
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  UpdateThesisStatus:
+    zh_name: 更新命题状态
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: InvestmentThesis
+    state_transition:
+      field: thesisStatus
+      from:
+      - watchlist
+      - active
+      - deprecated
+      to:
+      - watchlist
+      - active
+      - deprecated
+    field_inputs:
+      required:
+      - actionReason
+    preconditions: []
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  CreateInferenceRule:
+    zh_name: 创建推理规则
+    group: create
+    actor_roles:
+    - industry_owner
+    trigger: researcher_initiated_industry_owner_confirm
+    creates_object: InferenceRule
+    target_type: InferenceRule
+    state_transition:
+      field: ruleStatus
+      from: []
+      to: draft
+    field_inputs:
+      required:
+      - name
+      - ruleCategory
+      - description
+      - triggerCondition
+      - inputObjectTypes
+      - outputObjectTypes
+      - logicDescription
+      optional:
+      - requiredRelations
+      - requiredSignals
+      - requiredChecks
+      - confidenceModifiers
+      - sourceBasis
+      - applicableScope
+      - supersedesRuleIds
+      system_generated:
+      - ruleStatus
+      - createdAt
+    initial_values:
+      ruleStatus: draft
+    preconditions:
+    - type: input_output_types_exist
+      description: inputObjectTypes 和 outputObjectTypes 中的类型必须在 objects.yaml 中存在。
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  DeprecateInferenceRule:
+    zh_name: 废弃推理规则
+    group: state_transition
+    actor_roles:
+    - industry_owner
+    trigger: researcher_initiated_industry_owner_confirm
+    target_type: InferenceRule
+    state_transition:
+      field: ruleStatus
+      from:
+      - draft
+      - active
+      to: deprecated
+    field_inputs:
+      required:
+      - actionReason
+    preconditions: []
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  CreateConductionTemplate:
+    zh_name: 创建传导模板
+    group: create
+    actor_roles:
+    - industry_owner
+    trigger: researcher_initiated_industry_owner_confirm
+    creates_object: ConductionTemplate
+    target_type: ConductionTemplate
+    field_inputs:
+      required:
+      - name
+      - fromVariableId
+      - toVariableId
+      - conductionLogic
+      optional:
+      - propagationId
+      - requiredValidationSignals
+      - requiredChecks
+      - blockingConditions
+      - typicalLagRange
+      - historicalAccuracy
+      system_generated:
+      - templateStatus
+      - createdAt
+    initial_values:
+      templateStatus: draft
+    preconditions:
+    - type: object_exists
+      object_type: StateVariable
+      input: fromVariableId
+    - type: object_exists
+      object_type: StateVariable
+      input: toVariableId
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  CreateScenarioPath:
+    zh_name: 创建情景路径
+    group: create
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    creates_object: ScenarioPath
+    target_type: ScenarioPath
+    field_inputs:
+      required:
+      - name
+      - scenarioType
+      - description
+      - triggerConditions
+      - keyAssumptions
+      - falsificationConditions
+      optional:
+      - pathNodes
+      - estimatedProbability
+      - competingPaths
+      - terminalJudgmentIds
+      system_generated:
+      - templateStatus
+      - createdAt
+    initial_values:
+      templateStatus: draft
+    preconditions:
+    - type: at_least_one_falsification_condition
+      description: falsificationConditions 数组不能为空。
+    - type: key_assumptions_exist
+      description: keyAssumptions 中的 StateHypothesis ID 必须存在。
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  CreateScenarioModel:
+    zh_name: 创建场景模型
+    group: create
+    actor_roles:
+    - researcher
+    - industry_owner
+    - system
+    trigger: researcher_initiated_industry_owner_confirm
+    creates_object: ScenarioModel
+    target_type: ScenarioModel
+    field_inputs:
+      required:
+      - name
+      - scenarioModelType
+      - description
+      - scenarioModelStatus
+      - entryObjectTypes
+      - orchestrationSteps
+      - deterministicChecks
+      - fallbackPolicy
+      - outputContracts
+      - reviewPolicy
+      optional:
+      - triggerQuestionPatterns
+      - functionRefs
+      - allowedActionTypes
+      system_generated:
+      - createdAt
+    initial_values:
+      scenarioModelStatus: draft
+    preconditions:
+    - type: orchestration_steps_non_empty
+      description: orchestrationSteps 至少包含一个步骤。
+    - type: deterministic_gate_declared
+      description: 至少包含一个 deterministic_check 或 rule_check 步骤，并引用 policyRefs 或 ruleRefs。
+    - type: executable_logic_uses_function
+      description: LLM 解释、渲染和 ActionProposal 生成必须进入 LogicFunction；ScenarioModel 只通过
+        invoke_function 调用。
+    threshold_checks:
+    - check_id: scenario_model_admission_gate
+      policy_ref: policies_governance.scenario_model_policy
+      description: 场景模型进入 active 前必须通过编排、确定性校验、降级和审核策略完整性检查。
+    policy_refs:
+    - common.function_contract
+    - policies_governance.orchestration_policy
+    - policies_governance.scenario_model_policy
+    rule_refs: []
+    effects:
+    - type: create_object
+      target: ScenarioModel
+      default_status: draft
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      missing_orchestration_step: block_next_action
+      missing_deterministic_gate: block_next_action
+      unsafe_llm_writeback: enqueue_review
+    output_contract:
+      required_outputs:
+      - ScenarioModel
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    audit_required: true
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  ComputeDerivedMetric:
+    zh_name: 计算派生指标
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: system_auto
+    target_type: DerivedMetric
+    parameters:
+      required:
+      - derivedMetricId
+      - inputSnapshot
+      optional:
+      - asOfTime
+      - forceRefresh
+    authorization:
+      allowed_roles:
+      - system
+      - researcher
+      rule: 调用方必须具备输入对象 markings 对应 clearance。
+    function_ref:
+      source_field: DerivedMetric.functionRef
+      contract_ref: common.public_contracts.function_contract
+    preconditions:
+    - type: derived_metric_exists
+      object_type: DerivedMetric
+      input: derivedMetricId
+    - type: derived_inputs_resolvable
+      relation: derivedFromVariable
+    - type: no_side_effect_function
+      description: functionRef 必须符合 function_contract，且不得写对象或关系。
+    effects:
+    - type: update_fields
+      target: DerivedMetric
+      allowed_fields:
+      - lastComputedAt
+    - type: propagate_markings
+      target: DerivedMetric
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      input_missing: enqueue_review
+      function_failed: block_next_action
+      barrier_violation: block_next_action
+    output_contract:
+      required_outputs:
+      - derived_metric_value
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  RunSimulation:
+    zh_name: 运行情景模拟
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: researcher_initiated
+    creates_object: SimulatedImpact
+    target_type: ScenarioSimulation
+    parameters:
+      required:
+      - scenarioSimulationId
+      - hypotheticalInputIds
+      - operatorRefs
+      optional:
+      - baselineRunId
+      - asOfTime
+      - propagationDepth
+    authorization:
+      allowed_roles:
+      - system
+      - researcher
+      rule: 调用方必须具备输入对象 markings 对应 clearance。
+    function_ref:
+      functionId: run_scenario_simulation
+      functionVersion: v1
+      inputContract:
+      - ScenarioSimulation
+      - HypotheticalInput
+      - StateVariablePropagation
+      - ConductionTemplate
+      outputContract:
+      - SimulatedImpact
+      - propagationTrace
+      purity: reads_observations
+      refresh_policy: on_demand
+    preconditions:
+    - type: scenario_simulation_exists
+      object_type: ScenarioSimulation
+      input: scenarioSimulationId
+    - type: all_inputs_hypothetical
+      description: hypotheticalInputIds 必须全部指向 isHypothetical=true 的 HypotheticalInput。
+    - type: propagation_operators_resolvable
+      description: operatorRefs 必须指向 StateVariablePropagation、ConductionTemplate 或
+        ScenarioPath。
+    effects:
+    - type: create_object
+      target: SimulatedImpact
+      default_status: candidate
+    - type: create_relation
+      target:
+      - simulatedImpactFromSimulation
+      - simulatedImpactsAsset
+    - type: propagate_markings
+      target: SimulatedImpact
+    - type: block_on_barrier
+      target: SimulatedImpact
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      missing_input: block_next_action
+      non_hypothetical_input: block_next_action
+      propagation_failed: enqueue_review
+      barrier_violation: enqueue_review
+    output_contract:
+      required_outputs:
+      - ScenarioSimulation
+      - SimulatedImpact
+      - propagationTrace
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    side_effects: []
+    outputs:
+      create_relations:
+      - simulatedImpactFromSimulation
+      - simulatedImpactsAsset
+      create_action_audit: true
+  CompareSimulations:
+    zh_name: 对比情景模拟
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: researcher_initiated
+    target_type: ScenarioSimulation
+    parameters:
+      required:
+      - scenarioSimulationIds
+      optional:
+      - baselineRunId
+      - comparisonDimensions
+    authorization:
+      allowed_roles:
+      - system
+      - researcher
+      rule: 调用方必须具备全部输入模拟产物 markings 对应 clearance。
+    function_ref:
+      functionId: compare_scenario_simulations
+      functionVersion: v1
+      inputContract:
+      - ScenarioSimulation
+      - SimulatedImpact
+      outputContract:
+      - comparison_view
+      purity: pure
+    preconditions:
+    - type: simulations_completed
+      description: scenarioSimulationIds 必须指向 completed 状态的 ScenarioSimulation。
+    effects:
+    - type: emit_audit
+      target: ActionAudit
+    failure_handling:
+      simulation_missing: block_next_action
+      clearance_failed: block_next_action
+    output_contract:
+      required_outputs:
+      - comparison_view
+      - ActionAudit
+    side_effects: []
+    outputs:
+      create_action_audit: true
+  PromoteSimulation:
+    zh_name: 提升模拟结论
+    group: create
+    actor_roles:
+    - researcher
+    - reviewer
+    trigger: researcher_initiated
+    target_type: ScenarioSimulation
+    parameters:
+      required:
+      - scenarioSimulationId
+      - simulatedImpactIds
+      - promotionRationale
+      optional:
+      - targetBundleId
+      - evidenceIds
+    authorization:
+      allowed_roles:
+      - researcher
+      - reviewer
+      rule: 模拟结论只能通过 PatchRequest 进入正式资产。
+    preconditions:
+    - type: simulation_completed
+      description: ScenarioSimulation 必须为 completed。
+    - type: simulated_impacts_exist
+      description: simulatedImpactIds 必须能解析。
+    - type: promotion_rationale_provided
+      description: promotionRationale 必须说明正式化依据。
+    effects:
+    - type: create_patch_request
+      target: PatchRequest
+    - type: emit_audit
+      target: ActionAudit
+    side_effects:
+    - type: create_patch_request
+      payload_fields:
+      - source_bundle_id
+      - owner_bundle_id
+      - target_asset_id
+      - operation
+      - rationale
+    failure_handling:
+      simulation_not_completed: block_next_action
+      rationale_missing: enqueue_review
+    output_contract:
+      required_outputs:
+      - PatchRequest
+      - ActionAudit
+      optional_outputs:
+      - ReviewRecord
+    outputs:
+      create_action_audit: true
+  CreateMonitor:
+    zh_name: 创建监控订阅
+    group: create
+    actor_roles:
+    - system
+    - researcher
+    trigger: researcher_initiated
+    creates_object: Monitor
+    target_type: Monitor
+    field_inputs:
+      required:
+      - name
+      - monitorTargetType
+      - triggerCondition
+      - triggerAction
+      optional:
+      - cooldown
+      system_generated:
+      - monitorStatus
+      - createdAt
+    initial_values:
+      monitorStatus: active
+    relation_inputs:
+      required:
+        monitorWatches:
+          input: targetObjectIds
+      optional:
+        sourceOf:
+          input: sourceDocumentId
+          direction_note: SourceDocument -> Monitor
+    preconditions:
+    - type: trigger_condition_machine_evaluable
+      description: triggerCondition 必须具备 format 和 expression。
+    tool_descriptor:
+      nl_description: 创建一个主动监控订阅，在变量、假设、判断或对象集合命中条件时触发信号或复盘。
+      when_to_use: 用户要求跟踪某变量阈值、证伪条件、判断验证点或主题篮子变化时使用。
+      parameter_schema:
+      - name
+      - monitorTargetType
+      - triggerCondition
+      - triggerAction
+      - targetObjectIds
+      - cooldown
+      not_for: 不用于直接修改被监控对象状态。
+      emits:
+      - Monitor
+      - monitorWatches
+      - ActionAudit
+    side_effects: []
+    outputs:
+      create_relations:
+      - monitorWatches
+      create_relations_if_inputs_present:
+      - sourceOf
+      create_action_audit: true
+  EvaluateMonitor:
+    zh_name: 评估监控订阅
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    target_type: Monitor
+    parameters:
+      required:
+      - monitorId
+      - inputSnapshot
+      optional:
+      - asOfTime
+    authorization:
+      allowed_roles:
+      - system
+    function_ref:
+      functionId: evaluate_monitor
+      functionVersion: v1
+      inputContract:
+      - Monitor
+      - triggerCondition
+      - inputSnapshot
+      outputContract:
+      - monitor_evaluation_result
+      purity: reads_observations
+      refresh_policy: on_demand
+    preconditions:
+    - type: monitor_is_active
+      field: monitorStatus
+      value: active
+    effects:
+    - type: trigger_next_action
+      target: AddSignal_or_RecordReviewOutcome_or_emit_notification
+    - type: emit_audit
+      target: ActionAudit
+    side_effects:
+    - type: trigger_next_action
+      payload_fields:
+      - next_action_type
+      - trigger_reason
+      - required_inputs
+    - type: trigger_followup
+      event_id: reasoning.followup.evaluate_monitor.data_freshness_changed
+      event_name: DataFreshnessChanged
+      followup_kind: data_freshness_changed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - EvaluateMonitor
+      - CreateInferenceRun
+      - AddSignal
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        recommended:
+        - runtimeDataRequirementKey
+        - freshnessPolicyRef
+        - previousFreshnessBucket
+        - currentFreshnessBucket
+        forbidden:
+        - external_research_event_payload_inline
+        - ontology_feedback_payload
+    - type: trigger_followup
+      event_id: reasoning.followup.evaluate_monitor.action_completed
+      event_name: MonitorEvaluated
+      followup_kind: action_completed
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - RecordReviewOutcome
+      - CreateActionProposal
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload_inline
+    failure_handling:
+      monitor_inactive: block_next_action
+      condition_not_evaluable: enqueue_review
+    output_contract:
+      required_outputs:
+      - monitor_evaluation_result
+      - ActionAudit
+      optional_outputs:
+      - Signal
+      - ReviewRecord
+    outputs:
+      create_action_audit: true
+    rule_refs: []
+  PauseMonitor:
+    zh_name: 暂停监控订阅
+    group: state_transition
+    actor_roles:
+    - researcher
+    trigger: researcher_initiated
+    target_type: Monitor
+    state_transition:
+      field: monitorStatus
+      from:
+      - active
+      to: paused
+    field_inputs:
+      required:
+      - actionReason
+    preconditions:
+    - type: monitor_exists
+    side_effects: []
+    outputs:
+      update_target_state: true
+      create_action_audit: true
+  RecordRuleApplication:
+    zh_name: 记录规则应用
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: RuleApplication
+    target_type: RuleApplication
+    field_inputs:
+      required:
+      - rule_id
+      - inference_run_id
+      - step_order
+      - conclusion
+      - confidence
+      - trace_id
+      optional:
+      - input_event_id
+      - input_state_changes
+      - consumed_signals
+      - checked_counters
+      - market_expectation_checked
+      - market_expectation_result
+      - market_expectation_ids
+      - expectation_gap_checked
+      - expectation_gap_result
+      - time_horizon_checked
+      - catalyst_checked
+      - catalyst_result
+      - evidence_refs
+      system_generated:
+      - created_at
+    relation_inputs:
+      optional:
+        applicationConsumesSignal:
+          input: consumedSignalIds
+    preconditions:
+    - type: object_exists
+      object_type: InferenceRule
+      input: rule_id
+    - type: object_exists
+      object_type: InferenceRun
+      input: inference_run_id
+    side_effects:
+    - type: trigger_followup
+      event_id: reasoning.followup.record_rule_application.inference_rule_matched
+      event_name: InferenceRuleMatched
+      followup_kind: inference_rule_matched
+      terminal_handling: trigger_next_action
+      allowed_next_actions:
+      - RecordReasoningStep
+      - CreateJudgmentOutput
+      payload_fields:
+      - event_name
+      - event_type
+      - source_action_audit_id
+      - payload_summary
+      - terminal_handling
+      payload_contract:
+        required:
+        - triggeringActionAuditId
+        - targetObjectIds
+        - payloadSummary
+        forbidden:
+        - external_research_event_payload_inline
+    outputs:
+      create_relations_if_inputs_present:
+      - applicationConsumesSignal
+      create_action_audit: true
+  RecordReasoningStep:
+    zh_name: 记录推理步骤
+    group: create
+    actor_roles:
+    - system
+    trigger: system_auto
+    creates_object: ReasoningStep
+    target_type: ReasoningStep
+    field_inputs:
+      required:
+      - inference_run_id
+      - step_order
+      - step_type
+      - trace_id
+      optional:
+      - input_object_ids
+      - relations_traversed
+      - output_object_ids
+      - evidence_consumed
+      - decision
+      - confidence
+      - rule_application_id
+      system_generated:
+      - created_at
+    preconditions:
+    - type: object_exists
+      object_type: InferenceRun
+      input: inference_run_id
+    side_effects: []
+    outputs:
+      create_action_audit: true

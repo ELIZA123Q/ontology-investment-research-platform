@@ -1,0 +1,46 @@
+schema_name: semiconductor_domain_optimization_report
+schema_version: 1.0.0
+status: completed
+baseline_version: 1.0.0
+target_version: 1.0.0
+convergence_pass: mece_v0.9
+completed_at: 2026-07-02
+
+changes_summary:
+  - 四份领域 YAML 统一升至 2.0.0，依赖顺序固定为 common→semantic→evidence→reasoning
+  - 语义域采用 semiconductor* 前缀扩展，产品拆为五轴分类，材料增加组成轴
+  - 删除旧关系与属性键，新增 technologyRouteCanSubstituteFor 与 facilityProducesMaterial
+  - 推理域扩充至 46 变量、28 传导模板，全部标注 variable_role
+  - 证据域解除对推理域反向依赖，新增商业化阶段与最低证据覆盖规则
+  - 删除 customer_concentration_exposure，下沉为公司暴露证据检查项
+  - 重命名 silicon_content_intensity→semiconductor_content_intensity，product_mix_quality→product_mix_structure
+  - 收紧 upstreamOf/dependsOn 对设施泛化，设施关系优先使用 facility* 专门关系
+  - policy_event_category 更名为 policy_instrument_category，明确语义域只承载政策工具分类
+  - business_scenario_prototypes 更名为 business_scenario_tags，并声明可多选非互斥
+  - 产品五轴增加同轴最细粒度优先规则
+  - 修正证据文档编号和变量绑定口径，校验器同步 46 变量与 business_scenario_tags
+
+migration_map:
+  DemandSource: Application
+  Jurisdiction: Region
+  productServesDemandSource: productUsedInApplication
+  companyServesDemandSource: companyExposedToApplication
+  companyHeadquarteredIn: organizationLocatedIn
+  technologyRouteSubstitutesFor: technologyRouteCanSubstituteFor
+  semiconductorProductCategories: productDomain
+
+resource_counts:
+  state_variables: 46
+  propagation_templates: 28
+  evidence_profiles: 12
+  scenario_templates: 4
+  business_scenario_tags: 9
+
+quality_gates_passed:
+  - 四份 YAML 可解析且版本为 2.0.0
+  - 无遗留旧 ID（除 common 迁移对照）
+  - 无悬空引用或孤立变量
+  - 每个变量具备 evidence_profile_ref 与 variable_role
+  - validate_schema.py 全量通过
+
+known_gaps: []

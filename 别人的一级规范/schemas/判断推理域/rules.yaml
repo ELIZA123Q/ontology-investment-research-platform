@@ -1,0 +1,179 @@
+schema_name: rules_reasoning
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  policies_reasoning: policies_reasoning.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: '判断推理域轻量 Rule Registry。它只承载可复用、可引用、可测试的声明式推理规则； InferenceRule 是本 registry
+  中 rule_type=inference 的兼容型资产对象，用于沉淀需要版本、 状态、复盘和运行记录的投研传导规则。证据质量、权限、触发和动作前置规则应回到
+  证据域或治理域的 rules.yaml，不在本文件聚合。
+
+  '
+inference_rules:
+- rule_id: reasoning.inference.event_to_state_hypothesis.minimum_trace
+  rule_name: 事件到状态假设最小追溯规则
+  rule_type: inference
+  rule_binding: inference_asset
+  description: 外部研究 Event 只能在命中对象、变量和证据锚点后形成 StateHypothesis 候选。
+  input_objects:
+  - Event
+  - StateVariable
+  - EvidenceClaim
+  condition:
+    format: composite
+    expression: Event anchoredOn object and at least one EvidenceClaim supports the triggering fact.
+  output: StateHypothesis candidate or ontology_feedback.missing_anchor
+  inference_binding:
+    asset_types: [InferenceRule, ConductionTemplate, LogicFunction]
+    consumed_by_actions: [CreateStateHypothesis, CreateInferenceRun]
+    capability_refs: [AnalyzeEventImpact]
+  used_by_actions: []
+  evidence_requirement: single_source_candidate
+  confidence_effect: missing anchor lowers confidence and blocks active status upgrade.
+  failure_handling: downgrade_to_observation
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - event_impact_runtime_flow
+  execution: declarative_with_optional_function_ref
+  execution_note: 由 InferenceRule / LogicFunction 执行；rules.yaml 只做索引，不进 action.rule_refs。
+validation_rules:
+- rule_id: reasoning.validation.signal_role_relation_compatibility
+  rule_name: 信号角色与关系相容规则
+  rule_type: validation
+  rule_binding: action
+  description: Signal.signalRole 必须与 supports/weakens/blocks/tracks/catalyzes 等效果关系匹配。
+  input_objects:
+  - Signal
+  - StateHypothesis
+  - JudgmentOutput
+  condition:
+    format: table_ref
+    expression: schemas/工程交付与Bundle契约/policies_validation.yaml.validation_policy.signal_role_compatibility
+  output: relation_allowed or block_next_action
+  used_by_actions:
+  - AddSignal
+  - ActivateSignal
+  evidence_requirement: source_or_basis_required
+  confidence_effect: role mismatch blocks signal activation.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - minimal_bundle_signal_role_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+scoring_rules:
+- rule_id: reasoning.scoring.confidence_composition.minimum_chain
+  rule_name: 多跳推理链置信度组合规则
+  rule_type: scoring
+  rule_binding: inference_asset
+  description: RuleApplication 置信度需要记录输入置信度、证据独立性、新鲜度、反证和历史校准权重。
+  input_objects:
+  - RuleApplication
+  - Signal
+  - EvidenceClaim
+  - MetricSnapshot
+  condition:
+    format: contract_ref
+    expression: schemas/common.yaml.public_contracts.confidence_composition.required_trace_fields
+  output: outputConfidenceScore or confidence downgrade
+  inference_binding:
+    asset_types: [InferenceRule, LogicFunction]
+    consumed_by_actions: [CreateInferenceRun, CreateJudgmentOutput]
+  used_by_actions: []
+  evidence_requirement: chain_trace_required
+  confidence_effect: missing trace fields lower confidence.
+  failure_handling: lower_confidence
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - rule_application_confidence_trace
+  execution: declarative
+  execution_note: 由 InferenceRun / RuleApplication 消费；不进 action.rule_refs。
+promotion_rules:
+- rule_id: reasoning.promotion.judgment_active_gate
+  rule_name: 判断升级 active 门禁规则
+  rule_type: promotion
+  rule_binding: action
+  description: JudgmentOutput 升级 active 前必须有 active StateHypothesis、验证信号、竞争解释和无有效
+    blocking signal。
+  input_objects:
+  - JudgmentOutput
+  - StateHypothesis
+  - Signal
+  condition:
+    format: gate_ref
+    expression: schemas/判断推理域/policies_reasoning.yaml.action_gate_binding_policy.UpgradeJudgmentToActive
+  output: active judgment or review_queue item
+  used_by_actions:
+  - UpgradeJudgmentToActive
+  evidence_requirement: multi_source_supported
+  confidence_effect: missing checks block upgrade.
+  failure_handling: require_manual_review
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - judgment_active_gate
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+blocking_rules:
+- rule_id: reasoning.blocking.active_blocking_signal
+  rule_name: 有效阻断信号阻断判断升级规则
+  rule_type: blocking
+  rule_binding: action
+  description: active blocking Signal 存在且未失效时，不得静默升级 JudgmentOutput 或 AssetImpact。
+  input_objects:
+  - Signal
+  - StateHypothesis
+  - JudgmentOutput
+  condition:
+    format: threshold
+    expression: count(active blocking signals) > 0
+  output: block_conclusion
+  used_by_actions:
+  - ActivateSignal
+  - UpgradeJudgmentToActive
+  - CreateAssetImpact
+  evidence_requirement: blocking_signal_source_required
+  confidence_effect: blocks conclusion rather than lowering confidence only.
+  failure_handling: block_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - active_blocking_signal_negative_case
+  execution: declarative
+  execution_note: 门禁规则默认声明式；通过 actions.rule_refs 在 Action 提交前检查。
+trigger_rules:
+- rule_id: reasoning.trigger.runtime_data_freshness_change
+  rule_name: 运行时数据新鲜度变化触发规则
+  rule_type: trigger
+  rule_binding: automate_flow
+  description: StateVariableObservation 写入或刷新后，应按 runtime_data_requirements.yaml 的 freshness_policy_ref 判断是否触发 ActionFollowup。
+  input_objects:
+  - StateVariableObservation
+  - Monitor
+  - InferenceRun
+  condition:
+    format: freshness_policy_eval
+    expression: observationTime or recordedAt changes freshness bucket for a runtime_required_data item.
+  output: ActionFollowup(data_freshness_changed) or ActionFollowup(data_stale_detected)
+  automate_binding:
+    trigger_sources: [StateVariableObservation, ActionFollowup, Monitor]
+    condition_refs:
+      - scenario_pack/runtime_data_requirements.yaml#freshness_event_policy
+      - policies_governance.retrieval_policy.freshness_policy
+    followup_kinds: [state_variable_observation_recorded, data_freshness_changed, data_stale_detected, data_requirement_breached]
+    downstream_actions: [EvaluateMonitor, CreateInferenceRun, CreateActionProposal, RequestSupplement]
+  used_by_actions: []
+  evidence_requirement: observation_source_and_freshness_policy_required
+  confidence_effect: stale required data blocks formal judgment or lowers confidence according to on_missing.
+  failure_handling: trigger_next_action
+  owner: ontology_owner
+  version: v0.1.0
+  test_cases:
+  - runtime_data_freshness_change_gate
+  execution: declarative
+  execution_note: 由 AutomateFlow 与 scenario freshness_event_policy 评估；不进 action.rule_refs。

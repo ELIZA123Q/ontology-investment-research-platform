@@ -1,0 +1,403 @@
+schema_name: relations_evidence
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  common_schema: ../common.yaml
+  objects_schema: objects_evidence.yaml
+  objects_governance_schema: ../治理域/objects_governance.yaml
+canonical_rule: YAML 是正式机器约束；Markdown 只负责解释和示例。
+description: 投研证据域关系类型定义——证据管道追溯、证据提及/支持、证据失效/替代/冲突关系，以及证据域关系方向与管道流向对比说明。
+
+relation_defaults:
+  direction: directed
+  history_policy: preserve_history
+  deletion_policy: no_physical_delete_without_migration
+  relation_instance_id_pattern: "REL-{YYYYMMDD}-{serial}"
+  relation_status_values: [candidate, confirmed, archived]
+  required_instance_fields: [id, type, sourceId, targetId, recordStatus]
+  inheritance_rule: 实例文件可在容器级声明默认 recordStatus；若关系实例未显式填写 recordStatus，可继承容器默认值。正式入库时系统应补齐为实例字段。
+  inverse_of_note: >
+    关系类型中的 inverse_of 字段为可选项，声明该关系的逻辑反向关系名。
+    当两方关系类型均已定义时，inverse_of 直接引用对方关系类型名；
+    当反向关系未实例化时（如 companyBelongsToIndustry 的逆 industryContainsCompany），
+    inverse_of 仅声明逆关系名供推理引擎做双向遍历推导，不要求实例化该逆关系。
+
+# ============================================================
+# 关系方向与证据管道流向的说明
+# ============================================================
+# v1.2 新增。
+# 证据域的主链路（管道流向）为：
+#   SourceDocument → EvidenceEpisode → EvidenceClaim → EvidenceFact
+# 但部分证据关系的方向与管道流向相反。这是有意设计——关系方向表达
+# "谁引用谁"（图谱遍历用），而非"谁产生谁"（数据摄入用）。
+#
+# 关系方向（图谱遍历）         管道流向（数据摄入）
+# ──────────────────────      ──────────────────────
+# EvidenceEpisode             SourceDocument
+#   ──episodeFromSource──>      ──摄入──>
+#   SourceDocument              EvidenceEpisode
+#                                          ──抽取──>
+# EvidenceClaim                 EvidenceClaim
+#   ──claimFromEpisode──>                   ──归并──>
+#   EvidenceEpisode             EvidenceFact
+#
+# EvidenceClaim
+#   ──claimCitesSource──>      注：claimCitesSource 跳过 Episode 层，
+#   SourceDocument              直接引用 SourceDocument 中的位置（页码/段落）。
+#                               这是一个快捷追溯路径，用于 Claim 的细粒度定位。
+#                               完整管道追溯仍应使用 claimFromEpisode→episodeFromSource 链路。
+#
+# EvidenceFact
+#   ──factSupportedByClaim──>
+#   EvidenceClaim
+#
+# 消费端指引：
+# 1. 按管道方向理解数据从哪来、如何加工
+# 2. 按关系方向在图谱中遍历和追溯
+# 3. claimCitesSource 作为补充追溯路径，不替代完整的管道链路
+
+direction_vs_pipeline_note:
+  description: 证据域关系方向与管道流向的对比说明。
+  pipeline_flow: "SourceDocument → EvidenceEpisode → EvidenceClaim → EvidenceFact（数据摄入方向）"
+  relation_traversal: "EvidenceFact → EvidenceClaim → SourceDocument（图谱追溯方向）"
+  shortcut_relations:
+    - relation: claimCitesSource
+      shortcut: "EvidenceClaim → SourceDocument（跳过 EvidenceEpisode）"
+      purpose: "提供页码/段落级别的细粒度追溯，不替代完整管道链路"
+      usage_constraint: "claimCitesSource 与 claimFromEpisode 可以并存，互为补充"
+  consumer_guidance: |
+    消费者在追溯证据时应：
+    1. 优先使用 claimFromEpisode → episodeFromSource 完整链路
+    2. claimCitesSource 作为补充，提供更细粒度的位置追溯
+    3. 两个追溯路径可以并存，不互相替代
+
+relation_types:
+  claimFromEpisode:
+    zh_name: 主张来自 Episode
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceEpisode]
+    direction: directed
+    cardinality: many_to_one
+    inverse_of: episodeHasClaim
+    description: EvidenceClaim 从某次 EvidenceEpisode 摄入或整理中产生。
+    properties:
+      extractionMethod:
+        zh_name: 抽取方式
+        type: enum
+        enum: [manual, ai_extraction, structured_import, replay_feedback, inference_feedback]
+        required: true
+      textSpan:
+        zh_name: 文本范围
+        type: string
+        required: false
+
+  episodeFromSource:
+    zh_name: Episode 来自 Source
+    group: source_and_record_relations
+    source_types: [EvidenceEpisode]
+    target_types: [SourceDocument]
+    direction: directed
+    cardinality: many_to_many
+    description: EvidenceEpisode 来自某个 SourceDocument。v1.1 新增。比 sourceOf（SourceDocument→X）方向相反，表达 Episode 侧的来源追溯。
+    properties:
+      sourceRole:
+        zh_name: 来源角色
+        type: enum
+        enum: [primary, supplementary, cross_reference]
+        required: true
+
+  claimCitesSource:
+    zh_name: Claim 引用 Source 位置
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types: [SourceDocument]
+    direction: directed
+    cardinality: many_to_many
+    description: >
+      EvidenceClaim 直接引用 SourceDocument 中的具体位置。v1.1 新增。
+      比 claimFromEpisode→episodeFromSource 链更直接——这是一个"短路"追溯路径，
+      跳过 EvidenceEpisode 层，直接定位到 SourceDocument 的页码/段落。
+      使用场景：Claim 的位置信息（citationLocator）可以直接定位到 SourceDocument，
+      不需要通过 Episode 中转。与 claimFromEpisode 可并存，作为补充追溯路径。
+      不影响管道模型的完整性——管道流向仍为 SourceDocument→Episode→Claim。
+    properties:
+      citationLocator:
+        zh_name: 引用定位
+        type: string
+        required: true
+        description: 页码、段落、表格、时间戳等具体定位。
+
+  factSupportedByClaim:
+    zh_name: Fact 由 Claim 支撑
+    group: source_and_record_relations
+    source_types: [EvidenceFact]
+    target_types: [EvidenceClaim]
+    direction: directed
+    cardinality: many_to_many
+    inverse_of: claimSupportsFact
+    description: EvidenceFact 由 EvidenceClaim 支撑。v1.1 新增。与 EvidenceFact.sourceClaimIds 字段互补；字段用于快速索引，关系用于图谱追溯。
+    properties:
+      supportRole:
+        zh_name: 支撑角色
+        type: enum
+        enum: [primary, secondary, cross_validation]
+        required: true
+
+  episodeMentionsObject:
+    zh_name: Episode 提及对象
+    group: source_and_record_relations
+    source_types: [EvidenceEpisode]
+    target_types:
+      - Industry
+      - ConceptScheme
+      - Concept
+      - ConceptBoundary
+      - Segment
+      - Company
+      - Product
+      - Material
+      - Asset
+      - StateVariable
+      - StateVariableObservation
+      - StateVariablePropagation
+      - Event
+      - StateHypothesis
+      - Signal
+      - JudgmentOutput
+      - AssetImpact
+      - InvestmentThesis
+      - SourceDocument
+      - EvidenceClaim
+      - EvidenceFact
+      - PatchRequest
+      - InferenceRun
+    direction: directed
+    cardinality: many_to_many
+    description: EvidenceEpisode 在原始材料或反馈中提及某个本体对象、证据对象或运行记录。
+    properties:
+      mentionRole:
+        zh_name: 提及角色
+        type: enum
+        enum: [subject, object, context, evidence, counter_evidence, candidate_target]
+        required: true
+      mentionText:
+        zh_name: 提及文本
+        type: string
+        required: false
+
+  claimSupportsObject:
+    zh_name: 主张支持对象候选或属性
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types:
+      - Industry
+      - ConceptScheme
+      - Concept
+      - ConceptBoundary
+      - Segment
+      - Company
+      - Product
+      - Material
+      - Asset
+      - StateVariable
+      - StateVariableObservation
+      - StateVariablePropagation
+      - Event
+      - StateHypothesis
+      - Signal
+      - JudgmentOutput
+      - AssetImpact
+      - InvestmentThesis
+      - EvidenceFact
+      - PatchRequest
+    direction: directed
+    cardinality: many_to_many
+    description: EvidenceClaim 支持对象候选、对象属性、边界裁定、状态观测候选、证据事实或候选补丁请求；不得理解为直接修改正式对象。
+    properties:
+      supportTargetKind:
+        zh_name: 支持目标类型
+        type: enum
+        enum: [object_candidate, object_attribute, boundary_decision, state_observation_candidate, evidence_fact, patch_request, reasoning_input_candidate]
+        required: true
+      supportRole:
+        zh_name: 支持角色
+        type: enum
+        enum: [primary, evidence, cross_validation, contradiction, template_basis, candidate_basis]
+        required: true
+      supportStrength:
+        zh_name: 支持强度
+        type: enum
+        enum: [high, medium, low]
+        required: false
+
+  claimSupportsRelation:
+    zh_name: 主张支持关系候选
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types: [PatchRequest, PatchLedgerItem]
+    direction: directed
+    cardinality: many_to_many
+    description: EvidenceClaim 支持候选关系、关系修订或关系补丁；具体关系实例 ID 写入 targetRelationId。证据关系不直接改正式关系。
+    properties:
+      targetRelationId:
+        zh_name: 目标关系 ID
+        type: string
+        required: true
+      supportRole:
+        zh_name: 支持角色
+        type: enum
+        enum: [primary, evidence, cross_validation, contradiction, candidate_basis]
+        required: true
+
+  claimInvalidatesClaim:
+    zh_name: 主张使主张失效
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceClaim]
+    direction: directed
+    cardinality: many_to_many
+    description: 新 EvidenceClaim 证明旧 EvidenceClaim 不再适用、被替代或应降级。
+    properties:
+      invalidationType:
+        zh_name: 失效类型
+        type: enum
+        enum: [expired, contradicted, superseded, scope_changed, evidence_quality_downgraded]
+        required: true
+      invalidationReason:
+        zh_name: 失效理由
+        type: string
+        required: true
+
+  claimSupersedesClaim:
+    zh_name: Claim 替代 Claim
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceClaim]
+    direction: directed
+    cardinality: many_to_many
+    description: 新 EvidenceClaim 替代旧 EvidenceClaim。v1.1 新增。与 claimInvalidatesClaim 互补：supersedes 强调替代关系，invalidates 强调失效关系。
+    properties:
+      supersedeReason:
+        zh_name: 替代原因
+        type: string
+        required: true
+
+  claimConflictsWithClaim:
+    zh_name: Claim 与 Claim 冲突
+    group: source_and_record_relations
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceClaim]
+    direction: symmetric_single_edge
+    cardinality: many_to_many
+    description: 两个 EvidenceClaim 之间存在矛盾但尚未裁决。v1.1 新增。冲突不自动裁决，进入治理队列处理。
+    properties:
+      conflictType:
+        zh_name: 冲突类型
+        type: enum
+        enum: [factual, directional, temporal, scoping, attribution, source_quality, methodology]
+        required: true
+      conflictNote:
+        zh_name: 冲突说明
+        type: string
+        required: false
+
+  factConflictsWithFact:
+    zh_name: Fact 与 Fact 冲突
+    group: source_and_record_relations
+    source_types: [EvidenceFact]
+    target_types: [EvidenceFact]
+    direction: symmetric_single_edge
+    cardinality: many_to_many
+    description: 两个 EvidenceFact 之间存在矛盾。v1.1 新增。冲突不自动裁决。
+    properties:
+      conflictType:
+        zh_name: 冲突类型
+        type: enum
+        enum: [factual, directional, temporal, scoping, attribution, source_quality, methodology]
+        required: true
+      conflictNote:
+        zh_name: 冲突说明
+        type: string
+        required: false
+
+  factInvalidatesFact:
+    zh_name: Fact 使 Fact 失效
+    group: source_and_record_relations
+    source_types: [EvidenceFact]
+    target_types: [EvidenceFact]
+    direction: directed
+    cardinality: many_to_many
+    description: 新 EvidenceFact 使旧 EvidenceFact 失效。v1.1 新增。
+    properties:
+      invalidationReason:
+        zh_name: 失效理由
+        type: string
+        required: true
+
+  factSupersedesFact:
+    zh_name: Fact 替代 Fact
+    group: source_and_record_relations
+    source_types: [EvidenceFact]
+    target_types: [EvidenceFact]
+    direction: directed
+    cardinality: many_to_many
+    description: 新 EvidenceFact 替代旧 EvidenceFact。v1.1 新增。
+    properties:
+      supersedeReason:
+        zh_name: 替代原因
+        type: string
+        required: true
+
+  factSupportsObject:
+    zh_name: Fact 支持对象属性或状态
+    group: source_and_record_relations
+    source_types: [EvidenceFact]
+    target_types:
+      - Industry
+      - Segment
+      - Company
+      - Product
+      - Material
+      - Asset
+      - StateVariable
+      - Event
+      - StateHypothesis
+      - Signal
+      - JudgmentOutput
+      - EvidenceClaim
+      - PatchRequest
+    direction: directed
+    cardinality: many_to_many
+    description: EvidenceFact 支持对象属性、对象状态、候选观测、候选对象或治理补丁。EvidenceFact 是事实候选，不直接修改正式对象。v1.1 新增。与 claimSupportsObject 互补。
+    properties:
+      supportTargetKind:
+        zh_name: 支持目标类型
+        type: enum
+        enum: [object_candidate, object_attribute, object_state, state_observation_candidate, patch_request, reasoning_input_candidate]
+        required: true
+      supportRole:
+        zh_name: 支持角色
+        type: enum
+        enum: [primary, evidence, cross_validation, candidate_basis]
+        required: true
+
+  factSupportsRelation:
+    zh_name: Fact 支持关系候选
+    group: source_and_record_relations
+    source_types: [EvidenceFact]
+    target_types: [PatchRequest]
+    direction: directed
+    cardinality: many_to_many
+    description: EvidenceFact 支持候选关系或关系补丁。EvidenceFact 不直接修改正式关系。v1.1 新增。
+    properties:
+      targetRelationId:
+        zh_name: 目标关系 ID
+        type: string
+        required: true
+      supportRole:
+        zh_name: 支持角色
+        type: enum
+        enum: [primary, evidence, cross_validation]
+        required: true

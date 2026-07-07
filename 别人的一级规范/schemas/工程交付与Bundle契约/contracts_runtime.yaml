@@ -1,0 +1,248 @@
+schema_name: contracts_runtime
+schema_version: 0.1.0
+namespace: investment_ontology
+status: draft
+depends_on:
+  engineering: policies_engineering.yaml
+  validation: policies_validation.yaml
+canonical_rule: YAML 是正式机器约束；runtime_contracts 只保存正式运行契约，不保存任何运行结果或证据快照。
+description: >
+  Runtime Bundle Package 契约。生产型 bundle 可保持复杂工程结构；
+  发布给工作台消费的 bundle 必须通过 runtime_contracts/ 层提供明确入口、加载规则、
+  运行契约和校验报告。工作台只从 manifest → runtime_index → scenario_runtime_index 开始读取。
+
+runtime_package_contract:
+  description: 工作台消费 bundle 的运行时产品包契约。
+  consumption_chain:
+    - 00_bundle_manifest.yaml
+    - runtime_contracts/runtime_index.yaml
+    - scenario_packs/<scenario_id>/scenario_runtime_index.yaml
+  principles:
+    - 正式 bundle 必须轻、稳、可索引、可校验；生产过程位于外置 bundle workbench。
+    - bundle_workbenches、team_workspaces 和任何运行结果不得进入正式加载面。
+    - validation_status=passed 才允许工作台运行。
+
+runtime_index_contract:
+  description: bundle 级运行入口；声明可运行 scenario、共享索引和运行规则。
+  recommended_path: runtime_contracts/runtime_index.yaml
+  required_fields:
+    - runtime_index_version
+    - bundle_id
+    - bundle_version
+    - bundle_type
+    - runtime_status
+    - compatible_runner_version
+    - entrypoints
+    - scenarios
+    - shared_indexes
+    - runtime_rules
+  runtime_status_values: [published, draft, deprecated]
+  entrypoints_fields: [default_scenario]
+  scenario_item_fields:
+    - scenario_id
+    - name
+    - status
+    - scenario_manifest
+    - scenario_runtime_index
+    - output_contract
+  shared_indexes_fields:
+    - object_index
+    - relation_index
+    - rule_index
+    - evidence_index
+    - governance_index
+    - runtime_asset_registry
+    - runtime_evidence_index
+  runtime_rules_defaults:
+    load_mode: scenario_first
+    allow_staging_assets: false
+    require_confirmed_assets: true
+    require_evidence_trace: true
+    require_reasoning_trace: true
+    require_feedback_output: true
+
+scenario_runtime_index_contract:
+  description: 场景级最小运行单元；声明问题意图、必读/可选资产和运行时约束。
+  recommended_path: scenario_packs/<scenario_id>/scenario_runtime_index.yaml
+  required_fields:
+    - scenario_runtime_index_version
+    - scenario_id
+    - scenario_name
+    - parent_bundle_id
+    - runtime_status
+    - question_intents
+    - required_assets
+    - optional_assets
+    - runtime_constraints
+  required_asset_groups:
+    - semantic_objects
+    - state_variables
+    - relations
+    - reasoning_rules
+    - evidence
+    - scenario_local
+  optional_asset_groups:
+    - counters
+  asset_ref_fields: [asset_id, path, priority, load_mode]
+  runtime_constraints_fields:
+    - max_context_assets
+    - evidence_required
+    - allow_unverified_evidence
+    - allow_candidate_rules
+    - output_language
+
+runtime_loading_profile_contract:
+  description: token 预算、预加载/按需加载策略和禁止遍历目录。
+  recommended_path: runtime_contracts/runtime_loading_profile.yaml
+  required_fields:
+    - loading_profile_version
+    - bundle_id
+    - preload
+    - on_demand
+    - forbidden_paths
+    - max_assets
+    - schema_resolution_order
+  forbidden_paths_default: [bundle_workbenches, team_workspaces, staging, research_memory, _artifacts]
+  boundary_rule: 正式 runtime 只读取正式 bundle 与当次 RuntimeEvidenceSnapshot；不得遍历或直接消费 workbench、JudgmentRecord、复盘和运行目录。
+  schema_resolution_order_default:
+    - canonical_core_root
+    - target_bundle_local_schemas
+
+runtime_context_card_contract:
+  description: 给 LLM/研究员的一屏上下文；从 bundle_summary 派生，不替代机器契约。
+  recommended_paths:
+    bundle: runtime_contracts/runtime_context_card.md
+    scenario: scenario_packs/<scenario_id>/scenario_context_card.md
+
+scenario_output_contract_contract:
+  description: 场景运行输出契约；统一 markdown 报告、结构化推理结果和本体缺口反馈。
+  recommended_path: scenario_packs/<scenario_id>/scenario_output_contract.yaml
+  required_fields:
+    - output_contract_version
+    - scenario_id
+    - required_outputs
+  required_output_blocks:
+    - markdown_report
+    - reasoning_result_json
+    - ontology_feedback_json
+  reasoning_result_json_fields:
+    - run_id
+    - bundle_id
+    - scenario_id
+    - user_question
+    - conclusion
+    - confidence_level
+    - used_asset_ids
+    - evidence_hits
+    - rule_hits
+    - reasoning_steps
+    - counters
+    - tracking_variables
+  ontology_feedback_json_fields:
+    - missing_objects
+    - missing_relations
+    - missing_state_variables
+    - missing_evidence
+    - missing_rules
+    - suggested_patch_requests
+  single_source_rule: >
+    标准 scenario pack 只使用 scenario_output_contract.yaml；生成器在文件已存在时保留其显式契约，
+    文件缺失时才生成默认契约，不读取平行兼容文件。
+
+runtime_validation_report_contract:
+  description: 发布门禁报告；validation_status=passed 才允许工作台运行。
+  recommended_paths:
+    bundle: runtime_contracts/runtime_validation_report.json
+    scenario: scenario_packs/<scenario_id>/scenario_validation_report.json
+  required_fields:
+    - bundle_id
+    - bundle_version
+    - validation_status
+    - checked_at
+    - checks
+    - errors
+    - warnings
+  validation_status_values: [passed, failed, warning]
+  check_names:
+    - manifest_exists
+    - runtime_index_exists
+    - scenario_index_exists
+    - all_refs_resolvable
+    - no_staging_assets_in_runtime
+    - all_required_assets_confirmed
+    - output_contract_exists
+    - evidence_trace_available
+
+runtime_asset_header_contract:
+  description: >
+    运行时资产暴露头。不替换 id/type/recordStatus；在 runtime_contracts 层提供统一消费视图。
+    优先通过 shared/_index/runtime_asset_registry.yaml 索引，正式资产文件可逐步内联 runtime_exposure。
+  required_fields:
+    - asset_id
+    - asset_type
+    - status
+    - confirmation_status
+    - runtime_exposure
+    - summary_for_runtime
+    - refs
+    - source_path
+  optional_fields: [zh_name, en_name, namespace, version, owner, created_at, updated_at]
+  confirmation_status_values: [confirmed, candidate, rejected, needs_review]
+  record_status_mapping:
+    confirmed: confirmed
+    active: confirmed
+    candidate: candidate
+    draft: candidate
+    review_pending: needs_review
+    rejected: rejected
+    deprecated: rejected
+    superseded: rejected
+    quarantined: rejected
+    archived: rejected
+  runtime_exposure_fields:
+    - include_in_runtime
+    - load_mode
+    - priority
+    - token_budget_level
+  load_mode_values: [preload, on_demand, forbidden]
+  priority_values: [required, optional, counter]
+  admission_rule: >
+    active/confirmed recordStatus + confirmation_status=confirmed + include_in_runtime=true → 工作台可加载；
+    candidate/draft/needs_review → 仅 staging；deprecated/rejected → 历史保留，禁止推理。
+
+runtime_evidence_index_contract:
+  description: 可运行证据索引消费视图；不替代 shared/evidence_index 批量存储。
+  recommended_path: shared/evidence_index/runtime_evidence_index.yaml
+  item_required_fields:
+    - evidence_id
+    - asset_type
+    - status
+    - confirmation_status
+    - claim_type
+    - claim_summary
+    - source_document_id
+    - supports
+    - evidence_strength
+    - runtime_summary
+  supports_fields:
+    - state_variables
+    - rules
+    - scenarios
+
+callable_inference_rule_contract:
+  description: 机器可调用的 InferenceRule 实例结构；供 scenario_runtime_index 引用。
+  required_fields:
+    - rule_id
+    - asset_type
+    - status
+    - confirmation_status
+    - name
+    - description
+    - inputs
+    - logic
+    - counters
+    - output_refs
+    - runtime_summary
+  inputs_fields: [required_state_variables, optional_state_variables]
+  logic_fields: [when, then]
+  output_refs_fields: [possible_signals, possible_asset_impacts]
