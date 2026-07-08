@@ -1,9 +1,9 @@
 schema_name: task_ontology_view
-schema_version: 1.1.0
+schema_version: 1.0.0
 
 # 文件命名：<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml
-# 必须与配对研究逻辑文件使用相同的核心主题、日期和序号。
-# 研究逻辑正文在配对 MD；本文件保存本体引用、路径节点、实例需求、证据类型、绑定、候选、缺口索引和校验。
+# 必须与配对研究逻辑文件使用相同核心主题、日期和序号。
+# 本文件保存本体引用、路径节点、判断单元、实例需求、状态变量绑定、证据要求、候选、缺口索引和质量校验。
 
 task_context:
   task_id: "<任务标识>"
@@ -14,6 +14,7 @@ task_context:
   source_document: "<01 投研需求说明文件>"
   logic_document: "<同主题、同日期、同序号的研究逻辑文件名>"
   normalized_question: "<规范化判断问题>"
+  judgment_landing: "<状态定位 | 趋势判断 | 阶段切换 | 影响强弱 | 路径成立性 | 假设验证与更新>"
   task_type:
     primary: "<01 规定的主任务类型>"
     secondary: []
@@ -22,12 +23,12 @@ task_context:
     time_policy:
       mode: "<rolling | fixed | event_relative>"
       anchor: "<execution_date | event_date | null>"
-      anchor_value: null  # event_relative 时填写事件日期或可解析事件引用
+      anchor_value: null
       timezone: "Asia/Shanghai"
-      lookback: null  # 例如 P6M
-      lookforward: null  # 例如 P6M
-      fixed_start: null  # 仅 fixed 模式填写
-      fixed_end: null  # 仅 fixed 模式填写
+      lookback: null
+      lookforward: null
+      fixed_start: null
+      fixed_end: null
       data_cutoff: "<execution_date | 固定日期>"
     geography: "<地域范围>"
     value_chain: "<产业链范围>"
@@ -37,10 +38,24 @@ task_context:
       as_of: "<execution_date | 固定日期>"
       criteria: []
       count_or_coverage: null
-      refresh_on_each_run: false  # dynamic 模式改为 true
+      refresh_on_each_run: false
+    exclusions: []
+
+quality_control:
+  quality_gate_ref: "00A_高质量产出判别标准.md#5.2"
+  stage_status: "<aligned | needs_revision | returned_to_01>"
+  quality_status: "draft"
+  deterministic_check_status: "not_checked"
+  semantic_review_status: "not_reviewed"
+  return_required: false
+  return_stage: null
+  return_reasons: []
 
 research_framework:
   logic_document_ref: "<与 task_context.logic_document 一致>"
+  judgment_spine:
+    statement: "<一句话说明本次真正要辨别的主矛盾和主导机制>"
+    md_section: "1.3 判断脊柱"
   basis:
     source: "<independent | library_adapted | mixed>"
     md_section: "<如：3. 本次采用的分析框架>"
@@ -49,12 +64,19 @@ research_framework:
     library_ref: 02框架库/README.md
     library_version: 1.0.0
     consulted: []
-    # 每项含 framework_id、name、contribution、difference_from_md。
-    no_direct_reference_reason: "<无直接适用框架时填写；否则留空>"
+    no_direct_reference_reason: ""
+  minimum_question_tree:
+    - question_id: "Q-01"
+      question: "<子问题>"
+      relation_to_overall: "<precondition | parallel | competing | stop_node>"
+      sequence: 1
+      failure_action: "<stop | downgrade | switch_to_competing_explanation | return_to_01_or_02>"
+      md_section: "2.2"
   alignment_checks:
     independently_formed_in_md: false
     library_consulted_in_md: false
-    basis_consistent_with_md: false
+    judgment_spine_consistent_with_md: false
+    problem_tree_consistent_with_md: false
 
 ontology_sources:
   platform_ontology:
@@ -65,279 +87,131 @@ ontology_sources:
       semantic: 1.0.0
       evidence: 1.0.0
       reasoning: 1.0.0
-    files:
-      - 一级通用本体规范/common.yaml
-      - 一级通用本体规范/semantic.yaml
-      - 一级通用本体规范/evidence.yaml
-      - 一级通用本体规范/reasoning.yaml
+    files: []
   domain_ontology:
-    name: semiconductor_domain
+    name: "<领域本体名称>"
     version: 1.0.0
     depends_on: ontology_platform
-    files:
-      - 二级半导体领域本体规范/common.yaml
-      - 二级半导体领域本体规范/semantic.yaml
-      - 二级半导体领域本体规范/evidence.yaml
-      - 二级半导体领域本体规范/reasoning.yaml
+    files: []
 
-# 可取 ready_for_instantiation、ready_with_candidates、not_ready、out_of_domain。
-# 前两种状态要求 validation.ready_for_instantiation = true；ready_with_candidates 还要求 uses_candidates = true。
-match_status: not_ready
+judgment_units:
+  - judgment_unit_id: "JU-01"
+    statement: "<04 可能输出的观点或边界>"
+    linked_questions: ["Q-01"]
+    linked_paths: []
+    minimum_verification_condition: "<最低验证条件>"
+    required_counter_checks: []
+    downgrade_rule_if_not_met: "<directional_only | conditional_only | insufficient | blocked | contested>"
+    evidence_profile_refs: []
+    md_section: "5"
 
-semantic_view:
-  object_types:
-    - id: "<对象类型 ID>"
-      name: "<名称>"
-      description: "<定义与边界>"
-      primary_key: "<主键字段>"
-      title_property: "<展示字段>"
-      properties: []
-      source_ref: "<正式本体文件及定义 ID>"
-      source_version: "<本体版本>"
-      selection_reason: "<为什么本任务需要该类型>"
-      used_by_path_nodes: []
-  relation_types:
-    - id: "<关系类型 ID>"
-      name: "<名称>"
-      description: "<定义与边界>"
-      source_types: []
-      target_types: []
-      cardinality: "<基数>"
-      properties: []
-      source_ref: "<正式本体文件及定义 ID>"
-      source_version: "<本体版本>"
-      selection_reason: "<为什么本任务需要该关系>"
-      used_by_path_nodes: []
-  controlled_vocabularies: []
-  # 受控分类项至少保留 id、name、description、values、source_ref、source_version、selection_reason、used_by_path_nodes。
+path_design:
+  main_paths:
+    - path_id: "P-01"
+      name: "<主路径名称>"
+      description: "<业务语言描述>"
+      linked_judgment_units: ["JU-01"]
+      nodes:
+        - node_id: "N-01"
+          name: "<节点名称>"
+          role: "<start | precondition | transmission | outcome | validation | stop>"
+          question: "<该节点要验证的问题>"
+          required_state_variables: []
+          required_instance_requirements: []
+          required_evidence_requirements: []
+          failure_action: "<stop | downgrade | switch_path>"
+  weakening_conditions:
+    - condition_id: "W-01"
+      statement: "<削弱条件>"
+      linked_paths: ["P-01"]
+      distinguish_evidence: []
+      effect_on_04: "<降低为倾向判断/条件判断等>"
+  blocking_conditions:
+    - condition_id: "B-01"
+      statement: "<阻断条件>"
+      linked_paths: ["P-01"]
+      distinguish_evidence: []
+      effect_on_04: "<路径停止/暂不可判断>"
+  competing_explanations:
+    - explanation_id: "CE-01"
+      statement: "<竞争解释>"
+      distinguish_from_main_path: "<如何区分>"
+      required_evidence: []
+      effect_on_04: "<保留竞争解释/降级/改判>"
 
-reasoning_view:
-  event_types:
-    - id: "<事件类型 ID>"
-      name: "<名称>"
-      description: "<定义与适用边界>"
-      applicable_object_types: []
-      required_properties: []
-      evidence_requirements: []
-      source_ref: "<正式本体文件及定义 ID>"
-      source_version: "<本体版本>"
-      selection_reason: "<选择原因>"
-      used_by_path_nodes: []
-  state_variables:
-    - id: "<状态变量 ID>"
-      name: "<名称>"
-      definition: "<本任务需要观察和判断的业务状态>"
-      allowed_anchor_types: []
-      observation_guidance: "<03 应准备什么观测>"
-      counter_evidence_guidance: "<需要检查什么反证>"
-      evidence_profile_ref: "<reasoning.yaml 为该变量绑定的 evidence profile ID>"
-      source_ref: "<正式本体文件及定义 ID>"
-      source_version: "<本体版本>"
-      selection_reason: "<选择原因>"
-      used_by_path_nodes: []
-  # 每个选中变量必须被路径节点引用，并至少具有一个 state_binding、一个 observation 和一个匹配 profile 的 evidence_binding。
-  # 同一变量可以按不同对象需求建立多个 state_binding；used_by_path_nodes 必须与路径节点反向引用一致。
-  propagation_templates:
-    - id: "<传导模板 ID>"
-      name: "<名称>"
-      description: "<传导逻辑>"
-      source_variables: []
-      target_variables: []
-      conditions: []
-      evidence_requirements: []
-      weaken_conditions: []
-      block_conditions: []
-      source_ref: "<正式本体文件及定义 ID>"
-      source_version: "<本体版本>"
-      selection_reason: "<选择原因>"
-      used_by_path_nodes: []
-  scenario_templates: []
-  rules:
-    - id: "<规则 ID>"
-      name: "<名称>"
-      description: "<规则用途>"
-      rule_type: "<规则类型>"
-      applies_to: []
-      condition: "<条件>"
-      result: "<结果>"
-      priority: "<优先级>"
-      failure_handling: "<不满足时如何处理>"
-      source_ref: "<正式本体文件及定义 ID>"
-      source_version: "<本体版本>"
-      selection_reason: "<选择原因>"
-      used_by_path_nodes: []
-
-# 定义需要什么类型的证据/反证；实例绑定见 instance_requirements.evidence_bindings。
-evidence_view:
-  evidence_requirements:
-    - requirement_id: "<证据要求 ID>"
-      purpose: support
-      required_information: "<需要取得什么信息>"
+ontology_bindings:
+  selected_objects: []
+  selected_relations: []
+  selected_events: []
+  selected_state_variables:
+    - state_variable_id: ""
+      name: ""
+      ontology_ref: ""
+      linked_judgment_units: []
+      linked_path_nodes: []
+      state_binding_refs: []
+      observation_requirement_refs: []
       evidence_profile_refs: []
-      acceptable_source_types: []
-      minimum_quality: "<最低质量要求>"
-      used_by_path_nodes: []  # 轻量索引；不等于实例绑定
-  evidence_profiles:
-    - profile_id: "<正式 evidence profile ID>"
-      source_ref: "<一级或二级 evidence.yaml#profile_id>"
-      source_version: "<本体版本>"
-      selection_reason: "<为什么本任务需要该 profile>"
-      used_by_requirement_ids: []
-  quality_dimensions: []
-  counter_evidence_requirements:
-    - requirement_id: "<反证要求 ID>"
-      condition: "<需要检查的削弱、阻断或替代情况>"
-      effect: "<对路径的影响>"
-      evidence_profile_refs: []
-      acceptable_source_types: []
-      minimum_quality: "<最低质量要求>"
-      used_by_path_nodes: []
-  conflict_and_gap_rules: []
-
-candidate_paths:
-  - path_id: "<路径 ID>"
-    name: "<路径名称>"
-    purpose: "<该路径要验证什么>"
-    logic_unit_refs: []
-    framework_basis_refs: []  # 可引用 consulted 框架或 research_framework.basis。
-    start_node: "<起点节点 ID>"
-    target_node: "<目标节点 ID>"
-    nodes:
-      - node_id: "<节点 ID>"
-        question: "<该节点要验证的问题>"
-        ontology_refs:
-          object_types: []
-          relation_types: []
-          event_types: []
-          state_variables: []
-          propagation_templates: []
-          rules: []
-        required_instances: []
-        evidence_requirements: []
-        counter_conditions: []
-        depends_on: []
-        next_nodes: []
+  propagation_templates: []
+  inference_rules: []
 
 instance_requirements:
-  objects:
-    - requirement_id: "<对象实例需求 ID>"
-      object_type_ref: "<对象类型 ID>"
-      role: "<在任务中的角色>"
-      minimum_fields: []
-      used_by_path_nodes: []
-  relations:
-    - requirement_id: "<关系实例需求 ID>"
-      relation_type_ref: "<关系类型 ID>"
-      source_object_requirement_ref: "<起点对象需求 ID>"
-      target_object_requirement_ref: "<终点对象需求 ID>"
-      acceptance_requirement: "<确认该关系所需的信息>"
-      used_by_path_nodes: []
-  events:
-    - requirement_id: "<事件实例需求 ID>"
-      event_type_ref: "<事件类型 ID>"
-      target_object_requirement_refs: []
-      minimum_fields: []
-      used_by_path_nodes: []
-  state_bindings:
-    - requirement_id: "<状态绑定需求 ID>"
-      state_variable_ref: "<状态变量 ID>"
-      anchor_object_requirement_ref: "<锚定对象需求 ID>"
-      used_by_path_nodes: []
-  observations:
-    - requirement_id: "<观测需求 ID>"
-      state_binding_requirement_ref: "<状态绑定需求 ID>"
-      required_measure: "<方向、数值、区间或其他观测要求>"
-      business_time_requirement: "<业务时间要求>"
-      used_by_path_nodes: []
-  evidence_bindings:
-    - binding_id: EB-01
-      evidence_requirement_ref: "<ER 或 CER ID>"
-      bind_to:
-        path_node_refs: []
-        object_requirement_refs: []
-        event_requirement_refs: []
-        state_binding_requirement_refs: []
-        observation_requirement_refs: []
+  - requirement_id: "IR-01"
+    target: "<对象/关系/事件/状态观测等>"
+    purpose: "<支持/削弱/阻断/区分竞争解释>"
+    linked_path_nodes: []
+    linked_judgment_units: []
+    minimum_fields: []
+    scope_constraints: []
 
-view_assumptions:
-  - assumption_id: "<视图假设 ID>"
-    statement: "<假设内容>"
-    reason: "<采用原因>"
-    source: system_inference
-    used_by_path_nodes: []
-    invalidation_condition: "<失效条件>"
+evidence_requirements:
+  - evidence_requirement_id: "ER-01"
+    question: "<要验证的问题>"
+    linked_instance_requirement: "IR-01"
+    linked_state_variables: []
+    linked_judgment_units: []
+    evidence_profile: "<profile 名称>"
+    required_sources: []
+    required_counter_evidence: []
+    minimum_standard: "<最低标准>"
+    downgrade_if_missing: "<directional_only | conditional_only | insufficient | blocked | contested>"
 
-candidate_extensions:
-  controlled_vocabularies: []
-  object_types: []
-  relation_types: []
-  event_types: []
-  state_variables: []
-  propagation_templates: []
-  evidence_profiles: []
-  rules: []
-  # 仅保存正式本体不能承接、但本次判断不可缺少的稳定结构；不得放入现实实例、观测或一次性事实。
-  # 每个候选项至少含 candidate_id、resource_type、name、definition、boundary、reason、basis、risk、used_by_path_nodes、status。
+candidate_structures:
+  used: false
+  items: []
+  usage_boundary: ""
+  effect_on_03: ""
+  effect_on_04: ""
 
-gaps_and_risks: []
-# 索引映射；详细诊断在配对本体缺口说明 MD。
-# 每项含 gap_id、type、severity、gap_note_ref、gap_note_section、affected_path_nodes、handling_in_view、aligned_with_gap_note。
-# type 可取 ontology_gap、matching_ambiguity、instance_risk、evidence_risk；severity 可取 low、medium、high。
-# ontology_gap 且 severity 为 medium/high 时，须生成同主题、同日期、同序号的 Markdown 本体缺口说明。
+ontology_gaps:
+  has_gap: false
+  gap_note_ref: ""
+  gap_ids: []
+  highest_severity: "<none | low | medium | high | blocking>"
+  blocks_evidence_preparation: false
+  blocks_directional_reasoning: false
 
-logic_alignment:
-  logic_document_ref: "<与 task_context.logic_document 一致>"
-  logic_id: "<与 task_context.logic_id 一致>"
-  units:
-    - unit_id: LU-01
-      unit_type: "<key_judgment | sub_question>"
-      markdown_section: "<MD 标题或锚点；不写结论复述>"
-      framework_basis_refs: []
-      path_refs: []
-      path_node_refs: []
-      ontology_refs: []
-      instance_requirement_refs: []
-      evidence_requirement_refs: []
-      counter_evidence_requirement_refs: []
-  checks:
-    task_identity_consistent: false
-    scope_consistent: false
-    every_logic_unit_mapped: false
-    every_path_explained: false
-    framework_basis_consistent: false
-    no_unmapped_key_concepts: false
-    no_orphan_yaml_resources: false
+handoff_to_03:
+  required_files:
+    - "<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
+    - "<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
+  required_csv_or_snapshot_outputs:
+    - state_variable_coverage.csv
+    - path_readiness.csv
+    - judgment_unit_readiness.csv
+    - evidence_records.csv
+  special_limits: []
 
 validation:
   checks:
-    source_task_ready: false
-    research_logic_complete: false
-    framework_basis_explained: false  # MD 已说明框架来源；library_reference 或 no_direct_reference_reason 已填；logic_alignment.checks.framework_basis_consistent = true
-    logic_yaml_alignment_complete: false
-    core_objects_matched: false
-    required_relations_matched: false
-    event_and_variables_matched: false
+    scope_consistent_with_01: false
+    judgment_spine_present: false
+    minimum_question_tree_present: false
+    main_counter_competing_paths_present: false
+    judgment_units_have_minimum_conditions: false
     state_variable_chain_complete: false
-    candidate_path_complete: false
-    path_resources_bound: false
-    instance_requirements_complete: false
-    evidence_requirements_complete: false
-    evidence_bindings_complete: false
-    evidence_profiles_resolvable: false
-    evidence_profile_bindings_complete: false
-    minimum_sufficient_view: false
-    selected_definitions_complete: false
-    source_refs_and_versions_resolvable: false
-    candidates_separated_from_formal_ontology: true
-    gap_records_aligned: false
-    yaml_parseable: true
-    no_orphan_resources: false
-    no_dangling_references: false
-    no_blocking_ontology_gaps: false
-  uses_candidates: false
-  ready_for_instantiation: false
-  next_action: "<未通过时说明下一步；通过时留空>"
-# 状态一致性：
-# - ready_for_instantiation → ready_for_instantiation: true, uses_candidates: false
-# - ready_with_candidates → ready_for_instantiation: true, uses_candidates: true；03 最高只能 restricted_pass
-# - not_ready / out_of_domain → ready_for_instantiation: false
+    evidence_requirements_executable_by_03: false
+    md_yaml_consistent: false
+  result: "<pass | fail>"
+  return_required: false
+  return_reasons: []

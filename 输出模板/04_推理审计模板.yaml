@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 1.3.0
+schema_version: 1.0.0
 
 metadata:
   task_id: ""
@@ -9,12 +9,24 @@ metadata:
   source_01_ref: "<核心主题>投研需求说明-<YYYYMMDD>-<当日序号>.md"
   source_02_logic_ref: "<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
   source_02_view_ref: "<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
-  preparation_ref: "<核心主题>数据与证据准备模板-<YYYYMMDD>-<当日序号>.md"
+  preparation_ref: "<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md"
   snapshot_ref: "<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/manifest.csv"
   audit_status: draft
+  quality_gate_ref: "00A_高质量产出判别标准.md#5.4"
+  quality_status: draft
+
+input_integrity:
+  task_id_consistent: false
+  execution_id_consistent: false
+  scope_consistent: false
+  source_refs_resolvable: false
+  no_unfrozen_evidence_used: false
+  no_new_path_or_rule_created: false
+  issues: []
 
 evidence_admission:
-  quality_status: failed
+  admission: failed
+  evidence_quality_level: low
   coverage_unit_total: 0
   evidence_backed_unit_count: 0
   evidence_coverage_rate: 0.0
@@ -22,6 +34,19 @@ evidence_admission:
   allowed_scope: ""
   blocked_coverage_refs: []
   interpretation: "证据覆盖只表示变量—锚点的可追溯准入情况，不直接表示业务结论强度。"
+
+judgment_unit_gate_results:
+  - judgment_unit_id: JU-01
+    statement: ""
+    source_03_gate_ref: "judgment_unit_readiness.csv#JU-01"
+    evidence_gate_status: "<met | partial | not_met | contested | blocked>"
+    allowed_04_output: "<full_reasoning_ready | directional_only | conditional_only | insufficient | blocked | contested>"
+    required_evidence_refs: []
+    evidence_refs: []
+    counter_evidence_refs: []
+    competing_explanation_refs: []
+    main_limit: ""
+    effect_on_claims: []
 
 overall_judgment:
   conclusion_level: insufficient_evidence
@@ -41,12 +66,21 @@ claim_register:
     statement: ""
     scope: ""
     time_horizon: ""
+    linked_judgment_unit: JU-01
+    allowed_04_output: insufficient
     conclusion_level: insufficient_evidence
     confidence: low
     path_refs: []
+    state_variable_refs: []
     evidence_refs: []
+    counter_evidence_refs: []
     uncertainty_refs: []
+    competing_explanation_refs: []
     invalidation_conditions: []
+    overreach_check:
+      within_03_use_limit: false
+      evidence_label_consistent: false
+      no_unfrozen_fact_used: false
 
 uncertainty_register:
   - uncertainty_id: U-01
@@ -59,6 +93,25 @@ uncertainty_register:
     judgment_change: ""
     gap_refs: []
 
+change_gate_register:
+  - gate_id: GATE-01
+    report_section: "6"
+    baseline: ""
+    observation_variable: ""
+    trigger_condition: ""
+    source_or_metric: ""
+    judgment_change: "<enhance | weaken | block | revise>"
+    linked_claim_refs: []
+
+tracking_register:
+  - tracking_id: T-01
+    report_section: "7"
+    tracking_item: ""
+    serves_claim_ref: "C-01"
+    preferred_source: ""
+    frequency: ""
+    action_after_trigger: ""
+
 ontology_context:
   ontology_refs: []
   object_type_refs: []
@@ -70,53 +123,55 @@ ontology_context:
   missing_ontology_items: []
 
 path_results:
-  - node_id: ""
-    path_id: ""
+  - path_id: ""
+    node_id: ""
     node_name: ""
+    linked_judgment_units: []
     status: insufficient_evidence
     question: ""
     input_refs: []
     evidence_refs: []
     counter_evidence_refs: []
-    gap_refs: []
-    state_variable_refs: []
-    template_refs: []
-    rule_refs: []
-    downstream_effect: ""
+    competing_explanation_refs: []
+    result: ""
+    effect_on_claims: []
 
 state_variable_results:
   - state_variable_id: ""
-    business_group: ""
-    scope: ""
-    judgment: ""
-    inference_allowed: blocked
-    coverage_unit_refs: []
-    path_refs: []
-    evidence_refs: []
-    uncertainty_refs: []
-    evidence_boundary: ""
+    name: ""
+    linked_judgment_units: []
+    coverage_refs: []
+    observed_direction: ""
+    evidence_status: "<met | partial | not_met | contested | blocked>"
+    effect_on_path: ""
+    effect_on_claims: []
 
 data_logic:
   metrics: []
-  formulas:
-    - name: ""
-      expression: ""
-      interpretation: ""
-      claim_refs: []
-      evidence_refs: []
-  timing_and_scope_notes: []
+  formulas: []
+  scope_notes: []
+  time_lag_notes: []
+  known_limitations: []
+
+report_quality_check:
+  answer_first: false
+  one_page_summary_under_500_chars: false
+  core_landing_has_three_layers: false
+  claims_within_03_use_limits: false
+  claim_labels_match_evidence_strength: false
+  object_differentiation_clear: false
+  change_gates_observable: false
+  no_internal_ids_in_main_text: false
+  no_investment_advice: false
+  audit_report_consistent: false
+  result: "<pass | fail>"
+  return_required: false
+  return_stage: null
+  return_reasons: []
 
 compliance_check:
-  report_and_audit_paired: false
-  all_report_claims_registered: false
-  all_path_nodes_covered: false
-  all_state_variables_covered: false
-  all_coverage_units_referenced: false
-  evidence_refs_resolve: false
-  no_evidence_duplication: true
-  no_buy_sell_advice: true
-  no_target_price: true
-  no_return_forecast: true
-  no_position_advice: true
-  body_free_of_audit_terms: false
-  coverage_not_used_as_judgment_strength: false
+  no_rating_target_price_return_forecast_or_position_advice: false
+  no_new_unfrozen_evidence: false
+  no_scope_drift: false
+  citations_or_evidence_refs_complete: false
+  publishable: false

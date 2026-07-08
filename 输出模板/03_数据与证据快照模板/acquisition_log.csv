@@ -1,1 +1,1 @@
-attempt_id,execution_id,requirement_id,path_id,node_id,recipe_id,source_id,query_parameters,attempted_at,result_status,records_received,records_accepted,failure_code,fallback_action,stop_reason,notes
+﻿attempt_id,execution_id,requirement_id,linked_judgment_unit_ids,path_id,node_id,recipe_id,source_id,source_tier,search_round,query_parameters,attempted_at,result_status,records_received,records_accepted,is_counter_evidence_search,failure_code,fallback_action,stopping_rule,stop_reason,notes

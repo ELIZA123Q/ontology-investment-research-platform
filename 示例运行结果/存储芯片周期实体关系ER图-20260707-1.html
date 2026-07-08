@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>存储芯片周期实体关系 ER 图</title>
+  <script src="./vis-network.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --focus: #1d4ed8;
+      --danger: #dc2626;
+      --radius: 8px;
+      --left-width: 252px;
+      --right-width: 344px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 14px;
+      overflow: hidden;
+    }
+    button, input { font: inherit; }
+    button:focus-visible, input:focus-visible, summary:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    .app { height: 100%; display: flex; flex-direction: column; }
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 17px 22px 15px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .heading { min-width: 0; }
+    h1 { margin: 0; font-size: 20px; line-height: 1.3; letter-spacing: -0.01em; font-weight: 700; }
+    .subtitle { margin-top: 5px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 14px; max-width: 560px; color: #475569; font-size: 12px; line-height: 1.6; }
+    .stat { white-space: nowrap; }
+    .stat::before { content: ""; display: inline-block; width: 5px; height: 5px; margin: 0 7px 2px 0; border-radius: 50%; background: #94a3b8; }
+
+    .insight-bar {
+      flex: 0 0 auto;
+      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .insight { padding: 10px 18px; background: var(--surface); min-width: 0; }
+    .insight-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .04em; }
+    .insight-value { display: block; font-size: 14px; font-weight: 700; line-height: 1.35; }
+    .insight[data-tone="amber"] { box-shadow: inset 3px 0 #d97706; }
+    .insight[data-tone="teal"] { box-shadow: inset 3px 0 #0f766e; }
+    .insight[data-tone="blue"] { box-shadow: inset 3px 0 #2563eb; }
+
+    .scope-note {
+      flex: 0 0 auto;
+      padding: 8px 22px;
+      color: #475569;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .workspace {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: var(--left-width) minmax(0, 1fr) var(--right-width);
+    }
+    .sidebar, .inspector { min-height: 0; background: var(--surface); overflow-y: auto; }
+    .sidebar { border-right: 1px solid var(--border); padding: 15px 14px 18px; }
+    .inspector { border-left: 1px solid var(--border); }
+    .canvas-wrap { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); }
+    #network { position: absolute; inset: 0; }
+    .canvas-grain {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      opacity: .42;
+      background-image: radial-gradient(#cbd5e1 0.7px, transparent 0.7px);
+      background-size: 20px 20px;
+    }
+
+    .search-wrap { position: relative; margin-bottom: 10px; }
+    .search-icon { position: absolute; left: 10px; top: 10px; width: 15px; height: 15px; color: #64748b; pointer-events: none; }
+    #search { width: 100%; height: 36px; padding: 7px 32px 7px 32px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: #fff; color: var(--text); font-size: 13px; }
+    #search::placeholder { color: #94a3b8; }
+    #clear-search { position: absolute; right: 4px; top: 4px; display: none; width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: #64748b; cursor: pointer; border-radius: 6px; }
+    #clear-search:hover { background: #f1f5f9; color: var(--text); }
+    .search-results { display: none; position: absolute; z-index: 8; top: 40px; left: 0; right: 0; max-height: 260px; overflow-y: auto; padding: 5px; background: #fff; border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: 0 12px 26px rgba(15, 23, 42, .12); }
+    .search-results.open { display: block; }
+    .search-result { display: block; width: 100%; padding: 8px 9px; border: 0; border-radius: 6px; background: transparent; text-align: left; cursor: pointer; }
+    .search-result:hover, .search-result.active { background: var(--accent-soft); }
+    .result-label { display: block; color: var(--text); font-size: 12px; font-weight: 650; }
+    .result-meta { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .search-empty { padding: 10px; color: var(--muted); font-size: 12px; }
+
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 17px; }
+    .control-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; padding: 7px 9px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: #fff; color: #334155; font-size: 12px; font-weight: 650; cursor: pointer; }
+    .control-btn:hover { border-color: #94a3b8; background: #f8fafc; color: var(--text); }
+    .control-btn svg { width: 14px; height: 14px; }
+    .panel-title { margin: 17px 0 8px; color: #334155; font-size: 12px; font-weight: 750; letter-spacing: .04em; }
+    .panel-title:first-of-type { margin-top: 0; }
+    .filter-section { border-top: 1px solid var(--border); padding-top: 1px; }
+    .filter-section summary { margin: 0 -2px; padding: 11px 2px 7px; color: #334155; font-size: 12px; font-weight: 750; cursor: pointer; list-style: none; }
+    .filter-section summary::-webkit-details-marker { display: none; }
+    .filter-section summary::after { content: ""; float: right; width: 6px; height: 6px; margin: 3px 3px 0 0; border-right: 1.5px solid #64748b; border-bottom: 1.5px solid #64748b; transform: rotate(45deg); transition: transform .16s ease; }
+    .filter-section:not([open]) summary::after { margin-top: 6px; transform: rotate(-45deg); }
+    .filter-list { display: grid; gap: 2px; padding-bottom: 8px; }
+    .filter-label { display: flex; align-items: center; gap: 8px; min-height: 29px; padding: 4px 5px; border-radius: 6px; color: #475569; font-size: 12px; cursor: pointer; }
+    .filter-label:hover { background: #f8fafc; color: var(--text); }
+    .filter-label input { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); }
+
+    .legend { display: grid; gap: 4px; }
+    .legend-item { display: flex; align-items: center; gap: 8px; min-height: 27px; padding: 3px 5px; border: 0; border-radius: 6px; background: transparent; color: #475569; font-size: 11px; text-align: left; }
+    button.legend-item { width: 100%; cursor: pointer; }
+    button.legend-item:hover { background: #f8fafc; color: var(--text); }
+    .legend-item.off { opacity: .42; }
+    .legend-symbol { position: relative; flex: 0 0 18px; width: 18px; height: 15px; }
+    .legend-symbol.node-shape { border: 2px solid var(--symbol-stroke); background: var(--symbol-fill); border-radius: 4px; }
+    .legend-symbol[data-shape="ellipse"] { border-radius: 50%; }
+    .legend-symbol[data-shape="dot"] { width: 14px; height: 14px; margin: 0 2px; border-radius: 50%; }
+    .legend-symbol[data-shape="diamond"] { width: 13px; height: 13px; margin: 1px 2px; transform: rotate(45deg); border-radius: 2px; }
+    .legend-symbol[data-shape="triangle"] { width: 0; height: 0; border: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 15px solid var(--symbol-stroke); background: transparent; }
+    .legend-symbol[data-shape="star"] { border-radius: 50%; box-shadow: inset 0 0 0 3px var(--symbol-fill); }
+    .legend-symbol[data-shape="database"] { border-radius: 50% 50% 35% 35%; }
+    .legend-symbol.edge-line::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; border-top: 2px solid var(--symbol-stroke); }
+    .legend-symbol.edge-line[data-line="dashed"]::before { border-top-style: dashed; }
+    .legend-symbol.edge-line[data-line="dotted"]::before { border-top-style: dotted; }
+    .legend-symbol.edge-line::after { content: ""; position: absolute; right: 0; top: 4px; width: 5px; height: 5px; border-top: 2px solid var(--symbol-stroke); border-right: 2px solid var(--symbol-stroke); transform: rotate(45deg); }
+
+    .visible-count { margin-top: 14px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: #f8fafc; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .visible-count strong { color: #334155; font-weight: 700; }
+    .canvas-status { position: absolute; z-index: 2; left: 12px; bottom: 10px; max-width: calc(100% - 24px); padding: 6px 9px; border: 1px solid rgba(203, 213, 225, .9); border-radius: 6px; background: rgba(255, 255, 255, .9); color: #64748b; font-size: 10px; line-height: 1.4; pointer-events: none; backdrop-filter: blur(6px); }
+    .error-banner { display: none; position: absolute; z-index: 12; top: 14px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 28px)); padding: 11px 13px; border: 1px solid #fecaca; border-radius: var(--radius); background: #fef2f2; color: #991b1b; font-size: 12px; line-height: 1.5; }
+
+    .inspector-head { position: sticky; z-index: 3; top: 0; padding: 15px 16px 13px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--border); backdrop-filter: blur(7px); }
+    .inspector-kicker { color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    #detail-title { margin: 4px 0 0; font-size: 17px; line-height: 1.35; word-break: break-word; }
+    #detail-subtitle { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.45; word-break: break-word; }
+    #detail-badges { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+    .badge { display: inline-flex; align-items: center; min-height: 21px; padding: 3px 7px; border: 1px solid var(--border); border-radius: 999px; background: #f8fafc; color: #475569; font-size: 10px; font-weight: 650; }
+    .badge[data-tone="danger"] { border-color: #fecaca; background: #fef2f2; color: #b91c1c; }
+    .badge[data-tone="warn"] { border-color: #fde68a; background: #fffbeb; color: #a16207; }
+    .badge[data-tone="good"] { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+    .detail-body { padding: 2px 16px 24px; }
+    .empty-state { padding: 28px 4px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .detail-section { padding: 15px 0 13px; border-bottom: 1px solid var(--border); }
+    .detail-section h3 { margin: 0 0 10px; color: #334155; font-size: 12px; font-weight: 750; }
+    .kv { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px 10px; margin: 0; }
+    .kv dt { color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .kv dd { margin: 0; color: #1e293b; font-size: 11px; line-height: 1.55; word-break: break-word; white-space: pre-wrap; }
+    .list-value { display: flex; flex-wrap: wrap; gap: 4px; }
+    .mini-token { display: inline-block; padding: 2px 5px; border-radius: 4px; background: #f1f5f9; color: #475569; font-size: 10px; }
+    .dataset { border-bottom: 1px solid var(--border); }
+    .dataset summary { padding: 13px 0; color: #334155; font-size: 12px; font-weight: 750; cursor: pointer; list-style: none; }
+    .dataset summary::-webkit-details-marker { display: none; }
+    .dataset summary::after { content: "+"; float: right; color: #64748b; font-size: 15px; font-weight: 400; }
+    .dataset[open] summary::after { content: "−"; }
+    .record-list { display: grid; gap: 7px; padding: 0 0 13px; }
+    .record { padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; background: #f8fafc; }
+    .record-id { display: block; margin-bottom: 5px; color: #334155; font-size: 10px; font-weight: 750; }
+    .record-line { margin-top: 4px; color: #475569; font-size: 10px; line-height: 1.5; word-break: break-word; }
+    .record-line strong { color: #64748b; font-weight: 650; }
+    .record-empty { padding: 0 0 13px; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 1120px) {
+      :root { --left-width: 224px; --right-width: 306px; }
+      .topbar { gap: 15px; padding-inline: 17px; }
+      .stats { max-width: 410px; }
+    }
+    @media (max-width: 820px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100%; }
+      .topbar { display: block; }
+      .stats { justify-content: flex-start; max-width: none; margin-top: 10px; }
+      .insight-bar { grid-template-columns: 1fr; }
+      .workspace { display: grid; grid-template-columns: 1fr; }
+      .sidebar, .inspector { overflow: visible; border: 0; }
+      .sidebar { border-bottom: 1px solid var(--border); }
+      .canvas-wrap { min-height: 68vh; }
+      .inspector { border-top: 1px solid var(--border); }
+      .filter-sections { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0 12px; }
+      .legend { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .inspector-head { position: static; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="heading">
+        <h1 id="app-title"></h1>
+        <div class="subtitle" id="app-subtitle"></div>
+      </div>
+      <div class="stats" id="stats" aria-label="图谱统计"></div>
+    </header>
+    <section class="insight-bar" id="insight-bar" aria-label="核心结论"></section>
+    <div class="scope-note" id="scope-note"></div>
+    <main class="workspace">
+      <aside class="sidebar" aria-label="图谱控制">
+        <div class="search-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+          <input id="search" type="search" autocomplete="off" placeholder="搜索节点或关系" aria-label="搜索节点或关系">
+          <button id="clear-search" aria-label="清除搜索">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m7 7 10 10M17 7 7 17"></path></svg>
+          </button>
+          <div class="search-results" id="search-results" role="listbox"></div>
+        </div>
+        <div class="button-row">
+          <button class="control-btn" id="fit-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"></path></svg>
+            适配画布
+          </button>
+          <button class="control-btn" id="reset-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4v6h6M20 20v-6h-6"></path><path d="M5.1 15a8 8 0 0 0 13.5 2M18.9 9A8 8 0 0 0 5.4 7"></path></svg>
+            重置筛选
+          </button>
+        </div>
+        <div class="filter-sections" id="filter-sections"></div>
+        <div class="panel-title">图例</div>
+        <div class="legend" id="legend"></div>
+        <div class="visible-count" id="visible-count"></div>
+      </aside>
+      <section class="canvas-wrap" aria-label="交互关系图画布">
+        <div class="canvas-grain"></div>
+        <div id="network"></div>
+        <div class="error-banner" id="error-banner"></div>
+        <div class="canvas-status">滚轮缩放 · 拖动画布 · 点击节点或连线查看详情</div>
+      </section>
+      <aside class="inspector" aria-label="对象详情">
+        <div class="inspector-head">
+          <div class="inspector-kicker" id="detail-kicker">对象详情</div>
+          <h2 id="detail-title">请选择节点或连线</h2>
+          <div id="detail-subtitle">详情将显示在这里</div>
+          <div id="detail-badges"></div>
+        </div>
+        <div class="detail-body" id="detail-body">
+          <div class="empty-state">点击画布中的节点或连线，查看定义、状态、证据引用与使用边界。</div>
+        </div>
+      </aside>
+    </main>
+  </div>
+  <script id="graph-data" type="application/json">{"meta":{"type":"er","title":"存储芯片周期实体关系 ER 图","subtitle":"业务实体实例口径 · 数据截止 2026-07-07","scopeNote":"仅展示本次任务实际使用的 13 个业务实体和 17 条关系；孤立产业节点如实保留，不推断缺失关系。","stats":["13 个实体","17 条关系","15 verified","2 planned"],"initialSelection":"INST-P-DRAM"},"nodes":[{"id":"INST-IND-MEM","label":"全球存储芯片产业","category":"Industry","shape":"star","color":{"background":"#eef2ff","border":"#4f46e5","highlight":{"background":"#eef2ff","border":"#0f172a"},"hover":{"background":"#eef2ff","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"产业","badges":["verified","Industry"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-IND-MEM","实体类型":"产业 / Industry","名称":"全球存储芯片产业","规范名称":"Global Memory Semiconductor Industry","稳定标识":"industry:global_memory_semiconductor","分类":"semiconductor_memory","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05","SR-10"],"证据记录":["EV-01","EV-08"],"说明":"行业范围实例"}}]}},{"id":"INST-SEG-MEM","label":"存储芯片设计与制造","category":"Segment","shape":"square","color":{"background":"#e0f2fe","border":"#0284c7","highlight":{"background":"#e0f2fe","border":"#0f172a"},"hover":{"background":"#e0f2fe","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"产业链环节","badges":["verified","Segment"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-SEG-MEM","实体类型":"产业链环节 / Segment","名称":"存储芯片设计与制造","规范名称":"Memory Design and Manufacturing","稳定标识":"segment:memory_design_manufacturing","分类":"memory_value_chain","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05"],"证据记录":["EV-01","EV-02"],"说明":"承接DRAM/NAND/HBM产品环节"}}]}},{"id":"INST-P-HBM","label":"HBM","category":"Product","shape":"box","color":{"background":"#dbeafe","border":"#2563eb","highlight":{"background":"#dbeafe","border":"#0f172a"},"hover":{"background":"#dbeafe","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"产品","badges":["verified","Product"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-P-HBM","实体类型":"产品 / Product","名称":"HBM","规范名称":"High Bandwidth Memory","稳定标识":"product:hbm","分类":"DRAM_high_bandwidth","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05","SR-08","SR-12"],"证据记录":["EV-01","EV-09","EV-12"],"说明":"按HBM3E/HBM4代际差异在输入中说明"}}]}},{"id":"INST-P-DRAM","label":"通用DRAM","category":"Product","shape":"box","color":{"background":"#dbeafe","border":"#2563eb","highlight":{"background":"#dbeafe","border":"#0f172a"},"hover":{"background":"#dbeafe","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"产品","badges":["verified","Product"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-P-DRAM","实体类型":"产品 / Product","名称":"通用DRAM","规范名称":"Conventional DRAM","稳定标识":"product:conventional_dram","分类":"DRAM_conventional","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05","SR-06","SR-07"],"证据记录":["EV-02","EV-04","EV-05"],"说明":"含服务器、PC、手机等非HBM DRAM"}}]}},{"id":"INST-P-NAND","label":"NAND Flash","category":"Product","shape":"box","color":{"background":"#dbeafe","border":"#2563eb","highlight":{"background":"#dbeafe","border":"#0f172a"},"hover":{"background":"#dbeafe","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"产品","badges":["verified","Product"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-P-NAND","实体类型":"产品 / Product","名称":"NAND Flash","规范名称":"NAND Flash","稳定标识":"product:nand_flash","分类":"NAND","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05","SR-06","SR-09"],"证据记录":["EV-02","EV-07"],"说明":"按企业SSD与消费应用在输入中拆分"}}]}},{"id":"INST-AI-DC","label":"AI数据中心与加速计算","category":"Application","shape":"hexagon","color":{"background":"#ecfeff","border":"#0891b2","highlight":{"background":"#ecfeff","border":"#0f172a"},"hover":{"background":"#ecfeff","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"应用场景","badges":["verified","Application"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-AI-DC","实体类型":"应用场景 / Application","名称":"AI数据中心与加速计算","规范名称":"AI Data Center and Accelerated Computing","稳定标识":"application:ai_datacenter","分类":"AI_HPC","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05","SR-08","SR-09","SR-10"],"证据记录":["EV-01","EV-08","EV-09"],"说明":"AI训练与推理"}}]}},{"id":"INST-APP-SERVER","label":"通用服务器","category":"Application","shape":"hexagon","color":{"background":"#ecfeff","border":"#0891b2","highlight":{"background":"#ecfeff","border":"#0f172a"},"hover":{"background":"#ecfeff","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"应用场景","badges":["verified","Application"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-APP-SERVER","实体类型":"应用场景 / Application","名称":"通用服务器","规范名称":"General Purpose Server","稳定标识":"application:general_server","分类":"server","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-09"],"证据记录":["EV-01","EV-09"],"说明":"服务器DRAM与企业SSD需求"}}]}},{"id":"INST-APP-CONS","label":"PC与智能手机","category":"Application","shape":"hexagon","color":{"background":"#ecfeff","border":"#0891b2","highlight":{"background":"#ecfeff","border":"#0f172a"},"hover":{"background":"#ecfeff","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"应用场景","badges":["verified","Application"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-APP-CONS","实体类型":"应用场景 / Application","名称":"PC与智能手机","规范名称":"PC and Smartphone","稳定标识":"application:pc_smartphone","分类":"consumer_electronics","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-06","SR-11"],"证据记录":["EV-06","EV-11"],"说明":"需求破坏和配置调整观察对象"}}]}},{"id":"INST-C-MU","label":"Micron Technology","category":"Company","shape":"dot","color":{"background":"#f1f5f9","border":"#475569","highlight":{"background":"#f1f5f9","border":"#0f172a"},"hover":{"background":"#f1f5f9","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"公司","badges":["verified","Company"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-C-MU","实体类型":"公司 / Company","名称":"Micron Technology","规范名称":"Micron Technology Inc.","稳定标识":"company:NASDAQ_MU","分类":"memory_manufacturer","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-01","EV-02","EV-03","EV-06"],"说明":"原厂披露主体"}}]}},{"id":"INST-C-SS","label":"Samsung Electronics","category":"Company","shape":"dot","color":{"background":"#f1f5f9","border":"#475569","highlight":{"background":"#f1f5f9","border":"#0f172a"},"hover":{"background":"#f1f5f9","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"公司","badges":["verified","Company"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-C-SS","实体类型":"公司 / Company","名称":"Samsung Electronics","规范名称":"Samsung Electronics Co. Ltd.","稳定标识":"company:KRX_005930","分类":"memory_manufacturer","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-03"],"证据记录":["EV-10"],"说明":"原厂披露主体"}}]}},{"id":"INST-C-SKH","label":"SK hynix","category":"Company","shape":"dot","color":{"background":"#f1f5f9","border":"#475569","highlight":{"background":"#f1f5f9","border":"#0f172a"},"hover":{"background":"#f1f5f9","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"公司","badges":["verified","Company"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-C-SKH","实体类型":"公司 / Company","名称":"SK hynix","规范名称":"SK hynix Inc.","稳定标识":"company:KRX_000660","分类":"memory_manufacturer","范围":"global","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-04","SR-05","SR-12"],"证据记录":["EV-12","EV-13"],"说明":"原厂披露主体"}}]}},{"id":"INST-F-MU-TONG","label":"Micron Tongluo Fab","category":"ManufacturingFacility","shape":"diamond","color":{"background":"#ede9fe","border":"#7c3aed","highlight":{"background":"#ede9fe","border":"#0f172a"},"hover":{"background":"#ede9fe","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"制造设施","badges":["verified","ManufacturingFacility"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-F-MU-TONG","实体类型":"制造设施 / ManufacturingFacility","名称":"Micron Tongluo Fab","规范名称":"Micron Tongluo Fab","稳定标识":"facility:micron_tongluo","分类":"wafer_fab","范围":"Taiwan","有效期起":"2026-03-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-06"],"说明":"预计2027年中开始有意义出货"}}]}},{"id":"INST-F-MU-SG","label":"Micron Singapore HBM Advanced Packaging Facility","category":"ManufacturingFacility","shape":"diamond","color":{"background":"#ede9fe","border":"#7c3aed","highlight":{"background":"#ede9fe","border":"#0f172a"},"hover":{"background":"#ede9fe","border":"#0f172a"}},"borderWidth":2,"font":{"face":"Arial, PingFang SC, Microsoft YaHei, sans-serif","size":14,"color":"#0f172a"},"margin":10,"details":{"kind":"业务实体实例","subtitle":"制造设施","badges":["verified","ManufacturingFacility"],"sections":[{"title":"实体信息","keyValues":{"实例 ID":"INST-F-MU-SG","实体类型":"制造设施 / ManufacturingFacility","名称":"Micron Singapore HBM Advanced Packaging Facility","规范名称":"Micron Singapore HBM Advanced Packaging Facility","稳定标识":"facility:micron_singapore_hbm_packaging","分类":"advanced_packaging","范围":"Singapore","有效期起":"2025-01-01","有效期止":"持续有效","核验状态":"verified"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-06"],"说明":"预计2027H1起对HBM封装产能有意义贡献"}}]}}],"edges":[{"id":"REL-01","from":"INST-P-HBM","to":"INST-SEG-MEM","label":"产品归属环节","category":"productBelongsToSegment","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品归属环节","badges":["verified","productBelongsToSegment"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-01","关系类型":"productBelongsToSegment","定义":"产品归属某产业链环节。","源实体":"INST-P-HBM","目标实体":"INST-SEG-MEM","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05"],"证据记录":["EV-01"],"说明":"HBM属于存储芯片设计制造环节"}}]}},{"id":"REL-02","from":"INST-P-DRAM","to":"INST-SEG-MEM","label":"产品归属环节","category":"productBelongsToSegment","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品归属环节","badges":["verified","productBelongsToSegment"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-02","关系类型":"productBelongsToSegment","定义":"产品归属某产业链环节。","源实体":"INST-P-DRAM","目标实体":"INST-SEG-MEM","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05"],"证据记录":["EV-02"],"说明":"通用DRAM属于存储芯片设计制造环节"}}]}},{"id":"REL-03","from":"INST-P-NAND","to":"INST-SEG-MEM","label":"产品归属环节","category":"productBelongsToSegment","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品归属环节","badges":["verified","productBelongsToSegment"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-03","关系类型":"productBelongsToSegment","定义":"产品归属某产业链环节。","源实体":"INST-P-NAND","目标实体":"INST-SEG-MEM","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05"],"证据记录":["EV-02"],"说明":"NAND属于存储芯片设计制造环节"}}]}},{"id":"REL-04","from":"INST-P-HBM","to":"INST-AI-DC","label":"产品用于应用","category":"productUsedInApplication","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品用于应用","badges":["verified","productUsedInApplication"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-04","关系类型":"productUsedInApplication","定义":"产品被用于某个稳定的下游应用或终端场景。","源实体":"INST-P-HBM","目标实体":"INST-AI-DC","关系范围":"AI accelerators","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-05","SR-08"],"证据记录":["EV-09"],"说明":"HBM用于AI加速器"}}]}},{"id":"REL-05","from":"INST-P-DRAM","to":"INST-APP-SERVER","label":"产品用于应用","category":"productUsedInApplication","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品用于应用","badges":["verified","productUsedInApplication"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-05","关系类型":"productUsedInApplication","定义":"产品被用于某个稳定的下游应用或终端场景。","源实体":"INST-P-DRAM","目标实体":"INST-APP-SERVER","关系范围":"server memory","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-03","SR-09"],"证据记录":["EV-09"],"说明":"通用DRAM用于服务器"}}]}},{"id":"REL-06","from":"INST-P-DRAM","to":"INST-APP-CONS","label":"产品用于应用","category":"productUsedInApplication","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品用于应用","badges":["verified","productUsedInApplication"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-06","关系类型":"productUsedInApplication","定义":"产品被用于某个稳定的下游应用或终端场景。","源实体":"INST-P-DRAM","目标实体":"INST-APP-CONS","关系范围":"PC and smartphone memory","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-06","SR-11"],"证据记录":["EV-11"],"说明":"通用DRAM用于PC和手机"}}]}},{"id":"REL-07","from":"INST-P-NAND","to":"INST-APP-SERVER","label":"产品用于应用","category":"productUsedInApplication","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品用于应用","badges":["verified","productUsedInApplication"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-07","关系类型":"productUsedInApplication","定义":"产品被用于某个稳定的下游应用或终端场景。","源实体":"INST-P-NAND","目标实体":"INST-APP-SERVER","关系范围":"enterprise SSD","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-06","SR-09"],"证据记录":["EV-07"],"说明":"NAND用于企业级SSD"}}]}},{"id":"REL-08","from":"INST-P-NAND","to":"INST-APP-CONS","label":"产品用于应用","category":"productUsedInApplication","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品用于应用","badges":["verified","productUsedInApplication"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-08","关系类型":"productUsedInApplication","定义":"产品被用于某个稳定的下游应用或终端场景。","源实体":"INST-P-NAND","目标实体":"INST-APP-CONS","关系范围":"client storage","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-06","SR-11"],"证据记录":["EV-11"],"说明":"NAND用于客户端和手机存储"}}]}},{"id":"REL-09","from":"INST-P-HBM","to":"INST-C-MU","label":"产品由公司生产","category":"productProducedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品由公司生产","badges":["verified","productProducedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-09","关系类型":"productProducedBy","定义":"产品由公司生产或经营。","源实体":"INST-P-HBM","目标实体":"INST-C-MU","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01"],"证据记录":["EV-01"],"说明":"Micron生产HBM"}}]}},{"id":"REL-10","from":"INST-P-DRAM","to":"INST-C-MU","label":"产品由公司生产","category":"productProducedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品由公司生产","badges":["verified","productProducedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-10","关系类型":"productProducedBy","定义":"产品由公司生产或经营。","源实体":"INST-P-DRAM","目标实体":"INST-C-MU","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01"],"证据记录":["EV-02"],"说明":"Micron生产DRAM"}}]}},{"id":"REL-11","from":"INST-P-NAND","to":"INST-C-MU","label":"产品由公司生产","category":"productProducedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品由公司生产","badges":["verified","productProducedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-11","关系类型":"productProducedBy","定义":"产品由公司生产或经营。","源实体":"INST-P-NAND","目标实体":"INST-C-MU","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01"],"证据记录":["EV-02"],"说明":"Micron生产NAND"}}]}},{"id":"REL-12","from":"INST-P-HBM","to":"INST-C-SS","label":"产品由公司生产","category":"productProducedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品由公司生产","badges":["verified","productProducedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-12","关系类型":"productProducedBy","定义":"产品由公司生产或经营。","源实体":"INST-P-HBM","目标实体":"INST-C-SS","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-03"],"证据记录":["EV-10"],"说明":"Samsung生产HBM"}}]}},{"id":"REL-13","from":"INST-P-HBM","to":"INST-C-SKH","label":"产品由公司生产","category":"productProducedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"产品由公司生产","badges":["verified","productProducedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-13","关系类型":"productProducedBy","定义":"产品由公司生产或经营。","源实体":"INST-P-HBM","目标实体":"INST-C-SKH","关系范围":"global","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-05","SR-12"],"证据记录":["EV-12"],"说明":"SK hynix生产HBM"}}]}},{"id":"REL-14","from":"INST-F-MU-TONG","to":"INST-C-MU","label":"设施由组织运营","category":"facilityOperatedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"设施由组织运营","badges":["verified","facilityOperatedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-14","关系类型":"facilityOperatedBy","定义":"制造设施由组织拥有、运营或控制。","源实体":"INST-F-MU-TONG","目标实体":"INST-C-MU","关系范围":"Taiwan","核验状态":"verified","有效期起":"2026-03-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-06"],"说明":"Micron运营Tongluo设施"}}]}},{"id":"REL-15","from":"INST-F-MU-SG","to":"INST-C-MU","label":"设施由组织运营","category":"facilityOperatedBy","status":"verified","color":{"color":"#64748b","highlight":"#0f172a","hover":"#334155"},"width":1.8,"dashes":false,"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"设施由组织运营","badges":["verified","facilityOperatedBy"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-15","关系类型":"facilityOperatedBy","定义":"制造设施由组织拥有、运营或控制。","源实体":"INST-F-MU-SG","目标实体":"INST-C-MU","关系范围":"Singapore","核验状态":"verified","有效期起":"2025-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-06"],"说明":"Micron运营Singapore HBM封装设施"}}]}},{"id":"REL-16","from":"INST-F-MU-TONG","to":"INST-P-DRAM","label":"设施生产产品","category":"facilityProducesProduct","status":"planned","color":{"color":"#d97706","highlight":"#0f172a","hover":"#334155"},"width":2.5,"dashes":[8,5],"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"设施生产产品","badges":["planned","facilityProducesProduct"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-16","关系类型":"facilityProducesProduct","定义":"制造设施具备生产或加工某类产品的稳定能力。","源实体":"INST-F-MU-TONG","目标实体":"INST-P-DRAM","关系范围":"future DRAM/HBM wafer output","核验状态":"planned","有效期起":"2027-06-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-06"],"说明":"未来能力；尚未构成实际供给观测"}}]}},{"id":"REL-17","from":"INST-F-MU-SG","to":"INST-P-HBM","label":"设施生产产品","category":"facilityProducesProduct","status":"planned","color":{"color":"#d97706","highlight":"#0f172a","hover":"#334155"},"width":2.5,"dashes":[8,5],"arrows":"to","smooth":{"enabled":true,"type":"cubicBezier","roundness":0.35},"font":{"size":10,"color":"#475569","strokeWidth":4,"strokeColor":"#ffffff","align":"middle"},"details":{"kind":"实际业务关系","subtitle":"设施生产产品","badges":["planned","facilityProducesProduct"],"sections":[{"title":"关系信息","keyValues":{"关系 ID":"REL-17","关系类型":"facilityProducesProduct","定义":"制造设施具备生产或加工某类产品的稳定能力。","源实体":"INST-F-MU-SG","目标实体":"INST-P-HBM","关系范围":"future advanced packaging capacity","核验状态":"planned","有效期起":"2027-01-01","有效期止":"持续有效"}},{"title":"证据留痕","keyValues":{"来源运行":["SR-01","SR-02"],"证据记录":["EV-06"],"说明":"未来能力；尚未构成实际供给观测"}}]}}],"filterSections":[{"title":"实体类型","items":[{"id":"node-Industry","label":"产业","target":"nodeCategory","value":"Industry","default":true},{"id":"node-Segment","label":"产业链环节","target":"nodeCategory","value":"Segment","default":true},{"id":"node-Product","label":"产品","target":"nodeCategory","value":"Product","default":true},{"id":"node-Application","label":"应用场景","target":"nodeCategory","value":"Application","default":true},{"id":"node-Company","label":"公司","target":"nodeCategory","value":"Company","default":true},{"id":"node-ManufacturingFacility","label":"制造设施","target":"nodeCategory","value":"ManufacturingFacility","default":true}]},{"title":"关系状态","items":[{"id":"status-verified","label":"verified · 已核验","target":"edgeStatus","value":"verified","default":true},{"id":"status-planned","label":"planned · 计划关系","target":"edgeStatus","value":"planned","default":true}]},{"title":"关系类型","collapsed":true,"items":[{"id":"edge-productBelongsToSegment","label":"产品归属环节","target":"edgeCategory","value":"productBelongsToSegment","default":true},{"id":"edge-productUsedInApplication","label":"产品用于应用","target":"edgeCategory","value":"productUsedInApplication","default":true},{"id":"edge-productProducedBy","label":"产品由公司生产","target":"edgeCategory","value":"productProducedBy","default":true},{"id":"edge-facilityOperatedBy","label":"设施由组织运营","target":"edgeCategory","value":"facilityOperatedBy","default":true},{"id":"edge-facilityProducesProduct","label":"设施生产产品","target":"edgeCategory","value":"facilityProducesProduct","default":true}]}],"legend":[{"label":"产业","shape":"star","fill":"#eef2ff","stroke":"#4f46e5","filterId":"node-Industry"},{"label":"产业链环节","shape":"square","fill":"#e0f2fe","stroke":"#0284c7","filterId":"node-Segment"},{"label":"产品","shape":"box","fill":"#dbeafe","stroke":"#2563eb","filterId":"node-Product"},{"label":"应用场景","shape":"hexagon","fill":"#ecfeff","stroke":"#0891b2","filterId":"node-Application"},{"label":"公司","shape":"dot","fill":"#f1f5f9","stroke":"#475569","filterId":"node-Company"},{"label":"制造设施","shape":"diamond","fill":"#ede9fe","stroke":"#7c3aed","filterId":"node-ManufacturingFacility"},{"label":"verified 关系","line":"solid","stroke":"#64748b","filterId":"status-verified"},{"label":"planned 关系","line":"dashed","stroke":"#d97706","filterId":"status-planned"}],"highlights":[],"resources":{},"networkOptions":{"layout":{"improvedLayout":true},"physics":{"enabled":true,"solver":"forceAtlas2Based","forceAtlas2Based":{"gravitationalConstant":-95,"centralGravity":0.012,"springLength":175,"springConstant":0.04,"damping":0.55,"avoidOverlap":1},"stabilization":{"enabled":true,"iterations":260,"fit":true}}}}</script>
+  <script>
+    (() => {
+      'use strict';
+      const CONFIG = JSON.parse(document.getElementById('graph-data').textContent);
+      const byId = (id) => document.getElementById(id);
+      const allFilters = CONFIG.filterSections.flatMap(section => section.items);
+      const filterState = new Map(allFilters.map(item => [item.id, item.default !== false]));
+      const nodeMap = new Map(CONFIG.nodes.map(item => [String(item.id), item]));
+      const edgeMap = new Map(CONFIG.edges.map(item => [String(item.id), item]));
+      let network = null;
+      let currentSearchResults = [];
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#039;');
+      }
+
+      function badgeTone(value) {
+        const text = String(value).toLowerCase();
+        if (/(blocked|not_counted|reject|失败|阻断)/.test(text)) return 'danger';
+        if (/(partial|planned|incomplete|limit|medium|观察|条件)/.test(text)) return 'warn';
+        if (/(verified|ready|counted|complete|met)/.test(text)) return 'good';
+        return '';
+      }
+
+      function showError(message) {
+        const banner = byId('error-banner');
+        banner.textContent = message;
+        banner.style.display = 'block';
+      }
+
+      function renderHeader() {
+        document.title = CONFIG.meta.title;
+        byId('app-title').textContent = CONFIG.meta.title;
+        byId('app-subtitle').textContent = CONFIG.meta.subtitle;
+        byId('scope-note').textContent = CONFIG.meta.scopeNote;
+        byId('stats').innerHTML = CONFIG.meta.stats.map(item => `<span class="stat">${escapeHtml(item)}</span>`).join('');
+        if (CONFIG.highlights?.length) {
+          const bar = byId('insight-bar');
+          bar.style.display = 'grid';
+          bar.innerHTML = CONFIG.highlights.map(item => `
+            <div class="insight" data-tone="${escapeHtml(item.tone)}">
+              <span class="insight-label">${escapeHtml(item.label)}</span>
+              <span class="insight-value">${escapeHtml(item.value)}</span>
+            </div>`).join('');
+        }
+      }
+
+      function filterEnabled(target, value) {
+        const matches = allFilters.filter(item => item.target === target && item.value === value);
+        return matches.length === 0 || matches.some(item => filterState.get(item.id));
+      }
+
+      function graphData() {
+        const visibleNodes = CONFIG.nodes.filter(item => filterEnabled('nodeCategory', item.category));
+        const visibleIds = new Set(visibleNodes.map(item => String(item.id)));
+        const visibleEdges = CONFIG.edges.filter(item =>
+          visibleIds.has(String(item.from)) &&
+          visibleIds.has(String(item.to)) &&
+          filterEnabled('edgeCategory', item.category) &&
+          filterEnabled('edgeStatus', item.status)
+        );
+        return { nodes: visibleNodes, edges: visibleEdges };
+      }
+
+      function refreshCounts(data = graphData()) {
+        byId('visible-count').innerHTML = `当前显示 <strong>${data.nodes.length}</strong> / ${CONFIG.nodes.length} 个节点<br>` +
+          `<strong>${data.edges.length}</strong> / ${CONFIG.edges.length} 条连线`;
+      }
+
+      function renderFilters() {
+        byId('filter-sections').innerHTML = CONFIG.filterSections.map((section, index) => `
+          <details class="filter-section" ${section.collapsed ? '' : 'open'}>
+            <summary>${escapeHtml(section.title)}</summary>
+            <div class="filter-list">
+              ${section.items.map(item => `
+                <label class="filter-label">
+                  <input type="checkbox" data-filter-id="${escapeHtml(item.id)}" ${filterState.get(item.id) ? 'checked' : ''}>
+                  <span>${escapeHtml(item.label)}</span>
+                </label>`).join('')}
+            </div>
+          </details>`).join('');
+        document.querySelectorAll('[data-filter-id]').forEach(input => {
+          input.addEventListener('change', event => {
+            const id = event.currentTarget.dataset.filterId;
+            filterState.set(id, event.currentTarget.checked);
+            applyFilters(true);
+          });
+        });
+      }
+
+      function legendSymbol(item) {
+        if (item.line) {
+          return `<span class="legend-symbol edge-line" data-line="${escapeHtml(item.line)}" style="--symbol-stroke:${escapeHtml(item.stroke)}"></span>`;
+        }
+        return `<span class="legend-symbol node-shape" data-shape="${escapeHtml(item.shape)}" style="--symbol-fill:${escapeHtml(item.fill)};--symbol-stroke:${escapeHtml(item.stroke)}"></span>`;
+      }
+
+      function renderLegend() {
+        byId('legend').innerHTML = CONFIG.legend.map(item => {
+          const tag = item.filterId ? 'button' : 'div';
+          const off = item.filterId && !filterState.get(item.filterId) ? ' off' : '';
+          const attrs = item.filterId ? `type="button" data-legend-filter="${escapeHtml(item.filterId)}"` : '';
+          return `<${tag} class="legend-item${off}" ${attrs}>${legendSymbol(item)}<span>${escapeHtml(item.label)}</span></${tag}>`;
+        }).join('');
+        document.querySelectorAll('[data-legend-filter]').forEach(button => {
+          button.addEventListener('click', event => {
+            const id = event.currentTarget.dataset.legendFilter;
+            filterState.set(id, !filterState.get(id));
+            const input = document.querySelector(`[data-filter-id="${CSS.escape(id)}"]`);
+            if (input) input.checked = filterState.get(id);
+            applyFilters(true);
+          });
+        });
+      }
+
+      function applyFilters(fit = false) {
+        if (!network) return;
+        const data = graphData();
+        network.setData(data);
+        renderLegend();
+        refreshCounts(data);
+        clearSearchResults();
+        if (fit) window.setTimeout(() => network.fit({ animation: { duration: 350, easingFunction: 'easeInOutQuad' } }), 30);
+      }
+
+      function formatValue(value) {
+        if (Array.isArray(value)) {
+          if (!value.length) return '<span class="muted">—</span>';
+          return `<span class="list-value">${value.map(item => `<span class="mini-token">${escapeHtml(item)}</span>`).join('')}</span>`;
+        }
+        if (value && typeof value === 'object') {
+          return escapeHtml(JSON.stringify(value, null, 2));
+        }
+        const text = String(value ?? '').trim();
+        return text ? escapeHtml(text) : '—';
+      }
+
+      function renderSections(sections) {
+        return (sections || []).map(section => {
+          const rows = Object.entries(section.keyValues || {}).map(([key, value]) => `
+            <dt>${escapeHtml(key)}</dt><dd>${formatValue(value)}</dd>`).join('');
+          return `<section class="detail-section"><h3>${escapeHtml(section.title)}</h3><dl class="kv">${rows}</dl></section>`;
+        }).join('');
+      }
+
+      function renderDataset(dataset) {
+        const resource = CONFIG.resources?.[dataset.resource] || {};
+        const records = dataset.ids.map(id => resource[id]).filter(Boolean);
+        const body = records.length ? `<div class="record-list">${records.map(record => {
+          const recordId = record[dataset.idField] || 'record';
+          const lines = dataset.summaryFields
+            .filter(field => record[field])
+            .map(field => `<div class="record-line"><strong>${escapeHtml(field)}</strong> ${escapeHtml(record[field])}</div>`)
+            .join('');
+          return `<article class="record"><span class="record-id">${escapeHtml(recordId)}</span>${lines}</article>`;
+        }).join('')}</div>` : '<div class="record-empty">本节点没有该类记录。</div>';
+        return `<details class="dataset"><summary>${escapeHtml(dataset.title)} · ${records.length}</summary>${body}</details>`;
+      }
+
+      function renderDetails(entity, entityType) {
+        const detail = entity.details || {};
+        byId('detail-kicker').textContent = entityType === 'edge' ? '连线详情' : '对象详情';
+        byId('detail-title').textContent = entity.label || detail.subtitle || entity.id;
+        byId('detail-subtitle').textContent = detail.kind || entity.id;
+        byId('detail-badges').innerHTML = (detail.badges || []).map(value => `<span class="badge" data-tone="${badgeTone(value)}">${escapeHtml(value)}</span>`).join('');
+        byId('detail-body').innerHTML = renderSections(detail.sections) + (detail.datasets || []).map(renderDataset).join('');
+      }
+
+      function selectEntity(kind, id, focus = false) {
+        const map = kind === 'node' ? nodeMap : edgeMap;
+        const entity = map.get(String(id));
+        if (!entity || !network) return;
+        renderDetails(entity, kind);
+        if (kind === 'node') {
+          network.selectNodes([id]);
+          if (focus) network.focus(id, { scale: 1.0, animation: { duration: 450, easingFunction: 'easeInOutQuad' } });
+        } else {
+          network.selectEdges([id]);
+        }
+      }
+
+      function searchHaystack(kind, item) {
+        return [kind, item.id, item.label, item.category, item.status, JSON.stringify(item.details || {})].join(' ').toLowerCase();
+      }
+
+      function clearSearchResults() {
+        currentSearchResults = [];
+        byId('search-results').classList.remove('open');
+        byId('search-results').innerHTML = '';
+      }
+
+      function runSearch() {
+        const query = byId('search').value.trim().toLowerCase();
+        byId('clear-search').style.display = query ? 'block' : 'none';
+        if (!query) return clearSearchResults();
+        const data = graphData();
+        const nodeIds = new Set(data.nodes.map(item => String(item.id)));
+        const edgeIds = new Set(data.edges.map(item => String(item.id)));
+        const matches = [
+          ...CONFIG.nodes.filter(item => nodeIds.has(String(item.id))).map(item => ({ kind: 'node', item })),
+          ...CONFIG.edges.filter(item => edgeIds.has(String(item.id))).map(item => ({ kind: 'edge', item })),
+        ].filter(entry => searchHaystack(entry.kind, entry.item).includes(query)).slice(0, 20);
+        currentSearchResults = matches;
+        const results = byId('search-results');
+        results.innerHTML = matches.length ? matches.map((entry, index) => `
+          <button class="search-result${index === 0 ? ' active' : ''}" role="option" data-search-kind="${entry.kind}" data-search-id="${escapeHtml(entry.item.id)}">
+            <span class="result-label">${escapeHtml(entry.item.label || entry.item.id)}</span>
+            <span class="result-meta">${entry.kind === 'node' ? '节点' : '连线'} · ${escapeHtml(entry.item.id)} · ${escapeHtml(entry.item.category || entry.item.status || '')}</span>
+          </button>`).join('') : '<div class="search-empty">当前筛选范围内没有匹配结果</div>';
+        results.classList.add('open');
+        results.querySelectorAll('[data-search-id]').forEach(button => {
+          button.addEventListener('click', event => {
+            const target = event.currentTarget;
+            selectEntity(target.dataset.searchKind, target.dataset.searchId, true);
+            clearSearchResults();
+          });
+        });
+      }
+
+      function resetAll() {
+        allFilters.forEach(item => filterState.set(item.id, item.default !== false));
+        byId('search').value = '';
+        byId('clear-search').style.display = 'none';
+        renderFilters();
+        applyFilters(true);
+        const initial = CONFIG.meta.initialSelection;
+        if (initial && nodeMap.has(String(initial))) window.setTimeout(() => selectEntity('node', initial, false), 90);
+      }
+
+      function initNetwork() {
+        if (typeof vis === 'undefined' || !vis.Network) {
+          showError('图形库加载失败：请确认 vis-network.min.js 与本 HTML 位于同一目录。');
+          return;
+        }
+        const options = {
+          autoResize: true,
+          interaction: {
+            hover: true,
+            tooltipDelay: 160,
+            hideEdgesOnDrag: false,
+            hideEdgesOnZoom: false,
+            keyboard: { enabled: true, bindToWindow: false },
+            multiselect: false,
+            navigationButtons: false,
+          },
+          nodes: { chosen: true, shadow: false },
+          edges: { chosen: true, selectionWidth: 1.6, hoverWidth: 0.7 },
+          ...CONFIG.networkOptions,
+        };
+        const data = graphData();
+        network = new vis.Network(byId('network'), data, options);
+        refreshCounts(data);
+        network.once('afterDrawing', () => {
+          network.fit({ animation: false });
+          const initial = CONFIG.meta.initialSelection;
+          if (initial && nodeMap.has(String(initial))) selectEntity('node', initial, false);
+        });
+        if (CONFIG.networkOptions?.physics?.enabled) {
+          network.once('stabilizationIterationsDone', () => network.fit({ animation: { duration: 420, easingFunction: 'easeInOutQuad' } }));
+        }
+        network.on('click', params => {
+          if (params.nodes.length) return selectEntity('node', params.nodes[0]);
+          if (params.edges.length) return selectEntity('edge', params.edges[0]);
+        });
+      }
+
+      renderHeader();
+      renderFilters();
+      renderLegend();
+      initNetwork();
+
+      byId('fit-btn').addEventListener('click', () => network?.fit({ animation: { duration: 400, easingFunction: 'easeInOutQuad' } }));
+      byId('reset-btn').addEventListener('click', resetAll);
+      byId('search').addEventListener('input', runSearch);
+      byId('search').addEventListener('focus', runSearch);
+      byId('search').addEventListener('keydown', event => {
+        if (event.key === 'Enter' && currentSearchResults.length) {
+          event.preventDefault();
+          const first = currentSearchResults[0];
+          selectEntity(first.kind, first.item.id, true);
+          clearSearchResults();
+        }
+        if (event.key === 'Escape') clearSearchResults();
+      });
+      byId('clear-search').addEventListener('click', () => {
+        byId('search').value = '';
+        byId('search').focus();
+        runSearch();
+      });
+      document.addEventListener('click', event => {
+        if (!event.target.closest('.search-wrap')) clearSearchResults();
+      });
+    })();
+  </script>
+</body>
+</html>
