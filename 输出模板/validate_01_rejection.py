@@ -44,7 +44,7 @@ REQUIRED_SECTIONS = [
 
 def validate(path: str | Path) -> dict[str, object]:
     path = Path(path)
-    parse_triplet(path, "不予受理说明")
+    parse_triplet(path, "不予受理说明", "01")
     meta, body = parse_markdown(path)
 
     require_keys(meta, REQUIRED_META, str(path))

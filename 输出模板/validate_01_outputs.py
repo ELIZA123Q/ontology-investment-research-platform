@@ -33,8 +33,19 @@ REQUIRED_META = [
     "normalized_question",
     "judgment_landing",
     "task_type",
+    "delivery_archetype",
+    "intended_use",
+    "not_allowed_use",
     "scope_summary",
 ]
+
+ALLOWED_DELIVERY_ARCHETYPES = {
+    "event_commentary",
+    "industry_dynamic_commentary",
+    "industry_cycle_report",
+    "company_earnings_commentary",
+    "theme_deep_dive",
+}
 
 REQUIRED_SECTIONS = [
     "研究目标、核心问题与判断落点",
@@ -59,7 +70,7 @@ FORBIDDEN_STAGE_MARKERS = [
 
 def validate(path: str | Path) -> dict[str, object]:
     path = Path(path)
-    parse_triplet(path, "投研需求说明")
+    parse_triplet(path, "投研需求说明", "01")
     meta, body = parse_markdown(path)
 
     require_keys(meta, REQUIRED_META, str(path))
@@ -73,6 +84,18 @@ def validate(path: str | Path) -> dict[str, object]:
     require_non_empty(meta["scope_summary"], "scope_summary")
     if not isinstance(meta["task_type"], dict) or not meta["task_type"].get("primary"):
         fail("task_type.primary 不得为空")
+    archetype = meta["delivery_archetype"]
+    if not isinstance(archetype, dict) or not archetype.get("primary"):
+        fail("delivery_archetype.primary 不得为空")
+    if archetype["primary"] not in ALLOWED_DELIVERY_ARCHETYPES:
+        fail(f"delivery_archetype.primary 非法: {archetype['primary']}")
+    for list_field in ["secondary", "modules"]:
+        if list_field in archetype and not isinstance(archetype[list_field], list):
+            fail(f"delivery_archetype.{list_field} 必须是列表")
+    if not isinstance(meta["intended_use"], list) or not meta["intended_use"]:
+        fail("intended_use 必须是非空列表")
+    if not isinstance(meta["not_allowed_use"], list) or not meta["not_allowed_use"]:
+        fail("not_allowed_use 必须是非空列表")
 
     require_body_sections(body, REQUIRED_SECTIONS, str(path))
     for marker in FORBIDDEN_STAGE_MARKERS:

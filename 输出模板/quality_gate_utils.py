@@ -15,6 +15,7 @@ QUALITY_STATUSES = {
     "minimum_pass",
     "high_quality_pass",
     "return_required",
+    "stop_with_gap_report",
 }
 
 

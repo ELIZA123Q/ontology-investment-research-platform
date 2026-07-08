@@ -153,11 +153,13 @@ def file_name(path: str | Path) -> str:
     return Path(path).name
 
 
-def parse_triplet(path: str | Path, kind: str) -> tuple[str, str, str]:
+def parse_triplet(path: str | Path, kind: str, stage: str | None = None) -> tuple[str, str, str]:
     name = file_name(path)
-    match = re.match(rf"^(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$", name)
+    prefix = rf"{re.escape(stage)}-" if stage else ""
+    match = re.match(rf"^{prefix}(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$", name)
     if not match:
-        fail(f"{name} 文件名必须为 <核心主题>{kind}-<YYYYMMDD>-<当日序号>")
+        expected = f"{stage}-<核心主题>{kind}-<YYYYMMDD>-<当日序号>" if stage else f"<核心主题>{kind}-<YYYYMMDD>-<当日序号>"
+        fail(f"{name} 文件名必须为 {expected}")
     return match.group("topic"), match.group("date"), match.group("seq")
 
 

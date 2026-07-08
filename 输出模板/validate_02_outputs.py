@@ -187,8 +187,8 @@ def _validate_view(view_path: Path) -> dict[str, object]:
 def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]:
     logic_path = Path(logic_path)
     view_path = Path(view_path)
-    logic_triplet = parse_triplet(logic_path, "研究逻辑")
-    view_triplet = parse_triplet(view_path, "本体视图")
+    logic_triplet = parse_triplet(logic_path, "研究逻辑", "02")
+    view_triplet = parse_triplet(view_path, "本体视图", "02")
     if logic_triplet != view_triplet:
         fail("02 研究逻辑与本体视图文件名核心主题、日期、序号必须一致")
 

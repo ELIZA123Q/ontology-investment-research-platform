@@ -4,12 +4,12 @@ metadata:
   task_id: JTASK-MEM-CYCLE-001
   execution_id: EXEC-MEM-CYCLE-20260707-1
   judgment_as_of: '2026-07-07T21:06:10+08:00'
-  report_ref: 存储芯片周期推理报告-20260707-1.md
-  source_01_ref: 存储芯片周期投研需求说明-20260707-1.md
-  source_02_logic_ref: 存储芯片周期研究逻辑-20260707-1.md
-  source_02_view_ref: 存储芯片周期本体视图-20260707-1.yaml
-  preparation_ref: 存储芯片周期数据与证据准备-20260707-1.md
-  snapshot_ref: 存储芯片周期数据与证据快照-20260707-1/manifest.csv
+  report_ref: 04-存储芯片周期推理报告-20260707-1.md
+  source_01_ref: 01-存储芯片周期投研需求说明-20260707-1.md
+  source_02_logic_ref: 02-存储芯片周期研究逻辑-20260707-1.md
+  source_02_view_ref: 02-存储芯片周期本体视图-20260707-1.yaml
+  preparation_ref: 03-存储芯片周期数据与证据准备-20260707-1.md
+  snapshot_ref: 03-存储芯片周期数据与证据快照-20260707-1/manifest.csv
   audit_status: complete
   quality_gate_ref: 00A_高质量产出判别标准.md#5.4
   quality_status: high_quality_pass
@@ -564,6 +564,486 @@ tracking_register:
   preferred_source: 公司披露、行业价格、客户材料
   frequency: 月度/季度
   action_after_trigger: 更新、降级、改判或退回 03
+handoff_to_05:
+  target_05_archetype: industry_cycle_report
+  target_05_quality: high_quality_pass
+  handoff_status: ready
+  output_ceiling: full_report
+  formal_report_allowed: true
+  report_title_candidates:
+  - title: 存储芯片不是同步强周期，而是 AI/HBM 驱动的结构性高位延续
+    title_style: judgment_sentence
+    linked_claim_ids:
+    - C-01
+    - C-02
+    - C-05
+  - title: 价格已兑现，存储周期下一步看 HBM 供给与库存订单共振
+    title_style: stage_judgment
+    linked_claim_ids:
+    - C-05
+    - C-06
+  subtitle_candidates:
+  - 2026H2 的关键不是寻找统一见顶日，而是验证价格斜率、客户库存、订单兑现和 HBM 有效供给能否同步转向。
+  core_thesis_sentence: 本轮存储上行的主线不是 HBM、通用 DRAM、NAND 同步强周期，而是 AI/HBM 改变有效供给约束后的结构性高位延续。
+  one_page_summary_points:
+    current_view: 本轮存储上行处于结构性高位延续阶段，价格已经兑现，后续重点看斜率和库存订单。
+    market_difference: 市场容易按同步强周期或统一结束日理解，本文强调产品强弱和结束条件必须拆开。
+    dominant_mechanism: AI/HBM 占用先进 DRAM 晶圆和封装资源，改变通用 DRAM 有效供给响应。
+    strongest_and_weakest_objects: HBM 最强，服务器 DRAM 次强，企业级 NAND 分化偏强，消费端存储最弱。
+    next_1_2_quarter_validation: 2026H2 重点验证同口径价格斜率、客户库存、订单兑现和 HBM4 认证。
+    decision_gates: 价格连续下行、库存订单同步反转或新增合格供给提前兑现时下修判断。
+  section_plan:
+  - section_title: 核心判断
+    section_function: 先给出主判断并切开同步强周期误读
+    section_thesis: 本轮周期应写成 AI/HBM 驱动的结构性高位延续，而不是同步强周期。
+    approved_claim_ids:
+    - C-01
+    - C-02
+    - C-05
+    evidence_ids:
+    - EV-01
+    - EV-04
+    - EV-09
+    chart_ids:
+    - FIG-01
+    - FIG-02
+    table_ids:
+    - TAB-01
+    required_caveats:
+    - 不写统一强景气阶段
+    prohibited_expressions:
+    - 三类产品同步强周期已确认
+  - section_title: 预期差
+    section_function: 说明市场可能如何误读及本文差异
+    section_thesis: 价格强不等于产品同步，AI 拉动也不等于所有存储产品同向强。
+    approved_claim_ids:
+    - C-01
+    - C-04
+    evidence_ids:
+    - EV-05
+    - EV-22
+    - EV-29
+    chart_ids: []
+    table_ids:
+    - TAB-01
+    required_caveats:
+    - 企业级 NAND 不得外推为全 NAND 强
+    prohibited_expressions:
+    - AI 拉动所有存储产品
+  - section_title: 证据推进
+    section_function: 用价格和供给约束数据压实主线
+    section_thesis: 价格已经兑现，HBM 晶圆投入占比上升解释了有效供给约束。
+    approved_claim_ids:
+    - C-03
+    - C-05
+    evidence_ids:
+    - EV-04
+    - EV-09
+    - EV-16
+    chart_ids:
+    - FIG-01
+    - FIG-02
+    table_ids: []
+    required_caveats:
+    - HBM 晶圆投入占比为预测值
+    prohibited_expressions:
+    - HBM 挤占比例已经跨厂精确确认
+  - section_title: 强弱排序
+    section_function: 把产品分化写成研究含义明确的排序
+    section_thesis: HBM 最强、服务器 DRAM 次强、企业级 NAND 分化偏强、消费端存储最弱。
+    approved_claim_ids:
+    - C-01
+    - C-02
+    - C-04
+    evidence_ids:
+    - EV-01
+    - EV-09
+    - EV-17
+    - EV-22
+    - EV-29
+    chart_ids: []
+    table_ids:
+    - TAB-01
+    required_caveats:
+    - 排序不是投资排序或收益排序
+    prohibited_expressions:
+    - 强弱排序等同推荐顺序
+  - section_title: 周期如何结束
+    section_function: 把结束判断写成信号共振而非日期预测
+    section_thesis: 2027H2—2028 是供给正常化验证窗口，不是确定见顶日。
+    approved_claim_ids:
+    - C-06
+    evidence_ids:
+    - EV-06
+    - EV-07
+    - EV-43
+    - EV-44
+    chart_ids:
+    - FIG-03
+    table_ids:
+    - TAB-02
+    required_caveats:
+    - 客户库存、订单取消率、良率和认证仍需持续补证
+    prohibited_expressions:
+    - 2027H2 至 2028 确定结束
+  market_common_view: 市场容易把存储芯片理解为 HBM、通用 DRAM、NAND 同步上行的强周期，或把 2027H2—2028 的供给线索直接理解为周期结束窗口。
+  differentiated_view: 本次判断更适合写成 AI/HBM 驱动的结构性高位延续；产品强弱、价格兑现和结束条件必须拆开，而不是合并成同步强周期。
+  why_now: 2026H2 进入价格斜率、客户库存、订单兑现和 HBM4 认证的共同验证期，足以检验本轮上行是延续、正常化还是提前见顶。
+  misread_risks:
+  - 把传统 DRAM 合约价大幅上行误读为所有存储产品同步强景气。
+  - 把企业级 SSD 需求强误读为全 NAND 需求同向强。
+  - 把新增供给时间表误读为确定周期结束日。
+  narrative_spine: 先指出市场同步周期理解的偏差，再用价格兑现、HBM 晶圆占用、原厂库存、企业级与消费端分化推进证据，最后落到 2026H2 的验证信号和 2027H2—2028 的条件式正常化窗口。
+  evidence_progression:
+  - step: 价格已兑现
+    evidence_summary: 传统 DRAM 合约价 2026Q1 大幅上行且 2026Q2E 仍处高位，Micron DRAM/NAND 实现价也明显改善。
+    supports_claim_ids:
+    - C-05
+  - step: AI/HBM 改变有效供给约束
+    evidence_summary: HBM 在前三大 DRAM 晶圆投入占比预计从 2026 年 22% 升至 2027 年 30%，强化高端供给挤占解释。
+    supports_claim_ids:
+    - C-02
+    - C-03
+  - step: 产品间出现强弱排序
+    evidence_summary: HBM 和服务器 DRAM 强于企业级 NAND，消费端存储证据最弱，不能合并为同步强周期。
+    supports_claim_ids:
+    - C-01
+    - C-04
+  - step: 结束窗口条件化
+    evidence_summary: 2027H2—2028 的供给线索需要良率、客户认证和稳定量产共同验证。
+    supports_claim_ids:
+    - C-06
+  object_strength_ranking:
+  - rank: 1
+    object: HBM
+    strength_label: 最强
+    rationale: AI 需求、HBM 认证和封装约束共同支撑结构性偏紧，且晶圆投入占比继续上升。
+    linked_claim_ids:
+    - C-02
+    - C-03
+  - rank: 2
+    object: 服务器 DRAM
+    strength_label: 次强
+    rationale: 受服务器需求与 HBM 挤占共同支撑，价格和库存证据较强。
+    linked_claim_ids:
+    - C-01
+    - C-05
+  - rank: 3
+    object: 企业级 NAND
+    strength_label: 分化偏强
+    rationale: 企业级 SSD 需求与供给受限形成支撑，但不能外推到全部 NAND。
+    linked_claim_ids:
+    - C-04
+  - rank: 4
+    object: 消费端存储
+    strength_label: 最弱
+    rationale: 消费电子需求削弱构成反证，价格持续性需单独验证。
+    linked_claim_ids:
+    - C-04
+  front_section_caveats:
+  - section: 摘要
+    caveat: 摘要应先写基准判断和预期差，限制条件只保留为改判信号，不反复堆缺口。
+  - section: 图表与关键数据
+    caveat: 图表必须优先使用 DDC-01、DDC-04、DDC-06；DDC-02、DDC-03、DDC-05 只能作为辅助表格或限制说明。
+  approved_core_claims:
+  - claim_id: C-01
+    claim_text: 可按 HBM 非 HBM DRAM NAND 分产品给方向性阶段定位
+    expression_strength: medium_directional
+    confidence: medium
+    source_judgment_units:
+    - JU-01
+    evidence_anchors:
+    - EV-01
+    - EV-04
+    - EV-05
+    - EV-10
+    required_caveats:
+    - 不得合并为统一强景气阶段
+  - claim_id: C-02
+    claim_text: AI 服务器和 HBM 需求支持结构性偏紧方向
+    expression_strength: medium_directional
+    confidence: medium
+    source_judgment_units:
+    - JU-02
+    evidence_anchors:
+    - EV-01
+    - EV-09
+    - EV-18
+    - EV-48
+    required_caveats:
+    - 供应商展望不能等同全年实际交付
+  - claim_id: C-03
+    claim_text: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+    expression_strength: hypothesis
+    confidence: low
+    source_judgment_units:
+    - JU-03
+    evidence_anchors:
+    - EV-09
+    - EV-23
+    - EV-45
+    required_caveats:
+    - 缺跨厂量化挤占比例和统一有效产能
+  - claim_id: C-04
+    claim_text: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+    expression_strength: medium_directional
+    confidence: medium
+    source_judgment_units:
+    - JU-04
+    evidence_anchors:
+    - EV-07
+    - EV-11
+    - EV-29
+    - EV-47
+    required_caveats:
+    - 不得把企业级需求外推为全 NAND 需求
+  - claim_id: C-05
+    claim_text: 历史价格大幅上行已确认 斜率放缓只支持拐点观察
+    expression_strength: strong_directional
+    confidence: medium
+    source_judgment_units:
+    - JU-05
+    evidence_anchors:
+    - EV-02
+    - EV-04
+    - EV-16
+    - EV-46
+    - EV-47
+    required_caveats:
+    - HBM 同代际成交价不足 不得统一斜率
+  - claim_id: C-06
+    claim_text: 2027H2 至 2028 只能作为条件式缓解窗口
+    expression_strength: hypothesis
+    confidence: low
+    source_judgment_units:
+    - JU-06
+    evidence_anchors:
+    - EV-06
+    - EV-07
+    - EV-43
+    - EV-44
+    required_caveats:
+    - 未来良率和客户认证尚未发生
+  restricted_claims:
+  - claim_text: 统一完整周期结束日
+    allowed_expression: 只能作为暂不可判断、风险提示或待验证情景
+    reason: JU-07 为 insufficient，缺多层库存、订单取消和有效产能连续证据
+  prohibited_claims:
+  - claim_text: 三类产品同步强景气或统一结束日已确认
+    reason: 与 JU-01/JU-07 的证据上限不一致
+  required_caveats:
+  - 本稿不得输出个股评级、目标价、收益率预测或仓位建议
+  - 所有图表数据必须来自 03 快照，不得补造缺失值
+  chart_candidates:
+  - figure_id: Figure 1
+    figure_title: DRAM 合约价涨幅已处高位但二季度斜率放缓
+    intended_message: 支撑价格上行事实，同时提示未来斜率只能条件化跟踪
+    required_fields:
+    - period
+    - normalized_value
+    - source_id
+    available_fields:
+    - period
+    - indicator
+    - normalized_value
+    - source_id
+    source_data_candidate_ids:
+    - DDC-01
+    source_evidence_ids:
+    - EV-04
+    - EV-16
+    data_status: ready
+    usage_limit: 传统DRAM合约价，不代表 HBM 同代际价格
+  - figure_id: Figure 2
+    figure_title: HBM 晶圆投入占比继续上升，解释通用 DRAM 有效供给约束
+    intended_message: HBM 对前三大 DRAM 晶圆投入占比从 2026 年约 22% 升至 2027 年约 30%，支持 AI/HBM 驱动的结构性供给约束。
+    required_fields:
+    - period
+    - normalized_value
+    - source_id
+    available_fields:
+    - period
+    - indicator
+    - normalized_value
+    - source_id
+    source_data_candidate_ids:
+    - DDC-04
+    source_evidence_ids:
+    - EV-09
+    data_status: ready
+    usage_limit: 预测值，只能说明 HBM 占用方向和结构强度，不等于全行业有效供给释放
+  - figure_id: Figure 3
+    figure_title: 新增合格供给缓解窗口仍取决于认证和稳定量产
+    intended_message: 说明 2027H2 至 2028 只能作为条件式缓解窗口
+    required_fields:
+    - period
+    - normalized_fact
+    - source_id
+    available_fields:
+    - period
+    - normalized_fact
+    - source_id
+    source_data_candidate_ids:
+    - DDC-03
+    source_evidence_ids:
+    - EV-06
+    - EV-07
+    - EV-43
+    - EV-44
+    data_status: partial
+    usage_limit: 不能写成确定投产或周期结束日
+  chart_package:
+  - figure_id: FIG-01
+    suggested_title: DRAM 合约价涨幅高位回落，价格斜率进入观察窗口
+    chart_role: 价格阶段验证
+    intended_message: 价格上行已兑现，二季度预测涨幅仍高但斜率回落，后续应看同口径连续性。
+    data_candidate_ids:
+    - DDC-01
+    source_ids:
+    - SRC-07
+    - SRC-06
+    report_grade_status: report_grade_ready
+    usage_limit: 传统 DRAM 合约价，不代表 HBM 同代际成交价。
+  - figure_id: FIG-02
+    suggested_title: HBM 晶圆投入占比继续上升，通用 DRAM 有效供给承压
+    chart_role: 供给约束验证
+    intended_message: HBM 在前三大 DRAM 供应商晶圆投入中的占比从 2026 年底约 22% 升至 2027 年底约 30%，支持结构性供给约束。
+    data_candidate_ids:
+    - DDC-04
+    source_ids:
+    - SRC-08
+    report_grade_status: report_grade_ready
+    usage_limit: 预测值，只能说明 HBM 占用方向和结构强度。
+  - figure_id: FIG-03
+    suggested_title: 新增合格供给缓解窗口仍需认证兑现
+    chart_role: 改判信号
+    intended_message: 2027H2 至 2028 是条件式供给缓解窗口。
+    data_candidate_ids:
+    - DDC-03
+    source_ids:
+    - SRC-01
+    - SRC-02
+    - SRC-06
+    - SRC-14
+    report_grade_status: usable_with_caveat
+    usage_limit: 缺未来良率和客户认证；不得写成确定见顶时间。
+  table_candidates:
+  - table_id: Table 1
+    table_title: 产品强弱排序：HBM 最强，服务器 DRAM 次之，企业级 NAND 分化偏强，消费端最弱
+    intended_message: 将产品强弱排序前置为研报正文表，避免只做分类说明。
+    required_fields:
+    - object
+    - rank
+    - strength_label
+    - rationale
+    source_data_candidate_ids:
+    - DDC-06
+    source_evidence_ids:
+    - EV-01
+    - EV-05
+    - EV-09
+    - EV-17
+    - EV-22
+    - EV-28
+    - EV-29
+    data_status: ready
+    usage_limit: 强弱排序是研究表达排序，不是投资建议、收益排序或公司推荐
+  table_package:
+  - table_id: TAB-01
+    suggested_title: 产品强弱排序决定后续跟踪优先级
+    table_role: ranking
+    intended_message: 将产品强弱排序前置为研报正文表，避免只做分类说明。
+    row_objects:
+    - HBM
+    - 服务器DRAM
+    - 企业级NAND
+    - 消费端存储
+    source_data_candidate_ids:
+    - DDC-06
+    source_evidence_ids:
+    - EV-01
+    - EV-05
+    - EV-09
+    - EV-17
+    - EV-22
+    - EV-28
+    - EV-29
+    readiness: ready
+    usage_limit: 排序反映本次证据链下的需求强度、供给约束和价格兑现相对强弱；不是投资排序。
+  - table_id: TAB-02
+    suggested_title: 周期正常化信号表
+    table_role: decision_signal
+    intended_message: 把库存、订单、合格供给和价格斜率组织为改判跟踪表。
+    row_objects:
+    - 库存
+    - 订单
+    - 合格供给
+    - 价格
+    source_data_candidate_ids:
+    - DDC-03
+    - DDC-05
+    source_evidence_ids:
+    - EV-03
+    - EV-05
+    - EV-06
+    - EV-07
+    - EV-15
+    - EV-36
+    readiness: partial
+    usage_limit: 客户和渠道库存、订单取消率仍需补充，只能作为改判跟踪表。
+  decision_gates:
+  - gate_name: 多层库存同步累积
+    signal: 原厂、渠道、客户库存连续同向累积
+    threshold_or_condition: 连续两个时点出现同向累积
+    implication: 削弱结构性偏紧判断，必要时重跑 03/04
+  - gate_name: 新增合格供给兑现
+    signal: 良率、认证和稳定量产通过
+    threshold_or_condition: 关键设施通过客户认证并稳定供货
+    implication: 当前判断转入高位正常化
+  tracking_items:
+  - item: DRAM/NAND 同口径价格
+    indicator: 合约价、实现价、现货价
+    frequency: 月度/季度
+    source: 公司 ASP、TrendForce
+    related_claim_id: C-05
+  - item: HBM 认证和封装产能
+    indicator: HBM4 认证、封装产能、客户部署
+    frequency: 月度/事件触发
+    source: 公司公告、客户材料
+    related_claim_id: C-02
+  tracking_dashboard:
+  - tracking_item: 价格斜率
+    object: 通用 DRAM / NAND
+    indicator: 合约价、实现价、现货价同口径连续变化
+    source: TrendForce、公司 ASP
+    frequency: 月度/季度
+    related_claim_id: C-05
+    trigger_implication: 连续下行则从结构性高位延续转向正常化或见顶观察。
+  - tracking_item: HBM 认证与封装
+    object: HBM
+    indicator: HBM4 认证、封装产能、客户部署
+    source: 公司公告、客户材料、产业数据
+    frequency: 事件触发/月度
+    related_claim_id: C-02
+    trigger_implication: 认证和部署顺利会强化 HBM 主线；延迟则削弱结构性偏紧。
+  - tracking_item: 库存与订单质量
+    object: 服务器 DRAM / 企业级 NAND
+    indicator: 客户库存、渠道库存、订单取消率
+    source: 公司披露、客户材料、行业数据
+    frequency: 季度
+    related_claim_id: C-01
+    trigger_implication: 库存和订单同步反转时应下修当前判断。
+  expression_rules:
+    must_use:
+    - 结构性高位延续
+    - 价格已兑现，斜率进入观察窗口
+    - 2027H2—2028 是供给正常化验证窗口
+    must_avoid:
+    - 三类产品同步强周期已确认
+    - 统一周期结束日
+    - 投资排序、目标价、收益率预测或仓位建议
+    front_section_style: 先主张、后边界；摘要和核心观点不得反复堆限制，限制集中进入改判信号和风险提示。
+  confidence_ceiling: medium
 ontology_context:
   ontology_refs:
   - ontology_platform@1.0.0

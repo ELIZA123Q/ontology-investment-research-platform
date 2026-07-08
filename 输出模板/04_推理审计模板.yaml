@@ -5,12 +5,12 @@ metadata:
   task_id: ""
   execution_id: ""
   judgment_as_of: ""
-  report_ref: "<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md"
-  source_01_ref: "<核心主题>投研需求说明-<YYYYMMDD>-<当日序号>.md"
-  source_02_logic_ref: "<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
-  source_02_view_ref: "<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
-  preparation_ref: "<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md"
-  snapshot_ref: "<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/manifest.csv"
+  report_ref: "04-<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md"
+  source_01_ref: "01-<核心主题>投研需求说明-<YYYYMMDD>-<当日序号>.md"
+  source_02_logic_ref: "02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
+  source_02_view_ref: "02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
+  preparation_ref: "03-<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md"
+  snapshot_ref: "03-<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/manifest.csv"
   audit_status: draft
   quality_gate_ref: "00A_高质量产出判别标准.md#5.4"
   quality_status: draft
@@ -111,6 +111,136 @@ tracking_register:
     preferred_source: ""
     frequency: ""
     action_after_trigger: ""
+
+handoff_to_05:
+  target_05_archetype: "<event_commentary | industry_dynamic_commentary | industry_cycle_report | company_earnings_commentary | theme_deep_dive>"
+  target_05_quality: "<minimum_pass | high_quality_pass | return_required | stop_with_gap_report>"
+  handoff_status: "<ready | usable_with_caveat | not_ready>"
+  output_ceiling: "<full_report | limited_report | gap_report_only>"
+  formal_report_allowed: false
+  report_title_candidates:
+    - title: ""
+      title_style: "<judgment_sentence | event_judgment | stage_judgment>"
+      linked_claim_ids: ["C-01"]
+  subtitle_candidates:
+    - ""
+  core_thesis_sentence: ""
+  one_page_summary_points:
+    current_view: ""
+    market_difference: ""
+    dominant_mechanism: ""
+    strongest_and_weakest_objects: ""
+    next_1_2_quarter_validation: ""
+    decision_gates: ""
+  section_plan:
+    - section_title: ""
+      section_function: ""
+      section_thesis: ""
+      approved_claim_ids: ["C-01"]
+      evidence_ids: []
+      chart_ids: []
+      table_ids: []
+      required_caveats: []
+      prohibited_expressions: []
+  market_common_view: ""
+  differentiated_view: ""
+  why_now: ""
+  misread_risks:
+    - ""
+  narrative_spine: ""
+  evidence_progression:
+    - step: ""
+      evidence_summary: ""
+      supports_claim_ids: ["C-01"]
+  object_strength_ranking:
+    - rank: 1
+      object: ""
+      strength_label: ""
+      rationale: ""
+      linked_claim_ids: ["C-01"]
+  front_section_caveats:
+    - section: ""
+      caveat: ""
+  approved_core_claims:
+    - claim_id: "C-01"
+      claim_text: ""
+      expression_strength: "<strong_directional | medium_directional | observation | hypothesis>"
+      confidence: "<high | medium | low>"
+      source_judgment_units: ["JU-01"]
+      evidence_anchors: []
+      required_caveats: []
+  restricted_claims:
+    - claim_text: ""
+      allowed_expression: "只能作为观察项/风险提示/情景条件"
+      reason: ""
+  prohibited_claims:
+    - claim_text: ""
+      reason: ""
+  required_caveats: []
+  chart_candidates:
+    - figure_id: "Figure 1"
+      figure_title: ""
+      intended_message: ""
+      required_fields: []
+      available_fields: []
+      source_data_candidate_ids: []
+      source_evidence_ids: []
+      data_status: "<ready | partial | missing>"
+      usage_limit: ""
+  chart_package:
+    - figure_id: "FIG-01"
+      suggested_title: ""
+      chart_role: ""
+      intended_message: ""
+      data_candidate_ids: []
+      source_ids: []
+      report_grade_status: "<report_grade_ready | usable_with_caveat | not_report_grade>"
+      usage_limit: ""
+  table_candidates:
+    - table_id: "Table 1"
+      table_title: ""
+      intended_message: ""
+      required_fields: []
+      source_data_candidate_ids: []
+      source_evidence_ids: []
+      data_status: "<ready | partial | missing>"
+      usage_limit: ""
+  table_package:
+    - table_id: "TAB-01"
+      suggested_title: ""
+      table_role: ""
+      intended_message: ""
+      row_objects: []
+      source_data_candidate_ids: []
+      source_evidence_ids: []
+      readiness: "<ready | partial | missing>"
+      usage_limit: ""
+  decision_gates:
+    - gate_name: ""
+      signal: ""
+      threshold_or_condition: ""
+      implication: ""
+  tracking_items:
+    - item: ""
+      indicator: ""
+      frequency: ""
+      source: ""
+      related_claim_id: "C-01"
+  tracking_dashboard:
+    - tracking_item: ""
+      object: ""
+      indicator: ""
+      source: ""
+      frequency: ""
+      related_claim_id: "C-01"
+      trigger_implication: ""
+  expression_rules:
+    must_use:
+      - ""
+    must_avoid:
+      - ""
+    front_section_style: "先主张、后边界；摘要和核心观点不得反复堆限制"
+  confidence_ceiling: "<high | medium | low>"
 
 ontology_context:
   ontology_refs: []
