@@ -123,7 +123,7 @@ layer_model:
     may_depend_on: [semantic, evidence]
 
 object_role_families:
-  stable_semantics: [Concept, Organization, Company, Industry, Segment, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+  stable_semantics: [Concept, Organization, Company, Industry, Segment, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
   evidence: [SourceDocument, EvidenceClaim, EvidenceFact]
   state_and_fact: [StateVariable, Observation, Event]
   hypothesis_and_judgment: [Hypothesis, Signal, Judgment]

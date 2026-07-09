@@ -135,6 +135,8 @@ object_types:
 relation_type_extensions:
   conceptMapsToObject:
     add_target_types: [TechnologyRoute, ManufacturingFacility]
+  identifierIdentifiesObject:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
   upstreamOf:
     add_source_types: [TechnologyRoute]
     add_target_types: [TechnologyRoute]
@@ -142,6 +144,8 @@ relation_type_extensions:
     add_source_types: [TechnologyRoute, ManufacturingFacility]
     add_target_types: [TechnologyRoute, Product, Material, ProcessStep]
   assetExposedTo:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  roleAppliesToObject:
     add_target_types: [TechnologyRoute, ManufacturingFacility]
 
 relation_types:

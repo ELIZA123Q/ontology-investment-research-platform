@@ -82,7 +82,7 @@ relation_types:
     name: 主张涉及对象
     description: 主张涉及某个稳定语义对象；状态变量通过推理域的观测或事件间接关联。
     source_types: [EvidenceClaim]
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     direction: directed
     cardinality: many_to_many
     evidence_required: false
@@ -104,7 +104,7 @@ relation_types:
     name: 事实涉及对象
     description: 事实候选描述某个稳定语义对象；状态变量通过推理域的观测或事件间接关联。
     source_types: [EvidenceFact]
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     direction: directed
     cardinality: many_to_many
     evidence_required: false

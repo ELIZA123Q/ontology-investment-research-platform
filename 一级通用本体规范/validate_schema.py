@@ -204,9 +204,30 @@ class Validator:
             if self.schemas[name].get("schema_version") != version:
                 self.error(f"{name} expected schema_version {version}")
 
-        for object_id in ("Region", "Application", "Organization", "PolicyInstrument"):
+        for object_id in (
+            "Region",
+            "Application",
+            "Organization",
+            "PolicyInstrument",
+            "FinancialInstrument",
+            "Identifier",
+            "IdentificationScheme",
+            "TradingVenue",
+            "Listing",
+            "RoleAssignment",
+        ):
             if object_id not in semantic.get("object_types", {}):
                 self.error(f"semantic.yaml missing {object_id}")
+        if "companyLinkedToAsset" in semantic.get("relation_types", {}):
+            self.error("semantic.yaml must not retain companyLinkedToAsset")
+        for object_id, forbidden_property in (
+            ("Asset", "symbol"),
+            ("TradingVenue", "marketIdentifier"),
+            ("Listing", "listedSymbol"),
+        ):
+            properties = semantic.get("object_types", {}).get(object_id, {}).get("properties", {})
+            if forbidden_property in properties:
+                self.error(f"semantic.yaml:{object_id} must use Identifier instead of {forbidden_property}")
         for relation_id in (
             "subRegionOf",
             "companyOperatesInRegion",
@@ -221,6 +242,24 @@ class Validator:
             "policyAdministeredBy",
             "policyAppliesIn",
             "policyAppliesTo",
+            "identifierIdentifiesObject",
+            "identifierDefinedInScheme",
+            "identifierIssuedBy",
+            "schemeManagedBy",
+            "assetIssuedBy",
+            "assetRepresentsClaimOn",
+            "assetHasUnderlier",
+            "assetManagedBy",
+            "assetGuaranteedBy",
+            "financialInstrumentDenominatedIn",
+            "assetListedVia",
+            "listingListsAsset",
+            "listingOnTradingVenue",
+            "tradingVenueOperatedBy",
+            "tradingVenueOperatesInRegion",
+            "rolePlayedBy",
+            "roleInContext",
+            "roleAppliesToObject",
         ):
             if relation_id not in semantic.get("relation_types", {}):
                 self.error(f"semantic.yaml missing {relation_id}")
@@ -252,7 +291,7 @@ class Validator:
             targets = evidence.get("relation_types", {}).get(relation_id, {}).get("target_types", [])
             if "StateVariable" in targets:
                 self.error(f"evidence.yaml:{relation_id} must not target StateVariable")
-            for required_target in ("Organization", "PolicyInstrument"):
+            for required_target in ("Organization", "PolicyInstrument", "FinancialInstrument", "Identifier", "TradingVenue", "Listing", "RoleAssignment"):
                 if required_target not in targets:
                     self.error(f"evidence.yaml:{relation_id} missing target: {required_target}")
 
@@ -268,7 +307,7 @@ class Validator:
 
         for relation_id in ("variableAnchoredOn", "eventAnchoredOn", "expectationAbout"):
             targets = reasoning.get("relation_types", {}).get(relation_id, {}).get("target_types", [])
-            for required_target in ("Organization", "PolicyInstrument"):
+            for required_target in ("Organization", "PolicyInstrument", "FinancialInstrument", "Identifier", "TradingVenue", "Listing", "RoleAssignment"):
                 if required_target not in targets:
                     self.error(f"reasoning.yaml:{relation_id} missing target: {required_target}")
 
@@ -405,12 +444,29 @@ class Validator:
         for retained in ("TechnologyRoute", "ManufacturingFacility"):
             if retained not in semantic.get("object_types", {}):
                 self.error(f"semiconductor semantic schema lost retained object: {retained}")
+        reused_semantic = set(common.get("inheritance", {}).get("platform_resources_reused", {}).get("semantic_objects", []))
+        for required_object in (
+            "FinancialInstrument",
+            "Identifier",
+            "IdentificationScheme",
+            "TradingVenue",
+            "Listing",
+            "RoleAssignment",
+        ):
+            if required_object not in reused_semantic:
+                self.error(f"semiconductor common.yaml missing reused platform object: {required_object}")
         for extension in ("Application", "Region"):
             if extension not in semantic.get("object_type_extensions", {}):
                 self.error(f"semiconductor semantic schema missing platform extension: {extension}")
         for relation_id in ("technologyRouteCanSubstituteFor", "facilityProducesMaterial"):
             if relation_id not in semantic.get("relation_types", {}):
                 self.error(f"semiconductor semantic schema missing relation: {relation_id}")
+        relation_extensions = semantic.get("relation_type_extensions", {})
+        for relation_id in ("identifierIdentifiesObject", "roleAppliesToObject"):
+            targets = relation_extensions.get(relation_id, {}).get("add_target_types", [])
+            for required_target in ("TechnologyRoute", "ManufacturingFacility"):
+                if required_target not in targets:
+                    self.error(f"semiconductor semantic.yaml:{relation_id} missing target extension: {required_target}")
         if "companyHeadquarteredIn" in semantic.get("relation_types", {}):
             self.error("semiconductor semantic schema must not retain companyHeadquarteredIn")
 
@@ -453,10 +509,10 @@ class Validator:
 
     def validate_docs_and_paths(self) -> None:
         required_docs = {
-            "00_投研本体框架概述.md": ("Organization", "PolicyInstrument", "ValidationRecord"),
-            "01_语义结构域规范.md": ("organizationLocatedIn", "policyIssuedBy", "companySuppliesCompany"),
-            "02_判断推理域规范.md": ("PolicyInstrument", "ValidationRecord", "impactUnderScenario"),
-            "03_证据域规范.md": ("sourcePublishedBy", "evidenceGroundsReasoning", "推理域拥有"),
+            "00_投研本体框架概述.md": ("Organization", "PolicyInstrument", "ValidationRecord", "FinancialInstrument", "Identifier"),
+            "01_语义结构域规范.md": ("organizationLocatedIn", "policyIssuedBy", "companySuppliesCompany", "assetIssuedBy", "identifierIdentifiesObject", "TradingVenue"),
+            "02_判断推理域规范.md": ("PolicyInstrument", "ValidationRecord", "impactUnderScenario", "FinancialInstrument", "Listing"),
+            "03_证据域规范.md": ("sourcePublishedBy", "evidenceGroundsReasoning", "推理域拥有", "FinancialInstrument", "Identifier"),
         }
         for filename, needles in required_docs.items():
             path = SPEC_DIR / filename

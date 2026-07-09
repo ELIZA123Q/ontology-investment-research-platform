@@ -132,7 +132,7 @@ object_types:
   Asset:
     id: Asset
     name: 资产
-    description: 判断最终可以关联的股票、债券、商品或其他资产标的。
+    description: 判断最终可以关联的股票、债券、商品、基金、指数、货币或其他资产标的；可发行、识别、上市或结算的金融合约使用子类型 FinancialInstrument。
     primary_key: id
     title_property: name
     validity: true
@@ -140,7 +140,79 @@ object_types:
       name: {type: string, required: true, description: 资产名称。}
       aliases: {type: array, required: false, description: 资产别名。}
       assetClass: {type: enum, required: true, allowed_values: [equity, bond, commodity, fund, index, currency, derivative, other], description: 资产类别。}
-      symbol: {type: string, required: false, description: 市场识别代码。}
+  FinancialInstrument:
+    id: FinancialInstrument
+    name: 金融工具
+    description: 具有合约、证券、基金份额、衍生品或其他金融工具身份，可被发行、识别、上市、结算或作为底层资产引用的资产；价格、估值、收益和交易动作不进入本对象。
+    extends: Asset
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      instrumentKind: {type: enum, required: true, allowed_values: [equity_security, debt_security, fund_share, derivative_contract, index_instrument, currency_instrument, commodity_contract, other], description: 金融工具的稳定类型。}
+      isNegotiable: {type: boolean, required: false, description: 是否具备可转让或可交易属性。}
+      issueJurisdictionRef: {type: object_ref, required: false, description: 发行或设立适用的 Region 引用。}
+      denominationCurrencyRef: {type: object_ref, required: false, description: 计价货币引用，通常指向 assetClass=currency 的 Asset。}
+      instrumentStatus: {type: enum, required: false, allowed_values: [active, suspended, matured, redeemed, delisted, inactive, unknown], description: 工具生命周期状态；时点价格和涨跌不进入该字段。}
+  Identifier:
+    id: Identifier
+    name: 识别码
+    description: 在某个识别体系或上下文中用于识别语义对象的代码、编号或符号；当代码体系、发布者或生命周期需要追踪时建成对象。
+    primary_key: id
+    title_property: value
+    validity: true
+    properties:
+      value: {type: string, required: true, description: 原始识别值。}
+      normalizedValue: {type: string, required: false, description: 规范化后的识别值。}
+      identifierKind: {type: enum, required: true, allowed_values: [ticker, isin, cusip, sedol, lei, mic, exchange_symbol, internal_code, regulatory_code, other], description: 识别码类型。}
+      validInContext: {type: string, required: false, description: 识别值适用的市场、辖区、交易场所或业务上下文。}
+  IdentificationScheme:
+    id: IdentificationScheme
+    name: 识别体系
+    description: 定义识别码规则、适用范围和管理主体的稳定体系，例如 ISIN、LEI、MIC、交易所代码或内部主数据编码。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 识别体系名称。}
+      aliases: {type: array, required: false, description: 识别体系别名或缩写。}
+      schemeKind: {type: enum, required: true, allowed_values: [security_identification, legal_entity_identification, market_identification, exchange_symbol, internal, regulatory, other], description: 识别体系类型。}
+      schemeCode: {type: string, required: false, description: 体系自身的稳定代码或缩写。}
+      jurisdictionRef: {type: object_ref, required: false, description: 体系适用的 Region 引用。}
+  TradingVenue:
+    id: TradingVenue
+    name: 交易场所
+    description: 可稳定识别的交易所、场外市场、替代交易系统或市场分段；运营主体使用关系连接，不与 Organization 混建同一身份。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 交易场所或市场分段名称。}
+      aliases: {type: array, required: false, description: 交易场所别名或缩写。}
+      venueKind: {type: enum, required: true, allowed_values: [exchange, otc_market, multilateral_trading_facility, alternative_trading_system, market_segment, other], description: 交易场所类型。}
+  Listing:
+    id: Listing
+    name: 上市挂牌
+    description: 金融工具在特定交易场所或市场分段上的上市、挂牌或交易准入安排；上市状态变化事件仍由推理域 Event 表达。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 上市或挂牌安排名称。}
+      listingStatus: {type: enum, required: true, allowed_values: [active, suspended, delisted, pending, unknown], description: 上市挂牌生命周期状态。}
+      primaryListing: {type: boolean, required: false, description: 是否为主要上市地或主挂牌安排。}
+  RoleAssignment:
+    id: RoleAssignment
+    name: 角色承担
+    description: 记录某一组织在特定对象或上下文中承担的稳定角色；用于区分实体身份与发行人、承销商、管理人、运营方、受益所有人等角色。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 角色承担记录名称。}
+      roleType: {type: enum, required: true, allowed_values: [issuer, underwriter, sponsor, guarantor, asset_manager, fund_manager, market_operator, beneficial_owner, shareholder, administrator, custodian, other], description: 组织承担的角色类型。}
+      contextType: {type: enum, required: true, allowed_values: [instrument_issuance, listing, ownership, market_operation, fund_operation, policy_administration, supply_chain, other], description: 角色成立的业务上下文。}
+      roleDescription: {type: string, required: false, description: 角色边界、职责或适用范围。}
 
 relation_types:
   conceptBroaderThan:
@@ -180,7 +252,7 @@ relation_types:
     name: 概念映射对象
     description: 概念映射到现实对象。
     source_types: [Concept]
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     direction: directed
     cardinality: many_to_many
     evidence_required: false
@@ -467,17 +539,6 @@ relation_types:
     evidence_required: true
     properties:
       competitionScope: {type: string, required: false, description: 竞争范围。}
-  companyLinkedToAsset:
-    id: companyLinkedToAsset
-    name: 公司映射资产
-    description: 公司与可交易资产之间的映射。
-    source_types: [Company]
-    target_types: [Asset]
-    direction: directed
-    cardinality: one_to_many
-    evidence_required: true
-    properties:
-      linkRole: {type: string, required: false, description: 发行、控制或其他映射角色。}
   assetExposedTo:
     id: assetExposedTo
     name: 资产业务暴露
@@ -489,6 +550,197 @@ relation_types:
     evidence_required: true
     properties:
       exposureType: {type: string, required: false, description: 暴露类别。}
+  identifierIdentifiesObject:
+    id: identifierIdentifiesObject
+    name: 识别码识别对象
+    description: 识别码在其适用体系或上下文中识别某个稳定语义对象。
+    source_types: [Identifier]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, TradingVenue, Listing, Region, Application, PolicyInstrument]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties:
+      identificationRole: {type: enum, required: false, allowed_values: [primary, secondary, historical, display, internal], description: 识别码对目标对象的使用角色。}
+  identifierDefinedInScheme:
+    id: identifierDefinedInScheme
+    name: 识别码属于体系
+    description: 识别码由某个识别体系定义或解释。
+    source_types: [Identifier]
+    target_types: [IdentificationScheme]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  identifierIssuedBy:
+    id: identifierIssuedBy
+    name: 识别码由组织签发
+    description: 识别码由具有权限的组织、编号机构、监管机构、交易场所或内部主数据机构签发、分配或维护。
+    source_types: [Identifier]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  schemeManagedBy:
+    id: schemeManagedBy
+    name: 识别体系由组织管理
+    description: 识别体系由某个组织管理、制定、维护或授权。
+    source_types: [IdentificationScheme]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      managementRole: {type: enum, required: false, allowed_values: [owner, administrator, registrar, regulator, standards_body, other], description: 组织对识别体系的管理角色。}
+  assetIssuedBy:
+    id: assetIssuedBy
+    name: 资产由组织发行
+    description: 金融工具由某个组织发行、设立或发起；发行人角色需要生命周期或职责边界时可进一步对象化为 RoleAssignment。
+    source_types: [FinancialInstrument]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    derived_inverse: issuerOfAsset
+    properties:
+      issuanceRole: {type: enum, required: false, allowed_values: [issuer, co_issuer, sponsor, originator, other], description: 组织在发行或设立中的角色。}
+  assetRepresentsClaimOn:
+    id: assetRepresentsClaimOn
+    name: 资产代表权利主张
+    description: 金融工具代表对某个组织、资产池或其他对象的权益、债权、份额、现金流或衍生敞口。
+    source_types: [FinancialInstrument]
+    target_types: [Organization, Asset]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      claimKind: {type: enum, required: true, allowed_values: [equity_interest, debt_claim, fund_interest, derivative_exposure, collateral_claim, other], description: 资产代表的权利或敞口类型。}
+  assetHasUnderlier:
+    id: assetHasUnderlier
+    name: 资产具有底层对象
+    description: 金融工具以某个资产、组织、产业、产品、材料、地区或应用作为底层对象、标的、指数成分口径或风险暴露来源。
+    source_types: [FinancialInstrument]
+    target_types: [Asset, Organization, Industry, Segment, Company, Product, Material, Region, Application]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      underlierRole: {type: enum, required: false, allowed_values: [underlier, constituent, reference_entity, collateral, exposure_bucket, other], description: 底层对象在该工具中的角色。}
+  assetManagedBy:
+    id: assetManagedBy
+    name: 资产由组织管理
+    description: 资产、基金份额或组合型金融工具由某个组织承担管理、运营、托管或顾问职责。
+    source_types: [Asset]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      managementRole: {type: enum, required: true, allowed_values: [asset_manager, fund_manager, administrator, custodian, advisor, operator, other], description: 组织对资产的管理角色。}
+  assetGuaranteedBy:
+    id: assetGuaranteedBy
+    name: 资产由组织担保
+    description: 金融工具由某个组织提供担保、增信、保险或其他信用支持。
+    source_types: [FinancialInstrument]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      guaranteeKind: {type: enum, required: false, allowed_values: [guarantee, credit_enhancement, insurance, liquidity_support, other], description: 信用支持类型。}
+  financialInstrumentDenominatedIn:
+    id: financialInstrumentDenominatedIn
+    name: 金融工具计价货币
+    description: 金融工具以某个货币资产作为计价、面值或结算币种；汇率、利率和价格变化进入推理域。
+    source_types: [FinancialInstrument]
+    target_types: [Asset]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  assetListedVia:
+    id: assetListedVia
+    name: 资产通过上市挂牌交易
+    description: 金融工具通过某个上市挂牌安排进入交易场所或市场分段。
+    source_types: [FinancialInstrument]
+    target_types: [Listing]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  listingListsAsset:
+    id: listingListsAsset
+    name: 上市挂牌列示资产
+    description: 上市挂牌安排列示或准入某个金融工具。
+    source_types: [Listing]
+    target_types: [FinancialInstrument]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  listingOnTradingVenue:
+    id: listingOnTradingVenue
+    name: 上市挂牌所在交易场所
+    description: 上市挂牌安排发生在某个交易场所或市场分段。
+    source_types: [Listing]
+    target_types: [TradingVenue]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  tradingVenueOperatedBy:
+    id: tradingVenueOperatedBy
+    name: 交易场所由组织运营
+    description: 交易场所或市场分段由某个组织运营、监管、维护或提供交易设施。
+    source_types: [TradingVenue]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      operationRole: {type: enum, required: false, allowed_values: [operator, regulator, facility_provider, administrator, other], description: 组织对交易场所的职责。}
+  tradingVenueOperatesInRegion:
+    id: tradingVenueOperatesInRegion
+    name: 交易场所运营地区
+    description: 交易场所或市场分段所在或适用的地理、经济区域或监管辖区。
+    source_types: [TradingVenue]
+    target_types: [Region]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      regionRole: {type: enum, required: false, allowed_values: [location, regulatory_jurisdiction, market_scope, other], description: 地区对交易场所的角色。}
+  rolePlayedBy:
+    id: rolePlayedBy
+    name: 角色由组织承担
+    description: 角色承担记录由某个组织或其子类型公司承担。
+    source_types: [RoleAssignment]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  roleInContext:
+    id: roleInContext
+    name: 角色所属上下文
+    description: 角色承担记录成立于某个金融工具、上市挂牌、交易场所或政策工具上下文。
+    source_types: [RoleAssignment]
+    target_types: [FinancialInstrument, Asset, Listing, TradingVenue, PolicyInstrument]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  roleAppliesToObject:
+    id: roleAppliesToObject
+    name: 角色作用对象
+    description: 当角色上下文与被作用对象不同，需要显式说明角色作用到哪个稳定对象。
+    source_types: [RoleAssignment]
+    target_types: [Organization, FinancialInstrument, Asset, Listing, TradingVenue, PolicyInstrument, Product, Material, ProcessStep, Industry, Segment, Application, Region]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      roleObjectScope: {type: string, required: false, description: 角色作用范围。}
 
 action_types:
   DefineConcept:
@@ -521,7 +773,7 @@ action_types:
     id: RegisterSemanticObject
     name: 登记语义对象
     description: 解析身份后创建稳定语义对象。
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     parameters: [objectType, name, description, properties]
     preconditions: [身份可解析且未重复]
     effects: [create_semantic_object]
@@ -529,12 +781,12 @@ action_types:
     rule_refs: [unique_identity, organization_kind_required]
     function_ref: ResolveEntityIdentity
     logic_refs: [ObjectIdentityResolutionLogic]
-    write_scope: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    write_scope: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
   ReviseSemanticObject:
     id: ReviseSemanticObject
     name: 修订语义对象
     description: 在不改变对象身份的前提下修订允许属性。
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     parameters: [objectRef, changedProperties, basis]
     preconditions: [对象存在且类型不变]
     effects: [update_allowed_properties]
@@ -542,12 +794,12 @@ action_types:
     rule_refs: [stable_semantics_only]
     function_ref: null
     logic_refs: []
-    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
   MergeSemanticObjects:
     id: MergeSemanticObjects
     name: 合并语义对象
     description: 合并被确认属于同一实体的同类型对象。
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     parameters: [primaryObjectRef, mergedObjectRefs, basis]
     preconditions: [对象同类型且身份一致]
     effects: [merge_properties, preserve_reference_mapping]
@@ -555,12 +807,12 @@ action_types:
     rule_refs: [unique_identity]
     function_ref: DetectDuplicateObject
     logic_refs: [ObjectIdentityResolutionLogic]
-    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
   DeprecateSemanticObject:
     id: DeprecateSemanticObject
     name: 废弃语义对象
     description: 终止对象当前定义的有效期并保留历史。
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
     parameters: [objectRef, reason, invalidAt]
     preconditions: [对象存在]
     effects: [set_validTo, mark_deprecated]
@@ -568,7 +820,7 @@ action_types:
     rule_refs: [stable_semantics_only]
     function_ref: null
     logic_refs: []
-    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
+    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
   CreateSemanticRelation:
     id: CreateSemanticRelation
     name: 创建语义关系

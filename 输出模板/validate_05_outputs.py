@@ -242,6 +242,48 @@ def _load_01(requirement_path: Path) -> dict[str, object]:
     return {"triplet": triplet, "meta": meta}
 
 
+FRONT_META_TABLE_MARKERS = [
+    "判断时点",
+    "数据截止日",
+    "报告性质",
+    "事件名称",
+    "事件时间",
+    "研究对象",
+    "覆盖行业",
+    "公司/标的",
+    "主题名称",
+    "财报期间",
+    "观察窗口",
+]
+
+
+def _front_matter_before_summary(body: str) -> str:
+    match = re.search(r"^##\s+一页摘要(?:\s|：|$).*$", body, re.M)
+    if not match:
+        return body
+    return body[: match.start()]
+
+
+def _has_front_meta_table(front: str) -> bool:
+    table_blocks = re.findall(r"(?:^\|.+\|\s*$)+", front, re.M)
+    for block in table_blocks:
+        if any(marker in block for marker in FRONT_META_TABLE_MARKERS):
+            return True
+    return False
+
+
+def _title_looks_like_topic_only(front: str) -> bool:
+    lines = [line.strip() for line in front.splitlines() if line.strip()]
+    if not lines or not lines[0].startswith("# "):
+        return False
+    title = lines[0][2:].strip()
+    weak_suffixes = ("研究", "分析", "报告", "点评", "概述", "说明")
+    judgment_markers = ("不是", "而是", "应", "不应", "需要", "主要", "关键", "驱动", "约束", "延续", "转向", "分化", "受益", "承压", "误读", "更")
+    if any(marker in title for marker in judgment_markers):
+        return False
+    return title.endswith(weak_suffixes) or len(title) <= 12
+
+
 def _validate_report_text(report_path: Path, archetype: str) -> str:
     body = read_text(report_path)
     if body.startswith("---\n"):
@@ -249,6 +291,11 @@ def _validate_report_text(report_path: Path, archetype: str) -> str:
     if "附录：内部追溯" in body or "系统留痕" in body or "A0. 后台元数据" in body:
         fail("05 不再包含系统留痕或内部追溯附录；追溯由 04 审计承担")
     require_body_sections(body, REQUIRED_REPORT_SECTIONS_BY_ARCHETYPE[archetype], str(report_path))
+    front = _front_matter_before_summary(body)
+    if _has_front_meta_table(front):
+        fail("05 一页摘要前不得放置判断时点/数据截止日等元信息表，应移到文末口径说明")
+    if _title_looks_like_topic_only(front):
+        fail("05 标题应是判断句，不能只是主题名或“xxx分析/研究/报告”")
     id_matches = sorted(set(FORBIDDEN_ID_RE.findall(body)))
     if id_matches:
         fail(f"05 正文不得出现本体/审计/证据编号: {', '.join(id_matches[:10])}")
@@ -256,8 +303,8 @@ def _validate_report_text(report_path: Path, archetype: str) -> str:
         if re.search(rf"\b{re.escape(token)}\b", body):
             fail(f"05 正文不得出现后台字段或质量门槛字段: {token}")
     _check_forbidden_terms(body)
-    front = _section_text(body, "一页摘要") + _section_text(body, "核心观点")
-    restriction_count = sum(front.count(phrase) for phrase in RESTRICTION_PHRASES)
+    summary_and_views = _section_text(body, "一页摘要") + _section_text(body, "核心观点")
+    restriction_count = sum(summary_and_views.count(phrase) for phrase in RESTRICTION_PHRASES)
     if restriction_count > 6:
         fail("05 摘要和核心观点中限制性表达过度前置，应集中到改判信号和风险提示")
     ranking_section = ""

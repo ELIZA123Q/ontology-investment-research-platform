@@ -1,0 +1,5 @@
+annotation_id,execution_id,source_id,evidence_ids,citation_phrase,source_type,published_at,business_time,data_scope,method_or_metric,supports_material_unit,usage_limit,permission_note
+ANN-01,EXEC-SEM-HORMUZ-20260708-1,SRC-01,EV-01,IEA相关公开评论称霍尔木兹承担全球约1/5海运石油量级,official_research,2026-04-01,2026H1,海峡石油物流,share_proxy,event_facts,约数,public
+ANN-02,EXEC-SEM-HORMUZ-20260708-1,SRC-05,EV-05|EV-06,Kornbluth Helium Consulting等线索称卡塔尔约占全球氦气约30%/1/3，并出现修复3—5年类表述,industry_consulting,2026-05-01,2026H1,全球氦气,supply_share_and_repair_horizon,capacity_supply,口径冲突保留,public_summary
+ANN-03,EXEC-SEM-HORMUZ-20260708-1,SRC-07,EV-08|EV-09,The Asia Group No Safe Harbor等材料讨论韩国约2/3氦气进口来自卡塔尔及先进制造暴露,policy_research,2026-05-20,2026H1,韩国/台湾,import_share,inventory_cycle,非厂内运营确认,public_summary
+ANN-04,EXEC-SEM-HORMUZ-20260708-1,SRC-08,EV-10|EV-11,腾讯新闻/赛迪等转述称中国进口氦气卡塔尔占比超60%，并常外推设备设计受益,media_relay,2026-05-25,2026H1,中国,relayed_share,object_mapping,三级转述，须标同源风险,public

@@ -92,7 +92,11 @@ ontology_sources:
     name: "<领域本体名称>"
     version: 1.0.0
     depends_on: ontology_platform
-    files: []
+    files:
+      - 二级半导体领域本体规范/common.yaml
+      - 二级半导体领域本体规范/semantic.yaml
+      - 二级半导体领域本体规范/evidence.yaml
+      - 二级半导体领域本体规范/reasoning.yaml
 
 judgment_units:
   - judgment_unit_id: "JU-01"
