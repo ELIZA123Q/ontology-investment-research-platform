@@ -38,7 +38,8 @@ evidence_admission:
 judgment_unit_gate_results:
   - judgment_unit_id: JU-01
     statement: ""
-    source_03_gate_ref: "judgment_unit_readiness.csv#JU-01"
+    source_03_gate_ref: "evidence_readiness_assessments.csv#ERA-01"
+    readiness_assessment_refs: ["ERA-01"]
     evidence_gate_status: "<met | partial | not_met | contested | blocked>"
     allowed_04_output: "<full_reasoning_ready | directional_only | conditional_only | insufficient | blocked | contested>"
     required_evidence_refs: []
@@ -67,6 +68,7 @@ claim_register:
     scope: ""
     time_horizon: ""
     linked_judgment_unit: JU-01
+    readiness_assessment_refs: ["ERA-01"]
     allowed_04_output: insufficient
     conclusion_level: insufficient_evidence
     confidence: low
@@ -167,6 +169,7 @@ handoff_to_05:
       expression_strength: "<strong_directional | medium_directional | observation | hypothesis>"
       confidence: "<high | medium | low>"
       source_judgment_units: ["JU-01"]
+      readiness_assessment_refs: ["ERA-01"]
       evidence_anchors: []
       required_caveats: []
   restricted_claims:

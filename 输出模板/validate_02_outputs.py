@@ -68,11 +68,36 @@ REQUIRED_VIEW_TOP = [
     "validation",
 ]
 
+SCHEMA_VERSION_02 = "1.1.0"
+JUDGMENT_TYPES = {
+    "industry_cycle_judgment",
+    "policy_impact_judgment",
+    "supply_chain_bottleneck_judgment",
+    "company_earnings_elasticity_judgment",
+    "valuation_rerating_judgment",
+    "event_impact_judgment",
+    "expectation_gap_judgment",
+    "risk_monitoring_judgment",
+}
+EVIDENCE_ROLE_KEYS = {
+    "primary_support",
+    "cross_validation",
+    "counter_evidence",
+    "blocking_condition",
+    "proxy_indicator",
+    "background_evidence",
+}
+EVIDENCE_ROLE_STATUSES = {"required", "optional", "allowed_with_limit", "not_allowed", "not_applicable"}
+EVIDENCE_ROLES = EVIDENCE_ROLE_KEYS
+REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
+QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
+SOURCE_TIERS = {"L1", "L2", "L3", "L4", "L5", "L6", "L7"}
+
 
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
     meta, body = parse_markdown(logic_path)
     require_keys(meta, REQUIRED_LOGIC_META, str(logic_path))
-    require_schema_version(meta["schema_version"], str(logic_path))
+    require_schema_version(meta["schema_version"], str(logic_path), expected=SCHEMA_VERSION_02)
     if meta["document_type"] != "research_logic":
         fail("02 研究逻辑 document_type 必须为 research_logic")
     if meta["stage_status"] != "aligned":
@@ -88,7 +113,7 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     if not isinstance(view, dict):
         fail("02 本体视图必须是 YAML 对象")
     require_keys(view, REQUIRED_VIEW_TOP, str(view_path))
-    require_schema_version(view["schema_version"], str(view_path))
+    require_schema_version(view["schema_version"], str(view_path), expected=SCHEMA_VERSION_02)
     if view["schema_name"] != "task_ontology_view":
         fail("02 本体视图 schema_name 必须为 task_ontology_view")
 
@@ -134,9 +159,18 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             unit,
             [
                 "judgment_unit_id",
+                "judgment_type",
                 "statement",
                 "linked_questions",
                 "linked_paths",
+                "required_evidence_roles",
+                "required_evidence_categories",
+                "required_counter_categories",
+                "candidate_evidence_recipe_tags",
+                "minimum_validation_conditions",
+                "forbidden_shortcuts",
+                "proxy_policy",
+                "evidence_gap_policy",
                 "minimum_verification_condition",
                 "required_counter_checks",
                 "downgrade_rule_if_not_met",
@@ -144,6 +178,26 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             ],
             f"judgment_units[{index}]",
         )
+        if str(unit["judgment_type"]) not in JUDGMENT_TYPES:
+            fail(f"{unit['judgment_unit_id']}.judgment_type 非法")
+        role_requirements = unit["required_evidence_roles"]
+        if not isinstance(role_requirements, dict) or not role_requirements:
+            fail(f"{unit['judgment_unit_id']}.required_evidence_roles 必须是非空对象")
+        unknown_role_keys = sorted(set(role_requirements) - EVIDENCE_ROLE_KEYS)
+        if unknown_role_keys:
+            fail(f"{unit['judgment_unit_id']}.required_evidence_roles 存在非法角色: {', '.join(unknown_role_keys)}")
+        invalid_role_statuses = sorted({str(value) for value in role_requirements.values() if str(value) not in EVIDENCE_ROLE_STATUSES})
+        if invalid_role_statuses:
+            fail(f"{unit['judgment_unit_id']}.required_evidence_roles 存在非法状态: {', '.join(invalid_role_statuses)}")
+        for list_field in [
+            "required_evidence_categories",
+            "required_counter_categories",
+            "candidate_evidence_recipe_tags",
+            "minimum_validation_conditions",
+            "forbidden_shortcuts",
+        ]:
+            if not isinstance(unit.get(list_field), list):
+                fail(f"{unit['judgment_unit_id']}.{list_field} 必须是列表")
         assert_subset(split_refs(unit["linked_questions"]), question_ids, f"{unit['judgment_unit_id']}.linked_questions")
         assert_values([str(unit["downgrade_rule_if_not_met"])], ALLOWED_04_OUTPUTS, f"{unit['judgment_unit_id']}.downgrade_rule_if_not_met")
 
@@ -171,10 +225,65 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     if not isinstance(evidence_requirements, list) or not evidence_requirements:
         fail("evidence_requirements 至少需要一项")
     for item in evidence_requirements:
-        require_keys(item, ["evidence_requirement_id", "linked_judgment_units", "evidence_profile", "minimum_standard"], "evidence_requirements[]")
-        assert_subset(split_refs(item["linked_judgment_units"]), judgment_unit_ids, f"{item['evidence_requirement_id']}.linked_judgment_units")
-        if "downgrade_if_missing" in item:
-            assert_values([str(item["downgrade_if_missing"])], ALLOWED_04_OUTPUTS, f"{item['evidence_requirement_id']}.downgrade_if_missing")
+        require_keys(
+            item,
+            [
+                "evidence_requirement_id",
+                "target_judgment_unit_id",
+                "requirement_purpose",
+                "evidence_role",
+                "required_evidence_category",
+                "required_content_domains",
+                "required_object_scope",
+                "required_time_scope",
+                "required_grain",
+                "minimum_quality_level",
+                "minimum_source_tier",
+                "minimum_independent_source_count",
+                "mandatory_baskets",
+                "counter_baskets",
+                "allowed_proxy",
+                "preferred_source_profiles",
+                "allowed_acquisition_channels",
+                "forbidden_sources",
+                "required_freshness",
+                "required_traceability",
+                "required_comparability",
+                "stop_condition",
+                "missing_policy",
+                "allowed_04_output_if_met",
+                "allowed_04_output_if_missing",
+            ],
+            "evidence_requirements[]",
+        )
+        req_id = item["evidence_requirement_id"]
+        assert_subset([str(item["target_judgment_unit_id"])], judgment_unit_ids, f"{req_id}.target_judgment_unit_id")
+        if str(item["requirement_purpose"]) not in REQUIREMENT_PURPOSES:
+            fail(f"{req_id}.requirement_purpose 非法")
+        if str(item["evidence_role"]) not in EVIDENCE_ROLES:
+            fail(f"{req_id}.evidence_role 非法")
+        if str(item["minimum_quality_level"]) not in QUALITY_LEVELS:
+            fail(f"{req_id}.minimum_quality_level 非法")
+        if str(item["minimum_source_tier"]) not in SOURCE_TIERS:
+            fail(f"{req_id}.minimum_source_tier 非法")
+        try:
+            if int(item["minimum_independent_source_count"]) < 0:
+                fail(f"{req_id}.minimum_independent_source_count 必须为非负整数")
+        except Exception:
+            fail(f"{req_id}.minimum_independent_source_count 必须为非负整数")
+        if not isinstance(item["allowed_proxy"], bool):
+            fail(f"{req_id}.allowed_proxy 必须是布尔值")
+        for list_field in [
+            "required_content_domains",
+            "mandatory_baskets",
+            "counter_baskets",
+            "preferred_source_profiles",
+            "allowed_acquisition_channels",
+            "forbidden_sources",
+        ]:
+            if not isinstance(item.get(list_field), list):
+                fail(f"{req_id}.{list_field} 必须是列表")
+        assert_values([str(item["allowed_04_output_if_met"]), str(item["allowed_04_output_if_missing"])], ALLOWED_04_OUTPUTS, f"{req_id}.allowed_04_output")
 
     return {
         "view": view,
@@ -207,7 +316,7 @@ def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]
         fail("view.task_context.logic_document 必须指向配对研究逻辑文件")
 
     return {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION_02,
         "task_id": logic_meta["task_id"],
         "logic_id": logic_meta["logic_id"],
         "view_id": task_context["view_id"],

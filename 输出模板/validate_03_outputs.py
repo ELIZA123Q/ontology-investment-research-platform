@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_admission, validate_allowed_04_output, validate_quality_status
+from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_admission, validate_allowed_04_output, validate_quality_status
 from validator_utils import (
     assert_subset,
     assert_values,
@@ -28,6 +28,7 @@ from validator_utils import (
 
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "03_数据与证据快照模板"
+SCHEMA_VERSION_03 = "1.1.0"
 
 REQUIRED_PREP_META = [
     "document_type",
@@ -129,6 +130,22 @@ ALLOWED_05_ARCHETYPES = {
 }
 TARGET_05_QUALITIES = {"minimum_pass", "high_quality_pass", "return_required", "stop_with_gap_report"}
 ALLOWED_05_OUTPUTS = {"full_report", "limited_report", "gap_report_only"}
+EVIDENCE_ROLES = {
+    "primary_support",
+    "cross_validation",
+    "counter_evidence",
+    "blocking_condition",
+    "proxy_indicator",
+    "background_evidence",
+}
+REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
+QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
+SOURCE_TIERS = {"L1", "L2", "L3", "L4", "L5", "L6", "L7"}
+BASKET_STATUSES = {"met", "partial", "not_met", "missing", "contested", "blocked", "not_applicable"}
+CHECK_STATUSES = {"met", "partial", "checked", "not_checked", "not_applicable", "missing", "blocked"}
+CONFLICT_STATUSES = {"no_material_conflict", "minor_conflict", "material_conflict", "unresolved_conflict", "contested", "not_checked", "not_applicable"}
+PROXY_DEPENDENCY_STATUSES = {"none", "low", "moderate", "high", "proxy_only", "not_applicable"}
+CONFIDENCE_LEVELS = {"high", "medium", "low"}
 
 
 def _expected_header(file_name_: str) -> list[str]:
@@ -153,17 +170,169 @@ def _rows(snapshot_dir: Path) -> dict[str, list[dict[str, str]]]:
 def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
     source_runs = ref_set(rows["source_snapshot.csv"], "source_run_id", "source_snapshot.csv")
     source_ids = ref_set(rows["source_snapshot.csv"], "source_id", "source_snapshot.csv")
+    source_tier_by_id = {
+        row.get("source_id", "").strip(): row.get("source_tier", "").strip()
+        for row in rows["source_snapshot.csv"]
+        if row.get("source_id")
+    }
     inputs = ref_set(rows["reasoning_inputs.csv"], "input_id", "reasoning_inputs.csv")
     evidence = ref_set(rows["evidence_records.csv"], "evidence_id", "evidence_records.csv")
     coverage = ref_set(rows["state_variable_coverage.csv"], "coverage_id", "state_variable_coverage.csv")
     gaps = ref_set(rows["gaps_and_risks.csv"], "gap_id", "gaps_and_risks.csv", allow_empty=True)
     judgment_units = ref_set(rows["judgment_unit_readiness.csv"], "judgment_unit_id", "judgment_unit_readiness.csv")
     data_candidates = ref_set(rows["display_data_candidates.csv"], "data_candidate_id", "display_data_candidates.csv", allow_empty=True)
+    requirements = ref_set(rows["evidence_requirements.csv"], "evidence_requirement_id", "evidence_requirements.csv")
+    recipes = ref_set(rows["evidence_recipe_matches.csv"], "evidence_recipe_id", "evidence_recipe_matches.csv")
+    baskets = ref_set(rows["evidence_baskets.csv"], "evidence_basket_id", "evidence_baskets.csv")
+    source_profiles = ref_set(rows["source_profiles.csv"], "source_profile_id", "source_profiles.csv")
+    channels = ref_set(rows["acquisition_channels.csv"], "acquisition_channel_id", "acquisition_channels.csv")
+    proxies = ref_set(rows["proxy_indicators.csv"], "proxy_indicator_id", "proxy_indicators.csv", allow_empty=True)
+    assessments = ref_set(rows["evidence_readiness_assessments.csv"], "assessment_id", "evidence_readiness_assessments.csv")
+
+    for row in rows["evidence_requirements.csv"]:
+        label = f"evidence_requirements#{row.get('evidence_requirement_id')}"
+        assert_subset(split_refs(row.get("target_judgment_unit_id")), judgment_units, label + ".target_judgment_unit_id")
+        if row.get("requirement_purpose") not in REQUIREMENT_PURPOSES:
+            fail(label + ".requirement_purpose 非法")
+        if row.get("evidence_role") not in EVIDENCE_ROLES:
+            fail(label + ".evidence_role 非法")
+        if row.get("minimum_quality_level") not in QUALITY_LEVELS:
+            fail(label + ".minimum_quality_level 非法")
+        if row.get("minimum_source_tier") not in SOURCE_TIERS:
+            fail(label + ".minimum_source_tier 非法")
+        min_sources = row.get("minimum_independent_source_count", "").strip()
+        if min_sources and (not min_sources.isdigit() or int(min_sources) < 0):
+            fail(label + ".minimum_independent_source_count 必须为空或非负整数")
+        if row.get("allowed_proxy") not in {"true", "false", "yes", "no", "0", "1"}:
+            fail(label + ".allowed_proxy 必须为布尔值文本")
+        assert_subset(split_refs(row.get("mandatory_basket_ids")), baskets, label + ".mandatory_basket_ids")
+        assert_subset(split_refs(row.get("counter_basket_ids")), baskets, label + ".counter_basket_ids")
+        assert_subset(split_refs(row.get("preferred_source_profile_ids")), source_profiles, label + ".preferred_source_profile_ids")
+        assert_subset(split_refs(row.get("allowed_acquisition_channel_ids")), channels, label + ".allowed_acquisition_channel_ids")
+        validate_allowed_04_output(row.get("allowed_04_output_if_met"), label + ".allowed_04_output_if_met")
+        validate_allowed_04_output(row.get("allowed_04_output_if_missing"), label + ".allowed_04_output_if_missing")
+        if not row.get("stop_condition") or not row.get("missing_policy"):
+            fail(label + ".stop_condition/missing_policy 不得为空")
+
+    for row in rows["evidence_recipe_matches.csv"]:
+        label = f"evidence_recipe_matches#{row.get('recipe_match_id')}"
+        assert_subset(split_refs(row.get("target_judgment_unit_id")), judgment_units, label + ".target_judgment_unit_id")
+        if not row.get("strategy_library_ref") or not row.get("minimum_pass_rule") or not row.get("downgrade_rule"):
+            fail(label + ".strategy_library_ref/minimum_pass_rule/downgrade_rule 不得为空")
+        if row.get("match_status") not in {"matched", "partial", "not_found", "not_applicable"}:
+            fail(label + ".match_status 非法")
+
+    for row in rows["evidence_baskets.csv"]:
+        label = f"evidence_baskets#{row.get('evidence_basket_id')}"
+        assert_subset(split_refs(row.get("target_judgment_unit_id")), judgment_units, label + ".target_judgment_unit_id")
+        assert_subset(split_refs(row.get("target_requirement_ids")), requirements, label + ".target_requirement_ids")
+        assert_subset(split_refs(row.get("required_source_profile_ids")), source_profiles, label + ".required_source_profile_ids")
+        assert_subset(split_refs(row.get("actual_evidence_ids")), evidence, label + ".actual_evidence_ids")
+        assert_subset(split_refs(row.get("actual_fact_ids")), evidence, label + ".actual_fact_ids")
+        assert_subset(split_refs(row.get("actual_source_ids")), source_ids, label + ".actual_source_ids")
+        if row.get("basket_role") not in EVIDENCE_ROLES:
+            fail(label + ".basket_role 非法")
+        if row.get("basket_status") not in BASKET_STATUSES:
+            fail(label + ".basket_status 非法")
+        if row.get("counter_check_status") not in CHECK_STATUSES:
+            fail(label + ".counter_check_status 非法")
+        if row.get("conflict_status") not in CONFLICT_STATUSES:
+            fail(label + ".conflict_status 非法")
+        if row.get("quality_level") not in QUALITY_LEVELS:
+            fail(label + ".quality_level 非法")
+        validate_allowed_04_output(row.get("allowed_04_output"), label + ".allowed_04_output")
+        if row.get("basket_status") in {"partial", "not_met", "missing"} and output_rank(row.get("allowed_04_output", "")) > output_rank("conditional_only"):
+            fail(label + ".allowed_04_output 在篮子未满足时不得高于 conditional_only")
+        if row.get("basket_role") == "counter_evidence" and row.get("counter_check_status") in {"not_checked", "missing"}:
+            fail(label + " 反证篮子必须记录 counter_check_status")
+
+    for row in rows["source_profiles.csv"]:
+        label = f"source_profiles#{row.get('source_profile_id')}"
+        if row.get("source_tier") not in SOURCE_TIERS:
+            fail(label + ".source_tier 非法")
+        if not row.get("allowed_claim_types") or not row.get("allowed_evidence_roles") or not row.get("forbidden_uses"):
+            fail(label + ".allowed_claim_types/allowed_evidence_roles/forbidden_uses 不得为空")
+
+    for row in rows["acquisition_channels.csv"]:
+        label = f"acquisition_channels#{row.get('acquisition_channel_id')}"
+        assert_subset(split_refs(row.get("supported_source_profile_ids")), source_profiles, label + ".supported_source_profile_ids")
+        if not row.get("traceability_level") or not row.get("permission_requirement"):
+            fail(label + ".traceability_level/permission_requirement 不得为空")
+
+    for row in rows["proxy_indicators.csv"]:
+        label = f"proxy_indicators#{row.get('proxy_indicator_id')}"
+        assert_subset(split_refs(row.get("target_requirement_id")), requirements, label + ".target_requirement_id")
+        assert_subset(split_refs(row.get("required_source_profile_ids")), source_profiles, label + ".required_source_profile_ids")
+        if not row.get("proxy_logic") or not row.get("confidence_discount") or not row.get("required_disclosure"):
+            fail(label + ".proxy_logic/confidence_discount/required_disclosure 不得为空")
+        if not row.get("cannot_replace"):
+            fail(label + ".cannot_replace 必须说明代理不能替代的直接证据")
+
+    for row in rows["source_snapshot.csv"]:
+        label = f"source_snapshot#{row.get('source_run_id')}"
+        if not row.get("source_profile_id") or not row.get("acquisition_channel_id"):
+            fail(label + ".source_profile_id/acquisition_channel_id 不得为空")
+        assert_subset(split_refs(row.get("source_profile_id")), source_profiles, label + ".source_profile_id")
+        assert_subset(split_refs(row.get("acquisition_channel_id")), channels, label + ".acquisition_channel_id")
+        if row.get("source_tier") and row.get("source_tier") not in SOURCE_TIERS:
+            fail(label + ".source_tier 非法")
+        if not row.get("usage_restriction"):
+            fail(label + ".usage_restriction 不得为空")
 
     for row in rows["evidence_records.csv"]:
         assert_subset(split_refs(row.get("source_run_id")), source_runs, f"{row.get('evidence_id')}.source_run_id")
+        assert_subset(split_refs(row.get("source_id")), source_ids, f"{row.get('evidence_id')}.source_id")
+        assert_subset(split_refs(row.get("requirement_id")), requirements, f"{row.get('evidence_id')}.requirement_id")
+        assert_subset(split_refs(row.get("evidence_requirement_ids")), requirements, f"{row.get('evidence_id')}.evidence_requirement_ids")
+        assert_subset(split_refs(row.get("evidence_basket_ids")), baskets, f"{row.get('evidence_id')}.evidence_basket_ids")
         assert_subset(split_refs(row.get("grounds_input_ids")), inputs, f"{row.get('evidence_id')}.grounds_input_ids")
         assert_subset(split_refs(row.get("linked_judgment_unit_ids")), judgment_units, f"{row.get('evidence_id')}.linked_judgment_unit_ids")
+        if row.get("evidence_role") and row.get("evidence_role") not in EVIDENCE_ROLES:
+            fail(f"{row.get('evidence_id')}.evidence_role 非法")
+        assert_subset(split_refs(row.get("proxy_indicator_id")), proxies, f"{row.get('evidence_id')}.proxy_indicator_id")
+        if row.get("proxy_indicator_id") and (not row.get("usage_limit") or not row.get("confidence_ceiling")):
+            fail(f"{row.get('evidence_id')} 使用代理指标时必须记录 usage_limit 和 confidence_ceiling")
+        if row.get("confidence_ceiling") and row.get("confidence_ceiling") not in CONFIDENCE_LEVELS:
+            fail(f"{row.get('evidence_id')}.confidence_ceiling 非法")
+        for source_id in split_refs(row.get("source_id")):
+            tier = source_tier_by_id.get(source_id, "")
+            if tier in {"L6", "L7"} and row.get("confidence_ceiling") == "high":
+                fail(f"{row.get('evidence_id')} 使用 L6/L7 来源时 confidence_ceiling 不得为 high")
+            if (
+                tier in {"L6", "L7"}
+                and row.get("evidence_role") in {"primary_support", "blocking_condition"}
+                and row.get("statement_nature") in {"reported_fact", "data", "data_point", "financial_data"}
+                and not row.get("usage_limit")
+            ):
+                fail(f"{row.get('evidence_id')} 使用 L6/L7 来源作为硬事实时必须记录 usage_limit 并降级使用")
+
+    for row in rows["evidence_readiness_assessments.csv"]:
+        label = f"evidence_readiness_assessments#{row.get('assessment_id')}"
+        assert_subset(split_refs(row.get("target_judgment_unit_id")), judgment_units, label + ".target_judgment_unit_id")
+        assert_subset(split_refs(row.get("target_recipe_id")), recipes, label + ".target_recipe_id")
+        assert_subset(split_refs(row.get("assessed_requirement_ids")), requirements, label + ".assessed_requirement_ids")
+        assert_subset(split_refs(row.get("assessed_basket_ids")), baskets, label + ".assessed_basket_ids")
+        for field in ["support_status", "cross_validation_status", "counter_status", "freshness_status", "traceability_status"]:
+            if row.get(field) not in CHECK_STATUSES:
+                fail(label + f".{field} 非法")
+        if row.get("conflict_status") not in CONFLICT_STATUSES:
+            fail(label + ".conflict_status 非法")
+        if row.get("proxy_dependency_status") not in PROXY_DEPENDENCY_STATUSES:
+            fail(label + ".proxy_dependency_status 非法")
+        validate_allowed_04_output(row.get("overall_readiness_status"), label + ".overall_readiness_status")
+        validate_allowed_04_output(row.get("allowed_04_output"), label + ".allowed_04_output")
+        if row.get("confidence_ceiling") not in CONFIDENCE_LEVELS:
+            fail(label + ".confidence_ceiling 非法")
+        if row.get("support_status") in {"missing", "not_checked"} and output_rank(row.get("allowed_04_output", "")) > output_rank("insufficient"):
+            fail(label + ".allowed_04_output 在支持证据缺失时不得高于 insufficient")
+        if row.get("counter_status") in {"missing", "not_checked"} and output_rank(row.get("allowed_04_output", "")) >= output_rank("directional_only"):
+            fail(label + ".allowed_04_output 在反证未查时不得达到方向性输出")
+        if row.get("conflict_status") in {"material_conflict", "unresolved_conflict", "contested"} and row.get("allowed_04_output") != "contested":
+            fail(label + ".allowed_04_output 在重大冲突未消解时必须为 contested")
+        if row.get("proxy_dependency_status") in {"high", "proxy_only"} and row.get("allowed_04_output") == "full_reasoning_ready":
+            fail(label + ".allowed_04_output 在高度依赖代理指标时不得为 full_reasoning_ready")
+        if not row.get("assessment_reason"):
+            fail(label + ".assessment_reason 不得为空")
 
     for row in rows["reasoning_inputs.csv"]:
         assert_subset(split_refs(row.get("source_run_refs")), source_runs, f"{row.get('input_id')}.source_run_refs")
@@ -181,6 +350,10 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
             assert_subset(split_refs(row.get("linked_evidence_ids")), evidence, label + ".linked_evidence_ids")
             assert_subset(split_refs(row.get("linked_gap_ids")), gaps, label + ".linked_gap_ids")
             assert_subset(split_refs(row.get("linked_judgment_unit_ids")), judgment_units, label + ".linked_judgment_unit_ids")
+            if file_ == "judgment_unit_readiness.csv":
+                assert_subset(split_refs(row.get("linked_assessment_ids")), assessments, label + ".linked_assessment_ids")
+                assert_subset(split_refs(row.get("linked_requirement_ids")), requirements, label + ".linked_requirement_ids")
+                assert_subset(split_refs(row.get("linked_basket_ids")), baskets, label + ".linked_basket_ids")
 
     assert_subset(
         split_refs("|".join(row.get("linked_coverage_ids", "") for row in rows["judgment_unit_readiness.csv"])),
@@ -270,11 +443,19 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
     if len(manifest_rows) != 1:
         fail("manifest.csv 必须且只能有一行")
     manifest = manifest_rows[0]
-    if manifest.get("snapshot_version") != "1.0.0" or manifest.get("snapshot_schema_version") != "1.0.0":
-        fail("manifest snapshot_version 与 snapshot_schema_version 必须为 1.0.0")
+    if manifest.get("snapshot_version") != SCHEMA_VERSION_03 or manifest.get("snapshot_schema_version") != SCHEMA_VERSION_03:
+        fail(f"manifest snapshot_version 与 snapshot_schema_version 必须为 {SCHEMA_VERSION_03}")
     if manifest.get("display_data_candidates_ref") != "display_data_candidates.csv":
         fail("manifest.display_data_candidates_ref 必须为 display_data_candidates.csv")
     for field, expected in {
+        "evidence_requirements_ref": "evidence_requirements.csv",
+        "evidence_recipe_matches_ref": "evidence_recipe_matches.csv",
+        "evidence_baskets_ref": "evidence_baskets.csv",
+        "source_profiles_ref": "source_profiles.csv",
+        "acquisition_channels_ref": "acquisition_channels.csv",
+        "proxy_indicators_ref": "proxy_indicators.csv",
+        "evidence_readiness_assessments_ref": "evidence_readiness_assessments.csv",
+        "judgment_unit_readiness_ref": "judgment_unit_readiness.csv",
         "chart_data_package_ref": "chart_data_package.csv",
         "table_material_package_ref": "table_material_package.csv",
         "source_annotation_package_ref": "source_annotation_package.csv",
@@ -337,8 +518,8 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     summary_meta, _ = parse_markdown(summary_path)
     require_keys(prep_meta, REQUIRED_PREP_META, str(prep_path))
     require_keys(summary_meta, REQUIRED_SUMMARY_META, str(summary_path))
-    require_schema_version(prep_meta["schema_version"], str(prep_path))
-    require_schema_version(summary_meta["schema_version"], str(summary_path))
+    require_schema_version(prep_meta["schema_version"], str(prep_path), expected=SCHEMA_VERSION_03)
+    require_schema_version(summary_meta["schema_version"], str(summary_path), expected=SCHEMA_VERSION_03)
     if prep_meta["document_type"] != "data_evidence_preparation":
         fail("03 准备文档 document_type 必须为 data_evidence_preparation")
     if summary_meta["document_type"] != "data_evidence_snapshot_summary":
@@ -375,7 +556,7 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     assert_values([row.get("allowed_04_output", "") for row in rows["gaps_and_risks.csv"]], ALLOWED_04_OUTPUTS, "gaps_and_risks.allowed_04_output_after_gap")
 
     return {
-        "schema_version": "1.0.0",
+        "schema_version": SCHEMA_VERSION_03,
         "task_id": prep_meta["task_id"],
         "execution_id": prep_meta["execution_id"],
         "coverage_unit_total": int(manifest["coverage_unit_total"]),

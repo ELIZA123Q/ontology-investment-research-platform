@@ -346,6 +346,7 @@ def _snapshot_rows(
         "reasoning_inputs.csv": read_csv(snapshot_dir / "reasoning_inputs.csv"),
         "evidence_records.csv": read_csv(snapshot_dir / "evidence_records.csv"),
         "judgment_unit_readiness.csv": read_csv(snapshot_dir / "judgment_unit_readiness.csv"),
+        "evidence_readiness_assessments.csv": read_csv(snapshot_dir / "evidence_readiness_assessments.csv"),
         "display_data_candidates.csv": read_csv(snapshot_dir / "display_data_candidates.csv"),
         "chart_data_package.csv": read_csv(snapshot_dir / "chart_data_package.csv"),
         "table_material_package.csv": read_csv(snapshot_dir / "table_material_package.csv"),
@@ -356,6 +357,8 @@ def _snapshot_rows(
         "input_ids": {row["input_id"] for row in rows["reasoning_inputs.csv"] if row.get("input_id")},
         "evidence_ids": {row["evidence_id"] for row in rows["evidence_records.csv"] if row.get("evidence_id")},
         "judgment_unit_ids": {row["judgment_unit_id"] for row in rows["judgment_unit_readiness.csv"] if row.get("judgment_unit_id")},
+        "readiness_assessment_ids": {row["assessment_id"] for row in rows["evidence_readiness_assessments.csv"] if row.get("assessment_id")},
+        "readiness_judgment_unit_ids": {row["target_judgment_unit_id"] for row in rows["evidence_readiness_assessments.csv"] if row.get("target_judgment_unit_id")},
         "data_candidate_ids": {row["data_candidate_id"] for row in rows["display_data_candidates.csv"] if row.get("data_candidate_id")},
         "chart_ids": {row["figure_id"] for row in rows["chart_data_package.csv"] if row.get("figure_id")},
         "table_ids": {row["table_id"] for row in rows["table_material_package.csv"] if row.get("table_id")},
@@ -400,10 +403,17 @@ def _validate_handoff(audit: dict[str, object], sets: dict[str, set[str]], arche
     assert_subset(approved_claim_ids, claim_ids, "handoff_to_05.approved_core_claims.claim_id")
 
     for row in handoff["approved_core_claims"]:
+        require_keys(
+            row,
+            ["claim_id", "expression_strength", "source_judgment_units", "readiness_assessment_refs", "evidence_anchors"],
+            "handoff_to_05.approved_core_claims[]",
+        )
         strength = str(row.get("expression_strength", ""))
         if strength not in EXPRESSION_STRENGTH_RANK:
             fail(f"handoff_to_05.approved_core_claims#{row.get('claim_id')}.expression_strength 非法")
         assert_subset(split_refs(row.get("source_judgment_units")), sets["judgment_unit_ids"], f"handoff_to_05.approved_core_claims#{row.get('claim_id')}.source_judgment_units")
+        assert_subset(split_refs(row.get("source_judgment_units")), sets["readiness_judgment_unit_ids"], f"handoff_to_05.approved_core_claims#{row.get('claim_id')}.source_judgment_units.readiness")
+        assert_subset(split_refs(row.get("readiness_assessment_refs")), sets["readiness_assessment_ids"], f"handoff_to_05.approved_core_claims#{row.get('claim_id')}.readiness_assessment_refs")
         assert_subset(split_refs(row.get("evidence_anchors")), sets["evidence_ids"], f"handoff_to_05.approved_core_claims#{row.get('claim_id')}.evidence_anchors")
 
     for row in handoff["chart_candidates"]:

@@ -147,7 +147,7 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
     return audit
 
 
-def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], dict[str, set[str]]]:
+def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], dict[str, dict[str, str]], dict[str, set[str]]]:
     manifest_rows = read_csv(snapshot_dir / "manifest.csv")
     if len(manifest_rows) != 1:
         fail("manifest.csv 必须且只能有一行")
@@ -157,6 +157,15 @@ def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[s
         fail("judgment_unit_readiness.csv 至少需要一行")
     for unit_id, row in judgment_by_id.items():
         validate_allowed_04_output(row.get("allowed_04_output"), f"judgment_unit_readiness#{unit_id}")
+    readiness_rows = read_csv(snapshot_dir / "evidence_readiness_assessments.csv")
+    readiness_by_id = {row["assessment_id"]: row for row in readiness_rows if row.get("assessment_id")}
+    if not readiness_by_id:
+        fail("evidence_readiness_assessments.csv 至少需要一行")
+    for assessment_id, row in readiness_by_id.items():
+        unit_id = row.get("target_judgment_unit_id", "")
+        if unit_id not in judgment_by_id:
+            fail(f"evidence_readiness_assessments#{assessment_id}.target_judgment_unit_id 不存在: {unit_id}")
+        validate_allowed_04_output(row.get("allowed_04_output"), f"evidence_readiness_assessments#{assessment_id}")
     evidence_rows = read_csv(snapshot_dir / "evidence_records.csv")
     display_rows = read_csv(snapshot_dir / "display_data_candidates.csv")
     source_rows = read_csv(snapshot_dir / "source_snapshot.csv")
@@ -170,11 +179,16 @@ def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[s
         "chart_ids": {row["figure_id"] for row in chart_rows if row.get("figure_id")},
         "table_ids": {row["table_id"] for row in table_rows if row.get("table_id")},
         "source_annotation_ids": {row["annotation_id"] for row in source_annotation_rows if row.get("annotation_id")},
+        "readiness_assessment_ids": set(readiness_by_id),
     }
-    return manifest_rows[0], judgment_by_id, snapshot_sets
+    return manifest_rows[0], judgment_by_id, readiness_by_id, snapshot_sets
 
 
-def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[str, str]]) -> None:
+def _validate_claims(
+    audit: dict[str, object],
+    judgment_by_id: dict[str, dict[str, str]],
+    readiness_by_id: dict[str, dict[str, str]],
+) -> None:
     claims = audit["claim_register"]
     if not isinstance(claims, list) or not claims:
         fail("claim_register 至少需要一项")
@@ -189,6 +203,7 @@ def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[st
                 "reader_label",
                 "statement",
                 "linked_judgment_unit",
+                "readiness_assessment_refs",
                 "allowed_04_output",
                 "conclusion_level",
                 "confidence",
@@ -200,10 +215,22 @@ def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[st
         validate_allowed_04_output(claim["allowed_04_output"], f"claim_register#{claim['claim_id']}")
         linked_units = split_refs(claim.get("linked_judgment_unit"))
         assert_subset(linked_units, judgment_ids, f"claim_register#{claim['claim_id']}.linked_judgment_unit")
+        assessment_refs = split_refs(claim.get("readiness_assessment_refs"))
+        if not assessment_refs:
+            fail(f"claim_register#{claim['claim_id']}.readiness_assessment_refs 不得为空")
+        assert_subset(assessment_refs, set(readiness_by_id), f"claim_register#{claim['claim_id']}.readiness_assessment_refs")
         for unit_id in linked_units:
             source_output = judgment_by_id[unit_id]["allowed_04_output"]
             if output_rank(str(claim["allowed_04_output"])) > output_rank(source_output):
                 fail(f"{claim['claim_id']} 超过 03 使用上限: {unit_id}={source_output}")
+        for assessment_id in assessment_refs:
+            assessment = readiness_by_id[assessment_id]
+            assessment_unit = assessment.get("target_judgment_unit_id", "")
+            if assessment_unit not in linked_units:
+                fail(f"{claim['claim_id']} 引用的 readiness assessment 不属于 linked_judgment_unit: {assessment_id}")
+            assessment_output = assessment.get("allowed_04_output", "")
+            if output_rank(str(claim["allowed_04_output"])) > output_rank(assessment_output):
+                fail(f"{claim['claim_id']} 超过 readiness assessment 使用上限: {assessment_id}={assessment_output}")
         checks = claim["overreach_check"]
         if not isinstance(checks, dict):
             fail(f"{claim['claim_id']}.overreach_check 必须是对象")
@@ -388,6 +415,7 @@ def _validate_handoff(audit: dict[str, object], judgment_by_id: dict[str, dict[s
                 "expression_strength",
                 "confidence",
                 "source_judgment_units",
+                "readiness_assessment_refs",
                 "evidence_anchors",
                 "required_caveats",
             ],
@@ -400,6 +428,7 @@ def _validate_handoff(audit: dict[str, object], judgment_by_id: dict[str, dict[s
         if str(row["confidence"]) not in {"high", "medium", "low"}:
             fail(f"handoff_to_05.approved_core_claims#{row['claim_id']}.confidence 非法")
         assert_subset(split_refs(row.get("source_judgment_units")), judgment_ids, f"handoff_to_05.approved_core_claims#{row['claim_id']}.source_judgment_units")
+        assert_subset(split_refs(row.get("readiness_assessment_refs")), snapshot_sets["readiness_assessment_ids"], f"handoff_to_05.approved_core_claims#{row['claim_id']}.readiness_assessment_refs")
 
     for register in ["restricted_claims", "prohibited_claims"]:
         if not isinstance(handoff[register], list):
@@ -466,7 +495,7 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
     report_meta, _ = _validate_report(report_path)
     audit = _validate_audit(audit_path)
     metadata = audit["metadata"]
-    manifest, judgment_by_id, snapshot_sets = _snapshot_rows(snapshot_dir)
+    manifest, judgment_by_id, readiness_by_id, snapshot_sets = _snapshot_rows(snapshot_dir)
 
     if not same_ref(report_meta["audit_ref"], file_name(audit_path)):
         fail("report.audit_ref 必须指向配对审计 YAML")
@@ -485,7 +514,7 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
         if field in evidence_admission and not same_ref(evidence_admission[field], manifest[field]):
             fail(f"audit.evidence_admission.{field} 必须与 manifest 一致")
 
-    _validate_claims(audit, judgment_by_id)
+    _validate_claims(audit, judgment_by_id, readiness_by_id)
     _validate_quality_and_compliance(audit)
     _validate_handoff(audit, judgment_by_id, snapshot_sets)
 

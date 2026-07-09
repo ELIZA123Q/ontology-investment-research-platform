@@ -20,6 +20,15 @@ object_types:
       location: {type: string, required: true, description: 文件、链接或其他稳定定位。}
       accessScope: {type: enum, required: true, allowed_values: [public, internal, restricted], description: 来源访问范围。}
       sourceReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 来源可靠程度。}
+      sourceProfileId: {type: string, required: false, description: 本次或来源库匹配的来源画像 ID。}
+      sourceTier: {type: enum, required: false, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 来源层级。}
+      acquisitionChannelId: {type: string, required: false, description: 来源取得通道 ID。}
+      contentDomainTags: {type: array, required: false, description: 来源覆盖的内容领域标签。}
+      independenceGroupId: {type: string, required: false, description: 独立来源组 ID。}
+      methodologyStatus: {type: enum, required: false, allowed_values: [transparent, partially_transparent, opaque, not_applicable], description: 方法透明度状态。}
+      accessPermissionStatus: {type: enum, required: false, allowed_values: [allowed, licensed, restricted, denied, unknown], description: 访问与使用权限状态。}
+      usageRestriction: {type: string, required: false, description: 来源可用边界和禁用用途。}
+      sourceFreshnessStatus: {type: enum, required: false, allowed_values: [current, stale, expired, unknown], description: 来源时效状态。}
       status: {type: enum, required: true, allowed_values: [candidate, active, invalidated, superseded], description: 来源生命周期状态。}
       createdAt: {type: datetime, required: true, description: 来源登记时间。}
   EvidenceClaim:
@@ -36,6 +45,16 @@ object_types:
       businessTime: {type: datetime, required: false, description: 主张所描述事项的业务时间。}
       claimConfidence: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 主张可信度。}
       originalSourceId: {type: string, required: false, description: 转述内容追溯到的原始来源。}
+      evidenceRequirementIds: {type: array, required: false, description: 满足的证据需求 ID。}
+      evidenceBasketIds: {type: array, required: false, description: 填充的证据篮子 ID。}
+      evidenceRole: {type: enum, required: false, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 本主张在本次判断中的证据角色。}
+      contentDomain: {type: string, required: false, description: 主张所属内容领域。}
+      statementType: {type: enum, required: false, allowed_values: [reported_fact, data, estimate, forecast, guidance, opinion, assumption, proxy], description: 主张陈述性质。}
+      proxyIndicatorId: {type: string, required: false, description: 如果是代理证据，对应代理指标 ID。}
+      isCounterEvidence: {type: boolean, required: false, description: 是否作为反证使用。}
+      isCrossValidation: {type: boolean, required: false, description: 是否作为交叉验证使用。}
+      confidenceCeiling: {type: enum, required: false, allowed_values: [low, medium, high], description: 该主张能支撑的最高置信上限。}
+      usageLimit: {type: string, required: false, description: 该主张的使用限制。}
       status: {type: enum, required: true, allowed_values: [candidate, active, conflicted, invalidated, superseded], description: 主张生命周期状态。}
       createdAt: {type: datetime, required: true, description: 主张形成时间。}
   EvidenceFact:
@@ -52,8 +71,162 @@ object_types:
       normalizedValue: {type: any, required: false, description: 可结构化时记录的归一值。}
       unit: {type: string, required: false, description: 归一值单位。}
       factConfidence: {type: enum, required: true, allowed_values: [low, medium, high], description: 事实候选可信度。}
+      evidenceRequirementIds: {type: array, required: false, description: 满足的证据需求 ID。}
+      evidenceBasketIds: {type: array, required: false, description: 填充的证据篮子 ID。}
+      factRole: {type: enum, required: false, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 事实候选在本次判断中的角色。}
+      sourceIndependenceStatus: {type: enum, required: false, allowed_values: [independent, same_group, mixed, unknown], description: 支撑来源独立性状态。}
+      proxyDependency: {type: enum, required: false, allowed_values: [none, low, moderate, high, proxy_only], description: 是否依赖代理指标。}
+      counterStatus: {type: enum, required: false, allowed_values: [not_checked, checked, supports_counter, not_applicable], description: 反证状态。}
+      conflictStatus: {type: enum, required: false, allowed_values: [no_material_conflict, minor_conflict, material_conflict, unresolved_conflict, contested], description: 冲突状态。}
+      requirementSatisfactionStatus: {type: enum, required: false, allowed_values: [met, partial, not_met, blocked], description: 对证据需求的满足状态。}
+      confidenceCeiling: {type: enum, required: false, allowed_values: [low, medium, high], description: 该事实候选能支撑的最高置信上限。}
+      allowed04Usage: {type: enum, required: false, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 04 可使用上限。}
+      usageLimit: {type: string, required: false, description: 该事实候选的使用限制。}
       status: {type: enum, required: true, allowed_values: [candidate, active, conflicted, invalidated, superseded], description: 事实候选生命周期状态。}
       createdAt: {type: datetime, required: true, description: 事实候选形成时间。}
+  EvidenceRequirement:
+    id: EvidenceRequirement
+    name: 证据需求
+    description: 从判断单元拆解出的本次必须取得的证据要求。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 证据需求名称。}
+      targetJudgmentUnitId: {type: string, required: true, description: 对应 02 判断单元 ID。}
+      targetPathNodeId: {type: string, required: false, description: 对应路径节点 ID。}
+      targetStateVariableId: {type: string, required: false, description: 对应状态变量 ID。}
+      requirementPurpose: {type: enum, required: true, allowed_values: [support, weaken, block, validate, cross_validate, counter, background], description: 证据需求目的。}
+      evidenceRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 证据角色。}
+      requiredEvidenceCategory: {type: string, required: true, description: 必需证据类别。}
+      requiredContentDomains: {type: array, required: true, description: 内容领域要求。}
+      requiredObjectScope: {type: string, required: false, description: 对象范围。}
+      requiredTimeScope: {type: string, required: false, description: 时间范围。}
+      requiredGrain: {type: string, required: false, description: 粒度要求。}
+      minimumQualityLevel: {type: enum, required: true, allowed_values: [Q1_background, Q2_reasoning_usable, Q3_directional_ready, Q4_report_grade], description: 最低证据质量。}
+      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 最低来源层级。}
+      minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
+      allowedProxy: {type: boolean, required: true, description: 是否允许代理指标。}
+      stopCondition: {type: string, required: true, description: 停止补证或停止推理的条件。}
+      missingPolicy: {type: string, required: true, description: 缺证据时如何处理。}
+      allowed04OutputIfMet: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 满足需求后 04 最高使用方式。}
+      allowed04OutputIfMissing: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 缺失时 04 降级方式。}
+  EvidenceRecipe:
+    id: EvidenceRecipe
+    name: 取证配方
+    description: 可复用取证策略在本体中的稳定引用。
+    primary_key: id
+    title_property: recipeName
+    validity: true
+    properties:
+      recipeName: {type: string, required: true, description: 配方名称。}
+      judgmentType: {type: string, required: true, description: 适用判断类型。}
+      strategyLibraryRef: {type: string, required: true, description: 03 取证策略库文件引用。}
+      strategyVersion: {type: string, required: true, description: 策略版本。}
+      requiredBasketTypes: {type: array, required: true, description: 必需证据篮子类型。}
+      mandatoryBasketTypes: {type: array, required: true, description: 强制篮子类型。}
+      counterBasketTypes: {type: array, required: false, description: 反证篮子类型。}
+      minimumPassRule: {type: string, required: true, description: 最低通过规则。}
+      proxyRule: {type: string, required: false, description: 代理指标规则。}
+      downgradeRule: {type: string, required: true, description: 降级规则。}
+  EvidenceBasket:
+    id: EvidenceBasket
+    name: 证据篮子
+    description: 判断单元所需的一组证据组合及其满足状态。
+    primary_key: id
+    title_property: basketType
+    validity: true
+    properties:
+      basketType: {type: string, required: true, description: 证据篮子类型。}
+      targetJudgmentUnitId: {type: string, required: true, description: 对应判断单元 ID。}
+      basketRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色。}
+      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 最低来源层级。}
+      minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
+      allowedProxy: {type: boolean, required: true, description: 是否允许代理。}
+      basketStatus: {type: enum, required: true, allowed_values: [met, partial, not_met, missing, contested, blocked, not_applicable], description: 篮子满足状态。}
+      conflictStatus: {type: enum, required: true, allowed_values: [no_material_conflict, minor_conflict, material_conflict, unresolved_conflict, contested, not_checked, not_applicable], description: 冲突状态。}
+      counterCheckStatus: {type: enum, required: true, allowed_values: [met, partial, checked, not_checked, not_applicable, missing, blocked], description: 反证检查状态。}
+      qualityLevel: {type: enum, required: true, allowed_values: [Q1_background, Q2_reasoning_usable, Q3_directional_ready, Q4_report_grade], description: 篮子质量等级。}
+      usageLimit: {type: string, required: false, description: 使用限制。}
+      gapAction: {type: string, required: false, description: 缺口补齐动作。}
+  SourceProfile:
+    id: SourceProfile
+    name: 来源画像
+    description: 稳定来源类型能支持什么证据、不能支持什么用途。
+    primary_key: id
+    title_property: sourceProfileName
+    validity: true
+    properties:
+      sourceProfileName: {type: string, required: true, description: 来源画像名称。}
+      sourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 来源层级。}
+      sourceCategory: {type: string, required: true, description: 来源类别。}
+      typicalContentDomains: {type: array, required: true, description: 常见内容领域。}
+      allowedClaimTypes: {type: array, required: true, description: 允许支持的主张类型。}
+      allowedEvidenceRoles: {type: array, required: true, description: 允许支持的证据角色。}
+      forbiddenUses: {type: array, required: true, description: 禁用用途。}
+      methodologyTransparency: {type: enum, required: true, allowed_values: [high, medium, low, unknown], description: 方法透明度。}
+      updateFrequency: {type: string, required: false, description: 更新频率。}
+      independenceGroupRule: {type: string, required: true, description: 独立来源计数规则。}
+      accessScope: {type: enum, required: true, allowed_values: [public, internal, restricted, licensed], description: 访问范围。}
+      defaultReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 默认可靠性。}
+      requiredLocatorLevel: {type: string, required: true, description: 定位留痕要求。}
+  AcquisitionChannel:
+    id: AcquisitionChannel
+    name: 取数通道
+    description: 获取来源或数据的方式及留痕、权限和失败模式。
+    primary_key: id
+    title_property: channelName
+    validity: true
+    properties:
+      channelName: {type: string, required: true, description: 通道名称。}
+      channelType: {type: string, required: true, description: 通道类型。}
+      supportedContentDomains: {type: array, required: true, description: 支持内容领域。}
+      repeatability: {type: enum, required: true, allowed_values: [high, medium, low], description: 可复现程度。}
+      traceabilityLevel: {type: string, required: true, description: 留痕要求。}
+      permissionRequirement: {type: string, required: true, description: 权限要求。}
+      typicalFailureModes: {type: array, required: false, description: 常见失败模式。}
+      allowedUsage: {type: array, required: true, description: 允许用途。}
+      forbiddenUsage: {type: array, required: true, description: 禁用用途。}
+  ProxyIndicator:
+    id: ProxyIndicator
+    name: 代理指标
+    description: 在直接证据不可得时用于代理状态变量或需求的指标及折扣规则。
+    primary_key: id
+    title_property: proxyIndicatorName
+    validity: true
+    properties:
+      proxyIndicatorName: {type: string, required: true, description: 代理指标名称。}
+      proxyFor: {type: string, required: true, description: 被代理对象、变量或需求。}
+      targetStateVariableId: {type: string, required: false, description: 目标状态变量 ID。}
+      targetRequirementId: {type: string, required: false, description: 目标证据需求 ID。}
+      proxyLogic: {type: string, required: true, description: 代理逻辑。}
+      validConditions: {type: array, required: true, description: 代理有效条件。}
+      invalidConditions: {type: array, required: true, description: 代理失效条件。}
+      confidenceDiscount: {type: string, required: true, description: 置信折扣。}
+      cannotReplace: {type: array, required: true, description: 不能替代的直接证据。}
+      requiredDisclosure: {type: string, required: true, description: 04/05 必须披露的限制。}
+  EvidenceReadinessAssessment:
+    id: EvidenceReadinessAssessment
+    name: 证据准入评估
+    description: 对判断单元证据需求、篮子、来源、反证、代理和冲突的准入结论。
+    primary_key: id
+    title_property: targetJudgmentUnitId
+    validity: true
+    properties:
+      targetJudgmentUnitId: {type: string, required: true, description: 对应判断单元 ID。}
+      targetRecipeId: {type: string, required: true, description: 采用的取证配方 ID。}
+      supportStatus: {type: enum, required: true, allowed_values: [met, partial, checked, not_checked, not_applicable, missing, blocked], description: 支持证据状态。}
+      crossValidationStatus: {type: enum, required: true, allowed_values: [met, partial, checked, not_checked, not_applicable, missing, blocked], description: 交叉验证状态。}
+      counterStatus: {type: enum, required: true, allowed_values: [met, partial, checked, not_checked, not_applicable, missing, blocked], description: 反证检查状态。}
+      conflictStatus: {type: enum, required: true, allowed_values: [no_material_conflict, minor_conflict, material_conflict, unresolved_conflict, contested, not_checked, not_applicable], description: 冲突状态。}
+      sourceQualityStatus: {type: string, required: true, description: 来源质量状态。}
+      proxyDependencyStatus: {type: enum, required: true, allowed_values: [none, low, moderate, high, proxy_only, not_applicable], description: 代理依赖状态。}
+      overallReadinessStatus: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 整体准入状态。}
+      allowed04Output: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 04 最高使用方式。}
+      confidenceCeiling: {type: enum, required: true, allowed_values: [low, medium, high], description: 04 置信上限。}
+      forbidden04Outputs: {type: array, required: false, description: 禁止 04 输出。}
+      gapAction: {type: string, required: false, description: 缺口动作。}
+      assessmentReason: {type: string, required: true, description: 准入理由。}
 
 relation_types:
   claimCitesSource:
@@ -146,6 +319,170 @@ relation_types:
     same_type_required: true
     properties:
       invalidationReason: {type: string, required: true, description: 失效原因。}
+  requirementUsesRecipe:
+    id: requirementUsesRecipe
+    name: 证据需求使用取证配方
+    description: 本次证据需求采用某个取证配方。
+    source_types: [EvidenceRequirement]
+    target_types: [EvidenceRecipe]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  recipeRequiresBasket:
+    id: recipeRequiresBasket
+    name: 配方要求证据篮子
+    description: 取证配方要求某类证据篮子。
+    source_types: [EvidenceRecipe]
+    target_types: [EvidenceBasket]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      basketRequirementRole: {type: enum, required: true, allowed_values: [mandatory, optional, counter], description: 篮子要求角色。}
+  requirementRequiresBasket:
+    id: requirementRequiresBasket
+    name: 证据需求要求证据篮子
+    description: 单项证据需求要求某个证据篮子。
+    source_types: [EvidenceRequirement]
+    target_types: [EvidenceBasket]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      basketRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色。}
+  requirementRequiresSourceProfile:
+    id: requirementRequiresSourceProfile
+    name: 证据需求要求来源画像
+    description: 证据需求要求某类来源画像。
+    source_types: [EvidenceRequirement]
+    target_types: [SourceProfile]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  requirementAllowsAcquisitionChannel:
+    id: requirementAllowsAcquisitionChannel
+    name: 证据需求允许取数通道
+    description: 证据需求允许通过某类取数通道获取证据。
+    source_types: [EvidenceRequirement]
+    target_types: [AcquisitionChannel]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  sourceMatchesSourceProfile:
+    id: sourceMatchesSourceProfile
+    name: 来源匹配来源画像
+    description: 具体来源文档匹配某个来源画像。
+    source_types: [SourceDocument]
+    target_types: [SourceProfile]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  sourceAcquiredThrough:
+    id: sourceAcquiredThrough
+    name: 来源通过通道取得
+    description: 具体来源文档通过某个取数通道取得。
+    source_types: [SourceDocument]
+    target_types: [AcquisitionChannel]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  claimSatisfiesRequirement:
+    id: claimSatisfiesRequirement
+    name: 主张满足证据需求
+    description: 证据主张满足某项证据需求。
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceRequirement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      satisfactionStatus: {type: enum, required: true, allowed_values: [met, partial, not_met], description: 满足状态。}
+  factSatisfiesRequirement:
+    id: factSatisfiesRequirement
+    name: 事实满足证据需求
+    description: 证据事实满足某项证据需求。
+    source_types: [EvidenceFact]
+    target_types: [EvidenceRequirement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      satisfactionStatus: {type: enum, required: true, allowed_values: [met, partial, not_met], description: 满足状态。}
+  claimFillsEvidenceBasket:
+    id: claimFillsEvidenceBasket
+    name: 主张填充证据篮子
+    description: 证据主张填充某个证据篮子。
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceBasket]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  factFillsEvidenceBasket:
+    id: factFillsEvidenceBasket
+    name: 事实填充证据篮子
+    description: 证据事实填充某个证据篮子。
+    source_types: [EvidenceFact]
+    target_types: [EvidenceBasket]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  claimActsAsCounterEvidenceFor:
+    id: claimActsAsCounterEvidenceFor
+    name: 主张作为反证
+    description: 证据主张作为某项证据需求的反证或削弱证据。
+    source_types: [EvidenceClaim]
+    target_types: [EvidenceRequirement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  factActsAsCounterEvidenceFor:
+    id: factActsAsCounterEvidenceFor
+    name: 事实作为反证
+    description: 证据事实作为某项证据需求的反证或削弱证据。
+    source_types: [EvidenceFact]
+    target_types: [EvidenceRequirement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  proxySupportsRequirement:
+    id: proxySupportsRequirement
+    name: 代理指标支持证据需求
+    description: 代理指标在限制条件下支持某项证据需求。
+    source_types: [ProxyIndicator]
+    target_types: [EvidenceRequirement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  readinessAssessesRequirement:
+    id: readinessAssessesRequirement
+    name: 准入评估覆盖证据需求
+    description: 证据准入评估覆盖一组证据需求。
+    source_types: [EvidenceReadinessAssessment]
+    target_types: [EvidenceRequirement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  readinessEvaluatesBasket:
+    id: readinessEvaluatesBasket
+    name: 准入评估评价证据篮子
+    description: 证据准入评估评价一组证据篮子的满足状态。
+    source_types: [EvidenceReadinessAssessment]
+    target_types: [EvidenceBasket]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
 
 action_types:
   RegisterSource:
@@ -239,6 +576,110 @@ action_types:
     function_ref: null
     logic_refs: [ConflictHandlingLogic]
     write_scope: [EvidenceClaim, EvidenceFact, invalidates]
+  CreateEvidenceRequirement:
+    id: CreateEvidenceRequirement
+    name: 创建证据需求
+    description: 根据判断单元交接字段创建本次证据需求。
+    target_types: [EvidenceRequirement]
+    parameters: [judgmentUnitRef, judgmentType, requiredEvidenceRoles, requiredEvidenceCategories]
+    preconditions: [判断类型已声明, 必需证据角色已声明]
+    effects: [create_EvidenceRequirement]
+    outputs: [EvidenceRequirement]
+    rule_refs: [judgment_type_required, evidence_requirement_required]
+    function_ref: DeriveEvidenceRequirements
+    logic_refs: [JudgmentToEvidenceRequirementLogic]
+    write_scope: [EvidenceRequirement]
+  MatchEvidenceRecipe:
+    id: MatchEvidenceRecipe
+    name: 匹配取证配方
+    description: 根据判断类型和需求匹配 03 取证策略库配方。
+    target_types: [requirementUsesRecipe]
+    parameters: [requirementRef, judgmentType, recipeTags]
+    preconditions: [证据需求已创建]
+    effects: [create_requirementUsesRecipe]
+    outputs: [EvidenceRecipe]
+    rule_refs: [recipe_before_acquisition]
+    function_ref: MatchEvidenceRecipeFunction
+    logic_refs: [EvidenceRecipeMatchingLogic]
+    write_scope: [requirementUsesRecipe]
+  CreateEvidenceBasket:
+    id: CreateEvidenceBasket
+    name: 创建证据篮子
+    description: 根据证据需求和取证配方创建必需、反证和代理篮子。
+    target_types: [EvidenceBasket]
+    parameters: [requirementRef, recipeRef, basketRole]
+    preconditions: [证据需求和取证配方已存在]
+    effects: [create_EvidenceBasket, create_requirementRequiresBasket]
+    outputs: [EvidenceBasket]
+    rule_refs: [mandatory_basket_required, counter_basket_required]
+    function_ref: EvaluateEvidenceBasketFunction
+    logic_refs: [EvidenceBasketEvaluationLogic]
+    write_scope: [EvidenceBasket, requirementRequiresBasket]
+  RegisterSourceProfile:
+    id: RegisterSourceProfile
+    name: 登记来源画像
+    description: 登记稳定来源画像和禁用用途。
+    target_types: [SourceProfile]
+    parameters: [sourceProfileName, sourceTier, sourceCategory, allowedClaimTypes]
+    preconditions: [来源画像可描述]
+    effects: [create_SourceProfile]
+    outputs: [SourceProfile]
+    rule_refs: [source_profile_required]
+    function_ref: MatchSourceProfileFunction
+    logic_refs: [SourceProfileMatchingLogic]
+    write_scope: [SourceProfile]
+  RegisterAcquisitionChannel:
+    id: RegisterAcquisitionChannel
+    name: 登记取数通道
+    description: 登记取数通道、权限和留痕要求。
+    target_types: [AcquisitionChannel]
+    parameters: [channelName, channelType, permissionRequirement, traceabilityLevel]
+    preconditions: [通道留痕和权限要求明确]
+    effects: [create_AcquisitionChannel]
+    outputs: [AcquisitionChannel]
+    rule_refs: [acquisition_channel_must_be_allowed]
+    function_ref: null
+    logic_refs: []
+    write_scope: [AcquisitionChannel]
+  RegisterProxyIndicator:
+    id: RegisterProxyIndicator
+    name: 登记代理指标
+    description: 登记代理指标、有效条件、失效条件和披露要求。
+    target_types: [ProxyIndicator]
+    parameters: [proxyFor, proxyLogic, validConditions, invalidConditions]
+    preconditions: [直接证据不可得或不足]
+    effects: [create_ProxyIndicator, create_proxySupportsRequirement]
+    outputs: [ProxyIndicator]
+    rule_refs: [proxy_must_be_disclosed, proxy_cannot_replace_direct_evidence]
+    function_ref: ValidateProxyIndicatorFunction
+    logic_refs: [ProxyIndicatorValidationLogic]
+    write_scope: [ProxyIndicator, proxySupportsRequirement]
+  AssessBasketReadiness:
+    id: AssessBasketReadiness
+    name: 评价证据篮子就绪度
+    description: 评价证据篮子是否满足质量、来源、反证和冲突要求。
+    target_types: [EvidenceBasket]
+    parameters: [basketRef, evidenceRefs, sourceRefs]
+    preconditions: [证据篮子已创建]
+    effects: [update_EvidenceBasket_status]
+    outputs: [basket_readiness]
+    rule_refs: [mandatory_basket_required, counter_basket_required, source_tier_must_match_requirement]
+    function_ref: EvaluateEvidenceBasketFunction
+    logic_refs: [EvidenceBasketEvaluationLogic]
+    write_scope: [EvidenceBasket]
+  AssessEvidenceReadiness:
+    id: AssessEvidenceReadiness
+    name: 评价证据准入
+    description: 综合证据需求、配方、篮子、来源、代理和冲突形成 04 使用上限。
+    target_types: [EvidenceReadinessAssessment]
+    parameters: [judgmentUnitRef, requirementRefs, basketRefs, recipeRef]
+    preconditions: [证据需求、配方和篮子均已记录]
+    effects: [create_EvidenceReadinessAssessment, create_readinessAssessesRequirement, create_readinessEvaluatesBasket]
+    outputs: [EvidenceReadinessAssessment]
+    rule_refs: [readiness_limits_04_output, stop_condition_must_be_recorded]
+    function_ref: AssessEvidenceReadinessFunction
+    logic_refs: [EvidenceReadinessAssessmentLogic]
+    write_scope: [EvidenceReadinessAssessment, readinessAssessesRequirement, readinessEvaluatesBasket]
 
 functions:
   ExtractClaims:
@@ -307,6 +748,72 @@ functions:
     deterministic: true
     side_effects: false
     version: 1.0.0
+  DeriveEvidenceRequirements:
+    id: DeriveEvidenceRequirements
+    name: 判断单元到证据需求拆解
+    description: 根据判断类型、证据角色、证据类别和禁用捷径生成证据需求候选。
+    inputs: [judgmentUnitRef, judgmentType, requiredEvidenceRoles, requiredEvidenceCategories]
+    outputs: [evidenceRequirements]
+    reads: [rule]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  MatchEvidenceRecipeFunction:
+    id: MatchEvidenceRecipeFunction
+    name: 取证配方匹配
+    description: 根据 judgment_type 和配方标签匹配取证策略库。
+    inputs: [EvidenceRequirement, recipeTags]
+    outputs: [matchedRecipe]
+    reads: [EvidenceRequirement, EvidenceRecipe]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  EvaluateEvidenceBasketFunction:
+    id: EvaluateEvidenceBasketFunction
+    name: 证据篮子评价
+    description: 评价证据篮子是否满足来源层级、独立来源、反证、冲突和代理要求。
+    inputs: [EvidenceBasket, EvidenceClaim, EvidenceFact, SourceDocument]
+    outputs: [basketStatus, usageLimit]
+    reads: [EvidenceBasket, EvidenceClaim, EvidenceFact, SourceDocument]
+    writes: []
+    deterministic: false
+    side_effects: false
+    version: 1.0.0
+  MatchSourceProfileFunction:
+    id: MatchSourceProfileFunction
+    name: 来源画像匹配
+    description: 判断来源画像是否满足证据需求的来源层级、内容域和禁用用途要求。
+    inputs: [EvidenceRequirement, SourceProfile, AcquisitionChannel]
+    outputs: [sourceProfileMatch]
+    reads: [EvidenceRequirement, SourceProfile, AcquisitionChannel]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  ValidateProxyIndicatorFunction:
+    id: ValidateProxyIndicatorFunction
+    name: 代理指标校验
+    description: 校验代理逻辑、有效条件、失效条件、置信折扣和披露要求。
+    inputs: [ProxyIndicator, EvidenceRequirement]
+    outputs: [proxyValidation]
+    reads: [ProxyIndicator, EvidenceRequirement]
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  AssessEvidenceReadinessFunction:
+    id: AssessEvidenceReadinessFunction
+    name: 证据准入评价
+    description: 综合需求、配方、篮子、来源、代理、反证和冲突输出 04 使用上限。
+    inputs: [EvidenceRequirement, EvidenceRecipe, EvidenceBasket, ProxyIndicator]
+    outputs: [readinessAssessment]
+    reads: [EvidenceRequirement, EvidenceRecipe, EvidenceBasket, SourceProfile, AcquisitionChannel, ProxyIndicator]
+    writes: []
+    deterministic: false
+    side_effects: false
+    version: 1.0.0
 
 logic_flows:
   SourceToClaimLogic:
@@ -354,6 +861,73 @@ logic_flows:
       - {id: calculate_freshness, function_ref: CalculateEvidenceFreshness}
     outputs: [freshness]
     fallback: 时间缺失时降低可信度。
+  JudgmentToEvidenceRequirementLogic:
+    id: JudgmentToEvidenceRequirementLogic
+    name: 判断到证据需求逻辑
+    description: 把判断类型和证据角色拆成可执行证据需求。
+    inputs: [judgmentUnitRef, judgmentType]
+    steps:
+      - {id: validate_judgment_type, rule_refs: [judgment_type_required]}
+      - {id: derive_requirements, function_ref: DeriveEvidenceRequirements}
+      - {id: validate_requirement, rule_refs: [evidence_requirement_required]}
+    outputs: [EvidenceRequirement]
+    fallback: 判断类型或证据角色缺失时退回 02。
+  EvidenceRecipeMatchingLogic:
+    id: EvidenceRecipeMatchingLogic
+    name: 取证配方匹配逻辑
+    description: 为证据需求匹配可复用取证配方。
+    inputs: [EvidenceRequirement, recipeTags]
+    steps:
+      - {id: require_recipe_before_acquisition, rule_refs: [recipe_before_acquisition]}
+      - {id: match_recipe, function_ref: MatchEvidenceRecipeFunction}
+      - {id: create_recipe_link, uses: [requirementUsesRecipe]}
+    outputs: [EvidenceRecipe]
+    fallback: 无配方时不得 high_quality_pass。
+  EvidenceBasketEvaluationLogic:
+    id: EvidenceBasketEvaluationLogic
+    name: 证据篮子评价逻辑
+    description: 检查必需篮子、反证篮子和实际证据填充状态。
+    inputs: [EvidenceRequirement, EvidenceBasket, EvidenceClaim, EvidenceFact]
+    steps:
+      - {id: validate_mandatory_basket, rule_refs: [mandatory_basket_required]}
+      - {id: validate_counter_basket, rule_refs: [counter_basket_required]}
+      - {id: evaluate_basket, function_ref: EvaluateEvidenceBasketFunction}
+    outputs: [basket_readiness]
+    fallback: 必需篮子缺失时降级 04 使用上限。
+  SourceProfileMatchingLogic:
+    id: SourceProfileMatchingLogic
+    name: 来源画像匹配逻辑
+    description: 检查来源画像、来源层级和取数通道是否满足证据需求。
+    inputs: [EvidenceRequirement, SourceProfile, AcquisitionChannel, SourceDocument]
+    steps:
+      - {id: require_source_profile, rule_refs: [source_profile_required]}
+      - {id: match_source_profile, function_ref: MatchSourceProfileFunction}
+      - {id: validate_source_tier, rule_refs: [source_tier_must_match_requirement]}
+      - {id: validate_channel, rule_refs: [acquisition_channel_must_be_allowed]}
+    outputs: [source_profile_match]
+    fallback: 来源画像或通道不匹配时不得作为正式硬证据。
+  ProxyIndicatorValidationLogic:
+    id: ProxyIndicatorValidationLogic
+    name: 代理指标校验逻辑
+    description: 检查代理指标是否可用、必须披露且不能替代直接证据。
+    inputs: [ProxyIndicator, EvidenceRequirement]
+    steps:
+      - {id: validate_proxy, function_ref: ValidateProxyIndicatorFunction}
+      - {id: require_disclosure, rule_refs: [proxy_must_be_disclosed]}
+      - {id: forbid_replacement, rule_refs: [proxy_cannot_replace_direct_evidence]}
+    outputs: [proxyValidation]
+    fallback: 代理未披露时不得作为事实使用。
+  EvidenceReadinessAssessmentLogic:
+    id: EvidenceReadinessAssessmentLogic
+    name: 证据准入评估逻辑
+    description: 根据需求、配方、篮子、来源、代理、冲突和反证生成 04 使用上限。
+    inputs: [EvidenceRequirement, EvidenceRecipe, EvidenceBasket, ProxyIndicator]
+    steps:
+      - {id: require_stop_condition, rule_refs: [stop_condition_must_be_recorded]}
+      - {id: assess_readiness, function_ref: AssessEvidenceReadinessFunction}
+      - {id: limit_04_output, rule_refs: [readiness_limits_04_output]}
+    outputs: [EvidenceReadinessAssessment]
+    fallback: 无准入评估时 04 不得形成方向性观点。
 
 rules:
   source_traceability:
@@ -426,3 +1000,123 @@ rules:
     result: 允许新鲜度评价。
     priority: 80
     failure_handling: lower_confidence
+  judgment_type_required:
+    id: judgment_type_required
+    name: 判断类型必填
+    description: 02 交接给 03 的判断单元必须声明 judgment_type。
+    rule_type: validation
+    applies_to: [EvidenceRequirement]
+    condition: targetJudgmentUnitId 和判断类型非空。
+    result: 允许拆解证据需求。
+    priority: 100
+    failure_handling: return_to_02
+  evidence_requirement_required:
+    id: evidence_requirement_required
+    name: 正式取证前必须有证据需求
+    description: 没有 EvidenceRequirement，不准登记正式取证结果。
+    rule_type: blocking
+    applies_to: [EvidenceRequirement, EvidenceClaim, EvidenceFact]
+    condition: EvidenceClaim 和 EvidenceFact 可追溯到至少一个 EvidenceRequirement。
+    result: 允许进入正式证据链。
+    priority: 100
+    failure_handling: reject_formal_acquisition
+  recipe_before_acquisition:
+    id: recipe_before_acquisition
+    name: 取证前必须匹配配方
+    description: 没有 EvidenceRecipe，不得标记 high_quality_pass。
+    rule_type: blocking
+    applies_to: [EvidenceRequirement, EvidenceRecipe]
+    condition: requirementUsesRecipe 已建立或记录无配方降级理由。
+    result: 允许执行取证配方。
+    priority: 95
+    failure_handling: downgrade_quality
+  mandatory_basket_required:
+    id: mandatory_basket_required
+    name: 必需证据篮子必查
+    description: 必需篮子不满足，不得给 04 强方向判断。
+    rule_type: blocking
+    applies_to: [EvidenceRequirement, EvidenceBasket, EvidenceReadinessAssessment]
+    condition: 必需 EvidenceBasket 状态为 met，或 EvidenceReadinessAssessment 已降级。
+    result: 允许判断单元进入对应使用上限。
+    priority: 100
+    failure_handling: downgrade_or_block_04_output
+  counter_basket_required:
+    id: counter_basket_required
+    name: 反证篮子必查
+    description: 反证篮子未检查，不得方向性输出。
+    rule_type: blocking
+    applies_to: [EvidenceRequirement, EvidenceBasket, EvidenceReadinessAssessment]
+    condition: counterCheckStatus 为 checked/met/not_applicable。
+    result: 允许方向性或条件性输出。
+    priority: 100
+    failure_handling: restrict_to_insufficient_or_conditional
+  source_profile_required:
+    id: source_profile_required
+    name: 来源画像必填
+    description: 正式证据必须匹配来源画像，不能只登记笼统来源名称。
+    rule_type: validation
+    applies_to: [SourceProfile, SourceDocument, EvidenceRequirement]
+    condition: SourceDocument.sourceProfileId 或 sourceMatchesSourceProfile 存在。
+    result: 允许来源参与证据篮子。
+    priority: 90
+    failure_handling: keep_as_lead_or_background
+  proxy_must_be_disclosed:
+    id: proxy_must_be_disclosed
+    name: 代理指标必须披露
+    description: 代理指标在 04/05 中必须说明代理性质和限制。
+    rule_type: validation
+    applies_to: [ProxyIndicator, EvidenceClaim, EvidenceFact]
+    condition: requiredDisclosure 非空，且关联证据 usageLimit 说明代理限制。
+    result: 允许代理指标受限使用。
+    priority: 100
+    failure_handling: reject_as_fact
+  proxy_cannot_replace_direct_evidence:
+    id: proxy_cannot_replace_direct_evidence
+    name: 代理不能替代直接证据
+    description: 代理指标只能在直接变量不可得时受限使用，不能写成直接事实。
+    rule_type: blocking
+    applies_to: [ProxyIndicator, EvidenceReadinessAssessment]
+    condition: cannotReplace 非空，且高代理依赖时 allowed04Output 不为 full_reasoning_ready。
+    result: 降低置信上限。
+    priority: 100
+    failure_handling: discount_confidence
+  source_tier_must_match_requirement:
+    id: source_tier_must_match_requirement
+    name: 来源层级必须匹配需求
+    description: 来源层级低于需求时不得冒充硬事实。
+    rule_type: validation
+    applies_to: [EvidenceRequirement, SourceProfile, SourceDocument]
+    condition: SourceProfile.sourceTier 和 SourceDocument.sourceTier 满足 minimumSourceTier。
+    result: 允许作为对应证据角色使用。
+    priority: 95
+    failure_handling: downgrade_to_background_or_lead
+  acquisition_channel_must_be_allowed:
+    id: acquisition_channel_must_be_allowed
+    name: 取数通道必须被允许
+    description: 实际取数通道必须在证据需求允许范围内，并保留权限和留痕。
+    rule_type: validation
+    applies_to: [EvidenceRequirement, AcquisitionChannel, SourceDocument]
+    condition: requirementAllowsAcquisitionChannel 存在，且 traceabilityLevel 满足需求。
+    result: 允许来源进入正式证据记录。
+    priority: 90
+    failure_handling: reject_or_mark_restricted
+  stop_condition_must_be_recorded:
+    id: stop_condition_must_be_recorded
+    name: 停止条件必须记录
+    description: 03 必须记录何时停止补证、何时停止方向性推理。
+    rule_type: validation
+    applies_to: [EvidenceRequirement, EvidenceReadinessAssessment]
+    condition: EvidenceRequirement.stopCondition 非空。
+    result: 允许形成准入评估。
+    priority: 90
+    failure_handling: return_to_03
+  readiness_limits_04_output:
+    id: readiness_limits_04_output
+    name: 准入评估限制 04 输出
+    description: 04 的每条观点不得超过 EvidenceReadinessAssessment.allowed04Output。
+    rule_type: blocking
+    applies_to: [EvidenceReadinessAssessment]
+    condition: allowed04Output 和 confidenceCeiling 已明确。
+    result: 04 只能在上限内表达观点。
+    priority: 100
+    failure_handling: block_overreach

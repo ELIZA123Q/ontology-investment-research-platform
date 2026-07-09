@@ -2,7 +2,7 @@
 
 01—05 的总体分工和正式产物见 [`00_项目定位与边界.md`](../00_项目定位与边界.md)。本目录只保存各类产物的结构、字段和填写说明。
 
-当前 01—05 输出模板版本统一为 `1.0.0`。
+当前 01、04、05 输出模板版本保持 `1.0.0`；02 判断结构交接和 03 数据证据快照 schema 升级为 `1.1.0`。
 
 ## 1. 01 模板
 
@@ -24,14 +24,14 @@
 ## 3. 03 模板
 
 - `03_数据与证据准备模板.md` 用于说明本次需要什么、如何取得和处理，以及是否达到进入 04 的条件；正式文件命名为 `03-<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md`。
-- `03_数据与证据快照模板/` 保存一个同名快照摘要 Markdown 和完整 CSV 快照；`state_variable_coverage.csv` 以“状态变量×必需锚点”为覆盖单元，逐项承接输入、原子证据和 `evidence_gate_status`；`judgment_unit_readiness.csv` 以核心判断单元承接证据门槛和 `allowed_04_output`；`display_data_candidates.csv`、`chart_data_package.csv`、`table_material_package.csv`、`source_annotation_package.csv` 和 `05_material_readiness.csv` 标明 05 成稿素材是否达到研报级。正式目录命名为 `03-<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/`，其中摘要文件与目录同名。
+- `03_数据与证据快照模板/` 保存一个同名快照摘要 Markdown 和完整 CSV 快照；`evidence_requirements.csv`、`evidence_recipe_matches.csv`、`evidence_baskets.csv`、`source_profiles.csv`、`acquisition_channels.csv`、`proxy_indicators.csv` 和 `evidence_readiness_assessments.csv` 承接 02 判断单元到 04 使用上限的证据链；`state_variable_coverage.csv` 以“状态变量×必需锚点”为覆盖单元；`judgment_unit_readiness.csv` 是 readiness 汇总；`display_data_candidates.csv`、`chart_data_package.csv`、`table_material_package.csv`、`source_annotation_package.csv` 和 `05_material_readiness.csv` 标明 05 成稿素材是否达到研报级。正式目录命名为 `03-<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/`，其中摘要文件与目录同名。
 - 03 准入状态为 `normal_pass`、`restricted_pass`、`incomplete_pass`、`failed`；低于 95% 且来源层级未耗尽时不得冻结准入。
 - 两项产物使用相同主题、日期、序号和运行标识，并相互引用。03 不再生成任务本体包、质量报告或其他附加文件。
 
 ## 4. 04 模板
 
 - `04_推理报告模板.md` 面向研究员，固定使用“一页摘要—核心落点—主导机制—对象分化—演进路线—改判闸门—可执行跟踪”七段正文。
-- 正文使用“已确认、倾向判断、条件判断、暂不可判断”等读者标签，不展示覆盖率、准入码、路径 ID 或完整变量表。每条观点必须能回到 03 的核心判断单元，且不得超过 `allowed_04_output`。证据边界与审计索引只保留摘要和定位。
+- 正文使用“已确认、倾向判断、条件判断、暂不可判断”等读者标签，不展示覆盖率、准入码、路径 ID 或完整变量表。每条观点必须能回到 03 的 `evidence_readiness_assessments.csv`，且不得超过 `allowed_04_output`。证据边界与审计索引只保留摘要和定位。
 - `04_推理审计模板.yaml` 面向系统复核，保存证据准入、整体系统等级、观点登记、不确定性分级、本体命中、路径结果、全部状态变量和数据逻辑。审计只引用 03 记录，不复制证据明细。
 - 04 每次配对生成 `04-<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md` 和 `04-<核心主题>推理审计-<YYYYMMDD>-<当日序号>.yaml`，两者使用同一任务、运行、判断时点、主题、日期和序号，并双向引用。
 - `validate_04_outputs.py` 用于检查报告/审计配对、路径与状态变量完整性、03 引用解析、不确定性映射和正文语言边界。

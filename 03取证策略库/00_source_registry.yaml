@@ -1,0 +1,136 @@
+registry_type: evidence_source_registry
+schema_version: 1.0.0
+updated_at: 2026-07-09
+
+source_dimensions:
+  SourceProfile:
+    description: 来源生产者或发布者画像，回答谁生产或发布材料、权威性如何
+    file: B_来源画像/B01_SourceProfile_来源生产者画像.md
+  ContentDomain:
+    description: 内容领域，回答数据描述什么对象或变量
+    file: B_来源画像/B02_ContentDomain_内容领域分类.md
+  AcquisitionChannel:
+    description: 获取通道，回答通过什么方式取得材料
+    file: B_来源画像/B03_AcquisitionChannel_获取通道画像.md
+  AccessScope:
+    description: 权限与合规边界，回答能否使用以及如何使用
+    file: B_来源画像/B04_AccessScope_权限与合规边界.md
+  ArtifactType:
+    description: 材料形态，回答本次实际取得的是什么载体
+    file: B_来源画像/B05_ArtifactType_材料形态与留痕规则.md
+
+source_profile_classes:
+  official_regulator:
+    default_authority_level: high
+    best_used_for: [policy_fact, regulatory_scope, effective_time]
+    not_sufficient_for: [actual_industry_impact, company_specific_unreported_data]
+  exchange_or_filing_platform:
+    default_authority_level: high
+    best_used_for: [listed_company_disclosure, filing_fact, financial_statement_source]
+    not_sufficient_for: [industry_overall_conclusion]
+  company_disclosure:
+    default_authority_level: high_for_self_disclosure
+    best_used_for: [company_fact, management_guidance, financial_disclosure]
+    not_sufficient_for: [industry_total_fact, competitor_fact]
+  licensed_financial_database:
+    default_authority_level: medium_high
+    best_used_for: [market_data, financial_data, consensus, valuation]
+    not_sufficient_for: [unstructured_industry_mechanism, unpublished_operating_fact]
+  industry_data_provider:
+    default_authority_level: medium_high
+    best_used_for: [industry_supply_demand, price_index, shipment, capacity]
+    not_sufficient_for: [single_company_unreported_fact]
+  internal_system:
+    default_authority_level: depends_on_data_owner
+    best_used_for: [internal_operating_data, customer_or_business_records]
+    not_sufficient_for: [external_reportable_fact_without_permission]
+  primary_research:
+    default_authority_level: medium
+    best_used_for: [order_check, channel_feedback, lead_lag_signal]
+    not_sufficient_for: [market_total_statistic]
+  sellside_research:
+    default_authority_level: medium
+    best_used_for: [market_expectation, logic_clue, peer_view, estimate]
+    not_sufficient_for: [hard_fact_unique_source]
+  news_media:
+    default_authority_level: low_to_medium
+    best_used_for: [event_clue, public_narrative]
+    not_sufficient_for: [hard_fact_unique_source]
+  ai_or_search_output:
+    default_authority_level: not_formal_source
+    best_used_for: [source_discovery, extraction_assistance]
+    not_sufficient_for: [formal_evidence]
+
+content_domains:
+  CD_POLICY:
+    name: 政策监管
+    typical_indicators: [policy_text, effective_time, applicable_scope, enforcement_body]
+    typical_judgment_use: [policy_fact, policy_impact]
+  CD_COMPANY_FINANCIALS:
+    name: 公司财务
+    typical_indicators: [revenue, profit, margin, capex, cash_flow]
+    typical_judgment_use: [earnings_impact, financial_sensitivity]
+  CD_MARKET:
+    name: 金融市场
+    typical_indicators: [price, volume, valuation, consensus, target_price]
+    typical_judgment_use: [valuation_expectation, market_pricing]
+  CD_INDUSTRY_SUPPLY_DEMAND:
+    name: 行业供需
+    typical_indicators: [shipment, capacity, inventory, industry_price, utilization]
+    typical_judgment_use: [cycle_phase, state_measurement]
+  CD_OPERATING_CHAIN:
+    name: 经营与产业链
+    typical_indicators: [order, lead_time, yield, customer, supplier, certification]
+    typical_judgment_use: [mechanism_transmission, supply_chain_bottleneck]
+
+acquisition_channels:
+  CH_WEB:
+    name: 网页或官网下载
+    type: web
+    auditability: medium
+  CH_DB_TERMINAL:
+    name: 数据库终端
+    type: database_terminal
+    auditability: medium
+  CH_API:
+    name: 授权 API
+    type: api
+    auditability: high
+  CH_MCP:
+    name: MCP Connector
+    type: mcp
+    auditability: high
+    note: MCP 是获取通道，不是来源
+  CH_FILE:
+    name: 文件上传或文件库读取
+    type: file
+    auditability: medium
+  CH_MANUAL:
+    name: 人工调研或人工记录
+    type: manual
+    auditability: low_to_medium
+  CH_INTERNAL:
+    name: 内部系统或数仓
+    type: internal_system
+    auditability: high_if_query_logged
+
+access_scopes:
+  public:
+    use_limit: 可在合规引用要求内使用
+  licensed:
+    use_limit: 需遵守数据库授权和引用限制
+  internal:
+    use_limit: 只能在授权内部场景使用
+  confidential:
+    use_limit: 需脱敏和权限确认
+  restricted:
+    use_limit: 默认不得进入正式产物，除非明确授权
+
+artifact_types:
+  pdf: {trace_locator: page/table/paragraph}
+  html: {trace_locator: url/paragraph/snapshot}
+  csv: {trace_locator: file/row/column}
+  database_field: {trace_locator: database/table/field/query_condition}
+  api_response: {trace_locator: endpoint/parameters/response_hash}
+  interview_note: {trace_locator: note_id/paragraph/time/sample_description}
+  ai_extraction: {trace_locator: original_source_locator/model_version/extraction_time}
