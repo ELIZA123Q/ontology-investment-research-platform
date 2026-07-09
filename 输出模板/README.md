@@ -2,7 +2,7 @@
 
 01—05 的总体分工和正式产物见 [`00_项目定位与边界.md`](../00_项目定位与边界.md)。本目录只保存各类产物的结构、字段和填写说明。
 
-当前 01、04、05 输出模板版本保持 `1.0.0`；02 判断结构交接和 03 数据证据快照 schema 升级为 `1.1.0`。
+当前 01、04、05 输出模板版本保持 `1.0.0`；02 判断结构交接 schema 为 `1.1.0`；03 数据证据快照 schema 升级为 `1.2.0`。
 
 ## 1. 01 模板
 
@@ -24,7 +24,7 @@
 ## 3. 03 模板
 
 - `03_数据与证据准备模板.md` 用于说明本次需要什么、如何取得和处理，以及是否达到进入 04 的条件；正式文件命名为 `03-<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md`。
-- `03_数据与证据快照模板/` 保存一个同名快照摘要 Markdown 和完整 CSV 快照；`evidence_requirements.csv`、`evidence_recipe_matches.csv`、`evidence_baskets.csv`、`source_profiles.csv`、`acquisition_channels.csv`、`proxy_indicators.csv` 和 `evidence_readiness_assessments.csv` 承接 02 判断单元到 04 使用上限的证据链；`state_variable_coverage.csv` 以“状态变量×必需锚点”为覆盖单元；`judgment_unit_readiness.csv` 是 readiness 汇总；`display_data_candidates.csv`、`chart_data_package.csv`、`table_material_package.csv`、`source_annotation_package.csv` 和 `05_material_readiness.csv` 标明 05 成稿素材是否达到研报级。正式目录命名为 `03-<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/`，其中摘要文件与目录同名。
+- `03_数据与证据快照模板/` 保存同名快照摘要 Markdown 与分层 CSV 快照（`manifest.csv` + `01_plan/` + `02_assets/` + `03_gate/` + `04_05_materials/`）。`01_plan` 承接证据需求、配方、篮子、SourceProfile 运行视图、取数通道与代理指标；`02_assets/source_snapshot.csv` 承接实际取得的 SourceDocument；`03_gate/evidence_readiness_assessments.csv` 是判断单元门禁与 04 使用上限权威表；`03_gate/gaps_and_risks.csv` 统一承接证据缺口与 05 素材缺口（`gap_type=05_material`）；`04_05_materials` 标明 05 成稿素材是否达到研报级。正式目录命名为 `03-<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/`，其中摘要文件与目录同名。
 - 03 准入状态为 `normal_pass`、`restricted_pass`、`incomplete_pass`、`failed`；低于 95% 且来源层级未耗尽时不得冻结准入。
 - 两项产物使用相同主题、日期、序号和运行标识，并相互引用。03 不再生成任务本体包、质量报告或其他附加文件。
 

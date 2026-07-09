@@ -62,7 +62,7 @@ REQUIRED_SECTIONS = [
 FORBIDDEN_STAGE_MARKERS = [
     "source_02_view_hash",
     "coverage_id",
-    "judgment_unit_readiness.csv",
+    "evidence_readiness_assessments.csv",
     "allowed_04_output",
     "schema_name: task_ontology_view",
 ]

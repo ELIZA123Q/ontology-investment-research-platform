@@ -203,7 +203,7 @@ evidence_requirements:
     required_time_scope: ""
     required_grain: "<daily | monthly | quarterly | event_point | text_claim | cross_section | time_series>"
     minimum_quality_level: "<Q1_background | Q2_reasoning_usable | Q3_directional_ready | Q4_report_grade>"
-    minimum_source_tier: "<L1 | L2 | L3 | L4 | L5 | L6 | L7>"
+    minimum_source_tier: "<S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8；历史快照可用 L1-L7>"
     minimum_independent_source_count: 1
     mandatory_baskets: []
     counter_baskets: []
@@ -239,14 +239,13 @@ handoff_to_03:
     - "02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
     - "02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
   required_csv_or_snapshot_outputs:
-    - state_variable_coverage.csv
-    - path_readiness.csv
-    - evidence_requirements.csv
-    - evidence_recipe_matches.csv
-    - evidence_baskets.csv
-    - evidence_readiness_assessments.csv
-    - judgment_unit_readiness.csv
-    - evidence_records.csv
+    - 03_gate/state_variable_coverage.csv
+    - 03_gate/path_readiness.csv
+    - 01_plan/evidence_requirements.csv
+    - 01_plan/evidence_recipe_matches.csv
+    - 01_plan/evidence_baskets.csv
+    - 03_gate/evidence_readiness_assessments.csv
+    - 02_assets/evidence_records.csv
   special_limits: []
 
 validation:

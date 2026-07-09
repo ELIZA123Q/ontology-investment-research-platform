@@ -40,6 +40,31 @@ quality_dimensions:
     description: 是否能支撑当前判断单元，而不是泛泛相关
     hard_gate: true
 
+source_document_metadata_required:
+  description: SourceDocument 进入正式证据包前的最低元数据要求
+  required_fields:
+    - source_document_id_or_source_id
+    - title
+    - source_profile_id
+    - source_name
+    - source_tier
+    - content_domain
+    - acquisition_channel
+    - access_scope
+    - artifact_type
+    - captured_at
+    - location
+    - locator_or_field_lineage
+    - usage_limit
+    - source_reliability
+  blocking_if_missing:
+    - source_profile_id
+    - acquisition_channel
+    - access_scope
+    - artifact_type
+    - location
+    - locator_or_field_lineage
+
 quality_levels:
   Q0_unusable:
     minimum_conditions:
@@ -87,8 +112,11 @@ channel_specific_checks:
     required_trace: [endpoint, parameters, response_time, api_version, raw_response_or_hash, field_lineage]
     common_risks: [version_change, field_mapping_error]
   mcp:
-    required_trace: [connector_name, underlying_source_profile, parameters, response_time, raw_artifact_or_hash, field_lineage]
+    required_trace: [connector_name, underlying_source_profile_or_source_document, parameters, response_time, raw_artifact_or_hash, field_lineage, access_scope]
     common_risks: [tool_success_mistaken_as_source_quality, missing_underlying_source]
+  file_search:
+    required_trace: [search_scope, matched_file, original_publisher_if_known, file_version_or_hash, locator, retrieved_at]
+    common_risks: [unknown_origin, stale_copy, search_result_mistaken_as_source]
   file:
     required_trace: [filename, file_version, uploaded_at, original_publisher_if_known, page_or_sheet_or_cell_locator]
     common_risks: [unknown_origin, stale_copy]

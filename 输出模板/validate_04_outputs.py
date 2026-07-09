@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 
 from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_allowed_04_output, validate_quality_status
+from snapshot_layout_03 import SNAPSHOT_CSV_LAYOUT
 from validator_utils import (
     assert_subset,
     error_payload,
@@ -24,6 +25,10 @@ from validator_utils import (
     same_ref,
     split_refs,
 )
+
+
+def _snapshot_csv(snapshot_dir: Path, logical_name: str) -> list[dict[str, str]]:
+    return read_csv(snapshot_dir / SNAPSHOT_CSV_LAYOUT[logical_name])
 
 
 REQUIRED_REPORT_META = [
@@ -148,30 +153,30 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
 
 
 def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], dict[str, dict[str, str]], dict[str, set[str]]]:
-    manifest_rows = read_csv(snapshot_dir / "manifest.csv")
+    manifest_rows = _snapshot_csv(snapshot_dir, "manifest.csv")
     if len(manifest_rows) != 1:
         fail("manifest.csv 必须且只能有一行")
-    judgments = read_csv(snapshot_dir / "judgment_unit_readiness.csv")
-    judgment_by_id = {row["judgment_unit_id"]: row for row in judgments}
-    if not judgment_by_id:
-        fail("judgment_unit_readiness.csv 至少需要一行")
-    for unit_id, row in judgment_by_id.items():
-        validate_allowed_04_output(row.get("allowed_04_output"), f"judgment_unit_readiness#{unit_id}")
-    readiness_rows = read_csv(snapshot_dir / "evidence_readiness_assessments.csv")
+    readiness_rows = _snapshot_csv(snapshot_dir, "evidence_readiness_assessments.csv")
     readiness_by_id = {row["assessment_id"]: row for row in readiness_rows if row.get("assessment_id")}
     if not readiness_by_id:
         fail("evidence_readiness_assessments.csv 至少需要一行")
+    judgment_by_id: dict[str, dict[str, str]] = {}
     for assessment_id, row in readiness_by_id.items():
-        unit_id = row.get("target_judgment_unit_id", "")
-        if unit_id not in judgment_by_id:
-            fail(f"evidence_readiness_assessments#{assessment_id}.target_judgment_unit_id 不存在: {unit_id}")
+        unit_id = row.get("target_judgment_unit_id", "").strip()
+        if not unit_id:
+            fail(f"evidence_readiness_assessments#{assessment_id}.target_judgment_unit_id 不得为空")
         validate_allowed_04_output(row.get("allowed_04_output"), f"evidence_readiness_assessments#{assessment_id}")
-    evidence_rows = read_csv(snapshot_dir / "evidence_records.csv")
-    display_rows = read_csv(snapshot_dir / "display_data_candidates.csv")
-    source_rows = read_csv(snapshot_dir / "source_snapshot.csv")
-    chart_rows = read_csv(snapshot_dir / "chart_data_package.csv")
-    table_rows = read_csv(snapshot_dir / "table_material_package.csv")
-    source_annotation_rows = read_csv(snapshot_dir / "source_annotation_package.csv")
+        existing = judgment_by_id.get(unit_id)
+        if existing is None or output_rank(row.get("allowed_04_output", "")) < output_rank(existing.get("allowed_04_output", "")):
+            judgment_by_id[unit_id] = row
+    if not judgment_by_id:
+        fail("evidence_readiness_assessments.csv 至少需要一行有效 target_judgment_unit_id")
+    evidence_rows = _snapshot_csv(snapshot_dir, "evidence_records.csv")
+    display_rows = _snapshot_csv(snapshot_dir, "display_data_candidates.csv")
+    source_rows = _snapshot_csv(snapshot_dir, "source_snapshot.csv")
+    chart_rows = _snapshot_csv(snapshot_dir, "chart_data_package.csv")
+    table_rows = _snapshot_csv(snapshot_dir, "table_material_package.csv")
+    source_annotation_rows = _snapshot_csv(snapshot_dir, "source_annotation_package.csv")
     snapshot_sets = {
         "evidence_ids": {row["evidence_id"] for row in evidence_rows if row.get("evidence_id")},
         "data_candidate_ids": {row["data_candidate_id"] for row in display_rows if row.get("data_candidate_id")},

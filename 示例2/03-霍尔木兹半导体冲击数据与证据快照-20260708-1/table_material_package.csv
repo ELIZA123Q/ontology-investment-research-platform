@@ -1,4 +1,0 @@
-table_id,execution_id,table_role,suggested_title,row_objects,columns_available,source_ids,linked_evidence_ids,readiness,ranking_support,usage_limit
-TAB-01,EXEC-SEM-HORMUZ-20260708-1,ranking,对象暴露强弱：韩台先进制造 > 中国先进制造暴露 > 气体替代观察 > 设计设备情绪,韩台先进制造|中国先进制造氦气暴露|中国材料气体国产替代|中国设计设备情绪映射,object|direction|strength|mechanism|limit,SRC-07|SRC-08,EV-08|EV-09|EV-10|EV-11,ready,strong,非投资排序
-TAB-02,EXEC-SEM-HORMUZ-20260708-1,scenario,影响测算边界情景（无精确减产吨数）,基准|上修|下修,scenario|assumption|bound|meaning,SRC-05|SRC-07|SRC-08,EV-05|EV-08|EV-10|EV-12,partial,weak,conditional_only 边界框架
-TAB-03,EXEC-SEM-HORMUZ-20260708-1,object_mapping,事件影响路径表,通道航运能源|氦气结构约束|韩台制造|中国三类对象,link|direction|persistence|evidence,SRC-01|SRC-05|SRC-07|SRC-08,EV-01|EV-05|EV-08|EV-10,ready,medium,

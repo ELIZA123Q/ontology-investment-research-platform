@@ -1,5 +1,0 @@
-material_unit_id,execution_id,target_05_archetype,material_unit,status,linked_judgment_unit_ids,linked_data_candidate_ids,linked_chart_ids,linked_table_ids,source_annotation_ids,impact_on_05,required_action
-MU-01,EXEC-SEM-HORMUZ-20260708-1,event_commentary,事件事实与时间线,usable_with_caveat,JU-01,DDC-04,,TAB-03,ANN-01,可写事件概述,时间戳保持窗口级
-MU-02,EXEC-SEM-HORMUZ-20260708-1,event_commentary,双路径机制与预期差,report_grade_ready,JU-01|JU-02,DDC-02,FIG-02,TAB-03,ANN-01|ANN-02,支撑核心观点与机制图,强调油价非主线
-MU-03,EXEC-SEM-HORMUZ-20260708-1,event_commentary,影响测算边界表,usable_with_caveat,JU-05|JU-06,DDC-01|DDC-05,FIG-01,TAB-02,ANN-02|ANN-03|ANN-04,可做边界测算不可做精确损益,标conditional_only
-MU-04,EXEC-SEM-HORMUZ-20260708-1,event_commentary,对象强弱映射表,report_grade_ready,JU-03|JU-04,DDC-03,,TAB-01,ANN-03|ANN-04,支撑产业链映射与强弱,禁止投资排序表述

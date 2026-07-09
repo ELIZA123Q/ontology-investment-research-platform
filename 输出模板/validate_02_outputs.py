@@ -91,7 +91,7 @@ EVIDENCE_ROLE_STATUSES = {"required", "optional", "allowed_with_limit", "not_all
 EVIDENCE_ROLES = EVIDENCE_ROLE_KEYS
 REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
 QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
-SOURCE_TIERS = {"L1", "L2", "L3", "L4", "L5", "L6", "L7"}
+SOURCE_TIERS = {"L1", "L2", "L3", "L4", "L5", "L6", "L7", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"}
 
 
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:

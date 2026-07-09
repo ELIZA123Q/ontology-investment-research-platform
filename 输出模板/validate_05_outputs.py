@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from quality_gate_utils import output_rank, validate_quality_status
+from snapshot_layout_03 import SNAPSHOT_CSV_LAYOUT
 from validator_utils import (
     assert_subset,
     error_payload,
@@ -23,6 +24,10 @@ from validator_utils import (
     same_ref,
     split_refs,
 )
+
+
+def _snapshot_csv(snapshot_dir: Path, logical_name: str) -> list[dict[str, str]]:
+    return read_csv(snapshot_dir / SNAPSHOT_CSV_LAYOUT[logical_name])
 
 
 ARCHETYPE_NAME_MAP = {
@@ -338,27 +343,31 @@ def _snapshot_rows(
     list[dict[str, str]],
     dict[str, set[str]],
 ]:
-    manifest_rows = read_csv(snapshot_dir / "manifest.csv")
+    manifest_rows = _snapshot_csv(snapshot_dir, "manifest.csv")
     if len(manifest_rows) != 1:
         fail("03 manifest.csv 必须且只能有一行")
     rows = {
-        "source_snapshot.csv": read_csv(snapshot_dir / "source_snapshot.csv"),
-        "reasoning_inputs.csv": read_csv(snapshot_dir / "reasoning_inputs.csv"),
-        "evidence_records.csv": read_csv(snapshot_dir / "evidence_records.csv"),
-        "judgment_unit_readiness.csv": read_csv(snapshot_dir / "judgment_unit_readiness.csv"),
-        "evidence_readiness_assessments.csv": read_csv(snapshot_dir / "evidence_readiness_assessments.csv"),
-        "display_data_candidates.csv": read_csv(snapshot_dir / "display_data_candidates.csv"),
-        "chart_data_package.csv": read_csv(snapshot_dir / "chart_data_package.csv"),
-        "table_material_package.csv": read_csv(snapshot_dir / "table_material_package.csv"),
-        "source_annotation_package.csv": read_csv(snapshot_dir / "source_annotation_package.csv"),
+        "source_snapshot.csv": _snapshot_csv(snapshot_dir, "source_snapshot.csv"),
+        "reasoning_inputs.csv": _snapshot_csv(snapshot_dir, "reasoning_inputs.csv"),
+        "evidence_records.csv": _snapshot_csv(snapshot_dir, "evidence_records.csv"),
+        "evidence_readiness_assessments.csv": _snapshot_csv(snapshot_dir, "evidence_readiness_assessments.csv"),
+        "display_data_candidates.csv": _snapshot_csv(snapshot_dir, "display_data_candidates.csv"),
+        "chart_data_package.csv": _snapshot_csv(snapshot_dir, "chart_data_package.csv"),
+        "table_material_package.csv": _snapshot_csv(snapshot_dir, "table_material_package.csv"),
+        "source_annotation_package.csv": _snapshot_csv(snapshot_dir, "source_annotation_package.csv"),
+    }
+    judgment_unit_ids = {
+        row["target_judgment_unit_id"]
+        for row in rows["evidence_readiness_assessments.csv"]
+        if row.get("target_judgment_unit_id")
     }
     sets = {
         "source_ids": {row["source_id"] for row in rows["source_snapshot.csv"] if row.get("source_id")},
         "input_ids": {row["input_id"] for row in rows["reasoning_inputs.csv"] if row.get("input_id")},
         "evidence_ids": {row["evidence_id"] for row in rows["evidence_records.csv"] if row.get("evidence_id")},
-        "judgment_unit_ids": {row["judgment_unit_id"] for row in rows["judgment_unit_readiness.csv"] if row.get("judgment_unit_id")},
+        "judgment_unit_ids": judgment_unit_ids,
         "readiness_assessment_ids": {row["assessment_id"] for row in rows["evidence_readiness_assessments.csv"] if row.get("assessment_id")},
-        "readiness_judgment_unit_ids": {row["target_judgment_unit_id"] for row in rows["evidence_readiness_assessments.csv"] if row.get("target_judgment_unit_id")},
+        "readiness_judgment_unit_ids": judgment_unit_ids,
         "data_candidate_ids": {row["data_candidate_id"] for row in rows["display_data_candidates.csv"] if row.get("data_candidate_id")},
         "chart_ids": {row["figure_id"] for row in rows["chart_data_package.csv"] if row.get("figure_id")},
         "table_ids": {row["table_id"] for row in rows["table_material_package.csv"] if row.get("table_id")},

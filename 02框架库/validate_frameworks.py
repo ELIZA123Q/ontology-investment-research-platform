@@ -65,7 +65,6 @@ CHINA_AUTHORITY_KEYWORDS = (
     "中国半导体行业协会",
     "中国通信标准化协会",
 )
-DEPRECATED_INDUSTRY_PREFIX = "行业框架库/半导体/"
 
 EXPECTED_SEMICONDUCTOR_FRAMEWORK_IDS = {
     "IF-SC-01",
@@ -150,8 +149,6 @@ def classify_asset(path: Path, root: Path, front: Dict[str, str]) -> str:
     if parts[0] == "基础框架库":
         return "framework"
     if "01_主框架" in parts:
-        return "framework"
-    if parts[:2] == ("行业框架库", "光通信"):
         return "framework"
     if front.get("framework_id"):
         return "framework"
@@ -376,11 +373,7 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
         for raw_target, resolved in local_markdown_links(path, text):
             if resolved.exists():
                 continue
-            # 旧扁平目录链接视为迁移警告，不再阻断新结构验收
-            if raw_target.startswith(DEPRECATED_INDUSTRY_PREFIX) or f"/{DEPRECATED_INDUSTRY_PREFIX}" in raw_target:
-                warnings.append(f"{path.relative_to(root)}: 内部链接指向已废弃路径 {raw_target}")
-            else:
-                errors.append(f"{path.relative_to(root)}: 内部链接不存在 {raw_target}")
+            errors.append(f"{path.relative_to(root)}: 内部链接不存在 {raw_target}")
 
     semiconductor_framework_ids = {
         front.get("framework_id", "")

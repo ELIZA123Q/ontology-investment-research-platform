@@ -1,9 +1,0 @@
-relation_id,execution_id,requirement_id,linked_judgment_unit_ids,relation_type,source_instance_id,target_instance_id,relation_scope,valid_from,valid_to,verification_status,relation_evidence_strength,source_run_refs,evidence_refs,notes
-REL-01,EXEC-SEM-HORMUZ-20260708-1,IR-01|IR-03,JU-01|JU-02,exports_via,INST-QATAR-HE,INST-STRAIT,卡塔尔出口,2026-01-01,,verified,medium,SR-04|SR-01,EV-01|EV-07,
-REL-02,EXEC-SEM-HORMUZ-20260708-1,IR-02|IR-03,JU-02,produced_at,INST-QATAR-HE,INST-RAS,拉斯拉凡,2026-01-01,,proxy,medium,SR-05,EV-05|EV-06,
-REL-03,EXEC-SEM-HORMUZ-20260708-1,IR-03|IR-04,JU-03|JU-05,depends_on_import,INST-KR-TW-FAB,INST-QATAR-HE,韩台进口,2026-01-01,,proxy,medium,SR-07,EV-08|EV-09,
-REL-04,EXEC-SEM-HORMUZ-20260708-1,IR-03|IR-05,JU-04|JU-05,depends_on_import,INST-CN-ADV,INST-QATAR-HE,中国进口,2026-01-01,,contested,weak,SR-08,EV-10,转述占比
-REL-05,EXEC-SEM-HORMUZ-20260708-1,IR-03,JU-01|JU-05,logistics_backs_up,INST-HELIUM-LOG,INST-QATAR-HE,液氦物流,2026-04-01,,proxy,medium,SR-06,EV-04,
-REL-06,EXEC-SEM-HORMUZ-20260708-1,IR-07,JU-04,maps_to_sentiment,INST-KR-TW-FAB,INST-CN-DES,情绪误读,2026-04-01,,proxy,weak,SR-08,EV-11,竞争解释
-REL-07,EXEC-SEM-HORMUZ-20260708-1,IR-05|IR-06,JU-04,substitution_candidate_for,INST-CN-GAS,INST-CN-ADV,气体替代,2026-01-01,,hypothesis,weak,SR-08,EV-10,认证不足
-REL-08,EXEC-SEM-HORMUZ-20260708-1,IR-01,JU-01|JU-02,price_proxy_of,INST-BRENT,INST-STRAIT,能源对比项,2026-04-01,,verified,medium,SR-02,EV-02,非半导体主线

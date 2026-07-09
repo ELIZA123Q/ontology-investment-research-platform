@@ -8,22 +8,31 @@ object_types:
   SourceDocument:
     id: SourceDocument
     name: 来源文档
-    description: 原始材料、数据文件或人工记录的来源载体。
+    description: 本次实际取得的原始材料、数据文件、接口响应、网页、人工记录或文件检索结果的来源载体。
     primary_key: id
     title_property: title
     validity: true
     properties:
       title: {type: string, required: true, description: 来源标题或稳定名称。}
-      sourceType: {type: enum, required: true, allowed_values: [filing, report, news, transcript, dataset, policy, manual, other], description: 来源载体类型。}
+      sourceProfileId: {type: string, required: false, description: 匹配的稳定 SourceProfile ID；正式证据必须填写或建立 sourceDocumentUsesProfile。}
+      sourceName: {type: string, required: true, description: 来源生产者、发布者或数据提供方名称。}
+      sourceTier: {type: enum, required: false, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级；兼容旧 L1-L7 与新 B_取证来源 S1-S8。}
+      contentDomain: {type: string, required: false, description: 本材料实际覆盖的内容领域。}
+      acquisitionChannel: {type: enum, required: true, allowed_values: [web, database_terminal, api, mcp, file, manual, internal_system, file_search, other], description: 本次材料取得方式；MCP、API、网页、人工上传、文件检索均属于获取通道。}
+      accessScope: {type: enum, required: true, allowed_values: [public, licensed, internal, confidential, restricted, unknown], description: 来源访问和使用边界；不清时不得进入正式证据包。}
+      artifactType: {type: enum, required: true, allowed_values: [pdf, html, csv, xlsx, api_response, database_field, transcript, image, screenshot, note, table, other], description: 本次实际取得的材料形态，决定原文定位、字段血缘、快照和复核要求。}
       publisher: {type: string, required: false, description: 发布者或来源机构。}
       publishedAt: {type: datetime, required: false, description: 来源发布时间。}
-      location: {type: string, required: true, description: 文件、链接或其他稳定定位。}
-      accessScope: {type: enum, required: true, allowed_values: [public, internal, restricted], description: 来源访问范围。}
-      sourceReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 来源可靠程度。}
-      sourceProfileId: {type: string, required: false, description: 本次或来源库匹配的来源画像 ID。}
-      sourceTier: {type: enum, required: false, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 来源层级。}
-      acquisitionChannelId: {type: string, required: false, description: 来源取得通道 ID。}
-      contentDomainTags: {type: array, required: false, description: 来源覆盖的内容领域标签。}
+      capturedAt: {type: datetime, required: true, description: 本次捕获、下载、调用、上传或登记时间。}
+      businessTime: {type: datetime, required: false, description: 材料描述事项的业务时间或统计期锚点。}
+      location: {type: string, required: true, description: 文件、链接、数据库位置、接口端点或其他稳定定位。}
+      locator: {type: string, required: false, description: 页码、段落、表格、字段、行列、接口参数或记录位置。}
+      methodologyNote: {type: string, required: false, description: 来源方法论、样本、字段口径、统计规则或重要限制。}
+      usageLimit: {type: string, required: false, description: 来源在本次证据包中的可用边界和禁用用途。}
+      sourceReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 来源本身的可靠程度，不得直接复制为主张可信度。}
+      sourceType: {type: enum, required: false, allowed_values: [filing, report, news, transcript, dataset, policy, manual, regulatory_record, market_data, api_response, other], description: 兼容字段：来源载体或内容类型。}
+      acquisitionChannelId: {type: string, required: false, description: 可选的获取通道登记 ID。}
+      contentDomainTags: {type: array, required: false, description: 兼容字段：来源覆盖的内容领域标签。}
       independenceGroupId: {type: string, required: false, description: 独立来源组 ID。}
       methodologyStatus: {type: enum, required: false, allowed_values: [transparent, partially_transparent, opaque, not_applicable], description: 方法透明度状态。}
       accessPermissionStatus: {type: enum, required: false, allowed_values: [allowed, licensed, restricted, denied, unknown], description: 访问与使用权限状态。}
@@ -104,7 +113,7 @@ object_types:
       requiredTimeScope: {type: string, required: false, description: 时间范围。}
       requiredGrain: {type: string, required: false, description: 粒度要求。}
       minimumQualityLevel: {type: enum, required: true, allowed_values: [Q1_background, Q2_reasoning_usable, Q3_directional_ready, Q4_report_grade], description: 最低证据质量。}
-      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 最低来源层级。}
+      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
       minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
       allowedProxy: {type: boolean, required: true, description: 是否允许代理指标。}
       stopCondition: {type: string, required: true, description: 停止补证或停止推理的条件。}
@@ -140,7 +149,7 @@ object_types:
       basketType: {type: string, required: true, description: 证据篮子类型。}
       targetJudgmentUnitId: {type: string, required: true, description: 对应判断单元 ID。}
       basketRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色。}
-      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 最低来源层级。}
+      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
       minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
       allowedProxy: {type: boolean, required: true, description: 是否允许代理。}
       basketStatus: {type: enum, required: true, allowed_values: [met, partial, not_met, missing, contested, blocked, not_applicable], description: 篮子满足状态。}
@@ -152,23 +161,24 @@ object_types:
   SourceProfile:
     id: SourceProfile
     name: 来源画像
-    description: 稳定来源类型能支持什么证据、不能支持什么用途。
+    description: 稳定来源生产者或来源类型，说明默认权威性、内容领域、允许主张类型、禁用用途和常见限制。
     primary_key: id
-    title_property: sourceProfileName
+    title_property: sourceName
     validity: true
     properties:
-      sourceProfileName: {type: string, required: true, description: 来源画像名称。}
-      sourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7], description: 来源层级。}
+      sourceName: {type: string, required: true, description: 稳定来源生产者、发布者或来源类型名称。}
+      sourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级；兼容旧 L1-L7 与新 B_取证来源 S1-S8。}
       sourceCategory: {type: string, required: true, description: 来源类别。}
+      authorityType: {type: string, required: true, description: 权威类型，例如 official, exchange, company_disclosure, licensed_database, industry_provider, research, media, ai_or_search_lead。}
       typicalContentDomains: {type: array, required: true, description: 常见内容领域。}
       allowedClaimTypes: {type: array, required: true, description: 允许支持的主张类型。}
-      allowedEvidenceRoles: {type: array, required: true, description: 允许支持的证据角色。}
-      forbiddenUses: {type: array, required: true, description: 禁用用途。}
+      forbiddenUse: {type: array, required: true, description: 禁用用途。}
       methodologyTransparency: {type: enum, required: true, allowed_values: [high, medium, low, unknown], description: 方法透明度。}
       updateFrequency: {type: string, required: false, description: 更新频率。}
-      independenceGroupRule: {type: string, required: true, description: 独立来源计数规则。}
-      accessScope: {type: enum, required: true, allowed_values: [public, internal, restricted, licensed], description: 访问范围。}
+      independenceGroup: {type: string, required: true, description: 独立来源组或默认去重规则。}
+      accessScopeDefault: {type: enum, required: true, allowed_values: [public, licensed, internal, confidential, restricted, unknown], description: 默认访问和使用边界。}
       defaultReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 默认可靠性。}
+      commonLimitations: {type: array, required: true, description: 常见限制、口径陷阱和降级触发条件。}
       requiredLocatorLevel: {type: string, required: true, description: 定位留痕要求。}
   AcquisitionChannel:
     id: AcquisitionChannel
@@ -371,10 +381,10 @@ relation_types:
     cardinality: many_to_many
     evidence_required: false
     properties: {}
-  sourceMatchesSourceProfile:
-    id: sourceMatchesSourceProfile
-    name: 来源匹配来源画像
-    description: 具体来源文档匹配某个来源画像。
+  sourceDocumentUsesProfile:
+    id: sourceDocumentUsesProfile
+    name: 来源文档使用来源画像
+    description: 本次实际取得的 SourceDocument 使用某个稳定 SourceProfile；该关系不表示材料内容已被证实。
     source_types: [SourceDocument]
     target_types: [SourceProfile]
     direction: directed
@@ -488,16 +498,16 @@ action_types:
   RegisterSource:
     id: RegisterSource
     name: 登记来源
-    description: 登记可定位来源并评估来源可靠性。
+    description: 登记本次实际取得的 SourceDocument，并评估来源可靠性、权限、材料形态和留痕要求。
     target_types: [SourceDocument]
-    parameters: [title, sourceType, publisher, publisherRef, publishedAt, location, accessScope]
-    preconditions: [来源可定位]
-    effects: [create_SourceDocument, set_sourceReliability, create_sourcePublishedBy_if_provided]
+    parameters: [title, sourceProfileId, sourceName, sourceTier, contentDomain, acquisitionChannel, accessScope, artifactType, publisher, publisherRef, publishedAt, capturedAt, businessTime, location, locator]
+    preconditions: [来源可定位, 权限边界已判断, 材料形态已识别]
+    effects: [create_SourceDocument, set_sourceReliability, create_sourceDocumentUsesProfile_if_provided, create_sourcePublishedBy_if_provided]
     outputs: [SourceDocument]
-    rule_refs: [source_traceability]
+    rule_refs: [source_traceability, source_profile_required, acquisition_channel_not_source_profile, access_scope_required_for_formal_evidence, artifact_type_drives_traceability]
     function_ref: AssessSourceReliability
     logic_refs: []
-    write_scope: [SourceDocument, sourcePublishedBy]
+    write_scope: [SourceDocument, sourceDocumentUsesProfile, sourcePublishedBy]
   ExtractClaim:
     id: ExtractClaim
     name: 抽取主张
@@ -620,7 +630,7 @@ action_types:
     name: 登记来源画像
     description: 登记稳定来源画像和禁用用途。
     target_types: [SourceProfile]
-    parameters: [sourceProfileName, sourceTier, sourceCategory, allowedClaimTypes]
+    parameters: [sourceName, sourceTier, sourceCategory, authorityType, typicalContentDomains, allowedClaimTypes, forbiddenUse, defaultReliability]
     preconditions: [来源画像可描述]
     effects: [create_SourceProfile]
     outputs: [SourceProfile]
@@ -784,7 +794,7 @@ functions:
   MatchSourceProfileFunction:
     id: MatchSourceProfileFunction
     name: 来源画像匹配
-    description: 判断来源画像是否满足证据需求的来源层级、内容域和禁用用途要求。
+    description: 判断 SourceProfile 是否满足证据需求的来源层级、内容域和禁用用途要求。
     inputs: [EvidenceRequirement, SourceProfile, AcquisitionChannel]
     outputs: [sourceProfileMatch]
     reads: [EvidenceRequirement, SourceProfile, AcquisitionChannel]
@@ -897,13 +907,17 @@ logic_flows:
   SourceProfileMatchingLogic:
     id: SourceProfileMatchingLogic
     name: 来源画像匹配逻辑
-    description: 检查来源画像、来源层级和取数通道是否满足证据需求。
+    description: 检查 SourceProfile、内容领域、来源层级、权限、材料形态和取数通道是否满足证据需求。
     inputs: [EvidenceRequirement, SourceProfile, AcquisitionChannel, SourceDocument]
     steps:
       - {id: require_source_profile, rule_refs: [source_profile_required]}
       - {id: match_source_profile, function_ref: MatchSourceProfileFunction}
+      - {id: validate_content_domain, rule_refs: [content_domain_must_match_basket]}
       - {id: validate_source_tier, rule_refs: [source_tier_must_match_requirement]}
       - {id: validate_channel, rule_refs: [acquisition_channel_must_be_allowed]}
+      - {id: validate_channel_not_profile, rule_refs: [acquisition_channel_not_source_profile]}
+      - {id: validate_access_scope, rule_refs: [access_scope_required_for_formal_evidence]}
+      - {id: validate_artifact_type, rule_refs: [artifact_type_drives_traceability]}
     outputs: [source_profile_match]
     fallback: 来源画像或通道不匹配时不得作为正式硬证据。
   ProxyIndicatorValidationLogic:
@@ -1053,13 +1067,53 @@ rules:
   source_profile_required:
     id: source_profile_required
     name: 来源画像必填
-    description: 正式证据必须匹配来源画像，不能只登记笼统来源名称。
+    description: 正式证据必须匹配稳定 SourceProfile，不能只登记笼统来源名称。
     rule_type: validation
     applies_to: [SourceProfile, SourceDocument, EvidenceRequirement]
-    condition: SourceDocument.sourceProfileId 或 sourceMatchesSourceProfile 存在。
+    condition: SourceDocument.sourceProfileId 或 sourceDocumentUsesProfile 存在。
     result: 允许来源参与证据篮子。
     priority: 90
     failure_handling: keep_as_lead_or_background
+  acquisition_channel_not_source_profile:
+    id: acquisition_channel_not_source_profile
+    name: 获取通道不得写成来源画像
+    description: MCP、API、网页、人工上传、文件检索、数据库终端和内部系统均属于 acquisitionChannel，不得写成 SourceProfile。
+    rule_type: blocking
+    applies_to: [SourceDocument, SourceProfile, AcquisitionChannel]
+    condition: SourceProfile.sourceName 不得为 MCP/API/网页/搜索/文件上传/文件检索/数据库终端等获取方式；SourceDocument.acquisitionChannel 必须单独记录。
+    result: 通道和来源生产者分离。
+    priority: 100
+    failure_handling: reject_or_reclassify_source_metadata
+  access_scope_required_for_formal_evidence:
+    id: access_scope_required_for_formal_evidence
+    name: 正式证据必须明确权限边界
+    description: AccessScope 不清时，不得进入正式证据包。
+    rule_type: blocking
+    applies_to: [SourceDocument, EvidenceClaim, EvidenceFact]
+    condition: SourceDocument.accessScope 非 unknown，且权限或引用限制已记录。
+    result: 允许正式使用；否则只能作为线索或候选材料。
+    priority: 100
+    failure_handling: block_formal_use
+  artifact_type_drives_traceability:
+    id: artifact_type_drives_traceability
+    name: 材料形态决定留痕要求
+    description: ArtifactType 决定原文定位、字段血缘、快照和复核要求。
+    rule_type: validation
+    applies_to: [SourceDocument, EvidenceClaim]
+    condition: PDF/HTML 需页码段落或快照，CSV/XLSX 需行列和文件指纹，API/数据库字段需端点、参数、字段血缘和响应指纹，人工记录需样本和记录时间。
+    result: 按材料形态形成可复核 locator。
+    priority: 95
+    failure_handling: lower_traceability_or_reject
+  content_domain_must_match_basket:
+    id: content_domain_must_match_basket
+    name: 内容领域必须匹配证据篮子
+    description: ContentDomain 用于判断该来源是否适合当前证据篮子。
+    rule_type: validation
+    applies_to: [EvidenceRequirement, EvidenceBasket, SourceDocument, SourceProfile]
+    condition: SourceDocument.contentDomain 或 SourceProfile.typicalContentDomains 覆盖 EvidenceRequirement.requiredContentDomains / EvidenceBasket.requiredContentDomains。
+    result: 允许作为对应证据篮子来源。
+    priority: 90
+    failure_handling: downgrade_to_background_or_request_better_source
   proxy_must_be_disclosed:
     id: proxy_must_be_disclosed
     name: 代理指标必须披露

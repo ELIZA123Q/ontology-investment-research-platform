@@ -26,9 +26,11 @@ from validator_utils import (
     split_refs,
 )
 
+from snapshot_layout_03 import SCHEMA_VERSION_03, SNAPSHOT_CSV_LAYOUT
+
+REQUIRED_CSV_FILES: list[str] = list(SNAPSHOT_CSV_LAYOUT.keys())
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "03_数据与证据快照模板"
-SCHEMA_VERSION_03 = "1.1.0"
 
 REQUIRED_PREP_META = [
     "document_type",
@@ -107,12 +109,6 @@ REQUIRED_SUMMARY_META = [
     "quality_status",
 ]
 
-REQUIRED_CSV_FILES = [
-    path.name
-    for path in sorted(TEMPLATE_DIR.glob("*.csv"))
-    if path.name != "字段清单.csv"
-]
-
 DISPLAY_VISUAL_ROLES = {"quant_chart", "ranking_table", "event_timeline", "supporting_table", "qualitative_table"}
 DISPLAY_READINESS = {"ready", "partial", "missing"}
 DISPLAY_DATA_TYPES = {"quantitative", "qualitative", "mixed"}
@@ -121,6 +117,18 @@ REPORT_GRADE_STATUSES = {"report_grade_ready", "usable_with_caveat", "not_report
 MATERIAL_READINESS_STATUSES = {"report_grade_ready", "usable_with_caveat", "partial", "missing", "not_applicable"}
 TABLE_ROLES = {"ranking", "evidence_summary", "source_note", "decision_signal", "gap_plan", "scenario", "object_mapping"}
 PRIORITIES = {"high", "medium", "low"}
+GAP_TYPES = {
+    "evidence",
+    "coverage",
+    "path",
+    "source",
+    "proxy",
+    "conflict",
+    "counter",
+    "05_material",
+    "display",
+    "other",
+}
 ALLOWED_05_ARCHETYPES = {
     "event_commentary",
     "industry_dynamic_commentary",
@@ -140,31 +148,68 @@ EVIDENCE_ROLES = {
 }
 REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
 QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
-SOURCE_TIERS = {"L1", "L2", "L3", "L4", "L5", "L6", "L7"}
+SOURCE_TIERS = {
+    "L1",
+    "L2",
+    "L3",
+    "L4",
+    "L5",
+    "L6",
+    "L7",
+    "S1",
+    "S2",
+    "S3",
+    "S4",
+    "S5",
+    "S6",
+    "S7",
+    "S8",
+}
+LOW_SOURCE_TIERS = {"L6", "L7", "S6", "S7", "S8"}
 BASKET_STATUSES = {"met", "partial", "not_met", "missing", "contested", "blocked", "not_applicable"}
 CHECK_STATUSES = {"met", "partial", "checked", "not_checked", "not_applicable", "missing", "blocked"}
-CONFLICT_STATUSES = {"no_material_conflict", "minor_conflict", "material_conflict", "unresolved_conflict", "contested", "not_checked", "not_applicable"}
+CONFLICT_STATUSES = {
+    "no_material_conflict",
+    "minor_conflict",
+    "material_conflict",
+    "unresolved_conflict",
+    "contested",
+    "not_checked",
+    "not_applicable",
+}
 PROXY_DEPENDENCY_STATUSES = {"none", "low", "moderate", "high", "proxy_only", "not_applicable"}
 CONFIDENCE_LEVELS = {"high", "medium", "low"}
 
 
-def _expected_header(file_name_: str) -> list[str]:
-    return read_csv_header(TEMPLATE_DIR / file_name_)
+def _rel(logical_name: str) -> str:
+    return SNAPSHOT_CSV_LAYOUT[logical_name]
+
+
+def _csv_path(base: Path, logical_name: str) -> Path:
+    return base / _rel(logical_name)
+
+
+def _expected_header(logical_name: str) -> list[str]:
+    return read_csv_header(_csv_path(TEMPLATE_DIR, logical_name))
 
 
 def _validate_headers(snapshot_dir: Path) -> None:
-    missing = [name for name in REQUIRED_CSV_FILES if not (snapshot_dir / name).exists()]
+    missing = [name for name in REQUIRED_CSV_FILES if not _csv_path(snapshot_dir, name).exists()]
     if missing:
-        fail("快照目录缺少 CSV: " + ", ".join(missing))
+        fail("快照目录缺少 CSV: " + ", ".join(_rel(name) for name in missing))
     for name in REQUIRED_CSV_FILES:
-        actual = read_csv_header(snapshot_dir / name)
+        actual = read_csv_header(_csv_path(snapshot_dir, name))
         expected = _expected_header(name)
         if actual != expected:
-            fail(f"{name} 表头必须与模板一致")
+            fail(f"{_rel(name)} 表头必须与模板一致")
 
 
 def _rows(snapshot_dir: Path) -> dict[str, list[dict[str, str]]]:
-    return {name: read_csv(snapshot_dir / name) for name in REQUIRED_CSV_FILES}
+    return {name: read_csv(_csv_path(snapshot_dir, name)) for name in REQUIRED_CSV_FILES}
+
+
+def _judgment_unit_ids(assessments: list[dict[str, str]]) -> set[str]:
+    return {row.get("target_judgment_unit_id", "").strip() for row in assessments if row.get("target_judgment_unit_id", "").strip()}
 
 
 def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
@@ -179,15 +224,18 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
     evidence = ref_set(rows["evidence_records.csv"], "evidence_id", "evidence_records.csv")
     coverage = ref_set(rows["state_variable_coverage.csv"], "coverage_id", "state_variable_coverage.csv")
     gaps = ref_set(rows["gaps_and_risks.csv"], "gap_id", "gaps_and_risks.csv", allow_empty=True)
-    judgment_units = ref_set(rows["judgment_unit_readiness.csv"], "judgment_unit_id", "judgment_unit_readiness.csv")
+    assessments = rows["evidence_readiness_assessments.csv"]
+    judgment_units = _judgment_unit_ids(assessments)
+    if not judgment_units:
+        fail("evidence_readiness_assessments.csv 至少需要一行有效 target_judgment_unit_id")
     data_candidates = ref_set(rows["display_data_candidates.csv"], "data_candidate_id", "display_data_candidates.csv", allow_empty=True)
-    requirements = ref_set(rows["evidence_requirements.csv"], "evidence_requirement_id", "evidence_requirements.csv")
-    recipes = ref_set(rows["evidence_recipe_matches.csv"], "evidence_recipe_id", "evidence_recipe_matches.csv")
-    baskets = ref_set(rows["evidence_baskets.csv"], "evidence_basket_id", "evidence_baskets.csv")
-    source_profiles = ref_set(rows["source_profiles.csv"], "source_profile_id", "source_profiles.csv")
-    channels = ref_set(rows["acquisition_channels.csv"], "acquisition_channel_id", "acquisition_channels.csv")
+    requirements = ref_set(rows["evidence_requirements.csv"], "evidence_requirement_id", "evidence_requirements.csv", allow_empty=True)
+    recipes = ref_set(rows["evidence_recipe_matches.csv"], "evidence_recipe_id", "evidence_recipe_matches.csv", allow_empty=True)
+    baskets = ref_set(rows["evidence_baskets.csv"], "evidence_basket_id", "evidence_baskets.csv", allow_empty=True)
+    source_profiles = ref_set(rows["source_profiles.csv"], "source_profile_id", "source_profiles.csv", allow_empty=True)
+    channels = ref_set(rows["acquisition_channels.csv"], "acquisition_channel_id", "acquisition_channels.csv", allow_empty=True)
     proxies = ref_set(rows["proxy_indicators.csv"], "proxy_indicator_id", "proxy_indicators.csv", allow_empty=True)
-    assessments = ref_set(rows["evidence_readiness_assessments.csv"], "assessment_id", "evidence_readiness_assessments.csv")
+    assessment_ids = ref_set(assessments, "assessment_id", "evidence_readiness_assessments.csv")
 
     for row in rows["evidence_requirements.csv"]:
         label = f"evidence_requirements#{row.get('evidence_requirement_id')}"
@@ -250,8 +298,10 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
         label = f"source_profiles#{row.get('source_profile_id')}"
         if row.get("source_tier") not in SOURCE_TIERS:
             fail(label + ".source_tier 非法")
-        if not row.get("allowed_claim_types") or not row.get("allowed_evidence_roles") or not row.get("forbidden_uses"):
-            fail(label + ".allowed_claim_types/allowed_evidence_roles/forbidden_uses 不得为空")
+        if not row.get("source_name") or not row.get("authority_type"):
+            fail(label + ".source_name/authority_type 不得为空")
+        if not row.get("allowed_claim_types") or not row.get("forbidden_use") or not row.get("common_limitations"):
+            fail(label + ".allowed_claim_types/forbidden_use/common_limitations 不得为空")
 
     for row in rows["acquisition_channels.csv"]:
         label = f"acquisition_channels#{row.get('acquisition_channel_id')}"
@@ -296,22 +346,28 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
             fail(f"{row.get('evidence_id')}.confidence_ceiling 非法")
         for source_id in split_refs(row.get("source_id")):
             tier = source_tier_by_id.get(source_id, "")
-            if tier in {"L6", "L7"} and row.get("confidence_ceiling") == "high":
-                fail(f"{row.get('evidence_id')} 使用 L6/L7 来源时 confidence_ceiling 不得为 high")
+            if tier in LOW_SOURCE_TIERS and row.get("confidence_ceiling") == "high":
+                fail(f"{row.get('evidence_id')} 使用低层级线索来源时 confidence_ceiling 不得为 high")
             if (
-                tier in {"L6", "L7"}
+                tier in LOW_SOURCE_TIERS
                 and row.get("evidence_role") in {"primary_support", "blocking_condition"}
                 and row.get("statement_nature") in {"reported_fact", "data", "data_point", "financial_data"}
                 and not row.get("usage_limit")
             ):
-                fail(f"{row.get('evidence_id')} 使用 L6/L7 来源作为硬事实时必须记录 usage_limit 并降级使用")
+                fail(f"{row.get('evidence_id')} 使用低层级线索来源作为硬事实时必须记录 usage_limit 并降级使用")
 
-    for row in rows["evidence_readiness_assessments.csv"]:
+    for row in assessments:
         label = f"evidence_readiness_assessments#{row.get('assessment_id')}"
-        assert_subset(split_refs(row.get("target_judgment_unit_id")), judgment_units, label + ".target_judgment_unit_id")
+        unit_id = row.get("target_judgment_unit_id", "").strip()
+        if not unit_id:
+            fail(label + ".target_judgment_unit_id 不得为空")
         assert_subset(split_refs(row.get("target_recipe_id")), recipes, label + ".target_recipe_id")
         assert_subset(split_refs(row.get("assessed_requirement_ids")), requirements, label + ".assessed_requirement_ids")
         assert_subset(split_refs(row.get("assessed_basket_ids")), baskets, label + ".assessed_basket_ids")
+        assert_subset(split_refs(row.get("linked_input_ids")), inputs, label + ".linked_input_ids")
+        assert_subset(split_refs(row.get("linked_evidence_ids")), evidence, label + ".linked_evidence_ids")
+        assert_subset(split_refs(row.get("linked_gap_ids")), gaps, label + ".linked_gap_ids")
+        assert_subset(split_refs(row.get("linked_coverage_ids")), coverage, label + ".linked_coverage_ids")
         for field in ["support_status", "cross_validation_status", "counter_status", "freshness_status", "traceability_status"]:
             if row.get(field) not in CHECK_STATUSES:
                 fail(label + f".{field} 非法")
@@ -321,7 +377,7 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
             fail(label + ".proxy_dependency_status 非法")
         validate_allowed_04_output(row.get("overall_readiness_status"), label + ".overall_readiness_status")
         validate_allowed_04_output(row.get("allowed_04_output"), label + ".allowed_04_output")
-        if row.get("confidence_ceiling") not in CONFIDENCE_LEVELS:
+        if row.get("confidence_ceiling") and row.get("confidence_ceiling") not in CONFIDENCE_LEVELS:
             fail(label + ".confidence_ceiling 非法")
         if row.get("support_status") in {"missing", "not_checked"} and output_rank(row.get("allowed_04_output", "")) > output_rank("insufficient"):
             fail(label + ".allowed_04_output 在支持证据缺失时不得高于 insufficient")
@@ -342,7 +398,6 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
     for file_, id_field in [
         ("state_variable_coverage.csv", "coverage_id"),
         ("path_readiness.csv", "node_id"),
-        ("judgment_unit_readiness.csv", "judgment_unit_id"),
     ]:
         for row in rows[file_]:
             label = f"{file_}#{row.get(id_field)}"
@@ -350,16 +405,23 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
             assert_subset(split_refs(row.get("linked_evidence_ids")), evidence, label + ".linked_evidence_ids")
             assert_subset(split_refs(row.get("linked_gap_ids")), gaps, label + ".linked_gap_ids")
             assert_subset(split_refs(row.get("linked_judgment_unit_ids")), judgment_units, label + ".linked_judgment_unit_ids")
-            if file_ == "judgment_unit_readiness.csv":
-                assert_subset(split_refs(row.get("linked_assessment_ids")), assessments, label + ".linked_assessment_ids")
-                assert_subset(split_refs(row.get("linked_requirement_ids")), requirements, label + ".linked_requirement_ids")
-                assert_subset(split_refs(row.get("linked_basket_ids")), baskets, label + ".linked_basket_ids")
 
-    assert_subset(
-        split_refs("|".join(row.get("linked_coverage_ids", "") for row in rows["judgment_unit_readiness.csv"])),
-        coverage,
-        "judgment_unit_readiness.linked_coverage_ids",
-    )
+    for row in rows["gaps_and_risks.csv"]:
+        label = f"gaps_and_risks#{row.get('gap_id')}"
+        gap_type = row.get("gap_type", "").strip()
+        if gap_type and gap_type not in GAP_TYPES:
+            fail(label + ".gap_type 非法")
+        assert_subset(split_refs(row.get("linked_judgment_unit_ids")), judgment_units, label + ".linked_judgment_unit_ids")
+        assert_subset(split_refs(row.get("requirement_id")), requirements, label + ".requirement_id")
+        if not row.get("description"):
+            fail(label + ".description 不得为空")
+        if gap_type == "05_material":
+            if not row.get("impact_on_05"):
+                fail(label + ".impact_on_05 在 gap_type=05_material 时不得为空")
+            if row.get("priority") and row.get("priority") not in PRIORITIES:
+                fail(label + ".priority 必须为 high/medium/low")
+        if row.get("allowed_04_output_after_gap"):
+            validate_allowed_04_output(row.get("allowed_04_output_after_gap"), label + ".allowed_04_output_after_gap")
 
     for row in rows["display_data_candidates.csv"]:
         label = f"display_data_candidates#{row.get('data_candidate_id')}"
@@ -417,14 +479,6 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
         if not row.get("citation_phrase"):
             fail(label + ".citation_phrase 不得为空")
 
-    for row in rows["05_material_gaps.csv"]:
-        label = f"05_material_gaps#{row.get('gap_id')}"
-        assert_subset(split_refs(row.get("affected_judgment_unit_ids")), judgment_units, label + ".affected_judgment_unit_ids")
-        if row.get("priority") and row.get("priority") not in PRIORITIES:
-            fail(label + ".priority 必须为 high/medium/low")
-        if not row.get("gap_description") or not row.get("impact_on_05"):
-            fail(label + ".gap_description/impact_on_05 不得为空")
-
     for row in rows["05_material_readiness.csv"]:
         label = f"05_material_readiness#{row.get('material_unit_id')}"
         if row.get("status") not in MATERIAL_READINESS_STATUSES:
@@ -437,6 +491,8 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
         if not row.get("target_05_archetype") or not row.get("impact_on_05"):
             fail(label + ".target_05_archetype/impact_on_05 不得为空")
 
+    _ = assessment_ids  # reserved for future cross-file checks
+
 
 def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, object], rows: dict[str, list[dict[str, str]]]) -> None:
     manifest_rows = rows["manifest.csv"]
@@ -445,22 +501,21 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
     manifest = manifest_rows[0]
     if manifest.get("snapshot_version") != SCHEMA_VERSION_03 or manifest.get("snapshot_schema_version") != SCHEMA_VERSION_03:
         fail(f"manifest snapshot_version 与 snapshot_schema_version 必须为 {SCHEMA_VERSION_03}")
-    if manifest.get("display_data_candidates_ref") != "display_data_candidates.csv":
-        fail("manifest.display_data_candidates_ref 必须为 display_data_candidates.csv")
+
     for field, expected in {
-        "evidence_requirements_ref": "evidence_requirements.csv",
-        "evidence_recipe_matches_ref": "evidence_recipe_matches.csv",
-        "evidence_baskets_ref": "evidence_baskets.csv",
-        "source_profiles_ref": "source_profiles.csv",
-        "acquisition_channels_ref": "acquisition_channels.csv",
-        "proxy_indicators_ref": "proxy_indicators.csv",
-        "evidence_readiness_assessments_ref": "evidence_readiness_assessments.csv",
-        "judgment_unit_readiness_ref": "judgment_unit_readiness.csv",
-        "chart_data_package_ref": "chart_data_package.csv",
-        "table_material_package_ref": "table_material_package.csv",
-        "source_annotation_package_ref": "source_annotation_package.csv",
-        "05_material_gaps_ref": "05_material_gaps.csv",
-        "05_material_readiness_ref": "05_material_readiness.csv",
+        "evidence_requirements_ref": _rel("evidence_requirements.csv"),
+        "evidence_recipe_matches_ref": _rel("evidence_recipe_matches.csv"),
+        "evidence_baskets_ref": _rel("evidence_baskets.csv"),
+        "source_profiles_ref": _rel("source_profiles.csv"),
+        "acquisition_channels_ref": _rel("acquisition_channels.csv"),
+        "proxy_indicators_ref": _rel("proxy_indicators.csv"),
+        "evidence_readiness_assessments_ref": _rel("evidence_readiness_assessments.csv"),
+        "display_data_candidates_ref": _rel("display_data_candidates.csv"),
+        "chart_data_package_ref": _rel("chart_data_package.csv"),
+        "table_material_package_ref": _rel("table_material_package.csv"),
+        "source_annotation_package_ref": _rel("source_annotation_package.csv"),
+        "gaps_and_risks_ref": _rel("gaps_and_risks.csv"),
+        "05_material_readiness_ref": _rel("05_material_readiness.csv"),
     }.items():
         if manifest.get(field) != expected:
             fail(f"manifest.{field} 必须为 {expected}")
@@ -478,14 +533,22 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
         if int(meta["evidence_backed_unit_count"]) != counted:
             fail(f"{meta_label}.evidence_backed_unit_count 与快照不一致")
 
-    unit_rows = rows["judgment_unit_readiness.csv"]
-    counts = {value: 0 for value in ALLOWED_04_OUTPUTS}
+    unit_rows = rows["evidence_readiness_assessments.csv"]
+    # one assessment per judgment unit for package counts; if multiple, count distinct units by strictest? use distinct units
+    by_unit: dict[str, str] = {}
     for row in unit_rows:
+        unit_id = row.get("target_judgment_unit_id", "").strip()
         output = row.get("allowed_04_output", "")
-        validate_allowed_04_output(output, f"judgment_unit_readiness#{row.get('judgment_unit_id')}")
+        validate_allowed_04_output(output, f"evidence_readiness_assessments#{row.get('assessment_id')}")
+        if not unit_id:
+            continue
+        if unit_id not in by_unit or output_rank(output) < output_rank(by_unit[unit_id]):
+            by_unit[unit_id] = output
+    counts = {value: 0 for value in ALLOWED_04_OUTPUTS}
+    for output in by_unit.values():
         counts[output] += 1
     count_fields = {
-        "judgment_unit_total": len(unit_rows),
+        "judgment_unit_total": len(by_unit),
         "judgment_unit_full_reasoning_ready_count": counts["full_reasoning_ready"],
         "judgment_unit_directional_only_count": counts["directional_only"],
         "judgment_unit_conditional_only_count": counts["conditional_only"],
@@ -553,7 +616,6 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     if not same_ref(manifest["execution_id"], prep_meta["execution_id"]):
         fail("manifest.execution_id 与 preparation.execution_id 不一致")
     assert_values([row.get("allowed_04_output", "") for row in rows["path_readiness.csv"]], ALLOWED_04_OUTPUTS, "path_readiness.allowed_04_output")
-    assert_values([row.get("allowed_04_output", "") for row in rows["gaps_and_risks.csv"]], ALLOWED_04_OUTPUTS, "gaps_and_risks.allowed_04_output_after_gap")
 
     return {
         "schema_version": SCHEMA_VERSION_03,
