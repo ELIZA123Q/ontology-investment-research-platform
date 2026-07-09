@@ -1,0 +1,5 @@
+material_unit_id,execution_id,target_05_archetype,material_unit,status,linked_judgment_unit_ids,linked_data_candidate_ids,linked_chart_ids,linked_table_ids,source_annotation_ids,impact_on_05,required_action
+MU-01,EXEC-USIRAN-NEG-SEMI-20260709-1,event_commentary,main_narrative,usable_with_caveat,JU-01|JU-03,DDC-02,FIG-02,TBL-01,ANN-01,可写事件主线但需标注MOU缺口,补官方来源
+MU-02,EXEC-USIRAN-NEG-SEMI-20260709-1,event_commentary,chart_main,partial,JU-02,DDC-01,FIG-01,,,主图仅单日点,补指数序列
+MU-03,EXEC-USIRAN-NEG-SEMI-20260709-1,event_commentary,scenario_table,usable_with_caveat,JU-05,,,TBL-02,ANN-03,情景表可用但需限制,标注条件性
+MU-04,EXEC-USIRAN-NEG-SEMI-20260709-1,event_commentary,supply_context,usable_with_caveat,JU-03|JU-04,DDC-03,,,ANN-02,氦气背景可展示,核实韩国依赖数据

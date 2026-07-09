@@ -1,0 +1,4 @@
+recipe_match_id,execution_id,evidence_recipe_id,recipe_name,target_judgment_unit_id,judgment_type,strategy_library_ref,strategy_version,applicable_conditions,required_basket_types,mandatory_basket_types,optional_basket_types,counter_basket_types,minimum_pass_rule,high_quality_rule,proxy_rule,source_rule,stop_rule,downgrade_rule,match_status,notes
+RM-01,EXEC-USIRAN-NEG-SEMI-20260709-1,REC-A01,A01事实确认,JU-01,event_impact_judgment,03取证策略库/A_取证规则/A01_事实确认取证规则.md,1.0.0,谈判事件,谈判时间线,谈判时间线,,谈判稳定,多源,官方+媒体,不允许,B04地缘,时间线对齐,directional_only,matched,
+RM-02,EXEC-USIRAN-NEG-SEMI-20260709-1,REC-A07,A07市场预期,JU-02,expectation_gap_judgment,03取证策略库/A_取证规则/A07_市场预期与定价取证规则.md,1.0.0,定价反应,板块反应,板块反应,,定价脱钩,指数对齐,多指数,限用,B02市场,窗口对齐,directional_only,matched,
+RM-03,EXEC-USIRAN-NEG-SEMI-20260709-1,REC-A04,A04机制传导,JU-03,event_impact_judgment,03取证策略库/A_取证规则/A04_机制传导验证取证规则.md,1.0.0,实物流滞后,通航氦气,通航氦气,,实物流仍受阻,谈妥与通航,航运+设施,限用,B04+B03,滞后登记,directional_only,matched,

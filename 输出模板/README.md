@@ -47,3 +47,26 @@
 - 05 只消费 01—04 已冻结产物，优先读取 04 审计中的 `handoff_to_05` 和 03 快照中的 `display_data_candidates.csv`、`chart_data_package.csv`、`table_material_package.csv`、`source_annotation_package.csv`、`05_material_readiness.csv`；正文只展示自然语言判断、图表数据和来源名称，不得新增未经 04 审计的判断，不得补造 03 未提供的数据。
 - 05 的图表与表格输出只生成制图/制表所需数据、标题、结论、解读和限制说明，不生成正式图片，不承担排版、美化、PPT 或外发审批；对应的 claim、evidence、source 等追溯 ID 不进入 05 文件。
 - `validate_05_outputs.py` 用于检查 05 稿件是否匹配 01 `delivery_archetype.primary`，并校验必备章节、正文纯净度、文首是否堆元信息表、预期差来源、强弱排序、图表数据密度、判断强度和合规边界。
+
+## 6. 全链发布校验
+
+- `validate_publish.py` 串联 `validate_01`—`validate_05`，并强制执行 01→05 运行顺序与跨阶段门禁。
+- 自动发现模式：`python3 输出模板/validate_publish.py <运行目录>`，按文件名三元组匹配同一运行的 01—05 产物。
+- 截断模式：`--through 02` 只校验到 02；上游未通过时，下游阶段标记为 `blocked`，不会继续校验。
+- 正式发布：默认要求各阶段 `quality_status=high_quality_pass`，输出 `publish_status=PUBLISHABLE`；否则输出 `RETURN_REQUIRED` 和 `rework_items` 返工清单。
+- 显式路径模式：可分别传入 `--requirement`、`--logic`、`--view`、`--preparation`、`--snapshot-dir`、`--report`、`--audit`、`--delivery`。
+
+### 6.1 退回路由（增强）
+
+除引用链、三元组、`return_required` / `return_stage` 外，还会读取：
+
+| 来源 | 触发 | 典型退回 |
+|------|------|----------|
+| 各阶段 validator 报错 | 错误信息模式匹配 | 如 04 超证据上限→03，05 图表不足→03 |
+| `03` manifest / `gaps_and_risks.csv` | `return_action`、`blocks_04_output` | 按缺口说明退回 01—03 |
+| `03` `admission` | `incomplete_pass` / `failed` 与 04 方向性结论冲突 | 03 或 04 |
+| `04` `input_integrity` / `compliance_check` | 范围漂移、未冻结证据、新建规则 | 01 / 02 / 03 |
+| `04` `report_quality_check` | `result=fail` 或布尔检查为 false | 03 或 04 |
+| `05_material_readiness.csv` / `gap_type=05_material` | 素材未达研报级 | 03 |
+
+输出除 `rework_items` 外，还提供按 `return_to` 聚合的 `rework_summary`，便于直接看到应退回哪些阶段。

@@ -1,0 +1,3 @@
+proxy_indicator_id,execution_id,proxy_indicator_name,proxy_for,target_state_variable_id,target_requirement_id,proxy_logic,valid_conditions,invalid_conditions,required_source_profile_ids,confidence_discount,cannot_replace,required_disclosure,proxy_status,notes
+PX-01,EXEC-USIRAN-NEG-SEMI-20260709-1,半导体指数谈判窗口波动,情绪通道强度,SV-SECTOR-PRICE,ER-02,谈判头条日前后指数波动,有明确谈判时点,有厂侧硬数据,SP-MARKET,0.5,材料交期与氦气合约,标注为定价代理,active,
+PX-02,EXEC-USIRAN-NEG-SEMI-20260709-1,咨询报告环节压力排序,全链环节分化,SV-MAT-LEAD,ER-05,材料与制造优先承压叙事,缺环节订单硬数据,有公司披露,SP-GEP|SP-LIGHTSOURCE,0.6,设备设计订单验证,咨询情景,active,

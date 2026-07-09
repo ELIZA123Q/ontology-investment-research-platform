@@ -1,0 +1,3 @@
+relation_id,execution_id,requirement_id,linked_judgment_unit_ids,relation_type,source_instance_id,target_instance_id,relation_scope,valid_from,valid_to,verification_status,relation_evidence_strength,source_run_refs,evidence_refs,notes
+REL-01,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-03,JU-03,constrains,INST-NEG,INST-HZ,negotiation_to_logistics,2026-03-01,,partial,medium,SR-02|SR-03,EV-03|EV-05,MOU围绕霍尔木兹条款
+REL-02,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-03,JU-03,supplies,INST-HE,INST-CHAIN,helium_to_materials,2026-01-01,,partial,medium,SR-05|SR-06,EV-06|EV-08,氦气影响材料环节

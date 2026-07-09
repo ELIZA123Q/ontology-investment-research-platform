@@ -1,0 +1,3 @@
+figure_id,execution_id,suggested_title,evidence_role,data_candidate_ids,required_fields,available_fields,source_ids,chart_type_suggestion,chart_readiness,report_grade_status,evidence_message,usage_limit,gap_to_ready
+FIG-01,EXEC-USIRAN-NEG-SEMI-20260709-1,谈判窗口半导体指数波动,primary_support,DDC-01,date|normalized_value,date|normalized_value,SRC-04,line,partial,usable_with_caveat,单日波动可见,代理指标,需多日序列
+FIG-02,EXEC-USIRAN-NEG-SEMI-20260709-1,谈判—霍尔木兹—氦气事件时间线,cross_validation,DDC-02,event_date|normalized_fact,event_date|normalized_fact,SRC-01|SRC-02|SRC-03,timeline,partial,usable_with_caveat,四节点时间线,报道事实,补官方节点

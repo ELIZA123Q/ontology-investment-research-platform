@@ -1,0 +1,6 @@
+instance_id,execution_id,requirement_id,linked_judgment_unit_ids,instance_type,name,canonical_name,stable_identifier,classification,scope,valid_from,valid_to,verification_status,source_run_refs,evidence_refs,notes
+INST-NEG,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-01,JU-01|JU-05,Event,美伊谈判进程,美伊谈判,EVT-USIRAN-NEG-2026,core,global,2026-01-01,2027-12-31,verified,SR-01|SR-02,EV-01|EV-02,
+INST-HZ,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-01,JU-03,LogisticsNode,霍尔木兹通航,霍尔木兹海峡,HORMUZ-TRANSIT,core,global,2026-01-01,2027-12-31,verified,SR-02|SR-03,EV-03|EV-05,
+INST-HE,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-01,JU-03|JU-05,SupplyFacility,卡塔尔氦气出口,卡塔尔LNG氦,QA-HELIUM,core,global,2026-01-01,2027-12-31,verified,SR-05|SR-06,EV-06|EV-08,
+INST-CHAIN,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-01,JU-04,ValueChain,全球半导体全链,半导体全链,GLOBAL-SEMI-CHAIN,core,global,2026-01-01,2027-12-31,verified,SR-06,EV-07|EV-09,
+INST-CN,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-01,JU-06,RegionalExposure,中国半导体板块,中国半导体,CN-SEMI,core,global,2026-01-01,2027-12-31,verified,SR-07,EV-10,

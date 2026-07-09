@@ -1,0 +1,1220 @@
+schema_name: task_ontology_view
+schema_version: 1.1.0
+task_context:
+  task_id: JTASK-USIRAN-NEG-SEMI-001
+  view_id: TOV-USIRAN-NEG-SEMI-20260709-1
+  logic_id: RLOG-USIRAN-NEG-SEMI-20260709-1
+  generated_at: '2026-07-09T16:00:00+08:00'
+  source_requirement_version: 2
+  source_document: 01-美伊谈判半导体影响投研需求说明-20260709-1.md
+  logic_document: 02-美伊谈判半导体影响研究逻辑-20260709-1.md
+  normalized_question: 截至 2026-07-09，美伊谈判近期反复（谈成预期、谈崩风险与再谈窗口交替）如何通过「市场情绪/风险偏好」与「实物流通道（霍尔木兹通航、卡塔尔氦气/LNG 复产、制裁与贸易约束）」两条可区分路径，影响全球半导体全链（材料—设备—制造—封测—设计）；若谈判谈妥或再度破裂，各环节影响方向与强度边界应如何情景化，而不是把单次头条或板块涨跌直接写成基本面已变？对中国侧，在半导体板块/整体产业为落点的前提下，制造、材料与设备、设计三类环节应如何分别映射？
+  judgment_landing: 影响强弱
+  task_type:
+    primary: 事件或变化影响判断
+    secondary:
+    - 传导路径判断
+    - 假设验证与更新
+  scope:
+    time: 2026年以来谈判反复；向前情景数周至数个季度
+    time_policy:
+      mode: event_relative
+      anchor: execution_date
+      anchor_value: '2026-07-09'
+      timezone: Asia/Shanghai
+      lookback: P180D
+      lookforward: P12M
+      fixed_start: '2026-01-01'
+      fixed_end: '2027-12-31'
+      data_cutoff: '2026-07-09T16:00:00+08:00'
+    geography: 美伊/中东出口链、全球半导体全链、中国板块/产业
+    value_chain: 材料—设备—制造—封测—设计
+    objects:
+    - 美伊谈判进程
+    - 霍尔木兹通航与中东出口
+    - 全球半导体全链
+    - 中国半导体板块
+    - 中国制造环节
+    - 中国材料与设备环节
+    - 中国设计环节
+    object_selection:
+      mode: fixed
+      as_of: '2026-07-09'
+      criteria:
+      - 01已确认核心对象
+      count_or_coverage: 7
+      refresh_on_each_run: false
+    exclusions:
+    - 个股目标价与评级
+    - 谈判未落地时的精确产量收入百分比
+quality_control:
+  quality_gate_ref: 00A_高质量产出判别标准.md#5.2
+  stage_status: aligned
+  quality_status: high_quality_pass
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+  return_required: false
+  return_stage: null
+  return_reasons: []
+research_framework:
+  logic_document_ref: 02-美伊谈判半导体影响研究逻辑-20260709-1.md
+  judgment_spine:
+    statement: 本次需要区分的是：谈判反复究竟主要只是在摆动半导体预期与板块定价，还是已经开始（或将开始）改变通航、氦气等实物流并传导到全链交期；不能把谈成/谈崩头条直接写成供应链基本面已经转向。
+    md_section: 1.3 核心判断
+  basis:
+    source: mixed
+    md_section: 3. 主路径、反证和竞争解释
+    alignment_summary: 采用SCN-GEO地缘场景卡与IF-LOC-01/IF-MAT-01，双通道+全链+中国三类+向前情景。
+  library_reference:
+    library_ref: 02框架库/README.md
+    library_version: 1.0.0
+    consulted:
+    - framework_id: SCN-GEO
+      name: 地缘政治冲击影响半导体场景卡
+      contribution: 事件—物流—能源—供应链暴露
+    - framework_id: IF-LOC-01
+      name: 外部约束与供应链韧性
+      contribution: 制裁贸易与韧性缓冲
+    - framework_id: IF-MAT-01
+      name: 半导体材料需求认证与放量
+      contribution: 气体材料与交期
+    no_direct_reference_reason: ''
+  minimum_question_tree:
+  - question_id: Q-01
+    question: 谈判信号反复是否可观察
+    relation_to_overall: precondition
+    sequence: 1
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-02
+    question: 情绪通道是否影响半导体定价
+    relation_to_overall: parallel
+    sequence: 2
+    failure_action: switch_to_competing_explanation
+    md_section: '2.2'
+  - question_id: Q-03
+    question: 实物流是否跟进或滞后谈判
+    relation_to_overall: precondition
+    sequence: 3
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-04
+    question: 全链环节影响能否分化
+    relation_to_overall: outcome
+    sequence: 4
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-05
+    question: 谈妥谈崩情景边界是否可表述
+    relation_to_overall: validation
+    sequence: 5
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-06
+    question: 中国三类环节能否分别映射
+    relation_to_overall: outcome
+    sequence: 6
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-07
+    question: 精确公司fab量化是否可得
+    relation_to_overall: stop_node
+    sequence: 7
+    failure_action: stop
+    md_section: '2.2'
+  alignment_checks:
+    independently_formed_in_md: true
+    library_consulted_in_md: true
+    judgment_spine_consistent_with_md: true
+    problem_tree_consistent_with_md: true
+ontology_sources:
+  platform_ontology:
+    name: ontology_platform
+    version: 1.0.0
+    schema_versions:
+      common: 1.0.0
+      semantic: 1.0.0
+      evidence: 1.0.0
+      reasoning: 1.0.0
+    files:
+    - 一级通用本体规范/common.yaml
+    - 一级通用本体规范/semantic.yaml
+    - 一级通用本体规范/evidence.yaml
+    - 一级通用本体规范/reasoning.yaml
+  domain_ontology:
+    name: semiconductor_domain
+    version: 1.0.0
+    depends_on: ontology_platform
+    files:
+    - 二级半导体领域本体规范/common.yaml
+    - 二级半导体领域本体规范/semantic.yaml
+    - 二级半导体领域本体规范/evidence.yaml
+    - 二级半导体领域本体规范/reasoning.yaml
+judgment_units:
+- judgment_unit_id: JU-01
+  judgment_name: 双通道主导判断
+  judgment_type: event_impact_judgment
+  statement: 谈判反复当前主要由情绪通道还是实物流通道主导（或双通道并存但可区分）
+  linked_questions:
+  - Q-01
+  - Q-02
+  - Q-03
+  linked_paths:
+  - P-01
+  - P-02
+  target_path_node_ids:
+  - N-01
+  - N-02
+  - N-03
+  target_state_variables:
+  - SV-NEG-SIGNAL
+  - SV-SECTOR-PRICE
+  - SV-HORMUZ-ACTUAL
+  target_anchor_objects:
+  - 美伊谈判进程
+  decision_relevance: core
+  expected_04_output_type: directional_only
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: required
+    proxy_indicator: allowed_with_limit
+    background_evidence: optional
+  required_evidence_categories:
+  - event
+  - valuation
+  - supply
+  required_counter_categories:
+  - event
+  - supply
+  candidate_evidence_recipe_tags:
+  - A01_fact_confirm
+  - A04_mechanism
+  - A07_market_pricing
+  minimum_verification_condition: 谈判信号时间线+定价反应+至少一项实物流线索并存
+  minimum_validation_conditions:
+  - 双通道证据不可混写为单一路径
+  required_counter_checks:
+  - 实物流无跟进时不得写基本面已变
+  forbidden_shortcuts:
+  - 谈判头条直接等于全链冲击
+  proxy_policy: allowed_but_must_discount_confidence
+  evidence_gap_policy: 缺实物流线索时只能判断情绪主导
+  downgrade_rule_if_not_met: directional_only
+  evidence_profile_refs:
+  - EP-NEG-SIGNAL
+  - EP-DUAL-CHANNEL
+  md_section: '5'
+- judgment_unit_id: JU-02
+  judgment_name: 情绪通道与预期差
+  judgment_type: expectation_gap_judgment
+  statement: 谈判头条与半导体板块/设备设计定价之间存在可观察的预期差或同步摆动
+  linked_questions:
+  - Q-02
+  linked_paths:
+  - P-01
+  target_path_node_ids:
+  - N-02
+  target_state_variables:
+  - SV-SECTOR-PRICE
+  target_anchor_objects:
+  - 市场风险偏好与半导体定价
+  decision_relevance: core
+  expected_04_output_type: directional_only
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: optional
+    proxy_indicator: allowed_with_limit
+    background_evidence: optional
+  required_evidence_categories:
+  - valuation
+  - event
+  required_counter_categories:
+  - valuation
+  candidate_evidence_recipe_tags:
+  - A07_market_pricing
+  minimum_verification_condition: 谈判关键时点+板块或指数反应可对齐
+  minimum_validation_conditions:
+  - 需区分单日噪声与反复模式
+  required_counter_checks:
+  - 定价与头条脱钩
+  forbidden_shortcuts:
+  - 单日涨跌写成趋势结论
+  proxy_policy: allowed_but_must_discount_confidence
+  evidence_gap_policy: 仅情绪无基本面跟进时标注预期差
+  downgrade_rule_if_not_met: directional_only
+  evidence_profile_refs:
+  - EP-SECTOR-SENTIMENT
+  md_section: '5'
+- judgment_unit_id: JU-03
+  judgment_name: 实物流滞后
+  judgment_type: event_impact_judgment
+  statement: 谈妥预期下霍尔木兹通航与氦气/LNG复产是否跟进，或仍滞后受阻
+  linked_questions:
+  - Q-03
+  linked_paths:
+  - P-02
+  target_path_node_ids:
+  - N-03
+  target_state_variables:
+  - SV-HORMUZ-ACTUAL
+  - SV-HE-RESTART
+  target_anchor_objects:
+  - 谈判—通航—能源/氦气实物流
+  decision_relevance: core
+  expected_04_output_type: directional_only
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: required
+    proxy_indicator: allowed_with_limit
+    background_evidence: optional
+  required_evidence_categories:
+  - supply
+  - event
+  required_counter_categories:
+  - supply
+  candidate_evidence_recipe_tags:
+  - A04_mechanism
+  minimum_verification_condition: 通航或复产表述+氦气出口/force majeure状态
+  minimum_validation_conditions:
+  - 谈成头条与实物流需时间对齐
+  required_counter_checks:
+  - 谈妥后航运仍受阻
+  forbidden_shortcuts:
+  - 谈成等于危机解除
+  proxy_policy: allowed_but_must_discount_confidence
+  evidence_gap_policy: 仅有预期无兑现则写滞后
+  downgrade_rule_if_not_met: directional_only
+  evidence_profile_refs:
+  - EP-PHYSICAL-LAG
+  md_section: '5'
+- judgment_unit_id: JU-04
+  judgment_name: 全链环节分化
+  judgment_type: supply_chain_bottleneck_judgment
+  statement: 材料/设备/制造/封测/设计五类环节影响方向与强度可分化（条件性）
+  linked_questions:
+  - Q-04
+  linked_paths:
+  - P-02
+  target_path_node_ids:
+  - N-05
+  target_state_variables:
+  - SV-MAT-LEAD
+  - SV-EQP-ORDER
+  - SV-MFG-ALLOC
+  - SV-OSAT-UTIL
+  - SV-DESIGN-VIS
+  target_anchor_objects:
+  - 全球半导体全链
+  decision_relevance: core
+  expected_04_output_type: conditional_only
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: required
+    proxy_indicator: allowed_with_limit
+    background_evidence: optional
+  required_evidence_categories:
+  - supply
+  - order
+  - inventory
+  required_counter_categories:
+  - supply
+  candidate_evidence_recipe_tags:
+  - A05_object_compare
+  minimum_verification_condition: 至少两类环节有可追溯交期/订单/投片代理
+  minimum_validation_conditions:
+  - 不得五环节同向同强度外推
+  required_counter_checks:
+  - 全链指标无差异
+  forbidden_shortcuts:
+  - 材料紧张等于设计订单下滑
+  proxy_policy: required_when_direct_data_unavailable
+  evidence_gap_policy: 缺环节硬数据则条件判断
+  downgrade_rule_if_not_met: conditional_only
+  evidence_profile_refs:
+  - EP-CHAIN-SPLIT
+  md_section: '5'
+- judgment_unit_id: JU-05
+  judgment_name: 谈妥谈崩情景边界
+  judgment_type: risk_monitoring_judgment
+  statement: 谈妥与谈崩两情景下全链与中国三类环节的方向与数量级边界可表述
+  linked_questions:
+  - Q-05
+  linked_paths:
+  - P-03
+  target_path_node_ids:
+  - N-06
+  target_state_variables:
+  - SV-NEG-SIGNAL
+  - SV-HE-RESTART
+  target_anchor_objects:
+  - 美伊谈判进程
+  decision_relevance: supporting
+  expected_04_output_type: conditional_only
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: optional
+    proxy_indicator: not_allowed
+    background_evidence: optional
+  required_evidence_categories:
+  - event
+  - supply
+  required_counter_categories:
+  - event
+  candidate_evidence_recipe_tags:
+  - A06_financial_impact
+  minimum_verification_condition: 两情景各至少一组方向+限制+触发信号
+  minimum_validation_conditions:
+  - 禁止精确产量收入百分比
+  required_counter_checks:
+  - 情景假设与当前事实冲突
+  forbidden_shortcuts:
+  - 转述估算当硬数据
+  proxy_policy: not_allowed
+  evidence_gap_policy: 谈判未落地则边界情景
+  downgrade_rule_if_not_met: conditional_only
+  evidence_profile_refs:
+  - EP-SCENARIO
+  md_section: '5'
+- judgment_unit_id: JU-06
+  judgment_name: 中国三类环节映射
+  judgment_type: event_impact_judgment
+  statement: 中国板块落点下制造、材料与设备、设计三类环节方向与限制可分别表述
+  linked_questions:
+  - Q-06
+  linked_paths:
+  - P-03
+  target_path_node_ids:
+  - N-07
+  target_state_variables:
+  - SV-CN-MFG
+  - SV-CN-MATEQP
+  - SV-CN-DESIGN
+  target_anchor_objects:
+  - 中国半导体板块
+  decision_relevance: core
+  expected_04_output_type: directional_only
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: optional
+    proxy_indicator: allowed_with_limit
+    background_evidence: optional
+  required_evidence_categories:
+  - exposure
+  - valuation
+  required_counter_categories:
+  - valuation
+  candidate_evidence_recipe_tags:
+  - A05_object_compare
+  minimum_verification_condition: 三类各有方向线索与限制说明
+  minimum_validation_conditions:
+  - 板块涨跌不能替代三类拆分
+  required_counter_checks:
+  - 情绪外推制造约束
+  forbidden_shortcuts:
+  - 中国半导体整体受益或受损
+  proxy_policy: allowed_but_must_discount_confidence
+  evidence_gap_policy: 替代认证弱时限制外推
+  downgrade_rule_if_not_met: directional_only
+  evidence_profile_refs:
+  - EP-CN-SEGMENTS
+  md_section: '5'
+- judgment_unit_id: JU-07
+  judgment_name: 精确量化停止
+  judgment_type: company_earnings_elasticity_judgment
+  statement: 精确公司或fab产量收入影响暂不可判断
+  linked_questions:
+  - Q-07
+  linked_paths:
+  - P-03
+  target_path_node_ids:
+  - N-08
+  target_state_variables:
+  - SV-FAB-PRECISE
+  target_anchor_objects:
+  - 全球半导体全链
+  decision_relevance: monitoring
+  expected_04_output_type: insufficient
+  required_evidence_roles:
+    primary_support: required
+    cross_validation: required
+    counter_evidence: required
+    blocking_condition: required
+    proxy_indicator: not_allowed
+    background_evidence: optional
+  required_evidence_categories:
+  - financial
+  required_counter_categories:
+  - financial
+  candidate_evidence_recipe_tags:
+  - A06_financial_impact
+  minimum_verification_condition: 公司披露或运营级产量收入数据
+  minimum_validation_conditions:
+  - 转述不满足
+  required_counter_checks:
+  - 无相关披露
+  forbidden_shortcuts:
+  - 研报猜测
+  proxy_policy: not_allowed
+  evidence_gap_policy: 无一级数据则insufficient
+  downgrade_rule_if_not_met: insufficient
+  evidence_profile_refs:
+  - EP-FAB-PRECISE
+  md_section: '5'
+path_design:
+  main_paths:
+  - path_id: P-01
+    name: 情绪与定价通道
+    description: 谈判反复→风险偏好→半导体定价→预期差
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    nodes:
+    - node_id: N-01
+      name: 谈判信号反复
+      role: start
+      question: 谈成预期、推迟、破裂、再谈是否可观察
+      required_state_variables:
+      - SV-NEG-SIGNAL
+      required_instance_requirements:
+      - IR-NEG-EVENT
+      required_evidence_requirements:
+      - ER-01
+      failure_action: downgrade
+    - node_id: N-02
+      name: 半导体定价与预期差
+      role: outcome
+      question: 板块/指数是否随谈判摆动
+      required_state_variables:
+      - SV-SECTOR-PRICE
+      required_instance_requirements:
+      - IR-SECTOR-PRICE
+      required_evidence_requirements:
+      - ER-02
+      failure_action: downgrade
+  - path_id: P-02
+    name: 实物流通道
+    description: 谈判结果→通航氦气制裁→全链环节
+    linked_judgment_units:
+    - JU-01
+    - JU-03
+    - JU-04
+    nodes:
+    - node_id: N-03
+      name: 通航与氦气复产
+      role: transmission
+      question: 实物流是否跟进谈判
+      required_state_variables:
+      - SV-HORMUZ-ACTUAL
+      - SV-HE-RESTART
+      required_instance_requirements:
+      - IR-PHYSICAL-FLOW
+      required_evidence_requirements:
+      - ER-03
+      failure_action: downgrade
+    - node_id: N-04
+      name: 制裁与贸易变化
+      role: transmission
+      question: 制裁放松或收紧是否随谈判变化
+      required_state_variables:
+      - SV-SANCTIONS-CHG
+      required_instance_requirements:
+      - IR-SANCTIONS
+      required_evidence_requirements:
+      - ER-04
+      failure_action: downgrade
+    - node_id: N-05
+      name: 全链环节分化
+      role: outcome
+      question: 材料设备制造封测设计是否分化
+      required_state_variables:
+      - SV-MAT-LEAD
+      - SV-EQP-ORDER
+      - SV-MFG-ALLOC
+      - SV-OSAT-UTIL
+      - SV-DESIGN-VIS
+      required_instance_requirements:
+      - IR-FULL-CHAIN
+      required_evidence_requirements:
+      - ER-05
+      failure_action: downgrade
+  - path_id: P-03
+    name: 情景与中国映射
+    description: 谈妥谈崩情景+中国板块三类分述
+    linked_judgment_units:
+    - JU-05
+    - JU-06
+    - JU-07
+    nodes:
+    - node_id: N-06
+      name: 向前情景边界
+      role: validation
+      question: 谈妥谈崩情景方向与边界
+      required_state_variables:
+      - SV-NEG-SIGNAL
+      - SV-HE-RESTART
+      required_instance_requirements: []
+      required_evidence_requirements:
+      - ER-06
+      failure_action: downgrade
+    - node_id: N-07
+      name: 中国三类映射
+      role: outcome
+      question: 制造材料设备设计分别如何映射
+      required_state_variables:
+      - SV-CN-MFG
+      - SV-CN-MATEQP
+      - SV-CN-DESIGN
+      required_instance_requirements:
+      - IR-CN-SEG
+      required_evidence_requirements:
+      - ER-07
+      failure_action: downgrade
+    - node_id: N-08
+      name: 精确量化停止
+      role: stop
+      question: 是否有精确fab公司量化数据
+      required_state_variables:
+      - SV-FAB-PRECISE
+      required_instance_requirements: []
+      required_evidence_requirements:
+      - ER-08
+      failure_action: stop
+  weakening_conditions:
+  - condition_id: W-01
+    statement: 谈妥头条后实物流仍未恢复
+    linked_paths:
+    - P-02
+    distinguish_evidence:
+    - 航运数据
+    - 氦气合约
+    effect_on_04: 削弱谈成等于解除危机
+  - condition_id: W-02
+    statement: 谈崩后库存长协缓冲
+    linked_paths:
+    - P-02
+    distinguish_evidence:
+    - 材料库存
+    - 交期变化弱
+    effect_on_04: 降低全链同步危机强度
+  blocking_conditions:
+  - condition_id: B-01
+    statement: 谈判剧烈摆动但全链硬指标无变化
+    linked_paths:
+    - P-02
+    distinguish_evidence:
+    - 交期
+    - 投片
+    - 氦气合约
+    effect_on_04: 实物流路径暂不可判断
+  competing_explanations:
+  - explanation_id: CE-01
+    statement: 头条油价板块涨跌等于全链基本面重定价
+    distinguish_from_main_path: 缺乏实物流与环节指标跟进
+    required_evidence:
+    - 环节交期订单
+    - 通航氦气
+    effect_on_04: 保留竞争解释并限制强度
+ontology_bindings:
+  selected_objects:
+  - object_id: OBJ-NEG
+    name: 美伊谈判进程
+  - object_id: OBJ-CHAIN
+    name: 全球半导体全链
+  - object_id: OBJ-CN-SECTOR
+    name: 中国半导体板块
+  selected_relations:
+  - relation_id: REL-NEG-PHYS
+    type: negotiation_affects_supply
+    source: OBJ-NEG
+    target: OBJ-CHAIN
+  selected_events:
+  - event_id: EVT-USIRAN-NEG-2026
+    name: 美伊谈判反复
+  selected_state_variables:
+  - state_variable_id: SV-NEG-SIGNAL
+    name: 谈判信号反复
+    ontology_ref: semantic.state_variable.negotiation_signal
+    linked_judgment_units:
+    - JU-01
+    - JU-05
+    linked_path_nodes:
+    - N-01
+    - N-06
+    state_binding_refs:
+    - SB-NEG-01
+    observation_requirement_refs:
+    - OR-NEG-01
+    evidence_profile_refs:
+    - EP-NEG-SIGNAL
+  - state_variable_id: SV-SECTOR-PRICE
+    name: 半导体板块定价
+    ontology_ref: semantic.state_variable.market_valuation
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    linked_path_nodes:
+    - N-02
+    state_binding_refs:
+    - SB-PRICE-01
+    observation_requirement_refs:
+    - OR-PRICE-01
+    evidence_profile_refs:
+    - EP-SECTOR-SENTIMENT
+  - state_variable_id: SV-HORMUZ-ACTUAL
+    name: 霍尔木兹实际通航
+    ontology_ref: semantic.state_variable.logistics_transit
+    linked_judgment_units:
+    - JU-01
+    - JU-03
+    linked_path_nodes:
+    - N-03
+    state_binding_refs:
+    - SB-HZ-01
+    observation_requirement_refs:
+    - OR-HZ-01
+    evidence_profile_refs:
+    - EP-PHYSICAL-LAG
+  - state_variable_id: SV-HE-RESTART
+    name: 氦气LNG复产状态
+    ontology_ref: semantic.state_variable.supply_restart
+    linked_judgment_units:
+    - JU-03
+    - JU-05
+    linked_path_nodes:
+    - N-03
+    - N-06
+    state_binding_refs:
+    - SB-HE-01
+    observation_requirement_refs:
+    - OR-HE-01
+    evidence_profile_refs:
+    - EP-PHYSICAL-LAG
+  - state_variable_id: SV-SANCTIONS-CHG
+    name: 制裁贸易约束变化
+    ontology_ref: semantic.state_variable.policy_constraint
+    linked_judgment_units:
+    - JU-04
+    linked_path_nodes:
+    - N-04
+    state_binding_refs:
+    - SB-SANC-01
+    observation_requirement_refs:
+    - OR-SANC-01
+    evidence_profile_refs:
+    - EP-CHAIN-SPLIT
+  - state_variable_id: SV-MAT-LEAD
+    name: 材料交期
+    ontology_ref: semantic.state_variable.lead_time
+    linked_judgment_units:
+    - JU-04
+    linked_path_nodes:
+    - N-05
+    state_binding_refs:
+    - SB-MAT-01
+    observation_requirement_refs:
+    - OR-MAT-01
+    evidence_profile_refs:
+    - EP-CHAIN-SPLIT
+  - state_variable_id: SV-EQP-ORDER
+    name: 设备订单
+    ontology_ref: semantic.state_variable.order_book
+    linked_judgment_units:
+    - JU-04
+    linked_path_nodes:
+    - N-05
+    state_binding_refs:
+    - SB-EQP-01
+    observation_requirement_refs:
+    - OR-EQP-01
+    evidence_profile_refs:
+    - EP-CHAIN-SPLIT
+  - state_variable_id: SV-MFG-ALLOC
+    name: 制造投片配给
+    ontology_ref: semantic.state_variable.capacity_allocation
+    linked_judgment_units:
+    - JU-04
+    linked_path_nodes:
+    - N-05
+    state_binding_refs:
+    - SB-MFG-01
+    observation_requirement_refs:
+    - OR-MFG-01
+    evidence_profile_refs:
+    - EP-CHAIN-SPLIT
+  - state_variable_id: SV-OSAT-UTIL
+    name: 封测产能利用
+    ontology_ref: semantic.state_variable.utilization
+    linked_judgment_units:
+    - JU-04
+    linked_path_nodes:
+    - N-05
+    state_binding_refs:
+    - SB-OSAT-01
+    observation_requirement_refs:
+    - OR-OSAT-01
+    evidence_profile_refs:
+    - EP-CHAIN-SPLIT
+  - state_variable_id: SV-DESIGN-VIS
+    name: 设计订单能见度
+    ontology_ref: semantic.state_variable.order_visibility
+    linked_judgment_units:
+    - JU-04
+    linked_path_nodes:
+    - N-05
+    state_binding_refs:
+    - SB-DES-01
+    observation_requirement_refs:
+    - OR-DES-01
+    evidence_profile_refs:
+    - EP-CHAIN-SPLIT
+  - state_variable_id: SV-CN-MFG
+    name: 中国制造环节暴露
+    ontology_ref: semantic.state_variable.regional_exposure
+    linked_judgment_units:
+    - JU-06
+    linked_path_nodes:
+    - N-07
+    state_binding_refs:
+    - SB-CNMF-01
+    observation_requirement_refs:
+    - OR-CNMF-01
+    evidence_profile_refs:
+    - EP-CN-SEGMENTS
+  - state_variable_id: SV-CN-MATEQP
+    name: 中国材料设备环节
+    ontology_ref: semantic.state_variable.regional_exposure
+    linked_judgment_units:
+    - JU-06
+    linked_path_nodes:
+    - N-07
+    state_binding_refs:
+    - SB-CNME-01
+    observation_requirement_refs:
+    - OR-CNME-01
+    evidence_profile_refs:
+    - EP-CN-SEGMENTS
+  - state_variable_id: SV-CN-DESIGN
+    name: 中国设计环节情绪
+    ontology_ref: semantic.state_variable.market_sentiment
+    linked_judgment_units:
+    - JU-06
+    linked_path_nodes:
+    - N-07
+    state_binding_refs:
+    - SB-CNDE-01
+    observation_requirement_refs:
+    - OR-CNDE-01
+    evidence_profile_refs:
+    - EP-CN-SEGMENTS
+  - state_variable_id: SV-FAB-PRECISE
+    name: 精确fab量化
+    ontology_ref: semantic.state_variable.production_loss
+    linked_judgment_units:
+    - JU-07
+    linked_path_nodes:
+    - N-08
+    state_binding_refs:
+    - SB-PREC-01
+    observation_requirement_refs:
+    - OR-PREC-01
+    evidence_profile_refs:
+    - EP-FAB-PRECISE
+  propagation_templates: []
+  inference_rules: []
+instance_requirements:
+- requirement_id: IR-NEG-EVENT
+  target: 美伊谈判关键时点与状态
+  purpose: 支持情绪与双通道起点
+  linked_path_nodes:
+  - N-01
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  minimum_fields:
+  - event_time
+  - negotiation_status
+  scope_constraints: 2026年以来
+- requirement_id: IR-SECTOR-PRICE
+  target: 半导体板块或指数定价
+  purpose: 验证情绪通道
+  linked_path_nodes:
+  - N-02
+  linked_judgment_units:
+  - JU-02
+  minimum_fields:
+  - index_level
+  - reaction_window
+  scope_constraints: 谈判关键日前后
+- requirement_id: IR-PHYSICAL-FLOW
+  target: 通航氦气LNG复产
+  purpose: 验证实物流通道
+  linked_path_nodes:
+  - N-03
+  linked_judgment_units:
+  - JU-03
+  minimum_fields:
+  - transit_status
+  - helium_export_status
+  scope_constraints: 中东出口链
+- requirement_id: IR-SANCTIONS
+  target: 制裁与贸易约束
+  purpose: 全链贸易暴露
+  linked_path_nodes:
+  - N-04
+  linked_judgment_units:
+  - JU-04
+  minimum_fields:
+  - policy_action
+  - effective_date
+  scope_constraints: 半导体相关材料设备
+- requirement_id: IR-FULL-CHAIN
+  target: 全链五环节指标
+  purpose: 环节分化
+  linked_path_nodes:
+  - N-05
+  linked_judgment_units:
+  - JU-04
+  minimum_fields:
+  - segment
+  - indicator
+  scope_constraints: 全球
+- requirement_id: IR-CN-SEG
+  target: 中国三类环节
+  purpose: 板块落点分述
+  linked_path_nodes:
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  minimum_fields:
+  - segment
+  - direction_limit
+  scope_constraints: 中国大陆
+evidence_requirements:
+- evidence_requirement_id: ER-01
+  target_judgment_unit_id: JU-01
+  target_path_node_id: N-01
+  target_state_variable_id: SV-NEG-SIGNAL
+  linked_instance_requirement: IR-NEG-EVENT
+  requirement_purpose: support
+  evidence_role: primary_support
+  required_evidence_category: event
+  required_content_domains:
+  - geopolitical
+  required_object_scope:
+    object: 美伊谈判
+  required_time_scope: 2026-01至2026-07
+  required_grain: event_point
+  minimum_quality_level: Q3_directional_ready
+  minimum_source_tier: S3
+  minimum_independent_source_count: 2
+  mandatory_baskets:
+  - EB-NEG-TIMELINE
+  counter_baskets:
+  - EB-NEG-STABLE
+  allowed_proxy: false
+  preferred_source_profiles:
+  - SP-REUTERS
+  allowed_acquisition_channels:
+  - AC-WEB-NEWS
+  forbidden_sources:
+  - 匿名社媒
+  required_freshness: 谈判窗口内
+  required_traceability: URL与时间
+  required_comparability: 同一谈判议题
+  stop_condition: 时间线多源对齐
+  missing_policy: downgrade
+  allowed_04_output_if_met: directional_only
+  allowed_04_output_if_missing: conditional_only
+- evidence_requirement_id: ER-02
+  target_judgment_unit_id: JU-02
+  target_path_node_id: N-02
+  target_state_variable_id: SV-SECTOR-PRICE
+  linked_instance_requirement: IR-SECTOR-PRICE
+  requirement_purpose: support
+  evidence_role: primary_support
+  required_evidence_category: valuation
+  required_content_domains:
+  - market
+  required_object_scope:
+    object: 半导体板块
+  required_time_scope: 谈判关键日前后
+  required_grain: time_series
+  minimum_quality_level: Q2_reasoning_usable
+  minimum_source_tier: S4
+  minimum_independent_source_count: 1
+  mandatory_baskets:
+  - EB-SECTOR-REACT
+  counter_baskets:
+  - EB-PRICE-DECOUPLE
+  allowed_proxy: true
+  preferred_source_profiles:
+  - SP-MARKET-DATA
+  allowed_acquisition_channels:
+  - AC-MARKET-DATA
+  forbidden_sources: []
+  required_freshness: 日级
+  required_traceability: 指数口径
+  required_comparability: 同一指数
+  stop_condition: 反应窗口对齐
+  missing_policy: downgrade
+  allowed_04_output_if_met: directional_only
+  allowed_04_output_if_missing: conditional_only
+- evidence_requirement_id: ER-03
+  target_judgment_unit_id: JU-03
+  target_path_node_id: N-03
+  target_state_variable_id: SV-HORMUZ-ACTUAL
+  linked_instance_requirement: IR-PHYSICAL-FLOW
+  requirement_purpose: support
+  evidence_role: primary_support
+  required_evidence_category: supply
+  required_content_domains:
+  - shipping
+  - helium
+  required_object_scope:
+    object: 霍尔木兹卡塔尔
+  required_time_scope: 2026-03至2026-07
+  required_grain: text_claim
+  minimum_quality_level: Q3_directional_ready
+  minimum_source_tier: S3
+  minimum_independent_source_count: 2
+  mandatory_baskets:
+  - EB-PHYSICAL-FLOW
+  counter_baskets:
+  - EB-PHYSICAL-STUCK
+  allowed_proxy: false
+  preferred_source_profiles:
+  - SP-REUTERS
+  allowed_acquisition_channels:
+  - AC-WEB-NEWS
+  forbidden_sources: []
+  required_freshness: 60日
+  required_traceability: 来源名
+  required_comparability: 通航与复产
+  stop_condition: 谈妥与实物流时间对齐
+  missing_policy: downgrade
+  allowed_04_output_if_met: directional_only
+  allowed_04_output_if_missing: conditional_only
+- evidence_requirement_id: ER-04
+  target_judgment_unit_id: JU-04
+  target_path_node_id: N-04
+  target_state_variable_id: SV-SANCTIONS-CHG
+  linked_instance_requirement: IR-SANCTIONS
+  requirement_purpose: support
+  evidence_role: background_evidence
+  required_evidence_category: policy
+  required_content_domains:
+  - trade
+  required_object_scope:
+    object: 半导体贸易
+  required_time_scope: 2026
+  required_grain: event_point
+  minimum_quality_level: Q2_reasoning_usable
+  minimum_source_tier: S2
+  minimum_independent_source_count: 1
+  mandatory_baskets:
+  - EB-SANCTIONS
+  counter_baskets: []
+  allowed_proxy: false
+  preferred_source_profiles:
+  - SP-GOV-POLICY
+  allowed_acquisition_channels:
+  - AC-GOV-DATA
+  forbidden_sources: []
+  required_freshness: 政策窗口
+  required_traceability: 原文
+  required_comparability: 物项范围
+  stop_condition: 正式文本
+  missing_policy: downgrade
+  allowed_04_output_if_met: conditional_only
+  allowed_04_output_if_missing: conditional_only
+- evidence_requirement_id: ER-05
+  target_judgment_unit_id: JU-04
+  target_path_node_id: N-05
+  target_state_variable_id: SV-MAT-LEAD
+  linked_instance_requirement: IR-FULL-CHAIN
+  requirement_purpose: validate
+  evidence_role: cross_validation
+  required_evidence_category: supply
+  required_content_domains:
+  - semiconductor
+  required_object_scope:
+    object: 全链
+  required_time_scope: 2026Q2Q3
+  required_grain: cross_section
+  minimum_quality_level: Q2_reasoning_usable
+  minimum_source_tier: S4
+  minimum_independent_source_count: 2
+  mandatory_baskets:
+  - EB-CHAIN-SEG
+  counter_baskets:
+  - EB-CHAIN-FLAT
+  allowed_proxy: true
+  preferred_source_profiles:
+  - SP-INDUSTRY
+  allowed_acquisition_channels:
+  - AC-WEB-NEWS
+  forbidden_sources: []
+  required_freshness: 季度
+  required_traceability: 环节标注
+  required_comparability: 五环节
+  stop_condition: 至少两环节
+  missing_policy: downgrade
+  allowed_04_output_if_met: conditional_only
+  allowed_04_output_if_missing: conditional_only
+- evidence_requirement_id: ER-06
+  target_judgment_unit_id: JU-05
+  target_path_node_id: N-06
+  target_state_variable_id: SV-NEG-SIGNAL
+  linked_instance_requirement: IR-NEG-EVENT
+  requirement_purpose: validate
+  evidence_role: cross_validation
+  required_evidence_category: event
+  required_content_domains:
+  - geopolitical
+  required_object_scope:
+    object: 谈判情景
+  required_time_scope: 向前
+  required_grain: text_claim
+  minimum_quality_level: Q2_reasoning_usable
+  minimum_source_tier: S4
+  minimum_independent_source_count: 1
+  mandatory_baskets:
+  - EB-SCENARIO
+  counter_baskets:
+  - EB-SCENARIO-BLOCK
+  allowed_proxy: false
+  preferred_source_profiles:
+  - SP-RESEARCH
+  allowed_acquisition_channels:
+  - AC-WEB-NEWS
+  forbidden_sources: []
+  required_freshness: 情景假设
+  required_traceability: 假设来源
+  required_comparability: 谈妥谈崩
+  stop_condition: 两情景完整
+  missing_policy: downgrade
+  allowed_04_output_if_met: conditional_only
+  allowed_04_output_if_missing: insufficient
+- evidence_requirement_id: ER-07
+  target_judgment_unit_id: JU-06
+  target_path_node_id: N-07
+  target_state_variable_id: SV-CN-MFG
+  linked_instance_requirement: IR-CN-SEG
+  requirement_purpose: support
+  evidence_role: primary_support
+  required_evidence_category: exposure
+  required_content_domains:
+  - semiconductor
+  required_object_scope:
+    object: 中国大陆
+  required_time_scope: 2026
+  required_grain: text_claim
+  minimum_quality_level: Q2_reasoning_usable
+  minimum_source_tier: S4
+  minimum_independent_source_count: 1
+  mandatory_baskets:
+  - EB-CN-SEG
+  counter_baskets:
+  - EB-CN-SENTIMENT
+  allowed_proxy: true
+  preferred_source_profiles:
+  - SP-CN-MEDIA
+  allowed_acquisition_channels:
+  - AC-WEB-NEWS
+  forbidden_sources: []
+  required_freshness: 半年
+  required_traceability: 三类分开
+  required_comparability: 制造材料设计
+  stop_condition: 三类均有线索
+  missing_policy: downgrade
+  allowed_04_output_if_met: directional_only
+  allowed_04_output_if_missing: conditional_only
+- evidence_requirement_id: ER-08
+  target_judgment_unit_id: JU-07
+  target_path_node_id: N-08
+  target_state_variable_id: SV-FAB-PRECISE
+  linked_instance_requirement: IR-FULL-CHAIN
+  requirement_purpose: block
+  evidence_role: blocking_condition
+  required_evidence_category: financial
+  required_content_domains:
+  - semiconductor
+  required_object_scope:
+    object: fab
+  required_time_scope: 2026
+  required_grain: quarterly
+  minimum_quality_level: Q4_report_grade
+  minimum_source_tier: S1
+  minimum_independent_source_count: 1
+  mandatory_baskets:
+  - EB-FAB-DISC
+  counter_baskets: []
+  allowed_proxy: false
+  preferred_source_profiles:
+  - SP-FILING
+  allowed_acquisition_channels:
+  - AC-FILING
+  forbidden_sources:
+  - 转述
+  required_freshness: 最近季报
+  required_traceability: 公告
+  required_comparability: 产量收入
+  stop_condition: 无披露
+  missing_policy: block
+  allowed_04_output_if_met: conditional_only
+  allowed_04_output_if_missing: insufficient
+candidate_structures:
+  used: false
+  items: []
+  usage_boundary: ''
+  effect_on_03: ''
+  effect_on_04: ''
+ontology_gaps:
+  has_gap: true
+  gap_note_ref: 谈判信号—预期摆动—实物流兑现细链弱覆盖
+  gap_ids:
+  - OG-NEG-PHYS-LINK
+  highest_severity: medium
+  blocks_evidence_preparation: false
+  blocks_directional_reasoning: false
+handoff_to_03:
+  required_files:
+  - 02-美伊谈判半导体影响研究逻辑-20260709-1.md
+  - 02-美伊谈判半导体影响本体视图-20260709-1.yaml
+  required_csv_or_snapshot_outputs:
+  - 03_gate/state_variable_coverage.csv
+  - 03_gate/path_readiness.csv
+  - 01_plan/evidence_requirements.csv
+  - 01_plan/evidence_recipe_matches.csv
+  - 01_plan/evidence_baskets.csv
+  - 03_gate/evidence_readiness_assessments.csv
+  - 02_assets/evidence_records.csv
+  special_limits:
+  - 头条不等于基本面
+  - 谈妥不等于实物流立即恢复
+  - 无一级数据则边界情景
+validation:
+  checks:
+    scope_consistent_with_01: true
+    judgment_spine_present: true
+    minimum_question_tree_present: true
+    main_counter_competing_paths_present: true
+    judgment_units_have_minimum_conditions: true
+    state_variable_chain_complete: true
+    evidence_requirements_executable_by_03: true
+    md_yaml_consistent: true
+  result: pass
+  return_required: false
+  return_reasons: []

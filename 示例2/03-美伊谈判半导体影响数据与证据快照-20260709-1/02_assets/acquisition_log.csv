@@ -1,0 +1,3 @@
+attempt_id,execution_id,requirement_id,linked_judgment_unit_ids,path_id,node_id,recipe_id,source_id,source_tier,search_round,query_parameters,attempted_at,result_status,records_received,records_accepted,is_counter_evidence_search,failure_code,fallback_action,stopping_rule,stop_reason,notes
+AL-01,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-01,JU-01,P-01,N-01,REC-A01,SRC-01,S3,1,US Iran ceasefire rhetoric July 2026,2026-07-09T16:00:00+08:00,accepted,3,2,false,,,multi_source,met_minimum,
+AL-02,EXEC-USIRAN-NEG-SEMI-20260709-1,ER-08,JU-07,P-03,N-08,REC-A06,SRC-08,S1,1,fab revenue impact Iran negotiation 2026Q2,2026-07-09T16:00:00+08:00,no_match,0,0,false,NO_DISCLOSURE,mark_insufficient,block,no_filing,
