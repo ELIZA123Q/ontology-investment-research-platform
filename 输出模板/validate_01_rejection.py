@@ -27,6 +27,7 @@ REQUIRED_META = [
     "status",
     "status_reason",
     "quality_status",
+    "quality_gate_ref",
     "original_input",
     "out_of_scope_category",
     "can_be_rewritten",
@@ -44,13 +45,13 @@ REQUIRED_SECTIONS = [
 
 def validate(path: str | Path) -> dict[str, object]:
     path = Path(path)
-    parse_triplet(path, "不予受理说明")
+    parse_triplet(path, "不予受理说明", stage="01")
     meta, body = parse_markdown(path)
 
     require_keys(meta, REQUIRED_META, str(path))
     require_schema_version(meta["schema_version"], str(path))
-    if meta["document_type"] != "judgment_task_rejection":
-        fail("document_type 必须为 judgment_task_rejection")
+    if meta["document_type"] != "judgment_task":
+        fail("document_type 必须为 judgment_task")
     if meta["status"] != "out_of_scope":
         fail("不予受理说明 status 必须为 out_of_scope")
     validate_quality_status(meta["quality_status"], str(path))

@@ -1,0 +1,114 @@
+schema_name: task_ontology_view
+schema_version: 1.0.0
+task_context:
+  task_id: JTASK-USCTRL-CNSEMI-EQP-001
+  view_id: TOV-USCTRL-CNSEMI-EQP-20260710-1
+  logic_id: RLOG-USCTRL-CNSEMI-EQP-20260710-1
+  generated_at: "2026-07-10T19:25:00+08:00"
+  source_requirement_version: 1
+  source_document: 01-美国管制与国产设备替代投研需求说明-20260710-1.md
+  logic_document: 02-美国管制与国产设备替代研究逻辑-20260710-1.md
+  normalized_question: 截至2026年7月10日已经生效的美国对华半导体设备出口管制合并作用在未来十二个月内是否会改变中国半导体设备行业国产替代逻辑
+  judgment_landing: 假设验证与更新
+  task_type: {primary: 假设验证与更新判断, secondary: [传导路径判断]}
+  scope:
+    time: 2022-10-07至2026-07-10现行基线并前瞻至2027-07-09
+    time_policy: {mode: fixed, anchor: execution_date, anchor_value: "2026-07-10", timezone: Asia/Shanghai, lookback: "2022-10-07/2026-07-10", lookforward: P12M, fixed_start: "2022-10-07", fixed_end: "2027-07-09", data_cutoff: "2026-07-10"}
+    geography: 美国规则对中国大陆设备市场的影响
+    value_chain: 规则到海外可得性到需求到验证复购到收入利润
+    objects: [中国半导体设备行业, 现行美国对华设备管制规则集合, 前道与先进封装设备类别, 公开披露充分的代表公司]
+    object_selection: {mode: dynamic, as_of: execution_date, criteria: [半导体制造或先进封装设备, 有公开验证或经营数据], count_or_coverage: 至少五类六家公司, refresh_on_each_run: true}
+    exclusions: [个股估值和交易操作, 未经正式披露的技术传闻, 尚未生效规则作为当前事实]
+quality_control:
+  quality_gate_ref: 00A_高质量产出判别标准.md#5.2
+  stage_status: aligned
+  quality_status: high_quality_pass
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+  return_required: false
+  return_stage: null
+  return_reasons: []
+research_framework:
+  judgment_spine:
+    statement: 管制升级只有在真实压缩海外设备可得性且国产设备完成验证复购跨线复制和经营兑现时才会改变未来十二个月国产替代逻辑
+    md_section: 1.3 判断脊柱
+  minimum_question_tree:
+    - {question_id: Q-01, question: 现行规则是否形成可执行约束, relation_to_overall: precondition, sequence: 1, failure_action: stop, md_section: "2.2"}
+    - {question_id: Q-02, question: 海外设备备件服务是否真实收缩, relation_to_overall: precondition, sequence: 2, failure_action: downgrade, md_section: "2.2"}
+    - {question_id: Q-03, question: 中国设备支出能否支撑需求池, relation_to_overall: parallel, sequence: 3, failure_action: downgrade, md_section: "2.2"}
+    - {question_id: Q-04, question: 国产设备是否完成验证复购和复制, relation_to_overall: precondition, sequence: 4, failure_action: switch_to_competing_explanation, md_section: "2.2"}
+    - {question_id: Q-05, question: 经营兑现和上游独立性是否支持分化, relation_to_overall: competing, sequence: 5, failure_action: downgrade, md_section: "2.2"}
+  alignment_checks: {independently_formed_in_md: true, library_consulted_in_md: true, judgment_spine_consistent_with_md: true, problem_tree_consistent_with_md: true}
+ontology_sources:
+  platform_ontology: {name: ontology_platform, version: 1.0.0, schema_versions: {common: 1.0.0, semantic: 1.0.0, evidence: 1.0.0, reasoning: 1.0.0}, files: [一级通用本体规范/common.yaml, 一级通用本体规范/semantic.yaml, 一级通用本体规范/evidence.yaml, 一级通用本体规范/reasoning.yaml]}
+  domain_ontology: {name: semiconductor_domain_ontology, version: 1.0.0, depends_on: ontology_platform, files: [二级半导体领域本体规范/common.yaml, 二级半导体领域本体规范/semantic.yaml, 二级半导体领域本体规范/evidence.yaml, 二级半导体领域本体规范/reasoning.yaml]}
+judgment_units:
+  - {judgment_unit_id: JU-01, statement: 现行规则形成定向且可执行的供给约束但并非全面禁运, linked_questions: [Q-01, Q-02], linked_paths: [P-01], minimum_verification_condition: 三轮美国官方规则加生效执法和海外供货反面证据, required_counter_checks: [成熟制程许可和继续供货], downgrade_rule_if_not_met: insufficient, evidence_profile_refs: [EP-POLICY-01, EP-SUPPLY-COUNTER-01], md_section: "5"}
+  - {judgment_unit_id: JU-02, statement: 供给缺口只有通过验证复购与经营兑现才能转化为国产受益, linked_questions: [Q-03, Q-04], linked_paths: [P-01], minimum_verification_condition: 行业需求加多类别复购和财务数据, required_counter_checks: [支出趋缓, 利润承压], downgrade_rule_if_not_met: conditional_only, evidence_profile_refs: [EP-DEMAND-01, EP-COMMERCIALIZATION-01], md_section: "5"}
+  - {judgment_unit_id: JU-03, statement: 类别和公司强弱由商业成熟度而非缺口大小主导, linked_questions: [Q-04, Q-05], linked_paths: [P-01, P-02], minimum_verification_condition: 五类六家公司产品阶段和经营数据, required_counter_checks: [上游依赖, 利润质量], downgrade_rule_if_not_met: conditional_only, evidence_profile_refs: [EP-CATEGORY-01, EP-FINANCIAL-01], md_section: "5"}
+  - {judgment_unit_id: JU-04, statement: 现行管制是否改写未来十二个月行业逻辑, linked_questions: [Q-01, Q-02, Q-03, Q-04, Q-05], linked_paths: [P-01, P-02], minimum_verification_condition: 前三个核心问题可用且四类关键变量可跟踪, required_counter_checks: [许可放松, 支出下修, 上游受限], downgrade_rule_if_not_met: conditional_only, evidence_profile_refs: [EP-INTEGRATED-01], md_section: "5"}
+path_design:
+  main_paths:
+    - path_id: P-01
+      name: 现行管制到国产设备商业兑现主路径
+      linked_judgment_units: [JU-01, JU-02, JU-03, JU-04]
+      nodes:
+        - {node_id: N-01, name: 现行规则与执行, role: start, question: 哪些规则当前已经生效并执行, required_state_variables: [SV-01, SV-08], required_instance_requirements: [IR-01], required_evidence_requirements: [ER-01, ER-02], failure_action: stop}
+        - {node_id: N-02, name: 海外设备实际可得性, role: precondition, question: 设备备件服务是否真实收缩, required_state_variables: [SV-02], required_instance_requirements: [IR-02], required_evidence_requirements: [ER-03], failure_action: downgrade}
+        - {node_id: N-03, name: 中国设备需求池, role: transmission, question: 未来十二个月需求是否维持, required_state_variables: [SV-03], required_instance_requirements: [IR-03], required_evidence_requirements: [ER-04], failure_action: downgrade}
+        - {node_id: N-04, name: 国产验证与复购, role: transmission, question: 是否从验证进入复购和复制, required_state_variables: [SV-04, SV-07], required_instance_requirements: [IR-04], required_evidence_requirements: [ER-05, ER-06], failure_action: switch_path}
+        - {node_id: N-05, name: 经营兑现与分化, role: outcome, question: 收入利润是否支持类别公司差异, required_state_variables: [SV-05, SV-07], required_instance_requirements: [IR-05], required_evidence_requirements: [ER-06, ER-07], failure_action: downgrade}
+    - path_id: P-02
+      name: 上游受限与周期回落反向路径
+      linked_judgment_units: [JU-03, JU-04]
+      nodes:
+        - {node_id: N-06, name: 国产整机上游依赖, role: precondition, question: 关键部件软件是否限制交付, required_state_variables: [SV-06], required_instance_requirements: [IR-06], required_evidence_requirements: [ER-08], failure_action: stop}
+        - {node_id: N-07, name: 反向约束后的净效应, role: validation, question: 政策需求上游约束合并后逻辑如何更新, required_state_variables: [SV-03, SV-05, SV-06, SV-08], required_instance_requirements: [IR-03, IR-05, IR-06], required_evidence_requirements: [ER-02, ER-04, ER-07, ER-08], failure_action: downgrade}
+  weakening_conditions:
+    - {condition_id: W-01, statement: 中国设备支出持续下修或利润质量恶化, linked_paths: [P-01], distinguish_evidence: [ER-04, ER-07], effect_on_04: 降为条件性表述}
+  blocking_conditions:
+    - {condition_id: B-01, statement: 关键部件软件受限导致无法交付或再认证, linked_paths: [P-02], distinguish_evidence: [ER-08], effect_on_04: 受影响类别停止正向推导}
+  competing_explanations:
+    - {explanation_id: CE-01, statement: 增长主要由全球周期与国内扩产驱动, distinguish_from_main_path: 比较政策时点与受限非受限类别, required_evidence: [ER-03, ER-04, ER-06], effect_on_04: 限制政策归因}
+ontology_bindings:
+  selected_objects: [{object_id: OBJ-CN-SEMI-EQP, object_type: Industry, name: 中国半导体设备行业}, {object_id: OBJ-US-CONTROL-SET, object_type: Event, name: 现行美国对华设备管制规则集合}]
+  selected_relations: [policyAffectsSupply, equipmentUsedByFab, evidenceSupportsJudgment, companyParticipatesInSegment]
+  selected_events: [EVT-US-2022-CONTROL, EVT-US-2023-UPDATE, EVT-US-2024-SME, EVT-US-2025-VEU, EVT-US-2026-ENFORCEMENT]
+  selected_state_variables:
+    - {state_variable_id: SV-01, name: 现行设备管制覆盖与执行强度, ontology_ref: StateVariable.policy_constraint_intensity, linked_judgment_units: [JU-01, JU-04], linked_path_nodes: [N-01, N-07], state_binding_refs: [SB-01], observation_requirement_refs: [OR-01], evidence_profile_refs: [EP-POLICY-01]}
+    - {state_variable_id: SV-02, name: 海外设备备件与服务可得性, ontology_ref: StateVariable.supply_availability, linked_judgment_units: [JU-01, JU-04], linked_path_nodes: [N-02], state_binding_refs: [SB-02], observation_requirement_refs: [OR-02], evidence_profile_refs: [EP-SUPPLY-COUNTER-01]}
+    - {state_variable_id: SV-03, name: 中国晶圆厂设备支出强度, ontology_ref: StateVariable.fab_capex_intensity, linked_judgment_units: [JU-02, JU-04], linked_path_nodes: [N-03, N-07], state_binding_refs: [SB-03], observation_requirement_refs: [OR-03], evidence_profile_refs: [EP-DEMAND-01]}
+    - {state_variable_id: SV-04, name: 国产设备验证与重复采购进度, ontology_ref: StateVariable.customer_validation_progress, linked_judgment_units: [JU-02, JU-03, JU-04], linked_path_nodes: [N-04], state_binding_refs: [SB-04], observation_requirement_refs: [OR-04], evidence_profile_refs: [EP-COMMERCIALIZATION-01]}
+    - {state_variable_id: SV-05, name: 国产设备收入与利润兑现质量, ontology_ref: StateVariable.business_realization_quality, linked_judgment_units: [JU-02, JU-03, JU-04], linked_path_nodes: [N-05, N-07], state_binding_refs: [SB-05], observation_requirement_refs: [OR-05], evidence_profile_refs: [EP-FINANCIAL-01]}
+    - {state_variable_id: SV-06, name: 国产整机关键零部件软件依赖, ontology_ref: StateVariable.upstream_dependency, linked_judgment_units: [JU-03, JU-04], linked_path_nodes: [N-06, N-07], state_binding_refs: [SB-06], observation_requirement_refs: [OR-06], evidence_profile_refs: [EP-UPSTREAM-01]}
+    - {state_variable_id: SV-07, name: 设备类别商业化成熟度, ontology_ref: StateVariable.commercialization_maturity, linked_judgment_units: [JU-03, JU-04], linked_path_nodes: [N-04, N-05], state_binding_refs: [SB-07], observation_requirement_refs: [OR-07], evidence_profile_refs: [EP-CATEGORY-01]}
+    - {state_variable_id: SV-08, name: 未来规则生效与许可变化状态, ontology_ref: StateVariable.policy_effective_status, linked_judgment_units: [JU-01, JU-04], linked_path_nodes: [N-01, N-07], state_binding_refs: [SB-08], observation_requirement_refs: [OR-08], evidence_profile_refs: [EP-POLICY-GATE-01]}
+  propagation_templates: [policy_constraint_to_supply_gap, supply_gap_to_customer_validation, validation_to_repeat_order, repeat_order_to_revenue_quality, upstream_dependency_to_delivery_block]
+  inference_rules: [IRULE-LOC-EQP-COMMERCIALIZATION, IRULE-EQP-ORDER-REVENUE, IRULE-EQP-UPSTREAM-BLOCK]
+instance_requirements:
+  - {requirement_id: IR-01, target: 现行美国规则与执法事件, purpose: 支持政策事实, linked_path_nodes: [N-01], linked_judgment_units: [JU-01, JU-04], minimum_fields: [title, effective_date, scope, source_url], scope_constraints: [截至2026-07-10已生效]}
+  - {requirement_id: IR-02, target: 海外设备厂商中国供货与收入, purpose: 区分真实收缩与仍可供货, linked_path_nodes: [N-02], linked_judgment_units: [JU-01, JU-04], minimum_fields: [company, category, period, restriction_effect], scope_constraints: [成熟与先进制程分开]}
+  - {requirement_id: IR-03, target: 中国设备支出与晶圆厂利用率, purpose: 验证需求池, linked_path_nodes: [N-03, N-07], linked_judgment_units: [JU-02, JU-04], minimum_fields: [period, value, scope, source], scope_constraints: [中国大陆]}
+  - {requirement_id: IR-04, target: 国产设备验证复购批量交付, purpose: 验证商业转化, linked_path_nodes: [N-04], linked_judgment_units: [JU-02, JU-03, JU-04], minimum_fields: [company, category, stage, period], scope_constraints: [公开披露]}
+  - {requirement_id: IR-05, target: 国产设备公司实际财务, purpose: 验证经营兑现, linked_path_nodes: [N-05, N-07], linked_judgment_units: [JU-02, JU-03, JU-04], minimum_fields: [company, period, revenue, growth, profit_quality], scope_constraints: [实际值]}
+  - {requirement_id: IR-06, target: 国产设备关键部件软件受限, purpose: 验证反向约束, linked_path_nodes: [N-06, N-07], linked_judgment_units: [JU-03, JU-04], minimum_fields: [company, restricted_input, mitigation, source], scope_constraints: [正式披露]}
+evidence_requirements:
+  - {evidence_requirement_id: ER-01, question: 现行规则范围与执行如何, linked_instance_requirement: IR-01, linked_state_variables: [SV-01], linked_judgment_units: [JU-01, JU-04], evidence_profile: EP-POLICY-01, required_sources: [美国官方规则], required_counter_evidence: [许可和豁免], minimum_standard: 三轮规则可追溯, downgrade_if_missing: blocked}
+  - {evidence_requirement_id: ER-02, question: 未来规则状态如何, linked_instance_requirement: IR-01, linked_state_variables: [SV-08], linked_judgment_units: [JU-01, JU-04], evidence_profile: EP-POLICY-GATE-01, required_sources: [Federal Register], required_counter_evidence: [暂停状态], minimum_standard: 生效日期可核验, downgrade_if_missing: conditional_only}
+  - {evidence_requirement_id: ER-03, question: 海外成熟设备是否仍可供货, linked_instance_requirement: IR-02, linked_state_variables: [SV-02], linked_judgment_units: [JU-01, JU-04], evidence_profile: EP-SUPPLY-COUNTER-01, required_sources: [海外厂商年报], required_counter_evidence: [], minimum_standard: 三家独立厂商, downgrade_if_missing: insufficient}
+  - {evidence_requirement_id: ER-04, question: 中国设备需求是否维持, linked_instance_requirement: IR-03, linked_state_variables: [SV-03], linked_judgment_units: [JU-02, JU-04], evidence_profile: EP-DEMAND-01, required_sources: [SEMI, 晶圆厂年报], required_counter_evidence: [高位趋缓], minimum_standard: 实际与预测分开, downgrade_if_missing: conditional_only}
+  - {evidence_requirement_id: ER-05, question: 国产设备是否复购和批量, linked_instance_requirement: IR-04, linked_state_variables: [SV-04], linked_judgment_units: [JU-02, JU-03, JU-04], evidence_profile: EP-COMMERCIALIZATION-01, required_sources: [公司年报], required_counter_evidence: [首台不等于复购], minimum_standard: 五类样本, downgrade_if_missing: conditional_only}
+  - {evidence_requirement_id: ER-06, question: 类别成熟度如何分化, linked_instance_requirement: IR-04, linked_state_variables: [SV-07], linked_judgment_units: [JU-03, JU-04], evidence_profile: EP-CATEGORY-01, required_sources: [公司和交易所披露], required_counter_evidence: [光刻量产不足], minimum_standard: 五类六家公司, downgrade_if_missing: insufficient}
+  - {evidence_requirement_id: ER-07, question: 收入与利润如何兑现, linked_instance_requirement: IR-05, linked_state_variables: [SV-05], linked_judgment_units: [JU-02, JU-03, JU-04], evidence_profile: EP-FINANCIAL-01, required_sources: [2025年报], required_counter_evidence: [毛利和利润承压], minimum_standard: 五家公司实际数据, downgrade_if_missing: conditional_only}
+  - {evidence_requirement_id: ER-08, question: 关键部件软件是否反向受限, linked_instance_requirement: IR-06, linked_state_variables: [SV-06], linked_judgment_units: [JU-03, JU-04], evidence_profile: EP-UPSTREAM-01, required_sources: [规则和公司风险披露], required_counter_evidence: [部件替代和再认证], minimum_standard: 规则加公司披露, downgrade_if_missing: insufficient}
+candidate_structures: {used: false, items: [], usage_boundary: 不使用未验证候选结构, effect_on_03: 无, effect_on_04: 无}
+ontology_gaps: {has_gap: false, gap_note_ref: "", gap_ids: [], highest_severity: none, blocks_evidence_preparation: false, blocks_directional_reasoning: false}
+handoff_to_03:
+  required_files: [02-美国管制与国产设备替代研究逻辑-20260710-1.md, 02-美国管制与国产设备替代本体视图-20260710-1.yaml]
+  required_csv_or_snapshot_outputs: [state_variable_coverage.csv, path_readiness.csv, judgment_unit_readiness.csv, evidence_records.csv]
+  special_limits: [当前生效与未来规则分开, 公司样本不作投资排名, 战略紧迫性不等于业绩]
+validation:
+  checks: {scope_consistent_with_01: true, judgment_spine_present: true, minimum_question_tree_present: true, main_counter_competing_paths_present: true, judgment_units_have_minimum_conditions: true, state_variable_chain_complete: true, evidence_requirements_executable_by_03: true, md_yaml_consistent: true}
+  result: pass
+  return_required: false
+  return_reasons: []

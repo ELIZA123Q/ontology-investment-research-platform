@@ -1,0 +1,6 @@
+material_unit_id,execution_id,target_05_archetype,material_unit,status,linked_judgment_unit_ids,linked_data_candidate_ids,linked_chart_ids,linked_table_ids,source_annotation_ids,impact_on_05,required_action
+MU-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,theme_deep_dive,核心结论与证据链,report_grade_ready,JU-01|JU-02|JU-03|JU-04,DDC-01|DDC-02|DDC-03|DDC-04|DDC-05|DDC-06,FIG-01|FIG-02|FIG-03,TAB-03,ANNO-01|ANNO-02|ANNO-03|ANNO-04|ANNO-05|ANNO-06|ANNO-07|ANNO-08|ANNO-09|ANNO-10|ANNO-11|ANNO-12,支持主题深度研究的答案先行结构,none
+MU-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,theme_deep_dive,定量图表,report_grade_ready,JU-01|JU-02|JU-03|JU-04,DDC-01|DDC-02|DDC-03|DDC-04,FIG-01|FIG-02|FIG-03,,ANNO-04|ANNO-05|ANNO-06|ANNO-07|ANNO-10|ANNO-11,满足至少一项定量且三项可展示数据要求,none
+MU-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,theme_deep_dive,类别与公司分组,report_grade_ready,JU-03|JU-04,DDC-04|DDC-05,FIG-03,TAB-01,ANNO-07|ANNO-08|ANNO-09|ANNO-10|ANNO-11|ANNO-12,直接支持按设备类别及代表公司拆分受益强弱,none
+MU-04,EXEC-USCTRL-CNSEMI-EQP-20260710-1,theme_deep_dive,政策时间线与跟踪信号,report_grade_ready,JU-01|JU-04,DDC-06,,TAB-02,ANNO-01|ANNO-02|ANNO-03,区分已生效规则和未来触发并形成跟踪表,none
+MU-05,EXEC-USCTRL-CNSEMI-EQP-20260710-1,theme_deep_dive,风险与判断依据与局限,report_grade_ready,JU-01|JU-02|JU-03|JU-04,DDC-02|DDC-03|DDC-05,FIG-02,TAB-02|TAB-03,ANNO-03|ANNO-04|ANNO-05|ANNO-06|ANNO-09|ANNO-11,保证战略紧迫性不被直接写成经营受益,none

@@ -1,0 +1,9 @@
+instance_id,execution_id,requirement_id,linked_judgment_unit_ids,instance_type,name,canonical_name,stable_identifier,classification,scope,valid_from,valid_to,verification_status,source_run_refs,evidence_refs,notes
+INS-INDUSTRY,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-04,JU-01|JU-02|JU-03|JU-04,Industry,中国半导体设备行业,China Semiconductor Equipment Industry,CN-SEMI-EQP,semiconductor_equipment,中国大陆,2022-10-07,,verified,SR-010|SR-013,EV-10|EV-13,核心对象
+INS-CONTROL,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-01,JU-01|JU-04,EventGroup,现行美国对华半导体设备管制规则集合,Effective US China SME Controls,US-CN-SME-CONTROL,policy_event_group,美国规则对中国,2022-10-07,2026-07-10,verified,SR-001|SR-002|SR-003|SR-004|SR-005|SR-006,EV-01|EV-02|EV-03|EV-04|EV-05|EV-06,未来条款分开
+INS-NAURA,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-07,JU-02|JU-03,Company,北方华创,NAURA,002371,platform_equipment,中国,2025-01-01,2025-12-31,verified,SR-014,EV-14,平台样本
+INS-AMEC,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,Company,中微公司,AMEC,688012,etch_deposition,中国,2025-01-01,2025-12-31,verified,SR-015,EV-15,复购样本
+INS-PIOTECH,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-07,JU-02|JU-03,Company,拓荆科技,Piotech,688072,deposition_bonding,中国,2025-01-01,2025-12-31,verified,SR-016,EV-16,批量样本
+INS-ACM,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-08,JU-03|JU-04,Company,盛美上海及ACM Research,ACM Research,688082|ACMR,cleaning_plating,中国及全球,2025-01-01,2025-12-31,verified,SR-017|SR-020,EV-17|EV-20,上游风险样本
+INS-HWATSING,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-07,JU-02|JU-03,Company,华海清科,Hwatsing,688120,CMP_thinning,中国,2025-01-01,2025-12-31,verified,SR-018,EV-18,CMP样本
+INS-KINGSEMI,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-07,JU-02|JU-03,Company,芯源微,Kingsemi,688037,track_cleaning,中国,2025-01-01,2025-12-31,verified,SR-019,EV-19,利润反面证据

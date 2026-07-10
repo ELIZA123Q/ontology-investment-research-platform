@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_quality_status
+from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_gate_review_fields, validate_quality_status, validate_return_routing_fields
 from validator_utils import (
     assert_subset,
     assert_values,
@@ -39,15 +39,16 @@ REQUIRED_LOGIC_META = [
     "framework_library_version",
     "stage_status",
     "quality_status",
+    "quality_gate_ref",
     "judgment_spine",
 ]
 
 REQUIRED_LOGIC_SECTIONS = [
     "研究问题与判断边界",
     "最小问题树与分析顺序",
-    "主路径、反证和竞争解释",
-    "对象分化与比较口径",
-    "关键判断单元与最低验证条件",
+    "主路径、反面证据和其他可能解释",
+    "结构分化与比较口径",
+    "关键核心问题与最低验证条件",
     "本体承接与 03 交接",
     "进入 03 前质量检查",
 ]
@@ -106,10 +107,11 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             fail(f"{label} 必须是对象")
 
     require_keys(task_context, ["task_id", "view_id", "logic_id", "logic_document", "normalized_question", "scope"], "task_context")
-    require_keys(quality_control, ["stage_status", "quality_status", "return_required"], "quality_control")
+    require_keys(quality_control, ["stage_status", "quality_status", "quality_gate_ref", "return_required", "return_stage", "deterministic_check_status", "semantic_review_status"], "quality_control")
     if quality_control["stage_status"] != "aligned":
         fail("quality_control.stage_status 必须为 aligned")
-    validate_quality_status(quality_control["quality_status"], "quality_control")
+    validate_gate_review_fields(quality_control, "quality_control")
+    validate_return_routing_fields(quality_control, "quality_control", current_stage="02")
 
     checks = validation.get("checks")
     if not isinstance(checks, dict) or validation.get("result") != "pass":
@@ -176,6 +178,30 @@ def _validate_view(view_path: Path) -> dict[str, object]:
         if "downgrade_if_missing" in item:
             assert_values([str(item["downgrade_if_missing"])], ALLOWED_04_OUTPUTS, f"{item['evidence_requirement_id']}.downgrade_if_missing")
 
+    if checks.get("state_variable_chain_complete") is True:
+        ontology_bindings = view.get("ontology_bindings")
+        if not isinstance(ontology_bindings, dict):
+            fail("state_variable_chain_complete=true 时 ontology_bindings 必须是对象")
+        selected_state_variables = ontology_bindings.get("selected_state_variables")
+        if not isinstance(selected_state_variables, list) or not selected_state_variables:
+            fail("state_variable_chain_complete=true 时 selected_state_variables 不得为空")
+        for index, item in enumerate(selected_state_variables, 1):
+            if not isinstance(item, dict):
+                fail(f"selected_state_variables[{index}] 必须是对象")
+            var_id = str(item.get("state_variable_id", "")).strip() or f"index-{index}"
+            label = f"selected_state_variables#{var_id}"
+            require_non_empty(item.get("state_variable_id"), f"{label}.state_variable_id")
+            require_non_empty(item.get("name"), f"{label}.name")
+            for field in [
+                "linked_judgment_units",
+                "linked_path_nodes",
+                "state_binding_refs",
+                "observation_requirement_refs",
+                "evidence_profile_refs",
+            ]:
+                if not split_refs(item.get(field)):
+                    fail(f"{label}.{field} 在 state_variable_chain_complete=true 时不得为空")
+
     return {
         "view": view,
         "judgment_unit_ids": judgment_unit_ids,
@@ -187,8 +213,8 @@ def _validate_view(view_path: Path) -> dict[str, object]:
 def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]:
     logic_path = Path(logic_path)
     view_path = Path(view_path)
-    logic_triplet = parse_triplet(logic_path, "研究逻辑")
-    view_triplet = parse_triplet(view_path, "本体视图")
+    logic_triplet = parse_triplet(logic_path, "研究逻辑", stage="02")
+    view_triplet = parse_triplet(view_path, "本体视图", stage="02")
     if logic_triplet != view_triplet:
         fail("02 研究逻辑与本体视图文件名核心主题、日期、序号必须一致")
 

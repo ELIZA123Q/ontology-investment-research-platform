@@ -7,7 +7,7 @@ import sys
 import re
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_allowed_04_output, validate_quality_status
+from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_allowed_04_output, validate_gate_review_fields, validate_quality_status
 from validator_utils import (
     assert_subset,
     error_payload,
@@ -40,6 +40,7 @@ REQUIRED_REPORT_META = [
     "judgment_as_of",
     "report_status",
     "quality_status",
+    "quality_gate_ref",
     "conclusion_level",
     "confidence",
     "scope",
@@ -47,14 +48,43 @@ REQUIRED_REPORT_META = [
 
 REQUIRED_REPORT_SECTIONS = [
     "一页摘要",
-    "核心落点：当前怎么看—为什么—下一步看什么",
+    "核心判断",
+    "核心逻辑",
+    "细分赛道与公司差异",
+    "行业所处阶段",
+    "关键跟踪指标",
+    "判断依据与局限",
+    "04 质量门槛检查",
+]
+
+FORBIDDEN_RESEARCHER_BODY_TERMS = [
+    "改判闸门",
+    "改判信号",
+    "什么会改判",
+    "证据门禁",
+    "包级准入",
+    "使用上限",
+    "完整推理门槛",
+    "方向判断门槛",
+    "方向性推理门槛",
+    "快照冻结",
+    "语义实例",
+    "判断单元",
+    "状态变量",
+    "路径节点",
+    "本体视图",
+    "倾向判断：",
+    "条件判断：",
+    "已确认：",
+    "暂不可判断：",
+    "被削弱",
+    "被阻断",
+    "竞争解释",
+    "核心落点",
     "主导机制",
     "对象分化",
     "演进路线",
-    "改判闸门",
     "可执行跟踪",
-    "证据边界与审计索引",
-    "04 质量门槛检查",
 ]
 
 REQUIRED_AUDIT_TOP = [
@@ -97,11 +127,21 @@ def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
     if meta["report_status"] not in REPORT_STATUSES:
         fail("report_status 非法")
     validate_quality_status(meta["quality_status"], str(report_path))
+    validate_gate_review_fields(meta, str(report_path))
     if meta["conclusion_level"] not in CONCLUSION_LEVELS:
         fail("conclusion_level 非法")
     if not isinstance(meta.get("scope"), dict):
         fail("scope 必须是对象")
     require_body_sections(body, REQUIRED_REPORT_SECTIONS, str(report_path))
+    researcher_body = body
+    for marker in ("## 7.", "## 7 "):
+        idx = body.find(marker)
+        if idx != -1:
+            researcher_body = body[:idx]
+            break
+    for term in FORBIDDEN_RESEARCHER_BODY_TERMS:
+        if term in researcher_body:
+            fail(f"04 研究员正文（§1—§6）不得包含系统术语: {term}")
     forbidden = ["目标价", "收益率预测", "仓位建议", "买入评级", "卖出评级"]
     for marker in forbidden:
         for match in re.finditer(re.escape(marker), body):
@@ -123,6 +163,7 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
     metadata = audit["metadata"]
     require_keys(metadata, ["task_id", "execution_id", "report_ref", "snapshot_ref", "audit_status", "quality_status"], "audit.metadata")
     validate_quality_status(metadata["quality_status"], "audit.metadata")
+    validate_gate_review_fields(metadata, "audit.metadata")
     if metadata["audit_status"] not in REPORT_STATUSES:
         fail("audit.metadata.audit_status 非法")
     return audit
@@ -191,8 +232,11 @@ def _validate_quality_and_compliance(audit: dict[str, object]) -> None:
     compliance = audit["compliance_check"]
     for key in [
         "answer_first",
+        "one_page_summary_under_500_chars",
+        "core_landing_has_three_layers",
         "claims_within_03_use_limits",
         "claim_labels_match_evidence_strength",
+        "object_differentiation_clear",
         "change_gates_observable",
         "no_internal_ids_in_main_text",
         "no_investment_advice",
@@ -217,9 +261,9 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
     report_path = Path(report_path)
     audit_path = Path(audit_path)
     snapshot_dir = Path(snapshot_dir)
-    report_triplet = parse_triplet(report_path, "推理报告")
-    audit_triplet = parse_triplet(audit_path, "推理审计")
-    snapshot_triplet = parse_triplet(snapshot_dir, "数据与证据快照")
+    report_triplet = parse_triplet(report_path, "推理报告", stage="04")
+    audit_triplet = parse_triplet(audit_path, "推理审计", stage="04")
+    snapshot_triplet = parse_triplet(snapshot_dir, "数据与证据快照", stage="03")
     if report_triplet != audit_triplet or report_triplet != snapshot_triplet:
         fail("04 报告、审计与 03 快照文件名核心主题、日期、序号必须一致")
 

@@ -153,12 +153,34 @@ def file_name(path: str | Path) -> str:
     return Path(path).name
 
 
-def parse_triplet(path: str | Path, kind: str) -> tuple[str, str, str]:
+STAGE_PREFIX_PATTERN = re.compile(r"^(?P<stage>0[1-5])-(?P<rest>.+)$")
+
+
+def parse_stage_prefix(path: str | Path) -> str:
     name = file_name(path)
-    match = re.match(rf"^(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$", name)
+    match = STAGE_PREFIX_PATTERN.match(name)
     if not match:
-        fail(f"{name} 文件名必须为 <核心主题>{kind}-<YYYYMMDD>-<当日序号>")
-    return match.group("topic"), match.group("date"), match.group("seq")
+        fail(f"{name} 文件名必须以 01—05 阶段前缀开头，格式为 <阶段>-<核心主题><产物类型>-<YYYYMMDD>-<当日序号>")
+    return match.group("stage")
+
+
+def parse_triplet(path: str | Path, kind: str, stage: str) -> tuple[str, str, str]:
+    name = file_name(path)
+    patterns = [
+        rf"^(?P<stage>0[1-5])-(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$",
+        rf"^(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$",
+    ]
+    for pattern in patterns:
+        match = re.match(pattern, name)
+        if not match:
+            continue
+        prefixed_stage = match.groupdict().get("stage")
+        if prefixed_stage and prefixed_stage != stage:
+            fail(f"{name} 阶段前缀必须为 {stage}-")
+        return match.group("topic"), match.group("date"), match.group("seq")
+    fail(
+        f"{name} 文件名必须为 [{stage}-]<核心主题>{kind}-<YYYYMMDD>-<当日序号>"
+    )
 
 
 def ok_payload(**payload: Any) -> str:

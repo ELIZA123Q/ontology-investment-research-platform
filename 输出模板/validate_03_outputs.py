@@ -6,13 +6,27 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_admission, validate_allowed_04_output, validate_quality_status
+from quality_gate_utils import (
+    ALLOWED_04_OUTPUTS,
+    validate_admission,
+    validate_admission_search_consistency,
+    validate_allowed_04_output,
+    validate_core_ju_publish_baseline,
+    validate_gate_review_fields,
+    validate_quality_status,
+    validate_return_action,
+    validate_return_routing_fields,
+    validate_search_status,
+    validate_upstream_quality_gate,
+)
+from validate_05_materials import validate_05_materials
 from validator_utils import (
     assert_subset,
     assert_values,
     error_payload,
     fail,
     file_name,
+    load_yaml_file,
     ok_payload,
     parse_markdown,
     parse_triplet,
@@ -53,6 +67,7 @@ REQUIRED_PREP_META = [
     "snapshot_summary_ref",
     "preparation_status",
     "quality_status",
+    "quality_gate_ref",
     "admission",
     "evidence_quality_level",
     "confidence_ceiling",
@@ -74,7 +89,7 @@ REQUIRED_PREP_SECTIONS = [
     "数据与证据需求",
     "来源与取数方式",
     "处理与本体映射",
-    "核心判断单元证据门槛",
+    "核心问题证据门槛",
     "覆盖与路径就绪状态",
     "准入结论",
     "快照文件索引",
@@ -111,6 +126,34 @@ REQUIRED_CSV_FILES = [
 
 def _expected_header(file_name_: str) -> list[str]:
     return read_csv_header(TEMPLATE_DIR / file_name_)
+
+
+def _validate_upstream_02(prep_meta: dict[str, object], prep_path: Path) -> None:
+    view_ref = str(prep_meta.get("source_02_view_ref", "")).strip()
+    if not view_ref:
+        fail("03 preparation 必须记录 source_02_view_ref")
+    view_path = prep_path.parent / view_ref
+    if not view_path.is_file():
+        fail(f"03 preparation.source_02_view_ref 无法解析: {view_ref}")
+    view = load_yaml_file(view_path)
+    quality_control = view.get("quality_control")
+    if not isinstance(quality_control, dict):
+        fail(f"{view_path} 缺少 quality_control")
+    validate_upstream_quality_gate(
+        quality_control,
+        upstream_label=str(view_path),
+        downstream_label=str(prep_path),
+        default_return_stage="02",
+    )
+
+
+def _validate_return_actions(rows: dict[str, list[dict[str, str]]]) -> None:
+    for row in rows["judgment_unit_readiness.csv"]:
+        action = row.get("return_action", "none")
+        validate_return_action(action, f"judgment_unit_readiness#{row.get('judgment_unit_id')}")
+    for row in rows["gaps_and_risks.csv"]:
+        action = row.get("return_action", "none")
+        validate_return_action(action, f"gaps_and_risks#{row.get('gap_id')}")
 
 
 def _validate_headers(snapshot_dir: Path) -> None:
@@ -211,8 +254,8 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
 def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, object]:
     prep_path = Path(prep_path)
     snapshot_dir = Path(snapshot_dir)
-    prep_triplet = parse_triplet(prep_path, "数据与证据准备")
-    dir_triplet = parse_triplet(snapshot_dir, "数据与证据快照")
+    prep_triplet = parse_triplet(prep_path, "数据与证据准备", stage="03")
+    dir_triplet = parse_triplet(snapshot_dir, "数据与证据快照", stage="03")
     if prep_triplet != dir_triplet:
         fail("03 准备文档与快照目录文件名核心主题、日期、序号必须一致")
     if not snapshot_dir.is_dir():
@@ -236,8 +279,13 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     validate_quality_status(summary_meta["quality_status"], str(summary_path))
     validate_admission(prep_meta["admission"], str(prep_path))
     validate_admission(summary_meta["admission"], str(summary_path))
+    validate_search_status(prep_meta["search_status"], str(prep_path))
+    validate_search_status(summary_meta["search_status"], str(summary_path))
     validate_allowed_04_output(prep_meta["allowed_04_output"], str(prep_path))
+    validate_return_routing_fields(prep_meta, str(prep_path), current_stage="03")
     require_body_sections(prep_body, REQUIRED_PREP_SECTIONS, str(prep_path))
+
+    _validate_upstream_02(prep_meta, prep_path)
 
     if not same_ref(prep_meta["snapshot_ref"], f"{snapshot_dir.name}/manifest.csv"):
         fail("preparation.snapshot_ref 必须指向快照目录 manifest.csv")
@@ -248,14 +296,42 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     rows = _rows(snapshot_dir)
     _validate_counts(prep_meta, summary_meta, rows)
     _validate_snapshot_refs(rows)
+    _validate_return_actions(rows)
 
     manifest = rows["manifest.csv"][0]
+    validate_return_routing_fields(manifest, "manifest", current_stage="03")
+    validate_admission_search_consistency(prep_meta, summary_meta, manifest)
+    validate_gate_review_fields(manifest, "manifest")
+    validate_core_ju_publish_baseline(
+        rows["judgment_unit_readiness.csv"],
+        admission=manifest["admission"],
+        quality_status=manifest["quality_status"],
+        label="manifest",
+    )
+    validate_core_ju_publish_baseline(
+        rows["judgment_unit_readiness.csv"],
+        admission=prep_meta["admission"],
+        quality_status=prep_meta["quality_status"],
+        label=str(prep_path),
+    )
+    validate_core_ju_publish_baseline(
+        rows["judgment_unit_readiness.csv"],
+        admission=summary_meta["admission"],
+        quality_status=summary_meta["quality_status"],
+        label=str(summary_path),
+    )
     if not same_ref(manifest["task_id"], prep_meta["task_id"]):
         fail("manifest.task_id 与 preparation.task_id 不一致")
     if not same_ref(manifest["execution_id"], prep_meta["execution_id"]):
         fail("manifest.execution_id 与 preparation.execution_id 不一致")
     assert_values([row.get("allowed_04_output", "") for row in rows["path_readiness.csv"]], ALLOWED_04_OUTPUTS, "path_readiness.allowed_04_output")
     assert_values([row.get("allowed_04_output", "") for row in rows["gaps_and_risks.csv"]], ALLOWED_04_OUTPUTS, "gaps_and_risks.allowed_04_output_after_gap")
+
+    material_summary = validate_05_materials(
+        snapshot_dir,
+        quality_status=manifest["quality_status"],
+        label="05_material_readiness",
+    )
 
     return {
         "schema_version": "1.0.0",
@@ -264,6 +340,7 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
         "coverage_unit_total": int(manifest["coverage_unit_total"]),
         "evidence_backed_unit_count": int(manifest["evidence_backed_unit_count"]),
         "judgment_unit_total": int(manifest["judgment_unit_total"]),
+        "material_readiness": material_summary,
     }
 
 

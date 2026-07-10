@@ -1,7 +1,7 @@
 schema_name: task_ontology_view
 schema_version: 1.0.0
 
-# 文件命名：<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml
+# 文件命名：02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml
 # 必须与配对研究逻辑文件使用相同核心主题、日期和序号。
 # 本文件保存本体引用、路径节点、判断单元、实例需求、状态变量绑定、证据要求、候选、缺口索引和质量校验。
 
@@ -193,8 +193,8 @@ ontology_gaps:
 
 handoff_to_03:
   required_files:
-    - "<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
-    - "<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
+    - "02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
+    - "02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
   required_csv_or_snapshot_outputs:
     - state_variable_coverage.csv
     - path_readiness.csv
