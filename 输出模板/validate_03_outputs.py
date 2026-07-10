@@ -14,6 +14,7 @@ from quality_gate_utils import (
     validate_core_ju_publish_baseline,
     validate_gate_review_fields,
     validate_quality_status,
+    validate_researcher_body,
     validate_return_action,
     validate_return_routing_fields,
     validate_search_status,
@@ -85,13 +86,13 @@ REQUIRED_PREP_META = [
 
 REQUIRED_PREP_SECTIONS = [
     "本次范围",
-    "02 交接基线",
-    "数据与证据需求",
+    "研究基线",
+    "需要哪些证据",
     "来源与取数方式",
-    "处理与本体映射",
-    "核心问题证据门槛",
-    "覆盖与路径就绪状态",
-    "准入结论",
+    "数据如何处理与归类",
+    "各结论的证据把握",
+    "证据覆盖情况",
+    "证据评估结论",
     "快照文件索引",
     "03 质量门槛检查",
 ]
@@ -284,6 +285,7 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     validate_allowed_04_output(prep_meta["allowed_04_output"], str(prep_path))
     validate_return_routing_fields(prep_meta, str(prep_path), current_stage="03")
     require_body_sections(prep_body, REQUIRED_PREP_SECTIONS, str(prep_path))
+    validate_researcher_body(prep_body, str(prep_path))
 
     _validate_upstream_02(prep_meta, prep_path)
 

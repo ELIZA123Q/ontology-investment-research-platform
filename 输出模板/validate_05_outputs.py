@@ -7,8 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+from quality_gate_utils import validate_researcher_body
 from validator_utils import error_payload, fail, ok_payload, parse_triplet, read_text, require_body_sections
-
 
 KNOWN_DELIVERY_KINDS = {
     "主题深度研究",
@@ -18,21 +18,35 @@ REQUIRED_HEADER_FIELDS = [
     "判断时点",
     "前瞻窗口",
     "研究对象",
+    "研究范围",
+]
+
+REQUIRED_FIXED_SECTIONS = [
+    "投资要点",
+    "核心结论概览",
+    "投资含义与重点观察",
+    "催化、验证与风险",
+    "主要资料来源",
+]
+
+REQUIRED_TAIL_MARKERS = [
+    "未来重点观察",
+    "主要风险",
+]
+
+ARGUMENT_CHAPTER_PATTERN = re.compile(r"^##\s+[一二三四五]、", re.MULTILINE)
+
+MIN_ARGUMENT_CHAPTERS = 2
+MAX_ARGUMENT_CHAPTERS = 5
+
+FORBIDDEN_HEADER_FIELDS = [
     "事件口径",
 ]
 
-REQUIRED_SECTIONS = [
+FORBIDDEN_LEGACY_SECTIONS = [
     "一页摘要",
     "核心观点",
-    "为什么现在研究这个主题",
-    "空间测算",
-    "产业链拆解",
-    "竞争格局与壁垒",
-    "演进路径",
-    "图表与关键数据",
     "关键跟踪指标",
-    "风险提示",
-    "主要资料来源",
 ]
 
 FORBIDDEN_BODY_TERMS = [
@@ -57,11 +71,46 @@ FORBIDDEN_BODY_TERMS = [
 DISCLAIMER_MARKERS = ("不构成", "证券评级", "交易操作")
 
 
+def _header_text(body: str) -> str:
+    for section in REQUIRED_FIXED_SECTIONS:
+        marker = f"## {section}"
+        if marker in body:
+            return body.split(marker, 1)[0]
+    return body.split("##", 1)[0]
+
+
+def _count_argument_chapters(body: str) -> int:
+    return len(ARGUMENT_CHAPTER_PATTERN.findall(body))
+
+
 def _validate_body(path: Path, body: str) -> None:
+    header = _header_text(body)
     for field in REQUIRED_HEADER_FIELDS:
-        if field not in body.split("##", 1)[0]:
+        if field not in header:
             fail(f"{path} 文首必须说明 {field}")
-    require_body_sections(body, REQUIRED_SECTIONS, str(path))
+    for field in FORBIDDEN_HEADER_FIELDS:
+        if field in header:
+            fail(f"{path} 文首应使用「研究范围」，不得使用「{field}」")
+
+    require_body_sections(body, REQUIRED_FIXED_SECTIONS, str(path))
+    for marker in REQUIRED_TAIL_MARKERS:
+        if marker not in body:
+            fail(f"{path} 缺少尾部小节: {marker}")
+    for section in FORBIDDEN_LEGACY_SECTIONS:
+        if section in body:
+            fail(f"{path} 不得使用旧版 05 章节名: {section}")
+
+    chapter_count = _count_argument_chapters(body)
+    if chapter_count < MIN_ARGUMENT_CHAPTERS:
+        fail(
+            f"{path} 正文核心论点章节不足: 需要至少 {MIN_ARGUMENT_CHAPTERS} 个「## 一、」至「## 五、」章节，当前 {chapter_count} 个"
+        )
+    if chapter_count > MAX_ARGUMENT_CHAPTERS:
+        fail(
+            f"{path} 正文核心论点章节过多: 最多 {MAX_ARGUMENT_CHAPTERS} 个「## 一、」至「## 五、」章节，当前 {chapter_count} 个"
+        )
+
+    validate_researcher_body(body, str(path))
     if not any(marker in body for marker in DISCLAIMER_MARKERS):
         fail(f"{path} 文末必须包含合规声明（不构成证券评级/收益承诺/交易操作建议）")
     for term in FORBIDDEN_BODY_TERMS:
@@ -92,6 +141,7 @@ def validate(path: str | Path, delivery_kind: str) -> dict[str, object]:
         "date": date,
         "seq": seq,
         "path": str(path),
+        "argument_chapters": _count_argument_chapters(body),
     }
 
 

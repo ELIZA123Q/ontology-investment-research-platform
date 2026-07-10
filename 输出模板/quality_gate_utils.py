@@ -267,6 +267,52 @@ def output_rank(value: str) -> int:
     }.get(value, -1)
 
 
+RESEARCHER_BODY_MARKERS = [
+    "judgment_unit_id",
+    "question_id |",
+    "state_variable_id",
+    "requirement_id |",
+    "path_readiness",
+    "allowed_04_output",
+    "二元开关",
+    "定向且可执行",
+    "定向可执行",
+    "逻辑失效条件",
+    "反面证据要求",
+    "路径就绪",
+    "包级准入",
+    "判断单元",
+    "状态变量",
+    "路径节点",
+    "竞争解释",
+    "改判闸门",
+    "可执行跟踪",
+]
+
+RESEARCHER_BODY_STOP_MARKERS = (
+    "质量门槛检查",
+    "进入 03 前质量检查",
+    "进入 04 前质量检查",
+)
+
+
+def researcher_body_text(body: str) -> str:
+    text = body
+    for marker in RESEARCHER_BODY_STOP_MARKERS:
+        idx = text.find(marker)
+        if idx != -1:
+            text = text[:idx]
+    return text
+
+
+def validate_researcher_body(body: str, label: str) -> None:
+    """Ensure markdown narrative reads like researcher deliverables, not machine dumps."""
+    narrative = researcher_body_text(body)
+    for marker in RESEARCHER_BODY_MARKERS:
+        if marker in narrative:
+            fail(f"{label} 正文不得包含机器字段或内部术语: {marker}")
+
+
 def meets_core_ju_publish_floor(value: str) -> bool:
     return output_rank(value) >= output_rank(CORE_JU_PUBLISH_FLOOR)
 

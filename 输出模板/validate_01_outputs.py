@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import validate_gate_review_fields, validate_quality_status, validate_return_routing_fields
+from quality_gate_utils import validate_gate_review_fields, validate_quality_status, validate_researcher_body, validate_return_routing_fields
 from validator_utils import (
     error_payload,
     fail,
@@ -125,6 +125,7 @@ def validate(path: str | Path) -> dict[str, object]:
     _validate_user_confirmation(meta["user_confirmation"], str(path))
 
     require_body_sections(body, REQUIRED_SECTIONS, str(path))
+    validate_researcher_body(body, str(path))
     for marker in FORBIDDEN_STAGE_MARKERS:
         if marker in body:
             fail(f"01 不得提前写入下游阶段字段或产物引用: {marker}")

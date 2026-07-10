@@ -7,7 +7,7 @@ import sys
 import re
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_allowed_04_output, validate_gate_review_fields, validate_quality_status
+from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_allowed_04_output, validate_gate_review_fields, validate_quality_status, validate_researcher_body
 from validator_utils import (
     assert_subset,
     error_payload,
@@ -142,6 +142,7 @@ def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
     for term in FORBIDDEN_RESEARCHER_BODY_TERMS:
         if term in researcher_body:
             fail(f"04 研究员正文（§1—§6）不得包含系统术语: {term}")
+    validate_researcher_body(body, str(report_path))
     forbidden = ["目标价", "收益率预测", "仓位建议", "买入评级", "卖出评级"]
     for marker in forbidden:
         for match in re.finditer(re.escape(marker), body):

@@ -6,7 +6,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_gate_review_fields, validate_quality_status, validate_return_routing_fields
+from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_gate_review_fields, validate_quality_status, validate_researcher_body, validate_return_routing_fields
 from validator_utils import (
     assert_subset,
     assert_values,
@@ -44,12 +44,12 @@ REQUIRED_LOGIC_META = [
 ]
 
 REQUIRED_LOGIC_SECTIONS = [
-    "研究问题与判断边界",
-    "最小问题树与分析顺序",
-    "主路径、反面证据和其他可能解释",
-    "结构分化与比较口径",
-    "关键核心问题与最低验证条件",
-    "本体承接与 03 交接",
+    "研究问题与边界",
+    "问题拆解与分析顺序",
+    "主逻辑与其他可能",
+    "细分差异与比较口径",
+    "关键结论与证据要求",
+    "证据准备说明",
     "进入 03 前质量检查",
 ]
 
@@ -81,6 +81,7 @@ def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
     validate_quality_status(meta["quality_status"], str(logic_path))
     require_non_empty(meta["judgment_spine"], "judgment_spine")
     require_body_sections(body, REQUIRED_LOGIC_SECTIONS, str(logic_path))
+    validate_researcher_body(body, str(logic_path))
     return meta, body
 
 
