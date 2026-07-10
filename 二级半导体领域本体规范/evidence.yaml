@@ -125,6 +125,26 @@ source_type_guidance:
     - 定价反映程度
     - 拥挤度
     caution: 市场变化不自动证明基本面因果。
+evidence_domain_mapping:
+  description: 半导体 evidence_profiles 用于 03 生成通用证据域对象，不替代 EvidenceRequirement、EvidenceBasket、SourceProfile、AcquisitionChannel、ProxyIndicator 或 EvidenceReadinessAssessment。
+  profile_to_requirement:
+    required_fields:
+    - required_evidence_category
+    - required_content_domains
+    - minimum_quality_level
+    - minimum_source_tier
+    - required_counter_categories
+  profile_to_basket:
+    basket_sources:
+    - supporting_evidence
+    - counter_evidence
+    - competing_explanations
+    - scope_checks
+  source_guidance_to_source_profile:
+    source_type_guidance: SourceProfile
+    access_and_traceability: AcquisitionChannel
+  proxy_guidance:
+    description: 直接数据不可得时，必须登记 ProxyIndicator，并在 EvidenceReadinessAssessment 中折扣置信度。
 evidence_profiles:
   demand_orders:
     id: demand_orders

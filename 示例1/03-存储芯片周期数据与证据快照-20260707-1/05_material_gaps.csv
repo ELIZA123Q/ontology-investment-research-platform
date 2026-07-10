@@ -1,0 +1,3 @@
+gap_id,execution_id,material_unit,affected_judgment_unit_ids,gap_description,impact_on_04,impact_on_05,preferred_evidence_to_add,acceptable_proxy,upgrade_condition,priority,return_or_continue
+MGap-01,EXEC-MEM-CYCLE-20260707-1,客户库存与订单取消率,JU-01|JU-07,缺客户和渠道库存、订单取消率、重复下单等连续数据,限制统一周期结束日判断,05 可写改判信号但不得写确定见顶,客户库存、订单取消率、交期变化、渠道库存,公司披露或可靠行业调研的同口径连续序列,连续两个季度客户库存和订单信号可观察后可升级正常化判断,high,continue_with_caveat
+MGap-02,EXEC-MEM-CYCLE-20260707-1,HBM 同代际成交价,JU-03|JU-05,缺同代际 HBM 成交价和跨厂有效供给量化数据,限制 HBM 与通用 DRAM 斜率比较,05 不得用传统 DRAM 价格代表 HBM 价格,HBM 同代际成交价、封装产能、良率和认证数据,可靠产业机构或公司披露的 HBM 价格/产能序列,补齐后可形成更强 HBM 价格与供给图表,medium,continue_with_caveat

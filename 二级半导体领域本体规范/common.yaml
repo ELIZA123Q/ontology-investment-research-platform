@@ -47,6 +47,12 @@ inheritance:
       - Material
       - ProcessStep
       - Asset
+      - FinancialInstrument
+      - Identifier
+      - IdentificationScheme
+      - TradingVenue
+      - Listing
+      - RoleAssignment
       - Region
       - Application
     reasoning_objects:
@@ -83,27 +89,12 @@ inheritance:
     - DemandSource
     - Jurisdiction
 
-migration:
-  v2:
-    principle: 不保留旧键的干净迁移；领域层不双写一级已有对象或关系。
-  object_type_map:
-    DemandSource: Application
-    Jurisdiction: Region
-  relation_type_map:
-    productServesDemandSource: productUsedInApplication
-    companyServesDemandSource: companyExposedToApplication
-    companyHeadquarteredIn: organizationLocatedIn
-    technologyRouteSubstitutesFor: technologyRouteCanSubstituteFor
-  property_map:
-    semiconductorProductCategories: productDomain
-    segmentRole: semiconductorSegmentRole
-    materialCategory: semiconductorMaterialCategory
-    processRole: semiconductorProcessCategory
-    applicationCategory: semiconductorApplicationCategory
+platform_alignment:
   notes:
-  - 公司总部或注册地使用一级 organizationLocatedIn；生产、销售、服务和监管暴露使用 companyOperatesInRegion。
-  - 设备复用 Product 与 equipmentCategory，不新增 Equipment 对象。
-  - 产品分类拆为 productDomain、semiconductorDeviceCategory、memoryProductCategory、equipmentCategory、moduleSystemCategory 五轴。
+    - 公司总部或注册地使用一级 organizationLocatedIn；生产、销售、服务和监管暴露使用 companyOperatesInRegion。
+    - 设备复用 Product 与 equipmentCategory，不新增 Equipment 对象。
+    - 产品分类拆为 productDomain、semiconductorDeviceCategory、memoryProductCategory、equipmentCategory、moduleSystemCategory 五轴。
+    - 半导体相关证券、基金份额、指数或衍生品复用一级 FinancialInstrument；证券代码、交易代码、LEI、MIC 和内部编码使用 Identifier 与 IdentificationScheme。
 
 modeling_principles:
   - id: domain_structure_not_database

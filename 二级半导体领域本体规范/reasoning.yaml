@@ -17,6 +17,12 @@ reasoning_type_extensions:
     - Material
     - ProcessStep
     - Asset
+    - FinancialInstrument
+    - Identifier
+    - IdentificationScheme
+    - TradingVenue
+    - Listing
+    - RoleAssignment
     - Organization
     - PolicyInstrument
     - TechnologyRoute
@@ -32,6 +38,12 @@ reasoning_type_extensions:
     - Material
     - ProcessStep
     - Asset
+    - FinancialInstrument
+    - Identifier
+    - IdentificationScheme
+    - TradingVenue
+    - Listing
+    - RoleAssignment
     - Organization
     - PolicyInstrument
     - TechnologyRoute
@@ -773,6 +785,9 @@ state_variables:
     - Company
     - Product
     - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
     observation_guidance: 对齐对象、时间尺度、口径和预期来源，保留分歧。
     evidence_profile_ref: market_expectations
     counter_evidence_guidance: 预期来源陈旧、样本偏少、不同口径混用或价格隐含信息与文本预期不一致。
@@ -791,6 +806,9 @@ state_variables:
     - Product
     - TechnologyRoute
     - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
     observation_guidance: 必须先对齐对象、业务时间、情景和度量口径再比较。
     evidence_profile_ref: market_expectations
     counter_evidence_guidance: 预期口径不可比、事件已公开、资产已提前反应或基本面证据不足。
@@ -809,6 +827,9 @@ state_variables:
     - Product
     - TechnologyRoute
     - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
     observation_guidance: 结合事件前后表现、估值变化、成交、持仓和一致预期修正。
     evidence_profile_ref: market_expectations
     counter_evidence_guidance: 市场波动由其他事件驱动、窗口过短、基准错误或拥挤指标失真。
@@ -827,6 +848,9 @@ state_variables:
     - Product
     - TechnologyRoute
     - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
     observation_guidance: 比较反证的可靠性、独立性、时效、相关性和是否命中核心前提。
     evidence_profile_ref: counter_evidence
     counter_evidence_guidance: 所谓反证可能口径不一致、时间错配、仅影响幅度而非方向，或缺少独立来源。

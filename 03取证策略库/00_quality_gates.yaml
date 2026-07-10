@@ -1,0 +1,154 @@
+registry_type: evidence_quality_gates
+schema_version: 1.0.0
+updated_at: 2026-07-09
+
+quality_dimensions:
+  traceability:
+    description: 是否能回到原始来源、字段、页码、查询参数、版本或内容指纹
+    hard_gate: true
+  source_directness:
+    description: 来源是否接近原始事实或一手披露
+    hard_gate: false
+  independence:
+    description: 是否与其他证据具有独立来源链，不属于同一转述链或同一原始来源
+    hard_gate: false
+  business_time:
+    description: 是否具有业务时间、统计期或生效时间，且与判断窗口匹配
+    hard_gate_for_dynamic_variables: true
+  scope_fit:
+    description: 对象、地区、产品、时间和指标口径是否匹配 02 判断单元
+    hard_gate: true
+  validity:
+    description: 指标定义、单位、统计方法、数据生成方式是否适合目标用途
+    hard_gate: true
+  completeness:
+    description: 身份、数值、单位、时间、来源、权限、口径等关键字段是否完整
+    hard_gate: false
+  consistency:
+    description: 与其他来源、历史口径、本次冻结口径是否一致；不一致时是否解释
+    hard_gate: false
+  freshness:
+    description: 发布时间、业务时间和更新频率是否满足判断窗口
+    hard_gate: false
+  permission:
+    description: 来源获取和使用是否符合权限、授权、保密和引用边界
+    hard_gate: true
+  claim_type_separation:
+    description: 是否区分事实、数据、估算、预测、指引、观点、假设
+    hard_gate: true
+  fit_for_judgment:
+    description: 是否能支撑当前判断单元，而不是泛泛相关
+    hard_gate: true
+
+source_document_metadata_required:
+  description: SourceDocument 进入正式证据包前的最低元数据要求
+  required_fields:
+    - source_document_id_or_source_id
+    - title
+    - source_profile_id
+    - source_name
+    - source_tier
+    - content_domain
+    - acquisition_channel
+    - access_scope
+    - artifact_type
+    - captured_at
+    - location
+    - locator_or_field_lineage
+    - usage_limit
+    - source_reliability
+  blocking_if_missing:
+    - source_profile_id
+    - acquisition_channel
+    - access_scope
+    - artifact_type
+    - location
+    - locator_or_field_lineage
+
+quality_levels:
+  Q0_unusable:
+    minimum_conditions:
+      - traceability_missing_or_permission_invalid_or_scope_mismatch
+    allowed_04_output: none
+  Q1_background:
+    minimum_conditions:
+      - traceable
+      - claim_type_clear
+      - source_or_scope_has_material_limit
+    allowed_04_output: background_only
+  Q2_reasoning_usable:
+    minimum_conditions:
+      - traceable
+      - scope_fit
+      - business_time_sufficient_if_dynamic
+      - source_quality_explained
+      - claim_type_clear
+    allowed_04_output: conditional_or_tentative
+  Q3_directional_ready:
+    minimum_conditions:
+      - Q2_conditions_met
+      - mandatory_baskets_met
+      - counter_check_done
+      - major_conflicts_handled_or_downgraded
+      - independent_cross_check_when_required
+    allowed_04_output: directional_view
+  Q4_report_grade:
+    minimum_conditions:
+      - Q3_conditions_met
+      - chart_or_table_ready_if_needed
+      - source_annotation_ready
+      - quantitative_density_or_ranking_support_sufficient
+      - caveat_clear
+    allowed_04_output: report_grade_reasoning
+
+channel_specific_checks:
+  web:
+    required_trace: [url, title, publisher, published_at, retrieved_at, locator_or_snapshot]
+    common_risks: [page_changed, news_repost, missing_original_source]
+  database_terminal:
+    required_trace: [database_name, field_name, query_condition, export_time, data_cutoff, permission_scope]
+    common_risks: [field_definition_unclear, exported_without_query_parameters]
+  api:
+    required_trace: [endpoint, parameters, response_time, api_version, raw_response_or_hash, field_lineage]
+    common_risks: [version_change, field_mapping_error]
+  mcp:
+    required_trace: [connector_name, underlying_source_profile_or_source_document, parameters, response_time, raw_artifact_or_hash, field_lineage, access_scope]
+    common_risks: [tool_success_mistaken_as_source_quality, missing_underlying_source]
+  file_search:
+    required_trace: [search_scope, matched_file, original_publisher_if_known, file_version_or_hash, locator, retrieved_at]
+    common_risks: [unknown_origin, stale_copy, search_result_mistaken_as_source]
+  file:
+    required_trace: [filename, file_version, uploaded_at, original_publisher_if_known, page_or_sheet_or_cell_locator]
+    common_risks: [unknown_origin, stale_copy]
+  manual:
+    required_trace: [interviewer_or_recorder, sample_description, note_time, business_time, permission_boundary]
+    common_risks: [sample_bias, unverifiable_statement]
+  internal_system:
+    required_trace: [system_name, table_or_metric_name, query_condition, permission_scope, export_time, data_owner]
+    common_risks: [permission_limit, field_definition_unclear, external_expression_limit]
+
+usage_limit_rules:
+  missing_traceability:
+    allowed_04_output: none
+    action: reject_or_keep_as_unusable_candidate
+  permission_unclear:
+    allowed_04_output: none
+    action: block_formal_use
+  dynamic_variable_without_business_time:
+    allowed_04_output: background_only
+    action: downgrade_and_request_time
+  non_independent_cross_validation:
+    allowed_04_output: conditional_or_tentative
+    action: do_not_count_as_cross_check
+  proxy_only_core_evidence:
+    allowed_04_output: conditional_or_tentative
+    action: require_proxy_disclosure_and_confidence_discount
+  unresolved_conflict:
+    allowed_04_output: contested
+    action: preserve_conflict_and_limit_view
+  missing_counter_check:
+    allowed_04_output: insufficient
+    action: no_high_quality_pass
+  source_is_ai_summary:
+    allowed_04_output: none
+    action: trace_back_to_original_source

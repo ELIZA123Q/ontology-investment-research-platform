@@ -1,0 +1,207 @@
+registry_type: evidence_strategy_registry
+schema_version: 1.0.0
+updated_at: 2026-07-09
+
+quality_levels:
+  Q0_unusable:
+    description: 不可追溯、权限不清、口径不明或来源不合格
+    allowed_04_output: none
+  Q1_background:
+    description: 可作为背景、线索或市场叙事
+    allowed_04_output: background_only
+  Q2_reasoning_usable:
+    description: 可作为受限推理输入
+    allowed_04_output: conditional_or_tentative
+  Q3_directional_ready:
+    description: 可支撑方向性判断
+    allowed_04_output: directional_view
+  Q4_report_grade:
+    description: 可支撑高质量 05 图表、排序或核心论证
+    allowed_04_output: report_grade_reasoning
+
+rules:
+  A01:
+    name: 事实确认取证规则
+    file: A_取证规则/A01_事实确认取证规则.md
+    primary_for:
+      - fact_confirmation
+      - event_fact
+      - policy_fact
+      - official_disclosure_fact
+    mandatory_baskets:
+      - original_text
+      - actor_subject
+      - business_time
+      - scope_boundary
+      - revision_or_invalidity_check
+      - counter_check
+  A02:
+    name: 状态变量测量取证规则
+    file: A_取证规则/A02_状态变量测量取证规则.md
+    primary_for:
+      - state_measurement
+      - variable_observation
+    mandatory_baskets:
+      - direct_indicator
+      - business_time
+      - measurement_scope
+      - cross_check
+      - counter_check
+  A03:
+    name: 趋势与阶段判断取证规则
+    file: A_取证规则/A03_趋势与阶段判断取证规则.md
+    primary_for:
+      - trend_or_phase
+      - cycle_phase
+    mandatory_baskets:
+      - time_series
+      - slope_or_persistence
+      - comparison_baseline
+      - counter_check
+  A04:
+    name: 机制传导验证取证规则
+    file: A_取证规则/A04_机制传导验证取证规则.md
+    primary_for:
+      - mechanism_transmission
+      - path_validation
+    mandatory_baskets:
+      - start_node
+      - intermediate_node
+      - exposed_subject
+      - blocker
+      - counter_check
+  A05:
+    name: 对象分化比较取证规则
+    file: A_取证规则/A05_对象分化比较取证规则.md
+    primary_for:
+      - object_comparison
+      - ranking
+      - beneficiary_identification
+    mandatory_baskets:
+      - exposure
+      - elasticity
+      - constraint
+      - comparable_basis
+      - counter_check
+  A06:
+    name: 财务影响测算取证规则
+    file: A_取证规则/A06_财务影响测算取证规则.md
+    primary_for:
+      - earnings_impact
+      - financial_sensitivity
+    mandatory_baskets:
+      - revenue_split
+      - volume_price
+      - cost_structure
+      - margin
+      - sensitivity_parameter
+      - counter_check
+  A07:
+    name: 市场预期与定价取证规则
+    file: A_取证规则/A07_市场预期与定价取证规则.md
+    primary_for:
+      - valuation_expectation
+      - market_pricing
+      - expectation_gap
+    mandatory_baskets:
+      - consensus
+      - price_reaction
+      - valuation_range
+      - peer_comparison
+      - counter_check
+  A08:
+    name: 反证与竞争解释取证规则
+    file: A_取证规则/A08_反证与竞争解释取证规则.md
+    primary_for:
+      - counter_explanation
+      - falsification_check
+    mandatory_baskets:
+      - contrary_evidence
+      - alternative_explanation
+      - blocker
+      - conflict_check
+  A09:
+    name: 代理指标使用规则
+    file: A_取证规则/A09_代理指标使用规则.md
+    primary_for:
+      - proxy_indicator
+      - indirect_measurement
+    mandatory_baskets:
+      - proxy_logic
+      - valid_condition
+      - invalid_condition
+      - cross_check
+      - confidence_discount
+
+judgment_type_registry:
+  fact_confirmation:
+    primary_rule: A01
+    secondary_rules: [A08]
+    required_quality_level: Q3_directional_ready
+    mandatory_baskets: [original_text, actor_subject, business_time, scope_boundary, revision_or_invalidity_check, counter_check]
+    if_missing:
+      original_text: insufficient
+      business_time: conditional_only
+      counter_check: background_only
+  state_measurement:
+    primary_rule: A02
+    secondary_rules: [A09, A08]
+    required_quality_level: Q2_reasoning_usable
+    mandatory_baskets: [direct_indicator, business_time, measurement_scope, cross_check, counter_check]
+    if_missing:
+      business_time: background_only
+      direct_indicator: conditional_only_if_proxy_allowed
+      cross_check: conditional_only
+  trend_or_phase:
+    primary_rule: A03
+    secondary_rules: [A02, A08, A09]
+    required_quality_level: Q3_directional_ready
+    mandatory_baskets: [time_series, slope_or_persistence, comparison_baseline, counter_check]
+    if_missing:
+      time_series: conditional_only
+      counter_check: insufficient
+  cycle_phase:
+    primary_rule: A03
+    secondary_rules: [A02, A08, A09]
+    required_quality_level: Q3_directional_ready
+    mandatory_baskets: [price, demand, supply, inventory_or_order, counter_check]
+    if_missing:
+      price: conditional_only
+      demand: conditional_only
+      supply: conditional_only
+      counter_check: insufficient
+  mechanism_transmission:
+    primary_rule: A04
+    secondary_rules: [A01, A08]
+    required_quality_level: Q2_reasoning_usable
+    mandatory_baskets: [start_node, intermediate_node, exposed_subject, blocker, counter_check]
+    if_missing:
+      start_node: insufficient
+      intermediate_node: conditional_only
+      blocker: directional_only_or_lower
+  object_comparison:
+    primary_rule: A05
+    secondary_rules: [A06, A08]
+    required_quality_level: Q3_directional_ready
+    mandatory_baskets: [exposure, elasticity, constraint, comparable_basis, counter_check]
+    if_missing:
+      comparable_basis: conditional_only
+      counter_check: insufficient
+  earnings_impact:
+    primary_rule: A06
+    secondary_rules: [A02, A08]
+    required_quality_level: Q2_reasoning_usable
+    mandatory_baskets: [revenue_split, volume_price, cost_structure, margin, sensitivity_parameter, counter_check]
+    if_missing:
+      revenue_split: background_only
+      cost_structure: revenue_direction_only
+      sensitivity_parameter: conditional_only
+  valuation_expectation:
+    primary_rule: A07
+    secondary_rules: [A06, A08]
+    required_quality_level: Q2_reasoning_usable
+    mandatory_baskets: [consensus, price_reaction, valuation_range, peer_comparison, counter_check]
+    if_missing:
+      price_reaction: no_expectation_gap_claim
+      consensus: no_expectation_gap_claim
+      counter_check: insufficient

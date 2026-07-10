@@ -41,9 +41,9 @@ def as_version(value: Any) -> str:
 
 
 def require_schema_version(value: Any, label: str, expected: str | None = None) -> None:
-    required = expected or SCHEMA_VERSION
-    if as_version(value) != required:
-        fail(f"{label}.schema_version 必须为 {required}")
+    expected_version = expected or SCHEMA_VERSION
+    if as_version(value) != expected_version:
+        fail(f"{label}.schema_version 必须为 {expected_version}")
 
 
 def read_text(path: str | Path) -> str:
@@ -86,6 +86,107 @@ def require_keys(mapping: dict[str, Any], keys: Iterable[str], label: str) -> No
 def require_non_empty(value: Any, label: str) -> None:
     if value is None or value == "" or value == [] or value == {}:
         fail(f"{label} 不得为空")
+
+
+def require_mapping(value: Any, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        fail(f"{label} 必须是对象")
+    return value
+
+
+def require_list(value: Any, label: str, *, allow_empty: bool = False) -> list[Any]:
+    if not isinstance(value, list):
+        fail(f"{label} 必须是列表")
+    if not allow_empty and not value:
+        fail(f"{label} 必须是非空列表")
+    return value
+
+
+def require_string(value: Any, label: str, *, min_length: int = 1) -> str:
+    if not isinstance(value, str):
+        fail(f"{label} 必须是字符串")
+    text = value.strip()
+    if len(text) < min_length:
+        fail(f"{label} 不得为空")
+    return text
+
+
+def require_allowed(value: Any, allowed: set[str], label: str) -> str:
+    text = str(value)
+    if text not in allowed:
+        fail(f"{label} 非法: {value}")
+    return text
+
+
+def require_bool(value: Any, label: str) -> bool:
+    if not isinstance(value, bool):
+        fail(f"{label} 必须是布尔值")
+    return value
+
+
+def boolish(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    if text in {"true", "yes", "y", "1"}:
+        return True
+    if text in {"false", "no", "n", "0"}:
+        return False
+    return None
+
+
+def require_boolish(value: Any, label: str) -> bool:
+    parsed = boolish(value)
+    if parsed is None:
+        fail(f"{label} 必须是布尔值或 true/false 文本")
+    return parsed
+
+
+PLACEHOLDER_RE = re.compile(r"<[^>\n]+>|待填写|待补充|TBD|TODO", re.I)
+
+
+def _walk_strings(value: Any, path: str) -> Iterable[tuple[str, str]]:
+    if isinstance(value, str):
+        yield path, value
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            yield from _walk_strings(child, f"{path}.{key}" if path else str(key))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _walk_strings(child, f"{path}[{index}]")
+
+
+def require_no_placeholders(value: Any, label: str) -> None:
+    hits: list[str] = []
+    for path, text in _walk_strings(value, label):
+        if PLACEHOLDER_RE.search(text):
+            hits.append(path)
+    if hits:
+        fail(f"{label} 含未替换模板占位符: {', '.join(hits[:8])}")
+
+
+def require_all_true(mapping: dict[str, Any], label: str) -> None:
+    if not isinstance(mapping, dict) or not mapping:
+        fail(f"{label} 必须是非空对象")
+    failed = [key for key, value in mapping.items() if value is not True]
+    if failed:
+        fail(f"{label} 必须全部为 true: {', '.join(failed)}")
+
+
+def require_no_forbidden_phrases(text: str, phrases: Iterable[str], label: str) -> None:
+    hits = sorted({phrase for phrase in phrases if phrase and phrase in text})
+    if hits:
+        fail(f"{label} 含禁止或过宽表达: {', '.join(hits[:10])}")
+
+
+def section_text(body: str, title: str, *, heading_level: int = 2) -> str:
+    pattern = rf"^{'#' * heading_level}\s+(?:\d+[.、]\s*)?{re.escape(title)}(?:\s|：|$).*$"
+    match = re.search(pattern, body, re.M)
+    if not match:
+        return ""
+    next_match = re.search(rf"^{'#' * heading_level}\s+", body[match.end() :], re.M)
+    end = match.end() + next_match.start() if next_match else len(body)
+    return body[match.end() : end]
 
 
 def require_body_sections(body: str, sections: Iterable[str], label: str) -> None:
@@ -154,34 +255,14 @@ def file_name(path: str | Path) -> str:
     return Path(path).name
 
 
-STAGE_PREFIX_PATTERN = re.compile(r"^(?P<stage>0[1-5])-(?P<rest>.+)$")
-
-
-def parse_stage_prefix(path: str | Path) -> str:
+def parse_triplet(path: str | Path, kind: str, stage: str | None = None) -> tuple[str, str, str]:
     name = file_name(path)
-    match = STAGE_PREFIX_PATTERN.match(name)
+    prefix = rf"{re.escape(stage)}-" if stage else ""
+    match = re.match(rf"^{prefix}(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$", name)
     if not match:
-        fail(f"{name} 文件名必须以 01—05 阶段前缀开头，格式为 <阶段>-<核心主题><产物类型>-<YYYYMMDD>-<当日序号>")
-    return match.group("stage")
-
-
-def parse_triplet(path: str | Path, kind: str, stage: str) -> tuple[str, str, str]:
-    name = file_name(path)
-    patterns = [
-        rf"^(?P<stage>0[1-5])-(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$",
-        rf"^(?P<topic>.+){re.escape(kind)}-(?P<date>\d{{8}})-(?P<seq>\d+)(?:\.[^.]+)?$",
-    ]
-    for pattern in patterns:
-        match = re.match(pattern, name)
-        if not match:
-            continue
-        prefixed_stage = match.groupdict().get("stage")
-        if prefixed_stage and prefixed_stage != stage:
-            fail(f"{name} 阶段前缀必须为 {stage}-")
-        return match.group("topic"), match.group("date"), match.group("seq")
-    fail(
-        f"{name} 文件名必须为 [{stage}-]<核心主题>{kind}-<YYYYMMDD>-<当日序号>"
-    )
+        expected = f"{stage}-<核心主题>{kind}-<YYYYMMDD>-<当日序号>" if stage else f"<核心主题>{kind}-<YYYYMMDD>-<当日序号>"
+        fail(f"{name} 文件名必须为 {expected}")
+    return match.group("topic"), match.group("date"), match.group("seq")
 
 
 def ok_payload(**payload: Any) -> str:

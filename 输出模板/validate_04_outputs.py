@@ -7,17 +7,8 @@ import sys
 import re
 from pathlib import Path
 
-from quality_gate_utils import (
-    CLAIM_MODES,
-    JUDGMENT_LEVELS,
-    JUDGMENT_STATUSES,
-    TARGET_CLAIM_TYPES,
-    judgment_level_rank,
-    validate_gate_review_fields,
-    validate_quality_status,
-    validate_researcher_body,
-    validate_target_claim_level,
-)
+from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_allowed_04_output, validate_quality_status
+from snapshot_layout_03 import SNAPSHOT_CSV_LAYOUT
 from validator_utils import (
     assert_subset,
     error_payload,
@@ -28,13 +19,21 @@ from validator_utils import (
     parse_markdown,
     parse_triplet,
     read_csv,
-    ref_set,
+    require_all_true,
     require_body_sections,
     require_keys,
+    require_list,
+    require_mapping,
+    require_no_placeholders,
     require_schema_version,
     same_ref,
+    section_text,
     split_refs,
 )
+
+
+def _snapshot_csv(snapshot_dir: Path, logical_name: str) -> list[dict[str, str]]:
+    return read_csv(snapshot_dir / SNAPSHOT_CSV_LAYOUT[logical_name])
 
 
 REQUIRED_REPORT_META = [
@@ -111,6 +110,7 @@ REQUIRED_AUDIT_TOP = [
     "uncertainty_register",
     "change_gate_register",
     "tracking_register",
+    "handoff_to_05",
     "ontology_context",
     "path_results",
     "state_variable_results",
@@ -120,6 +120,54 @@ REQUIRED_AUDIT_TOP = [
 ]
 
 REPORT_STATUSES = {"draft", "complete", "published"}
+HANDOFF_EXPRESSION_STRENGTHS = {
+    "strong_directional",
+    "medium_directional",
+    "observation",
+    "hypothesis",
+}
+DATA_STATUSES = {"ready", "partial", "missing"}
+ALLOWED_05_ARCHETYPES = {
+    "event_commentary",
+    "industry_dynamic_commentary",
+    "industry_cycle_report",
+    "company_earnings_commentary",
+    "theme_deep_dive",
+}
+TARGET_05_QUALITIES = {"minimum_pass", "high_quality_pass", "return_required", "stop_with_gap_report"}
+HANDOFF_STATUSES = {"ready", "usable_with_caveat", "not_ready"}
+OUTPUT_CEILINGS = {"full_report", "limited_report", "gap_report_only"}
+REPORT_GRADE_STATUSES = {"report_grade_ready", "usable_with_caveat", "not_report_grade"}
+CONCLUSION_LEVELS = {
+    "confirmed",
+    "directional",
+    "conditional",
+    "insufficient_evidence",
+    "blocked",
+    "contested",
+}
+PATH_RESULT_STATUSES = {
+    "established",
+    "partially_established",
+    "weakened",
+    "blocked",
+    "insufficient_evidence",
+    "contested",
+    "not_applicable",
+}
+EVIDENCE_GATE_STATUSES = {"met", "partial", "not_met", "contested", "blocked"}
+JUDGMENT_CHANGES = {"enhance", "weaken", "block", "revise"}
+
+
+def _plain_text_length(text: str) -> int:
+    stripped = re.sub(r"`[^`]*`", "", text)
+    stripped = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", stripped)
+    stripped = re.sub(r"\[[^\]]+\]\([^)]+\)", "", stripped)
+    stripped = re.sub(r"^[#>\-\s|:]+", "", stripped, flags=re.M)
+    stripped = re.sub(r"\s+", "", stripped)
+    return len(stripped)
+
+
 def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
     meta, body = parse_markdown(report_path)
     require_keys(meta, REQUIRED_REPORT_META, str(report_path))
@@ -131,23 +179,19 @@ def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
     if meta["report_status"] not in REPORT_STATUSES:
         fail("report_status 非法")
     validate_quality_status(meta["quality_status"], str(report_path))
-    validate_gate_review_fields(meta, str(report_path))
-    if str(meta["judgment_level"]) not in JUDGMENT_LEVELS:
-        fail("judgment_level 非法")
+    if meta["quality_status"] in {"draft", "return_required", "stop_with_gap_report"}:
+        fail("04 报告 quality_status 不得为 draft/return_required/stop_with_gap_report")
+    if meta["conclusion_level"] not in CONCLUSION_LEVELS:
+        fail("conclusion_level 非法")
     if not isinstance(meta.get("scope"), dict):
         fail("scope 必须是对象")
+    require_no_placeholders(meta, str(report_path) + " front matter")
     require_body_sections(body, REQUIRED_REPORT_SECTIONS, str(report_path))
-    researcher_body = body
-    for marker in ("## 7.", "## 7 "):
-        idx = body.find(marker)
-        if idx != -1:
-            researcher_body = body[:idx]
-            break
-    for term in FORBIDDEN_RESEARCHER_BODY_TERMS:
-        if term in researcher_body:
-            fail(f"04 研究员正文（§1—§6）不得包含系统术语: {term}")
-    validate_researcher_body(body, str(report_path))
-    forbidden = ["目标价", "收益率预测", "仓位建议", "买入评级", "卖出评级"]
+    require_no_placeholders(body, str(report_path) + " body")
+    summary = section_text(body, "一页摘要")
+    if _plain_text_length(summary) > 500:
+        fail("04 一页摘要不得超过 500 字")
+    forbidden = ["目标价", "收益率预测", "仓位建议", "买入评级", "卖出评级", "交易建议"]
     for marker in forbidden:
         for match in re.finditer(re.escape(marker), body):
             context = body[max(0, match.start() - 30) : match.end() + 12]
@@ -170,27 +214,58 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
     metadata = audit["metadata"]
     require_keys(metadata, ["task_id", "execution_id", "report_ref", "snapshot_ref", "audit_status", "quality_status"], "audit.metadata")
     validate_quality_status(metadata["quality_status"], "audit.metadata")
-    validate_gate_review_fields(metadata, "audit.metadata")
+    if metadata["quality_status"] in {"draft", "return_required", "stop_with_gap_report"}:
+        fail("04 审计 quality_status 不得为 draft/return_required/stop_with_gap_report")
     if metadata["audit_status"] not in REPORT_STATUSES:
         fail("audit.metadata.audit_status 非法")
+    require_no_placeholders(audit, str(audit_path))
     return audit
 
 
-def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
-    manifest_rows = read_csv(snapshot_dir / "manifest.csv")
+def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[str, str]], dict[str, dict[str, str]], dict[str, set[str]]]:
+    manifest_rows = _snapshot_csv(snapshot_dir, "manifest.csv")
     if len(manifest_rows) != 1:
         fail("manifest.csv 必须且只能有一行")
-    judgments = read_csv(snapshot_dir / "judgment_unit_readiness.csv")
-    judgment_by_id = {row["judgment_unit_id"]: row for row in judgments}
+    readiness_rows = _snapshot_csv(snapshot_dir, "evidence_readiness_assessments.csv")
+    readiness_by_id = {row["assessment_id"]: row for row in readiness_rows if row.get("assessment_id")}
+    if not readiness_by_id:
+        fail("evidence_readiness_assessments.csv 至少需要一行")
+    judgment_by_id: dict[str, dict[str, str]] = {}
+    for assessment_id, row in readiness_by_id.items():
+        unit_id = row.get("target_judgment_unit_id", "").strip()
+        if not unit_id:
+            fail(f"evidence_readiness_assessments#{assessment_id}.target_judgment_unit_id 不得为空")
+        validate_allowed_04_output(row.get("allowed_04_output"), f"evidence_readiness_assessments#{assessment_id}")
+        existing = judgment_by_id.get(unit_id)
+        if existing is None or output_rank(row.get("allowed_04_output", "")) < output_rank(existing.get("allowed_04_output", "")):
+            judgment_by_id[unit_id] = row
     if not judgment_by_id:
-        fail("judgment_unit_readiness.csv 至少需要一行")
-    for unit_id, row in judgment_by_id.items():
-        if row.get("maximum_judgment_level") not in JUDGMENT_LEVELS:
-            fail(f"judgment_unit_readiness#{unit_id}.maximum_judgment_level 非法")
-    return manifest_rows[0], judgment_by_id
+        fail("evidence_readiness_assessments.csv 至少需要一行有效 target_judgment_unit_id")
+    evidence_rows = _snapshot_csv(snapshot_dir, "evidence_records.csv")
+    input_rows = _snapshot_csv(snapshot_dir, "reasoning_inputs.csv")
+    display_rows = _snapshot_csv(snapshot_dir, "display_data_candidates.csv")
+    source_rows = _snapshot_csv(snapshot_dir, "source_snapshot.csv")
+    chart_rows = _snapshot_csv(snapshot_dir, "chart_data_package.csv")
+    table_rows = _snapshot_csv(snapshot_dir, "table_material_package.csv")
+    source_annotation_rows = _snapshot_csv(snapshot_dir, "source_annotation_package.csv")
+    snapshot_sets = {
+        "evidence_ids": {row["evidence_id"] for row in evidence_rows if row.get("evidence_id")},
+        "input_ids": {row["input_id"] for row in input_rows if row.get("input_id")},
+        "data_candidate_ids": {row["data_candidate_id"] for row in display_rows if row.get("data_candidate_id")},
+        "source_ids": {row["source_id"] for row in source_rows if row.get("source_id")},
+        "chart_ids": {row["figure_id"] for row in chart_rows if row.get("figure_id")},
+        "table_ids": {row["table_id"] for row in table_rows if row.get("table_id")},
+        "source_annotation_ids": {row["annotation_id"] for row in source_annotation_rows if row.get("annotation_id")},
+        "readiness_assessment_ids": set(readiness_by_id),
+    }
+    return manifest_rows[0], judgment_by_id, readiness_by_id, snapshot_sets
 
 
-def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[str, str]]) -> None:
+def _validate_claims(
+    audit: dict[str, object],
+    judgment_by_id: dict[str, dict[str, str]],
+    readiness_by_id: dict[str, dict[str, str]],
+) -> None:
     claims = audit["claim_register"]
     if not isinstance(claims, list) or not claims:
         fail("claim_register 至少需要一项")
@@ -205,12 +280,9 @@ def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[st
                 "reader_label",
                 "statement",
                 "linked_judgment_unit",
-                "target_claim_type",
-                "source_maximum_judgment_level",
-                "actual_judgment_level",
-                "claim_mode",
-                "conditions",
-                "judgment_status",
+                "readiness_assessment_refs",
+                "allowed_04_output",
+                "conclusion_level",
                 "confidence",
                 "downgrade_reason",
                 "strength_consistency_check",
@@ -233,22 +305,22 @@ def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[st
             fail(f"{claim_label}: contested 不得超过 J1")
         linked_units = split_refs(claim.get("linked_judgment_unit"))
         assert_subset(linked_units, judgment_ids, f"claim_register#{claim['claim_id']}.linked_judgment_unit")
+        assessment_refs = split_refs(claim.get("readiness_assessment_refs"))
+        if not assessment_refs:
+            fail(f"claim_register#{claim['claim_id']}.readiness_assessment_refs 不得为空")
+        assert_subset(assessment_refs, set(readiness_by_id), f"claim_register#{claim['claim_id']}.readiness_assessment_refs")
         for unit_id in linked_units:
-            source_level = judgment_by_id[unit_id]["maximum_judgment_level"]
-            if judgment_level_rank(str(claim["actual_judgment_level"])) > judgment_level_rank(source_level):
-                fail(f"{claim['claim_id']} 超过 03 判断上限: {unit_id}={source_level}")
-            if str(claim["target_claim_type"]) != str(judgment_by_id[unit_id]["target_claim_type"]):
-                fail(f"{claim['claim_id']}.target_claim_type 必须继承 03 {unit_id}")
-        expected_source_level = min(
-            (judgment_by_id[unit_id]["maximum_judgment_level"] for unit_id in linked_units),
-            key=judgment_level_rank,
-        )
-        if str(claim["source_maximum_judgment_level"]) != expected_source_level:
-            fail(f"{claim_label}.source_maximum_judgment_level 必须为 {expected_source_level}")
-        if judgment_level_rank(str(claim["actual_judgment_level"])) < judgment_level_rank(expected_source_level) and not str(claim.get("downgrade_reason", "")).strip():
-            fail(f"{claim_label}: 主动降级必须填写 downgrade_reason")
-        if claim.get("strength_consistency_check") is not True:
-            fail(f"{claim_label}.strength_consistency_check 必须为 true")
+            source_output = judgment_by_id[unit_id]["allowed_04_output"]
+            if output_rank(str(claim["allowed_04_output"])) > output_rank(source_output):
+                fail(f"{claim['claim_id']} 超过 03 使用上限: {unit_id}={source_output}")
+        for assessment_id in assessment_refs:
+            assessment = readiness_by_id[assessment_id]
+            assessment_unit = assessment.get("target_judgment_unit_id", "")
+            if assessment_unit not in linked_units:
+                fail(f"{claim['claim_id']} 引用的 readiness assessment 不属于 linked_judgment_unit: {assessment_id}")
+            assessment_output = assessment.get("allowed_04_output", "")
+            if output_rank(str(claim["allowed_04_output"])) > output_rank(assessment_output):
+                fail(f"{claim['claim_id']} 超过 readiness assessment 使用上限: {assessment_id}={assessment_output}")
         checks = claim["overreach_check"]
         if not isinstance(checks, dict):
             fail(f"{claim['claim_id']}.overreach_check 必须是对象")
@@ -264,7 +336,91 @@ def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[st
             assert_subset(split_refs(row.get(ref_field)), claim_ids, f"{register}.{ref_field}")
 
 
+def _validate_reasoning_registers(
+    audit: dict[str, object],
+    judgment_by_id: dict[str, dict[str, str]],
+    readiness_by_id: dict[str, dict[str, str]],
+    snapshot_sets: dict[str, set[str]],
+) -> None:
+    judgment_ids = set(judgment_by_id)
+    readiness_ids = set(readiness_by_id)
+
+    gate_results = require_list(audit["judgment_unit_gate_results"], "judgment_unit_gate_results")
+    for row in gate_results:
+        require_keys(
+            row,
+            [
+                "judgment_unit_id",
+                "source_03_gate_ref",
+                "readiness_assessment_refs",
+                "evidence_gate_status",
+                "allowed_04_output",
+                "evidence_refs",
+                "counter_evidence_refs",
+            ],
+            "judgment_unit_gate_results[]",
+        )
+        unit_id = str(row.get("judgment_unit_id", "")).strip()
+        assert_subset([unit_id], judgment_ids, f"judgment_unit_gate_results#{unit_id}.judgment_unit_id")
+        refs = split_refs(row.get("readiness_assessment_refs"))
+        if not refs:
+            fail(f"judgment_unit_gate_results#{unit_id}.readiness_assessment_refs 不得为空")
+        assert_subset(refs, readiness_ids, f"judgment_unit_gate_results#{unit_id}.readiness_assessment_refs")
+        for assessment_id in refs:
+            if readiness_by_id[assessment_id].get("target_judgment_unit_id") != unit_id:
+                fail(f"judgment_unit_gate_results#{unit_id} 引用的 readiness assessment 不属于该判断单元: {assessment_id}")
+            if output_rank(str(row["allowed_04_output"])) > output_rank(readiness_by_id[assessment_id].get("allowed_04_output", "")):
+                fail(f"judgment_unit_gate_results#{unit_id}.allowed_04_output 超过 03 readiness 上限")
+        if str(row.get("evidence_gate_status")) not in EVIDENCE_GATE_STATUSES:
+            fail(f"judgment_unit_gate_results#{unit_id}.evidence_gate_status 非法")
+        validate_allowed_04_output(row.get("allowed_04_output"), f"judgment_unit_gate_results#{unit_id}.allowed_04_output")
+        assert_subset(split_refs(row.get("evidence_refs")), snapshot_sets["evidence_ids"], f"judgment_unit_gate_results#{unit_id}.evidence_refs")
+        assert_subset(split_refs(row.get("counter_evidence_refs")), snapshot_sets["evidence_ids"], f"judgment_unit_gate_results#{unit_id}.counter_evidence_refs")
+
+    path_results = require_list(audit["path_results"], "path_results")
+    for row in path_results:
+        require_keys(
+            row,
+            ["path_id", "node_id", "linked_judgment_units", "status", "question", "input_refs", "evidence_refs", "counter_evidence_refs", "result"],
+            "path_results[]",
+        )
+        label = f"path_results#{row.get('path_id')}/{row.get('node_id')}"
+        if str(row.get("status")) not in PATH_RESULT_STATUSES:
+            fail(label + ".status 非法")
+        assert_subset(split_refs(row.get("linked_judgment_units")), judgment_ids, label + ".linked_judgment_units")
+        assert_subset(split_refs(row.get("input_refs")), snapshot_sets["input_ids"], label + ".input_refs")
+        assert_subset(split_refs(row.get("evidence_refs")), snapshot_sets["evidence_ids"], label + ".evidence_refs")
+        assert_subset(split_refs(row.get("counter_evidence_refs")), snapshot_sets["evidence_ids"], label + ".counter_evidence_refs")
+        if not str(row.get("question", "")).strip() or not str(row.get("result", "")).strip():
+            fail(label + ".question/result 不得为空")
+
+    state_results = require_list(audit["state_variable_results"], "state_variable_results")
+    for row in state_results:
+        require_keys(row, ["state_variable_id", "name", "linked_judgment_units", "evidence_status", "effect_on_path", "effect_on_claims"], "state_variable_results[]")
+        label = f"state_variable_results#{row.get('state_variable_id')}"
+        if str(row.get("evidence_status")) not in EVIDENCE_GATE_STATUSES:
+            fail(label + ".evidence_status 非法")
+        assert_subset(split_refs(row.get("linked_judgment_units")), judgment_ids, label + ".linked_judgment_units")
+        if not str(row.get("name", "")).strip():
+            fail(label + ".name 不得为空")
+
+    for row in audit.get("change_gate_register", []):
+        if row.get("judgment_change") and row["judgment_change"] not in JUDGMENT_CHANGES:
+            fail(f"change_gate_register#{row.get('gate_id')}.judgment_change 非法")
+
+
 def _validate_quality_and_compliance(audit: dict[str, object]) -> None:
+    input_integrity = audit["input_integrity"]
+    for key in [
+        "task_id_consistent",
+        "execution_id_consistent",
+        "scope_consistent",
+        "source_refs_resolvable",
+        "no_unfrozen_evidence_used",
+        "no_new_path_or_rule_created",
+    ]:
+        if input_integrity.get(key) is not True:
+            fail(f"input_integrity.{key} 必须为 true")
     quality = audit["report_quality_check"]
     compliance = audit["compliance_check"]
     for key in [
@@ -294,149 +450,229 @@ def _validate_quality_and_compliance(audit: dict[str, object]) -> None:
             fail(f"compliance_check.{key} 必须为 true")
 
 
-def _id_set(items: object, field: str, label: str) -> set[str]:
-    if not isinstance(items, list) or not items:
-        fail(f"{label} 至少需要一项")
-    output: set[str] = set()
-    for item in items:
-        if not isinstance(item, dict):
-            fail(f"{label}[] 必须是对象")
-        value = str(item.get(field, "")).strip()
-        if not value or value in output:
-            fail(f"{label}.{field} 为空或重复: {value}")
-        output.add(value)
-    return output
+def _validate_handoff(audit: dict[str, object], judgment_by_id: dict[str, dict[str, str]], snapshot_sets: dict[str, set[str]]) -> None:
+    handoff = audit["handoff_to_05"]
+    if not isinstance(handoff, dict):
+        fail("handoff_to_05 必须是对象")
+    require_keys(
+        handoff,
+        [
+            "target_05_archetype",
+            "target_05_quality",
+            "handoff_status",
+            "output_ceiling",
+            "formal_report_allowed",
+            "report_title_candidates",
+            "subtitle_candidates",
+            "core_thesis_sentence",
+            "one_page_summary_points",
+            "section_plan",
+            "approved_core_claims",
+            "market_common_view",
+            "differentiated_view",
+            "why_now",
+            "misread_risks",
+            "narrative_spine",
+            "evidence_progression",
+            "object_strength_ranking",
+            "front_section_caveats",
+            "restricted_claims",
+            "prohibited_claims",
+            "required_caveats",
+            "chart_candidates",
+            "chart_package",
+            "table_candidates",
+            "table_package",
+            "decision_gates",
+            "tracking_items",
+            "tracking_dashboard",
+            "expression_rules",
+            "confidence_ceiling",
+        ],
+        "handoff_to_05",
+    )
+    if str(handoff["target_05_archetype"]) not in ALLOWED_05_ARCHETYPES:
+        fail("handoff_to_05.target_05_archetype 非法")
+    if str(handoff["target_05_quality"]) not in TARGET_05_QUALITIES:
+        fail("handoff_to_05.target_05_quality 非法")
+    if str(handoff["handoff_status"]) not in HANDOFF_STATUSES:
+        fail("handoff_to_05.handoff_status 非法")
+    if str(handoff["output_ceiling"]) not in OUTPUT_CEILINGS:
+        fail("handoff_to_05.output_ceiling 非法")
+    if not isinstance(handoff["formal_report_allowed"], bool):
+        fail("handoff_to_05.formal_report_allowed 必须是布尔值")
+    if str(handoff["confidence_ceiling"]) not in {"high", "medium", "low"}:
+        fail("handoff_to_05.confidence_ceiling 非法")
+    for field in ["market_common_view", "differentiated_view", "why_now", "narrative_spine", "core_thesis_sentence"]:
+        if not str(handoff.get(field, "")).strip():
+            fail(f"handoff_to_05.{field} 不得为空")
+    for field in [
+        "report_title_candidates",
+        "subtitle_candidates",
+        "section_plan",
+        "misread_risks",
+        "evidence_progression",
+        "object_strength_ranking",
+        "front_section_caveats",
+    ]:
+        if not isinstance(handoff.get(field), list) or not handoff[field]:
+            fail(f"handoff_to_05.{field} 必须是非空列表")
 
+    claim_ids = {str(row.get("claim_id", "")).strip() for row in audit["claim_register"]}
+    judgment_ids = set(judgment_by_id)
+    for row in handoff["report_title_candidates"]:
+        require_keys(row, ["title", "title_style", "linked_claim_ids"], "handoff_to_05.report_title_candidates[]")
+        if not str(row.get("title", "")).strip():
+            fail("handoff_to_05.report_title_candidates[].title 不得为空")
+        assert_subset(split_refs(row.get("linked_claim_ids")), claim_ids, "handoff_to_05.report_title_candidates.linked_claim_ids")
+    summary_points = handoff["one_page_summary_points"]
+    if not isinstance(summary_points, dict):
+        fail("handoff_to_05.one_page_summary_points 必须是对象")
+    for key in [
+        "current_view",
+        "market_difference",
+        "dominant_mechanism",
+        "strongest_and_weakest_objects",
+        "next_1_2_quarter_validation",
+        "decision_gates",
+    ]:
+        if not str(summary_points.get(key, "")).strip():
+            fail(f"handoff_to_05.one_page_summary_points.{key} 不得为空")
+    for row in handoff["section_plan"]:
+        require_keys(
+            row,
+            [
+                "section_title",
+                "section_function",
+                "section_thesis",
+                "approved_claim_ids",
+                "evidence_ids",
+                "chart_ids",
+                "table_ids",
+                "required_caveats",
+                "prohibited_expressions",
+            ],
+            "handoff_to_05.section_plan[]",
+        )
+        for key in ["section_title", "section_function", "section_thesis"]:
+            if not str(row.get(key, "")).strip():
+                fail(f"handoff_to_05.section_plan[].{key} 不得为空")
+        assert_subset(split_refs(row.get("approved_claim_ids")), claim_ids, "handoff_to_05.section_plan.approved_claim_ids")
+        assert_subset(split_refs(row.get("evidence_ids")), snapshot_sets["evidence_ids"], "handoff_to_05.section_plan.evidence_ids")
+        assert_subset(split_refs(row.get("chart_ids")), snapshot_sets["chart_ids"], "handoff_to_05.section_plan.chart_ids")
+        assert_subset(split_refs(row.get("table_ids")), snapshot_sets["table_ids"], "handoff_to_05.section_plan.table_ids")
+    for row in handoff["evidence_progression"]:
+        require_keys(row, ["step", "evidence_summary", "supports_claim_ids"], "handoff_to_05.evidence_progression[]")
+        if not str(row.get("step", "")).strip() or not str(row.get("evidence_summary", "")).strip():
+            fail("handoff_to_05.evidence_progression[].step/evidence_summary 不得为空")
+        assert_subset(split_refs(row.get("supports_claim_ids")), claim_ids, "handoff_to_05.evidence_progression.supports_claim_ids")
+    ranks = []
+    for row in handoff["object_strength_ranking"]:
+        require_keys(row, ["rank", "object", "strength_label", "rationale", "linked_claim_ids"], "handoff_to_05.object_strength_ranking[]")
+        try:
+            ranks.append(int(row["rank"]))
+        except Exception:
+            fail("handoff_to_05.object_strength_ranking[].rank 必须是整数")
+        for key in ["object", "strength_label", "rationale"]:
+            if not str(row.get(key, "")).strip():
+                fail(f"handoff_to_05.object_strength_ranking[].{key} 不得为空")
+        assert_subset(split_refs(row.get("linked_claim_ids")), claim_ids, "handoff_to_05.object_strength_ranking.linked_claim_ids")
+    if len(ranks) >= 2 and sorted(ranks) != list(range(1, len(ranks) + 1)):
+        fail("handoff_to_05.object_strength_ranking.rank 必须从 1 连续排序")
+    for row in handoff["front_section_caveats"]:
+        require_keys(row, ["section", "caveat"], "handoff_to_05.front_section_caveats[]")
+        if not str(row.get("section", "")).strip() or not str(row.get("caveat", "")).strip():
+            fail("handoff_to_05.front_section_caveats[].section/caveat 不得为空")
+    for row in handoff["approved_core_claims"]:
+        require_keys(
+            row,
+            [
+                "claim_id",
+                "claim_text",
+                "expression_strength",
+                "confidence",
+                "source_judgment_units",
+                "readiness_assessment_refs",
+                "evidence_anchors",
+                "required_caveats",
+            ],
+            "handoff_to_05.approved_core_claims[]",
+        )
+        if str(row["claim_id"]) not in claim_ids:
+            fail(f"handoff_to_05.approved_core_claims 引用了不存在的 claim_id: {row['claim_id']}")
+        if str(row["expression_strength"]) not in HANDOFF_EXPRESSION_STRENGTHS:
+            fail(f"handoff_to_05.approved_core_claims#{row['claim_id']}.expression_strength 非法")
+        if str(row["confidence"]) not in {"high", "medium", "low"}:
+            fail(f"handoff_to_05.approved_core_claims#{row['claim_id']}.confidence 非法")
+        assert_subset(split_refs(row.get("source_judgment_units")), judgment_ids, f"handoff_to_05.approved_core_claims#{row['claim_id']}.source_judgment_units")
+        assert_subset(split_refs(row.get("readiness_assessment_refs")), snapshot_sets["readiness_assessment_ids"], f"handoff_to_05.approved_core_claims#{row['claim_id']}.readiness_assessment_refs")
 
-def _validate_reasoning_instances(audit: dict[str, object], audit_path: Path, snapshot_dir: Path) -> None:
-    metadata = audit["metadata"]
-    view_ref = str(metadata.get("source_02_view_ref", "")).strip()
-    view_path = audit_path.parent / view_ref
-    if not view_path.is_file():
-        fail(f"04 source_02_view_ref 无法解析: {view_ref}")
-    view = load_yaml_file(view_path)
-    require_schema_version(view.get("schema_version"), str(view_path), expected="2.0.0")
-    reasoning_plan = view.get("reasoning_plan")
-    semantic_scope = view.get("semantic_scope")
-    evidence_contract = view.get("evidence_contract")
-    if not all(isinstance(item, dict) for item in [reasoning_plan, semantic_scope, evidence_contract]):
-        fail("04 使用的 02 视图必须包含三域任务合同")
-    if reasoning_plan.get("frozen") is not True:
-        fail("04 只能使用 02 已冻结的 reasoning_plan")
+    for register in ["restricted_claims", "prohibited_claims"]:
+        if not isinstance(handoff[register], list):
+            fail(f"handoff_to_05.{register} 必须是列表")
+    for register in ["chart_candidates", "table_candidates"]:
+        for row in handoff[register]:
+            require_keys(row, ["intended_message", "source_evidence_ids", "data_status", "usage_limit"], f"handoff_to_05.{register}[]")
+            if str(row["data_status"]) not in DATA_STATUSES:
+                fail(f"handoff_to_05.{register}.data_status 非法")
+            if register == "chart_candidates":
+                assert_subset(split_refs(row.get("source_data_candidate_ids")), snapshot_sets["data_candidate_ids"], "handoff_to_05.chart_candidates.source_data_candidate_ids")
+            if register == "table_candidates":
+                assert_subset(split_refs(row.get("source_data_candidate_ids")), snapshot_sets["data_candidate_ids"], "handoff_to_05.table_candidates.source_data_candidate_ids")
+            assert_subset(split_refs(row.get("source_evidence_ids")), snapshot_sets["evidence_ids"], f"handoff_to_05.{register}.source_evidence_ids")
 
-    inputs = ref_set(read_csv(snapshot_dir / "reasoning_inputs.csv"), "input_id", "reasoning_inputs.csv")
-    evidence = ref_set(read_csv(snapshot_dir / "evidence_facts.csv"), "fact_id", "evidence_facts.csv")
-    claims = _id_set(audit["claim_register"], "claim_id", "claim_register")
-    hypotheses = _id_set(audit["hypotheses"], "hypothesis_id", "hypotheses")
-    signals = _id_set(audit["signals"], "signal_id", "signals")
-    evaluations = _id_set(audit["rule_evaluations"], "rule_evaluation_id", "rule_evaluations")
-    judgments = _id_set(audit["judgments"], "judgment_id", "judgments")
-    traces = _id_set(audit["reasoning_traces"], "trace_id", "reasoning_traces")
-    del traces
+    for row in handoff["chart_package"]:
+        require_keys(
+            row,
+            ["figure_id", "suggested_title", "chart_role", "intended_message", "data_candidate_ids", "source_ids", "report_grade_status", "usage_limit"],
+            "handoff_to_05.chart_package[]",
+        )
+        if str(row["figure_id"]) not in snapshot_sets["chart_ids"]:
+            fail(f"handoff_to_05.chart_package 引用了不存在的 figure_id: {row['figure_id']}")
+        if str(row["report_grade_status"]) not in REPORT_GRADE_STATUSES:
+            fail("handoff_to_05.chart_package.report_grade_status 非法")
+        assert_subset(split_refs(row.get("data_candidate_ids")), snapshot_sets["data_candidate_ids"], "handoff_to_05.chart_package.data_candidate_ids")
+        assert_subset(split_refs(row.get("source_ids")), snapshot_sets["source_ids"], "handoff_to_05.chart_package.source_ids")
 
-    planned_slots = {str(item.get("hypothesis_slot_id")) for item in reasoning_plan.get("hypothesis_slots", [])}
-    planned_variables = set(split_refs(reasoning_plan.get("state_variable_refs")))
-    planned_rules = set(split_refs(reasoning_plan.get("inference_rule_refs")))
-    for item in audit["hypotheses"]:
-        require_keys(item, ["hypothesis_id", "source_slot_ref", "statement", "state_variable_refs", "direction", "time_horizon", "falsification_conditions", "signal_refs", "evaluation_status"], "hypotheses[]")
-        assert_subset([str(item["source_slot_ref"])], planned_slots, f"{item['hypothesis_id']}.source_slot_ref")
-        assert_subset(split_refs(item["state_variable_refs"]), planned_variables, f"{item['hypothesis_id']}.state_variable_refs")
-        assert_subset(split_refs(item["signal_refs"]), signals, f"{item['hypothesis_id']}.signal_refs")
-        if not split_refs(item["falsification_conditions"]):
-            fail(f"{item['hypothesis_id']}.falsification_conditions 不得为空")
-    for item in audit["signals"]:
-        require_keys(item, ["signal_id", "statement", "role", "strength", "observed_at", "target_hypothesis_refs", "input_refs", "evidence_refs"], "signals[]")
-        if item["role"] not in {"support", "catalyst", "track", "weaken", "block"}:
-            fail(f"{item['signal_id']}.role 非法")
-        assert_subset(split_refs(item["target_hypothesis_refs"]), hypotheses, f"{item['signal_id']}.target_hypothesis_refs")
-        assert_subset(split_refs(item["input_refs"]), inputs, f"{item['signal_id']}.input_refs")
-        assert_subset(split_refs(item["evidence_refs"]), evidence, f"{item['signal_id']}.evidence_refs")
-    for item in audit["rule_evaluations"]:
-        require_keys(item, ["rule_evaluation_id", "rule_ref", "rule_version", "evaluated_at", "input_refs", "evidence_refs", "target_refs", "condition_results", "status", "result_summary", "output_refs"], "rule_evaluations[]")
-        assert_subset([str(item["rule_ref"])], planned_rules, f"{item['rule_evaluation_id']}.rule_ref")
-        assert_subset(split_refs(item["input_refs"]), inputs, f"{item['rule_evaluation_id']}.input_refs")
-        assert_subset(split_refs(item["evidence_refs"]), evidence, f"{item['rule_evaluation_id']}.evidence_refs")
-        assert_subset(split_refs(item["target_refs"]), hypotheses | judgments, f"{item['rule_evaluation_id']}.target_refs")
-        assert_subset(split_refs(item["output_refs"]), hypotheses | judgments, f"{item['rule_evaluation_id']}.output_refs")
-        if item["status"] not in {"matched", "not_matched", "blocked", "error"}:
-            fail(f"{item['rule_evaluation_id']}.status 非法")
-        if not split_refs(item["condition_results"]):
-            fail(f"{item['rule_evaluation_id']}.condition_results 不得为空")
+    for row in handoff["table_package"]:
+        require_keys(
+            row,
+            ["table_id", "suggested_title", "table_role", "intended_message", "row_objects", "source_data_candidate_ids", "source_evidence_ids", "readiness", "usage_limit"],
+            "handoff_to_05.table_package[]",
+        )
+        if str(row["table_id"]) not in snapshot_sets["table_ids"]:
+            fail(f"handoff_to_05.table_package 引用了不存在的 table_id: {row['table_id']}")
+        if str(row["readiness"]) not in DATA_STATUSES:
+            fail("handoff_to_05.table_package.readiness 非法")
+        assert_subset(split_refs(row.get("source_data_candidate_ids")), snapshot_sets["data_candidate_ids"], "handoff_to_05.table_package.source_data_candidate_ids")
+        assert_subset(split_refs(row.get("source_evidence_ids")), snapshot_sets["evidence_ids"], "handoff_to_05.table_package.source_evidence_ids")
 
-    claim_by_id = {
-        str(item["claim_id"]): item
-        for item in audit["claim_register"]
-        if isinstance(item, dict) and item.get("claim_id")
-    }
-    judgment_by_claim: dict[str, str] = {}
-    for item in audit["judgments"]:
-        require_keys(item, ["judgment_id", "claim_id", "statement", "hypothesis_refs", "rule_evaluation_refs", "target_claim_type", "judgment_level", "judgment_status", "claim_mode", "conditions", "scope", "time_horizon", "confidence", "uncertainty_refs"], "judgments[]")
-        assert_subset([str(item["claim_id"])], claims, f"{item['judgment_id']}.claim_id")
-        assert_subset(split_refs(item["hypothesis_refs"]), hypotheses, f"{item['judgment_id']}.hypothesis_refs")
-        assert_subset(split_refs(item["rule_evaluation_refs"]), evaluations, f"{item['judgment_id']}.rule_evaluation_refs")
-        if item["judgment_level"] not in {"J0", "J1", "J2", "J3", "J4"}:
-            fail(f"{item['judgment_id']}.judgment_level 非法")
-        if item["judgment_status"] not in {"normal", "weakened", "contested"}:
-            fail(f"{item['judgment_id']}.judgment_status 非法")
-        if item["claim_mode"] not in {"unconditional", "conditional"}:
-            fail(f"{item['judgment_id']}.claim_mode 非法")
-        source_claim = claim_by_id[str(item["claim_id"])]
-        for judgment_field, claim_field in [
-            ("target_claim_type", "target_claim_type"),
-            ("judgment_level", "actual_judgment_level"),
-            ("judgment_status", "judgment_status"),
-            ("claim_mode", "claim_mode"),
-        ]:
-            if str(item[judgment_field]) != str(source_claim[claim_field]):
-                fail(
-                    f"{item['judgment_id']}.{judgment_field} "
-                    f"必须与 claim_register#{item['claim_id']}.{claim_field} 一致"
-                )
-        if set(split_refs(item.get("conditions"))) != set(split_refs(source_claim.get("conditions"))):
-            fail(f"{item['judgment_id']}.conditions 必须与 claim_register 一致")
-        judgment_by_claim[str(item["claim_id"])] = str(item["judgment_id"])
-    if set(judgment_by_claim) != claims:
-        fail("每条 claim_register 观点必须且只能由一个 Judgment 承接")
-
-    traced_judgments: set[str] = set()
-    for item in audit["reasoning_traces"]:
-        require_keys(item, ["trace_id", "judgment_ref", "evaluated_at", "input_refs", "rule_evaluation_refs", "steps", "rule_refs", "output_refs", "status"], "reasoning_traces[]")
-        judgment_ref = str(item["judgment_ref"])
-        assert_subset([judgment_ref], judgments, f"{item['trace_id']}.judgment_ref")
-        assert_subset(split_refs(item["input_refs"]), inputs, f"{item['trace_id']}.input_refs")
-        assert_subset(split_refs(item["rule_evaluation_refs"]), evaluations, f"{item['trace_id']}.rule_evaluation_refs")
-        assert_subset(split_refs(item["rule_refs"]), planned_rules, f"{item['trace_id']}.rule_refs")
-        if item["status"] != "complete" or not split_refs(item["steps"]):
-            fail(f"{item['trace_id']} 必须是 complete 且包含公开推理步骤")
-        traced_judgments.add(judgment_ref)
-    if traced_judgments != judgments:
-        fail("每个 Judgment 都必须有完整 ReasoningTrace")
-
-    context = audit["ontology_context"]
-    assert_subset(split_refs(context.get("object_type_refs")), set(split_refs(semantic_scope.get("object_type_refs"))), "ontology_context.object_type_refs")
-    assert_subset(split_refs(context.get("relation_type_refs")), set(split_refs(semantic_scope.get("relation_type_refs"))), "ontology_context.relation_type_refs")
-    assert_subset(split_refs(context.get("event_refs")), set(split_refs(semantic_scope.get("event_type_refs"))), "ontology_context.event_refs")
-    assert_subset(split_refs(context.get("propagation_template_refs")), set(split_refs(reasoning_plan.get("propagation_template_refs"))), "ontology_context.propagation_template_refs")
-    assert_subset(split_refs(context.get("rule_refs")), planned_rules, "ontology_context.rule_refs")
-    for key in ["task_id_consistent", "execution_id_consistent", "scope_consistent", "source_refs_resolvable", "no_unfrozen_evidence_used", "no_new_path_or_rule_created"]:
-        if audit["input_integrity"].get(key) is not True:
-            fail(f"input_integrity.{key} 必须为 true")
+    for row in handoff["tracking_items"]:
+        if row.get("related_claim_id"):
+            assert_subset(split_refs(row.get("related_claim_id")), claim_ids, "handoff_to_05.tracking_items.related_claim_id")
+    for row in handoff["tracking_dashboard"]:
+        require_keys(row, ["tracking_item", "object", "indicator", "source", "frequency", "related_claim_id", "trigger_implication"], "handoff_to_05.tracking_dashboard[]")
+        if row.get("related_claim_id"):
+            assert_subset(split_refs(row.get("related_claim_id")), claim_ids, "handoff_to_05.tracking_dashboard.related_claim_id")
+    if not isinstance(handoff["expression_rules"], dict):
+        fail("handoff_to_05.expression_rules 必须是对象")
+    require_keys(handoff["expression_rules"], ["must_use", "must_avoid", "front_section_style"], "handoff_to_05.expression_rules")
 
 
 def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str | Path) -> dict[str, object]:
     report_path = Path(report_path)
     audit_path = Path(audit_path)
     snapshot_dir = Path(snapshot_dir)
-    report_triplet = parse_triplet(report_path, "推理报告", stage="04")
-    audit_triplet = parse_triplet(audit_path, "推理审计", stage="04")
-    snapshot_triplet = parse_triplet(snapshot_dir, "数据与证据快照", stage="03")
+    report_triplet = parse_triplet(report_path, "推理报告", "04")
+    audit_triplet = parse_triplet(audit_path, "推理审计", "04")
+    snapshot_triplet = parse_triplet(snapshot_dir, "数据与证据快照", "03")
     if report_triplet != audit_triplet or report_triplet != snapshot_triplet:
         fail("04 报告、审计与 03 快照文件名核心主题、日期、序号必须一致")
 
     report_meta, _ = _validate_report(report_path)
     audit = _validate_audit(audit_path)
     metadata = audit["metadata"]
-    manifest, judgment_by_id = _snapshot_rows(snapshot_dir)
+    manifest, judgment_by_id, readiness_by_id, snapshot_sets = _snapshot_rows(snapshot_dir)
 
     if not same_ref(report_meta["audit_ref"], file_name(audit_path)):
         fail("report.audit_ref 必须指向配对审计 YAML")
@@ -455,29 +691,10 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
         if field in evidence_admission and not same_ref(evidence_admission[field], manifest[field]):
             fail(f"audit.evidence_admission.{field} 必须与 manifest 一致")
 
-    _validate_claims(audit, judgment_by_id)
-    reasoning_instance_fields = {
-        "hypotheses",
-        "signals",
-        "rule_evaluations",
-        "judgments",
-        "reasoning_traces",
-    }
-    present_reasoning_fields = reasoning_instance_fields.intersection(audit)
-    if present_reasoning_fields and present_reasoning_fields != reasoning_instance_fields:
-        fail("04 推理实例字段必须成组出现，不得只提供部分字段")
-    if present_reasoning_fields:
-        _validate_reasoning_instances(audit, audit_path, snapshot_dir)
-    claims_by_id = {str(item["claim_id"]): item for item in audit["claim_register"]}
-    primary_claim_id = str(report_meta["primary_claim_id"])
-    if primary_claim_id not in claims_by_id:
-        fail("report.primary_claim_id 必须指向 claim_register")
-    if str(report_meta["judgment_level"]) != str(claims_by_id[primary_claim_id]["actual_judgment_level"]):
-        fail("report.judgment_level 必须等于主观点 actual_judgment_level")
-    overall = audit["overall_judgment"]
-    if str(overall.get("primary_claim_id")) != primary_claim_id or str(overall.get("judgment_level")) != str(report_meta["judgment_level"]):
-        fail("audit.overall_judgment 必须与报告主观点一致")
+    _validate_claims(audit, judgment_by_id, readiness_by_id)
+    _validate_reasoning_registers(audit, judgment_by_id, readiness_by_id, snapshot_sets)
     _validate_quality_and_compliance(audit)
+    _validate_handoff(audit, judgment_by_id, snapshot_sets)
 
     return {
         "schema_version": "2.0.0",

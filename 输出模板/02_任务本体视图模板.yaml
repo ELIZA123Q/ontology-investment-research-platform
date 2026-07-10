@@ -1,5 +1,5 @@
 schema_name: task_ontology_view
-schema_version: 2.0.0
+schema_version: 1.1.0
 
 # 文件命名：02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml
 # 必须与配对研究逻辑文件使用相同核心主题、日期和序号。
@@ -59,7 +59,7 @@ research_framework:
   logic_document_ref: "<与 task_context.logic_document 一致>"
   judgment_spine:
     statement: "<一句话说明本次真正要辨别的主矛盾和主导机制>"
-    md_section: "1.3 判断脊柱"
+    md_section: "1.3 核心判断"
   basis:
     source: "<independent | library_adapted | mixed>"
     md_section: "<如：3. 本次采用的分析框架>"
@@ -106,58 +106,35 @@ ontology_sources:
       - 二级半导体领域本体规范/evidence.yaml
       - 二级半导体领域本体规范/reasoning.yaml
 
-semantic_scope:
-  object_type_refs: []
-  relation_type_refs: []
-  event_type_refs: []
-  instance_scope:
-    included_objects: []
-    excluded_objects: []
-    identity_rules: []
-  minimum_semantic_instance_types: []
-
-evidence_contract:
-  evidence_profile_refs: []
-  required_evidence_roles: [support, counter]
-  minimum_admission_conditions: []
-  runtime_object_types: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceAssessment]
-  required_relation_types: [claimCitesSource, factSupportedByClaim, assessmentEvaluatesEvidence]
-  conflict_relation_types: [conflictsWith, supersedes, invalidates]
-  frozen: true
-
-reasoning_plan:
-  state_variable_refs: []
-  hypothesis_slots:
-    - hypothesis_slot_id: "H-01"
-      statement: "<待验证假设>"
-      state_variable_refs: []
-      falsification_conditions: []
-  path_refs: []
-  propagation_template_refs: []
-  inference_rule_refs: []
-  runtime_object_types: [Observation, Event, Hypothesis, Signal, RuleEvaluation, Judgment, ReasoningTrace]
-  stop_conditions: []
-  downgrade_conditions: []
-  frozen: true
-
 judgment_units:
   - judgment_unit_id: "JU-01"
+    judgment_name: "<判断单元名称>"
+    judgment_type: "<industry_cycle_judgment | policy_impact_judgment | supply_chain_bottleneck_judgment | company_earnings_elasticity_judgment | valuation_rerating_judgment | event_impact_judgment | expectation_gap_judgment | risk_monitoring_judgment>"
     statement: "<04 可能输出的观点或边界>"
     linked_questions: ["Q-01"]
     linked_paths: []
-    target_claim_type: "<historical_fact | current_state | causal_inference | directional_outlook | forecast | conditional_scenario>"
-    required_evidence_roles: [support, counter, alternative_explanation]
-    mandatory_evidence_baskets: []
-    counter_evidence_requirement_refs: []
-    alternative_explanation_refs: []
-    required_path_condition_refs: []
-    level_requirements:
-      J4: {applicable: false, required_evidence_basket_refs: [], minimum_source_authority: primary, minimum_independent_source_groups: 1, counter_evidence_check: required, alternative_explanation_check: required, required_conditions: []}
-      J3: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: authoritative_secondary, minimum_independent_source_groups: 2, counter_evidence_check: required, alternative_explanation_check: required, required_conditions: []}
-      J2: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: informed_secondary, minimum_independent_source_groups: 1, counter_evidence_check: required, alternative_explanation_check: optional, required_conditions: []}
-      J1: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: indirect, minimum_independent_source_groups: 1, counter_evidence_check: optional, alternative_explanation_check: optional, required_conditions: []}
-      J0: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: unknown, minimum_independent_source_groups: 0, counter_evidence_check: optional, alternative_explanation_check: optional, required_conditions: []}
-    stop_condition: "<达到目标等级或路径无法继续验证时停止>"
+    target_path_node_ids: []
+    target_state_variables: []
+    target_anchor_objects: []
+    decision_relevance: "<core | supporting | monitoring>"
+    expected_04_output_type: "<full_reasoning_ready | directional_only | conditional_only | insufficient | blocked | contested>"
+    required_evidence_roles:
+      primary_support: required
+      cross_validation: required
+      counter_evidence: required
+      blocking_condition: required
+      proxy_indicator: allowed_with_limit
+      background_evidence: optional
+    required_evidence_categories: []
+    required_counter_categories: []
+    candidate_evidence_recipe_tags: []
+    minimum_verification_condition: "<最低验证条件>"
+    minimum_validation_conditions: []
+    required_counter_checks: []
+    forbidden_shortcuts: []
+    proxy_policy: "<not_allowed | allowed_but_must_discount_confidence | required_when_direct_data_unavailable>"
+    evidence_gap_policy: "<缺证时 04 如何降级或停止>"
+    downgrade_rule_if_not_met: "<directional_only | conditional_only | insufficient | blocked | contested>"
     evidence_profile_refs: []
     md_section: "5"
 
@@ -222,15 +199,33 @@ instance_requirements:
 
 evidence_requirements:
   - evidence_requirement_id: "ER-01"
-    question: "<要验证的问题>"
+    target_judgment_unit_id: "JU-01"
+    target_path_node_id: ""
+    target_state_variable_id: ""
     linked_instance_requirement: "IR-01"
-    linked_state_variables: []
-    linked_judgment_units: []
-    evidence_profile: "<profile 名称>"
-    required_sources: []
-    required_counter_evidence: []
-    minimum_standard: "<最低标准>"
-    maximum_judgment_level_if_missing: "<J0 | J1 | J2 | J3 | J4>"
+    requirement_purpose: "<support | weaken | block | validate | cross_validate | counter | background>"
+    evidence_role: "<primary_support | cross_validation | counter_evidence | blocking_condition | proxy_indicator | background_evidence>"
+    required_evidence_category: "<price | demand | supply | inventory | order | policy | financial | valuation | exposure | event | other>"
+    required_content_domains: []
+    required_object_scope: {}
+    required_time_scope: ""
+    required_grain: "<daily | monthly | quarterly | event_point | text_claim | cross_section | time_series>"
+    minimum_quality_level: "<Q1_background | Q2_reasoning_usable | Q3_directional_ready | Q4_report_grade>"
+    minimum_source_tier: "<S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8；历史快照可用 L1-L7>"
+    minimum_independent_source_count: 1
+    mandatory_baskets: []
+    counter_baskets: []
+    allowed_proxy: false
+    preferred_source_profiles: []
+    allowed_acquisition_channels: []
+    forbidden_sources: []
+    required_freshness: ""
+    required_traceability: ""
+    required_comparability: ""
+    stop_condition: ""
+    missing_policy: "<continue_search | downgrade | block | return_to_02>"
+    allowed_04_output_if_met: "<full_reasoning_ready | directional_only | conditional_only>"
+    allowed_04_output_if_missing: "<conditional_only | insufficient | blocked | contested>"
 
 candidate_structures:
   used: false
@@ -252,18 +247,13 @@ handoff_to_03:
     - "02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
     - "02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
   required_csv_or_snapshot_outputs:
-    - source_documents.csv
-    - evidence_claims.csv
-    - evidence_facts.csv
-    - evidence_relations.csv
-    - evidence_assessments.csv
-    - semantic_instances.csv
-    - semantic_relations.csv
-    - reasoning_inputs.csv
-    - state_variable_coverage.csv
-    - path_readiness.csv
-    - judgment_unit_readiness.csv
-    - evidence_records.csv
+    - 03_gate/state_variable_coverage.csv
+    - 03_gate/path_readiness.csv
+    - 01_plan/evidence_requirements.csv
+    - 01_plan/evidence_recipe_matches.csv
+    - 01_plan/evidence_baskets.csv
+    - 03_gate/evidence_readiness_assessments.csv
+    - 02_assets/evidence_records.csv
   special_limits: []
 
 validation:
