@@ -1,4 +1,0 @@
-annotation_id,execution_id,source_id,evidence_ids,citation_phrase,source_type,published_at,business_time,data_scope,method_or_metric,supports_material_unit,usage_limit,permission_note
-ANN-01,EXEC-USIRAN-NEG-SEMI-20260709-1,SRC-01,EV-01|EV-02,据美联社2026年7月9日报道，特朗普宣布因言辞破裂停火但谈判仍在继续,wire,2026-07-09T08:00:00Z,2026-07-09,美伊谈判,现场报道,main_narrative,转述需交叉,公开网页
-ANN-02,EXEC-USIRAN-NEG-SEMI-20260709-1,SRC-05,EV-06|EV-08,GEP指出停火不意味着氦气供应立即恢复，卡塔尔约占全球氦气30-40%,advisory,2026-07-08T00:00:00Z,2026,氦气供应链,采购咨询估算,supply_context,非厂侧硬数据,公开摘要
-ANN-03,EXEC-USIRAN-NEG-SEMI-20260709-1,SRC-06,EV-07|EV-09,LightSource分析氦气约束下材料制造环节优先承压并给出谈妥谈崩边界框架,blog,2026-07-07T00:00:00Z,2026,全球半导体,行业情景,scenario_table,情景非预测,公开网页

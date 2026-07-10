@@ -1,4 +1,0 @@
-table_id,execution_id,table_role,suggested_title,row_objects,columns_available,source_ids,linked_evidence_ids,readiness,ranking_support,usage_limit
-TBL-01,EXEC-USIRAN-NEG-SEMI-20260709-1,evidence_summary,核心证据与限制,JU-01|JU-02|JU-03,claim|source|limit,SRC-01|SRC-04,EV-01|EV-04|EV-06,partial,none,摘要表
-TBL-02,EXEC-USIRAN-NEG-SEMI-20260709-1,scenario,谈妥谈崩情景边界,deal|break,direction|magnitude_bound|trigger,SRC-06,EV-09,partial,weak,条件情景
-TBL-03,EXEC-USIRAN-NEG-SEMI-20260709-1,gap_plan,主要证据缺口,GAP-01|GAP-03|GAP-08,gap|priority|next_step,,,ready,none,缺口规划

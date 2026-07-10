@@ -19,6 +19,7 @@ from validator_utils import (
     read_csv,
     read_csv_header,
     ref_set,
+    require_no_placeholders,
     require_body_sections,
     require_keys,
     require_schema_version,
@@ -179,6 +180,39 @@ CONFLICT_STATUSES = {
 }
 PROXY_DEPENDENCY_STATUSES = {"none", "low", "moderate", "high", "proxy_only", "not_applicable"}
 CONFIDENCE_LEVELS = {"high", "medium", "low"}
+SEARCH_STATUSES = {
+    "threshold_met",
+    "source_tiers_exhausted",
+    "in_progress",
+    "blocked_by_access",
+    # legacy aliases accepted for older drafts
+    "not_started",
+    "completed",
+    "stopped_with_gap",
+    "failed",
+}
+PREPARATION_STATUSES = {
+    "planned",
+    "in_progress",
+    "completed",
+    "complete",
+    "failed",
+    "returned",
+}
+
+
+def _float_value(value: object, label: str) -> float:
+    try:
+        return float(value)
+    except Exception:
+        fail(f"{label} 必须为数字")
+
+
+def _int_value(value: object, label: str) -> int:
+    try:
+        return int(value)
+    except Exception:
+        fail(f"{label} 必须为整数")
 
 
 def _rel(logical_name: str) -> str:
@@ -522,16 +556,20 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
 
     coverage_total = len(rows["state_variable_coverage.csv"])
     counted = sum(1 for row in rows["state_variable_coverage.csv"] if row.get("evidence_gate_status") == "counted")
-    if int(manifest["coverage_unit_total"]) != coverage_total:
+    if _int_value(manifest["coverage_unit_total"], "manifest.coverage_unit_total") != coverage_total:
         fail("manifest.coverage_unit_total 必须等于 state_variable_coverage.csv 行数")
-    if int(manifest["evidence_backed_unit_count"]) != counted:
+    if _int_value(manifest["evidence_backed_unit_count"], "manifest.evidence_backed_unit_count") != counted:
         fail("manifest.evidence_backed_unit_count 必须等于 evidence_gate_status=counted 的覆盖单元数")
 
     for meta_label, meta in [("prep", prep_meta), ("summary", summary_meta)]:
-        if int(meta["coverage_unit_total"]) != coverage_total:
+        if _int_value(meta["coverage_unit_total"], f"{meta_label}.coverage_unit_total") != coverage_total:
             fail(f"{meta_label}.coverage_unit_total 与快照不一致")
-        if int(meta["evidence_backed_unit_count"]) != counted:
+        if _int_value(meta["evidence_backed_unit_count"], f"{meta_label}.evidence_backed_unit_count") != counted:
             fail(f"{meta_label}.evidence_backed_unit_count 与快照不一致")
+        expected_rate = 0.0 if coverage_total == 0 else counted / coverage_total
+        actual_rate = _float_value(meta.get("evidence_coverage_rate", 0), f"{meta_label}.evidence_coverage_rate")
+        if abs(actual_rate - expected_rate) > 0.005:
+            fail(f"{meta_label}.evidence_coverage_rate 必须等于 evidence_backed_unit_count/coverage_unit_total")
 
     unit_rows = rows["evidence_readiness_assessments.csv"]
     # one assessment per judgment unit for package counts; if multiple, count distinct units by strictest? use distinct units
@@ -557,9 +595,9 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
         "judgment_unit_contested_count": counts["contested"],
     }
     for field, expected in count_fields.items():
-        if int(manifest.get(field, -1)) != expected:
+        if _int_value(manifest.get(field, -1), f"manifest.{field}") != expected:
             fail(f"manifest.{field} 必须为 {expected}")
-        if field in summary_meta and int(summary_meta[field]) != expected:
+        if field in summary_meta and _int_value(summary_meta[field], f"summary.{field}") != expected:
             fail(f"summary.{field} 必须为 {expected}")
 
 
@@ -589,9 +627,19 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
         fail("03 快照摘要 document_type 必须为 data_evidence_snapshot_summary")
     validate_quality_status(prep_meta["quality_status"], str(prep_path))
     validate_quality_status(summary_meta["quality_status"], str(summary_path))
+    if prep_meta["quality_status"] in {"return_required", "stop_with_gap_report"}:
+        fail("03 准备文档要求返工时不得通过单阶段校验")
+    if summary_meta["quality_status"] in {"return_required", "stop_with_gap_report"}:
+        fail("03 快照摘要要求返工时不得通过单阶段校验")
     validate_admission(prep_meta["admission"], str(prep_path))
     validate_admission(summary_meta["admission"], str(summary_path))
     validate_allowed_04_output(prep_meta["allowed_04_output"], str(prep_path))
+    if prep_meta.get("preparation_status") not in PREPARATION_STATUSES:
+        fail("preparation.preparation_status 非法")
+    if prep_meta.get("search_status") not in SEARCH_STATUSES:
+        fail("preparation.search_status 非法")
+    if summary_meta.get("search_status") not in SEARCH_STATUSES:
+        fail("summary.search_status 非法")
     if prep_meta["target_05_archetype"] not in ALLOWED_05_ARCHETYPES:
         fail("preparation.target_05_archetype 非法")
     if prep_meta["target_05_quality"] not in TARGET_05_QUALITIES:
@@ -599,6 +647,26 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     if prep_meta["allowed_05_output"] not in ALLOWED_05_OUTPUTS:
         fail("preparation.allowed_05_output 非法")
     require_body_sections(prep_body, REQUIRED_PREP_SECTIONS, str(prep_path))
+    require_no_placeholders(prep_meta, str(prep_path) + " front matter")
+    require_no_placeholders(prep_body, str(prep_path) + " body")
+
+    admission = str(prep_meta["admission"])
+    allowed_04_output = str(prep_meta["allowed_04_output"])
+    coverage_rate = _float_value(prep_meta["evidence_coverage_rate"], "preparation.evidence_coverage_rate")
+    required_coverage_rate = _float_value(prep_meta["required_coverage_rate"], "preparation.required_coverage_rate")
+    search_status = str(prep_meta["search_status"])
+    if (
+        admission in {"normal_pass", "restricted_pass"}
+        and coverage_rate < required_coverage_rate
+        and search_status != "source_tiers_exhausted"
+    ):
+        fail("normal_pass/restricted_pass 低于 required_coverage_rate 时必须 search_status=source_tiers_exhausted")
+    if admission in {"normal_pass", "restricted_pass"} and search_status == "in_progress":
+        fail("search_status=in_progress 时不得冻结 normal_pass/restricted_pass")
+    if admission == "failed" and output_rank(allowed_04_output) > output_rank("insufficient"):
+        fail("admission=failed 时 allowed_04_output 不得高于 insufficient")
+    if admission == "incomplete_pass" and output_rank(allowed_04_output) > output_rank("insufficient"):
+        fail("admission=incomplete_pass 时 allowed_04_output 不得高于 insufficient")
 
     if not same_ref(prep_meta["snapshot_ref"], f"{snapshot_dir.name}/manifest.csv"):
         fail("preparation.snapshot_ref 必须指向快照目录 manifest.csv")
@@ -609,8 +677,14 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     rows = _rows(snapshot_dir)
     _validate_counts(prep_meta, summary_meta, rows)
     _validate_snapshot_refs(rows)
+    if admission in {"normal_pass", "restricted_pass", "incomplete_pass"}:
+        for name in ["acquisition_log.csv", "semantic_instances.csv"]:
+            if not rows[name]:
+                fail(f"{name} 在 admission={admission} 时不得为空")
 
     manifest = rows["manifest.csv"][0]
+    if manifest.get("search_status") not in SEARCH_STATUSES:
+        fail("manifest.search_status 非法")
     if not same_ref(manifest["task_id"], prep_meta["task_id"]):
         fail("manifest.task_id 与 preparation.task_id 不一致")
     if not same_ref(manifest["execution_id"], prep_meta["execution_id"]):

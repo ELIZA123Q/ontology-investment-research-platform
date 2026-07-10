@@ -88,6 +88,107 @@ def require_non_empty(value: Any, label: str) -> None:
         fail(f"{label} 不得为空")
 
 
+def require_mapping(value: Any, label: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        fail(f"{label} 必须是对象")
+    return value
+
+
+def require_list(value: Any, label: str, *, allow_empty: bool = False) -> list[Any]:
+    if not isinstance(value, list):
+        fail(f"{label} 必须是列表")
+    if not allow_empty and not value:
+        fail(f"{label} 必须是非空列表")
+    return value
+
+
+def require_string(value: Any, label: str, *, min_length: int = 1) -> str:
+    if not isinstance(value, str):
+        fail(f"{label} 必须是字符串")
+    text = value.strip()
+    if len(text) < min_length:
+        fail(f"{label} 不得为空")
+    return text
+
+
+def require_allowed(value: Any, allowed: set[str], label: str) -> str:
+    text = str(value)
+    if text not in allowed:
+        fail(f"{label} 非法: {value}")
+    return text
+
+
+def require_bool(value: Any, label: str) -> bool:
+    if not isinstance(value, bool):
+        fail(f"{label} 必须是布尔值")
+    return value
+
+
+def boolish(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    text = str(value or "").strip().lower()
+    if text in {"true", "yes", "y", "1"}:
+        return True
+    if text in {"false", "no", "n", "0"}:
+        return False
+    return None
+
+
+def require_boolish(value: Any, label: str) -> bool:
+    parsed = boolish(value)
+    if parsed is None:
+        fail(f"{label} 必须是布尔值或 true/false 文本")
+    return parsed
+
+
+PLACEHOLDER_RE = re.compile(r"<[^>\n]+>|待填写|待补充|TBD|TODO", re.I)
+
+
+def _walk_strings(value: Any, path: str) -> Iterable[tuple[str, str]]:
+    if isinstance(value, str):
+        yield path, value
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            yield from _walk_strings(child, f"{path}.{key}" if path else str(key))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _walk_strings(child, f"{path}[{index}]")
+
+
+def require_no_placeholders(value: Any, label: str) -> None:
+    hits: list[str] = []
+    for path, text in _walk_strings(value, label):
+        if PLACEHOLDER_RE.search(text):
+            hits.append(path)
+    if hits:
+        fail(f"{label} 含未替换模板占位符: {', '.join(hits[:8])}")
+
+
+def require_all_true(mapping: dict[str, Any], label: str) -> None:
+    if not isinstance(mapping, dict) or not mapping:
+        fail(f"{label} 必须是非空对象")
+    failed = [key for key, value in mapping.items() if value is not True]
+    if failed:
+        fail(f"{label} 必须全部为 true: {', '.join(failed)}")
+
+
+def require_no_forbidden_phrases(text: str, phrases: Iterable[str], label: str) -> None:
+    hits = sorted({phrase for phrase in phrases if phrase and phrase in text})
+    if hits:
+        fail(f"{label} 含禁止或过宽表达: {', '.join(hits[:10])}")
+
+
+def section_text(body: str, title: str, *, heading_level: int = 2) -> str:
+    pattern = rf"^{'#' * heading_level}\s+(?:\d+[.、]\s*)?{re.escape(title)}(?:\s|：|$).*$"
+    match = re.search(pattern, body, re.M)
+    if not match:
+        return ""
+    next_match = re.search(rf"^{'#' * heading_level}\s+", body[match.end() :], re.M)
+    end = match.end() + next_match.start() if next_match else len(body)
+    return body[match.end() : end]
+
+
 def require_body_sections(body: str, sections: Iterable[str], label: str) -> None:
     missing = [section for section in sections if section not in body]
     if missing:

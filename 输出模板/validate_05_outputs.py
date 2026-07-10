@@ -21,9 +21,11 @@ from validator_utils import (
     read_text,
     require_body_sections,
     require_keys,
+    require_no_placeholders,
     same_ref,
     split_refs,
 )
+from validate_01_outputs import validate as validate_01_contract
 
 
 def _snapshot_csv(snapshot_dir: Path, logical_name: str) -> list[dict[str, str]]:
@@ -184,6 +186,11 @@ FORBIDDEN_BACKEND_TOKENS = [
     "data_status",
 ]
 RESTRICTION_PHRASES = ["不能确认", "不能外推", "只能", "不足以", "缺口", "限制", "不得", "尚未", "不等于"]
+FEWER_THAN_THREE_OBJECTS_RE = re.compile(
+    r"(对象|样本|排序对象).{0,12}(少于|不足|小于)\s*(3|三)|"
+    r"(少于|不足|小于)\s*(3|三).{0,12}(对象|样本|排序对象)|"
+    r"(仅|只有)\s*(1|一|2|二|两)\s*个?(对象|样本|排序对象)"
+)
 
 
 def _section_text(body: str, title: str) -> str:
@@ -206,6 +213,25 @@ def _count_table_rows(section: str) -> int:
         if stripped.count("|") >= 3:
             rows += 1
     return rows
+
+
+def _plain_text_length(text: str) -> int:
+    stripped = re.sub(r"`[^`]*`", "", text)
+    stripped = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", stripped)
+    stripped = re.sub(r"\[[^\]]+\]\([^)]+\)", "", stripped)
+    stripped = re.sub(r"^[#>\-\s|:]+", "", stripped, flags=re.M)
+    stripped = re.sub(r"\s+", "", stripped)
+    return len(stripped)
+
+
+def _contains_fewer_than_three_object_note(value: object) -> bool:
+    if isinstance(value, str):
+        return FEWER_THAN_THREE_OBJECTS_RE.search(value) is not None
+    if isinstance(value, dict):
+        return any(_contains_fewer_than_three_object_note(child) for child in value.values())
+    if isinstance(value, list):
+        return any(_contains_fewer_than_three_object_note(child) for child in value)
+    return False
 
 
 def _check_forbidden_terms(text: str) -> None:
@@ -237,6 +263,7 @@ def _parse_05_triplet(report_path: Path) -> tuple[tuple[str, str, str], str]:
 
 
 def _load_01(requirement_path: Path) -> dict[str, object]:
+    validate_01_contract(requirement_path)
     triplet = parse_triplet(requirement_path, "投研需求说明", "01")
     meta, _body = parse_markdown(requirement_path)
     if meta.get("document_type") != "judgment_task":
@@ -293,6 +320,7 @@ def _validate_report_text(report_path: Path, archetype: str) -> str:
     body = read_text(report_path)
     if body.startswith("---\n"):
         fail("05 研报正文不得使用 YAML front matter")
+    require_no_placeholders(body, str(report_path))
     if "附录：内部追溯" in body or "系统留痕" in body or "A0. 后台元数据" in body:
         fail("05 不再包含系统留痕或内部追溯附录；追溯由 04 审计承担")
     require_body_sections(body, REQUIRED_REPORT_SECTIONS_BY_ARCHETYPE[archetype], str(report_path))
@@ -309,6 +337,9 @@ def _validate_report_text(report_path: Path, archetype: str) -> str:
             fail(f"05 正文不得出现后台字段或质量门槛字段: {token}")
     _check_forbidden_terms(body)
     summary_and_views = _section_text(body, "一页摘要") + _section_text(body, "核心观点")
+    summary = _section_text(body, "一页摘要")
+    if _plain_text_length(summary) > 500:
+        fail("05 一页摘要不得超过 500 字")
     restriction_count = sum(summary_and_views.count(phrase) for phrase in RESTRICTION_PHRASES)
     if restriction_count > 6:
         fail("05 摘要和核心观点中限制性表达过度前置，应集中到改判信号和风险提示")
@@ -317,7 +348,7 @@ def _validate_report_text(report_path: Path, archetype: str) -> str:
         ranking_section = _section_text(body, "五、强弱排序")
     if ranking_section:
         ranking_rows = _count_table_rows(ranking_section)
-        if ranking_rows < 3:
+        if ranking_rows < 3 and not _contains_fewer_than_three_object_note(ranking_section):
             fail("05 强弱排序章节至少需要 3 个排序对象，除非上游明确对象少于 3 个")
     return body
 
@@ -330,6 +361,7 @@ def _load_04(audit_path: Path) -> dict[str, object]:
     if audit.get("document_type") != "reasoning_audit":
         fail("source_04_audit_ref 必须指向 reasoning_audit")
     validate_quality_status(audit["metadata"]["quality_status"], str(audit_path))
+    require_no_placeholders(audit, str(audit_path))
     return audit
 
 
@@ -383,7 +415,7 @@ def _snapshot_rows(
     )
 
 
-def _validate_handoff(audit: dict[str, object], sets: dict[str, set[str]], archetype: str) -> None:
+def _validate_handoff(audit: dict[str, object], sets: dict[str, set[str]], archetype: str, body: str) -> None:
     handoff = audit["handoff_to_05"]
     require_keys(handoff, REQUIRED_HANDOFF_FIELDS, "handoff_to_05")
     if handoff.get("target_05_archetype") != archetype:
@@ -402,7 +434,7 @@ def _validate_handoff(audit: dict[str, object], sets: dict[str, set[str]], arche
     for field in ["misread_risks", "evidence_progression", "object_strength_ranking"]:
         if not isinstance(handoff.get(field), list) or not handoff[field]:
             fail(f"handoff_to_05.{field} 必须是非空列表")
-    if len(handoff["object_strength_ranking"]) < 3:
+    if len(handoff["object_strength_ranking"]) < 3 and not _contains_fewer_than_three_object_note(handoff):
         fail("handoff_to_05.object_strength_ranking 至少需要 3 个对象，除非上游明确对象少于 3 个")
 
     claim_ids = {str(row.get("claim_id", "")).strip() for row in audit["claim_register"] if row.get("claim_id")}
@@ -441,6 +473,17 @@ def _validate_handoff(audit: dict[str, object], sets: dict[str, set[str]], arche
             fail(f"handoff_to_05.table_package 引用了不存在的 table_id: {row.get('table_id')}")
         assert_subset(split_refs(row.get("source_data_candidate_ids")), sets["data_candidate_ids"], "handoff_to_05.table_package.source_data_candidate_ids")
         assert_subset(split_refs(row.get("source_evidence_ids")), sets["evidence_ids"], "handoff_to_05.table_package.source_evidence_ids")
+
+    for row in handoff.get("prohibited_claims", []):
+        claim_text = str(row.get("claim_text", "")).strip()
+        if claim_text and claim_text in body:
+            fail(f"05 正文出现 04 明确禁止包装的判断: {claim_text[:40]}")
+    expression_rules = handoff.get("expression_rules", {})
+    if isinstance(expression_rules, dict):
+        for phrase in expression_rules.get("must_avoid", []) or []:
+            phrase = str(phrase).strip()
+            if phrase and phrase in body:
+                fail(f"05 正文出现 04 handoff_to_05.expression_rules.must_avoid 禁用表达: {phrase[:40]}")
 
 
 def _validate_strength(audit: dict[str, object], manifest: dict[str, str]) -> None:
@@ -557,11 +600,11 @@ def validate(
     if not snapshot_dir.is_dir():
         fail(f"{snapshot_dir} 不是快照目录")
 
-    _validate_report_text(report_path, archetype)
+    body = _validate_report_text(report_path, archetype)
     audit = _load_04(audit_path)
     manifest, display_rows, chart_rows, table_rows, _annotation_rows, sets = _snapshot_rows(snapshot_dir)
     _validate_strength(audit, manifest)
-    _validate_handoff(audit, sets, archetype)
+    _validate_handoff(audit, sets, archetype, body)
     data_ok, data_summary = _high_quality_data_gate(display_rows, chart_rows, table_rows, archetype)
     if not data_ok and not allow_minimum:
         fail("05 high_quality_pass 图表/表格数据密度不足；当前 " + data_summary)
