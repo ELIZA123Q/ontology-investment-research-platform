@@ -1,5 +1,5 @@
 schema_name: ontology_common
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 description: 投研本体公共元模型，定义 Object、Relation、Action、Function、Logic、Rule 的共同结构。
 
@@ -107,7 +107,8 @@ common_enums:
   cardinality: [one_to_one, one_to_many, many_to_one, many_to_many]
   rule_type: [validation, inference, scoring, blocking]
   confidence: [low, medium, high, unknown]
-  conclusion_level: [insufficient_evidence, observation, supported, contested, blocked]
+  judgment_level: [J0, J1, J2, J3, J4]
+  judgment_status: [normal, weakened, contested]
   signal_role: [support, catalyst, track, weaken, block]
   direction: [increase, decrease, stable, positive, negative, neutral, uncertain]
 
@@ -124,11 +125,11 @@ layer_model:
 
 object_role_families:
   stable_semantics: [Concept, Organization, Company, Industry, Segment, Product, Material, ProcessStep, Asset, Region, Application, PolicyInstrument]
-  evidence: [SourceDocument, EvidenceClaim, EvidenceFact]
+  evidence: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceAssessment]
   state_and_fact: [StateVariable, Observation, Event]
   hypothesis_and_judgment: [Hypothesis, Signal, Judgment]
   pricing_comparison: [MarketExpectation, ExpectationGap, AssetImpact]
-  scenario_and_record: [Scenario, ReasoningTrace, ValidationRecord]
+  scenario_and_record: [Scenario, RuleEvaluation, ReasoningTrace, ValidationRecord]
   note: 以上是按本体职责和推理角色划分的对象族；Object、Relation、Action、Function、Logic、Rule 属于元模型资源，不与业务对象并列。
 
 cross_layer_constraints:
@@ -156,6 +157,10 @@ cross_layer_constraints:
     description: Hypothesis 必须有变量锚点、方向、时间尺度和证伪条件，但不强制已有验证证据。
   - id: validation_preserves_original_trace
     description: ValidationRecord 只能追加事后验证结果和修订建议，不得覆盖原始 ReasoningTrace。
+  - id: evidence_assessment_is_contextual
+    description: EvidenceAssessment 记录证据在特定任务、profile、范围和判断单元下是否可用，不得覆盖 SourceDocument、EvidenceClaim 或 EvidenceFact 的原始状态。
+  - id: formal_rule_use_requires_evaluation
+    description: 正式推理使用 Rule 时必须生成 RuleEvaluation，并由 ReasoningTrace 引用；未执行的规则不得事后补写为已使用。
 
 modeling_granularity:
   - id: separate_type_and_instance

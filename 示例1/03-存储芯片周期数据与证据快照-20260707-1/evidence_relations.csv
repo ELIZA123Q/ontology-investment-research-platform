@@ -1,0 +1,6 @@
+relation_id,execution_id,relation_type,source_evidence_id,target_evidence_id,relation_role,relation_scope,status,notes
+REL-MEM-001,EXEC-MEM-CYCLE-20260707-1,claimCitesSource,CL-MEM-001,SD-MEM-001,source,prepared remarks,active,
+REL-MEM-002,EXEC-MEM-CYCLE-20260707-1,factSupportedByClaim,EF-MEM-001,CL-MEM-001,primary,HBM,active,
+REL-MEM-003,EXEC-MEM-CYCLE-20260707-1,assessmentEvaluatesEvidence,EA-MEM-001,SD-MEM-001,context,分产品周期,active,
+REL-MEM-004,EXEC-MEM-CYCLE-20260707-1,assessmentEvaluatesEvidence,EA-MEM-001,CL-MEM-001,support,分产品周期,active,
+REL-MEM-005,EXEC-MEM-CYCLE-20260707-1,assessmentEvaluatesEvidence,EA-MEM-001,EF-MEM-001,support,分产品周期,active,

@@ -1,5 +1,5 @@
 schema_name: ontology_reasoning
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 depends_on: [common.yaml, semantic.yaml, evidence.yaml]
 description: 判断推理域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
@@ -81,7 +81,12 @@ object_types:
     validity: true
     properties:
       statement: {type: string, required: true, description: 判断内容。}
-      conclusionLevel: {type: enum, required: true, allowed_values: [insufficient_evidence, observation, supported, contested, blocked], description: 判断结论等级。}
+      judgmentLevel: {type: enum, required: true, allowed_values: [J0, J1, J2, J3, J4], description: 判断强度；仅事实和当前状态允许 J4。}
+      judgmentStatus: {type: enum, required: true, allowed_values: [normal, weakened, contested], description: 判断状态，不参与强度排序。}
+      claimMode: {type: enum, required: true, allowed_values: [unconditional, conditional], description: 判断是否依赖必须保留的显式条件。}
+      targetClaimType: {type: enum, required: true, allowed_values: [historical_fact, current_state, causal_inference, directional_outlook, forecast, conditional_scenario], description: 判断主张类型。}
+      conditions: {type: array, required: true, description: 条件性判断的成立条件；无条件判断为空数组。}
+      scope: {type: object, required: true, description: 判断适用的时间、对象、地域和口径范围。}
       timeHorizon: {type: string, required: true, description: 判断适用时间尺度。}
       confidence: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 判断置信度。}
       uncertainty: {type: array, required: true, description: 未解决的不确定性。}
@@ -146,6 +151,23 @@ object_types:
       ruleRefs: {type: array, required: true, description: 情景使用的 Rule 标识。}
       triggerConditions: {type: array, required: true, description: 进入该情景的条件。}
       invalidationConditions: {type: array, required: true, description: 情景失效条件。}
+  RuleEvaluation:
+    id: RuleEvaluation
+    name: 规则评价
+    description: 一次正式推理运行中，对特定 Rule、输入和条件的命中、未命中、阻断或错误结果记录。
+    primary_key: id
+    title_property: id
+    validity: false
+    properties:
+      ruleRef: {type: string, required: true, description: 被评价的正式 Rule 标识。}
+      ruleVersion: {type: string, required: true, description: 被评价规则的版本或内容指纹。}
+      evaluatedAt: {type: datetime, required: true, description: 规则评价时间。}
+      inputRefs: {type: array, required: true, description: 本次评价读取的语义、证据和推理实例引用。}
+      conditionResults: {type: array, required: true, description: 各项成立、削弱或阻断条件的公开评价结果。}
+      status: {type: enum, required: true, allowed_values: [matched, not_matched, blocked, error], description: 规则评价结果状态。}
+      resultSummary: {type: string, required: true, description: 规则输出或不产生输出的业务说明。}
+      outputRefs: {type: array, required: false, description: 规则评价产生或影响的推理实例引用。}
+      evidenceRefs: {type: array, required: true, description: 支撑本次规则评价的证据引用。}
   ReasoningTrace:
     id: ReasoningTrace
     name: 推理留痕
@@ -402,6 +424,27 @@ relation_types:
     cardinality: many_to_one
     evidence_required: false
     properties: {}
+  ruleEvaluationTargets:
+    id: ruleEvaluationTargets
+    name: 规则评价目标
+    description: 规则评价指向本次被评价或受评价结果约束的变量、假设、判断或情景。
+    source_types: [RuleEvaluation]
+    target_types: [StateVariable, Hypothesis, Judgment, Scenario]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  traceIncludesRuleEvaluation:
+    id: traceIncludesRuleEvaluation
+    name: 推理留痕包含规则评价
+    description: 推理留痕按顺序引用本次正式使用的规则评价实例。
+    source_types: [ReasoningTrace]
+    target_types: [RuleEvaluation]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      sequence: {type: integer, required: true, description: 规则评价在公开推理步骤中的顺序。}
   traceForJudgment:
     id: traceForJudgment
     name: 推理留痕对应判断
@@ -551,16 +594,16 @@ action_types:
   ApplyInferenceRule:
     id: ApplyInferenceRule
     name: 应用推理规则
-    description: 对输入对象检查规则条件并返回临时评价结果；结果需要复用时写入 ReasoningTrace.steps，不创建一级对象。
-    target_types: [rule]
-    parameters: [ruleRef, inputRefs, evaluationTime]
+    description: 对输入对象检查规则条件，并把正式推理使用的结果实例化为 RuleEvaluation。
+    target_types: [RuleEvaluation]
+    parameters: [ruleRef, ruleVersion, inputRefs, targetRefs, evidenceRefs, evaluationTime]
     preconditions: [前提和所需证据齐备]
-    effects: [return_transient_rule_evaluation]
-    outputs: [ruleEvaluation]
-    rule_refs: [variable_propagation_inference]
+    effects: [create_RuleEvaluation, create_ruleEvaluationTargets_if_provided]
+    outputs: [RuleEvaluation]
+    rule_refs: [variable_propagation_inference, rule_evaluation_trace_required]
     function_ref: EvaluateRuleCondition
-    logic_refs: [StatePropagationLogic]
-    write_scope: []
+    logic_refs: [RuleEvaluationLogic]
+    write_scope: [RuleEvaluation, ruleEvaluationTargets]
   FormJudgment:
     id: FormJudgment
     name: 形成判断
@@ -631,14 +674,14 @@ action_types:
     name: 记录推理留痕
     description: 保存一次判断从输入到输出的公开可复核路径。
     target_types: [ReasoningTrace]
-    parameters: [judgmentRef, evaluatedAt, inputRefs, steps, ruleRefs, functionRefs, logicRefs, outputRefs, status]
+    parameters: [judgmentRef, evaluatedAt, inputRefs, ruleEvaluationRefs, steps, ruleRefs, functionRefs, logicRefs, outputRefs, status]
     preconditions: [所有资源引用存在，步骤顺序明确]
-    effects: [create_ReasoningTrace, create_traceForJudgment]
+    effects: [create_ReasoningTrace, create_traceForJudgment, create_traceIncludesRuleEvaluation]
     outputs: [ReasoningTrace]
-    rule_refs: [reasoning_trace_required]
+    rule_refs: [reasoning_trace_required, rule_evaluation_trace_required]
     function_ref: null
     logic_refs: [ReasoningTraceLogic]
-    write_scope: [ReasoningTrace, traceForJudgment]
+    write_scope: [ReasoningTrace, traceForJudgment, traceIncludesRuleEvaluation]
   RecordValidation:
     id: RecordValidation
     name: 记录事后验证
@@ -821,13 +864,25 @@ logic_flows:
       - {id: set_invalidation, uses: [Scenario.invalidationConditions]}
     outputs: [Scenario]
     fallback: 路径冲突时拒绝成型。
+  RuleEvaluationLogic:
+    id: RuleEvaluationLogic
+    name: 规则评价逻辑
+    description: 解析正式 Rule，校验输入和证据，计算条件并保存可由推理留痕引用的 RuleEvaluation。
+    inputs: [ruleRef, ruleVersion, inputRefs, targetRefs, evidenceRefs, evaluationTime]
+    steps:
+      - {id: validate_traceability, rule_refs: [rule_evaluation_trace_required]}
+      - {id: evaluate_conditions, function_ref: EvaluateRuleCondition}
+      - {id: record_targets, uses: [ruleEvaluationTargets]}
+    outputs: [RuleEvaluation]
+    fallback: 输入、规则版本或证据引用不足时生成 error 状态评价，不允许相关判断进入正式输出。
   ReasoningTraceLogic:
     id: ReasoningTraceLogic
     name: 推理留痕逻辑
     description: 将本次推理使用的输入、Rule、Function、Logic 和输出组织为公开可复核记录。
-    inputs: [judgmentRef, inputRefs, steps, ruleRefs, functionRefs, logicRefs, outputRefs]
+    inputs: [judgmentRef, inputRefs, ruleEvaluationRefs, steps, ruleRefs, functionRefs, logicRefs, outputRefs]
     steps:
       - {id: validate_references, rule_refs: [reasoning_trace_required]}
+      - {id: require_rule_evaluations, rule_refs: [rule_evaluation_trace_required], uses: [traceIncludesRuleEvaluation]}
       - {id: order_public_steps, uses: [traceForJudgment]}
     outputs: [ReasoningTrace]
     fallback: 引用不完整时生成 partial 留痕，不得进入正式输出。
@@ -954,7 +1009,7 @@ rules:
     rule_type: scoring
     applies_to: [Judgment]
     condition: 输入链完整，并已检查支持、削弱、阻断、hypothesisCompetesWith、hypothesisContradicts 和未解决不确定性。
-    result: 产生 conclusionLevel 和 confidence。
+    result: 产生 judgmentLevel、judgmentStatus、claimMode 和 confidence。
     priority: 70
     failure_handling: lower_level_and_confidence
   expectation_required_for_asset_impact:
@@ -976,6 +1031,16 @@ rules:
     condition: 输入、公开步骤、Rule、Function、Logic 和输出引用完整，且存在 traceForJudgment。
     result: 允许进入正式输出。
     priority: 90
+    failure_handling: keep_internal_candidate
+  rule_evaluation_trace_required:
+    id: rule_evaluation_trace_required
+    name: 正式推理必须记录规则评价
+    description: 进入正式判断的规则使用结果必须保存 Rule、版本、输入、条件结果、证据和状态，并由 ReasoningTrace 引用。
+    rule_type: validation
+    applies_to: [RuleEvaluation, ReasoningTrace, traceIncludesRuleEvaluation]
+    condition: RuleEvaluation 的 ruleRef、ruleVersion、inputRefs、conditionResults、evidenceRefs 和 status 完整，且正式 ReasoningTrace 至少引用一项 RuleEvaluation。
+    result: 允许规则评价参与正式推理留痕。
+    priority: 95
     failure_handling: keep_internal_candidate
   validation_outcome_required:
     id: validation_outcome_required

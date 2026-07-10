@@ -1,0 +1,5 @@
+assessment_id,execution_id,evaluated_at,profile_ref,assessment_scope,usability,quality_level,rationale,gap_refs,evidence_refs,linked_judgment_unit_ids,notes
+EA-JU-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,2026-07-10T20:30:00+08:00,policy_trade,截至2026年7月,usable,high,官方规则直接确认当前状态且供货反证已核对,,EV-01|EV-03|EV-07,JU-01,无
+EA-JU-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,2026-07-10T20:30:00+08:00,qualification_commercialization,客户台数不足,restricted,medium,直接复购与经营证据支持方向但精确转化率不足,,EV-10|EV-15|EV-16|EV-19,JU-02,精确转化率不可得
+EA-JU-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,2026-07-10T20:30:00+08:00,company_exposure_execution,样本不外推全行业,restricted,medium,多类别和财务直接证据支持分化方向但口径不统一,,EV-13|EV-14|EV-17|EV-19,JU-03,口径不统一
+EA-JU-04,EXEC-USCTRL-CNSEMI-EQP-20260710-1,2026-07-10T20:30:00+08:00,counter_evidence,未来规则与订单仍有不确定,usable,medium,多组独立证据支持主路径且反向解释已比较,,EV-01|EV-10|EV-15|EV-17|EV-19,JU-04,前瞻限制

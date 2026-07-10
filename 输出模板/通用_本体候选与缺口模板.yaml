@@ -1,0 +1,22 @@
+document_type: ontology_candidate_feedback
+schema_version: 1.0.0
+metadata:
+  task_id: ""
+  execution_id: ""
+  discovered_at_stage: "<02 | 03 | 04>"
+  created_at: ""
+candidates:
+  - candidate_id: ""
+    target_domain: "<semantic | evidence | reasoning>"
+    candidate_kind: ""
+    problem_statement: ""
+    proposed_capability: ""
+    supporting_run_refs: []
+    reuse_scope: ""
+    impact_on_current_task: ""
+    cross_task_validation_refs: []
+    review_status: pending
+governance:
+  formal_ontology_mutated: false
+  minimum_cross_task_validations: 2
+  maintainer_review_required: true

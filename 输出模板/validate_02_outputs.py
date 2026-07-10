@@ -6,7 +6,16 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, validate_gate_review_fields, validate_quality_status, validate_researcher_body, validate_return_routing_fields
+from quality_gate_utils import (
+    J4_ELIGIBLE_CLAIM_TYPES,
+    JUDGMENT_LEVELS,
+    SOURCE_AUTHORITY_LEVELS,
+    TARGET_CLAIM_TYPES,
+    validate_gate_review_fields,
+    validate_quality_status,
+    validate_researcher_body,
+    validate_return_routing_fields,
+)
 from validator_utils import (
     assert_subset,
     assert_values,
@@ -60,6 +69,9 @@ REQUIRED_VIEW_TOP = [
     "quality_control",
     "research_framework",
     "ontology_sources",
+    "semantic_scope",
+    "evidence_contract",
+    "reasoning_plan",
     "judgment_units",
     "path_design",
     "ontology_bindings",
@@ -70,10 +82,110 @@ REQUIRED_VIEW_TOP = [
 ]
 
 
+WORKSPACE = Path(__file__).resolve().parent.parent
+
+
+def _ontology_catalog(view: dict[str, object]) -> tuple[dict[str, set[str]], set[str]]:
+    catalog = {key: set() for key in ["objects", "relations", "events", "profiles", "variables", "templates", "rules"]}
+    source_files: set[str] = set()
+    sources = view.get("ontology_sources")
+    if not isinstance(sources, dict):
+        fail("ontology_sources 必须是对象")
+    for source_name, source in sources.items():
+        if not isinstance(source, dict):
+            fail(f"ontology_sources.{source_name} 必须是对象")
+        files = source.get("files")
+        if not isinstance(files, list) or not files:
+            fail(f"ontology_sources.{source_name}.files 不得为空")
+        for file_ref in files:
+            relative = str(file_ref)
+            path = WORKSPACE / relative
+            if not path.is_file():
+                fail(f"正式本体文件无法解析: {relative}")
+            source_files.add(relative)
+            data = load_yaml_file(path)
+            if not isinstance(data, dict):
+                fail(f"正式本体文件必须是 YAML 对象: {relative}")
+            for section, target in [
+                ("object_types", "objects"),
+                ("relation_types", "relations"),
+                ("event_type_taxonomy", "events"),
+                ("evidence_profiles", "profiles"),
+                ("state_variables", "variables"),
+                ("propagation_templates", "templates"),
+                ("rules", "rules"),
+            ]:
+                values = data.get(section, {})
+                if isinstance(values, dict):
+                    catalog[target].update(str(key) for key in values)
+    return catalog, source_files
+
+
+def _validate_ontology_pointer(ref: object, source_files: set[str], label: str) -> None:
+    text = str(ref).strip()
+    if "#" not in text:
+        fail(f"{label} 必须使用 <正式本体文件>#<资源路径>")
+    file_ref, pointer = text.split("#", 1)
+    if file_ref not in source_files:
+        fail(f"{label} 引用了未冻结的正式本体文件: {file_ref}")
+    node: object = load_yaml_file(WORKSPACE / file_ref)
+    for part in pointer.split("."):
+        if not isinstance(node, dict) or part not in node:
+            fail(f"{label} 无法解析: {text}")
+        node = node[part]
+
+
+def _validate_cross_domain_contract(view: dict[str, object]) -> None:
+    catalog, source_files = _ontology_catalog(view)
+    semantic = view["semantic_scope"]
+    evidence = view["evidence_contract"]
+    reasoning = view["reasoning_plan"]
+    for label, section in [("semantic_scope", semantic), ("evidence_contract", evidence), ("reasoning_plan", reasoning)]:
+        if not isinstance(section, dict):
+            fail(f"{label} 必须是对象")
+    for field, target in [("object_type_refs", "objects"), ("relation_type_refs", "relations"), ("event_type_refs", "events")]:
+        refs = split_refs(semantic.get(field))
+        if not refs:
+            fail(f"semantic_scope.{field} 不得为空")
+        assert_subset(refs, catalog[target], f"semantic_scope.{field}")
+    profiles = split_refs(evidence.get("evidence_profile_refs"))
+    if not profiles:
+        fail("evidence_contract.evidence_profile_refs 不得为空")
+    assert_subset(profiles, catalog["profiles"], "evidence_contract.evidence_profile_refs")
+    assert_subset(split_refs(evidence.get("runtime_object_types")), catalog["objects"], "evidence_contract.runtime_object_types")
+    assert_subset(split_refs(evidence.get("required_relation_types")) + split_refs(evidence.get("conflict_relation_types")), catalog["relations"], "evidence_contract.relation_types")
+    if evidence.get("frozen") is not True or reasoning.get("frozen") is not True:
+        fail("evidence_contract 与 reasoning_plan 必须在 02 冻结")
+
+    bindings = view.get("ontology_bindings")
+    if not isinstance(bindings, dict):
+        fail("ontology_bindings 必须是对象")
+    selected_variables = bindings.get("selected_state_variables")
+    if not isinstance(selected_variables, list) or not selected_variables:
+        fail("ontology_bindings.selected_state_variables 不得为空")
+    task_variable_ids = ref_set(selected_variables, "state_variable_id", "selected_state_variables")
+    assert_subset(split_refs(reasoning.get("state_variable_refs")), task_variable_ids, "reasoning_plan.state_variable_refs")
+    assert_subset(split_refs(reasoning.get("propagation_template_refs")), catalog["templates"], "reasoning_plan.propagation_template_refs")
+    assert_subset(split_refs(reasoning.get("inference_rule_refs")), catalog["rules"], "reasoning_plan.inference_rule_refs")
+    assert_subset(split_refs(reasoning.get("runtime_object_types")), catalog["objects"], "reasoning_plan.runtime_object_types")
+    for variable in selected_variables:
+        _validate_ontology_pointer(variable.get("ontology_ref"), source_files, f"{variable.get('state_variable_id')}.ontology_ref")
+    slots = reasoning.get("hypothesis_slots")
+    if not isinstance(slots, list) or not slots:
+        fail("reasoning_plan.hypothesis_slots 至少需要一项")
+    for slot in slots:
+        require_keys(slot, ["hypothesis_slot_id", "statement", "state_variable_refs", "falsification_conditions"], "reasoning_plan.hypothesis_slots[]")
+        assert_subset(split_refs(slot["state_variable_refs"]), task_variable_ids, f"{slot['hypothesis_slot_id']}.state_variable_refs")
+        if not split_refs(slot["falsification_conditions"]):
+            fail(f"{slot['hypothesis_slot_id']}.falsification_conditions 不得为空")
+
+
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
     meta, body = parse_markdown(logic_path)
     require_keys(meta, REQUIRED_LOGIC_META, str(logic_path))
-    require_schema_version(meta["schema_version"], str(logic_path))
+    require_schema_version(meta["schema_version"], str(logic_path), expected="2.0.0")
+    if str(meta["schema_version"]) != "2.0.0":
+        fail("02 研究逻辑 schema_version 必须为 2.0.0")
     if meta["document_type"] != "research_logic":
         fail("02 研究逻辑 document_type 必须为 research_logic")
     if meta["stage_status"] != "aligned":
@@ -90,7 +202,9 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     if not isinstance(view, dict):
         fail("02 本体视图必须是 YAML 对象")
     require_keys(view, REQUIRED_VIEW_TOP, str(view_path))
-    require_schema_version(view["schema_version"], str(view_path))
+    require_schema_version(view["schema_version"], str(view_path), expected="2.0.0")
+    if str(view["schema_version"]) != "2.0.0":
+        fail("02 本体视图 schema_version 必须为 2.0.0")
     if view["schema_name"] != "task_ontology_view":
         fail("02 本体视图 schema_name 必须为 task_ontology_view")
 
@@ -113,6 +227,7 @@ def _validate_view(view_path: Path) -> dict[str, object]:
         fail("quality_control.stage_status 必须为 aligned")
     validate_gate_review_fields(quality_control, "quality_control")
     validate_return_routing_fields(quality_control, "quality_control", current_stage="02")
+    _validate_cross_domain_contract(view)
 
     checks = validation.get("checks")
     if not isinstance(checks, dict) or validation.get("result") != "pass":
@@ -138,17 +253,53 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             [
                 "judgment_unit_id",
                 "statement",
+                "target_claim_type",
                 "linked_questions",
                 "linked_paths",
-                "minimum_verification_condition",
-                "required_counter_checks",
-                "downgrade_rule_if_not_met",
+                "required_evidence_roles",
+                "mandatory_evidence_baskets",
+                "counter_evidence_requirement_refs",
+                "alternative_explanation_refs",
+                "required_path_condition_refs",
+                "level_requirements",
+                "stop_condition",
                 "evidence_profile_refs",
             ],
             f"judgment_units[{index}]",
         )
         assert_subset(split_refs(unit["linked_questions"]), question_ids, f"{unit['judgment_unit_id']}.linked_questions")
-        assert_values([str(unit["downgrade_rule_if_not_met"])], ALLOWED_04_OUTPUTS, f"{unit['judgment_unit_id']}.downgrade_rule_if_not_met")
+        target_claim_type = str(unit["target_claim_type"])
+        if target_claim_type not in TARGET_CLAIM_TYPES:
+            fail(f"{unit['judgment_unit_id']}.target_claim_type 非法: {target_claim_type}")
+        baskets = unit["mandatory_evidence_baskets"]
+        if not isinstance(baskets, list) or not baskets:
+            fail(f"{unit['judgment_unit_id']}.mandatory_evidence_baskets 至少需要一项")
+        basket_ids = set()
+        for basket in baskets:
+            require_keys(basket, ["basket_id", "role", "evidence_requirement_refs", "required_for_levels"], f"{unit['judgment_unit_id']}.mandatory_evidence_baskets[]")
+            basket_ids.add(str(basket["basket_id"]))
+            levels = split_refs(basket["required_for_levels"])
+            if not levels or not set(levels).issubset(JUDGMENT_LEVELS):
+                fail(f"{unit['judgment_unit_id']}#{basket['basket_id']}.required_for_levels 非法")
+        level_requirements = unit["level_requirements"]
+        if not isinstance(level_requirements, dict) or set(level_requirements) != JUDGMENT_LEVELS:
+            fail(f"{unit['judgment_unit_id']}.level_requirements 必须完整包含 J0—J4")
+        for level, requirement in level_requirements.items():
+            if not isinstance(requirement, dict):
+                fail(f"{unit['judgment_unit_id']}.level_requirements.{level} 必须是对象")
+            require_keys(requirement, ["applicable", "required_evidence_basket_refs", "minimum_source_authority", "minimum_independent_source_groups", "counter_evidence_check", "alternative_explanation_check", "required_conditions"], f"{unit['judgment_unit_id']}.level_requirements.{level}")
+            if requirement["applicable"] is not True and requirement["applicable"] is not False:
+                fail(f"{unit['judgment_unit_id']}.level_requirements.{level}.applicable 必须是布尔值")
+            if str(requirement["minimum_source_authority"]) not in SOURCE_AUTHORITY_LEVELS:
+                fail(f"{unit['judgment_unit_id']}.level_requirements.{level}.minimum_source_authority 非法")
+            try:
+                int(requirement["minimum_independent_source_groups"])
+            except (TypeError, ValueError):
+                fail(f"{unit['judgment_unit_id']}.level_requirements.{level}.minimum_independent_source_groups 必须为整数")
+            assert_subset(split_refs(requirement["required_evidence_basket_refs"]), basket_ids, f"{unit['judgment_unit_id']}.level_requirements.{level}.required_evidence_basket_refs")
+        if target_claim_type not in J4_ELIGIBLE_CLAIM_TYPES and level_requirements["J4"]["applicable"] is not False:
+            fail(f"{unit['judgment_unit_id']}: {target_claim_type} 的 J4 必须标记 applicable=false")
+        require_non_empty(unit["stop_condition"], f"{unit['judgment_unit_id']}.stop_condition")
 
     judgment_unit_ids = ref_set(judgment_units, "judgment_unit_id", "judgment_units")
 
@@ -176,8 +327,8 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     for item in evidence_requirements:
         require_keys(item, ["evidence_requirement_id", "linked_judgment_units", "evidence_profile", "minimum_standard"], "evidence_requirements[]")
         assert_subset(split_refs(item["linked_judgment_units"]), judgment_unit_ids, f"{item['evidence_requirement_id']}.linked_judgment_units")
-        if "downgrade_if_missing" in item:
-            assert_values([str(item["downgrade_if_missing"])], ALLOWED_04_OUTPUTS, f"{item['evidence_requirement_id']}.downgrade_if_missing")
+        if "maximum_judgment_level_if_missing" in item:
+            assert_values([str(item["maximum_judgment_level_if_missing"])], JUDGMENT_LEVELS, f"{item['evidence_requirement_id']}.maximum_judgment_level_if_missing")
 
     if checks.get("state_variable_chain_complete") is True:
         ontology_bindings = view.get("ontology_bindings")
@@ -234,7 +385,7 @@ def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]
         fail("view.task_context.logic_document 必须指向配对研究逻辑文件")
 
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "task_id": logic_meta["task_id"],
         "logic_id": logic_meta["logic_id"],
         "view_id": task_context["view_id"],

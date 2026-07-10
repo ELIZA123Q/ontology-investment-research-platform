@@ -1,0 +1,281 @@
+schema_name: task_ontology_view
+schema_version: 2.0.0
+
+# 文件命名：02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml
+# 必须与配对研究逻辑文件使用相同核心主题、日期和序号。
+# 本文件是正式本体在本次任务中的跨域切片和执行合同，不是新的正式本体。
+# 它保存语义范围、证据合同、推理计划、本体引用、路径节点、实例需求、候选、缺口索引和质量校验。
+
+task_context:
+  task_id: "<任务标识>"
+  view_id: "<任务本体视图标识>"
+  logic_id: "<研究逻辑文档标识>"
+  view_version: 1
+  view_hash: "<内容哈希>"
+  frozen_at: "<冻结时间，ISO 8601>"
+  generated_at: "<文档生成时间，ISO 8601；仅用于审计>"
+  source_requirement_version: "<01 需求版本>"
+  source_document: "<01 投研需求说明文件>"
+  logic_document: "<同主题、同日期、同序号的研究逻辑文件名>"
+  normalized_question: "<规范化判断问题>"
+  judgment_landing: "<状态定位 | 趋势判断 | 阶段切换 | 影响强弱 | 路径成立性 | 假设验证与更新>"
+  task_type:
+    primary: "<01 规定的主任务类型>"
+    secondary: []
+  scope:
+    time: "<时间范围>"
+    time_policy:
+      mode: "<rolling | fixed | event_relative>"
+      anchor: "<execution_date | event_date | null>"
+      anchor_value: null
+      timezone: "Asia/Shanghai"
+      lookback: null
+      lookforward: null
+      fixed_start: null
+      fixed_end: null
+      data_cutoff: "<execution_date | 固定日期>"
+    geography: "<地域范围>"
+    value_chain: "<产业链范围>"
+    objects: []
+    object_selection:
+      mode: "<fixed | dynamic>"
+      as_of: "<execution_date | 固定日期>"
+      criteria: []
+      count_or_coverage: null
+      refresh_on_each_run: false
+    exclusions: []
+
+quality_control:
+  quality_gate_ref: "00A_高质量产出判别标准.md#5.2"
+  stage_status: "<aligned | needs_revision | returned_to_01>"
+  quality_status: "draft"
+  deterministic_check_status: "not_checked"
+  semantic_review_status: "not_reviewed"
+  return_required: false
+  return_stage: null
+  return_reasons: []
+
+research_framework:
+  logic_document_ref: "<与 task_context.logic_document 一致>"
+  judgment_spine:
+    statement: "<一句话说明本次真正要辨别的主矛盾和主导机制>"
+    md_section: "1.3 判断脊柱"
+  basis:
+    source: "<independent | library_adapted | mixed>"
+    md_section: "<如：3. 本次采用的分析框架>"
+    alignment_summary: "<一句话；不重写问题树>"
+  library_reference:
+    library_ref: 02框架库/README.md
+    library_version: 1.0.0
+    consulted: []
+    no_direct_reference_reason: ""
+  minimum_question_tree:
+    - question_id: "Q-01"
+      question: "<子问题>"
+      relation_to_overall: "<precondition | parallel | competing | stop_node>"
+      sequence: 1
+      failure_action: "<stop | downgrade | switch_to_competing_explanation | return_to_01_or_02>"
+      md_section: "2.2"
+  alignment_checks:
+    independently_formed_in_md: false
+    library_consulted_in_md: false
+    judgment_spine_consistent_with_md: false
+    problem_tree_consistent_with_md: false
+
+ontology_sources:
+  platform_ontology:
+    name: ontology_platform
+    version: 1.0.0
+    schema_versions:
+      common: 2.0.0
+      semantic: 1.0.0
+      evidence: 2.0.0
+      reasoning: 2.0.0
+    files:
+      - 一级通用本体规范/common.yaml
+      - 一级通用本体规范/semantic.yaml
+      - 一级通用本体规范/evidence.yaml
+      - 一级通用本体规范/reasoning.yaml
+  domain_ontology:
+    name: "<领域本体名称>"
+    version: 1.0.0
+    depends_on: ontology_platform
+    files:
+      - 二级半导体领域本体规范/common.yaml
+      - 二级半导体领域本体规范/semantic.yaml
+      - 二级半导体领域本体规范/evidence.yaml
+      - 二级半导体领域本体规范/reasoning.yaml
+
+semantic_scope:
+  object_type_refs: []
+  relation_type_refs: []
+  event_type_refs: []
+  instance_scope:
+    included_objects: []
+    excluded_objects: []
+    identity_rules: []
+  minimum_semantic_instance_types: []
+
+evidence_contract:
+  evidence_profile_refs: []
+  required_evidence_roles: [support, counter]
+  minimum_admission_conditions: []
+  runtime_object_types: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceAssessment]
+  required_relation_types: [claimCitesSource, factSupportedByClaim, assessmentEvaluatesEvidence]
+  conflict_relation_types: [conflictsWith, supersedes, invalidates]
+  frozen: true
+
+reasoning_plan:
+  state_variable_refs: []
+  hypothesis_slots:
+    - hypothesis_slot_id: "H-01"
+      statement: "<待验证假设>"
+      state_variable_refs: []
+      falsification_conditions: []
+  path_refs: []
+  propagation_template_refs: []
+  inference_rule_refs: []
+  runtime_object_types: [Observation, Event, Hypothesis, Signal, RuleEvaluation, Judgment, ReasoningTrace]
+  stop_conditions: []
+  downgrade_conditions: []
+  frozen: true
+
+judgment_units:
+  - judgment_unit_id: "JU-01"
+    statement: "<04 可能输出的观点或边界>"
+    linked_questions: ["Q-01"]
+    linked_paths: []
+    target_claim_type: "<historical_fact | current_state | causal_inference | directional_outlook | forecast | conditional_scenario>"
+    required_evidence_roles: [support, counter, alternative_explanation]
+    mandatory_evidence_baskets: []
+    counter_evidence_requirement_refs: []
+    alternative_explanation_refs: []
+    required_path_condition_refs: []
+    level_requirements:
+      J4: {applicable: false, required_evidence_basket_refs: [], minimum_source_authority: primary, minimum_independent_source_groups: 1, counter_evidence_check: required, alternative_explanation_check: required, required_conditions: []}
+      J3: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: authoritative_secondary, minimum_independent_source_groups: 2, counter_evidence_check: required, alternative_explanation_check: required, required_conditions: []}
+      J2: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: informed_secondary, minimum_independent_source_groups: 1, counter_evidence_check: required, alternative_explanation_check: optional, required_conditions: []}
+      J1: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: indirect, minimum_independent_source_groups: 1, counter_evidence_check: optional, alternative_explanation_check: optional, required_conditions: []}
+      J0: {applicable: true, required_evidence_basket_refs: [], minimum_source_authority: unknown, minimum_independent_source_groups: 0, counter_evidence_check: optional, alternative_explanation_check: optional, required_conditions: []}
+    stop_condition: "<达到目标等级或路径无法继续验证时停止>"
+    evidence_profile_refs: []
+    md_section: "5"
+
+path_design:
+  main_paths:
+    - path_id: "P-01"
+      name: "<主路径名称>"
+      description: "<业务语言描述>"
+      linked_judgment_units: ["JU-01"]
+      nodes:
+        - node_id: "N-01"
+          name: "<节点名称>"
+          role: "<start | precondition | transmission | outcome | validation | stop>"
+          question: "<该节点要验证的问题>"
+          required_state_variables: []
+          required_instance_requirements: []
+          required_evidence_requirements: []
+          failure_action: "<stop | downgrade | switch_path>"
+  weakening_conditions:
+    - condition_id: "W-01"
+      statement: "<削弱条件>"
+      linked_paths: ["P-01"]
+      distinguish_evidence: []
+      effect_on_04: "<降低为倾向判断/条件判断等>"
+  blocking_conditions:
+    - condition_id: "B-01"
+      statement: "<阻断条件>"
+      linked_paths: ["P-01"]
+      distinguish_evidence: []
+      effect_on_04: "<路径停止/暂不可判断>"
+  competing_explanations:
+    - explanation_id: "CE-01"
+      statement: "<竞争解释>"
+      distinguish_from_main_path: "<如何区分>"
+      required_evidence: []
+      effect_on_04: "<保留竞争解释/降级/改判>"
+
+ontology_bindings:
+  selected_objects: []
+  selected_relations: []
+  selected_events: []
+  selected_state_variables:
+    - state_variable_id: ""
+      name: ""
+      ontology_ref: ""
+      linked_judgment_units: []
+      linked_path_nodes: []
+      state_binding_refs: []
+      observation_requirement_refs: []
+      evidence_profile_refs: []
+  propagation_templates: []
+  inference_rules: []
+
+instance_requirements:
+  - requirement_id: "IR-01"
+    target: "<对象/关系/事件/状态观测等>"
+    purpose: "<支持/削弱/阻断/区分竞争解释>"
+    linked_path_nodes: []
+    linked_judgment_units: []
+    minimum_fields: []
+    scope_constraints: []
+
+evidence_requirements:
+  - evidence_requirement_id: "ER-01"
+    question: "<要验证的问题>"
+    linked_instance_requirement: "IR-01"
+    linked_state_variables: []
+    linked_judgment_units: []
+    evidence_profile: "<profile 名称>"
+    required_sources: []
+    required_counter_evidence: []
+    minimum_standard: "<最低标准>"
+    maximum_judgment_level_if_missing: "<J0 | J1 | J2 | J3 | J4>"
+
+candidate_structures:
+  used: false
+  items: []
+  usage_boundary: ""
+  effect_on_03: ""
+  effect_on_04: ""
+
+ontology_gaps:
+  has_gap: false
+  gap_note_ref: ""
+  gap_ids: []
+  highest_severity: "<none | low | medium | high | blocking>"
+  blocks_evidence_preparation: false
+  blocks_directional_reasoning: false
+
+handoff_to_03:
+  required_files:
+    - "02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
+    - "02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
+  required_csv_or_snapshot_outputs:
+    - source_documents.csv
+    - evidence_claims.csv
+    - evidence_facts.csv
+    - evidence_relations.csv
+    - evidence_assessments.csv
+    - semantic_instances.csv
+    - semantic_relations.csv
+    - reasoning_inputs.csv
+    - state_variable_coverage.csv
+    - path_readiness.csv
+    - judgment_unit_readiness.csv
+    - evidence_records.csv
+  special_limits: []
+
+validation:
+  checks:
+    scope_consistent_with_01: false
+    judgment_spine_present: false
+    minimum_question_tree_present: false
+    main_counter_competing_paths_present: false
+    judgment_units_have_minimum_conditions: false
+    state_variable_chain_complete: false
+    evidence_requirements_executable_by_03: false
+    md_yaml_consistent: false
+  result: "<pass | fail>"
+  return_required: false
+  return_reasons: []

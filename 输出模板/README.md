@@ -2,7 +2,19 @@
 
 01—04 的总体分工和正式产物见 [`00_项目定位与边界.md`](../00_项目定位与边界.md)。本目录只保存各类产物的结构、字段和填写说明。
 
-当前 01—04 输出模板版本统一为 `1.0.0`。
+各产物独立版本化。01、03 准备文档和 04 既有外壳继续兼容 `1.0.0`；02 任务本体视图和 03 跨域运行实例清单使用 `2.0.0`。版本升级不得改变已经确认的 01 用户需求。
+
+## YAML 一览
+
+| 文件 | 性质 | 对应本体域 | 是否是正式本体 |
+|---|---|---|---|
+| `02_任务本体视图模板.yaml` | 单次任务对正式本体的三域切片和执行合同 | 语义域 + 证据域 + 推理域 | 否，只引用正式本体 |
+| `03_跨域运行实例清单模板.yaml` | 03 批量实例文件索引 | 语义域实例 + 证据域实例 + 冻结推理输入 | 否，是运行实例清单 |
+| `04_推理域运行实例与审计模板.yaml` | 04 推理结果和留痕 | 推理域实例 | 否，是运行实例与审计 |
+| `05_表达审计模板.yaml` | 报告表达检查 | 不属于本体域 | 否 |
+| `通用_本体候选与缺口模板.yaml` | 向本体治理流程提交候选 | semantic / evidence / reasoning 候选 | 否，审核发布后才可能进入正式本体 |
+
+正式本体只存在于 `一级通用本体规范/` 和各 `二级…本体规范/` 下的 `semantic.yaml`、`evidence.yaml`、`reasoning.yaml`。
 
 正式产出文件名推荐以阶段前缀 `01-` 至 `05-` 开头，格式为 `<阶段>-<核心主题><产物类型>-<YYYYMMDD>-<当日序号>`；各阶段校验器也接受不带前缀的同名文件。模板维护文件（如 `01_投研需求说明模板.md`）保留目录内编号，不用于正式产出。
 
@@ -17,11 +29,11 @@
 ## 2. 02 模板
 
 - `02_研究逻辑模板.md` 正文即交付物：研究员语气写分析框架；ID 与判断单元映射只写在配对 YAML。
-- `02_判断结构与本体视图模板.yaml` 面向系统，保存 `task_context`、`quality_control`、`research_framework`、`judgment_units`、`path_design`、`ontology_bindings`、`instance_requirements`、`evidence_requirements`、`handoff_to_03` 和 `validation`。
+- `02_任务本体视图模板.yaml` 面向系统，是正式本体的任务切片和执行合同，必须同时保存 `semantic_scope`、`evidence_contract`、`reasoning_plan`，并继续保存问题树、判断单元、路径、实例和证据要求。
 - 正式文件分别命名为 `02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md` 和 `02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml`；两者必须使用相同主题、日期和序号。缺口说明为 `02-<核心主题>本体缺口说明-<YYYYMMDD>-<当日序号>.md`。
 - 两份产物必须共享任务身份和逻辑 ID，并完成双向定位；技术校验统一保存在本体视图 YAML 的 `validation` 中，不进入研究逻辑正文。
 - 02 选中的每个关键变量都必须完成“传导环节—状态绑定—观测需求—evidence profile”链，并由 `state_variable_chain_complete` 控制是否允许进入 03。
-- `02_本体缺口说明模板.md` 只诊断缺失的判断能力、原因和影响，不直接确定正式本体应新增什么；它不替代 02 配对产物，也不是数据证据准备的输入。
+- `通用_本体候选与缺口模板.yaml` 可由 02、03、04 使用，记录语义、证据或推理域候选；候选不得自动修改正式本体。原有缺口说明 Markdown 可继续用于研究员可读诊断。
 - `validate_02_gap_note.py` 校验可选的本体缺口说明；可附带配对研究逻辑与本体视图做引用一致性检查。
 
 02 和 03 中形成的任务候选都不能写入正式领域本体。
@@ -29,7 +41,8 @@
 ## 3. 03 模板
 
 - `03_数据与证据准备模板.md` 正文说明证据把握与局限；门槛明细与 ID 映射只写在快照 CSV。
-- `03_数据与证据快照模板/` 保存同名快照摘要 Markdown 和根目录 11 张 CSV；`judgment_unit_readiness.csv` 以核心问题承接证据门槛和 `allowed_04_output`。
+- `03_跨域运行实例清单模板.yaml` 按 `semantic_domain`、`evidence_domain`、`reasoning_domain` 分组保存正式本体版本、02 视图版本与哈希、实例文件索引和跨域约束。
+- `03_数据与证据快照模板/` 在原有运行表之外增加 `source_documents.csv`、`evidence_claims.csv`、`evidence_facts.csv`、`evidence_relations.csv`、`evidence_assessments.csv`，形成 SourceDocument→EvidenceClaim→EvidenceFact 及 EvidenceAssessment 的规范化证据链；`evidence_records.csv` 暂作为兼容投影保留。
 - 正式文件命名为 `<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md` 和 `<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/`；校验器也接受可选的 `03-` 阶段前缀。
 - 03 准入状态为 `normal_pass`、`restricted_pass`、`incomplete_pass`、`failed`；低于 95% 且来源层级未耗尽时不得冻结准入。
 - `04_05_materials/` 等子目录用于 05 材料包，不替代根目录 CSV 契约。
@@ -37,7 +50,7 @@
 ## 4. 04 模板
 
 - `04_推理报告模板.md` 面向研究员：§1—§6 为业务正文；§7 判断依据与局限；§8 质量门槛检查。
-- `04_推理审计模板.yaml` 面向系统复核，保存 `metadata`、`evidence_admission`、`judgment_unit_gate_results`、`claim_register`、`change_gate_register`、`report_quality_check` 等机器字段。
+- `04_推理域运行实例与审计模板.yaml` 同时是推理域运行实例文件；除原有审计字段外，必须保存 `hypotheses`、`signals`、`rule_evaluations`、`judgments`、`reasoning_traces`。
 - 正式文件命名为 `<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md` 和 `<核心主题>推理审计-<YYYYMMDD>-<当日序号>.yaml`；校验器也接受可选的 `04-` 阶段前缀。
 - `validate_04_outputs.py` 检查报告/审计/03 快照配对、观点未越 03 上限、正文禁用词和审计质量检查。
 
@@ -65,8 +78,8 @@
 | `validate_01_rejection.py` | 01 不予受理说明 | 否 | 超范围任务的独立出口 |
 | `validate_02_outputs.py` | 02 研究逻辑 + 本体视图 | 是 | 配对一致性、问题树/路径/证据链 |
 | `validate_02_gap_note.py` | 02 本体缺口说明（可选） | 否 | 不阻断主链；维护者复核用 |
-| `validate_03_outputs.py` | 03 准备 + 快照 | 是 | 含 11 张 CSV；内部调用 `validate_05_materials` |
-| `validate_04_outputs.py` | 04 报告 + 审计 + 03 快照 | 是 | 观点强度上限、§1—§6 禁用词 |
+| `validate_03_outputs.py` | 03 准备 + 跨域运行实例清单 + 快照 | 是 | 校验语义实例、来源—主张—事实链、证据评价和冻结推理输入 |
+| `validate_04_outputs.py` | 04 报告 + 推理实例审计 + 03 快照 | 是 | 校验 02 规则、03 输入和假设—信号—规则评价—判断—留痕链 |
 | `validate_05_outputs.py` | 05 研究员交付 | 是（有 05 产物时） | 无 YAML；首页/尾部功能节、论点章数量、合规声明 |
 | `validate_05_materials.py` | 03 快照内成稿素材 | 间接（经 03；发布时 05 存在则再检） | 可单独运行 |
 | `validate_publish.py` | 全链 01—05 | — | 三元组、`task_id`/`execution_id`、发布门槛 |

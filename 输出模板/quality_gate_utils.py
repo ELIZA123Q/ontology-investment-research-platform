@@ -15,6 +15,7 @@ QUALITY_STATUSES = {
     "minimum_pass",
     "high_quality_pass",
     "return_required",
+    "stop_with_gap_report",
 }
 
 DETERMINISTIC_CHECK_STATUSES = {"not_checked", "checked", "failed"}
@@ -38,16 +39,36 @@ ADMISSIONS = {
 }
 
 
-ALLOWED_04_OUTPUTS = {
-    "full_reasoning_ready",
-    "directional_only",
-    "conditional_only",
-    "insufficient",
-    "blocked",
-    "contested",
+JUDGMENT_LEVELS = {"J0", "J1", "J2", "J3", "J4"}
+JUDGMENT_LABELS = {
+    "J0": "暂不可判断",
+    "J1": "观察",
+    "J2": "方向判断",
+    "J3": "高概率",
+    "J4": "确认",
+}
+REASONING_READINESS = {"full_reasoning_ready", "restricted_reasoning_ready", "insufficient"}
+CLAIM_MODES = {"unconditional", "conditional"}
+JUDGMENT_STATUSES = {"normal", "weakened", "contested"}
+PATH_STATUSES = {"active", "blocked"}
+TARGET_CLAIM_TYPES = {
+    "historical_fact",
+    "current_state",
+    "causal_inference",
+    "directional_outlook",
+    "forecast",
+    "conditional_scenario",
+}
+J4_ELIGIBLE_CLAIM_TYPES = {"historical_fact", "current_state"}
+SOURCE_AUTHORITY_LEVELS = {
+    "primary",
+    "authoritative_secondary",
+    "informed_secondary",
+    "indirect",
+    "unknown",
 }
 
-CORE_JU_PUBLISH_FLOOR = "conditional_only"
+CORE_JU_PUBLISH_FLOOR = "J2"
 
 RETURN_STAGES = ("01", "02", "03", "04", "05")
 
@@ -251,20 +272,37 @@ def validate_admission(value: Any, label: str) -> None:
         fail(f"{label}.admission 非法: {value}")
 
 
-def validate_allowed_04_output(value: Any, label: str) -> None:
-    if str(value) not in ALLOWED_04_OUTPUTS:
-        fail(f"{label}.allowed_04_output 非法: {value}")
+def validate_judgment_level(value: Any, label: str) -> None:
+    if str(value) not in JUDGMENT_LEVELS:
+        fail(f"{label}.judgment_level 非法: {value}")
 
 
-def output_rank(value: str) -> int:
-    return {
-        "blocked": 0,
-        "insufficient": 1,
-        "contested": 1,
-        "conditional_only": 2,
-        "directional_only": 3,
-        "full_reasoning_ready": 4,
-    }.get(value, -1)
+def judgment_level_rank(value: str) -> int:
+    return {"J0": 0, "J1": 1, "J2": 2, "J3": 3, "J4": 4}.get(value, -1)
+
+
+def validate_target_claim_level(target_claim_type: Any, level: Any, label: str) -> None:
+    target = str(target_claim_type)
+    if target not in TARGET_CLAIM_TYPES:
+        fail(f"{label}.target_claim_type 非法: {target_claim_type}")
+    validate_judgment_level(level, label)
+    if str(level) == "J4" and target not in J4_ELIGIBLE_CLAIM_TYPES:
+        fail(f"{label}: {target} 属于推断或前瞻主张，不得达到 J4")
+
+
+def validate_orthogonal_states(
+    *,
+    reasoning_readiness: Any,
+    claim_mode: Any,
+    judgment_status: Any,
+    label: str,
+) -> None:
+    if str(reasoning_readiness) not in REASONING_READINESS:
+        fail(f"{label}.reasoning_readiness 非法: {reasoning_readiness}")
+    if str(claim_mode) not in CLAIM_MODES:
+        fail(f"{label}.claim_mode 非法: {claim_mode}")
+    if str(judgment_status) not in JUDGMENT_STATUSES:
+        fail(f"{label}.judgment_status 非法: {judgment_status}")
 
 
 RESEARCHER_BODY_MARKERS = [
@@ -273,7 +311,9 @@ RESEARCHER_BODY_MARKERS = [
     "state_variable_id",
     "requirement_id |",
     "path_readiness",
-    "allowed_04_output",
+    "maximum_judgment_level",
+    "actual_judgment_level",
+    "expression_judgment_level",
     "二元开关",
     "定向且可执行",
     "定向可执行",
@@ -314,7 +354,7 @@ def validate_researcher_body(body: str, label: str) -> None:
 
 
 def meets_core_ju_publish_floor(value: str) -> bool:
-    return output_rank(value) >= output_rank(CORE_JU_PUBLISH_FLOOR)
+    return judgment_level_rank(value) >= judgment_level_rank(CORE_JU_PUBLISH_FLOOR)
 
 
 def validate_core_ju_publish_baseline(
@@ -329,19 +369,19 @@ def validate_core_ju_publish_baseline(
     if not judgment_unit_rows:
         fail(f"{label}: judgment_unit_readiness.csv 为空，无法校验核心判断单元发布底线")
 
-    outputs: list[str] = []
+    levels: list[str] = []
     for row in judgment_unit_rows:
         ju_id = row.get("judgment_unit_id", "")
-        output = str(row.get("allowed_04_output", ""))
-        validate_allowed_04_output(output, f"{label} judgment_unit_readiness#{ju_id}")
-        outputs.append(output)
+        level = str(row.get("maximum_judgment_level", ""))
+        validate_judgment_level(level, f"{label} judgment_unit_readiness#{ju_id}")
+        levels.append(level)
 
     admission_text = str(admission)
     if admission_text not in PASSING_ADMISSIONS:
         return
 
-    if not any(meets_core_ju_publish_floor(output) for output in outputs):
+    if not any(meets_core_ju_publish_floor(level) for level in levels):
         fail(
             f"{label}: quality_status=high_quality_pass 且 admission={admission_text} 时，"
-            "至少 1 个核心判断单元 allowed_04_output 必须达到 conditional_only 及以上"
+            "至少 1 个核心判断单元 maximum_judgment_level 必须达到 J2 及以上"
         )

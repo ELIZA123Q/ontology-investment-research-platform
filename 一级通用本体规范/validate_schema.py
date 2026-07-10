@@ -195,10 +195,10 @@ class Validator:
         evidence = self.schemas["evidence.yaml"]
 
         expected_versions = {
-            "common.yaml": "1.0.0",
+            "common.yaml": "2.0.0",
             "semantic.yaml": "1.0.0",
-            "evidence.yaml": "1.0.0",
-            "reasoning.yaml": "1.0.0",
+            "evidence.yaml": "2.0.0",
+            "reasoning.yaml": "2.0.0",
         }
         for name, version in expected_versions.items():
             if self.schemas[name].get("schema_version") != version:
@@ -234,8 +234,11 @@ class Validator:
             "validationUsesOutcome",
             "validationReferencesTrace",
         )
-        if "ValidationRecord" not in reasoning.get("object_types", {}):
-            self.error("reasoning.yaml missing ValidationRecord")
+        for object_id in ("RuleEvaluation", "ValidationRecord"):
+            if object_id not in reasoning.get("object_types", {}):
+                self.error(f"reasoning.yaml missing {object_id}")
+        if "EvidenceAssessment" not in evidence.get("object_types", {}):
+            self.error("evidence.yaml missing EvidenceAssessment")
         for relation_id in expected_reasoning_relations:
             if relation_id not in reasoning.get("relation_types", {}):
                 self.error(f"reasoning.yaml missing {relation_id}")
@@ -245,9 +248,6 @@ class Validator:
             self.error("FormHypothesis must not require prior evidence")
         if "hypothesis_falsifiability_required" not in hypothesis_action.get("rule_refs", []):
             self.error("FormHypothesis must enforce falsifiability")
-        if "RuleEvaluation" in reasoning.get("object_types", {}):
-            self.error("RuleEvaluation must remain transient, not an object type")
-
         for relation_id in ("claimAbout", "factAbout"):
             targets = evidence.get("relation_types", {}).get(relation_id, {}).get("target_types", [])
             if "StateVariable" in targets:
@@ -486,7 +486,7 @@ class Validator:
                 if not dependency_path.exists():
                     self.error(f"{path.relative_to(WORKSPACE)} missing dependency: {dependency}")
 
-        template = load_yaml(WORKSPACE / "输出模板" / "02_判断结构与本体视图模板.yaml")
+        template = load_yaml(WORKSPACE / "输出模板" / "02_任务本体视图模板.yaml")
         domain = template.get("ontology_sources", {}).get("domain_ontology", {})
         if domain.get("version") != "1.0.0":
             self.error("output template domain_ontology.version expected 1.0.0")

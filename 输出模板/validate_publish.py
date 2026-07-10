@@ -37,6 +37,7 @@ class RunArtifacts:
     report: Path | None = None
     audit: Path | None = None
     deliverable: Path | None = None
+    expression_audit: Path | None = None
 
 
 def _pick_optional(matches: list[Path], label: str) -> Path | None:
@@ -119,6 +120,11 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
             "04 推理审计",
         ),
         deliverable=deliverable,
+        expression_audit=_glob_one(
+            run_dir,
+            ["05-*表达审计-*.yaml", "*表达审计-*.yaml"],
+            "05 表达审计",
+        ),
     )
 
 
@@ -151,6 +157,8 @@ def _collect_run_triplets(artifacts: RunArtifacts) -> dict[str, tuple[str, str, 
             if kind in artifacts.deliverable.name:
                 triplets["05"] = parse_triplet(artifacts.deliverable, kind, stage="05")
                 break
+    if artifacts.expression_audit:
+        triplets["05-audit"] = parse_triplet(artifacts.expression_audit, "表达审计", stage="05")
     return triplets
 
 
@@ -202,6 +210,12 @@ def _validate_task_identity(artifacts: RunArtifacts) -> list[str]:
     if artifacts.audit:
         audit = load_yaml_file(artifacts.audit)
         metadata = audit.get("metadata", {})
+        if isinstance(metadata, dict):
+            task_ids.append(str(metadata.get("task_id", "")))
+            execution_ids.append(str(metadata.get("execution_id", "")))
+    if artifacts.expression_audit:
+        expression_audit = load_yaml_file(artifacts.expression_audit)
+        metadata = expression_audit.get("metadata", {})
         if isinstance(metadata, dict):
             task_ids.append(str(metadata.get("task_id", "")))
             execution_ids.append(str(metadata.get("execution_id", "")))
@@ -283,6 +297,12 @@ def _artifact_return_meta(artifacts: RunArtifacts) -> list[dict[str, Any]]:
                 }
             )
 
+    if artifacts.expression_audit:
+        expression_audit = load_yaml_file(artifacts.expression_audit)
+        metadata = expression_audit.get("metadata")
+        if isinstance(metadata, dict):
+            items.append({"stage": "05", "label": str(artifacts.expression_audit), "meta": metadata})
+
     return items
 
 
@@ -309,6 +329,8 @@ def validate_publish(run_dir: str | Path, *, through: str = "05", require_publis
 
     if through == "05" and not artifacts.deliverable:
         errors.append("05 产物缺失")
+    if through == "05" and not artifacts.expression_audit:
+        errors.append("05 表达审计缺失")
 
     if artifacts.requirement:
         try:
@@ -353,11 +375,19 @@ def validate_publish(run_dir: str | Path, *, through: str = "05", require_publis
         if stages["04"]["status"] == "missing":
             errors.append("04 产物缺失")
 
-    if artifacts.deliverable and stages.get("04", {}).get("status") == "pass":
+    if artifacts.deliverable and artifacts.expression_audit and artifacts.audit and stages.get("04", {}).get("status") == "pass":
         for kind in KNOWN_DELIVERY_KINDS:
             if kind in artifacts.deliverable.name:
                 try:
-                    stages["05"] = {"status": "pass", "details": validate_05(artifacts.deliverable, kind)}
+                    stages["05"] = {
+                        "status": "pass",
+                        "details": validate_05(
+                            artifacts.deliverable,
+                            kind,
+                            artifacts.expression_audit,
+                            artifacts.audit,
+                        ),
+                    }
                 except Exception as exc:
                     stages["05"] = {"status": "fail", "error": str(exc)}
                     errors.append(f"05: {exc}")

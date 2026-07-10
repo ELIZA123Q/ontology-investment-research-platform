@@ -60,12 +60,14 @@ inheritance:
       - ExpectationGap
       - AssetImpact
       - Scenario
+      - RuleEvaluation
       - ReasoningTrace
       - ValidationRecord
     evidence_objects:
       - SourceDocument
       - EvidenceClaim
       - EvidenceFact
+      - EvidenceAssessment
   platform_rules_reused:
     - 类型与实例分离
     - 稳定结构与动态状态分离
@@ -177,7 +179,7 @@ quality_gates:
     - 传导模板 28 条，含锚点对齐、方向逻辑、证据 profile 和默认竞争解释。
     - base、upside、downside、stress 四类结果情景与九类业务场景标签均有验证点和证伪点。
   evidence:
-    - 12 类证据 profile；变量绑定由推理域单向引用。
+    - 12 类证据 profile；变量绑定由推理域单向引用，单次 profile 使用结果由一级 EvidenceAssessment 承接。
     - 高误判变量具备最低证据覆盖规则。
     - 支持证据、反证、竞争解释、时间匹配和来源独立性均有约束。
 

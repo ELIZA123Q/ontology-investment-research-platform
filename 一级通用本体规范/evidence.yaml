@@ -1,5 +1,5 @@
 schema_name: ontology_evidence
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 depends_on: [common.yaml, semantic.yaml]
 description: 证据域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
@@ -54,6 +54,23 @@ object_types:
       factConfidence: {type: enum, required: true, allowed_values: [low, medium, high], description: 事实候选可信度。}
       status: {type: enum, required: true, allowed_values: [candidate, active, conflicted, invalidated, superseded], description: 事实候选生命周期状态。}
       createdAt: {type: datetime, required: true, description: 事实候选形成时间。}
+  EvidenceAssessment:
+    id: EvidenceAssessment
+    name: 证据使用评价
+    description: 在特定任务、证据 profile、研究范围和判断单元下，对一组证据能否用于本次推理的评价记录；不改变原证据状态。
+    primary_key: id
+    title_property: id
+    validity: false
+    properties:
+      evaluatedAt: {type: datetime, required: true, description: 评价时间。}
+      profileRef: {type: string, required: true, description: 本次采用的正式 evidence profile 标识。}
+      assessmentScope: {type: string, required: true, description: 评价适用的时间、对象、口径和用途范围。}
+      usability: {type: enum, required: true, allowed_values: [usable, restricted, insufficient, blocked], description: 本次任务中的证据可用状态。}
+      qualityLevel: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 在本次范围内的证据质量。}
+      rationale: {type: string, required: true, description: 支持、反面、冲突、缺口和范围限制的业务说明。}
+      evidenceRefs: {type: array, required: true, description: 被评价的来源、主张或事实引用。}
+      judgmentUnitRefs: {type: array, required: true, description: 本次评价服务的判断单元。}
+      gapRefs: {type: array, required: true, description: 影响本次可用性的缺口引用。}
 
 relation_types:
   claimCitesSource:
@@ -146,6 +163,17 @@ relation_types:
     same_type_required: true
     properties:
       invalidationReason: {type: string, required: true, description: 失效原因。}
+  assessmentEvaluatesEvidence:
+    id: assessmentEvaluatesEvidence
+    name: 评价涉及证据
+    description: 证据使用评价指向本次被评价的来源、主张或事实。
+    source_types: [EvidenceAssessment]
+    target_types: [SourceDocument, EvidenceClaim, EvidenceFact]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties:
+      assessmentRole: {type: enum, required: true, allowed_values: [support, counter, conflict, context], description: 该证据在评价中的作用。}
 
 action_types:
   RegisterSource:
@@ -239,6 +267,19 @@ action_types:
     function_ref: null
     logic_refs: [ConflictHandlingLogic]
     write_scope: [EvidenceClaim, EvidenceFact, invalidates]
+  AssessEvidenceForUse:
+    id: AssessEvidenceForUse
+    name: 评价证据是否可用于本次判断
+    description: 按正式 evidence profile、任务范围、支持与反面证据以及缺口，生成本次运行的证据使用评价。
+    target_types: [EvidenceAssessment]
+    parameters: [profileRef, assessmentScope, evidenceRefs, judgmentUnitRefs, gapRefs]
+    preconditions: [证据引用可追溯, profileRef 可解析]
+    effects: [create_EvidenceAssessment, create_assessmentEvaluatesEvidence]
+    outputs: [EvidenceAssessment]
+    rule_refs: [assessment_requires_evidence]
+    function_ref: null
+    logic_refs: [EvidenceAssessmentLogic]
+    write_scope: [EvidenceAssessment, assessmentEvaluatesEvidence]
 
 functions:
   ExtractClaims:
@@ -354,6 +395,18 @@ logic_flows:
       - {id: calculate_freshness, function_ref: CalculateEvidenceFreshness}
     outputs: [freshness]
     fallback: 时间缺失时降低可信度。
+  EvidenceAssessmentLogic:
+    id: EvidenceAssessmentLogic
+    name: 证据使用评价逻辑
+    description: 按任务范围和 evidence profile 检查支持、反面、冲突、时间与口径，形成不覆盖原证据的可用性评价。
+    inputs: [profileRef, assessmentScope, evidenceRefs, judgmentUnitRefs, gapRefs]
+    steps:
+      - {id: validate_evidence_refs, rule_refs: [assessment_requires_evidence]}
+      - {id: preserve_conflicts, rule_refs: [conflict_preservation]}
+      - {id: check_freshness, function_ref: CalculateEvidenceFreshness}
+      - {id: record_contextual_result, uses: [assessmentEvaluatesEvidence]}
+    outputs: [EvidenceAssessment]
+    fallback: 引用、范围或 profile 无法解析时输出 insufficient 或 blocked，不修改原证据。
 
 rules:
   source_traceability:
@@ -426,3 +479,13 @@ rules:
     result: 允许新鲜度评价。
     priority: 80
     failure_handling: lower_confidence
+  assessment_requires_evidence:
+    id: assessment_requires_evidence
+    name: 证据使用评价必须有可追溯对象
+    description: 每项 EvidenceAssessment 至少引用一项可解析证据，并记录 profile、范围和判断单元。
+    rule_type: validation
+    applies_to: [EvidenceAssessment, assessmentEvaluatesEvidence]
+    condition: evidenceRefs 非空，且每项引用均存在对应 assessmentEvaluatesEvidence；profileRef、assessmentScope、judgmentUnitRefs 非空。
+    result: 允许证据使用评价进入本次推理输入。
+    priority: 100
+    failure_handling: reject_assessment

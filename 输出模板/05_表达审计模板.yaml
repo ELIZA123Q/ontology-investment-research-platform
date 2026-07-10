@@ -1,0 +1,48 @@
+document_type: delivery_expression_audit
+schema_version: 2.0.0
+
+metadata:
+  task_id: ""
+  execution_id: ""
+  delivery_ref: "05-<核心主题>主题深度研究-<YYYYMMDD>-<当日序号>.md"
+  source_04_report_ref: "04-<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md"
+  source_04_audit_ref: "04-<核心主题>推理审计-<YYYYMMDD>-<当日序号>.yaml"
+  audit_status: draft
+  quality_status: draft
+  quality_gate_ref: "00A_高质量产出判别标准.md#5.5"
+  deterministic_check_status: not_checked
+  semantic_review_status: not_reviewed
+
+claim_expression_register:
+  - expression_id: EX-01
+    source_claim_id: C-01
+    location_kind: report_title
+    section: "标题"
+    expression_text: ""
+    source_actual_judgment_level: J0
+    expression_judgment_level: J0
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+
+high_risk_section_coverage:
+  report_title: false
+  investment_points: false
+  conclusion_overview: false
+  section_headings: false
+  paragraph_leads: false
+  chart_and_table_titles: false
+  summary_conclusions: false
+
+overall_check:
+  all_expressions_mapped_to_04_claims: false
+  no_expression_level_upgrade: false
+  no_condition_loss: false
+  no_scope_expansion: false
+  no_status_washing: false
+  semantic_review_complete: false
+  result: fail

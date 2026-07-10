@@ -7,8 +7,29 @@ import re
 import sys
 from pathlib import Path
 
-from quality_gate_utils import validate_researcher_body
-from validator_utils import error_payload, fail, ok_payload, parse_triplet, read_text, require_body_sections
+from quality_gate_utils import (
+    CLAIM_MODES,
+    JUDGMENT_LEVELS,
+    JUDGMENT_STATUSES,
+    judgment_level_rank,
+    validate_gate_review_fields,
+    validate_quality_status,
+    validate_researcher_body,
+)
+from validator_utils import (
+    error_payload,
+    fail,
+    file_name,
+    load_yaml_file,
+    ok_payload,
+    parse_triplet,
+    read_text,
+    require_body_sections,
+    require_keys,
+    require_schema_version,
+    same_ref,
+    split_refs,
+)
 
 KNOWN_DELIVERY_KINDS = {
     "主题深度研究",
@@ -69,6 +90,18 @@ FORBIDDEN_BODY_TERMS = [
 ]
 
 DISCLAIMER_MARKERS = ("不构成", "证券评级", "交易操作")
+AUDIT_STATUSES = {"draft", "complete", "published"}
+LOCATION_KINDS = {
+    "report_title",
+    "subtitle",
+    "investment_point",
+    "conclusion_overview",
+    "section_heading",
+    "paragraph_lead",
+    "chart_title",
+    "table_title",
+    "summary_conclusion",
+}
 
 
 def _header_text(body: str) -> str:
@@ -125,8 +158,166 @@ def _validate_body(path: Path, body: str) -> None:
             fail(f"05 正文不得包含投资建议或评级用语: {marker}")
 
 
-def validate(path: str | Path, delivery_kind: str) -> dict[str, object]:
+def _validate_expression_audit(
+    path: Path,
+    body: str,
+    expression_audit_path: Path,
+    source_04_audit_path: Path,
+) -> dict[str, object]:
+    audit = load_yaml_file(expression_audit_path)
+    source_audit = load_yaml_file(source_04_audit_path)
+    if not isinstance(audit, dict) or not isinstance(source_audit, dict):
+        fail("05 表达审计和 04 推理审计必须是 YAML 对象")
+    require_keys(audit, ["document_type", "schema_version", "metadata", "claim_expression_register", "high_risk_section_coverage", "overall_check"], str(expression_audit_path))
+    require_schema_version(audit["schema_version"], str(expression_audit_path), expected="2.0.0")
+    if audit["document_type"] != "delivery_expression_audit" or str(audit["schema_version"]) != "2.0.0":
+        fail("05 表达审计必须使用 delivery_expression_audit / 2.0.0")
+    metadata = audit["metadata"]
+    require_keys(metadata, ["task_id", "execution_id", "delivery_ref", "source_04_report_ref", "source_04_audit_ref", "audit_status", "quality_status", "quality_gate_ref", "deterministic_check_status", "semantic_review_status"], "05 audit.metadata")
+    if metadata["audit_status"] not in AUDIT_STATUSES:
+        fail("05 audit.metadata.audit_status 非法")
+    validate_quality_status(metadata["quality_status"], "05 audit.metadata")
+    validate_gate_review_fields(metadata, "05 audit.metadata")
+    if not same_ref(metadata["delivery_ref"], file_name(path)):
+        fail("05 audit.metadata.delivery_ref 必须指向配对交付物")
+    if not same_ref(metadata["source_04_audit_ref"], file_name(source_04_audit_path)):
+        fail("05 audit.metadata.source_04_audit_ref 必须指向 04 推理审计")
+
+    source_metadata = source_audit.get("metadata", {})
+    if not same_ref(metadata["source_04_report_ref"], source_metadata.get("report_ref")):
+        fail("05 audit.metadata.source_04_report_ref 必须与 04 审计 report_ref 一致")
+    for field in ["task_id", "execution_id"]:
+        if not same_ref(metadata[field], source_metadata.get(field)):
+            fail(f"05/04 audit {field} 必须一致")
+    source_claims = {
+        str(item["claim_id"]): item
+        for item in source_audit.get("claim_register", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    expressions = audit["claim_expression_register"]
+    if not isinstance(expressions, list) or not expressions:
+        fail("claim_expression_register 至少需要一项")
+    title_match = re.search(r"^#\s+(.+)$", body, re.MULTILINE)
+    report_title = title_match.group(1).strip() if title_match else ""
+    title_registered = False
+    for item in expressions:
+        require_keys(item, ["expression_id", "source_claim_id", "location_kind", "section", "expression_text", "source_actual_judgment_level", "expression_judgment_level", "claim_mode", "conditions", "conditions_preserved", "judgment_status", "status_preserved", "scope_relation", "semantic_strength_review"], "claim_expression_register[]")
+        label = f"claim_expression_register#{item['expression_id']}"
+        claim_id = str(item["source_claim_id"])
+        if claim_id not in source_claims:
+            fail(f"{label}.source_claim_id 未在 04 claim_register 中定义")
+        source_claim = source_claims[claim_id]
+        if item["location_kind"] not in LOCATION_KINDS:
+            fail(f"{label}.location_kind 非法")
+        expression_text = str(item["expression_text"]).strip()
+        if not expression_text or expression_text not in body:
+            fail(f"{label}.expression_text 必须可在 05 正文中精确定位")
+        if item["location_kind"] == "report_title" and expression_text == report_title:
+            title_registered = True
+        source_level = str(source_claim["actual_judgment_level"])
+        expression_level = str(item["expression_judgment_level"])
+        if source_level not in JUDGMENT_LEVELS or expression_level not in JUDGMENT_LEVELS:
+            fail(f"{label} 判断等级非法")
+        if str(item["source_actual_judgment_level"]) != source_level:
+            fail(f"{label}.source_actual_judgment_level 必须继承 04")
+        if judgment_level_rank(expression_level) > judgment_level_rank(source_level):
+            fail(f"{label}: 05 表达等级 {expression_level} 超过 04 实际等级 {source_level}")
+        if item["claim_mode"] not in CLAIM_MODES or item["claim_mode"] != source_claim["claim_mode"]:
+            fail(f"{label}.claim_mode 必须继承 04")
+        if set(split_refs(item["conditions"])) != set(split_refs(source_claim.get("conditions"))):
+            fail(f"{label}.conditions 必须完整继承 04")
+        if item["conditions_preserved"] is not True:
+            fail(f"{label}.conditions_preserved 必须为 true")
+        if item["judgment_status"] not in JUDGMENT_STATUSES or item["judgment_status"] != source_claim["judgment_status"]:
+            fail(f"{label}.judgment_status 必须继承 04")
+        if item["status_preserved"] is not True:
+            fail(f"{label}.status_preserved 必须为 true")
+        if item["scope_relation"] not in {"same", "narrower"}:
+            fail(f"{label}.scope_relation 只能是 same 或 narrower")
+        if item["semantic_strength_review"] != "pass":
+            fail(f"{label}.semantic_strength_review 必须为 pass")
+    if not title_registered:
+        fail("05 主标题必须登记到 claim_expression_register")
+
+    def section_text(section_name: str) -> str:
+        marker = f"## {section_name}"
+        if marker not in body:
+            return ""
+        remainder = body.split(marker, 1)[1]
+        return remainder.split("\n## ", 1)[0]
+
+    def require_registered_fragments(
+        fragments: list[str],
+        *,
+        location_kind: str,
+        label: str,
+    ) -> None:
+        registered = [
+            str(item["expression_text"]).strip()
+            for item in expressions
+            if item.get("location_kind") == location_kind
+        ]
+        for fragment in fragments:
+            if not any(text and text in fragment for text in registered):
+                fail(f"{label} 未逐条登记到 claim_expression_register: {fragment}")
+
+    investment_lines = [
+        line.strip()
+        for line in section_text("投资要点").splitlines()
+        if re.match(r"^-\s+\*\*.+?\*\*", line.strip())
+    ]
+    require_registered_fragments(
+        investment_lines,
+        location_kind="investment_point",
+        label="05 投资要点",
+    )
+
+    overview_rows: list[str] = []
+    for line in section_text("核心结论概览").splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or "---" in stripped:
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
+        if len(cells) >= 2 and cells[0] != "项目":
+            overview_rows.append(cells[1])
+    require_registered_fragments(
+        overview_rows,
+        location_kind="conclusion_overview",
+        label="05 核心结论概览",
+    )
+
+    argument_headings = [
+        match.group(1).strip()
+        for match in re.finditer(r"^##\s+[一二三四五]、(.+)$", body, re.MULTILINE)
+    ]
+    require_registered_fragments(
+        argument_headings,
+        location_kind="section_heading",
+        label="05 论点章节标题",
+    )
+
+    coverage = audit["high_risk_section_coverage"]
+    for key in ["report_title", "investment_points", "conclusion_overview", "section_headings", "paragraph_leads", "chart_and_table_titles", "summary_conclusions"]:
+        if coverage.get(key) is not True:
+            fail(f"high_risk_section_coverage.{key} 必须为 true")
+    overall = audit["overall_check"]
+    for key in ["all_expressions_mapped_to_04_claims", "no_expression_level_upgrade", "no_condition_loss", "no_scope_expansion", "no_status_washing", "semantic_review_complete"]:
+        if overall.get(key) is not True:
+            fail(f"overall_check.{key} 必须为 true")
+    if overall.get("result") != "pass":
+        fail("overall_check.result 必须为 pass")
+    return {"expressions": len(expressions), "task_id": metadata["task_id"], "execution_id": metadata["execution_id"]}
+
+
+def validate(
+    path: str | Path,
+    delivery_kind: str,
+    expression_audit_path: str | Path,
+    source_04_audit_path: str | Path,
+) -> dict[str, object]:
     path = Path(path)
+    expression_audit_path = Path(expression_audit_path)
+    source_04_audit_path = Path(source_04_audit_path)
     if delivery_kind not in KNOWN_DELIVERY_KINDS:
         fail(f"未知 05 交付形态: {delivery_kind}")
     topic, date, seq = parse_triplet(path, delivery_kind, stage="05")
@@ -134,23 +325,28 @@ def validate(path: str | Path, delivery_kind: str) -> dict[str, object]:
     if body.startswith("---"):
         fail(f"{path} 05 交付物不使用 YAML front matter，正文应从标题开始")
     _validate_body(path, body)
+    audit_triplet = parse_triplet(expression_audit_path, "表达审计", stage="05")
+    if audit_triplet != (topic, date, seq):
+        fail("05 交付物与表达审计的主题、日期、序号必须一致")
+    audit_result = _validate_expression_audit(path, body, expression_audit_path, source_04_audit_path)
     return {
-        "schema_version": "1.0.0",
+        "schema_version": "2.0.0",
         "delivery_kind": delivery_kind,
         "topic": topic,
         "date": date,
         "seq": seq,
         "path": str(path),
         "argument_chapters": _count_argument_chapters(body),
+        "expressions": audit_result["expressions"],
     }
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 3:
-        print("usage: validate_05_outputs.py <05交付文件.md> <交付形态>")
+    if len(argv) != 5:
+        print("usage: validate_05_outputs.py <05交付文件.md> <交付形态> <05表达审计.yaml> <04推理审计.yaml>")
         return 2
     try:
-        print(ok_payload(**validate(argv[1], argv[2])))
+        print(ok_payload(**validate(argv[1], argv[2], argv[3], argv[4])))
         return 0
     except Exception as exc:
         print(error_payload(exc))

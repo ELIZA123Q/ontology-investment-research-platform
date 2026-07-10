@@ -1,0 +1,249 @@
+document_type: reasoning_audit
+schema_version: 1.0.0
+
+metadata:
+  task_id: ""
+  execution_id: ""
+  judgment_as_of: ""
+  report_ref: "04-<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md"
+  source_01_ref: "01-<核心主题>投研需求说明-<YYYYMMDD>-<当日序号>.md"
+  source_02_logic_ref: "02-<核心主题>研究逻辑-<YYYYMMDD>-<当日序号>.md"
+  source_02_view_ref: "02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml"
+  preparation_ref: "03-<核心主题>数据与证据准备-<YYYYMMDD>-<当日序号>.md"
+  snapshot_ref: "03-<核心主题>数据与证据快照-<YYYYMMDD>-<当日序号>/manifest.csv"
+  audit_status: draft
+  quality_gate_ref: "00A_高质量产出判别标准.md#5.4"
+  quality_status: draft
+
+input_integrity:
+  task_id_consistent: false
+  execution_id_consistent: false
+  scope_consistent: false
+  source_refs_resolvable: false
+  no_unfrozen_evidence_used: false
+  no_new_path_or_rule_created: false
+  issues: []
+
+evidence_admission:
+  admission: failed
+  evidence_quality_level: low
+  coverage_unit_total: 0
+  evidence_backed_unit_count: 0
+  evidence_coverage_rate: 0.0
+  confidence_ceiling: low
+  allowed_scope: ""
+  blocked_coverage_refs: []
+  interpretation: "证据覆盖只表示变量—锚点的可追溯准入情况，不直接表示业务结论强度。"
+
+judgment_unit_gate_results:
+  - judgment_unit_id: JU-01
+    statement: ""
+    source_03_gate_ref: "judgment_unit_readiness.csv#JU-01"
+    evidence_gate_status: "<met | partial | not_met | contested | blocked>"
+    reasoning_readiness: "<full_reasoning_ready | restricted_reasoning_ready | insufficient>"
+    maximum_judgment_level: "<J0 | J1 | J2 | J3 | J4>"
+    judgment_status: "<normal | weakened | contested>"
+    required_evidence_refs: []
+    evidence_refs: []
+    counter_evidence_refs: []
+    competing_explanation_refs: []
+    main_limit: ""
+    effect_on_claims: []
+
+overall_judgment:
+  primary_claim_id: C-01
+  judgment_level: J0
+  confidence: low
+  statement: ""
+  scope:
+    time: ""
+    geography: ""
+    value_chain: ""
+    objects: []
+  downgrade_reasons: []
+
+claim_register:
+  - claim_id: C-01
+    report_section: "1"
+    reader_label: "暂不可判断"
+    statement: ""
+    scope: ""
+    time_horizon: ""
+    linked_judgment_unit: JU-01
+    target_claim_type: directional_outlook
+    source_maximum_judgment_level: J0
+    actual_judgment_level: J0
+    claim_mode: unconditional
+    conditions: []
+    judgment_status: normal
+    downgrade_reason: ""
+    strength_consistency_check: true
+    confidence: low
+    path_refs: []
+    state_variable_refs: []
+    evidence_refs: []
+    counter_evidence_refs: []
+    uncertainty_refs: []
+    competing_explanation_refs: []
+    invalidation_conditions: []
+    overreach_check:
+      within_03_judgment_limit: false
+      evidence_label_consistent: false
+      conditions_preserved: false
+      scope_not_expanded: false
+      no_unfrozen_fact_used: false
+
+uncertainty_register:
+  - uncertainty_id: U-01
+    tier: decisive
+    statement: ""
+    affects_claim_refs: [C-01]
+    current_gap: ""
+    observation_signal: ""
+    update_trigger: ""
+    judgment_change: ""
+    gap_refs: []
+
+change_gate_register:
+  - gate_id: GATE-01
+    report_section: "6"
+    baseline: ""
+    observation_variable: ""
+    trigger_condition: ""
+    source_or_metric: ""
+    judgment_change: "<enhance | weaken | block | revise>"
+    linked_claim_refs: []
+
+tracking_register:
+  - tracking_id: T-01
+    report_section: "7"
+    tracking_item: ""
+    serves_claim_ref: "C-01"
+    preferred_source: ""
+    frequency: ""
+    action_after_trigger: ""
+
+ontology_context:
+  ontology_refs: []
+  object_type_refs: []
+  relation_type_refs: []
+  event_refs: []
+  propagation_template_refs: []
+  rule_refs: []
+  candidate_structure_used: false
+  missing_ontology_items: []
+
+hypotheses:
+  - hypothesis_id: H-01
+    source_slot_ref: H-01
+    statement: ""
+    state_variable_refs: []
+    direction: uncertain
+    time_horizon: ""
+    falsification_conditions: []
+    signal_refs: []
+    evaluation_status: open
+
+signals:
+  - signal_id: SIG-01
+    statement: ""
+    role: "<support | catalyst | track | weaken | block>"
+    strength: "<low | medium | high>"
+    observed_at: ""
+    target_hypothesis_refs: [H-01]
+    input_refs: []
+    evidence_refs: []
+
+rule_evaluations:
+  - rule_evaluation_id: RE-01
+    rule_ref: ""
+    rule_version: ""
+    evaluated_at: ""
+    input_refs: []
+    evidence_refs: []
+    target_refs: [H-01]
+    condition_results: []
+    status: "<matched | not_matched | blocked | error>"
+    result_summary: ""
+    output_refs: []
+
+judgments:
+  - judgment_id: J-01
+    claim_id: C-01
+    statement: ""
+    hypothesis_refs: [H-01]
+    rule_evaluation_refs: [RE-01]
+    target_claim_type: current_state
+    judgment_level: J0
+    judgment_status: normal
+    claim_mode: unconditional
+    conditions: []
+    scope: {}
+    time_horizon: ""
+    confidence: low
+    uncertainty_refs: []
+
+reasoning_traces:
+  - trace_id: RT-01
+    judgment_ref: J-01
+    evaluated_at: ""
+    input_refs: []
+    rule_evaluation_refs: [RE-01]
+    steps: []
+    rule_refs: []
+    output_refs: [J-01]
+    status: complete
+
+path_results:
+  - path_id: ""
+    node_id: ""
+    node_name: ""
+    linked_judgment_units: []
+    status: insufficient_evidence
+    question: ""
+    input_refs: []
+    evidence_refs: []
+    counter_evidence_refs: []
+    competing_explanation_refs: []
+    result: ""
+    effect_on_claims: []
+
+state_variable_results:
+  - state_variable_id: ""
+    name: ""
+    linked_judgment_units: []
+    coverage_refs: []
+    observed_direction: ""
+    evidence_status: "<met | partial | not_met | contested | blocked>"
+    effect_on_path: ""
+    effect_on_claims: []
+
+data_logic:
+  metrics: []
+  formulas: []
+  scope_notes: []
+  time_lag_notes: []
+  known_limitations: []
+
+report_quality_check:
+  answer_first: false
+  one_page_summary_under_500_chars: false
+  core_landing_has_three_layers: false
+  claims_within_03_use_limits: false
+  claim_labels_match_evidence_strength: false
+  object_differentiation_clear: false
+  change_gates_observable: false
+  no_internal_ids_in_main_text: false
+  no_investment_advice: false
+  audit_report_consistent: false
+  result: "<pass | fail>"
+  return_required: false
+  return_stage: null
+  return_reasons: []
+
+compliance_check:
+  no_rating_target_price_return_forecast_or_position_advice: false
+  no_new_unfrozen_evidence: false
+  no_scope_drift: false
+  citations_or_evidence_refs_complete: false
+  publishable: false

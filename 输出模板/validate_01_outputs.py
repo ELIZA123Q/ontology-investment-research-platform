@@ -101,6 +101,18 @@ FORBIDDEN_STAGE_MARKERS = [
     "judgment_unit_readiness.csv",
     "allowed_04_output",
     "schema_name: task_ontology_view",
+    "ontology_ref",
+    "ontology_sources",
+    "object_type",
+    "relation_type",
+    "StateVariable",
+    "evidence_profile",
+    "propagation_template",
+    "inference_rule",
+    "本体",
+    "证据 profile",
+    "传导模板",
+    "推理规则",
 ]
 
 
@@ -126,9 +138,10 @@ def validate(path: str | Path) -> dict[str, object]:
 
     require_body_sections(body, REQUIRED_SECTIONS, str(path))
     validate_researcher_body(body, str(path))
+    full_text = path.read_text(encoding="utf-8-sig")
     for marker in FORBIDDEN_STAGE_MARKERS:
-        if marker in body:
-            fail(f"01 不得提前写入下游阶段字段或产物引用: {marker}")
+        if marker in full_text:
+            fail(f"01 只保存自然语言需求，不得写入本体或下游阶段字段: {marker}")
 
     return {
         "schema_version": "1.0.0",

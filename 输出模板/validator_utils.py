@@ -40,9 +40,10 @@ def as_version(value: Any) -> str:
     return str(value).strip().strip('"').strip("'")
 
 
-def require_schema_version(value: Any, label: str) -> None:
-    if as_version(value) != SCHEMA_VERSION:
-        fail(f"{label}.schema_version 必须为 {SCHEMA_VERSION}")
+def require_schema_version(value: Any, label: str, expected: str | None = None) -> None:
+    required = expected or SCHEMA_VERSION
+    if as_version(value) != required:
+        fail(f"{label}.schema_version 必须为 {required}")
 
 
 def read_text(path: str | Path) -> str:
