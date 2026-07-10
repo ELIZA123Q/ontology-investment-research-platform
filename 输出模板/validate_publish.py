@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from snapshot_layout_03 import SNAPSHOT_CSV_LAYOUT
+from snapshot_layout_03 import SNAPSHOT_CSV_LAYOUT, snapshot_csv_path
 from validator_utils import (
     error_payload,
     fail,
@@ -108,6 +108,7 @@ class RunArtifacts:
     report: Path | None = None
     audit: Path | None = None
     delivery: Path | None = None
+    expression_audit: Path | None = None
 
     def triplet(self) -> tuple[str, str, str] | None:
         if self.requirement is not None:
@@ -184,7 +185,7 @@ def _route_validator_error(stage: str, error: str) -> tuple[str, str, str]:
 
 
 def _snapshot_csv(snapshot_dir: Path, logical_name: str) -> list[dict[str, str]]:
-    return read_csv(snapshot_dir / SNAPSHOT_CSV_LAYOUT[logical_name])
+    return read_csv(snapshot_csv_path(snapshot_dir, logical_name))
 
 
 def _read_manifest_row(snapshot_dir: Path) -> dict[str, str]:
@@ -267,7 +268,16 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
     delivery_matches: list[Path] = []
     for kind in ARCHETYPE_NAME_MAP:
         delivery_matches.extend(run_dir.glob(f"05-*{kind}-*.md"))
-    delivery = _pick_optional(delivery_matches, "05 研报正文", run_dir)
+    expression_audit = _pick_optional(list(run_dir.glob("05-*表达审计-*.yaml")), "05 表达审计", run_dir)
+    delivery = None
+    if expression_audit is not None:
+        expression_meta = load_yaml_file(expression_audit).get("metadata", {})
+        delivery_ref = str(expression_meta.get("delivery_ref", "")).strip()
+        matched = [path for path in delivery_matches if same_ref(path.name, delivery_ref)]
+        if matched:
+            delivery = _pick_optional(matched, "05 研报正文", run_dir)
+    if delivery is None:
+        delivery = _pick_optional(delivery_matches, "05 研报正文", run_dir)
 
     return RunArtifacts(
         run_dir=run_dir,
@@ -279,6 +289,7 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
         report=report,
         audit=audit,
         delivery=delivery,
+        expression_audit=expression_audit,
     )
 
 
@@ -537,7 +548,6 @@ def _gate_03_snapshot_semantic(artifacts: RunArtifacts, items: list[ReworkItem])
     manifest = _read_manifest_row(artifacts.snapshot_dir)
 
     for label, left, right in [
-        ("manifest.return_required", manifest.get("return_required"), prep_meta.get("return_required")),
         ("manifest.return_stage", manifest.get("return_stage"), prep_meta.get("return_stage")),
         ("manifest.admission", manifest.get("admission"), prep_meta.get("admission")),
         ("manifest.task_id", manifest.get("task_id"), prep_meta.get("task_id")),
@@ -553,6 +563,10 @@ def _gate_03_snapshot_semantic(artifacts: RunArtifacts, items: list[ReworkItem])
                 affected_stage="03",
                 fix_hint="重新冻结快照，确保 manifest 与准备文档一致",
             )
+
+    if _truthy(manifest.get("return_required")) != _truthy(prep_meta.get("return_required")):
+        errors.append("03 快照 manifest 与准备文档不一致: manifest.return_required")
+        _append_rework(items, rule_id="03.manifest.sync", message=errors[-1], return_to="03", affected_stage="03")
 
     errors.extend(
         _check_return_block(
@@ -583,7 +597,7 @@ def _gate_03_snapshot_semantic(artifacts: RunArtifacts, items: list[ReworkItem])
     for row in gap_rows:
         return_action = row.get("return_action", "")
         return_target = _parse_return_action(return_action)
-        blocks = str(row.get("blocks_04_output", "")).strip().lower() in {"1", "true", "yes", "y"}
+        blocks = str(row.get("blocks_04_output") or row.get("blocks_reasoning") or "").strip().lower() in {"1", "true", "yes", "y"}
         gap_type = str(row.get("gap_type", "")).strip()
         if return_target and (blocks or gap_type in {"structure", "scope", "judgment_structure"}):
             message = f"03 缺口 {row.get('gap_id', '?')} 要求退回 {return_target}: {row.get('description', return_action)}"
@@ -856,7 +870,7 @@ def _gate_03_to_04(artifacts: RunArtifacts, items: list[ReworkItem]) -> list[str
     )
 
     handoff = audit.get("handoff_to_05", {})
-    if isinstance(handoff, dict):
+    if isinstance(handoff, dict) and handoff:
         if handoff.get("handoff_status") == "not_ready" and artifacts.delivery is not None:
             errors.append("04 handoff_status=not_ready，不得生成完整 05 研报")
             _append_rework(items, rule_id="04.handoff_status", message=errors[-1], return_to="04", affected_stage="05")
@@ -1058,7 +1072,7 @@ def _validate_stage_chain(
     if _stage_index(through) < 4:
         return results, rework_items
 
-    if artifacts.delivery is None:
+    if artifacts.delivery is None or artifacts.expression_audit is None:
         missing = _missing_result("05")
         results.append(missing)
         _record_stage_failures(rework_items, "05", missing.errors, return_to="04")
@@ -1074,10 +1088,9 @@ def _validate_stage_chain(
                 "05",
                 lambda: validate_05(
                     artifacts.delivery,
-                    artifacts.requirement,
+                    next(kind for kind in ARCHETYPE_NAME_MAP if kind in artifacts.delivery.name),
+                    artifacts.expression_audit,
                     artifacts.audit,
-                    artifacts.snapshot_dir,
-                    allow_minimum=allow_minimum,
                 ),
             )
             stage_result.quality_status = str(stage_result.details.get("quality_status", ""))
@@ -1139,7 +1152,13 @@ def validate_publish(
     through: str = "05",
     require_high_quality: bool = True,
     allow_minimum: bool = False,
+    require_publish_quality: bool | None = None,
 ) -> dict[str, Any]:
+    if isinstance(artifacts, (str, Path)):
+        artifacts = discover_artifacts(artifacts)
+    # 保留 2.0 迁移期 API；False 表示只要全链合规即可，不额外强制发布级质量。
+    if require_publish_quality is not None:
+        require_high_quality = require_publish_quality
     if through not in STAGE_ORDER:
         fail(f"--through 非法: {through}")
 
@@ -1212,7 +1231,7 @@ def _build_artifacts_from_args(args: argparse.Namespace) -> RunArtifacts:
         "02": args.logic and args.view,
         "03": args.preparation and args.snapshot_dir,
         "04": args.report and args.audit,
-        "05": args.delivery,
+        "05": args.delivery and args.expression_audit,
     }
     through_index = _stage_index(args.through)
     for stage in STAGE_ORDER[: through_index + 1]:
@@ -1231,6 +1250,7 @@ def _build_artifacts_from_args(args: argparse.Namespace) -> RunArtifacts:
         report=Path(args.report).resolve() if args.report else None,
         audit=Path(args.audit).resolve() if args.audit else None,
         delivery=Path(args.delivery).resolve() if args.delivery else None,
+        expression_audit=Path(args.expression_audit).resolve() if args.expression_audit else None,
     )
 
 
@@ -1252,6 +1272,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--report", help="04 推理报告路径")
     parser.add_argument("--audit", help="04 推理审计路径")
     parser.add_argument("--delivery", help="05 研报正文路径")
+    parser.add_argument("--expression-audit", help="05 表达审计 YAML 路径")
     parser.add_argument("--run-dir", dest="run_dir_explicit", help="显式模式下的运行根目录")
     args = parser.parse_args(argv)
 

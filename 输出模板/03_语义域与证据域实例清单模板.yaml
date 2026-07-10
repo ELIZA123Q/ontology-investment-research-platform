@@ -31,25 +31,25 @@ domain_instances:
     role: runtime_instances
     object_types: [Industry, PolicyInstrument, Company]
     files:
-      objects: "<快照目录>/semantic_instances.csv"
-      relations: "<快照目录>/semantic_relations.csv"
+      objects: "<快照目录>/02_assets/semantic_instances.csv"
+      relations: "<快照目录>/02_assets/semantic_relations.csv"
   evidence_domain:
     role: runtime_instances
     object_types: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceAssessment]
     files:
-      source_documents: "<快照目录>/source_documents.csv"
-      claims: "<快照目录>/evidence_claims.csv"
-      facts: "<快照目录>/evidence_facts.csv"
-      relations: "<快照目录>/evidence_relations.csv"
-      assessments: "<快照目录>/evidence_assessments.csv"
+      source_documents: "<快照目录>/02_assets/source_documents.csv"
+      claims: "<快照目录>/02_assets/evidence_claims.csv"
+      facts: "<快照目录>/02_assets/evidence_facts.csv"
+      relations: "<快照目录>/02_assets/evidence_relations.csv"
+      assessments: "<快照目录>/02_assets/evidence_assessments.csv"
   reasoning_domain:
     role: frozen_inputs_only
     object_types: [Observation, Event, MarketExpectation]
     files:
-      inputs: "<快照目录>/reasoning_inputs.csv"
+      inputs: "<快照目录>/02_assets/reasoning_inputs.csv"
 
 operational_files:
-  source_retrievals: "<快照目录>/source_snapshot.csv"
+  source_retrievals: "<快照目录>/02_assets/source_snapshot.csv"
   compatibility_projection: "<快照目录>/evidence_records.csv"
 
 cross_domain_constraints:

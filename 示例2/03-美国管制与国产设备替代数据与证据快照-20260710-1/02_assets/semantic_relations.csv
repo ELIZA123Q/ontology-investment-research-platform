@@ -1,9 +1,7 @@
 relation_id,execution_id,requirement_id,linked_judgment_unit_ids,relation_type,source_instance_id,target_instance_id,relation_scope,valid_from,valid_to,verification_status,relation_evidence_strength,source_run_refs,evidence_refs,notes
-REL-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-01,JU-01|JU-04,policyConstrainsSupply,INS-EVT-US-CONTROL,INS-IND-CN-EQP,定向限制先进制程相关设备实体许可和服务,2022-10-07,,verified,strong,SR-001|SR-002|SR-003|SR-004,EV-01|EV-02|EV-03|EV-04,非全面禁运
-REL-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyParticipatesInCategory,INS-COMP-NAURA,INS-CAT-ETCH,刻蚀设备,2025-01-01,2025-12-31,verified,strong,SR-014,EV-14,平台覆盖之一
-REL-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyParticipatesInCategory,INS-COMP-AMEC,INS-CAT-ETCH,刻蚀设备,2025-01-01,2025-12-31,verified,strong,SR-015,EV-15,重复订单证据
-REL-04,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyParticipatesInCategory,INS-COMP-PIOTECH,INS-CAT-DEPO,薄膜沉积和混合键合,2025-01-01,2025-12-31,verified,strong,SR-016,EV-16,批量订单和收入增长
-REL-05,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyParticipatesInCategory,INS-COMP-ACM,INS-CAT-CLEAN,清洗电镀,2025-01-01,2025-12-31,verified,strong,SR-017|SR-020,EV-17|EV-20,商业化同时受上游限制
-REL-06,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyParticipatesInCategory,INS-COMP-HWATSING,INS-CAT-CMP,CMP减薄先进封装,2025-01-01,2025-12-31,verified,strong,SR-018,EV-18,基线设备和批量销售
-REL-07,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyParticipatesInCategory,INS-COMP-KINGSEMI,INS-CAT-LITHO,涂胶显影与清洗,2025-01-01,2025-12-31,verified,medium,SR-019,EV-19,收入增长但利润承压
-REL-08,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-08,JU-03|JU-04,upstreamConstraintAffectsCompany,INS-EVT-US-CONTROL,INS-COMP-ACM,美国部件软件与客户再认证,2024-12-02,,verified,strong,SR-003|SR-017,EV-03|EV-17,公司称可管理但需切换部件
+REL-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-01,JU-01|JU-04,policyAppliesTo,INS-CONTROL,INS-INDUSTRY,对中国半导体设备行业相关主体和交易适用,2022-10-07,,verified,strong,SR-001|SR-002|SR-003|SR-004,EV-01|EV-02|EV-03|EV-04,供给方向在04推理
+REL-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyBelongsToIndustry,INS-NAURA,INS-INDUSTRY,平台设备,2025-01-01,2025-12-31,verified,strong,SR-014,EV-14,样本关系
+REL-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyBelongsToIndustry,INS-AMEC,INS-INDUSTRY,刻蚀沉积,2025-01-01,2025-12-31,verified,strong,SR-015,EV-15,样本关系
+REL-04,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyBelongsToIndustry,INS-PIOTECH,INS-INDUSTRY,沉积先进封装,2025-01-01,2025-12-31,verified,strong,SR-016,EV-16,样本关系
+REL-05,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-08,JU-03|JU-04,policyAppliesTo,INS-CONTROL,INS-ACM,公司涉及受规则影响的部件软件和再认证事项,2024-12-02,,verified,strong,SR-003|SR-017,EV-03|EV-17,影响方向在04推理
+REL-06,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyBelongsToIndustry,INS-HWATSING,INS-INDUSTRY,CMP减薄湿法,2025-01-01,2025-12-31,verified,strong,SR-018,EV-18,样本关系

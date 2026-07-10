@@ -50,7 +50,6 @@ REQUIRED_META = [
     "semantic_review_status",
     "return_required",
     "return_stage",
-    "user_confirmation",
     "original_input",
     "normalized_question",
     "judgment_landing",
@@ -58,16 +57,10 @@ REQUIRED_META = [
     "delivery_archetype",
     "intended_use",
     "not_allowed_use",
-    "main_judgment_axis",
-    "overscope_check",
-    "needs_split",
     "scope_summary",
-    "quality_gate_ref",
-    "deterministic_check_status",
-    "semantic_review_status",
-    "return_required",
-    "return_stage",
 ]
+
+CURRENT_REQUIRED_META = ["user_confirmation", "main_judgment_axis", "overscope_check", "needs_split"]
 
 CURRENT_SCHEMA_VERSION = "1.1.0"
 LEGACY_SCHEMA_VERSION = "1.0.0"
@@ -79,18 +72,18 @@ REQUIRED_CONFIRMATION_TOPICS = {
 }
 
 REQUIRED_SECTIONS = [
-    "用户交互确认",
     "研究目标、核心问题与判断落点",
-    "主判断轴与范围收敛",
     "研究对象与判断起点",
     "研究范围与边界",
-    "已澄清的问题",
-    "重点看什么",
-    "初步线索：支持、削弱与反面情形",
-    "工作假设",
-    "研究边界提醒",
+    "关键歧义校验",
+    "核心观察维度",
+    "初步线索：支持、削弱、反证与竞争解释",
+    "必要假设",
+    "下游交接说明",
     "01 质量门槛检查",
 ]
+
+INTERACTION_REQUIRED_SECTIONS = ["用户交互确认", "主判断轴与范围收敛"]
 
 REQUIRED_CONFIRMATION_TOPICS = {
     "core_object",
@@ -338,6 +331,8 @@ def validate(path: str | Path) -> dict[str, object]:
 
     require_keys(meta, REQUIRED_META, str(path))
     schema_version = _validate_schema_and_user_confirmation(meta)
+    if schema_version == CURRENT_SCHEMA_VERSION:
+        require_keys(meta, CURRENT_REQUIRED_META, str(path))
     if meta["document_type"] != "judgment_task":
         fail("document_type 必须为 judgment_task")
     if meta["status"] != "ready_for_matching":
@@ -357,27 +352,31 @@ def validate(path: str | Path) -> dict[str, object]:
     require_non_empty(meta["normalized_question"], "normalized_question")
     require_non_empty(meta["scope_summary"], "scope_summary")
     require_no_forbidden_phrases(str(meta["normalized_question"]), VAGUE_PROBLEM_PHRASES, "normalized_question")
-    _validate_task_and_delivery(meta)
+    if schema_version == CURRENT_SCHEMA_VERSION:
+        _validate_task_and_delivery(meta)
     if not isinstance(meta["intended_use"], list) or not meta["intended_use"]:
         fail("intended_use 必须是非空列表")
     if not isinstance(meta["not_allowed_use"], list) or not meta["not_allowed_use"]:
         fail("not_allowed_use 必须是非空列表")
     if "trading_recommendation" not in meta["not_allowed_use"]:
         fail("not_allowed_use 必须包含 trading_recommendation")
-    _validate_main_judgment_axis(meta["main_judgment_axis"])
-    _validate_overscope_check(meta["overscope_check"], ready_status=str(meta["status"]), needs_split=meta["needs_split"])
+    if schema_version == CURRENT_SCHEMA_VERSION:
+        _validate_main_judgment_axis(meta["main_judgment_axis"])
+        _validate_overscope_check(meta["overscope_check"], ready_status=str(meta["status"]), needs_split=meta["needs_split"])
     require_no_placeholders(meta, str(path) + " front matter")
 
-    require_body_sections(body, REQUIRED_SECTIONS, str(path))
+    required_sections = list(REQUIRED_SECTIONS)
+    if schema_version == CURRENT_SCHEMA_VERSION:
+        required_sections.extend(INTERACTION_REQUIRED_SECTIONS)
+    require_body_sections(body, required_sections, str(path))
     require_no_placeholders(body, str(path) + " body")
-    for required_phrase in [
-        "主判断轴",
-        "范围过宽检查",
-        "支持、削弱、反证与竞争解释",
-        "质量结论",
-    ]:
+    required_phrases = ["支持、削弱、反证与竞争解释", "质量结论"]
+    if schema_version == CURRENT_SCHEMA_VERSION:
+        required_phrases.extend(["主判断轴", "范围过宽检查"])
+    for required_phrase in required_phrases:
         if required_phrase not in body:
             fail(f"{path} 正文必须包含“{required_phrase}”")
+    full_text = body + "\n" + str(meta)
     for marker in FORBIDDEN_STAGE_MARKERS:
         if marker in full_text:
             fail(f"01 只保存自然语言需求，不得写入本体或下游阶段字段: {marker}")
@@ -388,7 +387,7 @@ def validate(path: str | Path) -> dict[str, object]:
         "task_id": meta["task_id"],
         "status": meta["status"],
         "quality_status": meta["quality_status"],
-        "overscope_status": meta["overscope_check"]["status"],
+        "overscope_status": meta.get("overscope_check", {}).get("status", "legacy_not_recorded"),
     }
 
 

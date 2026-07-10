@@ -6,7 +6,28 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from quality_gate_utils import ALLOWED_04_OUTPUTS, output_rank, validate_admission, validate_allowed_04_output, validate_quality_status
+from quality_gate_utils import (
+    ALLOWED_04_OUTPUTS,
+    CLAIM_MODES,
+    JUDGMENT_LABELS,
+    JUDGMENT_LEVELS,
+    JUDGMENT_STATUSES,
+    PATH_STATUSES,
+    REASONING_READINESS,
+    judgment_level_rank,
+    output_rank,
+    validate_admission,
+    validate_allowed_04_output,
+    validate_judgment_level,
+    validate_admission_search_consistency,
+    validate_core_ju_publish_baseline,
+    validate_gate_review_fields,
+    validate_quality_status,
+    validate_return_action,
+    validate_target_claim_level,
+    validate_upstream_quality_gate,
+)
+from validate_05_materials import validate_05_materials
 from validator_utils import (
     assert_subset,
     assert_values,
@@ -28,7 +49,7 @@ from validator_utils import (
     split_refs,
 )
 
-from snapshot_layout_03 import SCHEMA_VERSION_03, SNAPSHOT_CSV_LAYOUT
+from snapshot_layout_03 import SCHEMA_VERSION_03, SNAPSHOT_CSV_LAYOUT, snapshot_csv_path
 
 REQUIRED_CSV_FILES: list[str] = list(SNAPSHOT_CSV_LAYOUT.keys())
 
@@ -82,7 +103,7 @@ REQUIRED_PREP_META = [
 REQUIRED_PREP_SECTIONS = [
     "本次范围",
     "研究基线",
-    "需要哪些证据",
+    "数据与证据需求",
     "来源与取数方式",
     "处理与本体映射",
     "核心判断单元证据门槛",
@@ -228,7 +249,7 @@ def _rel(logical_name: str) -> str:
 
 
 def _csv_path(base: Path, logical_name: str) -> Path:
-    return base / _rel(logical_name)
+    return snapshot_csv_path(base, logical_name)
 
 
 def _expected_header(logical_name: str) -> list[str]:
@@ -252,13 +273,17 @@ def _validate_upstream_02(prep_meta: dict[str, object], prep_path: Path) -> dict
         downstream_label=str(prep_path),
         default_return_stage="02",
     )
-    if str(view.get("schema_version")) != "2.0.0":
-        fail(f"{view_path} schema_version 必须为 2.0.0")
+    if str(view.get("schema_version")) not in {"1.1.0", "2.0.0"}:
+        fail(f"{view_path} schema_version 必须为 1.1.0 或 2.0.0")
     return view
 
 
 def _validate_return_actions(rows: dict[str, list[dict[str, str]]]) -> None:
-    for row in rows["judgment_unit_readiness.csv"]:
+    readiness_rows = sorted(
+        rows["judgment_unit_readiness.csv"],
+        key=lambda item: 0 if item.get("maximum_judgment_level") == "J3" else 1,
+    )
+    for row in readiness_rows:
         action = row.get("return_action", "none")
         validate_return_action(action, f"judgment_unit_readiness#{row.get('judgment_unit_id')}")
     for row in rows["gaps_and_risks.csv"]:
@@ -273,7 +298,9 @@ def _validate_headers(snapshot_dir: Path) -> None:
     for name in REQUIRED_CSV_FILES:
         actual = read_csv_header(_csv_path(snapshot_dir, name))
         expected = _expected_header(name)
-        if actual != expected:
+        # manifest 在 1.2 材料准入与 2.0 判断强度迁移期有两种投影；
+        # 实体表仍必须严格匹配，manifest 由后续跨表规则逐字段校验。
+        if name != "manifest.csv" and actual != expected:
             fail(f"{_rel(name)} 表头必须与模板一致")
 
 
@@ -283,83 +310,6 @@ def _rows(snapshot_dir: Path) -> dict[str, list[dict[str, str]]]:
 
 def _judgment_unit_ids(assessments: list[dict[str, str]]) -> set[str]:
     return {row.get("target_judgment_unit_id", "").strip() for row in assessments if row.get("target_judgment_unit_id", "").strip()}
-
-
-def _validate_cross_domain_instance_manifest(
-    *,
-    prep_path: Path,
-    snapshot_dir: Path,
-    prep_triplet: tuple[str, str, str],
-    prep_meta: dict[str, object],
-    rows: dict[str, list[dict[str, str]]],
-) -> dict[str, object]:
-    topic, date, seq = prep_triplet
-    manifest_path = prep_path.parent / f"03-{topic}跨域运行实例清单-{date}-{seq}.yaml"
-    manifest_kind = "跨域运行实例清单"
-    if not manifest_path.is_file():
-        legacy_path = prep_path.parent / f"03-{topic}证据实例清单-{date}-{seq}.yaml"
-        if not legacy_path.is_file():
-            fail(f"03 缺少配对跨域运行实例清单: {manifest_path.name}")
-        manifest_path = legacy_path
-        manifest_kind = "证据实例清单"
-    if parse_triplet(manifest_path, manifest_kind, stage="03") != prep_triplet:
-        fail("03 跨域运行实例清单与准备文档三元组不一致")
-    manifest = load_yaml_file(manifest_path)
-    if not isinstance(manifest, dict):
-        fail("03 跨域运行实例清单必须是 YAML 对象")
-    require_keys(manifest, ["document_type", "schema_version", "metadata", "ontology_versions", "cross_domain_constraints", "validation"], str(manifest_path))
-    require_schema_version(manifest["schema_version"], str(manifest_path), expected="2.0.0")
-    if manifest["document_type"] not in {"cross_domain_runtime_instance_manifest", "evidence_instance_manifest"}:
-        fail("03 跨域运行实例清单 document_type 非法")
-    metadata = manifest["metadata"]
-    require_keys(metadata, ["task_id", "execution_id", "source_02_view_ref", "source_02_view_version", "source_02_view_hash", "snapshot_ref", "frozen_at"], "evidence_instance_manifest.metadata")
-    for field in ["task_id", "execution_id"]:
-        if not same_ref(metadata[field], prep_meta[field]):
-            fail(f"跨域运行实例清单 metadata.{field} 与准备文档不一致")
-    if not same_ref(metadata["source_02_view_ref"], prep_meta["source_02_view_ref"]):
-        fail("跨域运行实例清单 source_02_view_ref 与准备文档不一致")
-    snapshot_manifest = rows["manifest.csv"][0]
-    if not same_ref(metadata["source_02_view_hash"], snapshot_manifest["source_02_view_hash"]):
-        fail("跨域运行实例清单 source_02_view_hash 与快照 manifest 不一致")
-    if not same_ref(metadata["snapshot_ref"], f"{snapshot_dir.name}/manifest.csv"):
-        fail("跨域运行实例清单 snapshot_ref 必须指向配对快照")
-    if manifest["document_type"] == "cross_domain_runtime_instance_manifest":
-        require_keys(manifest, ["manifest_role", "domain_instances", "operational_files"], str(manifest_path))
-        role = manifest["manifest_role"]
-        if role != {"stage": "03", "included_domains": ["semantic", "evidence", "reasoning_input"], "instance_only": True, "formal_ontology_mutated": False}:
-            fail("跨域运行实例清单 manifest_role 必须明确语义域、证据域和冻结推理输入")
-        domains = manifest["domain_instances"]
-        require_keys(domains, ["semantic_domain", "evidence_domain", "reasoning_domain"], "domain_instances")
-        expected_domain_files = {
-            "semantic_domain": {"objects": "semantic_instances.csv", "relations": "semantic_relations.csv"},
-            "evidence_domain": {"source_documents": "source_documents.csv", "claims": "evidence_claims.csv", "facts": "evidence_facts.csv", "relations": "evidence_relations.csv", "assessments": "evidence_assessments.csv"},
-            "reasoning_domain": {"inputs": "reasoning_inputs.csv"},
-        }
-        for domain_name, expected in expected_domain_files.items():
-            section = domains[domain_name]
-            if not isinstance(section, dict) or not isinstance(section.get("files"), dict):
-                fail(f"domain_instances.{domain_name}.files 必须是对象")
-            require_keys(section["files"], expected, f"domain_instances.{domain_name}.files")
-            for key, filename in expected.items():
-                if not same_ref(section["files"][key], f"{snapshot_dir.name}/{filename}"):
-                    fail(f"domain_instances.{domain_name}.files.{key} 必须指向 {filename}")
-        operational = manifest["operational_files"]
-        for key, filename in {"source_retrievals": "source_snapshot.csv", "compatibility_projection": "evidence_records.csv"}.items():
-            if not same_ref(operational.get(key), f"{snapshot_dir.name}/{filename}"):
-                fail(f"operational_files.{key} 必须指向 {filename}")
-    else:
-        require_keys(manifest, ["domain_role", "instance_files"], str(manifest_path))
-        if manifest["domain_role"] != {"primary_domain": "evidence", "instance_only": True, "formal_ontology_mutated": False}:
-            fail("旧版证据实例清单 domain_role 非法")
-    constraints = manifest["cross_domain_constraints"]
-    required_true = ["source_claim_fact_chain_complete", "assessment_targets_resolvable", "semantic_instances_runtime_only", "reasoning_inputs_frozen", "no_rule_evaluation_instances", "no_judgment_instances"]
-    for key in required_true:
-        if constraints.get(key) is not True:
-            fail(f"跨域运行实例清单 cross_domain_constraints.{key} 必须为 true")
-    validation = manifest["validation"]
-    if not isinstance(validation, dict) or validation.get("result") != "pass":
-        fail("跨域运行实例清单 validation.result 必须为 pass")
-    return manifest
 
 
 def _validate_normalized_evidence_graph(rows: dict[str, list[dict[str, str]]]) -> None:
@@ -419,12 +369,21 @@ def _validate_instance_manifest(
 ) -> None:
     topic, date, seq = prep_triplet
     candidates = [
+        prep_path.parent / f"03-{topic}语义域与证据域实例清单-{date}-{seq}.yaml",
         prep_path.parent / f"03-{topic}证据实例清单-{date}-{seq}.yaml",
         prep_path.parent / f"03-{topic}跨域运行实例清单-{date}-{seq}.yaml",
     ]
     path = next((item for item in candidates if item.is_file()), candidates[0])
     if not path.is_file():
-        fail("03 缺少配对证据/跨域运行实例清单")
+        fail("03 缺少配对的语义域与证据域实例清单")
+    if "语义域与证据域实例清单" in path.name:
+        manifest_triplet = parse_triplet(path, "语义域与证据域实例清单", stage="03")
+    elif "证据实例清单" in path.name:
+        manifest_triplet = parse_triplet(path, "证据实例清单", stage="03")
+    else:
+        manifest_triplet = parse_triplet(path, "跨域运行实例清单", stage="03")
+    if manifest_triplet != prep_triplet:
+        fail("03 语义域与证据域实例清单与准备文档的主题、日期或序号不一致")
     manifest = load_yaml_file(path)
     if manifest.get("document_type") == "cross_domain_runtime_instance_manifest":
         require_keys(
@@ -455,48 +414,48 @@ def _validate_instance_manifest(
                 "snapshot_ref",
                 "frozen_at",
             ],
-            "跨域运行实例清单.metadata",
+            "语义域与证据域实例清单.metadata",
         )
         for field in ["task_id", "execution_id"]:
             if not same_ref(metadata[field], prep_meta[field]):
-                fail(f"跨域运行实例清单 metadata.{field} 与准备文档不一致")
+                fail(f"语义域与证据域实例清单 metadata.{field} 与准备文档不一致")
         if not same_ref(metadata["source_02_view_ref"], prep_meta["source_02_view_ref"]):
-            fail("跨域运行实例清单 source_02_view_ref 与准备文档不一致")
+            fail("语义域与证据域实例清单 source_02_view_ref 与准备文档不一致")
         snapshot_manifest = rows["manifest.csv"][0]
         if not same_ref(metadata["source_02_view_hash"], snapshot_manifest["source_02_view_hash"]):
-            fail("跨域运行实例清单 source_02_view_hash 与快照 manifest 不一致")
+            fail("语义域与证据域实例清单 source_02_view_hash 与快照 manifest 不一致")
         if not same_ref(metadata["snapshot_ref"], f"{snapshot_dir.name}/manifest.csv"):
-            fail("跨域运行实例清单 snapshot_ref 必须指向配对快照")
+            fail("语义域与证据域实例清单 snapshot_ref 必须指向配对快照")
         role = manifest["manifest_role"]
         if role.get("stage") != "03" or role.get("instance_only") is not True or role.get("formal_ontology_mutated") is not False:
-            fail("跨域运行实例清单必须声明 stage=03、instance_only=true、formal_ontology_mutated=false")
+            fail("语义域与证据域实例清单必须声明 stage=03、instance_only=true、formal_ontology_mutated=false")
         domains = manifest["domain_instances"]
         expected = {
             "semantic_domain": {
-                "objects": "semantic_instances.csv",
-                "relations": "semantic_relations.csv",
+                "objects": _rel("semantic_instances.csv"),
+                "relations": _rel("semantic_relations.csv"),
             },
             "evidence_domain": {
-                "source_documents": "source_documents.csv",
-                "claims": "evidence_claims.csv",
-                "facts": "evidence_facts.csv",
-                "relations": "evidence_relations.csv",
-                "assessments": "evidence_assessments.csv",
+                "source_documents": _rel("source_documents.csv"),
+                "claims": _rel("evidence_claims.csv"),
+                "facts": _rel("evidence_facts.csv"),
+                "relations": _rel("evidence_relations.csv"),
+                "assessments": _rel("evidence_assessments.csv"),
             },
-            "reasoning_domain": {"inputs": "reasoning_inputs.csv"},
+            "reasoning_domain": {"inputs": _rel("reasoning_inputs.csv")},
         }
         for domain_name, file_map in expected.items():
             domain = domains.get(domain_name)
             if not isinstance(domain, dict) or not isinstance(domain.get("files"), dict):
-                fail(f"跨域运行实例清单缺少 {domain_name}.files")
-            for key, filename in file_map.items():
-                if not same_ref(domain["files"].get(key), f"{snapshot_dir.name}/{filename}"):
-                    fail(f"跨域运行实例清单 {domain_name}.{key} 必须指向 {filename}")
+                fail(f"语义域与证据域实例清单缺少 {domain_name}.files")
+            for key, relative_path in file_map.items():
+                if not same_ref(domain["files"].get(key), f"{snapshot_dir.name}/{relative_path}"):
+                    fail(f"语义域与证据域实例清单 {domain_name}.{key} 必须指向 {relative_path}")
         operations = manifest["operational_files"]
-        if not same_ref(operations.get("source_retrievals"), f"{snapshot_dir.name}/source_snapshot.csv"):
-            fail("跨域运行实例清单 source_retrievals 必须指向 source_snapshot.csv")
+        if not same_ref(operations.get("source_retrievals"), f"{snapshot_dir.name}/{_rel('source_snapshot.csv')}"):
+            fail("语义域与证据域实例清单 source_retrievals 必须指向 02_assets/source_snapshot.csv")
         if not same_ref(operations.get("compatibility_projection"), f"{snapshot_dir.name}/evidence_records.csv"):
-            fail("跨域运行实例清单 compatibility_projection 必须指向 evidence_records.csv")
+            fail("语义域与证据域实例清单 compatibility_projection 必须指向 evidence_records.csv")
         for key in [
             "source_claim_fact_chain_complete",
             "assessment_targets_resolvable",
@@ -506,9 +465,9 @@ def _validate_instance_manifest(
             "no_judgment_instances",
         ]:
             if manifest["cross_domain_constraints"].get(key) is not True:
-                fail(f"跨域运行实例清单.cross_domain_constraints.{key} 必须为 true")
+                fail(f"语义域与证据域实例清单.cross_domain_constraints.{key} 必须为 true")
         if manifest["validation"].get("result") != "pass":
-            fail("跨域运行实例清单.validation.result 必须为 pass")
+            fail("语义域与证据域实例清单.validation.result 必须为 pass")
         return
     require_keys(manifest, ["document_type", "schema_version", "metadata", "ontology_versions", "domain_role", "instance_files", "cross_domain_constraints", "validation"], str(path))
     require_schema_version(manifest["schema_version"], str(path), expected="2.0.0")
@@ -860,6 +819,8 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
                 fail(label + ".priority 必须为 high/medium/low")
         if row.get("allowed_04_output_after_gap"):
             validate_allowed_04_output(row.get("allowed_04_output_after_gap"), label + ".allowed_04_output_after_gap")
+        if row.get("maximum_judgment_level_after_gap"):
+            validate_judgment_level(row.get("maximum_judgment_level_after_gap"), label + ".maximum_judgment_level_after_gap")
 
     for row in rows["display_data_candidates.csv"]:
         label = f"display_data_candidates#{row.get('data_candidate_id')}"
@@ -937,8 +898,10 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
     if len(manifest_rows) != 1:
         fail("manifest.csv 必须且只能有一行")
     manifest = manifest_rows[0]
-    if manifest.get("snapshot_version") != SCHEMA_VERSION_03 or manifest.get("snapshot_schema_version") != SCHEMA_VERSION_03:
-        fail(f"manifest snapshot_version 与 snapshot_schema_version 必须为 {SCHEMA_VERSION_03}")
+    snapshot_version = str(manifest.get("snapshot_version"))
+    schema_version = str(manifest.get("snapshot_schema_version"))
+    if snapshot_version != schema_version or snapshot_version not in {SCHEMA_VERSION_03, "2.0.0"}:
+        fail(f"manifest snapshot_version 与 snapshot_schema_version 必须一致，且为 {SCHEMA_VERSION_03} 或 2.0.0")
 
     for field, expected in {
         "evidence_requirements_ref": _rel("evidence_requirements.csv"),
@@ -955,8 +918,11 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
         "gaps_and_risks_ref": _rel("gaps_and_risks.csv"),
         "05_material_readiness_ref": _rel("05_material_readiness.csv"),
     }.items():
-        if manifest.get(field) != expected:
+        if field in manifest and manifest.get(field) != expected:
             fail(f"manifest.{field} 必须为 {expected}")
+    if "evidence_readiness_assessments_ref" not in manifest:
+        if manifest.get("judgment_unit_readiness_ref") != "judgment_unit_readiness.csv":
+            fail("2.0 manifest.judgment_unit_readiness_ref 必须为 judgment_unit_readiness.csv")
 
     coverage_total = len(rows["state_variable_coverage.csv"])
     counted = sum(1 for row in rows["state_variable_coverage.csv"] if row.get("evidence_gate_status") == "counted")
@@ -999,16 +965,32 @@ def _validate_counts(prep_meta: dict[str, object], summary_meta: dict[str, objec
         "judgment_unit_contested_count": counts["contested"],
     }
     for field, expected in count_fields.items():
-        if _int_value(manifest.get(field, -1), f"manifest.{field}") != expected:
+        if snapshot_version == SCHEMA_VERSION_03 and field in manifest and _int_value(manifest.get(field, -1), f"manifest.{field}") != expected:
             fail(f"manifest.{field} 必须为 {expected}")
         if field in summary_meta and _int_value(summary_meta[field], f"summary.{field}") != expected:
             fail(f"summary.{field} 必须为 {expected}")
 
-    highest = max((row["maximum_judgment_level"] for row in unit_rows), key=judgment_level_rank)
+    strength_rows = rows["judgment_unit_readiness.csv"]
+    if snapshot_version == "2.0.0":
+        readiness_counts = {
+            "judgment_unit_total": len(strength_rows),
+            "judgment_unit_full_reasoning_ready_count": sum(row.get("reasoning_readiness") == "full_reasoning_ready" for row in strength_rows),
+            "judgment_unit_restricted_reasoning_ready_count": sum(row.get("reasoning_readiness") == "restricted_reasoning_ready" for row in strength_rows),
+            "judgment_unit_insufficient_count": sum(row.get("reasoning_readiness") == "insufficient" for row in strength_rows),
+        }
+        for field, expected in readiness_counts.items():
+            if _int_value(manifest.get(field, -1), f"manifest.{field}") != expected:
+                fail(f"manifest.{field} 必须为 {expected}")
+        for level in JUDGMENT_LEVELS:
+            field = f"judgment_unit_{level}_count"
+            expected = sum(row.get("maximum_judgment_level") == level for row in strength_rows)
+            if _int_value(manifest.get(field, -1), f"manifest.{field}") != expected:
+                fail(f"manifest.{field} 必须为 {expected}")
+    highest = max((row["maximum_judgment_level"] for row in strength_rows), key=judgment_level_rank)
     for label, meta in [("prep", prep_meta), ("summary", summary_meta), ("manifest", manifest)]:
         if str(meta.get("highest_supported_judgment_level")) != highest:
             fail(f"{label}.highest_supported_judgment_level 必须为 {highest}")
-    floor_met = any(judgment_level_rank(row["maximum_judgment_level"]) >= judgment_level_rank("J2") for row in unit_rows)
+    floor_met = any(judgment_level_rank(row["maximum_judgment_level"]) >= judgment_level_rank("J2") for row in strength_rows)
     for label, meta in [("summary", summary_meta), ("manifest", manifest)]:
         value = str(meta.get("core_judgment_publish_floor_met", "")).lower() in {"true", "1", "yes"}
         if value != floor_met:
@@ -1180,6 +1162,8 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     require_no_placeholders(prep_meta, str(prep_path) + " front matter")
     require_no_placeholders(prep_body, str(prep_path) + " body")
 
+    view = _validate_upstream_02(prep_meta, prep_path)
+
     admission = str(prep_meta["admission"])
     allowed_04_output = str(prep_meta["allowed_04_output"])
     coverage_rate = _float_value(prep_meta["evidence_coverage_rate"], "preparation.evidence_coverage_rate")
@@ -1210,19 +1194,36 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     _validate_normalized_evidence_graph(rows)
     _validate_counts(prep_meta, summary_meta, rows)
     _validate_snapshot_refs(rows)
+    _validate_return_actions(rows)
+    _validate_judgment_strength(view, rows)
     if admission in {"normal_pass", "restricted_pass", "incomplete_pass"}:
         for name in ["acquisition_log.csv", "semantic_instances.csv"]:
             if not rows[name]:
                 fail(f"{name} 在 admission={admission} 时不得为空")
 
     manifest = rows["manifest.csv"][0]
-    if manifest.get("search_status") not in SEARCH_STATUSES:
-        fail("manifest.search_status 非法")
+    validate_admission_search_consistency(prep_meta, summary_meta, manifest)
+    validate_gate_review_fields(manifest, "manifest")
+    for label, meta in [("manifest", manifest), (str(prep_path), prep_meta), (str(summary_path), summary_meta)]:
+        validate_core_ju_publish_baseline(
+            rows["judgment_unit_readiness.csv"],
+            admission=meta["admission"],
+            quality_status=meta["quality_status"],
+            label=label,
+        )
     if not same_ref(manifest["task_id"], prep_meta["task_id"]):
         fail("manifest.task_id 与 preparation.task_id 不一致")
     if not same_ref(manifest["execution_id"], prep_meta["execution_id"]):
         fail("manifest.execution_id 与 preparation.execution_id 不一致")
-    assert_values([row.get("allowed_04_output", "") for row in rows["path_readiness.csv"]], ALLOWED_04_OUTPUTS, "path_readiness.allowed_04_output")
+    assert_values([row.get("maximum_judgment_level", "") for row in rows["path_readiness.csv"]], JUDGMENT_LEVELS, "path_readiness.maximum_judgment_level")
+    assert_values([row.get("maximum_judgment_level_after_gap", "") for row in rows["gaps_and_risks.csv"]], JUDGMENT_LEVELS, "gaps_and_risks.maximum_judgment_level_after_gap")
+    assert_values([row.get("coverage_constraint", "") for row in rows["state_variable_coverage.csv"]], {"none", "downgrade", "block"}, "state_variable_coverage.coverage_constraint")
+
+    material_summary = validate_05_materials(
+        snapshot_dir,
+        quality_status=manifest["quality_status"],
+        label="05_material_readiness",
+    )
 
     return {
         "schema_version": SCHEMA_VERSION_03,

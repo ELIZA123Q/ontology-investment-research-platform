@@ -48,6 +48,17 @@ JUDGMENT_LABELS = {
     "J4": "确认",
 }
 REASONING_READINESS = {"full_reasoning_ready", "restricted_reasoning_ready", "insufficient"}
+
+# 03—05 之间的材料准入状态。这组值仍是现有 CSV/YAML 合同的
+# 正式字段；J0—J4 表示判断强度，两者不可互相替代。
+ALLOWED_04_OUTPUTS = {
+    "full_reasoning_ready",
+    "directional_only",
+    "conditional_only",
+    "insufficient",
+    "blocked",
+    "contested",
+}
 CLAIM_MODES = {"unconditional", "conditional"}
 JUDGMENT_STATUSES = {"normal", "weakened", "contested"}
 PATH_STATUSES = {"active", "blocked"}
@@ -89,6 +100,14 @@ MATERIAL_READINESS_STATUSES = {
     "insufficient",
     "blocked",
 }
+
+MATERIAL_REQUIRED_ACTIONS = {
+    "none",
+    "return_03",
+    "continue_in_stage",
+}
+
+UPSTREAM_BLOCKING_QUALITY = {"draft", "return_required", "stop_with_gap_report"}
 
 JUDGMENT_LANDINGS = {
     "状态定位",
@@ -145,6 +164,63 @@ DETERMINISTIC_CHECK_STATUSES = {"not_checked", "checked", "failed"}
 SEMANTIC_REVIEW_STATUSES = {"not_reviewed", "reviewed", "failed"}
 
 
+def is_nullish(value: Any) -> bool:
+    if value is None:
+        return True
+    return str(value).strip().lower() in {"", "null", "none", "~"}
+
+
+def normalize_return_required(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"true", "1", "yes"}
+
+
+def stage_sort_key(stage: str) -> int:
+    return {"01": 0, "02": 1, "03": 2, "04": 3, "05": 4}.get(stage, 9)
+
+
+def validate_return_action(value: Any, label: str) -> None:
+    text = str(value).strip()
+    if not text or text in RETURN_ACTIONS:
+        return
+    fail(f"{label}.return_action 非法: {value}")
+
+
+def validate_return_routing_fields(
+    meta: dict[str, Any], label: str, *, current_stage: str
+) -> str | None:
+    if "return_required" not in meta:
+        fail(f"{label} 必须记录 return_required")
+    required = normalize_return_required(meta.get("return_required"))
+    return_stage = meta.get("return_stage")
+    if required:
+        if is_nullish(return_stage):
+            fail(f"{label}: return_required=true 时必须填写 return_stage")
+        stage_text = str(return_stage).strip()
+        if stage_text not in RETURN_STAGES:
+            fail(f"{label}.return_stage 非法: {return_stage}")
+        if stage_text == current_stage:
+            fail(f"{label}: return_stage 不得等于当前阶段 {current_stage}")
+        return stage_text
+    if not is_nullish(return_stage):
+        fail(f"{label}: return_required=false 时 return_stage 必须为 null")
+    return None
+
+
+def validate_upstream_quality_gate(
+    upstream_meta: dict[str, Any],
+    *,
+    upstream_label: str,
+    downstream_label: str,
+    default_return_stage: str,
+) -> None:
+    quality_status = str(upstream_meta.get("quality_status", ""))
+    if quality_status in UPSTREAM_BLOCKING_QUALITY or normalize_return_required(upstream_meta.get("return_required")):
+        return_stage = upstream_meta.get("return_stage") or default_return_stage
+        fail(f"{downstream_label} 不得在上游 {upstream_label} 未通过时继续；应退回 {return_stage}")
+
+
 def canonical_hash(value: Any) -> str:
     encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return "sha256:" + hashlib.sha256(encoded).hexdigest()
@@ -153,6 +229,11 @@ def canonical_hash(value: Any) -> str:
 def validate_quality_status(value: Any, label: str) -> None:
     if str(value) not in QUALITY_STATUSES:
         fail(f"{label}.quality_status 非法: {value}")
+
+
+def validate_search_status(value: Any, label: str) -> None:
+    if str(value) not in SEARCH_STATUSES:
+        fail(f"{label}.search_status 非法: {value}")
 
 
 def validate_gate_review_state(
@@ -174,9 +255,61 @@ def validate_gate_review_state(
             fail(f"{label} high_quality_pass 必须 semantic_review_status=reviewed")
 
 
+def validate_gate_review_fields(meta: dict[str, Any], label: str) -> None:
+    quality_status = meta.get("quality_status")
+    deterministic = meta.get("deterministic_check_status")
+    semantic = meta.get("semantic_review_status")
+    if str(quality_status) == "high_quality_pass" and (deterministic is None or semantic is None):
+        fail(f"{label} high_quality_pass 必须记录 deterministic_check_status 与 semantic_review_status")
+    if deterministic is not None and semantic is not None:
+        validate_gate_review_state(
+            quality_status=quality_status,
+            deterministic_check_status=deterministic,
+            semantic_review_status=semantic,
+            label=label,
+        )
+
+
+def validate_admission_search_rules(admission: Any, search_status: Any, label: str) -> None:
+    validate_admission(admission, label)
+    validate_search_status(search_status, label)
+    if str(search_status) == "blocked_by_access" and str(admission) in PASSING_ADMISSIONS:
+        fail(f"{label}: 来源受阻时不得给出通过准入")
+    if str(search_status) == "in_progress" and str(admission) in PASSING_ADMISSIONS:
+        fail(f"{label}: 检索未完成时不得冻结通过准入")
+
+
+def validate_admission_search_consistency(
+    prep_meta: dict[str, Any], summary_meta: dict[str, Any], manifest: dict[str, Any]
+) -> None:
+    admissions = {str(item.get("admission")) for item in (prep_meta, summary_meta, manifest)}
+    searches = {str(item.get("search_status")) for item in (prep_meta, summary_meta, manifest)}
+    if len(admissions) != 1:
+        fail("03 准备说明、摘要与清单的 admission 必须一致")
+    if len(searches) != 1:
+        fail("03 准备说明、摘要与清单的 search_status 必须一致")
+    validate_admission_search_rules(prep_meta.get("admission"), prep_meta.get("search_status"), "03 admission/search_status")
+
+
 def validate_admission(value: Any, label: str) -> None:
     if str(value) not in ADMISSIONS:
         fail(f"{label}.admission 非法: {value}")
+
+
+def validate_allowed_04_output(value: Any, label: str) -> None:
+    if str(value) not in ALLOWED_04_OUTPUTS:
+        fail(f"{label}.allowed_04_output 非法: {value}")
+
+
+def output_rank(value: str) -> int:
+    return {
+        "blocked": 0,
+        "insufficient": 1,
+        "contested": 1,
+        "conditional_only": 2,
+        "directional_only": 3,
+        "full_reasoning_ready": 4,
+    }.get(str(value), -1)
 
 
 def validate_judgment_level(value: Any, label: str) -> None:

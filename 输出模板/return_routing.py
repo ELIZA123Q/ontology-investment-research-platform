@@ -13,7 +13,7 @@ ERROR_ROUTE_RULES: list[tuple[re.Pattern[str], str, str]] = [
     (re.compile(r"01|需求|对象|范围|歧义|投研需求", re.I), "01", "requirement_gap"),
     (
         re.compile(
-            r"02|判断脊柱|问题树|路径结构|judgment_unit|反面证据|其他可能解释|最低验证|本体视图|研究逻辑|state_variable_chain|upstream 02",
+            r"02|核心判断链|主判断轴|问题树|路径结构|judgment_unit|反面证据|其他可能解释|最低验证|本体视图|研究逻辑|state_variable_chain|upstream 02",
             re.I,
         ),
         "02",
