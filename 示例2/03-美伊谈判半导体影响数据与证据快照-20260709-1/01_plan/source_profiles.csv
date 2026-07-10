@@ -7,3 +7,4 @@ SP-FITCH,EXEC-USIRAN-NEG-SEMI-20260709-1,Fitch Ratings,S4,research,rating_agency
 SP-MARKET,EXEC-USIRAN-NEG-SEMI-20260709-1,公开市场指数,S4,market_data,index,valuation,data_point,基本面确认,medium,IG-MARKET,licensed_or_public,仅定价反应,
 SP-CN-MEDIA,EXEC-USIRAN-NEG-SEMI-20260709-1,中文行业媒体,S5,media,secondary,semiconductor|china,analysis,精确测算,low,IG-CN,public_web,转述,
 SP-FILING,EXEC-USIRAN-NEG-SEMI-20260709-1,交易所公司披露,S1,filing,regulatory_filing,financial,disclosure,无,high,IG-FILING,public_filing,披露滞后,
+SP-SEMI,EXEC-USIRAN-NEG-SEMI-20260709-1,SEMI Industry Association,S4,research,industry_association,equipment|manufacturing|osat,data_point|analysis,替代公司披露,medium,IG-RESEARCH,public_summary,汇总层非厂侧,设备订单与产能利用汇总

@@ -1,5 +1,5 @@
 acquisition_channel_id,execution_id,channel_name,channel_type,supported_source_profile_ids,supported_content_domains,repeatability,traceability_level,permission_requirement,typical_failure_modes,allowed_usage,forbidden_usage,notes
 AC-WEB-NEWS,EXEC-USIRAN-NEG-SEMI-20260709-1,公开新闻检索,web_search,SP-APNEWS|SP-AXIOS|SP-LIGHTSOURCE|SP-CN-MEDIA,geopolitical|negotiation|semiconductor,high,url_timestamp,none,转述冲突,谈判时间线与解读,无URL硬事实,
-AC-ADVISORY,EXEC-USIRAN-NEG-SEMI-20260709-1,供应链咨询摘要,web_fetch,SP-GEP|SP-LIGHTSOURCE,helium|supply_chain,medium,url,none,情景假设,边界框架,厂侧确认,
+AC-ADVISORY,EXEC-USIRAN-NEG-SEMI-20260709-1,供应链咨询摘要,web_fetch,SP-GEP|SP-LIGHTSOURCE|SP-SEMI,helium|supply_chain,medium,url,none,情景假设,边界框架,厂侧确认,
 AC-MARKET,EXEC-USIRAN-NEG-SEMI-20260709-1,指数行情,market_data,SP-MARKET,valuation,high,index_code,none,口径不一,情绪通道代理,供应链事实,
 AC-FILING,EXEC-USIRAN-NEG-SEMI-20260709-1,披露检索,filing_search,SP-FILING,financial,medium,filing_id,none,无匹配,精确影响验证,猜测,
