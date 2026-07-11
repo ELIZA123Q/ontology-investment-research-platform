@@ -341,7 +341,7 @@ class Validator:
         if "evidence.yaml" not in reasoning.get("depends_on", []):
             self.error("semiconductor reasoning.yaml must depend on evidence.yaml")
 
-        legacy_tokens = (
+        forbidden_tokens = (
             "DemandSource",
             "Jurisdiction",
             "companyHeadquarteredIn",
@@ -360,9 +360,9 @@ class Validator:
             if name == "common.yaml":
                 continue
             raw = path.read_text(encoding="utf-8")
-            for token in legacy_tokens:
+            for token in forbidden_tokens:
                 if token in raw:
-                    self.error(f"semiconductor {name} retains legacy token: {token}")
+                    self.error(f"semiconductor {name} contains forbidden token: {token}")
         for prop in conflict_props:
             extensions = semantic.get("object_type_extensions", {})
             for object_id, extension in extensions.items():

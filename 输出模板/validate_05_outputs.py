@@ -76,7 +76,7 @@ FORBIDDEN_HEADER_FIELDS = [
     "事件口径",
 ]
 
-FORBIDDEN_LEGACY_SECTIONS = [
+FORBIDDEN_SECTION_NAMES = [
     "一页摘要",
     "核心观点",
     "关键跟踪指标",
@@ -141,9 +141,9 @@ def _validate_body(path: Path, body: str) -> None:
     for marker in REQUIRED_TAIL_MARKERS:
         if marker not in body:
             fail(f"{path} 缺少尾部小节: {marker}")
-    for section in FORBIDDEN_LEGACY_SECTIONS:
+    for section in FORBIDDEN_SECTION_NAMES:
         if section in body:
-            fail(f"{path} 不得使用旧版 05 章节名: {section}")
+            fail(f"{path} 不得使用已废止的 05 章节名: {section}")
 
     chapter_count = _count_argument_chapters(body)
     if chapter_count < MIN_ARGUMENT_CHAPTERS:

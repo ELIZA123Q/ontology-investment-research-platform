@@ -39,7 +39,7 @@ domain_instances:
       inputs: 03-美国管制与国产设备替代数据与证据快照-20260710-1/02_assets/reasoning_inputs.csv
 operational_files:
   source_retrievals: 03-美国管制与国产设备替代数据与证据快照-20260710-1/02_assets/source_snapshot.csv
-  compatibility_projection: 03-美国管制与国产设备替代数据与证据快照-20260710-1/evidence_records.csv
+  evidence_records: 03-美国管制与国产设备替代数据与证据快照-20260710-1/02_assets/evidence_records.csv
 cross_domain_constraints:
   source_claim_fact_chain_complete: true
   assessment_targets_resolvable: true

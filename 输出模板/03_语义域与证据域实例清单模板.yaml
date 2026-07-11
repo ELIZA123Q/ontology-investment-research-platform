@@ -50,7 +50,7 @@ domain_instances:
 
 operational_files:
   source_retrievals: "<快照目录>/02_assets/source_snapshot.csv"
-  compatibility_projection: "<快照目录>/evidence_records.csv"
+  evidence_records: "<快照目录>/02_assets/evidence_records.csv"
 
 cross_domain_constraints:
   source_claim_fact_chain_complete: false

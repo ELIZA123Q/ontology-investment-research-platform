@@ -16,7 +16,7 @@ object_types:
       title: {type: string, required: true, description: 来源标题或稳定名称。}
       sourceProfileId: {type: string, required: false, description: 匹配的稳定 SourceProfile ID；正式证据必须填写或建立 sourceDocumentUsesProfile。}
       sourceName: {type: string, required: true, description: 来源生产者、发布者或数据提供方名称。}
-      sourceTier: {type: enum, required: false, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级；兼容旧 L1-L7 与新 B_取证来源 S1-S8。}
+      sourceTier: {type: enum, required: false, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级，定义见 B_取证来源。}
       contentDomain: {type: string, required: false, description: 本材料实际覆盖的内容领域。}
       acquisitionChannel: {type: enum, required: true, allowed_values: [web, database_terminal, api, mcp, file, manual, internal_system, file_search, other], description: 本次材料取得方式；MCP、API、网页、人工上传、文件检索均属于获取通道。}
       accessScope: {type: enum, required: true, allowed_values: [public, licensed, internal, confidential, restricted, unknown], description: 来源访问和使用边界；不清时不得进入正式证据包。}
@@ -30,9 +30,9 @@ object_types:
       methodologyNote: {type: string, required: false, description: 来源方法论、样本、字段口径、统计规则或重要限制。}
       usageLimit: {type: string, required: false, description: 来源在本次证据包中的可用边界和禁用用途。}
       sourceReliability: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 来源本身的可靠程度，不得直接复制为主张可信度。}
-      sourceType: {type: enum, required: false, allowed_values: [filing, report, news, transcript, dataset, policy, manual, regulatory_record, market_data, api_response, other], description: 兼容字段：来源载体或内容类型。}
+      sourceType: {type: enum, required: false, allowed_values: [filing, report, news, transcript, dataset, policy, manual, regulatory_record, market_data, api_response, other], description: 来源的业务内容类型；与实际取得形态 artifactType 分开。}
       acquisitionChannelId: {type: string, required: false, description: 可选的获取通道登记 ID。}
-      contentDomainTags: {type: array, required: false, description: 兼容字段：来源覆盖的内容领域标签。}
+      contentDomainTags: {type: array, required: false, description: 来源同时覆盖多个内容领域时使用的标签集合。}
       independenceGroupId: {type: string, required: false, description: 独立来源组 ID。}
       methodologyStatus: {type: enum, required: false, allowed_values: [transparent, partially_transparent, opaque, not_applicable], description: 方法透明度状态。}
       accessPermissionStatus: {type: enum, required: false, allowed_values: [allowed, licensed, restricted, denied, unknown], description: 访问与使用权限状态。}
@@ -113,7 +113,7 @@ object_types:
       requiredTimeScope: {type: string, required: false, description: 时间范围。}
       requiredGrain: {type: string, required: false, description: 粒度要求。}
       minimumQualityLevel: {type: enum, required: true, allowed_values: [Q1_background, Q2_reasoning_usable, Q3_directional_ready, Q4_report_grade], description: 最低证据质量。}
-      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
+      minimumSourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
       minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
       allowedProxy: {type: boolean, required: true, description: 是否允许代理指标。}
       stopCondition: {type: string, required: true, description: 停止补证或停止推理的条件。}
@@ -149,7 +149,7 @@ object_types:
       basketType: {type: string, required: true, description: 证据篮子类型。}
       targetJudgmentUnitId: {type: string, required: true, description: 对应判断单元 ID。}
       basketRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色。}
-      minimumSourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
+      minimumSourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
       minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
       allowedProxy: {type: boolean, required: true, description: 是否允许代理。}
       basketStatus: {type: enum, required: true, allowed_values: [met, partial, not_met, missing, contested, blocked, not_applicable], description: 篮子满足状态。}
@@ -167,7 +167,7 @@ object_types:
     validity: true
     properties:
       sourceName: {type: string, required: true, description: 稳定来源生产者、发布者或来源类型名称。}
-      sourceTier: {type: enum, required: true, allowed_values: [L1, L2, L3, L4, L5, L6, L7, S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级；兼容旧 L1-L7 与新 B_取证来源 S1-S8。}
+      sourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级，定义见 B_取证来源。}
       sourceCategory: {type: string, required: true, description: 来源类别。}
       authorityType: {type: string, required: true, description: 权威类型，例如 official, exchange, company_disclosure, licensed_database, industry_provider, research, media, ai_or_search_lead。}
       typicalContentDomains: {type: array, required: true, description: 常见内容领域。}

@@ -17,7 +17,8 @@ CHECKS = (
         "校验器单元测试",
         [sys.executable, "-m", "unittest", "discover", "-s", "输出模板/tests", "-q"],
     ),
-    ("01—05 正式验收样例", [sys.executable, "输出模板/validate_publish.py", "示例2"]),
+    ("存储芯片周期验收样例", [sys.executable, "输出模板/validate_publish.py", "示例1"]),
+    ("国产设备替代验收样例", [sys.executable, "输出模板/validate_publish.py", "示例2"]),
 )
 
 
@@ -33,7 +34,7 @@ def main() -> int:
         print("\nPROJECT_RETURN_REQUIRED: " + "、".join(failures))
         return 1
 
-    print("\nPROJECT_PASS: 本体、框架、校验器与当前 01—05 验收样例全部通过。")
+    print("\nPROJECT_PASS: 本体、框架、校验器与两个 01—05 验收样例全部通过。")
     return 0
 
 

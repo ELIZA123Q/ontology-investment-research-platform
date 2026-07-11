@@ -43,12 +43,9 @@ source_guidance_files:
     current_files:
       geopolitical: B_取证来源/B04_专题来源/B04-TOPIC-GEOPOLITICAL_地缘冲击取证来源清单.md
 
-source_tier_compatibility:
-  preferred_scheme: S1-S8
-  legacy_scheme: L1-L7
-  note: >
-    新增来源清单推荐使用 B01 的 S1-S8。历史快照和模板可能仍使用 L1-L7，
-    校验器应兼容两套编号；正式运行需要在 notes 或方法说明中写明映射口径。
+source_tier_scheme:
+  values: [S1, S2, S3, S4, S5, S6, S7, S8]
+  definition_ref: B_取证来源/B01_来源分层与使用边界.md
 
 use_rules:
   - 先由 A_取证规则确定证据篮子，再使用 B_取证来源选择推荐优先来源。

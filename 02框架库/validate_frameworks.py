@@ -95,14 +95,8 @@ def parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
         return {}, text
     end = text.find("\n---\n", 4)
     if end < 0:
-        # 兼容异常分隔线（如遗留候选卡）
-        alt = re.search(r"\n-{3,}\n", text[4:])
-        if not alt:
-            return {}, text
-        end = 4 + alt.start()
-        body_start = 4 + alt.end()
-    else:
-        body_start = end + 5
+        return {}, text
+    body_start = end + 5
     raw = text[4:end]
     values: Dict[str, str] = {}
     for line in raw.splitlines():
@@ -121,7 +115,7 @@ def parse_builds_on(value: str) -> List[str]:
 
 
 def classify_asset(path: Path, root: Path, front: Dict[str, str]) -> str:
-    """返回 framework / scenario_card / skip / legacy。"""
+    """返回 framework / scenario_card / skip / invalid。"""
     rel = path.relative_to(root)
     parts = rel.parts
     name = path.name
@@ -144,7 +138,7 @@ def classify_asset(path: Path, root: Path, front: Dict[str, str]) -> str:
     if "02_场景卡" in parts or doc_type == "semiconductor_scenario_card":
         if "02_场景卡" in parts:
             return "scenario_card"
-        return "legacy"
+        return "invalid"
 
     if parts[0] == "基础框架库":
         return "framework"
@@ -153,7 +147,7 @@ def classify_asset(path: Path, root: Path, front: Dict[str, str]) -> str:
     if front.get("framework_id"):
         return "framework"
     if parts[:2] == ("行业框架库", "半导体行业"):
-        return "legacy"
+        return "invalid"
     return "skip"
 
 
@@ -288,8 +282,8 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
         asset_class = classify_asset(path, root, front)
         classes[path] = asset_class
 
-        if asset_class == "legacy":
-            warnings.append(f"{path.relative_to(root)}: 未纳入新结构的遗留文档，已跳过正式校验")
+        if asset_class == "invalid":
+            errors.append(f"{path.relative_to(root)}: 文档位置或 document_type 不符合现行框架库结构")
             continue
         if asset_class == "skip":
             continue

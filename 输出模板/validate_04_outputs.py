@@ -178,10 +178,10 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
 
 
 def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
-    manifest_rows = read_csv(snapshot_dir / "manifest.csv")
+    manifest_rows = read_csv(snapshot_csv_path(snapshot_dir, "manifest.csv"))
     if len(manifest_rows) != 1:
         fail("manifest.csv 必须且只能有一行")
-    judgments = read_csv(snapshot_dir / "judgment_unit_readiness.csv")
+    judgments = read_csv(snapshot_csv_path(snapshot_dir, "judgment_unit_readiness.csv"))
     judgment_by_id = {row["judgment_unit_id"]: row for row in judgments}
     if not judgment_by_id:
         fail("judgment_unit_readiness.csv 至少需要一行")

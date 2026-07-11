@@ -160,10 +160,6 @@ REJECTION_ROUTES = {
     "拒绝",
 }
 
-DETERMINISTIC_CHECK_STATUSES = {"not_checked", "checked", "failed"}
-SEMANTIC_REVIEW_STATUSES = {"not_reviewed", "reviewed", "failed"}
-
-
 def is_nullish(value: Any) -> bool:
     if value is None:
         return True

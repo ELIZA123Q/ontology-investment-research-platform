@@ -39,24 +39,6 @@ SNAPSHOT_CSV_LAYOUT: dict[str, str] = {
 
 REQUIRED_SNAPSHOT_CSV_FILES = list(SNAPSHOT_CSV_LAYOUT.keys())
 
-LEGACY_SNAPSHOT_NAMES = {
-    "judgment_unit_readiness.csv": "judgment_unit_readiness.csv",
-}
-
-
 def snapshot_csv_path(snapshot_dir: Path, logical_name: str) -> Path:
-    """Resolve the canonical 1.2 path, with a read-only fallback for 1.0/1.1 runs."""
-    # evidence_records 是为 04/05 和历史运行保留的兼容投影；
-    # judgment_unit_readiness 是 J0—J4 判断强度门。它们仍以快照根目录为运行位置。
-    if logical_name in {"evidence_records.csv", "judgment_unit_readiness.csv"}:
-        runtime = snapshot_dir / logical_name
-        if runtime.is_file():
-            return runtime
-    canonical = snapshot_dir / SNAPSHOT_CSV_LAYOUT[logical_name]
-    if canonical.exists():
-        return canonical
-    legacy = snapshot_dir / logical_name
-    if legacy.exists():
-        return legacy
-    legacy_alias = snapshot_dir / LEGACY_SNAPSHOT_NAMES.get(logical_name, "")
-    return legacy_alias if legacy_alias.is_file() else canonical
+    """Return the canonical path for a 03 snapshot CSV."""
+    return snapshot_dir / SNAPSHOT_CSV_LAYOUT[logical_name]

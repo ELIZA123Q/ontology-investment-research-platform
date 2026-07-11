@@ -7,39 +7,60 @@ metadata:
   source_02_view_version: 1
   source_02_view_hash: sha256:a67fea131a5d4f571e4dcde2822e994650f894366e3ccdbcfcf19a0e1d7c9040
   snapshot_ref: 03-存储芯片周期数据与证据快照-20260707-1/manifest.csv
-  frozen_at: "2026-07-07T21:06:10+08:00"
+  frozen_at: '2026-07-07T21:06:10+08:00'
 ontology_versions:
-  platform: {common: 2.0.0, semantic: 1.0.0, evidence: 2.0.0, reasoning: 2.0.0}
-  domain: {name: semiconductor_domain_ontology, version: 1.0.0}
+  platform:
+    common: 2.0.0
+    semantic: 1.0.0
+    evidence: 2.0.0
+    reasoning: 2.0.0
+  domain:
+    name: semiconductor_domain_ontology
+    version: 1.0.0
 manifest_role:
-  stage: "03"
-  included_domains: [semantic, evidence, reasoning_input]
+  stage: '03'
+  included_domains:
+  - semantic
+  - evidence
+  - reasoning_input
   instance_only: true
   formal_ontology_mutated: false
 domain_instances:
   semantic_domain:
     role: runtime_instances
-    object_types: [Industry, PolicyInstrument, Organization, Company, Product, Segment]
+    object_types:
+    - Industry
+    - PolicyInstrument
+    - Organization
+    - Company
+    - Product
+    - Segment
     files:
-      objects: 03-存储芯片周期数据与证据快照-20260707-1/semantic_instances.csv
-      relations: 03-存储芯片周期数据与证据快照-20260707-1/semantic_relations.csv
+      objects: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/semantic_instances.csv
+      relations: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/semantic_relations.csv
   evidence_domain:
     role: runtime_instances
-    object_types: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceAssessment]
+    object_types:
+    - SourceDocument
+    - EvidenceClaim
+    - EvidenceFact
+    - EvidenceAssessment
     files:
-      source_documents: 03-存储芯片周期数据与证据快照-20260707-1/source_documents.csv
-      claims: 03-存储芯片周期数据与证据快照-20260707-1/evidence_claims.csv
-      facts: 03-存储芯片周期数据与证据快照-20260707-1/evidence_facts.csv
-      relations: 03-存储芯片周期数据与证据快照-20260707-1/evidence_relations.csv
-      assessments: 03-存储芯片周期数据与证据快照-20260707-1/evidence_assessments.csv
+      source_documents: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/source_documents.csv
+      claims: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/evidence_claims.csv
+      facts: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/evidence_facts.csv
+      relations: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/evidence_relations.csv
+      assessments: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/evidence_assessments.csv
   reasoning_domain:
     role: frozen_inputs_only
-    object_types: [Observation, Event]
+    object_types:
+    - Observation
+    - Event
     files:
-      inputs: 03-存储芯片周期数据与证据快照-20260707-1/reasoning_inputs.csv
+      inputs: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/reasoning_inputs.csv
 operational_files:
-  source_retrievals: 03-存储芯片周期数据与证据快照-20260707-1/source_snapshot.csv
-  compatibility_projection: 03-存储芯片周期数据与证据快照-20260707-1/evidence_records.csv
+  source_retrievals: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/source_snapshot.csv
+  evidence_records: 03-存储芯片周期数据与证据快照-20260707-1/02_assets/evidence_records.csv
 cross_domain_constraints:
   source_claim_fact_chain_complete: true
   assessment_targets_resolvable: true
@@ -49,5 +70,5 @@ cross_domain_constraints:
   no_judgment_instances: true
 validation:
   result: pass
-  checked_at: "2026-07-10T21:00:00+08:00"
+  checked_at: '2026-07-10T21:00:00+08:00'
   issues: []

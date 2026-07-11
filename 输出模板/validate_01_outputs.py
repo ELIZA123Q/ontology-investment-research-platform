@@ -63,8 +63,6 @@ REQUIRED_META = [
 CURRENT_REQUIRED_META = ["user_confirmation", "main_judgment_axis", "overscope_check", "needs_split"]
 
 CURRENT_SCHEMA_VERSION = "1.1.0"
-LEGACY_SCHEMA_VERSION = "1.0.0"
-INTERACTION_GATE_EFFECTIVE_AT = datetime.fromisoformat("2026-07-10T00:00:00+08:00")
 REQUIRED_CONFIRMATION_TOPICS = {
     "core_object",
     "event_scope_and_time_window",
@@ -84,46 +82,6 @@ REQUIRED_SECTIONS = [
 ]
 
 INTERACTION_REQUIRED_SECTIONS = ["用户交互确认", "主判断轴与范围收敛"]
-
-REQUIRED_CONFIRMATION_TOPICS = {
-    "core_object",
-    "event_scope_and_time_window",
-    "delivery_landing",
-}
-
-
-def _validate_user_confirmation(value: object, label: str) -> None:
-    if not isinstance(value, dict):
-        fail(f"{label}.user_confirmation 必须是对象")
-    require_keys(
-        value,
-        ["status", "confirmed_at", "timezone", "required_question_count", "questions"],
-        f"{label}.user_confirmation",
-    )
-    if value["status"] != "confirmed":
-        fail(f"{label}.user_confirmation.status 必须为 confirmed")
-    require_non_empty(value["confirmed_at"], "user_confirmation.confirmed_at")
-    require_non_empty(value["timezone"], "user_confirmation.timezone")
-    try:
-        required_count = int(value["required_question_count"])
-    except Exception:
-        fail("user_confirmation.required_question_count 必须为整数")
-    if required_count < 3:
-        fail("user_confirmation.required_question_count 不得少于 3")
-    questions = value["questions"]
-    if not isinstance(questions, list) or len(questions) < 3:
-        fail("user_confirmation.questions 至少需要 3 组真实问答")
-    topics: set[str] = set()
-    for index, item in enumerate(questions, 1):
-        if not isinstance(item, dict):
-            fail(f"user_confirmation.questions[{index}] 必须是对象")
-        require_keys(item, ["topic", "question", "answer"], f"user_confirmation.questions[{index}]")
-        require_non_empty(item["question"], f"user_confirmation.questions[{index}].question")
-        require_non_empty(item["answer"], f"user_confirmation.questions[{index}].answer")
-        topics.add(str(item["topic"]).strip())
-    missing = sorted(REQUIRED_CONFIRMATION_TOPICS - topics)
-    if missing:
-        fail("user_confirmation 缺少必需确认主题: " + ", ".join(missing))
 
 FORBIDDEN_STAGE_MARKERS = [
     "source_02_view_hash",
@@ -269,19 +227,8 @@ def _validate_task_and_delivery(meta: dict[str, object]) -> None:
 
 def _validate_schema_and_user_confirmation(meta: dict[str, object]) -> str:
     version = as_version(meta["schema_version"])
-    if version not in {LEGACY_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION}:
-        fail(f"schema_version 必须为 {CURRENT_SCHEMA_VERSION}；仅允许门禁生效前的 {LEGACY_SCHEMA_VERSION} 历史产物兼容")
-
-    if version == LEGACY_SCHEMA_VERSION:
-        try:
-            generated_at = datetime.fromisoformat(str(meta["generated_at"]).replace("Z", "+00:00"))
-        except ValueError as exc:
-            fail(f"历史 01 generated_at 不是合法 ISO 8601: {exc}")
-        if generated_at.tzinfo is None:
-            fail("历史 01 generated_at 必须包含时区")
-        if generated_at >= INTERACTION_GATE_EFFECTIVE_AT:
-            fail(f"{INTERACTION_GATE_EFFECTIVE_AT.isoformat()} 起生成的 01 必须使用 schema_version={CURRENT_SCHEMA_VERSION} 并完成用户交互确认")
-        return version
+    if version != CURRENT_SCHEMA_VERSION:
+        fail(f"schema_version 必须为 {CURRENT_SCHEMA_VERSION}")
 
     require_keys(meta, ["user_confirmation"], "01 front matter")
     confirmation = require_mapping(meta["user_confirmation"], "user_confirmation")
@@ -331,8 +278,7 @@ def validate(path: str | Path) -> dict[str, object]:
 
     require_keys(meta, REQUIRED_META, str(path))
     schema_version = _validate_schema_and_user_confirmation(meta)
-    if schema_version == CURRENT_SCHEMA_VERSION:
-        require_keys(meta, CURRENT_REQUIRED_META, str(path))
+    require_keys(meta, CURRENT_REQUIRED_META, str(path))
     if meta["document_type"] != "judgment_task":
         fail("document_type 必须为 judgment_task")
     if meta["status"] != "ready_for_matching":
@@ -352,27 +298,23 @@ def validate(path: str | Path) -> dict[str, object]:
     require_non_empty(meta["normalized_question"], "normalized_question")
     require_non_empty(meta["scope_summary"], "scope_summary")
     require_no_forbidden_phrases(str(meta["normalized_question"]), VAGUE_PROBLEM_PHRASES, "normalized_question")
-    if schema_version == CURRENT_SCHEMA_VERSION:
-        _validate_task_and_delivery(meta)
+    _validate_task_and_delivery(meta)
     if not isinstance(meta["intended_use"], list) or not meta["intended_use"]:
         fail("intended_use 必须是非空列表")
     if not isinstance(meta["not_allowed_use"], list) or not meta["not_allowed_use"]:
         fail("not_allowed_use 必须是非空列表")
     if "trading_recommendation" not in meta["not_allowed_use"]:
         fail("not_allowed_use 必须包含 trading_recommendation")
-    if schema_version == CURRENT_SCHEMA_VERSION:
-        _validate_main_judgment_axis(meta["main_judgment_axis"])
-        _validate_overscope_check(meta["overscope_check"], ready_status=str(meta["status"]), needs_split=meta["needs_split"])
+    _validate_main_judgment_axis(meta["main_judgment_axis"])
+    _validate_overscope_check(meta["overscope_check"], ready_status=str(meta["status"]), needs_split=meta["needs_split"])
     require_no_placeholders(meta, str(path) + " front matter")
 
     required_sections = list(REQUIRED_SECTIONS)
-    if schema_version == CURRENT_SCHEMA_VERSION:
-        required_sections.extend(INTERACTION_REQUIRED_SECTIONS)
+    required_sections.extend(INTERACTION_REQUIRED_SECTIONS)
     require_body_sections(body, required_sections, str(path))
     require_no_placeholders(body, str(path) + " body")
     required_phrases = ["支持、削弱、反证与竞争解释", "质量结论"]
-    if schema_version == CURRENT_SCHEMA_VERSION:
-        required_phrases.extend(["主判断轴", "范围过宽检查"])
+    required_phrases.extend(["主判断轴", "范围过宽检查"])
     for required_phrase in required_phrases:
         if required_phrase not in body:
             fail(f"{path} 正文必须包含“{required_phrase}”")
@@ -387,7 +329,7 @@ def validate(path: str | Path) -> dict[str, object]:
         "task_id": meta["task_id"],
         "status": meta["status"],
         "quality_status": meta["quality_status"],
-        "overscope_status": meta.get("overscope_check", {}).get("status", "legacy_not_recorded"),
+        "overscope_status": meta["overscope_check"]["status"],
     }
 
 

@@ -57,9 +57,10 @@ quality_control:
 
 research_framework:
   logic_document_ref: "<与 task_context.logic_document 一致>"
+  # 内部字段沿用 judgment_spine，正文和研究员沟通统一称为“核心判断”。
   judgment_spine:
     statement: "<一句话说明本次真正要辨别的主矛盾和主导机制>"
-    md_section: "1.3 判断脊柱"
+    md_section: "1.3 核心判断"
   basis:
     source: "<independent | library_adapted | mixed>"
     md_section: "<如：3. 本次采用的分析框架>"
@@ -79,6 +80,7 @@ research_framework:
   alignment_checks:
     independently_formed_in_md: false
     library_consulted_in_md: false
+    # 指核心判断是否与研究逻辑正文一致。
     judgment_spine_consistent_with_md: false
     problem_tree_consistent_with_md: false
 
@@ -269,6 +271,7 @@ handoff_to_03:
 validation:
   checks:
     scope_consistent_with_01: false
+    # 指核心判断是否完整。
     judgment_spine_present: false
     minimum_question_tree_present: false
     main_counter_competing_paths_present: false

@@ -1152,13 +1152,9 @@ def validate_publish(
     through: str = "05",
     require_high_quality: bool = True,
     allow_minimum: bool = False,
-    require_publish_quality: bool | None = None,
 ) -> dict[str, Any]:
     if isinstance(artifacts, (str, Path)):
         artifacts = discover_artifacts(artifacts)
-    # 保留 2.0 迁移期 API；False 表示只要全链合规即可，不额外强制发布级质量。
-    if require_publish_quality is not None:
-        require_high_quality = require_publish_quality
     if through not in STAGE_ORDER:
         fail(f"--through 非法: {through}")
 

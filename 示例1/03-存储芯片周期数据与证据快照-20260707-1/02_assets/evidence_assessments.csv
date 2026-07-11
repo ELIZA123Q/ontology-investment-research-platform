@@ -1,0 +1,2 @@
+assessment_id,execution_id,evaluated_at,profile_ref,assessment_scope,usability,quality_level,rationale,gap_refs,evidence_refs,linked_judgment_unit_ids,notes
+EA-MEM-001,EXEC-MEM-CYCLE-20260707-1,2026-07-07T21:06:10+08:00,demand_orders,分产品周期判断,usable,high,公司披露可直接支持HBM结构性偏紧方向,,SD-MEM-001|CL-MEM-001|EF-MEM-001,JU-01|JU-02|JU-03|JU-04|JU-05|JU-06|JU-07,任务级使用属性详见evidence_records.csv

@@ -57,7 +57,7 @@ class JudgmentStrengthContractTests(unittest.TestCase):
             writer.writerows(rows)
 
     def test_full_v2_chain_passes(self) -> None:
-        result = validate_publish(self.run, through="05", require_publish_quality=False)
+        result = validate_publish(self.run, through="05", require_high_quality=False)
         self.assertEqual(result["publish_status"], "PUBLISHABLE")
 
     def test_prediction_cannot_reach_j4(self) -> None:
@@ -65,8 +65,8 @@ class JudgmentStrengthContractTests(unittest.TestCase):
             validate_target_claim_level("forecast", "J4", "test")
 
     def test_j3_requires_two_independent_source_groups(self) -> None:
-        evidence_path = self.snapshot / "evidence_records.csv"
-        readiness_path = self.snapshot / "judgment_unit_readiness.csv"
+        evidence_path = self.snapshot / "02_assets/evidence_records.csv"
+        readiness_path = self.snapshot / "03_gate/judgment_unit_readiness.csv"
 
         def collapse_groups(rows):
             for row in rows:
@@ -83,7 +83,7 @@ class JudgmentStrengthContractTests(unittest.TestCase):
             validate_03(self.prep, self.snapshot)
 
     def test_j2_requires_direct_support(self) -> None:
-        evidence_path = self.snapshot / "evidence_records.csv"
+        evidence_path = self.snapshot / "02_assets/evidence_records.csv"
 
         def remove_direct_support(rows):
             for row in rows:
@@ -95,7 +95,7 @@ class JudgmentStrengthContractTests(unittest.TestCase):
             validate_03(self.prep, self.snapshot)
 
     def test_contested_is_capped_at_j1(self) -> None:
-        readiness_path = self.snapshot / "judgment_unit_readiness.csv"
+        readiness_path = self.snapshot / "03_gate/judgment_unit_readiness.csv"
 
         def contest_j2(rows):
             for row in rows:
