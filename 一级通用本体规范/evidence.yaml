@@ -229,6 +229,16 @@ object_types:
       assessmentScope: {type: string, required: true, description: 评估适用的对象、时间、口径与判断范围。}
       usability: {type: enum, required: true, allowed_values: [usable, restricted, insufficient, blocked], description: 在当前任务范围内的使用结论。}
       qualityLevel: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 当前评估范围内的证据质量。}
+      sourceAuthorityScore: {type: integer, required: true, description: 来源可靠性 1—5 分。}
+      directnessScore: {type: integer, required: true, description: 数据直接性 1—5 分。}
+      freshnessScore: {type: integer, required: true, description: 时间新鲜度 1—5 分。}
+      scopeMatchScore: {type: integer, required: true, description: 对象、时间和口径匹配度 1—5 分。}
+      independentValidationScore: {type: integer, required: true, description: 独立验证程度 1—5 分；同源转述不得加分。}
+      reliabilityScoreTotal: {type: integer, required: true, description: 五维诊断分之和，范围 5—25；不是事实概率。}
+      reliabilityBand: {type: enum, required: true, allowed_values: [low, medium, high], description: 按五维分数并服从硬限制后的可靠度。}
+      weakestDimension: {type: string, required: true, description: 限制本项证据使用的最弱维度。}
+      reliabilityBasis: {type: string, required: true, description: 五维评分、硬限制和可靠度的解释。}
+      hardLimit: {type: string, required: false, description: 追溯、权限、时间、口径、代理或冲突触发的硬限制。}
       rationale: {type: string, required: true, description: 可用性、质量等级与限制的投研理由。}
       gapRefs: {type: array, required: false, description: 影响使用的证据缺口 ID。}
       evidenceRefs: {type: array, required: true, description: 被评估的 SourceDocument、EvidenceClaim 或 EvidenceFact ID。}

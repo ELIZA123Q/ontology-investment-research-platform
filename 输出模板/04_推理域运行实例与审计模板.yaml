@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 1.0.0
+schema_version: 2.0.0
 
 metadata:
   task_id: ""
@@ -55,6 +55,8 @@ overall_judgment:
   primary_claim_id: C-01
   judgment_level: J0
   confidence: low
+  investment_interpretation: observation_stage
+  interpretation_basis: ""
   statement: ""
   scope:
     time: ""
@@ -62,6 +64,48 @@ overall_judgment:
     value_chain: ""
     objects: []
   downgrade_reasons: []
+
+judgment_update_register:
+  - update_id: UPDATE-01
+    claim_id: C-01
+    prior_judgment_level: J0
+    prior_confidence: low
+    evidence_changes: []
+    affected_structure: []
+    current_judgment_level: J0
+    current_confidence: low
+    update_action: "<maintain | enhance | weaken | block | revise>"
+    update_reason: ""
+    source_03_maximum_judgment_level: J0
+    next_upgrade_signals: []
+    next_downgrade_or_block_signals: []
+
+investment_thesis_verdict:
+  applicable: false
+  applicability_reason: ""
+  source_claim_refs: []
+  source_a08_claim_refs: []
+  source_a09_claim_refs: []
+  target_asset: ""
+  time_window: ""
+  gate_results:
+    research_validity: "<pass | conditional | fail | not_assessed>"
+    expectation_comparability: "<pass | conditional | fail | not_assessed>"
+    pricing_not_fully_reflected: "<pass | conditional | fail | not_assessed>"
+    payoff_risk_asymmetry: "<pass | conditional | fail | not_assessed>"
+    validation_window: "<pass | conditional | fail | not_assessed>"
+  priced_in_assessment: "<unpriced | partially_priced | priced | unknown | not_applicable>"
+  base_case: ""
+  upside_case: ""
+  downside_case: ""
+  catalyst_or_validation_signals: []
+  strongest_counterevidence: ""
+  verdict: "<formed | conditional | watch | not_formed | blocked | not_applicable>"
+  judgment_level: J0
+  confidence: low
+  verdict_reason: ""
+  invalidation_conditions: []
+  handoff_to_05: "<investment_spine_allowed | conditional_expression_only | tracking_only | prohibited | not_applicable>"
 
 claim_register:
   - claim_id: C-01
@@ -119,6 +163,19 @@ tracking_register:
     frequency: ""
     action_after_trigger: ""
 
+review_plan:
+  - review_id: REVIEW-01
+    source_claim_id: C-01
+    source_judgment_id: J-01
+    judgment_as_of: ""
+    prediction_horizon: ""
+    expected_signals: []
+    change_thresholds: []
+    review_due_at: ""
+    actual_signals: []
+    review_status: "<scheduled | due | completed | cancelled>"
+    validation_record_ref: null
+
 handoff_to_05:
   target_05_archetype: "<event_commentary | industry_dynamic_commentary | industry_cycle_report | company_earnings_commentary | theme_deep_dive>"
   target_05_quality: "<minimum_pass | high_quality_pass | return_required | stop_with_gap_report>"
@@ -151,6 +208,13 @@ handoff_to_05:
       prohibited_expressions: []
   market_common_view: ""
   differentiated_view: ""
+  research_edge:
+    reference_view: ""
+    differentiated_claim: ""
+    underappreciated_mechanism: ""
+    why_market_may_misread: ""
+    falsification_signal: ""
+    evidence_boundary: ""
   why_now: ""
   misread_risks:
     - ""

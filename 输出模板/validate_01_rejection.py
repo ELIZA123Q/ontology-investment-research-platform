@@ -87,7 +87,7 @@ def validate(path: str | Path) -> dict[str, object]:
     require_no_placeholders(meta, str(path) + " front matter")
     require_body_sections(body, REQUIRED_SECTIONS, str(path))
     require_no_placeholders(body, str(path) + " body")
-    for required_phrase in ["是否可验证、可反证", "是否有明确对象和范围", "可拆主判断轴", "质量结论"]:
+    for required_phrase in ["是否可验证、可反证", "是否有明确对象和范围", "可拆出的研究问题", "质量结论"]:
         if required_phrase not in body:
             fail(f"{path} 正文必须说明“{required_phrase}”")
 

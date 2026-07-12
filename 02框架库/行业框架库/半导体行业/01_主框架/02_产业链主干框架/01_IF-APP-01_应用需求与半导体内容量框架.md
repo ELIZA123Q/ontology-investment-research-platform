@@ -2,7 +2,7 @@
 framework_id: IF-APP-01
 name: 应用需求与半导体内容量框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: value_chain_main
 builds_on: [BF-SD-01, BF-VT-01]
@@ -10,6 +10,29 @@ updated_at: 2026-07-08
 ---
 
 # 应用需求与半导体内容量框架
+
+## 研究员抓手：需求等于数量、内容量与实现节奏
+
+半导体需求应拆为 `终端数量 × 单机/单系统内容量 × 渗透率 × 实际部署利用 × 库存/采购节奏`。技术规格提高只改变理论内容量，只有配置落地、系统瓶颈解除和终端利用兑现后才形成真实消耗。
+
+优先检查替代和挤占：新器件是否减少旧器件用量，系统预算是否从一个环节迁移到另一个环节，算力/带宽提升是否受电力、网络、软件或封装限制。订单与资本开支只能作为采购线索，不直接等于终端需求。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: mechanism
+hard_prerequisites: [BF-SD-01, BF-VT-01]
+judgment_types: [mechanism_transmission, causal_attribution, trend_or_phase]
+state_variable_candidates: [terminal_units, content_per_system, penetration, deployment, utilization, inventory]
+signal_candidates: [configuration_adoption, shipment, deployment, workload_utilization, procurement]
+output_objects: [terminal_to_content_bridge, theoretical_content, realized_consumption]
+evidence_requirements: [终端数量, 配置内容量, 渗透部署, 实际利用, 采购库存]
+falsification_conditions: [specification_without_adoption, deployment_delay, bottleneck, inventory_build]
+scenarios: [content_realized, delayed, not_realized]
+downstream_unlocks: [IF-DES-01, IF-FAB-01, IF-PKG-01, BF-EE-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -107,7 +130,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 

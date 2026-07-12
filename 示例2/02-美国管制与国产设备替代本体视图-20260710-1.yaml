@@ -250,6 +250,14 @@ reasoning_plan:
   frozen: true
 judgment_units:
 - judgment_unit_id: JU-01
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 现行美国管制形成定向且可执行的设备供给约束，但并非全面禁运
+  judgment_type: policy_impact_judgment
+  priority_tier: important
+  decision_weight: 4
+  decision_role: mechanism_validator
+  priority_rationale: 政策事实决定供给缺口起点，但不直接等同于国产受益
+  critical_failure_effect: downgrade_overall
   statement: 现行规则形成定向且可执行的供给约束但并非全面禁运
   linked_questions:
   - Q-01
@@ -331,6 +339,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-02
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 海外设备供给缺口只有经过验证、复购与经营兑现才能转化为国产受益
+  judgment_type: supply_chain_bottleneck_judgment
+  priority_tier: critical
+  decision_weight: 5
+  decision_role: direction_driver
+  priority_rationale: 商业兑现是政策冲击能否改写行业逻辑的决定性变量
+  critical_failure_effect: recalculate_overall
   statement: 供给缺口只有通过验证复购与经营兑现才能转化为国产受益
   linked_questions:
   - Q-03
@@ -411,6 +427,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-03
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 设备类别与公司强弱主要由商业成熟度而非名义供给缺口大小决定
+  judgment_type: event_impact_judgment
+  priority_tier: important
+  decision_weight: 4
+  decision_role: differentiation_explainer
+  priority_rationale: 该单元决定类别和代表公司的受益排序
+  critical_failure_effect: downgrade_overall
   statement: 类别和公司强弱由商业成熟度而非缺口大小主导
   linked_questions:
   - Q-04
@@ -494,6 +518,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-04
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 现行管制在未来十二个月强化国产替代必要性，但不会自动保证所有类别同步兑现
+  judgment_type: policy_impact_judgment
+  priority_tier: critical
+  decision_weight: 5
+  decision_role: direction_driver
+  priority_rationale: 该单元直接回答 01 的行业逻辑是否被改写
+  critical_failure_effect: recalculate_overall
   statement: 现行管制是否改写未来十二个月行业逻辑
   linked_questions:
   - Q-01

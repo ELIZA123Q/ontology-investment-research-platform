@@ -60,7 +60,13 @@ REQUIRED_META = [
     "scope_summary",
 ]
 
-CURRENT_REQUIRED_META = ["user_confirmation", "main_judgment_axis", "overscope_check", "needs_split"]
+CURRENT_REQUIRED_META = [
+    "user_confirmation",
+    "main_judgment_axis",
+    "research_value_gate",
+    "overscope_check",
+    "needs_split",
+]
 
 CURRENT_SCHEMA_VERSION = "1.1.0"
 REQUIRED_CONFIRMATION_TOPICS = {
@@ -70,8 +76,9 @@ REQUIRED_CONFIRMATION_TOPICS = {
 }
 
 REQUIRED_SECTIONS = [
-    "研究目标、核心问题与判断落点",
+    "研究目标、核心问题与最终要回答的问题",
     "研究对象与判断起点",
+    "研究价值门",
     "研究范围与边界",
     "关键歧义校验",
     "核心观察维度",
@@ -81,7 +88,7 @@ REQUIRED_SECTIONS = [
     "01 质量门槛检查",
 ]
 
-INTERACTION_REQUIRED_SECTIONS = ["用户交互确认", "主判断轴与范围收敛"]
+INTERACTION_REQUIRED_SECTIONS = ["用户交互确认", "核心研究主线与范围收敛"]
 
 FORBIDDEN_STAGE_MARKERS = [
     "source_02_view_hash",
@@ -148,7 +155,7 @@ def _reject_vague_axis_value(value: object, label: str) -> str:
     text = require_string(value, label)
     stripped = re.sub(r"\s+", "", text)
     if stripped in VAGUE_AXIS_EXACT:
-        fail(f"{label} 过于空泛，不能作为主判断轴")
+        fail(f"{label} 过于空泛，不能作为核心研究主线")
     if "全链" in stripped and label.endswith(".object"):
         fail(f"{label} 不能只写全链或全产业链，必须收敛到主对象或主环节")
     require_no_forbidden_phrases(stripped, VAGUE_PROBLEM_PHRASES, label)
@@ -207,6 +214,48 @@ def _validate_overscope_check(value: object, *, ready_status: str, needs_split: 
         fail("overscope_check.status=pass 时 broadness_flags 不得包含“不适用”")
     if require_bool(needs_split, "needs_split"):
         fail("needs_split=true 时不得生成 ready_for_matching 的投研需求说明")
+
+
+def _validate_research_value_gate(value: object, *, ready_status: str) -> None:
+    gate = require_mapping(value, "research_value_gate")
+    require_keys(
+        gate,
+        [
+            "status",
+            "value_level",
+            "disagreement_or_unknown",
+            "changing_variable",
+            "asset_or_decision_impact_path",
+            "decision_use",
+            "why_now",
+            "incremental_question",
+            "low_value_reason",
+        ],
+        "research_value_gate",
+    )
+    status = require_allowed(
+        gate["status"],
+        {"pass", "needs_clarification", "low_value"},
+        "research_value_gate.status",
+    )
+    level = require_allowed(
+        gate["value_level"],
+        {"high", "medium", "low"},
+        "research_value_gate.value_level",
+    )
+    for field in [
+        "disagreement_or_unknown",
+        "changing_variable",
+        "asset_or_decision_impact_path",
+        "decision_use",
+        "why_now",
+        "incremental_question",
+    ]:
+        require_string(gate[field], f"research_value_gate.{field}", min_length=4)
+    if not isinstance(gate["low_value_reason"], str):
+        fail("research_value_gate.low_value_reason 必须是字符串")
+    if ready_status == "ready_for_matching" and (status != "pass" or level == "low"):
+        fail("ready_for_matching 必须通过研究价值门，且 value_level 不得为 low")
 
 
 def _validate_task_and_delivery(meta: dict[str, object]) -> None:
@@ -306,6 +355,7 @@ def validate(path: str | Path) -> dict[str, object]:
     if "trading_recommendation" not in meta["not_allowed_use"]:
         fail("not_allowed_use 必须包含 trading_recommendation")
     _validate_main_judgment_axis(meta["main_judgment_axis"])
+    _validate_research_value_gate(meta["research_value_gate"], ready_status=str(meta["status"]))
     _validate_overscope_check(meta["overscope_check"], ready_status=str(meta["status"]), needs_split=meta["needs_split"])
     require_no_placeholders(meta, str(path) + " front matter")
 
@@ -314,7 +364,8 @@ def validate(path: str | Path) -> dict[str, object]:
     require_body_sections(body, required_sections, str(path))
     require_no_placeholders(body, str(path) + " body")
     required_phrases = ["支持、削弱、反证与竞争解释", "质量结论"]
-    required_phrases.extend(["主判断轴", "范围过宽检查"])
+    required_phrases.extend(["核心研究主线", "范围过宽检查"])
+    required_phrases.append("研究价值门")
     for required_phrase in required_phrases:
         if required_phrase not in body:
             fail(f"{path} 正文必须包含“{required_phrase}”")

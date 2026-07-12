@@ -67,9 +67,38 @@ research_framework:
     alignment_summary: "<一句话；不重写问题树>"
   library_reference:
     library_ref: 02框架库/README.md
-    library_version: 1.0.0
+    library_version: 2.0.0
     consulted: []
     no_direct_reference_reason: ""
+  framework_execution:
+    dependency_protocol_ref: 02框架库/01_框架依赖图与输出协议.md
+    registry_ref: 02框架库/00_framework_dependency_registry.yaml
+    calls:
+      - sequence: 1
+        framework_id: "<BF-XX-01 | IF-XX-01>"
+        framework_layer: "<mechanism | company_realization | market_pricing>"
+        gate_status: "<passed | provisional | failed | not_applicable>"
+        prerequisite_judgment_refs: ["JU-01"]
+        judgment_types: []
+        candidate_claims: []
+        state_variable_candidates: []
+        signal_candidates: []
+        evidence_requirements: []
+        falsification_conditions: []
+        scenarios: []
+        output_objects: []
+        downstream_unlocks: []
+        unresolved_gaps: []
+    weakest_prerequisite_status: "<passed | provisional | failed | not_applicable>"
+    valuation_gate:
+      applicable: false
+      status: not_applicable
+      upstream_industry_or_mechanism_judgment_ref: null
+      earnings_bridge_framework_ref: null
+      forecast_framework_ref: null
+      expectation_gap_framework_ref: null
+      changed_valuation_inputs: []
+      unresolved_gaps: []
   minimum_question_tree:
     - question_id: "Q-01"
       question: "<子问题>"
@@ -144,7 +173,15 @@ reasoning_plan:
 
 judgment_units:
   - judgment_unit_id: "JU-01"
+    research_question_ref: "task_context.normalized_question"
+    candidate_claim: "<04 预期回答的可证伪命题>"
     statement: "<04 可能输出的观点或边界>"
+    judgment_type: "<industry_cycle_judgment 等>"
+    priority_tier: "<critical | important | supporting | background>"
+    decision_weight: 5
+    decision_role: "<direction_driver | strength_driver | differentiation_explainer | mechanism_validator | background_context>"
+    priority_rationale: "<为什么该单元会改变总判断>"
+    critical_failure_effect: "<recalculate_overall | downgrade_overall | no_overall_effect>"
     linked_questions: ["Q-01"]
     linked_paths: []
     target_claim_type: "<historical_fact | current_state | causal_inference | directional_outlook | forecast | conditional_scenario>"

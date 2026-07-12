@@ -2,7 +2,7 @@
 framework_id: IF-DES-01
 name: 芯片设计、IP与产品商业化框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: value_chain_main
 builds_on: [BF-BM-01, BF-IC-01, BF-EE-01]
@@ -10,6 +10,29 @@ updated_at: 2026-07-08
 ---
 
 # 芯片设计、IP与产品商业化框架
+
+## 研究员抓手：每个商业化阶段都可能归零
+
+产品定义、架构/IP、设计验证、流片、回片、客户验证、design win、量产、复购和平台迭代是不同风险阶段。研究员应明确当前证据停在哪一级，以及下一阶段成功所需的客户、生态、成本和供应条件。
+
+design win 不等于量产收入；量产也不等于良好经济性。重点检查软件生态、客户开发周期、晶圆/封测保障、die size 与良率、ASP 与成本、单一客户依赖、产品生命周期和迭代蚕食。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: company_realization
+hard_prerequisites: [BF-BM-01, BF-IC-01]
+judgment_types: [mechanism_transmission, state_measurement, object_comparison]
+state_variable_candidates: [development_stage, tapeout, validation, design_win, mass_production, repurchase]
+signal_candidates: [prototype, tapeout, customer_test, design_win, shipment, repeat_order]
+output_objects: [commercialization_stage, stage_gate, ecosystem_dependency, revenue_bridge]
+evidence_requirements: [产品定义, 技术验证, 客户验证, 量产交付, 复购]
+falsification_conditions: [stage_confusion, validation_failure, no_supply, no_repeat_order]
+scenarios: [stage_progression, delay, reset]
+downstream_unlocks: [BF-EE-01, BF-FS-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -109,7 +132,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 

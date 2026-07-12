@@ -1,0 +1,139 @@
+schema_version: 1.0.0
+document_type: framework_dependency_registry
+gate_status_enum: [passed, provisional, failed, not_applicable]
+
+layers:
+  judgment_generation:
+    assets: [JF-STATE, JF-TREND, JF-CYCLE, JF-ATTR, JF-TRANS, JF-DIFF, JF-EXPECT, JF-RISK]
+  mechanism:
+    assets: [BF-IC-01, BF-MF-01, BF-PI-01, BF-SD-01, BF-VT-01, BF-PC-01]
+  company_realization:
+    assets: [BF-BM-01, BF-FQ-01, BF-EE-01, BF-CG-01, BF-CA-01]
+  market_pricing:
+    assets: [BF-FS-01, BF-EG-01, BF-RS-01, BF-VA-01]
+
+frameworks:
+  BF-IC-01:
+    layer: mechanism
+    hard_requires: [judgment_unit]
+    unlocks: [BF-SD-01, BF-BM-01]
+  BF-MF-01:
+    layer: mechanism
+    hard_requires: [judgment_unit]
+    unlocks: [BF-SD-01, BF-VT-01]
+  BF-PI-01:
+    layer: mechanism
+    hard_requires: [judgment_unit]
+    unlocks: [BF-VT-01, BF-SD-01]
+  BF-SD-01:
+    layer: mechanism
+    hard_requires: [judgment_unit]
+    contextual_requires_any: [BF-IC-01, BF-MF-01, BF-PI-01, task_scoping_judgment]
+    unlocks: [BF-PC-01, BF-VT-01, BF-EE-01]
+  BF-VT-01:
+    layer: mechanism
+    hard_requires: [judgment_unit, path_nodes_and_relations]
+    contextual_requires_any: [BF-PI-01, BF-SD-01, BF-MF-01, exogenous_event_judgment]
+    unlocks: [BF-EE-01, BF-RS-01]
+  BF-PC-01:
+    layer: mechanism
+    hard_requires: [BF-SD-01]
+    unlocks: [BF-EE-01, BF-FS-01]
+  BF-BM-01:
+    layer: company_realization
+    hard_requires: [judgment_unit, company_scope]
+    contextual_requires_any: [BF-IC-01, industry_boundary_judgment]
+    unlocks: [BF-FQ-01, BF-EE-01, BF-CA-01]
+  BF-FQ-01:
+    layer: company_realization
+    hard_requires: [BF-BM-01]
+    unlocks: [BF-EE-01, BF-CA-01, BF-FS-01]
+  BF-EE-01:
+    layer: company_realization
+    hard_requires: [BF-BM-01, upstream_industry_or_mechanism_judgment]
+    contextual_requires_any: [BF-SD-01, BF-PC-01, BF-VT-01, BF-PI-01, BF-MF-01]
+    quality_gate: BF-FQ-01
+    unlocks: [BF-FS-01, BF-EG-01, BF-RS-01]
+  BF-CG-01:
+    layer: company_realization
+    hard_requires: [judgment_unit, company_scope]
+    unlocks: [BF-CA-01, BF-RS-01]
+  BF-CA-01:
+    layer: company_realization
+    hard_requires: [BF-BM-01, BF-FQ-01]
+    contextual_requires_any: [BF-CG-01, governance_judgment]
+    unlocks: [BF-FS-01, BF-RS-01]
+  BF-FS-01:
+    layer: market_pricing
+    hard_requires: [BF-BM-01, BF-FQ-01]
+    contextual_requires_any: [BF-EE-01, operating_driver_judgment]
+    unlocks: [BF-EG-01, BF-RS-01, BF-VA-01]
+  BF-EG-01:
+    layer: market_pricing
+    hard_requires: [timestamped_prior_expectation, new_information_judgment]
+    contextual_requires_any: [BF-FS-01, BF-EE-01, fundamental_change_judgment]
+    unlocks: [BF-VA-01]
+  BF-RS-01:
+    layer: market_pricing
+    hard_requires: [judgment_unit, exposure_and_trigger]
+    contextual_requires_any: [BF-SD-01, BF-VT-01, BF-FQ-01, BF-CA-01, BF-FS-01]
+    unlocks: [BF-FS-01, BF-VA-01]
+  BF-VA-01:
+    layer: market_pricing
+    hard_requires:
+      - upstream_industry_or_mechanism_judgment
+      - BF-EE-01
+      - BF-FS-01
+      - BF-EG-01
+      - valuation_input_change
+    unlocks: []
+
+industry_overlays:
+  IF-SC-01:
+    layer: mechanism
+    hard_requires: [BF-IC-01, BF-SD-01, BF-PC-01]
+    unlocks: [BF-EE-01, BF-FS-01]
+  IF-LOC-01:
+    layer: mechanism
+    hard_requires: [BF-PI-01, BF-VT-01]
+    unlocks: [BF-EE-01, BF-RS-01]
+  IF-APP-01:
+    layer: mechanism
+    hard_requires: [BF-SD-01, BF-VT-01]
+    unlocks: [IF-DES-01, IF-FAB-01, IF-PKG-01, BF-EE-01]
+  IF-DES-01:
+    layer: company_realization
+    hard_requires: [BF-BM-01, BF-IC-01]
+    unlocks: [BF-EE-01, BF-FS-01]
+  IF-FAB-01:
+    layer: mechanism
+    hard_requires: [BF-SD-01]
+    unlocks: [BF-EE-01, BF-FS-01]
+  IF-PKG-01:
+    layer: mechanism
+    hard_requires: [BF-SD-01, BF-VT-01]
+    unlocks: [BF-EE-01, BF-RS-01]
+  IF-EQP-01:
+    layer: company_realization
+    hard_requires: [BF-VT-01]
+    unlocks: [BF-EE-01, BF-FS-01]
+  IF-MAT-01:
+    layer: company_realization
+    hard_requires: [BF-VT-01]
+    unlocks: [BF-EE-01, BF-FS-01]
+
+output_contract_required_fields:
+  - framework_id
+  - framework_layer
+  - gate_status
+  - prerequisite_judgment_refs
+  - judgment_types
+  - candidate_claims
+  - state_variable_candidates
+  - signal_candidates
+  - evidence_requirements
+  - falsification_conditions
+  - scenarios
+  - output_objects
+  - downstream_unlocks
+  - unresolved_gaps

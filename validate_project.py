@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parent
 CHECKS = (
     ("一级通用本体", [sys.executable, "一级通用本体规范/validate_schema.py"]),
     ("投研框架库", [sys.executable, "02框架库/validate_frameworks.py"]),
+    ("取证策略库", [sys.executable, "03取证策略库/validate_strategies.py"]),
+    ("推理方法库", [sys.executable, "04推理方法库/validate_methods.py"]),
     (
         "校验器单元测试",
         [sys.executable, "-m", "unittest", "discover", "-s", "输出模板/tests", "-q"],
@@ -34,7 +36,7 @@ def main() -> int:
         print("\nPROJECT_RETURN_REQUIRED: " + "、".join(failures))
         return 1
 
-    print("\nPROJECT_PASS: 本体、框架、校验器与两个 01—05 验收样例全部通过。")
+    print("\nPROJECT_PASS: 本体、02 框架库、03 取证策略库、04 推理方法库、校验器与两个 01—05 验收样例全部通过。")
     return 0
 
 

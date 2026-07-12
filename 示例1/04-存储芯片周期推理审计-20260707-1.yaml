@@ -97,6 +97,8 @@ overall_judgment:
   judgment_level: J3
   statement: 非 HBM DRAM 与 NAND 的历史价格上行较强，但不能据此确认统一周期结束日。
   confidence: medium
+  investment_interpretation: high_level_divergence
+  interpretation_basis: 价格与 AI/HBM 需求支持改善，但三类产品驱动、库存和有效供给条件分化，不能合并为同步强景气
   scope:
     time: 截至2026-07-07，前瞻6—24个月
     geography: 全球
@@ -269,6 +271,17 @@ tracking_register:
   description: 跟踪价格、库存、订单兑现、HBM认证和新增供给良率
   frequency: 季度
   linked_claim_refs: C-01|C-05|C-06|C-07
+review_plan:
+- review_id: REVIEW-01
+  source_claim_id: C-01
+  judgment_as_of: '2026-07-07'
+  prediction_horizon: 未来两个季度至2028年中
+  expected_signals:
+  - 分产品价格斜率、客户库存、订单兑现和新增合格供给变化
+  change_thresholds:
+  - 连续两个季度出现价格转弱、库存累积、订单取消和合格供给释放的共振
+  review_due_at: '2027-01-15'
+  review_status: scheduled
 ontology_context:
   object_type_refs: Industry|Company|Product|Segment|Application|ManufacturingFacility
   relation_type_refs: companyBelongsToIndustry|productProducedBy|productBelongsToSegment|productUsedInApplication

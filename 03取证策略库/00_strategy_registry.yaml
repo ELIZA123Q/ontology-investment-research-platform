@@ -1,23 +1,170 @@
+# 系统接口文件：研究员先按自然语言选择“要证明什么”和“最低证据组合”；
+# 库管理员再把选用结果映射到 recipe/rule ID，本文件不作为第一版使用门槛。
 registry_type: evidence_strategy_registry
-schema_version: 1.0.0
-updated_at: 2026-07-09
+schema_version: 1.3.0
+updated_at: 2026-07-12
+
+execution_contract:
+  required_02_judgment_unit_fields:
+    - judgment_type
+    - required_evidence_role
+    - default_recipe
+  upstream_binding_rule: 03 必须先校验 JudgmentUnit 三字段，再按 default_recipe 实例化；缺任一字段则退回 02，不得由 03 猜测。
+  default_recipe_override_rule: 仅当前置适用条件明确不成立时允许偏离 default_recipe；必须记录 parent_recipe_id、override_recipe_id 与 override_reason。来源难取或手头已有材料不构成偏离理由。
+  required_sequence:
+    - freeze_scope
+    - create_evidence_requirement
+    - match_primary_recipe
+    - instantiate_baskets
+    - plan_sources_and_channels
+    - acquire_and_preserve_raw_artifacts
+    - extract_claims_and_normalize_facts
+    - assess_evidence_and_counter_evidence
+    - assess_basket_path_and_judgment_readiness
+  primary_recipe_limit_per_judgment_unit: 1
+  auxiliary_recipe_limit_per_judgment_unit: 1
+  counter_rule_required_for_directional_use: A08
+  proxy_rule_requires_parent_requirement: true
+  task_recipe_instance_rule: 任务配方可使用 R-<TASK>-<JU> ID，但必须记录 parent_recipe_id 或在 strategy_library_ref 中保留父配方。
+
+basket_contract:
+  required_fields:
+    - basket_type
+    - basket_role
+    - target_judgment_unit_id
+    - target_requirement_ids
+    - required_evidence_categories
+    - minimum_source_tier
+    - minimum_independent_source_count
+    - required_time_coverage
+    - required_object_coverage
+    - required_content_domains
+    - allowed_proxy
+    - basket_status
+    - conflict_status
+    - counter_check_status
+    - quality_level
+    - allowed_04_output
+    - gap_action
+  status_rule: 篮子状态由最薄弱的强制条件决定，材料数量不能补偿关键类别缺失。
+  independence_rule: 同一原始来源、同一数据供应链或同一转述链只计一个 independence_group。
+  counter_rule: counter 篮子必须记录检索范围与结果；未找到反证不等于反证不存在。
+
+recipe_lifecycle:
+  statuses: [draft, active, deprecated, retired]
+  admission_requirements:
+    - 覆盖至少两个任务或有明确的稳定判断类型依据
+    - mandatory、counter、minimum_pass、downgrade、stop_rule 完整
+    - 与 A 类规则和 B 类来源映射可解析
+    - 至少有一个正例和一个失败或降级例
+  change_requires_version_bump:
+    - mandatory_baskets
+    - minimum_pass_rule
+    - downgrade_rule
+    - proxy_rule
+    - stop_rule
+  review_signal:
+    - 连续任务频繁人工改写配方
+    - 配方无法区分竞争解释
+    - 关键篮子长期不可取得
+    - 回测显示配方产生系统性误判
 
 quality_levels:
   Q0_unusable:
     description: 不可追溯、权限不清、口径不明或来源不合格
     allowed_04_output: none
+    evidence_permission: prohibited
   Q1_background:
     description: 可作为背景、线索或市场叙事
     allowed_04_output: background_only
+    evidence_permission: background_only
   Q2_reasoning_usable:
     description: 可作为受限推理输入
     allowed_04_output: conditional_or_tentative
+    evidence_permission: conditional_judgment
   Q3_directional_ready:
     description: 可支撑方向性判断
     allowed_04_output: directional_view
+    evidence_permission: directional_judgment
   Q4_report_grade:
     description: 可支撑高质量 05 图表、排序或核心论证
     allowed_04_output: report_grade_reasoning
+    evidence_permission: core_judgment
+
+# Evidence Permission Matrix 是 03→04 的硬接口。质量等级说明证据本身，
+# evidence_permission 决定 04 最多能怎样使用；04 不得自行上调权限。
+evidence_permission_matrix:
+  Q4_report_grade:
+    evidence_permission: core_judgment
+    allowed_04_use: 核心判断
+  Q3_directional_ready:
+    evidence_permission: directional_judgment
+    allowed_04_use: 方向判断
+  Q2_reasoning_usable:
+    evidence_permission: conditional_judgment
+    allowed_04_use: 条件判断
+  Q1_background:
+    evidence_permission: background_only
+    allowed_04_use: 背景
+  Q0_unusable:
+    evidence_permission: prohibited
+    allowed_04_use: 禁止
+
+evidence_permission_contract:
+  assessment_scope: judgment_unit_final
+  aggregation_rule: 对 mandatory baskets、反证、冲突、代理依赖、时间、范围与口径取最严格结果；不得使用最好单项证据或平均分上调权限。
+  required_handoff_fields: [judgment_unit_id, evidence_quality_level, evidence_permission, allowed_04_output, maximum_judgment_level, scope_limit, downgrade_reason]
+  downstream_rule: 04 只能继承或降低 evidence_permission，不得上调。
+
+# 02 JudgmentUnit 的强制路由；03 先继承 default_recipe，再实例化篮子。
+# 若任务条件确实不适用，只能记录 override_reason 后换用一个主配方。
+judgment_unit_default_recipe:
+  industry_cycle_judgment: ER-CYCLE-01
+  policy_impact_judgment: ER-TRANS-01
+  supply_chain_bottleneck_judgment: ER-TRANS-01
+  company_earnings_elasticity_judgment: ER-EARN-01
+  valuation_rerating_judgment: ER-EXPECT-01
+  event_impact_judgment: ER-TRANS-01
+  expectation_gap_judgment: ER-EXPECT-01
+  risk_monitoring_judgment: ER-STATE-01
+
+evidence_pattern_case_contract:
+  storage_location: D_研究工作单/05_研究复盘与框架反馈.md
+  required_fields:
+    - case_id
+    - case_name
+    - source_task_ref
+    - judgment_type
+    - effective_recipe
+    - most_effective_evidence
+    - misjudgment_sources
+    - added_counter_evidence
+    - inaccessible_evidence
+    - downstream_04_consumption_issue
+    - learning_target
+    - status
+  statuses: [candidate, validated, promoted, rejected]
+  promotion_rule: 单一案例只能进入 candidate；至少两个独立任务重复出现且完成正例、失败/降级例复核后，才可提议修改 Recipe、来源经验或取证规则。
+  immutability_rule: 案例保留当时判断、当时可得证据和后验结果，禁止用后验信息回填原证据包。
+
+pilot_validation_plan:
+  purpose: 先跑案例发现缺口，不继续扩张 A/B/C/D 文件体系。
+  cases:
+    - case_type: industry_cycle
+      suggested_case: 存储芯片周期
+      status: existing_case_available
+    - case_type: geopolitical_shock
+      suggested_case: 美伊或同等级地缘冲击对半导体的影响
+      status: to_run
+    - case_type: company_earnings_elasticity
+      suggested_case: 单家公司业绩弹性
+      status: to_run
+  observe:
+    - Recipe 是否漏项或被迫频繁 override
+    - A 类规则是否缺少可执行步骤
+    - B 类来源是否实际可获得且可追溯
+    - 哪些关键证据结构性不可获取
+    - 哪些 03 输出无法被 04 直接消费
 
 rules:
   A01:
@@ -133,6 +280,134 @@ rules:
       - cross_check
       - confidence_discount
 
+evidence_recipes:
+  ER-STATE-01:
+    name: 状态判断证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A02
+    mandatory_baskets: [direct_indicator, business_time_and_scope, comparison_baseline, counter_check]
+    strong_validation_baskets: [independent_cross_check, historical_position]
+    counter_baskets: [opposite_indicator, scope_or_method_conflict]
+    minimum_pass_rule: 直接指标可追溯且业务时间、范围和口径匹配
+    high_quality_rule: 直接指标具备独立交叉验证、历史位置和修订检查，反向指标未形成重大冲突
+    proxy_rule: 允许代理但必须调用 A09；代理不能替代 direct_indicator 篮子达到 full_reasoning_ready
+    stop_rule: 状态、口径、时间和反向检查已确定，继续取证不改变状态或使用上限
+    downgrade_rule: 仅有代理指标时最高 conditional_only
+  ER-TREND-01:
+    name: 趋势与阶段证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A03
+    mandatory_baskets: [comparable_time_series, slope_or_persistence, comparison_baseline, counter_check]
+    strong_validation_baskets: [adjacent_variable, breadth_or_diffusion]
+    counter_baskets: [seasonality, base_effect, series_break, opposite_variable]
+    minimum_pass_rule: 同口径多点序列形成持续性且反证已检查
+    high_quality_rule: 序列通过季节性、基数、修订和相邻变量检查，趋势在预设窗口内持续
+    proxy_rule: 代理序列必须验证领先滞后稳定性；代理主导时最高 conditional_only
+    stop_rule: 趋势标签、斜率、持续性、反证和切换条件均已确定
+    downgrade_rule: 无时间序列时只允许状态描述
+  ER-CYCLE-01:
+    name: 周期位置证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A03
+    mandatory_baskets: [demand, supply, inventory_or_order, price, counter_check]
+    strong_validation_baskets: [company_margin_or_guidance, capex, lead_time_or_utilization]
+    counter_baskets: [demand_revision_down, inventory_rebuild, capacity_release, segment_divergence]
+    minimum_pass_rule: 四类核心篮子对象和窗口一致且至少两类变量方向共振
+    high_quality_rule: 需求、供给、库存/订单、价格形成符合预设阶段定义的先后关系，企业信号与反证完成
+    proxy_rule: 库存或订单可使用多代理三角验证，但不得用单一交期或单一报价替代完整周期证据
+    stop_rule: 周期阶段、分项差异、切换条件和主要反证均已形成可观察结论
+    downgrade_rule: 任一核心篮子缺失时最高 conditional_only
+  ER-ATTR-01:
+    name: 变化归因证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A04
+    mandatory_baskets: [observed_change, candidate_causes, time_order, exposure_or_counterfactual, counter_check]
+    strong_validation_baskets: [cross_object_difference, historical_analogue]
+    counter_baskets: [alternative_explanation, low_exposure_same_result, common_driver]
+    minimum_pass_rule: 主因时间在先且比至少一个竞争解释具有更强区分力
+    high_quality_rule: 主因具备时间先后、暴露差异或反事实支持，且替代解释不能同等解释结果
+    proxy_rule: 代理可用于暴露或中介，不得单独证明因果归因
+    stop_rule: 主解释与至少一个竞争解释已用预设区分信号比较，结论为 supported、contested 或 insufficient
+    downgrade_rule: 无反事实或区分信号时标记 contested
+  ER-TRANS-01:
+    name: 机制与事件传导证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A04
+    mandatory_baskets: [start_fact, intermediate_node, exposed_subject, outcome_variable, blocker_and_counter]
+    strong_validation_baskets: [independent_path_endpoints, lag_validation]
+    counter_baskets: [inventory_or_contract_buffer, substitution, weak_execution, no_outcome_change]
+    minimum_pass_rule: 起点、中间节点、暴露和结果逐层准入
+    high_quality_rule: 关键边均有独立或互补证据，时间滞后合理，阻断条件与替代路径已检查
+    proxy_rule: 代理节点必须显式标识；关键中介完全依赖代理时路径最高 conditional_only
+    stop_rule: 每个关键节点状态和边状态均可判定，或首个阻断节点已确认
+    downgrade_rule: 中间节点缺失时最高 conditional_only；起点不成立时停止
+  ER-DIFF-01:
+    name: 对象分化证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A05
+    mandatory_baskets: [comparable_basis, exposure, elasticity, execution_or_constraint, counter_check]
+    strong_validation_baskets: [same_window_outcome, sensitivity]
+    counter_baskets: [metric_incomparability, ranking_reversal, realization_constraint]
+    minimum_pass_rule: 对象、指标和窗口可比且排序对关键口径稳健
+    high_quality_rule: 核心对象暴露、弹性、承接能力和约束均覆盖，排序通过口径与权重敏感性检查
+    proxy_rule: 代理暴露只能形成分组，不得单独形成精确排序
+    stop_rule: 排序或分层在合理口径变化下稳定，或已确认只能描述差异
+    downgrade_rule: 无可比口径时不得排序
+  ER-EARN-01:
+    name: 财务影响证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A06
+    mandatory_baskets: [revenue_exposure, volume_price, cost_structure, margin_or_cash, counter_check]
+    strong_validation_baskets: [utilization, order_or_delivery, scenario_sensitivity]
+    counter_baskets: [cost_offset, insufficient_volume, recognition_timing, collection_risk]
+    minimum_pass_rule: 量价成本桥和确认窗口完整
+    high_quality_rule: 财务桥可复算并与历史报表或管理层披露校准，情景参数、会计确认和现金影响已区分
+    proxy_rule: 卖方模型或行业均值只能作为情景参数，不能替代公司事实输入
+    stop_rule: 方向、弹性范围、关键假设和抵消项已明确，继续取证不改变测算等级
+    downgrade_rule: 缺量价成本桥时只允许收入方向或更低
+  ER-EXPECT-01:
+    name: 预期差与估值影响证据配方
+    version: 1.0.0
+    status: active
+    file: C_Evidence_Recipe/01_核心判断证据配方.md
+    primary_rule: A07
+    mandatory_baskets: [prior_consensus, estimate_revision, price_reaction, valuation_inputs, counter_check]
+    strong_validation_baskets: [peer_and_history, catalyst_realization]
+    counter_baskets: [already_priced, sample_change, risk_premium_or_market_beta]
+    minimum_pass_rule: 事前预期基线可追溯且新信息与市场反应窗口匹配
+    high_quality_rule: 使用事件前冻结的共识 vintage、相对收益和估值输入，排除市场/行业共振与样本变化
+    proxy_rule: 单篇研报、目标价或股价不能代理完整市场预期
+    stop_rule: 已能区分基本面变化、预期修订、定价反应和风险溢价，或确认无法判断预期差
+    downgrade_rule: 无事前基线时禁止预期差判断
+
+recipe_presets:
+  RP-POLICY-IMPACT-01:
+    name: 政策影响组合预设
+    recipes: [ER-TRANS-01, ER-DIFF-01, ER-EARN-01]
+    use_rule: ER-EARN-01 仅在问题进入公司财务层时调用
+  RP-SUPPLY-SHOCK-01:
+    name: 地缘或供给冲击组合预设
+    recipes: [ER-TRANS-01, ER-STATE-01, ER-CYCLE-01]
+    use_rule: ER-CYCLE-01 仅在需要判断持续价格或周期影响时调用
+  RP-TECH-SUB-01:
+    name: 技术替代商业兑现组合预设
+    recipes: [ER-TRANS-01, ER-DIFF-01, ER-EARN-01]
+    use_rule: 按技术可行、认证导入、量产复购和财务兑现拆为多个 JudgmentUnit
+
 judgment_type_registry:
   fact_confirmation:
     primary_rule: A01
@@ -146,6 +421,7 @@ judgment_type_registry:
   state_measurement:
     primary_rule: A02
     secondary_rules: [A09, A08]
+    evidence_recipe: ER-STATE-01
     required_quality_level: Q2_reasoning_usable
     mandatory_baskets: [direct_indicator, business_time, measurement_scope, cross_check, counter_check]
     if_missing:
@@ -155,6 +431,7 @@ judgment_type_registry:
   trend_or_phase:
     primary_rule: A03
     secondary_rules: [A02, A08, A09]
+    evidence_recipe: ER-TREND-01
     required_quality_level: Q3_directional_ready
     mandatory_baskets: [time_series, slope_or_persistence, comparison_baseline, counter_check]
     if_missing:
@@ -163,6 +440,7 @@ judgment_type_registry:
   cycle_phase:
     primary_rule: A03
     secondary_rules: [A02, A08, A09]
+    evidence_recipe: ER-CYCLE-01
     required_quality_level: Q3_directional_ready
     mandatory_baskets: [price, demand, supply, inventory_or_order, counter_check]
     if_missing:
@@ -170,9 +448,19 @@ judgment_type_registry:
       demand: conditional_only
       supply: conditional_only
       counter_check: insufficient
+  causal_attribution:
+    primary_rule: A04
+    secondary_rules: [A02, A08]
+    evidence_recipe: ER-ATTR-01
+    required_quality_level: Q2_reasoning_usable
+    mandatory_baskets: [observed_change, candidate_causes, time_order, exposure_or_counterfactual, counter_check]
+    if_missing:
+      exposure_or_counterfactual: contested
+      counter_check: insufficient
   mechanism_transmission:
     primary_rule: A04
     secondary_rules: [A01, A08]
+    evidence_recipe: ER-TRANS-01
     required_quality_level: Q2_reasoning_usable
     mandatory_baskets: [start_node, intermediate_node, exposed_subject, blocker, counter_check]
     if_missing:
@@ -182,6 +470,7 @@ judgment_type_registry:
   object_comparison:
     primary_rule: A05
     secondary_rules: [A06, A08]
+    evidence_recipe: ER-DIFF-01
     required_quality_level: Q3_directional_ready
     mandatory_baskets: [exposure, elasticity, constraint, comparable_basis, counter_check]
     if_missing:
@@ -190,6 +479,7 @@ judgment_type_registry:
   earnings_impact:
     primary_rule: A06
     secondary_rules: [A02, A08]
+    evidence_recipe: ER-EARN-01
     required_quality_level: Q2_reasoning_usable
     mandatory_baskets: [revenue_split, volume_price, cost_structure, margin, sensitivity_parameter, counter_check]
     if_missing:
@@ -199,9 +489,20 @@ judgment_type_registry:
   valuation_expectation:
     primary_rule: A07
     secondary_rules: [A06, A08]
+    evidence_recipe: ER-EXPECT-01
     required_quality_level: Q2_reasoning_usable
     mandatory_baskets: [consensus, price_reaction, valuation_range, peer_comparison, counter_check]
     if_missing:
       price_reaction: no_expectation_gap_claim
       consensus: no_expectation_gap_claim
+      counter_check: insufficient
+  risk_reassessment:
+    primary_rule: A04
+    secondary_rules: [A05, A08]
+    evidence_recipes: [ER-TRANS-01, ER-DIFF-01]
+    required_quality_level: Q2_reasoning_usable
+    mandatory_baskets: [start_fact, exposure, buffer, outcome_variable, recovery_condition, counter_check]
+    if_missing:
+      start_fact: insufficient
+      exposure: conditional_only
       counter_check: insufficient

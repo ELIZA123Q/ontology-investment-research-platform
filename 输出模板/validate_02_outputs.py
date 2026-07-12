@@ -117,8 +117,35 @@ QUESTION_FAILURE_ACTIONS = {"stop", "downgrade", "switch_path", "switch_to_compe
 PATH_NODE_ROLES = {"start", "precondition", "transmission", "outcome", "validation", "stop"}
 PATH_FAILURE_ACTIONS = {"stop", "downgrade", "switch_path"}
 DECISION_RELEVANCE = {"core", "supporting", "monitoring"}
+PRIORITY_TIERS = {"critical", "important", "supporting", "background"}
+DECISION_ROLES = {
+    "direction_driver",
+    "strength_driver",
+    "differentiation_explainer",
+    "mechanism_validator",
+    "background_context",
+}
+CRITICAL_FAILURE_EFFECTS = {"recalculate_overall", "downgrade_overall", "no_overall_effect"}
 PROXY_POLICIES = {"not_allowed", "allowed_but_must_discount_confidence", "required_when_direct_data_unavailable"}
 GAP_SEVERITIES = {"none", "low", "medium", "high", "blocking"}
+FRAMEWORK_LAYERS = {"mechanism", "company_realization", "market_pricing"}
+FRAMEWORK_GATE_STATUSES = {"passed", "provisional", "failed", "not_applicable"}
+FRAMEWORK_OUTPUT_FIELDS = [
+    "framework_id",
+    "framework_layer",
+    "gate_status",
+    "prerequisite_judgment_refs",
+    "judgment_types",
+    "candidate_claims",
+    "state_variable_candidates",
+    "signal_candidates",
+    "evidence_requirements",
+    "falsification_conditions",
+    "scenarios",
+    "output_objects",
+    "downstream_unlocks",
+    "unresolved_gaps",
+]
 
 
 WORKSPACE = Path(__file__).resolve().parent.parent
@@ -239,6 +266,77 @@ def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
     return meta, body
 
 
+def _validate_framework_execution(research_framework: dict[str, object]) -> None:
+    library_reference = research_framework.get("library_reference")
+    if not isinstance(library_reference, dict):
+        return
+    if not str(library_reference.get("library_version", "")).startswith("2."):
+        return
+
+    execution = require_mapping(
+        research_framework.get("framework_execution"),
+        "research_framework.framework_execution",
+    )
+    require_keys(
+        execution,
+        ["dependency_protocol_ref", "registry_ref", "calls", "weakest_prerequisite_status", "valuation_gate"],
+        "research_framework.framework_execution",
+    )
+    calls = require_list(execution["calls"], "research_framework.framework_execution.calls")
+    if not calls:
+        fail("research_framework.framework_execution.calls 至少需要一项")
+    seen: set[str] = set()
+    weakest_status = str(execution["weakest_prerequisite_status"])
+    require_allowed(weakest_status, FRAMEWORK_GATE_STATUSES, "framework_execution.weakest_prerequisite_status")
+    for index, raw_call in enumerate(calls, 1):
+        call = require_mapping(raw_call, f"framework_execution.calls[{index}]")
+        require_keys(call, FRAMEWORK_OUTPUT_FIELDS, f"framework_execution.calls[{index}]")
+        framework_id = str(call["framework_id"])
+        if not framework_id.startswith(("BF-", "IF-")):
+            fail(f"framework_execution.calls[{index}].framework_id 必须是 BF- 基础框架或 IF- 行业主框架")
+        seen.add(framework_id)
+        require_allowed(call["framework_layer"], FRAMEWORK_LAYERS, f"{framework_id}.framework_layer")
+        require_allowed(call["gate_status"], FRAMEWORK_GATE_STATUSES, f"{framework_id}.gate_status")
+        for field in FRAMEWORK_OUTPUT_FIELDS[3:]:
+            if not isinstance(call[field], list):
+                fail(f"{framework_id}.{field} 必须是列表；允许为空但不得省略")
+        if call["gate_status"] in {"passed", "provisional"} and not call["candidate_claims"]:
+            fail(f"{framework_id} 已放行时 candidate_claims 不得为空")
+
+    valuation = require_mapping(execution["valuation_gate"], "framework_execution.valuation_gate")
+    require_keys(
+        valuation,
+        [
+            "applicable",
+            "status",
+            "upstream_industry_or_mechanism_judgment_ref",
+            "earnings_bridge_framework_ref",
+            "forecast_framework_ref",
+            "expectation_gap_framework_ref",
+            "changed_valuation_inputs",
+            "unresolved_gaps",
+        ],
+        "framework_execution.valuation_gate",
+    )
+    if "BF-VA-01" in seen or valuation["applicable"] is True:
+        require_allowed(valuation["status"], FRAMEWORK_GATE_STATUSES, "valuation_gate.status")
+        expected_refs = {
+            "earnings_bridge_framework_ref": "BF-EE-01",
+            "forecast_framework_ref": "BF-FS-01",
+            "expectation_gap_framework_ref": "BF-EG-01",
+        }
+        if not valuation.get("upstream_industry_or_mechanism_judgment_ref"):
+            fail("BF-VA-01 缺少产业/机制判断前置")
+        for field, expected in expected_refs.items():
+            if valuation.get(field) != expected or expected not in seen:
+                fail(f"BF-VA-01 门禁要求已调用 {expected}，且 valuation_gate.{field} 必须引用它")
+        changed_inputs = split_refs(valuation.get("changed_valuation_inputs"))
+        if not changed_inputs:
+            fail("BF-VA-01 门禁要求 changed_valuation_inputs 至少有一项")
+        if valuation["status"] == "passed" and weakest_status != "passed":
+            fail("最弱前置未 passed 时 valuation_gate 不得为 passed")
+
+
 def _validate_view(view_path: Path) -> dict[str, object]:
     view = load_yaml_file(view_path)
     if not isinstance(view, dict):
@@ -273,6 +371,7 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     if not isinstance(judgment_units, list) or not judgment_units:
         fail("judgment_units 至少需要一项")
     require_keys(research_framework, ["judgment_spine", "minimum_question_tree", "alignment_checks"], "research_framework")
+    _validate_framework_execution(research_framework)
     spine = require_mapping(research_framework["judgment_spine"], "research_framework.judgment_spine")
     require_non_empty(spine.get("statement"), "research_framework.judgment_spine.statement")
     require_all_true(require_mapping(research_framework["alignment_checks"], "research_framework.alignment_checks"), "research_framework.alignment_checks")
@@ -297,7 +396,15 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             unit,
             [
                 "judgment_unit_id",
+                "research_question_ref",
+                "candidate_claim",
                 "statement",
+                "judgment_type",
+                "priority_tier",
+                "decision_weight",
+                "decision_role",
+                "priority_rationale",
+                "critical_failure_effect",
                 "target_claim_type",
                 "linked_questions",
                 "linked_paths",
@@ -308,6 +415,22 @@ def _validate_view(view_path: Path) -> dict[str, object]:
                 "stop_condition",
             ],
             f"judgment_units[{index}]",
+        )
+        require_non_empty(unit["research_question_ref"], f"{unit['judgment_unit_id']}.research_question_ref")
+        require_non_empty(unit["candidate_claim"], f"{unit['judgment_unit_id']}.candidate_claim")
+        require_allowed(unit["priority_tier"], PRIORITY_TIERS, f"{unit['judgment_unit_id']}.priority_tier")
+        try:
+            weight = int(unit["decision_weight"])
+        except (TypeError, ValueError):
+            fail(f"{unit['judgment_unit_id']}.decision_weight 必须为 1—5 的整数")
+        if weight < 1 or weight > 5:
+            fail(f"{unit['judgment_unit_id']}.decision_weight 必须为 1—5")
+        require_allowed(unit["decision_role"], DECISION_ROLES, f"{unit['judgment_unit_id']}.decision_role")
+        require_non_empty(unit["priority_rationale"], f"{unit['judgment_unit_id']}.priority_rationale")
+        require_allowed(
+            unit["critical_failure_effect"],
+            CRITICAL_FAILURE_EFFECTS,
+            f"{unit['judgment_unit_id']}.critical_failure_effect",
         )
         if "judgment_type" in unit and str(unit["judgment_type"]) not in JUDGMENT_TYPES:
             fail(f"{unit['judgment_unit_id']}.judgment_type 非法")
@@ -356,6 +479,14 @@ def _validate_view(view_path: Path) -> dict[str, object]:
         if target_claim_type not in J4_ELIGIBLE_CLAIM_TYPES and level_requirements["J4"]["applicable"] is not False:
             fail(f"{unit['judgment_unit_id']}: {target_claim_type} 的 J4 必须标记 applicable=false")
         require_non_empty(unit["stop_condition"], f"{unit['judgment_unit_id']}.stop_condition")
+
+    critical_units = [unit for unit in judgment_units if unit.get("priority_tier") == "critical"]
+    if not critical_units:
+        fail("judgment_units 至少需要一个 critical 单元")
+    if len(critical_units) > 3:
+        fail("critical 判断单元不得超过 3 个")
+    if len(judgment_units) > 1 and len({int(unit["decision_weight"]) for unit in judgment_units}) == 1:
+        fail("多个判断单元的 decision_weight 不得全部相同")
 
     judgment_unit_ids = ref_set(judgment_units, "judgment_unit_id", "judgment_units")
 

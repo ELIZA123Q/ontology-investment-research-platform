@@ -2,7 +2,7 @@
 framework_id: IF-MAT-01
 name: 半导体材料需求、认证与放量框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: value_chain_main
 builds_on: [BF-VT-01, BF-EE-01]
@@ -10,6 +10,29 @@ updated_at: 2026-07-08
 ---
 
 # 半导体材料需求、认证与放量框架
+
+## 研究员抓手：材料放量取决于“耗用 × 认证 × 稳定供应”
+
+需求应由投片/产出、单位耗用、工艺步骤和回收率推导；商业化则经过送样、小批、单线认证、批量供应、复购和跨厂复制。认证周期长且配方/工艺耦合强，单次送样或客户名单不能证明放量。
+
+重点检查批次一致性、纯度/缺陷、良率影响、保质与物流、客户切换风险、原材料依赖和扩产爬坡。单位用量可能随节点和工艺步骤上升，也可能因利用效率、回收或技术替代下降，不能只用晶圆产能线性外推。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: company_realization
+hard_prerequisites: [BF-VT-01]
+judgment_types: [mechanism_transmission, state_measurement, object_comparison]
+state_variable_candidates: [wafer_output, unit_consumption, qualification_stage, batch_supply, repurchase, cross_fab_replication]
+signal_candidates: [sample, pilot_batch, line_qualification, batch_order, repeat_order, cross_fab_copy]
+output_objects: [consumption_model, qualification_gate, volume_release_path]
+evidence_requirements: [投片耗用, 配方质量, 产线认证, 批量供应, 复购复制]
+falsification_conditions: [sample_only, unstable_quality, qualification_failure, no_repeat_order]
+scenarios: [qualification_to_scale, delayed, stalled]
+downstream_unlocks: [BF-EE-01, BF-FS-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -109,7 +132,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 

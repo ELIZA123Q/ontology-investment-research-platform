@@ -44,7 +44,7 @@ claim_expression_register:
     source_claim_id: C-01
     location_kind: investment_point
     section: 投资要点
-    expression_text: 必须按 HBM、非 HBM DRAM、NAND 分开给方向性阶段定位
+    expression_text: 应分别判断 HBM、非 HBM DRAM 和 NAND 所处阶段
     source_actual_judgment_level: J2
     expression_judgment_level: J2
     claim_mode: unconditional
@@ -130,7 +130,7 @@ claim_expression_register:
     source_claim_id: C-01
     location_kind: conclusion_overview
     section: 核心结论概览
-    expression_text: 结构性上行后段，须分产品给方向性阶段定位，不得合并为统一强景气阶段
+    expression_text: 结构性上行后段，应分别判断三类产品所处阶段，不得合并为统一强景气阶段
     source_actual_judgment_level: J2
     expression_judgment_level: J2
     claim_mode: unconditional
@@ -201,7 +201,7 @@ claim_expression_register:
     source_claim_id: C-07
     location_kind: conclusion_overview
     section: 核心结论概览
-    expression_text: 统一完整周期结束日仍不可确认
+    expression_text: 尚不能判断三类产品会在何时同步见顶或结束
     source_actual_judgment_level: J0
     expression_judgment_level: J0
     claim_mode: unconditional
@@ -257,7 +257,7 @@ claim_expression_register:
     source_claim_id: C-07
     location_kind: section_heading
     section: 第四章
-    expression_text: 周期结束取决于信号共振，统一完整周期结束日仍不可确认
+    expression_text: 周期结束取决于多项信号共振，目前尚不能确定时间
     source_actual_judgment_level: J0
     expression_judgment_level: J0
     claim_mode: unconditional
@@ -297,6 +297,14 @@ claim_expression_register:
     status_preserved: true
     scope_relation: narrower
     semantic_strength_review: pass
+research_edge_check:
+  reference_view_present: true
+  differentiated_claim_mapped_to_04: true
+  underappreciated_mechanism_supported: true
+  falsification_signal_observable: true
+  evidence_boundary_disclosed: true
+  no_fabricated_consensus: true
+  result: pass
 high_risk_section_coverage:
   report_title: true
   investment_points: true

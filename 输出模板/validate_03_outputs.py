@@ -472,6 +472,53 @@ def _validate_ontology_instances(view: dict[str, object], rows: dict[str, list[d
     assert_values([row.get("status", "") for row in rows["evidence_facts.csv"]], enum_values("EvidenceFact", "status"), "evidence_facts.status")
     assert_values([row.get("usability", "") for row in rows["evidence_assessments.csv"]], enum_values("EvidenceAssessment", "usability"), "evidence_assessments.usability")
     assert_values([row.get("quality_level", "") for row in rows["evidence_assessments.csv"]], enum_values("EvidenceAssessment", "qualityLevel"), "evidence_assessments.quality_level")
+    score_fields = [
+        "source_authority_score",
+        "directness_score",
+        "freshness_score",
+        "scope_match_score",
+        "independent_validation_score",
+    ]
+    for row in rows["evidence_assessments.csv"]:
+        assessment_id = row.get("assessment_id", "")
+        scores: list[int] = []
+        for field in score_fields:
+            try:
+                score = int(row.get(field, ""))
+            except (TypeError, ValueError):
+                fail(f"{assessment_id}.{field} 必须为 1—5 的整数")
+            if score < 1 or score > 5:
+                fail(f"{assessment_id}.{field} 必须为 1—5")
+            scores.append(score)
+        total = sum(scores)
+        try:
+            recorded_total = int(row.get("reliability_score_total", ""))
+        except (TypeError, ValueError):
+            fail(f"{assessment_id}.reliability_score_total 必须为整数")
+        if recorded_total != total:
+            fail(f"{assessment_id}.reliability_score_total 必须等于五维分数之和 {total}")
+        expected_band = "high" if total >= 22 else "medium" if total >= 17 else "low"
+        band_rank = {"low": 0, "medium": 1, "high": 2}
+        actual_band = row.get("reliability_band", "")
+        if actual_band not in band_rank:
+            fail(f"{assessment_id}.reliability_band 非法")
+        if band_rank[actual_band] > band_rank[expected_band]:
+            fail(f"{assessment_id}.reliability_band 不得高于五维分数上限 {expected_band}")
+        for field in ["weakest_dimension", "reliability_basis"]:
+            if not str(row.get(field, "")).strip():
+                fail(f"{assessment_id}.{field} 不得为空")
+        weakest = row.get("weakest_dimension", "")
+        weakest_aliases = {
+            "source_authority",
+            "directness",
+            "freshness",
+            "scope_match",
+            "independent_validation",
+        }
+        if weakest not in weakest_aliases:
+            fail(f"{assessment_id}.weakest_dimension 必须指向五维之一")
+        if band_rank[actual_band] < band_rank[expected_band] and not str(row.get("hard_limit", "")).strip():
+            fail(f"{assessment_id} 可靠度低于分数建议档时必须填写 hard_limit")
     semantic_ids = ref_set(rows["semantic_instances.csv"], "instance_id", "semantic_instances.csv")
     instance_types: dict[str, str] = {}
     for row in rows["semantic_instances.csv"]:

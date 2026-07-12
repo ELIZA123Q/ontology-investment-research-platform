@@ -26,6 +26,7 @@ from validator_utils import (
     read_text,
     require_body_sections,
     require_keys,
+    require_mapping,
     require_schema_version,
     same_ref,
     split_refs,
@@ -57,6 +58,7 @@ REQUIRED_HEADER_FIELDS = [
 REQUIRED_FIXED_SECTIONS = [
     "投资要点",
     "核心结论概览",
+    "市场认知差 / Research Edge",
     "投资含义与重点观察",
     "催化、验证与风险",
     "主要资料来源",
@@ -180,7 +182,7 @@ def _validate_expression_audit(
     source_audit = load_yaml_file(source_04_audit_path)
     if not isinstance(audit, dict) or not isinstance(source_audit, dict):
         fail("05 表达审计和 04 推理审计必须是 YAML 对象")
-    require_keys(audit, ["document_type", "schema_version", "metadata", "claim_expression_register", "high_risk_section_coverage", "overall_check"], str(expression_audit_path))
+    require_keys(audit, ["document_type", "schema_version", "metadata", "claim_expression_register", "research_edge_check", "high_risk_section_coverage", "overall_check"], str(expression_audit_path))
     require_schema_version(audit["schema_version"], str(expression_audit_path), expected="2.0.0")
     if audit["document_type"] != "delivery_expression_audit" or str(audit["schema_version"]) != "2.0.0":
         fail("05 表达审计必须使用 delivery_expression_audit / 2.0.0")
@@ -194,6 +196,19 @@ def _validate_expression_audit(
         fail("05 audit.metadata.delivery_ref 必须指向配对交付物")
     if not same_ref(metadata["source_04_audit_ref"], file_name(source_04_audit_path)):
         fail("05 audit.metadata.source_04_audit_ref 必须指向 04 推理审计")
+    edge_check = require_mapping(audit["research_edge_check"], "research_edge_check")
+    for key in [
+        "reference_view_present",
+        "differentiated_claim_mapped_to_04",
+        "underappreciated_mechanism_supported",
+        "falsification_signal_observable",
+        "evidence_boundary_disclosed",
+        "no_fabricated_consensus",
+    ]:
+        if edge_check.get(key) is not True:
+            fail(f"research_edge_check.{key} 必须为 true")
+    if edge_check.get("result") != "pass":
+        fail("research_edge_check.result 必须为 pass")
 
     source_metadata = source_audit.get("metadata", {})
     if not same_ref(metadata["source_04_report_ref"], source_metadata.get("report_ref")):

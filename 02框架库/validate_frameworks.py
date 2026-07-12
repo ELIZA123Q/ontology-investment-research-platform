@@ -2,7 +2,8 @@
 """只读校验 02 框架库的结构、引用、来源和本体标识符。
 
 适配当前结构：
-- 基础框架：11 节正式框架模板
+- 判断生成层：8 类判断框架 + Claim 模板
+- 基础框架：三层依赖 + Framework Output Contract + 11 节正式框架模板
 - 半导体行业：8 个主框架（两横六纵）+ 10 张场景卡
 - 场景卡、治理文档、README、总纲不按正式框架模板验收
 """
@@ -88,6 +89,67 @@ EXPECTED_SEMICONDUCTOR_SCENARIO_IDS = {
     "SCN-MEM-CYCLE",
     "SCN-PKG-BTL",
 }
+EXPECTED_JUDGMENT_FRAMEWORK_IDS = {
+    "JF-STATE",
+    "JF-TREND",
+    "JF-CYCLE",
+    "JF-ATTR",
+    "JF-TRANS",
+    "JF-DIFF",
+    "JF-EXPECT",
+    "JF-RISK",
+}
+
+EXPECTED_BASE_FRAMEWORK_LAYERS = {
+    "BF-IC-01": "mechanism",
+    "BF-MF-01": "mechanism",
+    "BF-PI-01": "mechanism",
+    "BF-SD-01": "mechanism",
+    "BF-VT-01": "mechanism",
+    "BF-PC-01": "mechanism",
+    "BF-BM-01": "company_realization",
+    "BF-FQ-01": "company_realization",
+    "BF-EE-01": "company_realization",
+    "BF-CG-01": "company_realization",
+    "BF-CA-01": "company_realization",
+    "BF-FS-01": "market_pricing",
+    "BF-EG-01": "market_pricing",
+    "BF-RS-01": "market_pricing",
+    "BF-VA-01": "market_pricing",
+}
+EXPECTED_INDUSTRY_FRAMEWORK_LAYERS = {
+    "IF-SC-01": "mechanism",
+    "IF-LOC-01": "mechanism",
+    "IF-APP-01": "mechanism",
+    "IF-DES-01": "company_realization",
+    "IF-FAB-01": "mechanism",
+    "IF-PKG-01": "mechanism",
+    "IF-EQP-01": "company_realization",
+    "IF-MAT-01": "company_realization",
+}
+REQUIRED_OUTPUT_CONTRACT_MARKERS = (
+    "framework_layer:",
+    "hard_prerequisites:",
+    "judgment_types:",
+    "state_variable_candidates:",
+    "signal_candidates:",
+    "output_objects:",
+    "evidence_requirements:",
+    "falsification_conditions:",
+    "scenarios:",
+    "downstream_unlocks:",
+    "gate_status",
+    "prerequisite_judgment_refs",
+    "candidate_claims",
+    "unresolved_gaps",
+)
+VALUATION_HARD_GATES = (
+    "upstream_industry_or_mechanism_judgment",
+    "BF-EE-01",
+    "BF-FS-01",
+    "BF-EG-01",
+    "valuation_input_change",
+)
 
 
 def parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
@@ -275,6 +337,53 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
     metadata: Dict[Path, Dict[str, str]] = {}
     classes: Dict[Path, str] = {}
 
+    dependency_doc = root / "01_框架依赖图与输出协议.md"
+    dependency_registry = root / "00_framework_dependency_registry.yaml"
+    if not dependency_doc.exists():
+        errors.append("框架库: 缺少框架依赖图与输出协议")
+    if not dependency_registry.exists():
+        errors.append("框架库: 缺少机器可读依赖登记")
+        registry_text = ""
+    else:
+        registry_text = dependency_registry.read_text(encoding="utf-8")
+        for framework_id, layer in EXPECTED_BASE_FRAMEWORK_LAYERS.items():
+            if not re.search(rf"^  {re.escape(framework_id)}:\s*$", registry_text, re.MULTILINE):
+                errors.append(f"依赖登记: 缺少 {framework_id}")
+            if framework_id not in registry_text or f"layer: {layer}" not in registry_text:
+                errors.append(f"依赖登记: {framework_id} 未登记到 {layer}")
+        for framework_id, layer in EXPECTED_INDUSTRY_FRAMEWORK_LAYERS.items():
+            if not re.search(rf"^  {re.escape(framework_id)}:\s*$", registry_text, re.MULTILINE):
+                errors.append(f"依赖登记: 缺少 {framework_id}")
+            if framework_id not in registry_text or f"layer: {layer}" not in registry_text:
+                errors.append(f"依赖登记: {framework_id} 未登记到 {layer}")
+        for gate in VALUATION_HARD_GATES:
+            valuation_block = registry_text.split("  BF-VA-01:", 1)[-1].split(
+                "\noutput_contract_required_fields:", 1
+            )[0]
+            if gate not in valuation_block:
+                errors.append(f"依赖登记: BF-VA-01 缺少硬前置 {gate}")
+
+    judgment_router = root / "判断框架库" / "00_判断类型路由与生成框架.md"
+    claim_library = root / "Claim模板库" / "00_Claim模板与检查清单.md"
+    if not judgment_router.exists():
+        errors.append("判断框架库: 缺少判断类型路由与生成框架")
+    else:
+        router_text = judgment_router.read_text(encoding="utf-8")
+        actual_judgment_ids = set(re.findall(r"\bJF-[A-Z]+\b", router_text))
+        missing_judgment_ids = sorted(EXPECTED_JUDGMENT_FRAMEWORK_IDS - actual_judgment_ids)
+        if missing_judgment_ids:
+            errors.append(f"判断框架库缺失: {', '.join(missing_judgment_ids)}")
+        for required_phrase in ("竞争解释", "区分信号", "推翻条件", "CandidateClaim"):
+            if required_phrase not in router_text:
+                errors.append(f"判断框架库: 缺少核心要素“{required_phrase}”")
+    if not claim_library.exists():
+        errors.append("Claim模板库: 缺少 Claim 模板与检查清单")
+    else:
+        claim_text = claim_library.read_text(encoding="utf-8")
+        for required_phrase in ("可证伪", "有边界", "不跳步", "可区分", "可降级"):
+            if required_phrase not in claim_text:
+                errors.append(f"Claim模板库: 缺少检查项“{required_phrase}”")
+
     for path in files:
         text = path.read_text(encoding="utf-8")
         front, _ = parse_front_matter(text)
@@ -324,6 +433,39 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
 
         if asset_class == "framework":
             validate_numbered_sections(relative, text, REQUIRED_SECTIONS, errors)
+
+            framework_id = front.get("framework_id", "")
+            expected_layer = (
+                EXPECTED_BASE_FRAMEWORK_LAYERS.get(framework_id)
+                or EXPECTED_INDUSTRY_FRAMEWORK_LAYERS.get(framework_id)
+            )
+            if not any(
+                heading in text
+                for heading in (
+                    "## Framework Output Contract",
+                    "## 本框架应交付什么（系统名 Framework Output Contract）",
+                )
+            ):
+                errors.append(f"{relative}: 缺少 Framework Output Contract")
+            for marker in REQUIRED_OUTPUT_CONTRACT_MARKERS:
+                if marker not in text:
+                    errors.append(f"{relative}: Framework Output Contract 缺少 {marker}")
+            if expected_layer and f"framework_layer: {expected_layer}" not in text:
+                errors.append(f"{relative}: framework_layer 应为 {expected_layer}")
+
+            if front.get("library") == "base":
+                if framework_id not in EXPECTED_BASE_FRAMEWORK_LAYERS:
+                    errors.append(f"{relative}: 基础框架 ID 未登记层级 {framework_id}")
+                version = front.get("version", "")
+                if not version.startswith("2."):
+                    errors.append(f"{relative}: 层级与输出合同结构性升级后 version 应为 2.x")
+
+                if framework_id == "BF-VA-01":
+                    for gate in VALUATION_HARD_GATES:
+                        if gate not in text:
+                            errors.append(f"{relative}: 估值框架缺少硬前置 {gate}")
+                    if "valuation_gate: failed" not in text:
+                        errors.append(f"{relative}: 估值框架缺少门禁失败停止输出")
 
             for dependency in parse_builds_on(front.get("builds_on", "")):
                 if dependency not in known_ids:

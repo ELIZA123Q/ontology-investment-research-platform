@@ -172,6 +172,8 @@ overall_judgment:
   - 未来规则和需求可能变化
   primary_claim_id: C-04
   judgment_level: J3
+  investment_interpretation: high_level_divergence
+  interpretation_basis: 国产替代必要性仍在，但商业成熟度、利润质量和关键部件独立性决定类别与公司分化
 claim_register:
 - claim_id: C-01
   report_section: 1-3
@@ -479,6 +481,17 @@ tracking_register:
   preferred_source: 公司风险因素
   frequency: 季度
   action_after_trigger: 下调或恢复判断
+review_plan:
+- review_id: REVIEW-01
+  source_claim_id: C-04
+  judgment_as_of: '2026-07-10'
+  prediction_horizon: 未来十二个月
+  expected_signals:
+  - 管制执行、设备复购、跨线复制、验收利润和关键部件再认证变化
+  change_thresholds:
+  - 连续两个报告期复购与利润同向改善，或部件再认证失败并阻断交付
+  review_due_at: '2027-01-20'
+  review_status: scheduled
 ontology_context:
   ontology_refs:
   - semiconductor_domain_ontology

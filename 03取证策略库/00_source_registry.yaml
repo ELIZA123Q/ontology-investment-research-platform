@@ -1,6 +1,8 @@
+# 系统接口文件：研究员通过 B_取证来源和“来源与指标经验卡”维护研究经验；
+# 本注册表只负责稳定 ID、文件指向与自动校验，不作为日常找来源的入口。
 registry_type: evidence_source_guidance_registry
-schema_version: 1.1.0
-updated_at: 2026-07-09
+schema_version: 1.2.0
+updated_at: 2026-07-12
 
 purpose: >
   作为 03 取证策略库的取证来源索引，指向推荐优先来源清单和来源分层规则。
@@ -48,10 +50,46 @@ source_tier_scheme:
   definition_ref: B_取证来源/B01_来源分层与使用边界.md
 
 use_rules:
-  - 先由 A_取证规则确定证据篮子，再使用 B_取证来源选择推荐优先来源。
+  - 先由 C_Evidence_Recipe 确定证据篮子，再由 A_取证规则明确执行方法，最后使用 B_取证来源选择推荐优先来源。
   - B02/B03/B04 是优先来源清单，不是封闭白名单。
   - 新来源可使用，但进入关键判断前必须补充来源生产者、内容领域、发布时间、业务时间、口径、权限、可复核路径和使用限制。
   - MCP、API、网页、人工上传、文件检索、数据库终端和内部系统只记录为 acquisition_channel，不得写成 source_profile。
   - AccessScope 不清时，不得进入正式证据包。
   - ArtifactType 决定原文定位、字段血缘、快照和复核要求。
   - ContentDomain 用于判断来源是否适合当前证据篮子。
+
+source_selection_contract:
+  required_dimensions:
+    - claim_or_measurement_type
+    - evidence_role
+    - object_and_time_scope
+    - methodology_transparency
+    - required_locator_level
+    - independence_group
+    - update_and_revision_policy
+    - access_and_expression_permission
+    - acquisition_channel_and_fallback
+  selection_rule: 选择能最直接证明当前篮子主张且可复核的来源，不按知名度或 S1-S8 数字机械排序。
+  primary_source_failure_rule: 记录失败代码后按预设 fallback 顺序切换；替代来源改变直接性、口径或权限时必须重评质量上限。
+  independence_rule: 同一原始数据、同一公司披露、同一数据库转售字段或同一新闻线索属于同一 independence_group。
+
+source_profile_admission:
+  required_fields:
+    - source_name
+    - source_tier
+    - authority_type
+    - typical_content_domains
+    - allowed_claim_types
+    - forbidden_use
+    - methodology_transparency
+    - independence_group
+    - access_scope_default
+    - common_limitations
+    - required_locator_level
+  statuses: [candidate, active, restricted, deprecated, retired]
+  review_triggers:
+    - 方法论、字段定义或样本发生重大变化
+    - 来源停止更新、被替代或历史数据修订
+    - 授权或引用边界变化
+    - 多次任务出现不可解释冲突
+    - 实际内容域偏离登记画像

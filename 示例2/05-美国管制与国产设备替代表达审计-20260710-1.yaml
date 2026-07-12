@@ -306,6 +306,14 @@ claim_expression_register:
   status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
+research_edge_check:
+  reference_view_present: true
+  differentiated_claim_mapped_to_04: true
+  underappreciated_mechanism_supported: true
+  falsification_signal_observable: true
+  evidence_boundary_disclosed: true
+  no_fabricated_consensus: true
+  result: pass
 high_risk_section_coverage:
   report_title: true
   investment_points: true

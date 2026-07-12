@@ -29,6 +29,15 @@ claim_expression_register:
     scope_relation: same
     semantic_strength_review: pass
 
+research_edge_check:
+  reference_view_present: false
+  differentiated_claim_mapped_to_04: false
+  underappreciated_mechanism_supported: false
+  falsification_signal_observable: false
+  evidence_boundary_disclosed: false
+  no_fabricated_consensus: false
+  result: fail
+
 high_risk_section_coverage:
   report_title: false
   investment_points: false

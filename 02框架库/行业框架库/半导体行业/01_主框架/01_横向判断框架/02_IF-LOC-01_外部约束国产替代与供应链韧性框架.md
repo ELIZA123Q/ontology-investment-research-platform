@@ -2,7 +2,7 @@
 framework_id: IF-LOC-01
 name: 外部约束、国产替代与供应链韧性框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: horizontal_constraint
 builds_on: [BF-PI-01, BF-VT-01, BF-EE-01]
@@ -10,6 +10,32 @@ updated_at: 2026-07-08
 ---
 
 # 外部约束、国产替代与供应链韧性框架
+
+## 研究员抓手：把“替代”拆成阶段
+
+```text
+替代意愿 → 技术可用 → 客户验证 → 产线导入 → 稳定量产
+→ 复购/跨线复制 → 份额与财务兑现 → 双源和长期韧性
+```
+
+外部约束既可能加快验证，也可能造成关键零部件、软件或终端需求受限。研究不能只看政策方向和首单；应重点判断验证层级、良率/稳定性、客户切换成本、供应保障、服务能力和跨厂复制。国产份额提升与供应链韧性也不是同义词，单一国产供应商替代可能仍形成新集中风险。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: mechanism
+hard_prerequisites: [BF-PI-01, BF-VT-01]
+judgment_types: [mechanism_transmission, object_comparison, risk_reassessment]
+state_variable_candidates: [constraint_intensity, qualification_stage, yield, delivery, repurchase, cross_line_replication]
+signal_candidates: [license, sample, line_test, batch_order, repurchase, alternate_supply]
+output_objects: [constraint_path, localization_stage, blocking_node, resilience_path]
+evidence_requirements: [约束事实, 认证阶段, 量产交付, 复购复制, 供应链替代]
+falsification_conditions: [license_relief, qualification_failure, no_repurchase, single_customer_only]
+scenarios: [constraint_tightens, localization_progresses, substitution_stalls]
+downstream_unlocks: [BF-EE-01, BF-RS-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -112,7 +138,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 

@@ -2,7 +2,7 @@
 framework_id: IF-FAB-01
 name: 晶圆制造、工艺平台与产能框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: value_chain_main
 builds_on: [BF-SD-01, BF-BM-01, BF-EE-01]
@@ -10,6 +10,29 @@ updated_at: 2026-07-08
 ---
 
 # 晶圆制造、工艺平台与产能框架
+
+## 研究员抓手：从名义月产能折算到合格产出
+
+有效供给至少经过 `设施可用 × 设备到位 × 工艺成熟 × 投片 × 周期时间 × 良率 × 产品组合 × 客户认证`。厂房完工、设备搬入或月产能目标都不能直接当量产供给。
+
+研究分歧通常集中在爬坡速度、良率学习、瓶颈设备、节点/产品切换和折旧吸收。利用率上升可能来自需求改善，也可能来自备货或低价抢单；必须与产品结构、实现价、周期时间和客户认证交叉验证。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: mechanism
+hard_prerequisites: [BF-SD-01]
+judgment_types: [state_measurement, mechanism_transmission, trend_or_phase]
+state_variable_candidates: [installed_capacity, wafer_start, cycle_time, yield, product_mix, qualified_output]
+signal_candidates: [tool_move_in, pilot_run, yield_ramp, utilization, customer_qualification]
+output_objects: [nominal_to_effective_capacity_bridge, process_platform, supply_release_timing]
+evidence_requirements: [设施设备, 工艺成熟, 投片周期, 良率, 产品组合, 客户认证]
+falsification_conditions: [nameplate_only, yield_failure, bottleneck, qualification_delay]
+scenarios: [ramp_on_time, delayed_ramp, ineffective_capacity]
+downstream_unlocks: [BF-EE-01, BF-FS-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -111,7 +134,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 

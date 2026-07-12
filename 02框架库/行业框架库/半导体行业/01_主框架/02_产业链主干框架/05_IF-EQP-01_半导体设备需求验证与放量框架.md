@@ -2,7 +2,7 @@
 framework_id: IF-EQP-01
 name: 半导体设备需求、验证与放量框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: value_chain_main
 builds_on: [BF-VT-01, BF-EE-01]
@@ -10,6 +10,32 @@ updated_at: 2026-07-08
 ---
 
 # 半导体设备需求、验证与放量框架
+
+## 研究员抓手：设备需求和公司收入之间有多道门
+
+```text
+晶圆厂投资/工艺需求 → 设备清单与份额 → 招标/订单 → 交付安装
+→ 验证与验收 → 收入确认 → 复购/跨线复制 → 服务与备件
+```
+
+最应关注验证位置（实验室/中试/量产线）、关键工艺覆盖、稳定性、产能与服务响应，而不是“已进入客户”。订单、发货、验收和收入确认可能跨多个季度；国产替代判断还要检查核心零部件、软件、供应保障和客户双源策略。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: company_realization
+hard_prerequisites: [BF-VT-01]
+judgment_types: [mechanism_transmission, state_measurement, object_comparison]
+state_variable_candidates: [fab_project, tool_demand, validation_stage, acceptance, repeat_order, revenue_recognition]
+signal_candidates: [tender, shipment, move_in, validation, acceptance, repeat_order]
+output_objects: [fab_to_tool_demand_bridge, validation_gate, order_to_revenue_bridge]
+evidence_requirements: [晶圆厂项目, 工序设备需求, 验证验收, 复购, 收入确认]
+falsification_conditions: [project_delay, sample_only, validation_failure, acceptance_delay, no_repeat_order]
+scenarios: [validation_to_scale, delayed, stalled]
+downstream_unlocks: [BF-EE-01, BF-FS-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -109,7 +135,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 

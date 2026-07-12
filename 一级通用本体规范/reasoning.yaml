@@ -89,6 +89,8 @@ object_types:
       scope: {type: object, required: true, description: 判断适用的时间、对象、地域和口径范围。}
       timeHorizon: {type: string, required: true, description: 判断适用时间尺度。}
       confidence: {type: enum, required: true, allowed_values: [low, medium, high, unknown], description: 判断置信度。}
+      investmentInterpretation: {type: enum, required: true, allowed_values: [fundamental_trend_improving, marginal_improvement, high_level_divergence, thesis_weakening, observation_stage], description: 不含买卖建议的投资解释落点：基本面趋势改善、边际改善、高位分化、逻辑弱化或观察阶段。}
+      interpretationBasis: {type: string, required: true, description: 为什么该判断落入当前投资解释类别，以及它连接哪些经营、预期或风险变量。}
       uncertainty: {type: array, required: true, description: 未解决的不确定性。}
       semanticRefs: {type: array, required: true, description: 判断关联的语义对象。}
   MarketExpectation:
@@ -193,9 +195,17 @@ object_types:
     validity: false
     properties:
       validatedAt: {type: datetime, required: true, description: 执行事后验证的系统时间。}
+      originalClaimRef: {type: string, required: true, description: 原始 CandidateClaim、Judgment 或 ReportClaim 的稳定引用。}
+      originalJudgmentAsOf: {type: datetime, required: true, description: 原判断当时的信息截止时点。}
+      predictionHorizon: {type: string, required: true, description: 原判断预期兑现或验证的时间窗口。}
+      expectedSignals: {type: array, required: true, description: 原判断预设的可观察信号、方向、阈值和预期时点。}
+      actualSignals: {type: array, required: true, description: 事后观察到的实际信号及业务时间。}
       result: {type: enum, required: true, allowed_values: [validated, partially_validated, falsified, still_uncertain], description: 事后验证结果。}
       outcomeSummary: {type: string, required: true, description: 后续真实结果或当前仍无法确认的情况说明。}
+      errorType: {type: enum, required: true, allowed_values: [none, data_error, scope_mismatch, timing_error, mechanism_error, omitted_variable, competing_explanation, evidence_overweighting, execution_error, still_uncertain], description: 判断偏差的主要类型。}
+      errorAttribution: {type: string, required: true, description: 偏差发生在哪个数据、口径、变量、机制、时点、竞争解释或执行环节。}
       deviationReasons: {type: array, required: false, description: 预期与实际结果存在偏差时的原因。}
+      learningTargets: {type: array, required: true, description: 建议改进的 Rule、StateVariable、EvidenceRequirement、框架或表达合同。}
       revisionRequired: {type: boolean, required: true, description: 是否建议修订本体规则、变量、关系或情景。}
       revisionNotes: {type: string, required: false, description: 建议修订的对象、原因和边界；不自动执行修改。}
       nextCheckpoint: {type: string, required: false, description: 结果仍不确定时的下一验证点。}
@@ -609,7 +619,7 @@ action_types:
     name: 形成判断
     description: 基于假设、信号和证据形成分级判断。
     target_types: [Judgment]
-    parameters: [hypothesisRefs, signalRefs, timeHorizon, uncertainty, scenarioRef]
+    parameters: [hypothesisRefs, signalRefs, timeHorizon, uncertainty, investmentInterpretation, interpretationBasis, scenarioRef]
     preconditions: [假设已评价且证据门槛明确]
     effects: [create_Judgment, create_judgmentBasedOn, create_judgmentUnderScenario_if_provided]
     outputs: [Judgment]
@@ -687,7 +697,7 @@ action_types:
     name: 记录事后验证
     description: 根据后续真实结果验证假设、判断或资产影响，并追加偏差与修订建议，不覆盖原始推理留痕。
     target_types: [ValidationRecord]
-    parameters: [targetRefs, outcomeRefs, traceRefs, validatedAt, result, outcomeSummary, deviationReasons, revisionRequired, revisionNotes, nextCheckpoint]
+    parameters: [targetRefs, outcomeRefs, traceRefs, validatedAt, originalClaimRef, originalJudgmentAsOf, predictionHorizon, expectedSignals, actualSignals, result, outcomeSummary, errorType, errorAttribution, deviationReasons, learningTargets, revisionRequired, revisionNotes, nextCheckpoint]
     preconditions: [验证目标存在，后续结果时间不早于原判断，验证结果与依据完整]
     effects: [create_ValidationRecord, create_validationOf, create_validationUsesOutcome_if_provided, create_validationReferencesTrace_if_provided]
     outputs: [ValidationRecord]
@@ -890,7 +900,7 @@ logic_flows:
     id: ExPostValidationLogic
     name: 事后验证逻辑
     description: 对齐原始推理时点与后续结果，分类兑现程度并形成修订建议，同时保持原始留痕不可变。
-    inputs: [targetRefs, outcomeRefs, traceRefs, validatedAt, result, revisionRequired]
+    inputs: [targetRefs, outcomeRefs, traceRefs, validatedAt, originalClaimRef, originalJudgmentAsOf, predictionHorizon, expectedSignals, actualSignals, result, errorType, learningTargets, revisionRequired]
     steps:
       - {id: validate_time_order, rule_refs: [validation_time_order]}
       - {id: validate_outcome_basis, rule_refs: [validation_outcome_required]}

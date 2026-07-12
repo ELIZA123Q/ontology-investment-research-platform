@@ -151,6 +151,14 @@ ontology_sources:
     - 二级半导体领域本体规范/reasoning.yaml
 judgment_units:
 - judgment_unit_id: JU-01
+  research_question_ref: task_context.normalized_question
+  candidate_claim: HBM、非 HBM DRAM 与 NAND 可以按不同证据门槛形成分产品周期阶段判断
+  judgment_type: industry_cycle_judgment
+  priority_tier: critical
+  decision_weight: 5
+  decision_role: direction_driver
+  priority_rationale: 分产品阶段定位直接决定整体周期判断，避免平均值掩盖分化
+  critical_failure_effect: recalculate_overall
   statement: 可按 HBM 非 HBM DRAM NAND 分产品给方向性阶段定位
   linked_questions:
   - Q-01
@@ -237,6 +245,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-02
+  research_question_ref: task_context.normalized_question
+  candidate_claim: AI 服务器与 HBM 需求足以支持 HBM 结构性偏紧延续
+  judgment_type: industry_cycle_judgment
+  priority_tier: critical
+  decision_weight: 5
+  decision_role: direction_driver
+  priority_rationale: HBM 是本轮结构性需求与资源挤占的起点
+  critical_failure_effect: recalculate_overall
   statement: AI 服务器和 HBM 需求支持结构性偏紧方向
   linked_questions:
   - Q-01
@@ -321,6 +337,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-03
+  research_question_ref: task_context.normalized_question
+  candidate_claim: HBM 晶圆与封装资源挤占正在约束通用 DRAM 有效供给
+  judgment_type: supply_chain_bottleneck_judgment
+  priority_tier: important
+  decision_weight: 4
+  decision_role: mechanism_validator
+  priority_rationale: 该机制决定 HBM 景气能否外溢到传统 DRAM
+  critical_failure_effect: downgrade_overall
   statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
   linked_questions:
   - Q-03
@@ -403,6 +427,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-04
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 企业级 SSD 需求支持 NAND 改善但消费端疲弱限制上行强度
+  judgment_type: industry_cycle_judgment
+  priority_tier: important
+  decision_weight: 4
+  decision_role: differentiation_explainer
+  priority_rationale: NAND 与 DRAM 的需求结构不同，决定周期不能合并
+  critical_failure_effect: downgrade_overall
   statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
   linked_questions:
   - Q-01
@@ -491,6 +523,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-05
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 历史价格上涨已确认，但当前斜率变化只足以支持拐点观察
+  judgment_type: risk_monitoring_judgment
+  priority_tier: supporting
+  decision_weight: 3
+  decision_role: strength_driver
+  priority_rationale: 价格斜率决定周期判断强度而非单独决定方向
+  critical_failure_effect: no_overall_effect
   statement: 历史价格大幅上行已确认 斜率放缓只支持拐点观察
   linked_questions:
   - Q-04
@@ -575,6 +615,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-06
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 2027H2 至 2028 只能作为新增有效供给缓解的条件窗口
+  judgment_type: risk_monitoring_judgment
+  priority_tier: supporting
+  decision_weight: 2
+  decision_role: mechanism_validator
+  priority_rationale: 该单元约束周期结束时间表达，防止确定性日期预测
+  critical_failure_effect: no_overall_effect
   statement: 2027H2 至 2028 只能作为条件式缓解窗口
   linked_questions:
   - Q-05
@@ -656,6 +704,14 @@ judgment_units:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
 - judgment_unit_id: JU-07
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 现有证据不能支持 HBM、非 HBM DRAM 与 NAND 存在统一周期结束日
+  judgment_type: risk_monitoring_judgment
+  priority_tier: background
+  decision_weight: 1
+  decision_role: background_context
+  priority_rationale: 该单元只限定表达边界，不单独改变各产品方向
+  critical_failure_effect: no_overall_effect
   statement: 不能确认三类产品统一结束日
   linked_questions:
   - Q-05

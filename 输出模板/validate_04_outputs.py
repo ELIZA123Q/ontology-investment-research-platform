@@ -112,6 +112,7 @@ REQUIRED_AUDIT_TOP = [
     "uncertainty_register",
     "change_gate_register",
     "tracking_register",
+    "review_plan",
     "ontology_context",
     "path_results",
     "state_variable_results",
@@ -121,6 +122,13 @@ REQUIRED_AUDIT_TOP = [
 ]
 
 REPORT_STATUSES = {"draft", "complete", "published"}
+INVESTMENT_INTERPRETATIONS = {
+    "fundamental_trend_improving",
+    "marginal_improvement",
+    "high_level_divergence",
+    "thesis_weakening",
+    "observation_stage",
+}
 def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
     meta, body = parse_markdown(report_path)
     require_keys(meta, REQUIRED_REPORT_META, str(report_path))
@@ -148,6 +156,8 @@ def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
         if term in researcher_body:
             fail(f"04 研究员正文（§1—§6）不得包含系统术语: {term}")
     validate_researcher_body(body, str(report_path))
+    if "投资解释" not in body:
+        fail("04 正文必须包含投资解释落点")
     forbidden = ["目标价", "收益率预测", "仓位建议", "买入评级", "卖出评级"]
     for marker in forbidden:
         for match in re.finditer(re.escape(marker), body):
@@ -263,6 +273,124 @@ def _validate_claims(audit: dict[str, object], judgment_by_id: dict[str, dict[st
     ]:
         for row in audit.get(register, []):
             assert_subset(split_refs(row.get(ref_field)), claim_ids, f"{register}.{ref_field}")
+
+    updates = audit.get("judgment_update_register")
+    if updates is not None:
+        if not isinstance(updates, list) or not updates:
+            fail("judgment_update_register 存在时至少需要一项")
+        claim_by_id = {str(item["claim_id"]): item for item in claims}
+        for index, item in enumerate(updates, 1):
+            require_keys(
+                item,
+                [
+                    "update_id", "claim_id", "prior_judgment_level", "prior_confidence",
+                    "evidence_changes", "affected_structure", "current_judgment_level",
+                    "current_confidence", "update_action", "update_reason",
+                    "source_03_maximum_judgment_level", "next_upgrade_signals",
+                    "next_downgrade_or_block_signals",
+                ],
+                f"judgment_update_register[{index}]",
+            )
+            claim_id = str(item["claim_id"])
+            assert_subset([claim_id], claim_ids, f"judgment_update_register[{index}].claim_id")
+            for field in ["prior_judgment_level", "current_judgment_level", "source_03_maximum_judgment_level"]:
+                if str(item[field]) not in JUDGMENT_LEVELS:
+                    fail(f"judgment_update_register[{index}].{field} 非法")
+            if item["update_action"] not in {"maintain", "enhance", "weaken", "block", "revise"}:
+                fail(f"judgment_update_register[{index}].update_action 非法")
+            if not str(item["update_reason"]).strip():
+                fail(f"judgment_update_register[{index}].update_reason 不得为空")
+            if str(item["current_judgment_level"]) != str(claim_by_id[claim_id]["actual_judgment_level"]):
+                fail(f"judgment_update_register[{index}] 当前等级必须与 {claim_id} 一致")
+            if judgment_level_rank(str(item["current_judgment_level"])) > judgment_level_rank(str(item["source_03_maximum_judgment_level"])):
+                fail(f"judgment_update_register[{index}] 更新等级超过 03 上限")
+
+    verdict = audit.get("investment_thesis_verdict")
+    if verdict is not None:
+        require_keys(
+            verdict,
+            [
+                "applicable", "applicability_reason", "source_claim_refs", "source_a08_claim_refs",
+                "source_a09_claim_refs", "target_asset", "time_window", "gate_results",
+                "priced_in_assessment", "base_case", "upside_case", "downside_case",
+                "catalyst_or_validation_signals", "strongest_counterevidence", "verdict",
+                "judgment_level", "confidence", "verdict_reason", "invalidation_conditions",
+                "handoff_to_05",
+            ],
+            "investment_thesis_verdict",
+        )
+        if not isinstance(verdict["applicable"], bool):
+            fail("investment_thesis_verdict.applicable 必须为布尔值")
+        for field in ["source_claim_refs", "source_a08_claim_refs", "source_a09_claim_refs"]:
+            assert_subset(split_refs(verdict[field]), claim_ids, f"investment_thesis_verdict.{field}")
+        if verdict["verdict"] not in {"formed", "conditional", "watch", "not_formed", "blocked", "not_applicable"}:
+            fail("investment_thesis_verdict.verdict 非法")
+        if str(verdict["judgment_level"]) not in JUDGMENT_LEVELS:
+            fail("investment_thesis_verdict.judgment_level 非法")
+        if judgment_level_rank(str(verdict["judgment_level"])) > judgment_level_rank("J3"):
+            fail("A10 投资命题裁决不得达到 J4")
+        if verdict["priced_in_assessment"] not in {"unpriced", "partially_priced", "priced", "unknown", "not_applicable"}:
+            fail("investment_thesis_verdict.priced_in_assessment 非法")
+        if verdict["handoff_to_05"] not in {"investment_spine_allowed", "conditional_expression_only", "tracking_only", "prohibited", "not_applicable"}:
+            fail("investment_thesis_verdict.handoff_to_05 非法")
+        if verdict["applicable"] is False:
+            if verdict["verdict"] != "not_applicable" or verdict["handoff_to_05"] != "not_applicable":
+                fail("A10 不适用时 verdict 与 handoff_to_05 必须均为 not_applicable")
+            if not str(verdict["applicability_reason"]).strip():
+                fail("A10 不适用时必须说明 applicability_reason")
+        else:
+            if not split_refs(verdict["source_claim_refs"]):
+                fail("A10 适用时 source_claim_refs 不得为空")
+            for field in ["target_asset", "time_window", "verdict_reason"]:
+                if not str(verdict[field]).strip():
+                    fail(f"A10 适用时 {field} 不得为空")
+            gates = verdict["gate_results"]
+            if not isinstance(gates, dict):
+                fail("investment_thesis_verdict.gate_results 必须是对象")
+            gate_fields = ["research_validity", "expectation_comparability", "pricing_not_fully_reflected", "payoff_risk_asymmetry", "validation_window"]
+            for field in gate_fields:
+                if gates.get(field) not in {"pass", "conditional", "fail", "not_assessed"}:
+                    fail(f"investment_thesis_verdict.gate_results.{field} 非法")
+            if verdict["verdict"] == "formed" and any(gates[field] != "pass" for field in gate_fields):
+                fail("A10 裁决为 formed 时五道裁决门必须全部 pass")
+            if verdict["verdict"] == "formed" and verdict["handoff_to_05"] != "investment_spine_allowed":
+                fail("A10 裁决为 formed 时 handoff_to_05 必须为 investment_spine_allowed")
+
+    overall = audit["overall_judgment"]
+    require_keys(
+        overall,
+        ["investment_interpretation", "interpretation_basis"],
+        "overall_judgment",
+    )
+    if overall["investment_interpretation"] not in INVESTMENT_INTERPRETATIONS:
+        fail("overall_judgment.investment_interpretation 非法")
+    if not str(overall["interpretation_basis"]).strip():
+        fail("overall_judgment.interpretation_basis 不得为空")
+    review_plan = audit["review_plan"]
+    if not isinstance(review_plan, list) or not review_plan:
+        fail("review_plan 至少需要一项")
+    for index, item in enumerate(review_plan, 1):
+        require_keys(
+            item,
+            [
+                "review_id",
+                "source_claim_id",
+                "judgment_as_of",
+                "prediction_horizon",
+                "expected_signals",
+                "change_thresholds",
+                "review_due_at",
+                "review_status",
+            ],
+            f"review_plan[{index}]",
+        )
+        assert_subset(split_refs(item["source_claim_id"]), claim_ids, f"review_plan[{index}].source_claim_id")
+        if not split_refs(item["expected_signals"]):
+            fail(f"review_plan[{index}].expected_signals 不得为空")
+        if not split_refs(item["change_thresholds"]):
+            fail(f"review_plan[{index}].change_thresholds 不得为空")
+        if item["review_status"] not in {"scheduled", "due", "completed", "cancelled"}:
+            fail(f"review_plan[{index}].review_status 非法")
 
 
 def _validate_quality_and_compliance(audit: dict[str, object]) -> None:

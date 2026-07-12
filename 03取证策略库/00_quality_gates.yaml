@@ -1,6 +1,53 @@
+# 系统接口文件：研究员日常使用“已确认/较支持/条件成立/仅线索”四档语言；
+# 库管理员在交付或自动校验时再映射到本文件的 Q0—Q4 和硬门槛。
 registry_type: evidence_quality_gates
-schema_version: 1.0.0
-updated_at: 2026-07-09
+schema_version: 1.1.0
+updated_at: 2026-07-12
+
+evaluation_principles:
+  - 来源可靠性、主张可信度、任务适配性和篮子完备性分别评价，不得合成一个来源分数替代。
+  - 硬门槛优先于总分；任一关键硬门槛失败即阻断对应用途。
+  - 关键 JudgmentUnit 采用 weakest_link，不以平均分或材料数量补偿必需篮子缺失。
+  - 支持证据与反证使用对称的对象、时间和口径标准。
+  - 未找到反证只说明当前检索未发现，必须同时记录检索范围和停止原因。
+
+assessment_layers:
+  source_document:
+    question: 材料身份、权限、版本和定位是否合格
+    output: SourceDocument metadata status
+  evidence_claim_or_fact:
+    question: 原子主张是否准确抽取、归一且适用于当前需求
+    output: EvidenceAssessment
+  evidence_basket:
+    question: 类别、独立性、时间、对象和反证组合是否满足
+    output: basket status and quality level
+  path:
+    question: 起点、中介、暴露、结果和阻断是否逐层准入
+    output: path_readiness
+  judgment_unit:
+    question: 当前证据最多允许 04 形成何种判断
+    output: EvidenceReadinessAssessment
+  package:
+    question: 哪些判断可进入 04/05，整体是 normal/restricted/incomplete/failed
+    output: manifest admission
+
+conflict_resolution_protocol:
+  compare_dimensions: [object_scope, business_time, metric_definition, unit, methodology, source_version, statement_nature, independence_group]
+  resolution_order:
+    - 先判断是否其实描述不同对象、时间、口径或状态
+    - 再核对原始来源、修订版本和方法说明
+    - 再比较直接性与任务适配，不按来源数量投票
+    - 无法消解时保留双方并标记 contested
+  forbidden_actions:
+    - 删除不支持主观点的合格证据
+    - 用较高来源层级自动覆盖更直接且口径匹配的证据
+    - 对冲突数值取平均后假装冲突消失
+    - 将同源转述计为多数意见
+
+missing_data_protocol:
+  distinguish: [not_found_in_current_scope, inaccessible, not_disclosed, not_applicable, structurally_unobservable, true_zero]
+  rule: 缺失不得自动解释为零、不存在或没有影响。
+  required_record: search_scope, attempted_sources, attempts, failure_code, fallback_action, stop_reason, effect_on_04
 
 quality_dimensions:
   traceability:
@@ -152,3 +199,18 @@ usage_limit_rules:
   source_is_ai_summary:
     allowed_04_output: none
     action: trace_back_to_original_source
+  mandatory_basket_missing:
+    allowed_04_output: conditional_or_lower
+    action: apply_recipe_specific_downgrade
+  critical_path_start_unconfirmed:
+    allowed_04_output: none
+    action: block_path
+  unresolved_material_conflict:
+    allowed_04_output: contested
+    action: preserve_both_sides_and_state_discriminating_evidence
+  non_reproducible_transformation:
+    allowed_04_output: background_only
+    action: preserve_raw_value_and_rebuild_transformation
+  missing_search_scope_for_counter_check:
+    allowed_04_output: directional_only_or_lower
+    action: counter_check_not_complete

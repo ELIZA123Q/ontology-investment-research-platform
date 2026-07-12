@@ -2,7 +2,7 @@
 framework_id: IF-PKG-01
 name: 封装测试与异构集成框架
 library: industry_semiconductor
-version: 4.0.0
+version: 5.0.0
 status: core
 framework_type: value_chain_main
 builds_on: [BF-SD-01, BF-VT-01, BF-EE-01]
@@ -10,6 +10,29 @@ updated_at: 2026-07-08
 ---
 
 # 封装测试与异构集成框架
+
+## 研究员抓手：系统合格交付由最窄瓶颈决定
+
+先进封装不能只看某一道工序名义产能。中介层/基板、键合、TSV、测试、热管理、良率、设备材料和客户认证共同决定系统合格产出；瓶颈可能随产品代际迁移。
+
+区分“产能紧张”“良率爬坡”“配套短缺”和“客户认证”四类约束，它们的缓解时间和受益对象不同。封装价值量提升也不自动等于利润池提升，还要看资本强度、良率责任、客户议价和设备材料成本。
+
+## 本框架应交付什么（系统名 Framework Output Contract）
+
+```yaml
+framework_layer: mechanism
+hard_prerequisites: [BF-SD-01, BF-VT-01]
+judgment_types: [state_measurement, mechanism_transmission, causal_attribution]
+state_variable_candidates: [process_capacity, substrate_supply, bonding, test, thermal, yield, qualified_output]
+signal_candidates: [bottleneck_utilization, substrate_delivery, yield, cycle_time, customer_qualification]
+output_objects: [packaging_flow, narrowest_bottleneck, qualified_system_output]
+evidence_requirements: [分工序产能, 材料设备, 良率周期, 测试热管理, 客户认证]
+falsification_conditions: [nameplate_only, bottleneck_shift, yield_loss, missing_component]
+scenarios: [bottleneck_eases, persists, migrates]
+downstream_unlocks: [BF-EE-01, BF-RS-01]
+```
+
+运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
 
 ## 1. 适用问题与边界
 
@@ -112,7 +135,7 @@ updated_at: 2026-07-08
 - 只保留会影响本次方向、强度或停止条件的模块；
 - 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
 - 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及估值或预期差，必须另行引用 BF-VA-01 或 BF-EG-01。
+- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期门禁全部放行后，才可接 BF-VA-01。
 
 ## 10. 权威依据卡
 
