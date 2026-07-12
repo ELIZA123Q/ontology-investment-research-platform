@@ -184,8 +184,8 @@ def validate() -> list[str]:
     if not capability.is_file():
         errors.append("缺少 00_能力模型与文件职责矩阵.md")
     guide = ROOT / "C_Evidence_Recipe" / "00_证据配方使用说明.md"
-    if not guide.is_file() or "Recipe 完整合同" not in guide.read_text(encoding="utf-8"):
-        errors.append("C_Evidence_Recipe: 缺少完整 Recipe 合同")
+    if not guide.is_file() or "最低证据组合的完整要求" not in guide.read_text(encoding="utf-8"):
+        errors.append("C_Evidence_Recipe: 缺少最低证据组合的完整要求")
 
     for key in ("evaluation_principles", "assessment_layers", "conflict_resolution_protocol", "missing_data_protocol"):
         if key not in quality:

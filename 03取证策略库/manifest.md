@@ -63,4 +63,4 @@
 - A01—A09 均增加了可复现执行协议、混杂因素与失败模式；C 层 8 个配方均具有完整门槛。
 - B 层增加了来源计划、角色适配、独立组、失败回退、行业测量字典和专题事件状态机。
 - D 层增加了取证任务、来源/指标经验、冲突处理、更新监测和框架反馈，使单次取证可以沉淀为下一次可复用的研究资产。
-- 根注册表新增 Evidence Permission Matrix 与 JudgmentUnit 默认 Recipe 路由；D05 内嵌 Evidence Pattern Case，不扩展 A/B/C/D 文件数量。
+- 根注册表新增 Evidence Permission Matrix 与 JudgmentUnit 默认 Recipe 处理去向；D05 内嵌 Evidence Pattern Case，不扩展 A/B/C/D 文件数量。

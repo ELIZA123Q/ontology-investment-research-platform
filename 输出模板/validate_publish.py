@@ -82,7 +82,7 @@ VALIDATOR_ERROR_ROUTES: dict[str, list[ErrorRoute]] = {
     "05": [
         ErrorRoute(re.compile(r"图表|表格|数据密度|display_data|chart_data|table_material|05_material"), "03", "05.validator.material_data", "05 图表数据不足，退回 03 补 display/chart/table 素材"),
         ErrorRoute(re.compile(r"handoff|approved_core_claims|expression_strength|core_thesis|预期差|object_strength|claim"), "04", "05.validator.handoff", "05 表达超过 04 审计边界，退回 04 调整 handoff/claim"),
-        ErrorRoute(re.compile(r"delivery_archetype|输出原型|target_05_archetype|01"), "01", "05.validator.archetype", "报告原型与 01 不一致，退回 01 确认"),
+        ErrorRoute(re.compile(r"delivery_archetype|输出原型|报告类型|target_05_archetype|01"), "01", "05.validator.archetype", "报告类型与 01 不一致，退回 01 确认"),
         ErrorRoute(re.compile(r"引用不存在|figure_id|table_id|data_candidate"), "03", "05.validator.missing_data_ref", "05 引用的数据候选在 03 快照中不存在"),
         ErrorRoute(re.compile(r"限制性表达|正文不得|标题应是"), "05", "05.validator.expression", "在 05 重写正文表达"),
     ],
@@ -374,7 +374,7 @@ def _check_return_block(
             message=message,
             return_to=target,
             affected_stage=stage,
-            fix_hint="修正本阶段缺陷后重新运行确定性校验与语义审阅",
+            fix_hint="修正本阶段缺陷后重新运行规则校验与独立内容审阅",
         )
     if _truthy(return_required):
         target = _normalize_return_stage(return_stage) or stage
@@ -697,7 +697,7 @@ def _gate_04_audit_semantic(artifacts: RunArtifacts, items: list[ReworkItem]) ->
             "claims_within_03_use_limits": ("03", "04.audit.claims_within_limits", "观点超过 03 证据门禁"),
             "claim_labels_match_evidence_strength": ("04", "04.audit.claim_labels", "观点标签与证据强度不一致"),
             "object_differentiation_clear": ("04", "04.audit.object_diff", "对象分化不足"),
-            "change_gates_observable": ("04", "04.audit.change_gates", "改判闸门不可观察"),
+            "change_gates_observable": ("04", "04.audit.change_gates", "改变判断的信号不可观察"),
         }
         for key, (return_to, rule_id, message) in bool_checks.items():
             if quality_check.get(key) is False:
@@ -1197,7 +1197,7 @@ def validate_publish(
                 message=f"{stage} quality_status={next(r.quality_status for r in stage_results if r.stage == stage)}，未达到正式发布门槛",
                 return_to=stage,
                 affected_stage=stage,
-                fix_hint="按 00A 完成独立语义审阅并提升到 high_quality_pass",
+                fix_hint="按 00A 完成独立内容审阅并提升到 high_quality_pass",
             )
         publish_status = "RETURN_REQUIRED"
         rework_items = _dedupe_rework(rework_items)

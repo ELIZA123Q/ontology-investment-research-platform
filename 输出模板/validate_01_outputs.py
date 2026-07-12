@@ -78,7 +78,7 @@ REQUIRED_CONFIRMATION_TOPICS = {
 REQUIRED_SECTIONS = [
     "研究目标、核心问题与最终要回答的问题",
     "研究对象与判断起点",
-    "研究价值门",
+    "研究价值检查",
     "研究范围与边界",
     "关键歧义校验",
     "核心观察维度",
@@ -255,7 +255,7 @@ def _validate_research_value_gate(value: object, *, ready_status: str) -> None:
     if not isinstance(gate["low_value_reason"], str):
         fail("research_value_gate.low_value_reason 必须是字符串")
     if ready_status == "ready_for_matching" and (status != "pass" or level == "low"):
-        fail("ready_for_matching 必须通过研究价值门，且 value_level 不得为 low")
+        fail("ready_for_matching 必须通过研究价值检查，且 value_level 不得为 low")
 
 
 def _validate_task_and_delivery(meta: dict[str, object]) -> None:
@@ -365,7 +365,7 @@ def validate(path: str | Path) -> dict[str, object]:
     require_no_placeholders(body, str(path) + " body")
     required_phrases = ["支持、削弱、反证与竞争解释", "质量结论"]
     required_phrases.extend(["核心研究主线", "范围过宽检查"])
-    required_phrases.append("研究价值门")
+    required_phrases.append("研究价值检查")
     for required_phrase in required_phrases:
         if required_phrase not in body:
             fail(f"{path} 正文必须包含“{required_phrase}”")

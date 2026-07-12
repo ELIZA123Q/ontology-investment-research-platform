@@ -51,7 +51,7 @@ revision: event_state_exposure_and_outcome_protocol
 | 贸易摩擦与关税 | Section 301、反倾销、反补贴、报复性关税、进口限制 |
 | 能源和商品地缘风险 | 原油、天然气、LNG、煤炭、铀、粮食、化肥、关键金属 |
 | 国家风险和政策突变 | 政变、选举、政权更替、资本管制、外汇管制、国有化 |
-| 金融制裁和支付体系风险 | SWIFT、二级制裁、银行清算限制、外汇冻结、主权债风险 |
+| 金融制裁和支付体系风险 | SWIFT、二级制裁、银行清算限制、外汇固定、主权债风险 |
 | 供应链安全和关键基础设施 | 港口、管道、炼厂、电网、数据中心、海缆、关键矿产 |
 
 不适用：
@@ -71,7 +71,7 @@ revision: event_state_exposure_and_outcome_protocol
 → B04 确认冲击事实、政策动作、冲击通道和反证来源
 → B02 补公司披露、市场行情、宏观、贸易、商品等通用来源
 → B03 补行业专用变量
-→ 形成证据篮子
+→ 形成必要证据组合
 → 判断 04 最多能形成的结论
 ```
 
@@ -99,9 +99,9 @@ revision: event_state_exposure_and_outcome_protocol
 | 公司影响 | SEC EDGAR、HKEXnews、DART、EDINET、公司 IR | 巨潮资讯、上交所、深交所、北交所、HKEXnews、A/H 股公司公告 | 风险披露、收入地区、供应链关系和实际损益要分开 |
 | 市场反应 | Bloomberg、LSEG、FactSet、交易所、CME/ICE | Wind、iFinD、Choice、中证指数、交易所、外汇交易中心、中债 | 市场反应只能说明定价，不等于基本面事实 |
 
-## 4. 地缘冲击的核心证据篮子
+## 4. 地缘冲击的核心必要证据组合
 
-| 证据篮子 | 回答的问题 | 首选来源方向 |
+| 必要证据组合 | 回答的问题 | 首选来源方向 |
 |---|---|---|
 | 冲突事实 | 事件是否真实发生，发生在何时何地，涉及哪些主体 | 官方声明、国际组织、冲突数据库、权威新闻 |
 | 升级强度 | 是口头威胁、局部冲突、制裁落地，还是实际军事行动 | 官方军事/外交声明、ACLED、CFR、ICG、Reuters/Bloomberg/AP |
@@ -480,7 +480,7 @@ revision: event_state_exposure_and_outcome_protocol
 
 最小来源包：
 
-| 证据篮子 | 推荐来源 |
+| 必要证据组合 | 推荐来源 |
 |---|---|
 | 冲突事实 | 当事国官方声明、UN OCHA/ReliefWeb、Reuters/Bloomberg/AP、ACLED |
 | 航道重要性 | EIA World Oil Transit Chokepoints |
@@ -495,7 +495,7 @@ revision: event_state_exposure_and_outcome_protocol
 
 最小来源包：
 
-| 证据篮子 | 推荐来源 |
+| 必要证据组合 | 推荐来源 |
 |---|---|
 | 事件事实 | UKMTO、JMIC、IMO、船公司公告、Reuters/Bloomberg/AP |
 | 航道和绕行 | Drewry、Freightos、Baltic Exchange、Clarksons、港口公告 |
@@ -507,7 +507,7 @@ revision: event_state_exposure_and_outcome_protocol
 
 最小来源包：
 
-| 证据篮子 | 推荐来源 |
+| 必要证据组合 | 推荐来源 |
 |---|---|
 | 军事和外交事实 | 中国国防部/外交部、台湾地区主管部门、美国 DoD/State Department、Japan MOD/MOFA、Reuters/Bloomberg/AP |
 | 安全背景 | CSIS、IISS、CFR、International Crisis Group、AMTI |
@@ -534,7 +534,7 @@ revision: event_state_exposure_and_outcome_protocol
 
 最小来源包：
 
-| 证据篮子 | 推荐来源 |
+| 必要证据组合 | 推荐来源 |
 |---|---|
 | 冲突事实 | 当事国官方、UN OCHA/ReliefWeb、ACLED、Reuters/Bloomberg/AP |
 | 制裁事实 | OFAC、EU Official Journal、UK OFSI、Federal Register、各国主管部门 |
@@ -548,7 +548,7 @@ revision: event_state_exposure_and_outcome_protocol
 
 最小来源包：
 
-| 证据篮子 | 推荐来源 |
+| 必要证据组合 | 推荐来源 |
 |---|---|
 | 管制事实 | BIS、Federal Register、Entity List、Unverified List、Denied Persons List |
 | 制裁事实 | OFAC、CSL、USTR、CBP、USITC |
@@ -620,7 +620,7 @@ revision: event_state_exposure_and_outcome_protocol
 5. 原始来源和二手来源的区分；
 6. 是否存在生效日期、豁免、过渡期、许可证、例外条款；
 7. 是否完成反证检索；
-8. 对 04 的使用上限。
+8. 对 04 最多能形成的结论。
 
 
 中国相关地缘问题还需额外记录：
@@ -724,4 +724,4 @@ market_move_explained_by_other_macro_factors
 
 ## 18. 停止与更新规则
 
-地缘事件是高频变化对象。单次运行必须冻结截止时点；出现升级、停火、修订、豁免、恢复或新制裁时生成新版本，不覆盖旧快照。当前信息只够确认事件而不足以证明实际流量和公司结果时，停止在事实层并输出后续监测指标。
+地缘事件是高频变化对象。单次运行必须固定截止时点；出现升级、停火、修订、豁免、恢复或新制裁时生成新版本，不覆盖旧快照。当前信息只够确认事件而不足以证明实际流量和公司结果时，停止在事实层并输出后续监测指标。
