@@ -9,9 +9,9 @@ from pathlib import Path
 
 from quality_gate_utils import (
     CLAIM_MODES,
+    DRAFTABLE_DOCUMENT_STATUSES,
     JUDGMENT_LEVELS,
     JUDGMENT_STATUSES,
-    TARGET_CLAIM_TYPES,
     judgment_level_rank,
     validate_gate_review_fields,
     validate_quality_status,
@@ -121,7 +121,7 @@ REQUIRED_AUDIT_TOP = [
     "compliance_check",
 ]
 
-REPORT_STATUSES = {"draft", "complete", "published"}
+REPORT_STATUSES = DRAFTABLE_DOCUMENT_STATUSES
 INVESTMENT_INTERPRETATIONS = {
     "fundamental_trend_improving",
     "marginal_improvement",

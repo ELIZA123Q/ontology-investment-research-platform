@@ -1,14 +1,16 @@
 document_type: delivery_expression_audit
-schema_version: 2.0.0
+schema_version: 2.1.0
 metadata:
   task_id: JTASK-USCTRL-CNSEMI-EQP-001
   execution_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
   delivery_ref: 05-美国管制与国产设备替代主题深度研究-20260710-1.md
+  delivery_content_hash: sha256:033c1205858899b1b6b6a895e2df3523401149a65b10afe36515c48da99179ee
   source_04_report_ref: 04-美国管制与国产设备替代推理报告-20260710-1.md
   source_04_audit_ref: 04-美国管制与国产设备替代推理审计-20260710-1.yaml
+  source_04_audit_hash: sha256:ed2608331ac71dcc4e48ceaac26e2cde91aea1545b0525bd10a477c8bc140c02
   audit_status: complete
   quality_status: high_quality_pass
-  quality_gate_ref: 00A_高质量产出判别标准.md#5.5
+  quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则
   deterministic_check_status: checked
   semantic_review_status: reviewed
 claim_expression_register:

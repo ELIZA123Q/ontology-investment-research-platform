@@ -1,14 +1,16 @@
 document_type: delivery_expression_audit
-schema_version: 2.0.0
+schema_version: 2.1.0
 metadata:
   task_id: JTASK-MEM-CYCLE-001
   execution_id: EXEC-MEM-CYCLE-20260707-1
   delivery_ref: 05-存储芯片周期行业周期判断-20260707-1.md
+  delivery_content_hash: sha256:862db44ca5999cc1381412fc5211db577a33293e2a50ab9e8d49a18df9a067c5
   source_04_report_ref: 04-存储芯片周期推理报告-20260707-1.md
   source_04_audit_ref: 04-存储芯片周期推理审计-20260707-1.yaml
+  source_04_audit_hash: sha256:db4ba656073e29ebba628c24892b74743d615a38c682f399f988bbbae0f068f9
   audit_status: complete
   quality_status: high_quality_pass
-  quality_gate_ref: 00A_高质量产出判别标准.md#5.5
+  quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则
   deterministic_check_status: checked
   semantic_review_status: reviewed
 claim_expression_register:

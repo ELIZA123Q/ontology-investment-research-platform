@@ -49,7 +49,7 @@ task_context:
   view_version: 1
   frozen_at: '2026-07-07T15:17:44+08:00'
 quality_control:
-  quality_gate_ref: 00A_高质量产出判别标准.md#5.2
+  quality_gate_ref: 02_判断结构与本体视图规范.md#8-质量门槛与返工规则
   stage_status: aligned
   quality_status: high_quality_pass
   deterministic_check_status: checked

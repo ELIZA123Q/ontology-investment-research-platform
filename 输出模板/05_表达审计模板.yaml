@@ -1,15 +1,17 @@
 document_type: delivery_expression_audit
-schema_version: 2.0.0
+schema_version: 2.1.0
 
 metadata:
   task_id: ""
   execution_id: ""
   delivery_ref: "05-<核心主题>主题深度研究-<YYYYMMDD>-<当日序号>.md"
+  delivery_content_hash: "sha256:<05正文文件哈希>"
   source_04_report_ref: "04-<核心主题>推理报告-<YYYYMMDD>-<当日序号>.md"
   source_04_audit_ref: "04-<核心主题>推理审计-<YYYYMMDD>-<当日序号>.yaml"
+  source_04_audit_hash: "sha256:<04推理审计文件哈希>"
   audit_status: draft
   quality_status: draft
-  quality_gate_ref: "00A_高质量产出判别标准.md#5.5"
+  quality_gate_ref: "05_投研表达与交付规范.md#9-质量门槛与返工规则"
   deterministic_check_status: not_checked
   semantic_review_status: not_reviewed
 

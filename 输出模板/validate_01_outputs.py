@@ -30,7 +30,6 @@ from validator_utils import (
     require_no_forbidden_phrases,
     require_no_placeholders,
     require_non_empty,
-    require_schema_version,
     require_string,
     as_version,
 )

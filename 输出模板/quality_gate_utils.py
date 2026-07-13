@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 
 from validator_utils import fail
@@ -20,6 +18,7 @@ QUALITY_STATUSES = {
 
 DETERMINISTIC_CHECK_STATUSES = {"not_checked", "checked", "failed"}
 SEMANTIC_REVIEW_STATUSES = {"not_reviewed", "reviewed", "failed"}
+DRAFTABLE_DOCUMENT_STATUSES = {"draft", "complete", "published"}
 
 SEARCH_STATUSES = {
     "threshold_met",
@@ -27,6 +26,18 @@ SEARCH_STATUSES = {
     "in_progress",
     "blocked_by_access",
 }
+
+EVIDENCE_ROLES = {
+    "primary_support",
+    "cross_validation",
+    "counter_evidence",
+    "blocking_condition",
+    "proxy_indicator",
+    "background_evidence",
+}
+REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
+QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
+SOURCE_TIERS = {"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"}
 
 PASSING_ADMISSIONS = {"normal_pass", "restricted_pass"}
 
@@ -96,9 +107,10 @@ RETURN_ACTIONS = {
 
 MATERIAL_READINESS_STATUSES = {
     "report_grade_ready",
-    "draft_ready",
-    "insufficient",
-    "blocked",
+    "usable_with_caveat",
+    "partial",
+    "missing",
+    "not_applicable",
 }
 
 MATERIAL_REQUIRED_ACTIONS = {
@@ -215,11 +227,6 @@ def validate_upstream_quality_gate(
     if quality_status in UPSTREAM_BLOCKING_QUALITY or normalize_return_required(upstream_meta.get("return_required")):
         return_stage = upstream_meta.get("return_stage") or default_return_stage
         fail(f"{downstream_label} 不得在上游 {upstream_label} 未通过时继续；应退回 {return_stage}")
-
-
-def canonical_hash(value: Any) -> str:
-    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return "sha256:" + hashlib.sha256(encoded).hexdigest()
 
 
 def validate_quality_status(value: Any, label: str) -> None:

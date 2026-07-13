@@ -8,9 +8,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-GLOSSARY = ROOT / "00B_文档职责与用语规范.md"
+GLOSSARY = ROOT / "00_项目定位与边界.md"
 
-# 这些词可以在 00B 的反例表中出现，但不应出现在其他文档的自然语言正文中。
+# 这些词可以在项目说明的反例中出现，但不应出现在其他文档的自然语言正文中。
 FORBIDDEN = (
     "门禁",
     "放行",
@@ -51,12 +51,17 @@ def main() -> int:
     for path in sorted(ROOT.rglob("*.md")):
         if path == GLOSSARY or ".git" in path.parts:
             continue
-        in_fence = False
+        fence_marker: str | None = None
         for number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if raw_line.lstrip().startswith("```"):
-                in_fence = not in_fence
+            fence_match = re.match(r"^\s*(`{3,}|~{3,})", raw_line)
+            if fence_match:
+                marker = fence_match.group(1)[0]
+                if fence_marker is None:
+                    fence_marker = marker
+                elif fence_marker == marker:
+                    fence_marker = None
                 continue
-            if in_fence:
+            if fence_marker is not None:
                 continue
             line = visible_prose(raw_line)
             matched = [term for term in (*FORBIDDEN, *AWKWARD) if term.lower() in line.lower()]

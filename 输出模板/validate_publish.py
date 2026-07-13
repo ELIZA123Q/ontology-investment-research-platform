@@ -10,13 +10,14 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from snapshot_layout_03 import SNAPSHOT_CSV_LAYOUT, snapshot_csv_path
+from quality_gate_utils import RETURN_STAGES
+from snapshot_layout_03 import snapshot_csv_path
 from validator_utils import (
+    artifact_sha256,
     error_payload,
     fail,
     file_name,
@@ -25,6 +26,7 @@ from validator_utils import (
     parse_triplet,
     read_csv,
     same_ref,
+    split_refs,
 )
 
 from validate_01_outputs import validate as validate_01
@@ -34,12 +36,22 @@ from validate_04_outputs import validate as validate_04
 from validate_05_outputs import ARCHETYPE_NAME_MAP, validate as validate_05
 
 
-STAGE_ORDER = ("01", "02", "03", "04", "05")
-RETURN_STAGES = {"01", "02", "03", "04", "05"}
+STAGE_ORDER = RETURN_STAGES
 BLOCKING_QUALITY_STATUSES = {"return_required", "stop_with_gap_report"}
 PUBLISH_QUALITY = "high_quality_pass"
 DIRECTIONAL_CONCLUSIONS = {"confirmed", "directional"}
 MATERIAL_READY_STATUSES = {"report_grade_ready", "ready", "usable_with_caveat"}
+REVIEW_SCHEMA_VERSION = "1.1.0"
+REVIEW_DECISIONS = {"pass", "return_required"}
+REVIEW_CRITERIA: dict[str, tuple[str, ...]] = {
+    "01": ("question_alignment", "research_value", "scope_and_alternatives", "handoff_readiness"),
+    "02": ("judgment_structure", "falsifiability", "ontology_handoff", "evidence_executability"),
+    "03": ("evidence_fitness", "source_provenance", "counterevidence_and_limits", "reasoning_permission"),
+    "04": ("conclusion_evidence_alignment", "competing_explanations", "monitoring_and_reversibility", "reader_usable_reasoning"),
+    "05": ("conclusion_fidelity", "argument_quality", "source_material_traceability", "reader_usability"),
+}
+MIN_REVIEW_SUMMARY_LENGTH = 30
+MIN_REVIEW_RATIONALE_LENGTH = 20
 
 
 @dataclass(frozen=True)
@@ -109,6 +121,7 @@ class RunArtifacts:
     audit: Path | None = None
     delivery: Path | None = None
     expression_audit: Path | None = None
+    review_register: Path | None = None
 
     def triplet(self) -> tuple[str, str, str] | None:
         if self.requirement is not None:
@@ -268,7 +281,16 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
     delivery_matches: list[Path] = []
     for kind in ARCHETYPE_NAME_MAP:
         delivery_matches.extend(run_dir.glob(f"05-*{kind}-*.md"))
+    delivery_matches = sorted({path.resolve() for path in delivery_matches if path.is_file()})
+    if len(delivery_matches) > 1:
+        names = ", ".join(path.name for path in delivery_matches)
+        fail(f"{run_dir} 中存在多个 05 研报正文: {names}；一次运行只能有一份正式 05 交付物")
     expression_audit = _pick_optional(list(run_dir.glob("05-*表达审计-*.yaml")), "05 表达审计", run_dir)
+    review_register = _pick_optional(
+        list(run_dir.glob("00-*独立审阅记录-*.yaml")),
+        "独立审阅记录",
+        run_dir,
+    )
     delivery = None
     if expression_audit is not None:
         expression_meta = load_yaml_file(expression_audit).get("metadata", {})
@@ -290,6 +312,7 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
         audit=audit,
         delivery=delivery,
         expression_audit=expression_audit,
+        review_register=review_register,
     )
 
 
@@ -802,6 +825,169 @@ def _gate_05_snapshot_material(artifacts: RunArtifacts, items: list[ReworkItem])
             affected_stage="05",
             fix_hint=str(row.get("suggested_next_step", "") or "退回 03 登记并冻结 display/chart/table 数据"),
         )
+
+    if artifacts.delivery is not None:
+        delivery_text = artifacts.delivery.read_text(encoding="utf-8-sig")
+
+        def declared_refs(marker: str) -> set[str]:
+            values: set[str] = set()
+            for match in re.finditer(rf"<!--\s*{re.escape(marker)}\s*:\s*([^>]+?)\s*-->", delivery_text):
+                values.update(split_refs(match.group(1)))
+            return values
+
+        applicable_rows = [
+            row
+            for row in material_rows
+            if str(row.get("target_05_archetype", "")).strip() in {"", archetype}
+            and str(row.get("status", "")).strip() == "report_grade_ready"
+        ]
+        required_material_ids = {
+            ref
+            for row in applicable_rows
+            for field in ("linked_chart_ids", "linked_table_ids")
+            for ref in split_refs(row.get(field))
+        }
+        required_annotation_ids = {
+            ref
+            for row in applicable_rows
+            for ref in split_refs(row.get("source_annotation_ids"))
+        }
+        known_material_ids = {
+            str(row.get("figure_id", "")).strip() for row in _snapshot_csv(artifacts.snapshot_dir, "chart_data_package.csv")
+        } | {
+            str(row.get("table_id", "")).strip() for row in _snapshot_csv(artifacts.snapshot_dir, "table_material_package.csv")
+        }
+        known_material_ids.discard("")
+        known_annotation_ids = {
+            str(row.get("annotation_id", "")).strip()
+            for row in _snapshot_csv(artifacts.snapshot_dir, "source_annotation_package.csv")
+        }
+        known_annotation_ids.discard("")
+        used_material_ids = declared_refs("material-refs")
+        used_annotation_ids = declared_refs("source-annotation-refs")
+        for rule_id, prefix, refs in [
+            ("05.material_usage.unknown", "05 声明了不存在的成稿素材", used_material_ids - known_material_ids),
+            ("05.source_annotation.unknown", "05 声明了不存在的来源注释", used_annotation_ids - known_annotation_ids),
+            ("05.material_usage.missing", "05 未声明使用已准入的图表或表格素材", required_material_ids - used_material_ids),
+            ("05.source_annotation.missing", "05 未声明使用已准入的来源注释", required_annotation_ids - used_annotation_ids),
+        ]:
+            if not refs:
+                continue
+            message = prefix + ": " + ", ".join(sorted(refs))
+            errors.append(message)
+            _append_rework(
+                items,
+                rule_id=rule_id,
+                message=message,
+                return_to="05",
+                affected_stage="05",
+                fix_hint="在正文对应图表/表格或资料来源前登记 material-refs 与 source-annotation-refs",
+            )
+    return errors
+
+
+def _review_artifact_groups(artifacts: RunArtifacts, through: str) -> dict[str, list[Path]]:
+    groups: dict[str, list[Path]] = {}
+    candidates = {
+        "01": [artifacts.requirement],
+        "02": [artifacts.logic, artifacts.view],
+        "03": [artifacts.preparation, artifacts.snapshot_dir],
+        "04": [artifacts.report, artifacts.audit],
+        "05": [artifacts.delivery, artifacts.expression_audit],
+    }
+    for stage in STAGE_ORDER[: _stage_index(through) + 1]:
+        groups[stage] = [path for path in candidates[stage] if path is not None]
+    return groups
+
+
+def _validate_independent_reviews(
+    artifacts: RunArtifacts,
+    *,
+    through: str,
+    task_id: Any,
+    execution_id: Any,
+    items: list[ReworkItem],
+) -> list[str]:
+    errors: list[str] = []
+    if artifacts.review_register is None:
+        message = "正式发布缺少独立审阅记录"
+        _append_rework(items, rule_id="review.missing", message=message, return_to=through, affected_stage=through)
+        return [message]
+    register = load_yaml_file(artifacts.review_register)
+    if register.get("document_type") != "independent_review_register" or str(register.get("schema_version")) != REVIEW_SCHEMA_VERSION:
+        message = f"独立审阅记录必须使用 independent_review_register / {REVIEW_SCHEMA_VERSION}"
+        _append_rework(items, rule_id="review.schema", message=message, return_to=through, affected_stage=through)
+        return [message]
+    metadata = register.get("metadata", {})
+    if not isinstance(metadata, dict):
+        errors.append("独立审阅记录 metadata 必须为对象")
+        metadata = {}
+    if str(metadata.get("task_id", "")) != str(task_id or "") or str(metadata.get("execution_id", "")) != str(execution_id or ""):
+        errors.append("独立审阅记录的 task_id/execution_id 与本次运行不一致")
+    producer_id = str(metadata.get("producer_id", "")).strip()
+    if not producer_id:
+        errors.append("独立审阅记录 metadata.producer_id 不得为空")
+    reviews = register.get("reviews", [])
+    if not isinstance(reviews, list):
+        reviews = []
+    by_stage = {str(review.get("stage", "")): review for review in reviews if isinstance(review, dict)}
+    for stage, paths in _review_artifact_groups(artifacts, through).items():
+        review = by_stage.get(stage)
+        if review is None:
+            errors.append(f"独立审阅记录缺少 {stage} 阶段")
+            continue
+        for field in ("review_id", "reviewer_id", "reviewer_role", "reviewed_at", "review_summary"):
+            if not str(review.get(field, "")).strip():
+                errors.append(f"独立审阅记录 {stage}.{field} 不得为空")
+        reviewer_id = str(review.get("reviewer_id", "")).strip()
+        if producer_id and reviewer_id == producer_id:
+            errors.append(f"独立审阅记录 {stage}.reviewer_id 不得与 producer_id 相同")
+        if str(review.get("reviewer_role", "")) != "independent_research_reviewer":
+            errors.append(f"独立审阅记录 {stage}.reviewer_role 必须为 independent_research_reviewer")
+        if str(review.get("independence_declaration", "")) != "independent_of_producer":
+            errors.append(f"独立审阅记录 {stage}.independence_declaration 必须为 independent_of_producer")
+        if str(review.get("conflict_of_interest", "")) != "none_declared":
+            errors.append(f"独立审阅记录 {stage}.conflict_of_interest 必须为 none_declared")
+        if len(str(review.get("review_summary", "")).strip()) < MIN_REVIEW_SUMMARY_LENGTH:
+            errors.append(f"独立审阅记录 {stage}.review_summary 必须至少 {MIN_REVIEW_SUMMARY_LENGTH} 个字符")
+        if str(review.get("decision", "")) not in REVIEW_DECISIONS:
+            errors.append(f"独立审阅记录 {stage}.decision 非法")
+        elif str(review.get("decision", "")) != "pass":
+            errors.append(f"独立审阅记录 {stage}.decision 必须为 pass")
+        criteria_results = review.get("criteria_results")
+        if not isinstance(criteria_results, list):
+            errors.append(f"独立审阅记录 {stage}.criteria_results 必须为列表")
+        else:
+            expected_criteria = set(REVIEW_CRITERIA[stage])
+            criteria_by_id = {
+                str(item.get("criterion_id", "")): item
+                for item in criteria_results
+                if isinstance(item, dict)
+            }
+            if len(criteria_by_id) != len(criteria_results) or set(criteria_by_id) != expected_criteria:
+                errors.append(f"独立审阅记录 {stage}.criteria_results 必须完整且唯一覆盖阶段审阅准则")
+            for criterion_id, criterion in criteria_by_id.items():
+                if criterion_id not in expected_criteria:
+                    continue
+                if str(criterion.get("result", "")) != "pass":
+                    errors.append(f"独立审阅记录 {stage}.{criterion_id} 必须为 pass")
+                if len(str(criterion.get("rationale", "")).strip()) < MIN_REVIEW_RATIONALE_LENGTH:
+                    errors.append(
+                        f"独立审阅记录 {stage}.{criterion_id}.rationale 必须至少 {MIN_REVIEW_RATIONALE_LENGTH} 个字符"
+                    )
+        hashes = review.get("artifact_hashes", {})
+        if not isinstance(hashes, dict):
+            hashes = {}
+        expected = {path.name: artifact_sha256(path) for path in paths}
+        if set(hashes) != set(expected):
+            errors.append(f"独立审阅记录 {stage}.artifact_hashes 必须完整覆盖本阶段产物")
+            continue
+        for ref, digest in expected.items():
+            if hashes.get(ref) != digest:
+                errors.append(f"独立审阅记录 {stage} 的 {ref} 哈希与当前产物不一致")
+    for message in errors:
+        stage = next((value for value in STAGE_ORDER if f" {value}" in message), through)
+        _append_rework(items, rule_id="review.invalid", message=message, return_to=stage, affected_stage=stage)
     return errors
 
 
@@ -909,7 +1095,6 @@ def _validate_stage_chain(
     artifacts: RunArtifacts,
     *,
     through: str,
-    allow_minimum: bool,
 ) -> tuple[list[StageResult], list[ReworkItem]]:
     results: list[StageResult] = []
     rework_items: list[ReworkItem] = []
@@ -1118,7 +1303,6 @@ def _publish_status(
     through: str,
     stage_results: list[StageResult],
     rework_items: list[ReworkItem],
-    require_high_quality: bool,
 ) -> str:
     if _stage_index(through) < len(STAGE_ORDER) - 1:
         required = {stage for stage in STAGE_ORDER[: _stage_index(through) + 1]}
@@ -1134,7 +1318,7 @@ def _publish_status(
         return "RETURN_REQUIRED"
 
     qualities = [result.quality_status for result in stage_results if result.status == "pass"]
-    if require_high_quality and any(status != PUBLISH_QUALITY for status in qualities):
+    if through == "05" and any(status != PUBLISH_QUALITY for status in qualities):
         return "RETURN_REQUIRED"
 
     if through == "05" and all(result.status == "pass" for result in stage_results):
@@ -1150,8 +1334,6 @@ def validate_publish(
     artifacts: RunArtifacts,
     *,
     through: str = "05",
-    require_high_quality: bool = True,
-    allow_minimum: bool = False,
 ) -> dict[str, Any]:
     if isinstance(artifacts, (str, Path)):
         artifacts = discover_artifacts(artifacts)
@@ -1161,7 +1343,6 @@ def validate_publish(
     stage_results, rework_items = _validate_stage_chain(
         artifacts,
         through=through,
-        allow_minimum=allow_minimum,
     )
     rework_items = _dedupe_rework(rework_items)
 
@@ -1169,7 +1350,6 @@ def validate_publish(
         through=through,
         stage_results=stage_results,
         rework_items=rework_items,
-        require_high_quality=require_high_quality,
     )
 
     task_id = None
@@ -1189,7 +1369,7 @@ def validate_publish(
         for result in stage_results
         if result.status == "pass" and result.quality_status not in {None, PUBLISH_QUALITY}
     ]
-    if low_quality_stages and require_high_quality and publish_status != "INCOMPLETE_CHAIN":
+    if low_quality_stages and through == "05" and publish_status != "INCOMPLETE_CHAIN":
         for stage in low_quality_stages:
             _append_rework(
                 rework_items,
@@ -1201,6 +1381,19 @@ def validate_publish(
             )
         publish_status = "RETURN_REQUIRED"
         rework_items = _dedupe_rework(rework_items)
+
+    chain_passed = all(result.status == "pass" for result in stage_results)
+    if through == "05" and chain_passed:
+        review_errors = _validate_independent_reviews(
+            artifacts,
+            through=through,
+            task_id=task_id,
+            execution_id=execution_id,
+            items=rework_items,
+        )
+        if review_errors:
+            publish_status = "RETURN_REQUIRED"
+            rework_items = _dedupe_rework(rework_items)
 
     ok = publish_status in {"PUBLISHABLE", "STAGE_READY"}
     return {
@@ -1247,6 +1440,7 @@ def _build_artifacts_from_args(args: argparse.Namespace) -> RunArtifacts:
         audit=Path(args.audit).resolve() if args.audit else None,
         delivery=Path(args.delivery).resolve() if args.delivery else None,
         expression_audit=Path(args.expression_audit).resolve() if args.expression_audit else None,
+        review_register=Path(args.review_register).resolve() if args.review_register else None,
     )
 
 
@@ -1254,12 +1448,6 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate 01-05 publish chain order and gates.")
     parser.add_argument("run_dir", nargs="?", help="运行目录，自动发现 01-05 产物")
     parser.add_argument("--through", choices=STAGE_ORDER, default="05", help="校验截止到哪个阶段")
-    parser.add_argument("--allow-minimum", action="store_true", help="05 图表密度不足时允许 minimum_pass")
-    parser.add_argument(
-        "--allow-minimum-publish",
-        action="store_true",
-        help="不把 minimum_pass 视为发布阻断（默认正式发布必须全部 high_quality_pass）",
-    )
     parser.add_argument("--requirement", help="01 投研需求说明路径")
     parser.add_argument("--logic", help="02 研究逻辑路径")
     parser.add_argument("--view", help="02 本体视图路径")
@@ -1269,6 +1457,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--audit", help="04 推理审计路径")
     parser.add_argument("--delivery", help="05 研报正文路径")
     parser.add_argument("--expression-audit", help="05 表达审计 YAML 路径")
+    parser.add_argument("--review-register", help="00 独立审阅记录 YAML 路径")
     parser.add_argument("--run-dir", dest="run_dir_explicit", help="显式模式下的运行根目录")
     args = parser.parse_args(argv)
 
@@ -1281,8 +1470,6 @@ def main(argv: list[str] | None = None) -> int:
         payload = validate_publish(
             artifacts,
             through=args.through,
-            require_high_quality=not args.allow_minimum_publish,
-            allow_minimum=args.allow_minimum,
         )
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return 0 if payload["ok"] else 1

@@ -7,13 +7,13 @@ import sys
 from pathlib import Path
 
 from quality_gate_utils import (
+    EVIDENCE_ROLES,
     J4_ELIGIBLE_CLAIM_TYPES,
     JUDGMENT_LEVELS,
     SOURCE_AUTHORITY_LEVELS,
     TARGET_CLAIM_TYPES,
     validate_gate_review_fields,
     validate_quality_status,
-    validate_researcher_body,
     validate_return_routing_fields,
 )
 from validator_utils import (
@@ -54,6 +54,10 @@ REQUIRED_LOGIC_META = [
     "stage_status",
     "quality_status",
     "quality_gate_ref",
+    "ontology_gap_scan_status",
+    "can_enter_03",
+    "framework_usage_ref",
+    "quality_review_ref",
     "judgment_spine",
 ]
 
@@ -62,7 +66,7 @@ REQUIRED_LOGIC_SECTIONS = [
     "最小问题树与分析顺序",
     "主路径、反证和竞争解释",
     "对象分化与比较口径",
-    "关键判断单元与最低验证条件",
+    "关键判断单元、优先级与最低验证条件",
     "本体承接与 03 交接",
     "进入 03 前质量检查",
 ]
@@ -88,6 +92,7 @@ REQUIRED_VIEW_TOP = [
 
 LOGIC_SCHEMA_VERSION_02 = "1.1.0"
 VIEW_SCHEMA_VERSION_02 = "2.0.0"
+ONTOLOGY_GAP_SCAN_STATUSES = {"no_gap", "minor_gap", "major_gap", "blocking_gap"}
 JUDGMENT_TYPES = {
     "industry_cycle_judgment",
     "policy_impact_judgment",
@@ -98,19 +103,8 @@ JUDGMENT_TYPES = {
     "expectation_gap_judgment",
     "risk_monitoring_judgment",
 }
-EVIDENCE_ROLE_KEYS = {
-    "primary_support",
-    "cross_validation",
-    "counter_evidence",
-    "blocking_condition",
-    "proxy_indicator",
-    "background_evidence",
-}
+EVIDENCE_ROLE_KEYS = EVIDENCE_ROLES
 EVIDENCE_ROLE_STATUSES = {"required", "optional", "allowed_with_limit", "not_allowed", "not_applicable"}
-EVIDENCE_ROLES = EVIDENCE_ROLE_KEYS
-REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
-QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
-SOURCE_TIERS = {"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"}
 STAGE_STATUSES = {"aligned", "needs_revision", "returned_to_01"}
 QUESTION_RELATIONS = {"precondition", "parallel", "competing", "outcome", "stop_node"}
 QUESTION_FAILURE_ACTIONS = {"stop", "downgrade", "switch_path", "switch_to_competing_explanation", "return_to_01_or_02"}
@@ -127,7 +121,7 @@ DECISION_ROLES = {
 }
 CRITICAL_FAILURE_EFFECTS = {"recalculate_overall", "downgrade_overall", "no_overall_effect"}
 PROXY_POLICIES = {"not_allowed", "allowed_but_must_discount_confidence", "required_when_direct_data_unavailable"}
-GAP_SEVERITIES = {"none", "low", "medium", "high", "blocking"}
+GAP_SEVERITIES = {"none", "minor", "major", "blocking"}
 FRAMEWORK_LAYERS = {"mechanism", "company_realization", "market_pricing"}
 FRAMEWORK_GATE_STATUSES = {"passed", "provisional", "failed", "not_applicable"}
 FRAMEWORK_OUTPUT_FIELDS = [
@@ -249,8 +243,8 @@ def _validate_cross_domain_contract(view: dict[str, object]) -> None:
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
     meta, body = parse_markdown(logic_path)
     require_keys(meta, REQUIRED_LOGIC_META, str(logic_path))
-    if str(meta.get("schema_version")) not in {"1.0.0", LOGIC_SCHEMA_VERSION_02}:
-        fail(f"{logic_path}.schema_version 必须为 1.0.0 或 {LOGIC_SCHEMA_VERSION_02}")
+    if str(meta.get("schema_version")) != LOGIC_SCHEMA_VERSION_02:
+        fail(f"{logic_path}.schema_version 必须为 {LOGIC_SCHEMA_VERSION_02}")
     if meta["document_type"] != "research_logic":
         fail("02 研究逻辑 document_type 必须为 research_logic")
     require_allowed(meta["stage_status"], STAGE_STATUSES, "02 研究逻辑 stage_status")
@@ -260,6 +254,11 @@ def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
     if meta["quality_status"] in {"draft", "return_required", "stop_with_gap_report"}:
         fail("02 aligned 研究逻辑 quality_status 不得为 draft/return_required/stop_with_gap_report")
     require_non_empty(meta["judgment_spine"], "judgment_spine")
+    require_allowed(meta["ontology_gap_scan_status"], ONTOLOGY_GAP_SCAN_STATUSES, "ontology_gap_scan_status")
+    if meta["can_enter_03"] is not True and meta["can_enter_03"] is not False:
+        fail("can_enter_03 必须为布尔值")
+    require_non_empty(meta["framework_usage_ref"], "framework_usage_ref")
+    require_non_empty(meta["quality_review_ref"], "quality_review_ref")
     require_no_placeholders(meta, str(logic_path) + " front matter")
     require_body_sections(body, REQUIRED_LOGIC_SECTIONS, str(logic_path))
     require_no_placeholders(body, str(logic_path) + " body")
@@ -352,15 +351,30 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     validation = require_mapping(view["validation"], "validation")
 
     require_keys(task_context, ["task_id", "view_id", "logic_id", "logic_document", "normalized_question", "scope"], "task_context")
-    require_keys(quality_control, ["stage_status", "quality_status", "return_required"], "quality_control")
+    require_keys(
+        quality_control,
+        [
+            "stage_status",
+            "quality_status",
+            "deterministic_check_status",
+            "semantic_review_status",
+            "return_required",
+            "return_stage",
+        ],
+        "quality_control",
+    )
     require_allowed(quality_control["stage_status"], STAGE_STATUSES, "quality_control.stage_status")
     if quality_control["stage_status"] != "aligned":
         fail("quality_control.stage_status 必须为 aligned")
     validate_quality_status(quality_control["quality_status"], "quality_control")
     if quality_control["quality_status"] in {"draft", "return_required", "stop_with_gap_report"}:
         fail("quality_control aligned 时 quality_status 不得为 draft/return_required/stop_with_gap_report")
+    validate_gate_review_fields(quality_control, "quality_control")
+    validate_return_routing_fields(quality_control, "quality_control", current_stage="02")
     if quality_control.get("return_required") is not False:
         fail("quality_control.return_required 必须为 false")
+
+    _validate_cross_domain_contract(view)
 
     checks = validation.get("checks")
     if not isinstance(checks, dict) or validation.get("result") != "pass":
@@ -603,6 +617,15 @@ def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]
         fail("logic.ontology_view_ref 必须指向配对本体视图文件")
     if not same_ref(task_context["logic_document"], file_name(logic_path)):
         fail("view.task_context.logic_document 必须指向配对研究逻辑文件")
+    gap_status = str(logic_meta["ontology_gap_scan_status"])
+    ontology_gaps = require_mapping(view.get("ontology_gaps", {}), "ontology_gaps")
+    has_gap = ontology_gaps.get("has_gap") is True
+    if gap_status == "no_gap" and has_gap:
+        fail("logic.ontology_gap_scan_status=no_gap 与 view.ontology_gaps.has_gap=true 不一致")
+    if gap_status != "no_gap" and not has_gap:
+        fail("logic.ontology_gap_scan_status 记录缺口时 view.ontology_gaps.has_gap 必须为 true")
+    if logic_meta["can_enter_03"] is not True:
+        fail("aligned 的 02 交付到 03 时 can_enter_03 必须为 true")
 
     return {
         "schema_version": VIEW_SCHEMA_VERSION_02,

@@ -70,7 +70,7 @@ def validate(path: str | Path) -> dict[str, object]:
     meta, body = parse_markdown(path)
 
     require_keys(meta, REQUIRED_META, str(path))
-    require_schema_version(meta["schema_version"], str(path))
+    require_schema_version(meta["schema_version"], str(path), expected="1.0.0")
     if meta["document_type"] != "judgment_task":
         fail("不予受理说明 document_type 必须沿用 judgment_task")
     if meta["status"] != "out_of_scope":
@@ -87,7 +87,7 @@ def validate(path: str | Path) -> dict[str, object]:
     require_no_placeholders(meta, str(path) + " front matter")
     require_body_sections(body, REQUIRED_SECTIONS, str(path))
     require_no_placeholders(body, str(path) + " body")
-    for required_phrase in ["是否可验证、可反证", "是否有明确对象和范围", "可拆出的研究问题", "质量结论"]:
+    for required_phrase in ["是否可验证、可被反面证据推翻", "是否有明确对象和范围", "可拆出的研究问题", "质量结论"]:
         if required_phrase not in body:
             fail(f"{path} 正文必须说明“{required_phrase}”")
 

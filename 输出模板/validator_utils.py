@@ -4,15 +4,13 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
-
-
-SCHEMA_VERSION = "1.0.0"
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
@@ -40,14 +38,39 @@ def as_version(value: Any) -> str:
     return str(value).strip().strip('"').strip("'")
 
 
-def require_schema_version(value: Any, label: str, expected: str | None = None) -> None:
-    expected_version = expected or SCHEMA_VERSION
-    if as_version(value) != expected_version:
-        fail(f"{label}.schema_version 必须为 {expected_version}")
+def require_schema_version(value: Any, label: str, *, expected: str) -> None:
+    """校验显式声明的协议版本，避免默认版本掩盖模板升级。"""
+    if as_version(value) != expected:
+        fail(f"{label}.schema_version 必须为 {expected}")
 
 
 def read_text(path: str | Path) -> str:
     return Path(path).read_text(encoding="utf-8-sig")
+
+
+def file_sha256(path: str | Path) -> str:
+    """Return the stable SHA-256 identifier for a frozen artifact."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def artifact_sha256(path: str | Path) -> str:
+    artifact = Path(path)
+    if artifact.is_file():
+        return file_sha256(artifact)
+    if not artifact.is_dir():
+        fail(f"审阅对象不存在: {artifact}")
+    digest = hashlib.sha256()
+    for child in sorted(item for item in artifact.rglob("*") if item.is_file()):
+        relative = child.relative_to(artifact).as_posix()
+        digest.update(relative.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(file_sha256(child).encode("ascii"))
+        digest.update(b"\n")
+    return "sha256:" + digest.hexdigest()
 
 
 def load_yaml_text(text: str, label: str = "YAML") -> Any:

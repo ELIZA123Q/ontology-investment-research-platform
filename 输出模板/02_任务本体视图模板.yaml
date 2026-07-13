@@ -46,7 +46,7 @@ task_context:
     exclusions: []
 
 quality_control:
-  quality_gate_ref: "00A_高质量产出判别标准.md#5.2"
+  quality_gate_ref: "02_判断结构与本体视图规范.md#8-质量门槛与返工规则"
   stage_status: "<aligned | needs_revision | returned_to_01>"
   quality_status: "draft"
   deterministic_check_status: "not_checked"
@@ -282,7 +282,7 @@ ontology_gaps:
   has_gap: false
   gap_note_ref: ""
   gap_ids: []
-  highest_severity: "<none | low | medium | high | blocking>"
+  highest_severity: "<none | minor | major | blocking>"
   blocks_evidence_preparation: false
   blocks_directional_reasoning: false
 

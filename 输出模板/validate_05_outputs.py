@@ -9,6 +9,7 @@ from pathlib import Path
 
 from quality_gate_utils import (
     CLAIM_MODES,
+    DRAFTABLE_DOCUMENT_STATUSES,
     JUDGMENT_LEVELS,
     JUDGMENT_STATUSES,
     judgment_level_rank,
@@ -19,6 +20,7 @@ from quality_gate_utils import (
 from validator_utils import (
     error_payload,
     fail,
+    file_sha256,
     file_name,
     load_yaml_file,
     ok_payload,
@@ -104,7 +106,7 @@ FORBIDDEN_BODY_TERMS = [
 ]
 
 DISCLAIMER_MARKERS = ("不构成", "证券评级", "交易操作")
-AUDIT_STATUSES = {"draft", "complete", "published"}
+AUDIT_STATUSES = DRAFTABLE_DOCUMENT_STATUSES
 LOCATION_KINDS = {
     "report_title",
     "subtitle",
@@ -183,11 +185,11 @@ def _validate_expression_audit(
     if not isinstance(audit, dict) or not isinstance(source_audit, dict):
         fail("05 表达审计和 04 推理审计必须是 YAML 对象")
     require_keys(audit, ["document_type", "schema_version", "metadata", "claim_expression_register", "research_edge_check", "high_risk_section_coverage", "overall_check"], str(expression_audit_path))
-    require_schema_version(audit["schema_version"], str(expression_audit_path), expected="2.0.0")
-    if audit["document_type"] != "delivery_expression_audit" or str(audit["schema_version"]) != "2.0.0":
-        fail("05 表达审计必须使用 delivery_expression_audit / 2.0.0")
+    require_schema_version(audit["schema_version"], str(expression_audit_path), expected="2.1.0")
+    if audit["document_type"] != "delivery_expression_audit" or str(audit["schema_version"]) != "2.1.0":
+        fail("05 表达审计必须使用 delivery_expression_audit / 2.1.0")
     metadata = audit["metadata"]
-    require_keys(metadata, ["task_id", "execution_id", "delivery_ref", "source_04_report_ref", "source_04_audit_ref", "audit_status", "quality_status", "quality_gate_ref", "deterministic_check_status", "semantic_review_status"], "05 audit.metadata")
+    require_keys(metadata, ["task_id", "execution_id", "delivery_ref", "delivery_content_hash", "source_04_report_ref", "source_04_audit_ref", "source_04_audit_hash", "audit_status", "quality_status", "quality_gate_ref", "deterministic_check_status", "semantic_review_status"], "05 audit.metadata")
     if metadata["audit_status"] not in AUDIT_STATUSES:
         fail("05 audit.metadata.audit_status 非法")
     validate_quality_status(metadata["quality_status"], "05 audit.metadata")
@@ -196,6 +198,10 @@ def _validate_expression_audit(
         fail("05 audit.metadata.delivery_ref 必须指向配对交付物")
     if not same_ref(metadata["source_04_audit_ref"], file_name(source_04_audit_path)):
         fail("05 audit.metadata.source_04_audit_ref 必须指向 04 推理审计")
+    if metadata["delivery_content_hash"] != file_sha256(path):
+        fail("05 audit.metadata.delivery_content_hash 与当前 05 正文不一致")
+    if metadata["source_04_audit_hash"] != file_sha256(source_04_audit_path):
+        fail("05 audit.metadata.source_04_audit_hash 与当前 04 推理审计不一致")
     edge_check = require_mapping(audit["research_edge_check"], "research_edge_check")
     for key in [
         "reference_view_present",
@@ -357,7 +363,7 @@ def validate(
         fail("05 交付物与表达审计的主题、日期、序号必须一致")
     audit_result = _validate_expression_audit(path, body, expression_audit_path, source_04_audit_path)
     return {
-        "schema_version": "2.0.0",
+        "schema_version": "2.1.0",
         "delivery_kind": delivery_kind,
         "topic": topic,
         "date": date,

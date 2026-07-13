@@ -180,9 +180,11 @@ def validate() -> list[str]:
             if phrase not in text:
                 errors.append(f"{path.relative_to(ROOT)}: 缺少“{phrase}”")
 
-    capability = ROOT / "00_能力模型与文件职责矩阵.md"
-    if not capability.is_file():
-        errors.append("缺少 00_能力模型与文件职责矩阵.md")
+    readme = ROOT / "README.md"
+    readme_text = readme.read_text(encoding="utf-8") if readme.is_file() else ""
+    for phrase in ("库里有什么", "如何使用", "质量与准入标准"):
+        if phrase not in readme_text:
+            errors.append(f"README.md 缺少“{phrase}”")
     guide = ROOT / "C_Evidence_Recipe" / "00_证据配方使用说明.md"
     if not guide.is_file() or "最低证据组合的完整要求" not in guide.read_text(encoding="utf-8"):
         errors.append("C_Evidence_Recipe: 缺少最低证据组合的完整要求")

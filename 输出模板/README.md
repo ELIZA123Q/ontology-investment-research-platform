@@ -1,8 +1,8 @@
 # 输出模板与校验器使用说明
 
-本目录保存 01—05 的正式模板和规则校验器。阶段边界见 [00_项目定位与边界.md](../00_项目定位与边界.md)，高质量门槛见 [00A_高质量产出判别标准.md](../00A_高质量产出判别标准.md)。
+本目录保存 01—05 的正式模板和规则校验器。阶段边界见 [00_项目定位与边界.md](../00_项目定位与边界.md)，阶段质量门槛见各阶段规范，正式发布规则见 [00A_高质量产出判别标准.md](../00A_高质量产出判别标准.md)。
 
-00A 必须单独保留，因为 01—05 都用它作为稳定质量门引用。
+00A 必须单独保留，因为 01—05 都要共用它的全局质量原则、独立审阅和正式发布规则；具体 `quality_gate_ref` 指向各阶段规范。
 
 ## 1. 各阶段文件
 
@@ -35,6 +35,7 @@
 关键文件：
 
 - source_documents → evidence_claims → evidence_facts 是规范化证据链；
+- `raw_artifact_ref` 优先指向快照内保存的原始 PDF、网页响应、表格或接口返回；确因许可、访问或存储限制无法保存原文时，可用透明标记的 `structured_evidence_packet` 保存来源定位、取证记录和已录入主张，但必须声明 `raw_content_included=false`；
 - evidence_assessments 记录单项证据在本任务中的可用性；
 - evidence_readiness_assessments 记录判断单元整体可否进入 04；
 - judgment_unit_readiness 记录 J0—J4 的最高判断强度；
@@ -75,8 +76,11 @@
 
 ~~~bash
 python3 输出模板/validate_01_outputs.py <01需求说明.md>
+python3 输出模板/validate_01_rejection.py <01不予受理说明.md>
 python3 输出模板/validate_02_outputs.py <02研究逻辑.md> <02本体视图.yaml>
+python3 输出模板/validate_02_gap_note.py <02本体缺口说明.md> [<02研究逻辑.md> <02本体视图.yaml>]
 python3 输出模板/validate_03_outputs.py <03数据与证据准备.md> <03快照目录>
+python3 输出模板/freeze_source_captures.py <03快照目录>
 python3 输出模板/validate_04_outputs.py <04推理报告.md> <04推理审计.yaml> <03快照目录>
 python3 输出模板/validate_05_outputs.py <05研报.md> <报告类型中文名> <05表达审计.yaml> <04推理审计.yaml>
 python3 输出模板/validate_publish.py <运行目录>
@@ -84,7 +88,7 @@ python3 输出模板/validate_publish.py <运行目录>
 
 报告类型中文名为：事件点评、行业动态点评、行业周期判断、公司业绩点评或主题深度研究。
 
-全链校验默认要求各阶段达到 high_quality_pass。通过时返回 PUBLISHABLE；否则返回 RETURN_REQUIRED 和分阶段返工清单。
+全链运行到 05 时，所有阶段必须达到 `high_quality_pass`，且独立审阅记录必须满足 `independent_review_register / 1.1.0`：产出者与审阅者分离、逐项审阅准则完整、理由具体并绑定当前哈希。没有最低质量发布开关；通过时才返回 `PUBLISHABLE`，否则返回 `RETURN_REQUIRED` 和分阶段返工清单。
 
 项目级正式验收统一在根目录执行：
 
@@ -92,10 +96,10 @@ python3 输出模板/validate_publish.py <运行目录>
 python3 validate_project.py
 ~~~
 
-该命令同时检验示例1和示例2的现行 01—05 全链。示例1覆盖行业周期判断，示例2覆盖行业动态点评；两者都应返回 `PUBLISHABLE`。
+该命令同时检验示例1和示例2的现行 01—05 全链。示例1覆盖行业周期判断，示例2覆盖主题深度研究；两者都应返回 `PUBLISHABLE`。
 
 ## 6. 校验边界
 
 校验器负责文件命名、字段与枚举、跨文件引用、来源独立性、反证、判断强度、04 不超过 03、05 不超过 04、范围与条件不丢失、关键观点登记和返工去向。
 
-校验器不能代替研究员判断资料是否真实充分、比较口径是否合理、推理是否有经济含义、标题是否真正有增量。正式发布仍须完成 00A 规定的独立内容审阅。
+校验器不能代替研究员判断资料是否真实充分、比较口径是否合理、推理是否有经济含义、标题是否真正有增量。正式发布仍须完成各阶段质量门和 00A 规定的独立内容审阅；审阅者身份的真实授权与利益冲突事实由团队治理保证，不能由 YAML 自证替代。

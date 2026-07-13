@@ -3,17 +3,25 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
 from quality_gate_utils import (
     ALLOWED_04_OUTPUTS,
     CLAIM_MODES,
+    DELIVERY_ARCHETYPES,
+    EVIDENCE_ROLES,
     JUDGMENT_LABELS,
     JUDGMENT_LEVELS,
     JUDGMENT_STATUSES,
     PATH_STATUSES,
+    MATERIAL_READINESS_STATUSES,
+    QUALITY_LEVELS,
     REASONING_READINESS,
+    REQUIREMENT_PURPOSES,
+    SEARCH_STATUSES,
+    SOURCE_TIERS,
     judgment_level_rank,
     output_rank,
     validate_admission,
@@ -32,6 +40,7 @@ from validator_utils import (
     assert_subset,
     assert_values,
     error_payload,
+    file_sha256,
     fail,
     file_name,
     load_yaml_file,
@@ -104,9 +113,9 @@ REQUIRED_PREP_SECTIONS = [
     "本次范围",
     "研究基线",
     "数据与证据需求",
-    "来源与取数方式",
+    "来源类型、最低证据组合与获取方式",
     "处理、归一与实例入库",
-    "核心判断单元证据门槛",
+    "各结论的证据把握",
     "覆盖与路径就绪状态",
     "05 可展示数据支持",
     "准入结论",
@@ -144,7 +153,6 @@ DISPLAY_READINESS = {"ready", "partial", "missing"}
 DISPLAY_DATA_TYPES = {"quantitative", "qualitative", "mixed"}
 RANKING_SUPPORT = {"none", "weak", "medium", "strong"}
 REPORT_GRADE_STATUSES = {"report_grade_ready", "usable_with_caveat", "not_report_grade"}
-MATERIAL_READINESS_STATUSES = {"report_grade_ready", "usable_with_caveat", "partial", "missing", "not_applicable"}
 TABLE_ROLES = {"ranking", "evidence_summary", "source_note", "decision_signal", "gap_plan", "scenario", "object_mapping"}
 PRIORITIES = {"high", "medium", "low"}
 GAP_TYPES = {
@@ -159,35 +167,9 @@ GAP_TYPES = {
     "display",
     "other",
 }
-ALLOWED_05_ARCHETYPES = {
-    "event_commentary",
-    "industry_dynamic_commentary",
-    "industry_cycle_report",
-    "company_earnings_commentary",
-    "theme_deep_dive",
-}
+ALLOWED_05_ARCHETYPES = DELIVERY_ARCHETYPES
 TARGET_05_QUALITIES = {"minimum_pass", "high_quality_pass", "return_required", "stop_with_gap_report"}
 ALLOWED_05_OUTPUTS = {"full_report", "limited_report", "gap_report_only"}
-EVIDENCE_ROLES = {
-    "primary_support",
-    "cross_validation",
-    "counter_evidence",
-    "blocking_condition",
-    "proxy_indicator",
-    "background_evidence",
-}
-REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
-QUALITY_LEVELS = {"Q1_background", "Q2_reasoning_usable", "Q3_directional_ready", "Q4_report_grade"}
-SOURCE_TIERS = {
-    "S1",
-    "S2",
-    "S3",
-    "S4",
-    "S5",
-    "S6",
-    "S7",
-    "S8",
-}
 LOW_SOURCE_TIERS = {"S6", "S7", "S8"}
 BASKET_STATUSES = {"met", "partial", "not_met", "missing", "contested", "blocked", "not_applicable"}
 CHECK_STATUSES = {"met", "partial", "checked", "not_checked", "not_applicable", "missing", "blocked"}
@@ -202,12 +184,6 @@ CONFLICT_STATUSES = {
 }
 PROXY_DEPENDENCY_STATUSES = {"none", "low", "moderate", "high", "proxy_only", "not_applicable"}
 CONFIDENCE_LEVELS = {"high", "medium", "low"}
-SEARCH_STATUSES = {
-    "threshold_met",
-    "source_tiers_exhausted",
-    "in_progress",
-    "blocked_by_access",
-}
 PREPARATION_STATUSES = {
     "planned",
     "in_progress",
@@ -594,7 +570,7 @@ def _validate_ontology_instances(view: dict[str, object], rows: dict[str, list[d
             fail(f"{aid}.evidence_refs 必须逐项存在 assessmentEvaluatesEvidence")
 
 
-def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
+def _validate_snapshot_refs(snapshot_dir: Path, rows: dict[str, list[dict[str, str]]]) -> None:
     source_runs = ref_set(rows["source_snapshot.csv"], "source_run_id", "source_snapshot.csv")
     source_ids = ref_set(rows["source_snapshot.csv"], "source_id", "source_snapshot.csv")
     source_tier_by_id = {
@@ -710,6 +686,42 @@ def _validate_snapshot_refs(rows: dict[str, list[dict[str, str]]]) -> None:
             fail(label + ".source_tier 非法")
         if not row.get("usage_restriction"):
             fail(label + ".usage_restriction 不得为空")
+        retrieval_status = row.get("retrieval_status", "").strip()
+        if retrieval_status in {"success", "partial", "retrieved"}:
+            artifact_ref = row.get("raw_artifact_ref", "").strip()
+            content_hash = row.get("content_hash", "").strip()
+            if not artifact_ref or artifact_ref.startswith(("http://", "https://")):
+                fail(label + ".raw_artifact_ref 必须指向快照目录内的原始材料或结构化取证包")
+            artifact_path = (snapshot_dir / artifact_ref).resolve()
+            try:
+                artifact_path.relative_to(snapshot_dir.resolve())
+            except ValueError:
+                fail(label + ".raw_artifact_ref 不得指向快照目录外部")
+            if not artifact_path.is_file():
+                fail(label + ".raw_artifact_ref 指向的冻结材料不存在")
+            if not content_hash.startswith("sha256:") or len(content_hash) != 71:
+                fail(label + ".content_hash 必须为冻结证据包的 SHA-256")
+            if content_hash != file_sha256(artifact_path):
+                fail(label + ".content_hash 与冻结材料不一致")
+            if artifact_path.suffix.lower() == ".json":
+                try:
+                    capture = json.loads(artifact_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError) as exc:
+                    fail(f"{label}.raw_artifact_ref JSON 无法解析: {exc}")
+                if capture.get("capture_kind") == "structured_evidence_packet":
+                    if capture.get("raw_content_included") is not False:
+                        fail(label + ".structured_evidence_packet 必须明确 raw_content_included=false")
+                    if capture.get("source_locator") != row.get("source_locator"):
+                        fail(label + ".structured_evidence_packet.source_locator 与 source_snapshot 不一致")
+                    claims = capture.get("evidence_claims")
+                    records = capture.get("evidence_records")
+                    captured_snapshot = capture.get("source_snapshot")
+                    if not isinstance(captured_snapshot, dict) or captured_snapshot.get("source_run_id") != row.get("source_run_id"):
+                        fail(label + ".structured_evidence_packet.source_snapshot 必须与 source_run_id 一致")
+                    if not isinstance(claims, list) or not isinstance(records, list):
+                        fail(label + ".structured_evidence_packet 的 evidence_claims/evidence_records 必须为数组")
+                    if any(not str(item.get("locator", "")).strip() for item in claims if isinstance(item, dict)):
+                        fail(label + ".structured_evidence_packet 中每条 evidence_claim 必须有 locator")
 
     for row in rows["evidence_records.csv"]:
         assert_subset(split_refs(row.get("source_run_id")), source_runs, f"{row.get('evidence_id')}.source_run_id")
@@ -1160,7 +1172,7 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     _validate_ontology_instances(view, rows)
     _validate_normalized_evidence_graph(rows)
     _validate_counts(prep_meta, summary_meta, rows)
-    _validate_snapshot_refs(rows)
+    _validate_snapshot_refs(snapshot_dir, rows)
     _validate_return_actions(rows)
     _validate_judgment_strength(view, rows)
     if admission in {"normal_pass", "restricted_pass", "incomplete_pass"}:
