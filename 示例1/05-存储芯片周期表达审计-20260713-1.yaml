@@ -1,0 +1,352 @@
+document_type: delivery_expression_audit
+schema_version: 2.1.0
+metadata:
+  task_id: JTASK-MEM-CYCLE-001
+  execution_id: EXEC-MEM-CYCLE-20260713-1
+  delivery_ref: 05-存储芯片周期行业周期判断-20260713-1.md
+  delivery_content_hash: sha256:fb6bd28d08d96db99dad601036cce4e2f7e056c32b3af49c5c69cad73e808630
+  source_04_report_ref: 04-存储芯片周期推理报告-20260713-1.md
+  source_04_audit_ref: 04-存储芯片周期推理审计-20260713-1.yaml
+  source_04_audit_hash: sha256:d127d7d98f65f9214423fc75062cc1a55d385f7eb1f1328c176d280af58cdcec
+  audit_status: complete
+  quality_status: high_quality_pass
+  quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+claim_expression_register:
+  - expression_id: EX-01
+    source_claim_id: C-05
+    location_kind: report_title
+    section: 标题
+    expression_text: 存储芯片处于稀缺定价强化期
+    source_actual_judgment_level: J3
+    expression_judgment_level: J3
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-02
+    source_claim_id: C-07
+    location_kind: subtitle
+    section: 副标题
+    expression_text: HBM、通用 DRAM 与 NAND 驱动不同，但尚无证据支持行业已接近普遍见顶
+    source_actual_judgment_level: J0
+    expression_judgment_level: J0
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-03
+    source_claim_id: C-01
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: 三类产品不能合并，但共同处于供给约束背景
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-04
+    source_claim_id: C-05
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: 2026 年上半年，DRAM 与 NAND 价格仍在大幅上涨
+    source_actual_judgment_level: J3
+    expression_judgment_level: J3
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-05
+    source_claim_id: C-02
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: HBM 是 AI 算力驱动的结构性扩张
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-06
+    source_claim_id: C-03
+    location_kind: paragraph_lead
+    section: 第二章
+    expression_text: HBM 对通用 DRAM 的影响只能作方向性解释
+    source_actual_judgment_level: J1
+    expression_judgment_level: J1
+    claim_mode: conditional
+    conditions:
+      - 缺跨厂量化挤占比例和统一有效产能
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-07
+    source_claim_id: C-06
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: 周期结束只能作为条件验证问题
+    source_actual_judgment_level: J1
+    expression_judgment_level: J1
+    claim_mode: conditional
+    conditions:
+      - 未来良率和客户认证尚未发生
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-08
+    source_claim_id: C-07
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: 在客户库存、取消率、价格与合格供给没有共振转弱前，不应提前写成见顶
+    source_actual_judgment_level: J0
+    expression_judgment_level: J0
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-09
+    source_claim_id: C-01
+    location_kind: conclusion_overview
+    section: 核心结论概览
+    expression_text: HBM、通用 DRAM 与 NAND 需要分产品判断
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-10
+    source_claim_id: C-05
+    location_kind: conclusion_overview
+    section: 核心结论概览
+    expression_text: 通用 DRAM 处于供给约束下的卖方定价
+    source_actual_judgment_level: J3
+    expression_judgment_level: J3
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-11
+    source_claim_id: C-02
+    location_kind: conclusion_overview
+    section: 核心结论概览
+    expression_text: HBM 处于结构性扩张与世代迭代
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-12
+    source_claim_id: C-04
+    location_kind: conclusion_overview
+    section: 核心结论概览
+    expression_text: 企业级 NAND 处于 AI 存储主导的稀缺涨价
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-13
+    source_claim_id: C-06
+    location_kind: conclusion_overview
+    section: 核心结论概览
+    expression_text: 2027H2—2028 是新增供给验证窗口
+    source_actual_judgment_level: J1
+    expression_judgment_level: J1
+    claim_mode: conditional
+    conditions:
+      - 未来良率和客户认证尚未发生
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-14
+    source_claim_id: C-07
+    location_kind: conclusion_overview
+    section: 核心结论概览
+    expression_text: 周期结束暂不能给统一日期
+    source_actual_judgment_level: J0
+    expression_judgment_level: J0
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-15
+    source_claim_id: C-05
+    location_kind: section_heading
+    section: 第一章
+    expression_text: 价格与订单同时强化
+    source_actual_judgment_level: J3
+    expression_judgment_level: J3
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-16
+    source_claim_id: C-02
+    location_kind: section_heading
+    section: 第二章
+    expression_text: HBM 是结构性扩张，通用 DRAM 是供给约束下的卖方定价
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-17
+    source_claim_id: C-04
+    location_kind: section_heading
+    section: 第三章
+    expression_text: NAND 的强势来自企业级 SSD，消费端是最早压力测试
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-18
+    source_claim_id: C-06
+    location_kind: section_heading
+    section: 第四章
+    expression_text: 2027H2—2028 是供给验证窗口，不是确定结束日
+    source_actual_judgment_level: J1
+    expression_judgment_level: J1
+    claim_mode: conditional
+    conditions:
+      - 未来良率和客户认证尚未发生
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-19
+    source_claim_id: C-05
+    location_kind: paragraph_lead
+    section: 第一章
+    expression_text: 当前最可靠的阶段信号不是叙事，而是价格和订单
+    source_actual_judgment_level: J3
+    expression_judgment_level: J3
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: same
+    semantic_strength_review: pass
+  - expression_id: EX-20
+    source_claim_id: C-07
+    location_kind: summary_conclusion
+    section: 第四章
+    expression_text: 当前能够给出的不是结束日期，而是一套可执行的阶段切换条件
+    source_actual_judgment_level: J0
+    expression_judgment_level: J0
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: weakened
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-21
+    source_claim_id: C-01
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: 多年协议强化近期订单可见度
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+  - expression_id: EX-22
+    source_claim_id: C-04
+    location_kind: investment_point
+    section: 投资要点
+    expression_text: 最早风险来自需求破坏，而非总量供给骤增
+    source_actual_judgment_level: J2
+    expression_judgment_level: J2
+    claim_mode: unconditional
+    conditions: []
+    conditions_preserved: true
+    judgment_status: normal
+    status_preserved: true
+    scope_relation: narrower
+    semantic_strength_review: pass
+research_edge_check:
+  reference_view_present: true
+  differentiated_claim_mapped_to_04: true
+  underappreciated_mechanism_supported: true
+  falsification_signal_observable: true
+  evidence_boundary_disclosed: true
+  no_fabricated_consensus: true
+  result: pass
+high_risk_section_coverage:
+  report_title: true
+  investment_points: true
+  conclusion_overview: true
+  section_headings: true
+  paragraph_leads: true
+  chart_and_table_titles: true
+  summary_conclusions: true
+overall_check:
+  all_expressions_mapped_to_04_claims: true
+  no_expression_level_upgrade: true
+  no_condition_loss: true
+  no_scope_expansion: true
+  no_status_washing: true
+  semantic_review_complete: true
+  result: pass

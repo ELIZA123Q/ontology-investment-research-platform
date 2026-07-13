@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
-"""只读校验 03 取证策略库的注册表、文件、Recipe 合同和内部引用。"""
+"""校验 03 取证策略库的机器合同、语义一致性、文档同步和最小案例。"""
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
+from typing import Any, Iterable
 
 import yaml
 
 
-ROOT = Path(__file__).resolve().parent
-RECIPE_REQUIRED_FIELDS = {
-    "name",
-    "version",
-    "status",
-    "file",
-    "primary_rule",
-    "mandatory_baskets",
-    "counter_baskets",
-    "minimum_pass_rule",
-    "high_quality_rule",
-    "proxy_rule",
-    "stop_rule",
-    "downgrade_rule",
-}
+DEFAULT_ROOT = Path(__file__).resolve().parent
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 EXPECTED_RULE_IDS = {f"A{i:02d}" for i in range(1, 10)}
 EXPECTED_RECIPE_IDS = {
     "ER-STATE-01",
@@ -36,21 +25,60 @@ EXPECTED_RECIPE_IDS = {
     "ER-EARN-01",
     "ER-EXPECT-01",
 }
-EXPECTED_PERMISSION_MATRIX = {
-    "Q4_report_grade": "core_judgment",
-    "Q3_directional_ready": "directional_judgment",
-    "Q2_reasoning_usable": "conditional_judgment",
-    "Q1_background": "background_only",
-    "Q0_unusable": "prohibited",
+EXPECTED_QUALITY_LEVELS = {
+    "Q0_unusable": ("prohibited", "blocked"),
+    "Q1_background": ("background_only", "insufficient"),
+    "Q2_reasoning_usable": ("conditional_judgment", "conditional_only"),
+    "Q3_directional_ready": ("directional_judgment", "directional_only"),
+    "Q4_report_grade": ("core_judgment", "full_reasoning_ready"),
 }
-EXPECTED_PERMISSION_USES = {
-    "Q4_report_grade": "核心判断",
-    "Q3_directional_ready": "方向判断",
-    "Q2_reasoning_usable": "条件判断",
-    "Q1_background": "背景",
-    "Q0_unusable": "禁止",
+ALLOWED_04_OUTPUTS = {
+    "full_reasoning_ready",
+    "directional_only",
+    "conditional_only",
+    "insufficient",
+    "blocked",
+    "contested",
 }
-REQUIRED_02_JUDGMENT_FIELDS = {"judgment_type", "required_evidence_role", "default_recipe"}
+RECIPE_STATUSES = {"draft", "active", "deprecated", "retired"}
+ALIAS_STATUSES = {"deprecated", "retired"}
+RECIPE_LIST_FIELDS = {
+    "mandatory_baskets",
+    "minimum_pass_baskets",
+    "strong_validation_baskets",
+    "counter_baskets",
+}
+RECIPE_REQUIRED_FIELDS = {
+    "name",
+    "version",
+    "status",
+    "file",
+    "primary_rule",
+    "applicable_judgment_types",
+    *RECIPE_LIST_FIELDS,
+    "minimum_pass_rule",
+    "high_quality_rule",
+    "proxy_rule",
+    "source_rule",
+    "stop_rule",
+    "downgrade_rule",
+    "positive_example",
+    "failure_example",
+}
+RECIPE_DOC_HEADINGS = {
+    "### 适用问题",
+    "### 必需证据",
+    "### 强验证证据",
+    "### 必查反证",
+    "### 最低通过",
+    "### 高质量标准",
+    "### 代理边界",
+    "### 降级规则",
+    "### 停止条件",
+    "### 成功示例",
+    "### 失败示例",
+}
+REQUIRED_02_JUDGMENT_FIELDS = {"judgment_type", "required_evidence_roles"}
 REQUIRED_PATTERN_CASE_FIELDS = {
     "case_id",
     "case_name",
@@ -65,153 +93,510 @@ REQUIRED_PATTERN_CASE_FIELDS = {
     "learning_target",
     "status",
 }
+EXPECTED_FIXTURE_IDS = {
+    "FIX-STORAGE-CYCLE",
+    "FIX-GEOPOLITICAL-SHOCK",
+    "FIX-COMPANY-EARNINGS",
+}
 
 
-def load_yaml(path: Path, errors: list[str]) -> dict:
+class UniqueKeyLoader(yaml.SafeLoader):
+    """Reject duplicate mapping keys instead of silently keeping the last one."""
+
+
+def _construct_mapping(
+    loader: UniqueKeyLoader, node: yaml.Node, deep: bool = False
+) -> dict[str, Any]:
+    mapping: dict[str, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ValueError(f"YAML duplicate key: {key}")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping
+)
+
+
+def load_yaml(path: Path, errors: list[str]) -> dict[str, Any]:
+    if not path.is_file():
+        errors.append(f"缺少文件: {path}")
+        return {}
     try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data = yaml.load(path.read_text(encoding="utf-8-sig"), Loader=UniqueKeyLoader)
     except Exception as exc:  # pragma: no cover - diagnostics
         errors.append(f"{path.name}: YAML 无法解析: {exc}")
         return {}
     if not isinstance(data, dict):
         errors.append(f"{path.name}: 顶层必须是 mapping")
         return {}
+    version = str(data.get("schema_version", ""))
+    if not VERSION_RE.fullmatch(version):
+        errors.append(f"{path.name}: schema_version 必须为 x.y.z，当前为 {version!r}")
     return data
 
 
-def check_local_links(errors: list[str]) -> None:
-    for path in ROOT.rglob("*.md"):
+def values_for_keys(value: Any, keys: set[str]) -> Iterable[tuple[str, Any]]:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in keys:
+                yield key, item
+            yield from values_for_keys(item, keys)
+    elif isinstance(value, list):
+        for item in value:
+            yield from values_for_keys(item, keys)
+
+
+def ensure_refs_exist(
+    refs: Iterable[Any], allowed: set[str], label: str, errors: list[str]
+) -> None:
+    for ref in refs:
+        if ref not in allowed:
+            errors.append(f"{label}: 引用未登记 Basket ID {ref}")
+
+
+def section_for_recipe(text: str, recipe_id: str) -> str:
+    pattern = re.compile(
+        rf"^## {re.escape(recipe_id)}\b.*?(?=^## (?:ER-[A-Z]+-\d+|Recipe 准入状态)\b|\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(text)
+    return match.group(0) if match else ""
+
+
+def check_recipe_document(
+    root: Path, recipe_id: str, recipe: dict[str, Any], errors: list[str]
+) -> None:
+    path = root / str(recipe.get("file", ""))
+    if not path.is_file():
+        errors.append(f"{recipe_id}: Recipe 文件不存在 {recipe.get('file')}")
+        return
+    section = section_for_recipe(path.read_text(encoding="utf-8"), recipe_id)
+    if not section:
+        errors.append(f"{recipe_id}: Markdown 缺少唯一完整章节")
+        return
+    for heading in RECIPE_DOC_HEADINGS:
+        if heading not in section:
+            errors.append(f"{recipe_id}: Markdown 章节缺少“{heading}”")
+    for field in RECIPE_LIST_FIELDS:
+        for basket_id in recipe.get(field, []):
+            if f"`{basket_id}`" not in section:
+                errors.append(f"{recipe_id}: Markdown 未同步 {field} 中的 {basket_id}")
+
+
+def check_markdown_headings_and_links(
+    root: Path, errors: list[str], *, strict_links: bool
+) -> None:
+    for path in root.rglob("*.md"):
         text = path.read_text(encoding="utf-8")
+        headings: set[str] = set()
+        for match in re.finditer(r"^(#{1,2})\s+(.+?)\s*$", text, re.MULTILINE):
+            heading = f"{match.group(1)} {match.group(2)}"
+            if heading in headings:
+                errors.append(f"{path.relative_to(root)}: 重复标题 {heading}")
+            headings.add(heading)
         for target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", text):
             target = target.strip().strip("<>").split("#", 1)[0]
-            if not target or "://" in target or not target.endswith(".md"):
+            if not target or "://" in target or target.startswith("mailto:"):
                 continue
-            if not (path.parent / target).resolve().exists():
-                errors.append(f"{path.relative_to(ROOT)}: 内部链接不存在 {target}")
+            resolved = (path.parent / target).resolve()
+            try:
+                resolved.relative_to(root.resolve())
+                inside_root = True
+            except ValueError:
+                inside_root = False
+            if not inside_root and not strict_links:
+                continue
+            if not resolved.exists():
+                errors.append(f"{path.relative_to(root)}: 本地链接不存在 {target}")
 
 
-def validate() -> list[str]:
+def check_markdown_basket_ids(
+    root: Path, basket_ids: set[str], errors: list[str]
+) -> None:
+    prefixes = {basket_id.split("_", 1)[0] for basket_id in basket_ids}
+    for path in root.rglob("*.md"):
+        text = path.read_text(encoding="utf-8")
+        for candidate in re.findall(r"`([A-Z][A-Z0-9_]+)`", text):
+            if candidate.split("_", 1)[0] in prefixes and candidate not in basket_ids:
+                errors.append(
+                    f"{path.relative_to(root)}: 使用未登记的 Basket ID {candidate}"
+                )
+
+
+def check_source_paths(
+    root: Path, value: Any, label: str, errors: list[str]
+) -> None:
+    if not isinstance(value, dict):
+        return
+    file_ref = value.get("file")
+    if file_ref and not (root / str(file_ref)).is_file():
+        errors.append(f"{label}.file 不存在: {file_ref}")
+    directory_ref = value.get("directory")
+    if directory_ref and not (root / str(directory_ref)).is_dir():
+        errors.append(f"{label}.directory 不存在: {directory_ref}")
+    current_files = value.get("current_files", {})
+    if current_files and not isinstance(current_files, dict):
+        errors.append(f"{label}.current_files 必须是 mapping")
+    elif isinstance(current_files, dict):
+        for key, ref in current_files.items():
+            if not (root / str(ref)).is_file():
+                errors.append(f"{label}.current_files.{key} 不存在: {ref}")
+
+
+def normalize_judgment_type(
+    judgment_type: str,
+    registry: dict[str, Any],
+    aliases: dict[str, Any],
+) -> str | None:
+    if judgment_type in registry:
+        return judgment_type
+    alias = aliases.get(judgment_type)
+    if isinstance(alias, dict):
+        target = alias.get("canonical_type")
+        return str(target) if target in registry else None
+    return None
+
+
+def resolve_effective_output(
+    quality_level: str,
+    recipe_readiness: str,
+    quality: dict[str, Any],
+) -> tuple[str | None, str | None]:
+    effective = quality.get("effective_use_contract", {})
+    permissions = effective.get("permission_by_output", {})
+    if recipe_readiness in {"blocked", "contested"}:
+        return recipe_readiness, permissions.get(recipe_readiness)
+    ordered = effective.get("ordered_outputs", [])
+    ceiling = (
+        quality.get("quality_levels", {})
+        .get(quality_level, {})
+        .get("quality_output_ceiling")
+    )
+    if ceiling not in ordered or recipe_readiness not in ordered:
+        return None, None
+    output = ordered[min(ordered.index(ceiling), ordered.index(recipe_readiness))]
+    return output, permissions.get(output)
+
+
+def check_fixtures(
+    root: Path,
+    strategy: dict[str, Any],
+    quality: dict[str, Any],
+    basket_ids: set[str],
+    errors: list[str],
+) -> None:
+    fixture_ref = (
+        strategy.get("pilot_validation_plan", {}).get("fixture_file")
+        or "fixtures/minimal_cases.yaml"
+    )
+    fixture = load_yaml(root / fixture_ref, errors)
+    cases = fixture.get("cases", [])
+    if not isinstance(cases, list):
+        errors.append("fixtures/minimal_cases.yaml: cases 必须是列表")
+        return
+    actual_ids = {
+        item.get("case_id") for item in cases if isinstance(item, dict)
+    }
+    if actual_ids != EXPECTED_FIXTURE_IDS:
+        errors.append("最小案例必须覆盖存储周期、地缘冲击和公司业绩弹性")
+    registry = strategy.get("judgment_type_registry", {})
+    aliases = strategy.get("judgment_type_migration_aliases", {})
+    recipes = strategy.get("evidence_recipes", {})
+    required_02 = set(
+        strategy.get("execution_contract", {}).get(
+            "required_02_judgment_unit_fields", []
+        )
+    )
+    for case in cases:
+        if not isinstance(case, dict):
+            errors.append("fixtures: case 必须是 mapping")
+            continue
+        case_id = str(case.get("case_id", "<unknown>"))
+        unit = case.get("judgment_unit", {})
+        expected = case.get("expected", {})
+        if not isinstance(unit, dict) or not isinstance(expected, dict):
+            errors.append(f"{case_id}: judgment_unit/expected 必须是 mapping")
+            continue
+        missing = required_02 - set(unit)
+        if missing:
+            errors.append(f"{case_id}: 缺少 02→03 字段 {', '.join(sorted(missing))}")
+            continue
+        roles = set(case.get("source_plan_roles", []))
+        if not {"primary", "cross_validation", "counter"}.issubset(roles):
+            errors.append(f"{case_id}: 来源计划必须覆盖 primary/cross_validation/counter")
+        normalized = normalize_judgment_type(
+            str(unit.get("judgment_type")), registry, aliases
+        )
+        if normalized != expected.get("normalized_judgment_type"):
+            errors.append(f"{case_id}: judgment_type 规范化结果不符")
+            continue
+        route = registry.get(normalized, {})
+        recipe_id = route.get("default_recipe")
+        if recipe_id != expected.get("matched_recipe"):
+            errors.append(f"{case_id}: 默认 Recipe 匹配不符")
+            continue
+        recipe = recipes.get(recipe_id, {})
+        if str(recipe.get("version")) != str(expected.get("recipe_version")):
+            errors.append(f"{case_id}: Recipe 版本不符")
+        actual_baskets = recipe.get("mandatory_baskets", [])
+        if actual_baskets != expected.get("mandatory_baskets"):
+            errors.append(f"{case_id}: Basket 实例化结果不符")
+        ensure_refs_exist(actual_baskets, basket_ids, f"{case_id}.mandatory_baskets", errors)
+        quality_level = str(expected.get("evidence_quality_level"))
+        readiness = str(expected.get("recipe_readiness"))
+        output, permission = resolve_effective_output(
+            quality_level, readiness, quality
+        )
+        if output != expected.get("allowed_04_output"):
+            errors.append(f"{case_id}: 质量×Recipe 的 04 上限计算不符")
+        if permission != expected.get("evidence_permission"):
+            errors.append(f"{case_id}: evidence_permission 计算不符")
+
+
+def validate(root: Path, *, strict_links: bool = False) -> list[str]:
     errors: list[str] = []
-    strategy = load_yaml(ROOT / "00_strategy_registry.yaml", errors)
-    quality = load_yaml(ROOT / "00_quality_gates.yaml", errors)
-    source = load_yaml(ROOT / "00_source_registry.yaml", errors)
+    strategy = load_yaml(root / "00_strategy_registry.yaml", errors)
+    basket = load_yaml(root / "00_basket_registry.yaml", errors)
+    quality = load_yaml(root / "00_quality_gates.yaml", errors)
+    source = load_yaml(root / "00_source_registry.yaml", errors)
+
+    basket_registry = basket.get("basket_registry", {})
+    basket_ids = set(basket_registry) if isinstance(basket_registry, dict) else set()
+    if not basket_ids:
+        errors.append("00_basket_registry.yaml: basket_registry 不能为空")
+    id_pattern_text = str(basket.get("id_pattern", ""))
+    try:
+        id_pattern = re.compile(id_pattern_text)
+    except re.error as exc:
+        errors.append(f"00_basket_registry.yaml: id_pattern 非法: {exc}")
+        id_pattern = re.compile(r"a^")
+    for basket_id, item in basket_registry.items():
+        if not id_pattern.fullmatch(str(basket_id)):
+            errors.append(f"Basket ID 不符合稳定格式: {basket_id}")
+        if not isinstance(item, dict) or not item.get("label") or not item.get("family"):
+            errors.append(f"{basket_id}: 必须提供 label 和 family")
+    deprecated_aliases = basket.get("deprecated_aliases", {})
+    if not isinstance(deprecated_aliases, dict):
+        errors.append("00_basket_registry.yaml: deprecated_aliases 必须是 mapping")
+        deprecated_aliases = {}
+    for alias, target in deprecated_aliases.items():
+        if alias in basket_ids:
+            errors.append(f"Basket 旧名与规范 ID 冲突: {alias}")
+        if target not in basket_ids:
+            errors.append(f"Basket 旧名 {alias} 指向不存在的 ID {target}")
 
     rules = strategy.get("rules", {})
     if set(rules) != EXPECTED_RULE_IDS:
-        errors.append(
-            "00_strategy_registry.yaml: A 类规则应为 "
-            + ", ".join(sorted(EXPECTED_RULE_IDS))
-        )
+        errors.append("00_strategy_registry.yaml: A 类规则必须完整覆盖 A01—A09")
     for rule_id, item in rules.items():
-        path = ROOT / item.get("file", "")
+        if not isinstance(item, dict):
+            errors.append(f"{rule_id}: 规则必须是 mapping")
+            continue
+        path = root / str(item.get("file", ""))
         if not path.is_file():
             errors.append(f"{rule_id}: 规则文件不存在 {item.get('file')}")
+            continue
+        refs = item.get("basket_ids", [])
+        if not refs:
+            errors.append(f"{rule_id}: basket_ids 不能为空")
+        ensure_refs_exist(refs, basket_ids, f"{rule_id}.basket_ids", errors)
+        text = path.read_text(encoding="utf-8")
+        for ref in refs:
+            if f"`{ref}`" not in text:
+                errors.append(f"{rule_id}: Markdown 未同步 Basket ID {ref}")
+        for phrase in ("专项执行协议", "降级规则", "停止规则", "输出到 03 快照"):
+            if phrase not in text:
+                errors.append(f"{path.relative_to(root)}: 缺少“{phrase}”")
 
     recipes = strategy.get("evidence_recipes", {})
-    missing_recipes = EXPECTED_RECIPE_IDS - set(recipes)
-    if missing_recipes:
-        errors.append(f"核心 Recipe 缺失: {', '.join(sorted(missing_recipes))}")
+    if set(recipes) != EXPECTED_RECIPE_IDS:
+        errors.append("核心 Recipe 必须且只能包含八个规范 ID")
     for recipe_id, item in recipes.items():
+        if not isinstance(item, dict):
+            errors.append(f"{recipe_id}: Recipe 必须是 mapping")
+            continue
         missing = RECIPE_REQUIRED_FIELDS - set(item)
         if missing:
             errors.append(f"{recipe_id}: 缺少字段 {', '.join(sorted(missing))}")
-        path = ROOT / item.get("file", "")
-        if not path.is_file():
-            errors.append(f"{recipe_id}: Recipe 文件不存在 {item.get('file')}")
-        elif recipe_id not in path.read_text(encoding="utf-8"):
-            errors.append(f"{recipe_id}: Recipe 文件未出现该 ID")
-        if item.get("primary_rule") not in rules:
-            errors.append(f"{recipe_id}: primary_rule 不存在 {item.get('primary_rule')}")
-        if not item.get("mandatory_baskets") or not item.get("counter_baskets"):
-            errors.append(f"{recipe_id}: mandatory/counter baskets 不能为空")
+        if str(item.get("status")) not in RECIPE_STATUSES:
+            errors.append(f"{recipe_id}: status 非法 {item.get('status')}")
+        if not VERSION_RE.fullmatch(str(item.get("version", ""))):
+            errors.append(f"{recipe_id}: version 必须为 x.y.z")
+        for field in RECIPE_LIST_FIELDS:
+            refs = item.get(field, [])
+            if not isinstance(refs, list) or not refs:
+                errors.append(f"{recipe_id}.{field}: 必须是非空列表")
+                continue
+            ensure_refs_exist(refs, basket_ids, f"{recipe_id}.{field}", errors)
+            for ref in refs:
+                if ref in deprecated_aliases:
+                    errors.append(f"{recipe_id}.{field}: 不得使用旧名 {ref}")
+        mandatory = set(item.get("mandatory_baskets", []))
+        minimum = set(item.get("minimum_pass_baskets", []))
+        if not minimum.issubset(mandatory):
+            errors.append(f"{recipe_id}: minimum_pass_baskets 必须是 mandatory_baskets 子集")
+        primary_rule = item.get("primary_rule")
+        if primary_rule not in rules:
+            errors.append(f"{recipe_id}: primary_rule 不存在 {primary_rule}")
+        else:
+            rule_baskets = set(rules[primary_rule].get("basket_ids", []))
+            if not mandatory.issubset(rule_baskets):
+                missing_in_rule = ", ".join(sorted(mandatory - rule_baskets))
+                errors.append(f"{recipe_id}: 主规则 {primary_rule} 未使用相同 Basket ID: {missing_in_rule}")
+        check_recipe_document(root, recipe_id, item, errors)
 
-    for preset_id, item in strategy.get("recipe_presets", {}).items():
+    presets = strategy.get("recipe_presets", {})
+    for preset_id, item in presets.items():
         for recipe_id in item.get("recipes", []):
             if recipe_id not in recipes:
                 errors.append(f"{preset_id}: 引用不存在的 Recipe {recipe_id}")
 
-    for judgment_type, item in strategy.get("judgment_type_registry", {}).items():
-        refs = []
-        if item.get("evidence_recipe"):
-            refs.append(item["evidence_recipe"])
-        refs.extend(item.get("evidence_recipes", []))
-        for recipe_id in refs:
+    registry = strategy.get("judgment_type_registry", {})
+    aliases = strategy.get("judgment_type_migration_aliases", {})
+    if "judgment_unit_default_recipe" in strategy:
+        errors.append("不得保留第二套 judgment_unit_default_recipe 路由")
+    for judgment_type, item in registry.items():
+        if not isinstance(item, dict) or "default_recipe" not in item:
+            errors.append(f"{judgment_type}: 必须显式且唯一声明 default_recipe")
+            continue
+        if any(key in item for key in ("evidence_recipe", "evidence_recipes", "mandatory_baskets")):
+            errors.append(f"{judgment_type}: 不得重复定义 Recipe 路由或 mandatory_baskets")
+        recipe_id = item.get("default_recipe")
+        if recipe_id is not None:
             if recipe_id not in recipes:
-                errors.append(f"{judgment_type}: 引用不存在的 Recipe {recipe_id}")
+                errors.append(f"{judgment_type}: default_recipe 不存在 {recipe_id}")
+            elif judgment_type not in recipes[recipe_id].get("applicable_judgment_types", []):
+                errors.append(f"{judgment_type}: 与 {recipe_id}.applicable_judgment_types 冲突")
+        if item.get("primary_rule") not in rules:
+            errors.append(f"{judgment_type}: primary_rule 不存在")
+        if item.get("required_quality_level") not in EXPECTED_QUALITY_LEVELS:
+            errors.append(f"{judgment_type}: required_quality_level 非法")
+    if not isinstance(aliases, dict):
+        errors.append("judgment_type_migration_aliases 必须是 mapping")
+        aliases = {}
+    for alias, item in aliases.items():
+        if alias in registry:
+            errors.append(f"旧 judgment_type 与规范类型冲突: {alias}")
+        if not isinstance(item, dict) or item.get("canonical_type") not in registry:
+            errors.append(f"旧 judgment_type {alias} 未指向规范类型")
+        if isinstance(item, dict) and item.get("status") not in ALIAS_STATUSES:
+            errors.append(f"旧 judgment_type {alias}.status 非法")
 
-    permission_matrix = strategy.get("evidence_permission_matrix", {})
-    actual_permissions = {
-        level: item.get("evidence_permission")
-        for level, item in permission_matrix.items()
-        if isinstance(item, dict)
-    }
-    if actual_permissions != EXPECTED_PERMISSION_MATRIX:
-        errors.append("Evidence Permission Matrix 必须完整映射 Q4—Q0 到核心/方向/条件/背景/禁止权限")
-    actual_uses = {
-        level: item.get("allowed_04_use")
-        for level, item in permission_matrix.items()
-        if isinstance(item, dict)
-    }
-    if actual_uses != EXPECTED_PERMISSION_USES:
-        errors.append("Evidence Permission Matrix.allowed_04_use 必须为核心判断/方向判断/条件判断/背景/禁止")
-    upstream_fields = set(strategy.get("execution_contract", {}).get("required_02_judgment_unit_fields", []))
+    upstream_fields = set(
+        strategy.get("execution_contract", {}).get(
+            "required_02_judgment_unit_fields", []
+        )
+    )
     if upstream_fields != REQUIRED_02_JUDGMENT_FIELDS:
-        errors.append("02→03 输入合同必须强制 judgment_type、required_evidence_role、default_recipe")
-    default_routes = strategy.get("judgment_unit_default_recipe", {})
-    if not default_routes:
-        errors.append("缺少 judgment_unit_default_recipe")
-    for judgment_type, recipe_id in default_routes.items():
-        if recipe_id not in recipes:
-            errors.append(f"{judgment_type}: default_recipe 不存在 {recipe_id}")
+        errors.append("02→03 输入合同只能强制 judgment_type 与 required_evidence_roles")
     case_contract = strategy.get("evidence_pattern_case_contract", {})
-    case_fields = set(case_contract.get("required_fields", [])) if isinstance(case_contract, dict) else set()
-    if case_fields != REQUIRED_PATTERN_CASE_FIELDS:
+    if set(case_contract.get("required_fields", [])) != REQUIRED_PATTERN_CASE_FIELDS:
         errors.append("Evidence Pattern Case 合同字段不完整")
-    if case_contract.get("storage_location") != "D_研究工作单/05_研究复盘与框架反馈.md":
-        errors.append("Evidence Pattern Case 必须沉淀在现有 D05，不得扩张新目录")
-    pilot_cases = strategy.get("pilot_validation_plan", {}).get("cases", [])
-    pilot_types = {item.get("case_type") for item in pilot_cases if isinstance(item, dict)}
-    if pilot_types != {"industry_cycle", "geopolitical_shock", "company_earnings_elasticity"}:
-        errors.append("案例验证计划必须覆盖行业周期、地缘冲击和公司业绩弹性")
 
-    for path in sorted((ROOT / "A_取证规则").glob("A0[1-9]_*.md")):
-        text = path.read_text(encoding="utf-8")
-        for phrase in ("专项执行协议", "降级规则", "停止规则", "输出到 03 快照"):
-            if phrase not in text:
-                errors.append(f"{path.relative_to(ROOT)}: 缺少“{phrase}”")
+    quality_levels = quality.get("quality_levels", {})
+    if set(quality_levels) != set(EXPECTED_QUALITY_LEVELS):
+        errors.append("00_quality_gates.yaml: Q0—Q4 必须完整且唯一")
+    for level, (permission, ceiling) in EXPECTED_QUALITY_LEVELS.items():
+        item = quality_levels.get(level, {})
+        if item.get("evidence_permission") != permission:
+            errors.append(f"{level}: evidence_permission 应为 {permission}")
+        if item.get("quality_output_ceiling") != ceiling:
+            errors.append(f"{level}: quality_output_ceiling 应为 {ceiling}")
+    for name, data in {
+        "00_strategy_registry.yaml": strategy,
+        "00_basket_registry.yaml": basket,
+        "00_source_registry.yaml": source,
+    }.items():
+        if "quality_levels" in data:
+            errors.append(f"{name}: 不得重复定义 quality_levels")
+    readiness = set(
+        strategy.get("recipe_readiness_contract", {}).get("statuses", [])
+    )
+    if readiness != ALLOWED_04_OUTPUTS:
+        errors.append("recipe_readiness 状态必须与 04 合法枚举完全一致")
+    for name, data in {
+        "00_quality_gates.yaml": quality,
+        "00_strategy_registry.yaml": strategy,
+        "00_source_registry.yaml": source,
+        "00_basket_registry.yaml": basket,
+    }.items():
+        for key, value in values_for_keys(data, {"allowed_04_output", "quality_output_ceiling"}):
+            if value not in ALLOWED_04_OUTPUTS:
+                errors.append(f"{name}: {key} 使用非法 04 枚举 {value}")
 
-    readme = ROOT / "README.md"
-    readme_text = readme.read_text(encoding="utf-8") if readme.is_file() else ""
-    for phrase in ("库里有什么", "如何使用", "质量与准入标准"):
-        if phrase not in readme_text:
-            errors.append(f"README.md 缺少“{phrase}”")
-    guide = ROOT / "C_Evidence_Recipe" / "00_证据配方使用说明.md"
-    if not guide.is_file() or "最低证据组合的完整要求" not in guide.read_text(encoding="utf-8"):
-        errors.append("C_Evidence_Recipe: 缺少最低证据组合的完整要求")
-
-    for key in ("evaluation_principles", "assessment_layers", "conflict_resolution_protocol", "missing_data_protocol"):
+    for key in (
+        "evaluation_principles",
+        "assessment_layers",
+        "conflict_resolution_protocol",
+        "missing_data_protocol",
+        "effective_use_contract",
+    ):
         if key not in quality:
             errors.append(f"00_quality_gates.yaml: 缺少 {key}")
     for key in ("source_selection_contract", "source_profile_admission"):
         if key not in source:
             errors.append(f"00_source_registry.yaml: 缺少 {key}")
-    for item in source.get("source_guidance_files", {}).values():
-        ref = item.get("file")
-        if ref and not (ROOT / ref).is_file():
-            errors.append(f"00_source_registry.yaml: 来源指引不存在 {ref}")
+    guidance = source.get("source_guidance_files", {})
+    if not isinstance(guidance, dict):
+        errors.append("00_source_registry.yaml: source_guidance_files 必须是 mapping")
+    else:
+        for key, item in guidance.items():
+            check_source_paths(root, item, f"source_guidance_files.{key}", errors)
 
-    check_local_links(errors)
+    work_order = root / "D_研究工作单" / "01_取证任务单.md"
+    if not work_order.is_file():
+        errors.append("缺少 D_研究工作单/01_取证任务单.md")
+    else:
+        work_order_text = work_order.read_text(encoding="utf-8")
+        for field in (
+            "matched_recipe",
+            "recipe_version",
+            "evidence_quality_level",
+            "recipe_readiness",
+            "evidence_permission",
+            "allowed_04_output",
+        ):
+            if f"`{field}`" not in work_order_text:
+                errors.append(f"D01 工作单未同步交接字段 {field}")
+
+    check_fixtures(root, strategy, quality, basket_ids, errors)
+    check_markdown_basket_ids(root, basket_ids, errors)
+    check_markdown_headings_and_links(root, errors, strict_links=strict_links)
     return errors
 
 
-def main() -> int:
-    errors = validate()
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=DEFAULT_ROOT,
+        help="03 取证策略库根目录，默认使用脚本所在目录",
+    )
+    parser.add_argument(
+        "--strict-links",
+        action="store_true",
+        help="同时校验指向 03 目录外部的本地 Markdown 链接",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    root = args.root.expanduser().resolve()
+    errors = validate(root, strict_links=args.strict_links)
     for error in errors:
         print(f"ERROR: {error}")
     if errors:
         print(f"FAIL: 03 取证策略库发现 {len(errors)} 个错误")
         return 1
-    print("PASS: 03 取证策略库注册表、9 条规则、8 个 Recipe、来源指引和内部链接有效")
+    print(
+        "PASS: 判断类型、Basket、Recipe、质量权限、来源路径、文档同步、链接和 3 个端到端案例均有效"
+    )
     return 0
 
 

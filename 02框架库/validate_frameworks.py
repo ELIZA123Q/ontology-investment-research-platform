@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""只读校验 02 框架库的结构、引用、来源和本体标识符。
+"""只读校验 02 框架库的机器事实、门槛、内容结构与引用。
 
-适配当前结构：
-- 判断生成层：8 类判断框架 + Claim 模板
-- 基础框架：三层依赖 + Framework Output Contract + 11 节正式框架模板
-- 半导体行业：8 个主框架（两横六纵）+ 10 张场景卡
-- 场景卡、治理文档、README、总纲不按正式框架模板验收
+重点检查：
+- registry 是唯一依赖事实源，且可被 YAML 正确解析；
+- output gate、最低证据、门槛引用、依赖方向、循环与可达性；
+- 框架正文不再复制 builds_on / hard_prerequisites / downstream_unlocks；
+- Framework Output Contract 与 registry 的 output gate 完全对齐；
+- 半导体主框架具备区分预测、真实任务验证状态且不过度重复；
+- 场景卡、内部链接和正式本体标识符仍然可用。
+
+校验通过只表示知识资产内部一致，不表示具体研究结论正确。
 """
 
 from __future__ import annotations
@@ -14,23 +18,12 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
+
+import yaml
 
 
 REQUIRED_FRONT_MATTER = ("framework_id", "name", "library", "version")
-REQUIRED_SECTIONS = (
-    "适用问题与边界",
-    "核心判断任务与关键口径",
-    "核心问题树",
-    "分析模块与传导机制",
-    "最低证据与交叉验证",
-    "其他可能解释、逻辑失效与停止条件",
-    "情景设置",
-    "本体映射",
-    "组合与裁剪",
-    "权威依据卡",
-    "框架自检",
-)
 REQUIRED_SCENARIO_FRONT_MATTER = ("document_type", "scenario_id", "name", "version")
 REQUIRED_SCENARIO_SECTIONS = (
     "适用问题",
@@ -43,52 +36,40 @@ REQUIRED_SCENARIO_SECTIONS = (
     "常见误判",
     "输出到 03 的证据要求",
 )
-CHINA_AUTHORITY_DOMAINS = (
-    "gov.cn",
-    "miit.gov.cn",
-    "stats.gov.cn",
-    "samr.gov.cn",
-    "sac.gov.cn",
-    "cac.gov.cn",
-    "csia.net.cn",
-    "caict.ac.cn",
-    "ccsa.org.cn",
+REQUIRED_CONTRACT_FIELDS = (
+    "framework_layer",
+    "output_gate_refs",
+    "judgment_types",
+    "state_variable_candidates",
+    "signal_candidates",
+    "output_objects",
+    "evidence_requirements",
+    "falsification_conditions",
+    "scenarios",
 )
-CHINA_AUTHORITY_KEYWORDS = (
-    "中国政府",
-    "政府部门",
-    "国家统计",
-    "国家标准化",
-    "行业协会",
-    "产业联盟",
-    "标准组织",
-    "中国信通院",
-    "中国半导体行业协会",
-    "中国通信标准化协会",
+BANNED_STATIC_DEPENDENCY_FIELDS = (
+    "hard_prerequisites",
+    "quality_gate",
+    "quality_gates",
+    "downstream_unlocks",
 )
+EXPECTED_OUTPUT_CONTRACT_FIELDS = {
+    "framework_id",
+    "framework_layer",
+    "gate_status",
+    "prerequisite_judgment_refs",
+    "judgment_types",
+    "candidate_claims",
+    "state_variable_candidates",
+    "signal_candidates",
+    "evidence_requirements",
+    "falsification_conditions",
+    "scenarios",
+    "output_objects",
+    "downstream_unlocks",
+    "unresolved_gaps",
+}
 
-EXPECTED_SEMICONDUCTOR_FRAMEWORK_IDS = {
-    "IF-SC-01",
-    "IF-LOC-01",
-    "IF-APP-01",
-    "IF-DES-01",
-    "IF-FAB-01",
-    "IF-PKG-01",
-    "IF-EQP-01",
-    "IF-MAT-01",
-}
-EXPECTED_SEMICONDUCTOR_SCENARIO_IDS = {
-    "SCN-MEM-HBM",
-    "SCN-AI",
-    "SCN-AUTO",
-    "SCN-PWR-SIC",
-    "SCN-OPTO",
-    "SCN-GEO",
-    "SCN-LOC-EQP",
-    "SCN-LOC-MAT",
-    "SCN-MEM-CYCLE",
-    "SCN-PKG-BTL",
-}
 EXPECTED_JUDGMENT_FRAMEWORK_IDS = {
     "JF-STATE",
     "JF-TREND",
@@ -99,7 +80,6 @@ EXPECTED_JUDGMENT_FRAMEWORK_IDS = {
     "JF-EXPECT",
     "JF-RISK",
 }
-
 EXPECTED_BASE_FRAMEWORK_LAYERS = {
     "BF-IC-01": "mechanism",
     "BF-MF-01": "mechanism",
@@ -127,67 +107,74 @@ EXPECTED_INDUSTRY_FRAMEWORK_LAYERS = {
     "IF-EQP-01": "company_realization",
     "IF-MAT-01": "company_realization",
 }
-REQUIRED_OUTPUT_CONTRACT_MARKERS = (
-    "framework_layer:",
-    "hard_prerequisites:",
-    "judgment_types:",
-    "state_variable_candidates:",
-    "signal_candidates:",
-    "output_objects:",
-    "evidence_requirements:",
-    "falsification_conditions:",
-    "scenarios:",
-    "downstream_unlocks:",
-    "gate_status",
-    "prerequisite_judgment_refs",
-    "candidate_claims",
-    "unresolved_gaps",
-)
-VALUATION_HARD_GATES = (
+EXPECTED_SEMICONDUCTOR_SCENARIO_IDS = {
+    "SCN-MEM-HBM",
+    "SCN-AI",
+    "SCN-AUTO",
+    "SCN-PWR-SIC",
+    "SCN-OPTO",
+    "SCN-GEO",
+    "SCN-LOC-EQP",
+    "SCN-LOC-MAT",
+    "SCN-MEM-CYCLE",
+    "SCN-PKG-BTL",
+}
+VALUATION_ENTRY_REFS = {
+    "BF-EE-01.earnings_bridge",
+    "BF-FS-01.conditional_forecast",
+    "BF-EG-01.prior_expectation_baseline",
     "upstream_industry_or_mechanism_judgment",
-    "BF-EE-01",
-    "BF-FS-01",
-    "BF-EG-01",
     "valuation_input_change",
-)
+}
+
+FRAMEWORK_ID_RE = re.compile(r"\b(?:BF|IF)-[A-Z]+-[0-9]+\b")
+GATE_REF_RE = re.compile(r"^((?:BF|IF)-[A-Z]+-[0-9]+)\.([a-z][a-z0-9_]*)$")
+SCENARIO_REF_RE = re.compile(r"\bSCN-[A-Z]+(?:-[A-Z]+)?\b")
 
 
-def parse_front_matter(text: str) -> Tuple[Dict[str, str], str]:
+def parse_front_matter(text: str) -> Tuple[Dict[str, Any], str, Optional[str]]:
     if not text.startswith("---\n"):
-        return {}, text
+        return {}, text, None
     end = text.find("\n---\n", 4)
     if end < 0:
-        return {}, text
-    body_start = end + 5
+        return {}, text, "front matter 未闭合"
     raw = text[4:end]
-    values: Dict[str, str] = {}
-    for line in raw.splitlines():
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        values[key.strip()] = value.strip().strip("\"'")
-    return values, text[body_start:]
+    try:
+        parsed = yaml.safe_load(raw) or {}
+    except yaml.YAMLError as exc:
+        return {}, text[end + 5 :], f"front matter YAML 无法解析: {exc}"
+    if not isinstance(parsed, dict):
+        return {}, text[end + 5 :], "front matter 必须是 YAML 对象"
+    return dict(parsed), text[end + 5 :], None
 
 
-def parse_builds_on(value: str) -> List[str]:
-    value = value.strip()
-    if value.startswith("[") and value.endswith("]"):
-        value = value[1:-1]
-    return [item.strip().strip("'\"") for item in value.split(",") if item.strip()]
+def extract_contract(text: str) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    pattern = re.compile(
+        r"^##\s+(?:本框架应交付什么[^\n]*|5\.\s+本框架特有输出)\s*$"
+        r"(?P<body>.*?)(?=^##\s+|\Z)",
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    match = pattern.search(text)
+    if not match:
+        return None, "缺少 Framework Output Contract / 本框架特有输出"
+    yaml_match = re.search(r"```yaml\s*\n(.*?)\n```", match.group("body"), flags=re.DOTALL)
+    if not yaml_match:
+        return None, "Framework Output Contract 缺少 YAML 代码块"
+    try:
+        parsed = yaml.safe_load(yaml_match.group(1)) or {}
+    except yaml.YAMLError as exc:
+        return None, f"Framework Output Contract YAML 无法解析: {exc}"
+    if not isinstance(parsed, dict):
+        return None, "Framework Output Contract 必须是 YAML 对象"
+    return dict(parsed), None
 
 
-def classify_asset(path: Path, root: Path, front: Dict[str, str]) -> str:
-    """返回 framework / scenario_card / skip / invalid。"""
+def classify_asset(path: Path, root: Path, front: Mapping[str, Any]) -> str:
     rel = path.relative_to(root)
     parts = rel.parts
     name = path.name
-    doc_type = front.get("document_type", "")
-
-    if name == "README.md":
-        return "skip"
-    if name.startswith("00_"):
-        return "skip"
-    if "03_治理与迁移" in parts:
+    doc_type = str(front.get("document_type", ""))
+    if name == "README.md" or name.startswith("00_") or "03_治理与迁移" in parts:
         return "skip"
     if doc_type in {
         "industry_framework_governance",
@@ -196,17 +183,9 @@ def classify_asset(path: Path, root: Path, front: Dict[str, str]) -> str:
         "framework_usage_record_template",
     }:
         return "skip"
-
     if "02_场景卡" in parts or doc_type == "semiconductor_scenario_card":
-        if "02_场景卡" in parts:
-            return "scenario_card"
-        return "invalid"
-
-    if parts[0] == "基础框架库":
-        return "framework"
-    if "01_主框架" in parts:
-        return "framework"
-    if front.get("framework_id"):
+        return "scenario_card" if "02_场景卡" in parts else "invalid"
+    if parts[0] == "基础框架库" or "01_主框架" in parts or front.get("framework_id"):
         return "framework"
     if parts[:2] == ("行业框架库", "半导体行业"):
         return "invalid"
@@ -221,15 +200,14 @@ def iter_markdown_assets(root: Path) -> List[Path]:
 
 def ontology_identifiers(workspace: Path) -> Set[str]:
     identifiers: Set[str] = set()
-    ontology_dirs = (workspace / "一级通用本体规范", workspace / "二级半导体领域本体规范")
     key_re = re.compile(r"^\s{2,}([A-Za-z][A-Za-z0-9_]*):(?:\s|$)")
     id_re = re.compile(r"\bid:\s*([A-Za-z][A-Za-z0-9_]*)")
-    for directory in ontology_dirs:
+    for directory in (workspace / "一级通用本体规范", workspace / "二级半导体领域本体规范"):
         for path in directory.glob("*.yaml"):
             for line in path.read_text(encoding="utf-8").splitlines():
-                key_match = key_re.match(line)
-                if key_match:
-                    identifiers.add(key_match.group(1))
+                match = key_re.match(line)
+                if match:
+                    identifiers.add(match.group(1))
                 identifiers.update(id_re.findall(line))
     return identifiers
 
@@ -247,294 +225,433 @@ def numbered_headings(text: str) -> List[Tuple[str, str]]:
     return re.findall(r"^##\s+(\d+)\.\s+(.+?)\s*$", text, flags=re.MULTILINE)
 
 
-def validate_numbered_sections(
-    relative: Path,
-    text: str,
-    expected: Tuple[str, ...],
-    errors: List[str],
-) -> None:
+def validate_scenario_sections(relative: Path, text: str, errors: List[str]) -> None:
     headings = numbered_headings(text)
-    if len(headings) != len(expected):
-        errors.append(f"{relative}: 应有{len(expected)}个编号二级标题，实际为{len(headings)}")
+    if len(headings) != len(REQUIRED_SCENARIO_SECTIONS):
+        errors.append(f"{relative}: 场景卡应有{len(REQUIRED_SCENARIO_SECTIONS)}个编号二级标题，实际为{len(headings)}")
         return
-    for index, ((number, title), expected_title) in enumerate(zip(headings, expected), 1):
-        if number != str(index) or title != expected_title:
-            errors.append(
-                f"{relative}: 第{index}节应为“## {index}. {expected_title}”，"
-                f"实际为“## {number}. {title}”"
-            )
+    for index, ((number, title), expected) in enumerate(zip(headings, REQUIRED_SCENARIO_SECTIONS), 1):
+        if number != str(index) or title != expected:
+            errors.append(f"{relative}: 第{index}节应为‘## {index}. {expected}’，实际为‘## {number}. {title}’")
 
 
-def extract_authority_section(text: str) -> Optional[str]:
-    if "## 10. 权威依据卡" not in text:
-        return None
-    return text.split("## 10. 权威依据卡", 1)[1].split("## 11.", 1)[0]
+def meaningful_lines(text: str) -> Set[str]:
+    _, body, _ = parse_front_matter(text)
+    body = re.sub(r"```yaml.*?```", "", body, flags=re.DOTALL)
+    ignored = {
+        "运行时字段从依赖 registry 与输出协议解析。",
+        "02 只登记候选反证；是否命中、降级或改判由 04 裁决。",
+    }
+    lines: Set[str] = set()
+    for raw in body.splitlines():
+        line = re.sub(r"\s+", " ", raw.strip())
+        if not line or line.startswith("#") or line.startswith("```"):
+            continue
+        if re.fullmatch(r"\|?\s*[-:]+(?:\s*\|\s*[-:]+)+\s*\|?", line):
+            continue
+        if line in ignored or len(line) < 16:
+            continue
+        lines.add(line)
+    return lines
 
 
-def validate_authority_card(relative: Path, text: str, library: str, errors: List[str]) -> None:
-    source_section = extract_authority_section(text)
-    if source_section is None:
-        return
+def validate_duplicate_content(framework_texts: Mapping[str, str], warnings: List[str]) -> None:
+    line_sets = {framework_id: meaningful_lines(text) for framework_id, text in framework_texts.items()}
+    ids = sorted(line_sets)
+    for index, left in enumerate(ids):
+        for right in ids[index + 1 :]:
+            denominator = min(len(line_sets[left]), len(line_sets[right]))
+            if denominator < 12:
+                continue
+            ratio = len(line_sets[left] & line_sets[right]) / denominator
+            if ratio >= 0.38:
+                warnings.append(f"重复内容: {left} 与 {right} 的有效行重合率为 {ratio:.0%}（警戒线 38%）")
 
-    urls = re.findall(r"https?://[^)\s]+", source_section)
-    domains = {re.sub(r"^https?://", "", url).split("/", 1)[0].lower() for url in urls}
-    is_industry = str(relative).startswith("行业框架库")
-    is_semiconductor_main = "半导体行业" in str(relative) and "01_主框架" in str(relative)
 
-    has_china_domain = any(
-        authority in domain for domain in domains for authority in CHINA_AUTHORITY_DOMAINS
+def validate_discrimination_table(relative: Path, text: str, errors: List[str]) -> None:
+    """检查竞争解释至少给出两项非空且不同的可观察预测。"""
+    lines = text.splitlines()
+    header_index = next(
+        (index for index, line in enumerate(lines) if "| 解释 | 区分预测 |" in line),
+        None,
     )
-    has_china_keyword = any(keyword in source_section for keyword in CHINA_AUTHORITY_KEYWORDS)
+    if header_index is None:
+        errors.append(f"{relative}: 竞争解释未声明不同的可观察预测")
+        return
+    predictions: List[str] = []
+    for line in lines[header_index + 2 :]:
+        if not line.strip().startswith("|"):
+            break
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) >= 2 and cells[0] and cells[1]:
+            predictions.append(cells[1])
+    if len(predictions) < 2:
+        errors.append(f"{relative}: 竞争解释表至少需要主解释和一项竞争解释")
+    elif len(set(predictions)) != len(predictions):
+        errors.append(f"{relative}: 竞争解释存在相同区分预测，不能产生可辨识差异")
+    for prediction in predictions:
+        if prediction in {"关注数据", "待验证", "数据改善", "数据恶化"}:
+            errors.append(f"{relative}: 区分预测‘{prediction}’不可执行")
 
-    if is_industry:
-        if urls:
-            if len(domains) < 2:
-                errors.append(f"{relative}: 权威依据卡少于两个独立网络来源")
-            if not has_china_domain and not (is_semiconductor_main and has_china_keyword):
-                errors.append(f"{relative}: 行业框架缺少中国政府、标准或全国性行业组织来源")
-        elif is_semiconductor_main:
-            # 新版主框架允许“来源类型”清单，但仍需覆盖中国权威来源类型
-            if not has_china_keyword:
-                errors.append(f"{relative}: 权威依据卡未覆盖中国政府、标准或全国性行业组织来源类型")
-            type_hits = sum(
-                1
-                for marker in (
-                    "中国政府",
-                    "国家统计",
-                    "行业协会",
-                    "国际半导体",
-                    "原始公司披露",
-                    "机构研究",
-                )
-                if marker in source_section
-            )
-            if type_hits < 2:
-                errors.append(f"{relative}: 权威依据卡来源类型过少，至少需要两类独立来源类型")
+
+def find_cycle(graph: Mapping[str, Set[str]]) -> Optional[List[str]]:
+    visiting: Set[str] = set()
+    visited: Set[str] = set()
+    stack: List[str] = []
+
+    def visit(node: str) -> Optional[List[str]]:
+        if node in visiting:
+            start = stack.index(node)
+            return stack[start:] + [node]
+        if node in visited:
+            return None
+        visiting.add(node)
+        stack.append(node)
+        for neighbor in sorted(graph.get(node, set())):
+            cycle = visit(neighbor)
+            if cycle:
+                return cycle
+        stack.pop()
+        visiting.remove(node)
+        visited.add(node)
+        return None
+
+    for node in sorted(graph):
+        cycle = visit(node)
+        if cycle:
+            return cycle
+    return None
+
+
+def load_registry(root: Path, errors: List[str]) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    path = root / "00_framework_dependency_registry.yaml"
+    if not path.exists():
+        errors.append("框架库: 缺少机器可读依赖登记")
+        return {}, {}
+    try:
+        registry = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as exc:
+        errors.append(f"依赖登记: YAML 无法解析: {exc}")
+        return {}, {}
+    if not isinstance(registry, dict):
+        errors.append("依赖登记: 顶层必须是 YAML 对象")
+        return {}, {}
+    if str(registry.get("schema_version", "")) != "2.0.0":
+        errors.append("依赖登记: schema_version 必须为 2.0.0")
+    if registry.get("machine_truth") is not True:
+        errors.append("依赖登记: machine_truth 必须为 true")
+    base = registry.get("frameworks")
+    industry = registry.get("industry_overlays")
+    if not isinstance(base, dict) or not isinstance(industry, dict):
+        errors.append("依赖登记: frameworks 与 industry_overlays 必须是对象")
+        return registry, {}
+    entries = {str(key): value for key, value in {**base, **industry}.items()}
+    return registry, entries
+
+
+def validate_registry(registry: Mapping[str, Any], entries: Mapping[str, Dict[str, Any]], errors: List[str]) -> None:
+    expected_layers = {**EXPECTED_BASE_FRAMEWORK_LAYERS, **EXPECTED_INDUSTRY_FRAMEWORK_LAYERS}
+    if set(entries) != set(expected_layers):
+        missing = sorted(set(expected_layers) - set(entries))
+        extra = sorted(set(entries) - set(expected_layers))
+        if missing:
+            errors.append(f"依赖登记缺失框架: {', '.join(missing)}")
+        if extra:
+            errors.append(f"依赖登记存在未治理框架: {', '.join(extra)}")
+    graph: Dict[str, Set[str]] = {framework_id: set() for framework_id in entries}
+
+    for framework_id, entry in entries.items():
+        if not isinstance(entry, dict):
+            errors.append(f"依赖登记: {framework_id} 必须是对象")
+            continue
+        if entry.get("layer") != expected_layers.get(framework_id):
+            errors.append(f"依赖登记: {framework_id}.layer 应为 {expected_layers.get(framework_id)}")
+        entry_requires = entry.get("entry_requires")
+        if not isinstance(entry_requires, list) or not entry_requires:
+            errors.append(f"依赖登记: {framework_id}.entry_requires 必须是非空列表")
+        output_gates = entry.get("output_gates")
+        if not isinstance(output_gates, dict) or not output_gates:
+            errors.append(f"依赖登记: {framework_id}.output_gates 必须是非空对象")
+            output_gates = {}
+        for gate_id, gate in output_gates.items():
+            if not re.fullmatch(r"[a-z][a-z0-9_]*", str(gate_id)):
+                errors.append(f"依赖登记: {framework_id} 输出门槛 ID 非法 {gate_id}")
+            if not isinstance(gate, dict):
+                errors.append(f"依赖登记: {framework_id}.{gate_id} 必须是对象")
+                continue
+            if not isinstance(gate.get("requires"), list) or not gate["requires"]:
+                errors.append(f"依赖登记: {framework_id}.{gate_id}.requires 必须是非空列表")
+            minimum_evidence = gate.get("minimum_evidence")
+            if not isinstance(minimum_evidence, list) or len(minimum_evidence) < 2:
+                errors.append(f"依赖登记: {framework_id}.{gate_id}.minimum_evidence 至少需要两项交叉证据")
+            elif len({str(item) for item in minimum_evidence}) != len(minimum_evidence):
+                errors.append(f"依赖登记: {framework_id}.{gate_id}.minimum_evidence 存在重复项")
+
+        quality_gates = entry.get("quality_gates", {})
+        if not isinstance(quality_gates, dict):
+            errors.append(f"依赖登记: {framework_id}.quality_gates 必须是对象")
+            quality_gates = {}
+        for gate_id, gate in quality_gates.items():
+            if not isinstance(gate, dict) or not isinstance(gate.get("requires"), list) or not gate.get("on_failure"):
+                errors.append(f"依赖登记: {framework_id}.quality_gates.{gate_id} 缺少 requires 或 on_failure")
+
+        unlocks = entry.get("downstream_unlocks")
+        if not isinstance(unlocks, list):
+            errors.append(f"依赖登记: {framework_id}.downstream_unlocks 必须是列表")
+            unlocks = []
+        for target in unlocks:
+            if target not in entries:
+                errors.append(f"依赖登记: {framework_id} 解锁未知框架 {target}")
+            else:
+                graph[framework_id].add(str(target))
+        handoffs = entry.get("boundary_handoffs")
+        if not isinstance(handoffs, dict):
+            errors.append(f"依赖登记: {framework_id}.boundary_handoffs 必须是对象")
         else:
-            errors.append(f"{relative}: 权威依据卡少于两个独立网络来源")
-            if not has_china_keyword:
-                errors.append(f"{relative}: 行业框架缺少中国政府、标准或全国性行业组织来源")
+            for owner in handoffs.values():
+                if owner not in entries:
+                    errors.append(f"依赖登记: {framework_id} 职责交接到未知框架 {owner}")
 
-    # 基础框架与仍使用表格写法的行业框架，保留“多来源方法论候选”标记
-    uses_evidence_table = "证据等级" in source_section or "主要来源" in source_section
-    if library == "base" or uses_evidence_table:
-        if "多来源方法论候选" not in source_section:
-            errors.append(f"{relative}: 权威依据卡未标明“多来源方法论候选”")
+    for framework_id, entry in entries.items():
+        for gate_group in (entry.get("output_gates", {}), entry.get("quality_gates", {})):
+            if not isinstance(gate_group, dict):
+                continue
+            for gate in gate_group.values():
+                if not isinstance(gate, dict):
+                    continue
+                for requirement in gate.get("requires", []):
+                    match = GATE_REF_RE.match(str(requirement))
+                    if not match:
+                        continue
+                    prerequisite_id, gate_id = match.groups()
+                    prerequisite = entries.get(prerequisite_id)
+                    if prerequisite is None:
+                        errors.append(f"依赖登记: {framework_id} 引用未知框架 {prerequisite_id}")
+                        continue
+                    if gate_id not in prerequisite.get("output_gates", {}):
+                        errors.append(f"依赖登记: {framework_id} 引用未知输出门槛 {requirement}")
+                    if framework_id not in prerequisite.get("downstream_unlocks", []):
+                        errors.append(f"依赖方向: {framework_id} 依赖 {requirement}，但 {prerequisite_id} 未解锁 {framework_id}")
 
+    cycle = find_cycle(graph)
+    if cycle:
+        errors.append(f"依赖登记: downstream_unlocks 形成循环 {' -> '.join(cycle)}")
 
-def extract_framework_refs(text: str) -> Set[str]:
-    return set(re.findall(r"\b(?:IF|BF|SCN)-[A-Z]+(?:-[A-Z]+)?-\d+\b|\bSCN-[A-Z]+(?:-[A-Z]+)?\b", text))
+    roots = registry.get("graph_roots")
+    if not isinstance(roots, list) or not roots:
+        errors.append("依赖登记: graph_roots 必须是非空列表")
+    else:
+        unknown_roots = sorted(set(roots) - set(entries))
+        if unknown_roots:
+            errors.append(f"依赖登记: graph_roots 含未知框架 {', '.join(unknown_roots)}")
+        reachable: Set[str] = set()
+        pending = [str(item) for item in roots if item in entries]
+        while pending:
+            current = pending.pop()
+            if current in reachable:
+                continue
+            reachable.add(current)
+            pending.extend(graph.get(current, set()) - reachable)
+        unreachable = sorted(set(entries) - reachable)
+        if unreachable:
+            errors.append(f"依赖登记: 存在不可达框架 {', '.join(unreachable)}")
+
+    valuation = entries.get("BF-VA-01", {}).get("output_gates", {}).get("valuation_entry", {})
+    valuation_requires = set(valuation.get("requires", [])) if isinstance(valuation, dict) else set()
+    missing_valuation = sorted(VALUATION_ENTRY_REFS - valuation_requires)
+    if missing_valuation:
+        errors.append(f"依赖登记: BF-VA-01.valuation_entry 缺少 {', '.join(missing_valuation)}")
+
+    actual_contract_fields = registry.get("output_contract_required_fields")
+    if not isinstance(actual_contract_fields, list) or set(actual_contract_fields) != EXPECTED_OUTPUT_CONTRACT_FIELDS:
+        errors.append("依赖登记: output_contract_required_fields 与统一运行容器不一致")
 
 
 def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
     workspace = root.parent
     files = iter_markdown_assets(root)
-    ontology_ids = ontology_identifiers(workspace)
     errors: List[str] = []
     warnings: List[str] = []
-    ids: Dict[str, Path] = {}
-    scenario_ids: Dict[str, Path] = {}
-    metadata: Dict[Path, Dict[str, str]] = {}
-    classes: Dict[Path, str] = {}
+    ontology_ids = ontology_identifiers(workspace)
+    registry, registry_entries = load_registry(root, errors)
+    if registry_entries:
+        validate_registry(registry, registry_entries, errors)
 
     dependency_doc = root / "01_框架依赖图与输出协议.md"
-    dependency_registry = root / "00_framework_dependency_registry.yaml"
     if not dependency_doc.exists():
         errors.append("框架库: 缺少框架依赖图与输出协议")
-    if not dependency_registry.exists():
-        errors.append("框架库: 缺少机器可读依赖登记")
-        registry_text = ""
-    else:
-        registry_text = dependency_registry.read_text(encoding="utf-8")
-        for framework_id, layer in EXPECTED_BASE_FRAMEWORK_LAYERS.items():
-            if not re.search(rf"^  {re.escape(framework_id)}:\s*$", registry_text, re.MULTILINE):
-                errors.append(f"依赖登记: 缺少 {framework_id}")
-            if framework_id not in registry_text or f"layer: {layer}" not in registry_text:
-                errors.append(f"依赖登记: {framework_id} 未登记到 {layer}")
-        for framework_id, layer in EXPECTED_INDUSTRY_FRAMEWORK_LAYERS.items():
-            if not re.search(rf"^  {re.escape(framework_id)}:\s*$", registry_text, re.MULTILINE):
-                errors.append(f"依赖登记: 缺少 {framework_id}")
-            if framework_id not in registry_text or f"layer: {layer}" not in registry_text:
-                errors.append(f"依赖登记: {framework_id} 未登记到 {layer}")
-        for gate in VALUATION_HARD_GATES:
-            valuation_block = registry_text.split("  BF-VA-01:", 1)[-1].split(
-                "\noutput_contract_required_fields:", 1
-            )[0]
-            if gate not in valuation_block:
-                errors.append(f"依赖登记: BF-VA-01 缺少硬前置 {gate}")
 
-    judgment_router = root / "判断框架库" / "00_判断类型路由与生成框架.md"
+    router = root / "判断框架库" / "00_判断类型路由与生成框架.md"
     claim_library = root / "Claim模板库" / "00_Claim模板与检查清单.md"
-    if not judgment_router.exists():
-        errors.append("判断框架库: 缺少判断类型路由与生成框架")
+    if not router.exists():
+        errors.append("判断单元生成与路由: 文件缺失")
     else:
-        router_text = judgment_router.read_text(encoding="utf-8")
-        actual_judgment_ids = set(re.findall(r"\bJF-[A-Z]+\b", router_text))
-        missing_judgment_ids = sorted(EXPECTED_JUDGMENT_FRAMEWORK_IDS - actual_judgment_ids)
-        if missing_judgment_ids:
-            errors.append(f"判断框架库缺失: {', '.join(missing_judgment_ids)}")
-        for required_phrase in ("竞争解释", "区分信号", "推翻条件", "CandidateClaim"):
-            if required_phrase not in router_text:
-                errors.append(f"判断框架库: 缺少核心要素“{required_phrase}”")
+        router_text = router.read_text(encoding="utf-8")
+        missing = sorted(EXPECTED_JUDGMENT_FRAMEWORK_IDS - set(re.findall(r"\bJF-[A-Z]+\b", router_text)))
+        if missing:
+            errors.append(f"判断单元生成与路由缺失: {', '.join(missing)}")
+        for phrase in ("竞争解释", "区分信号", "候选推翻条件", "CandidateClaim", "04"):
+            if phrase not in router_text:
+                errors.append(f"判断单元生成与路由缺少核心要素‘{phrase}’")
     if not claim_library.exists():
-        errors.append("Claim模板库: 缺少 Claim 模板与检查清单")
+        errors.append("Claim模板库: 文件缺失")
     else:
         claim_text = claim_library.read_text(encoding="utf-8")
-        for required_phrase in ("可证伪", "有边界", "不跳步", "可区分", "可降级"):
-            if required_phrase not in claim_text:
-                errors.append(f"Claim模板库: 缺少检查项“{required_phrase}”")
+        for phrase in ("可证伪", "有边界", "不跳步", "可区分", "可降级", "atomic_claim", "mechanism_ref"):
+            if phrase not in claim_text:
+                errors.append(f"Claim模板库缺少检查项‘{phrase}’")
+
+    metadata: Dict[Path, Dict[str, Any]] = {}
+    classes: Dict[Path, str] = {}
+    framework_ids: Dict[str, Path] = {}
+    scenario_ids: Dict[str, Path] = {}
 
     for path in files:
         text = path.read_text(encoding="utf-8")
-        front, _ = parse_front_matter(text)
+        front, _body, parse_error = parse_front_matter(text)
+        if parse_error:
+            errors.append(f"{path.relative_to(root)}: {parse_error}")
         metadata[path] = front
         asset_class = classify_asset(path, root, front)
         classes[path] = asset_class
-
         if asset_class == "invalid":
-            errors.append(f"{path.relative_to(root)}: 文档位置或 document_type 不符合现行框架库结构")
+            errors.append(f"{path.relative_to(root)}: 文档位置或 document_type 不符合结构")
             continue
-        if asset_class == "skip":
-            continue
-
         if asset_class == "framework":
             for key in REQUIRED_FRONT_MATTER:
                 if not front.get(key):
-                    errors.append(f"{path}: 缺少 front matter 字段 {key}")
-            framework_id = front.get("framework_id")
+                    errors.append(f"{path.relative_to(root)}: 缺少 front matter 字段 {key}")
+            if "builds_on" in front:
+                errors.append(f"{path.relative_to(root)}: builds_on 已禁用，依赖只能写入 registry")
+            framework_id = str(front.get("framework_id", ""))
             if framework_id:
-                if framework_id in ids:
-                    errors.append(f"{path}: framework_id {framework_id} 与 {ids[framework_id]} 重复")
-                else:
-                    ids[framework_id] = path
+                if framework_id in framework_ids:
+                    errors.append(f"{path.relative_to(root)}: framework_id {framework_id} 重复")
+                framework_ids[framework_id] = path
         elif asset_class == "scenario_card":
             for key in REQUIRED_SCENARIO_FRONT_MATTER:
                 if not front.get(key):
-                    errors.append(f"{path}: 缺少 front matter 字段 {key}")
-            if front.get("document_type") and front.get("document_type") != "semiconductor_scenario_card":
-                errors.append(f"{path}: document_type 应为 semiconductor_scenario_card")
-            scenario_id = front.get("scenario_id")
+                    errors.append(f"{path.relative_to(root)}: 缺少 front matter 字段 {key}")
+            scenario_id = str(front.get("scenario_id", ""))
+            if front.get("document_type") != "semiconductor_scenario_card":
+                errors.append(f"{path.relative_to(root)}: document_type 应为 semiconductor_scenario_card")
             if scenario_id:
                 if scenario_id in scenario_ids:
-                    errors.append(f"{path}: scenario_id {scenario_id} 与 {scenario_ids[scenario_id]} 重复")
-                else:
-                    scenario_ids[scenario_id] = path
+                    errors.append(f"{path.relative_to(root)}: scenario_id {scenario_id} 重复")
+                scenario_ids[scenario_id] = path
 
-    known_ids = set(ids)
-    known_scenario_ids = set(scenario_ids)
-
-    for path in files:
-        asset_class = classes[path]
-        if asset_class not in {"framework", "scenario_card"}:
-            continue
+    framework_texts: Dict[str, str] = {}
+    for framework_id, path in framework_ids.items():
         text = path.read_text(encoding="utf-8")
         front = metadata[path]
         relative = path.relative_to(root)
-
-        if asset_class == "framework":
-            validate_numbered_sections(relative, text, REQUIRED_SECTIONS, errors)
-
-            framework_id = front.get("framework_id", "")
-            expected_layer = (
-                EXPECTED_BASE_FRAMEWORK_LAYERS.get(framework_id)
-                or EXPECTED_INDUSTRY_FRAMEWORK_LAYERS.get(framework_id)
-            )
-            if not any(
-                heading in text
-                for heading in (
-                    "## Framework Output Contract",
-                    "## 本框架应交付什么（系统名 Framework Output Contract）",
+        framework_texts[framework_id] = text
+        contract, contract_error = extract_contract(text)
+        if contract_error:
+            errors.append(f"{relative}: {contract_error}")
+            continue
+        assert contract is not None
+        for field in REQUIRED_CONTRACT_FIELDS:
+            if field not in contract:
+                errors.append(f"{relative}: Framework Output Contract 缺少 {field}")
+        for field in BANNED_STATIC_DEPENDENCY_FIELDS:
+            if field in contract:
+                errors.append(f"{relative}: 静态合同不得声明 {field}，请读取 registry")
+        registry_entry = registry_entries.get(framework_id)
+        if registry_entry:
+            if contract.get("framework_layer") != registry_entry.get("layer"):
+                errors.append(f"{relative}: framework_layer 与 registry 不一致")
+            expected_refs = {
+                f"{framework_id}.{gate_id}" for gate_id in registry_entry.get("output_gates", {})
+            }
+            actual_refs = set(contract.get("output_gate_refs", [])) if isinstance(contract.get("output_gate_refs"), list) else set()
+            if actual_refs != expected_refs:
+                errors.append(
+                    f"{relative}: output_gate_refs 与 registry 不一致；"
+                    f"缺少 {sorted(expected_refs - actual_refs)}，多出 {sorted(actual_refs - expected_refs)}"
                 )
-            ):
-                errors.append(f"{relative}: 缺少 Framework Output Contract")
-            for marker in REQUIRED_OUTPUT_CONTRACT_MARKERS:
-                if marker not in text:
-                    errors.append(f"{relative}: Framework Output Contract 缺少 {marker}")
-            if expected_layer and f"framework_layer: {expected_layer}" not in text:
-                errors.append(f"{relative}: framework_layer 应为 {expected_layer}")
+        if front.get("library") == "base" and not str(front.get("version", "")).startswith("2."):
+            errors.append(f"{relative}: 基础框架 version 应为 2.x")
+        if "研究员先看什么" not in text:
+            errors.append(f"{relative}: 缺少‘研究员先看什么’")
+        semantic_groups = (
+            ("适用", "边界"),
+            ("机制",),
+            ("证据",),
+            ("其他可能解释", "竞争解释"),
+            ("停止条件",),
+            ("组合", "裁剪"),
+        )
+        for alternatives in semantic_groups:
+            if not any(term in text for term in alternatives):
+                errors.append(f"{relative}: 缺少语义单元 {'/'.join(alternatives)}")
+        if "半导体行业" in path.parts and "01_主框架" in path.parts:
+            validate_discrimination_table(relative, text, errors)
+            if front.get("validation_status") not in {"pending_two_tasks", "validated_two_tasks"}:
+                errors.append(f"{relative}: validation_status 非法或缺失")
+            case_refs = front.get("validated_case_refs")
+            if not isinstance(case_refs, list):
+                errors.append(f"{relative}: validated_case_refs 必须是列表")
+                case_refs = []
+            for case_ref in case_refs:
+                if not (workspace / str(case_ref)).is_file():
+                    errors.append(f"{relative}: 真实任务引用不存在 {case_ref}")
+            if front.get("validation_status") == "validated_two_tasks" and len(case_refs) < 2:
+                errors.append(f"{relative}: validated_two_tasks 至少需要两个真实任务引用")
+            line_count = len(text.splitlines())
+            if line_count > 120:
+                warnings.append(f"{relative}: 主框架仍有 {line_count} 行，建议继续压缩到 80—120 行")
 
-            if front.get("library") == "base":
-                if framework_id not in EXPECTED_BASE_FRAMEWORK_LAYERS:
-                    errors.append(f"{relative}: 基础框架 ID 未登记层级 {framework_id}")
-                version = front.get("version", "")
-                if not version.startswith("2."):
-                    errors.append(f"{relative}: 层级与输出合同结构性升级后 version 应为 2.x")
+        if "## 8. 本体映射" in text and "## 9." in text:
+            mapping = text.split("## 8. 本体映射", 1)[1].split("## 9.", 1)[0]
+            formal_mapping = mapping.split("**任务候选或本体缺口**", 1)[0]
+            used = set(re.findall(r"`([A-Za-z][A-Za-z0-9_]*)`", formal_mapping))
+            unknown = sorted(used - ontology_ids)
+            if unknown:
+                errors.append(f"{relative}: 本体映射引用未知标识符 {', '.join(unknown)}")
 
-                if framework_id == "BF-VA-01":
-                    for gate in VALUATION_HARD_GATES:
-                        if gate not in text:
-                            errors.append(f"{relative}: 估值框架缺少硬前置 {gate}")
-                    if "valuation_gate: failed" not in text:
-                        errors.append(f"{relative}: 估值框架缺少门禁失败停止输出")
+    for path, asset_class in classes.items():
+        if asset_class != "scenario_card":
+            continue
+        text = path.read_text(encoding="utf-8")
+        relative = path.relative_to(root)
+        validate_scenario_sections(relative, text, errors)
+        if "## 2. 推荐主框架组合" in text:
+            combo = text.split("## 2. 推荐主框架组合", 1)[1].split("## 3.", 1)[0]
+            unknown_frameworks = sorted(set(FRAMEWORK_ID_RE.findall(combo)) - set(framework_ids))
+            unknown_scenarios = sorted(set(SCENARIO_REF_RE.findall(combo)) - set(scenario_ids))
+            if unknown_frameworks:
+                errors.append(f"{relative}: 推荐组合引用未知框架 {', '.join(unknown_frameworks)}")
+            if unknown_scenarios:
+                errors.append(f"{relative}: 推荐组合引用未知场景卡 {', '.join(unknown_scenarios)}")
 
-            for dependency in parse_builds_on(front.get("builds_on", "")):
-                if dependency not in known_ids:
-                    errors.append(f"{relative}: builds_on 引用了不存在的 {dependency}")
-
-            validate_authority_card(relative, text, front.get("library", ""), errors)
-
-            if "## 8. 本体映射" in text and "## 9." in text:
-                mapping = text.split("## 8. 本体映射", 1)[1].split("## 9.", 1)[0]
-                formal_mapping = mapping.split("**任务候选或本体缺口**", 1)[0]
-                used_ids = set(re.findall(r"`([A-Za-z][A-Za-z0-9_]*)`", formal_mapping))
-                unknown = sorted(used_ids - ontology_ids)
-                if unknown:
-                    errors.append(f"{relative}: 本体映射引用未知标识符 {', '.join(unknown)}")
-
-        elif asset_class == "scenario_card":
-            validate_numbered_sections(relative, text, REQUIRED_SCENARIO_SECTIONS, errors)
-            if "## 2. 推荐主框架组合" in text:
-                combo = text.split("## 2. 推荐主框架组合", 1)[1].split("## 3.", 1)[0]
-                refs = extract_framework_refs(combo)
-                framework_refs = {ref for ref in refs if ref.startswith(("IF-", "BF-"))}
-                scenario_refs = {ref for ref in refs if ref.startswith("SCN-")}
-                unknown_frameworks = sorted(framework_refs - known_ids)
-                unknown_scenarios = sorted(scenario_refs - known_scenario_ids)
-                if unknown_frameworks:
-                    errors.append(
-                        f"{relative}: 推荐主框架组合引用了不存在的框架 "
-                        f"{', '.join(unknown_frameworks)}"
-                    )
-                if unknown_scenarios:
-                    errors.append(
-                        f"{relative}: 推荐主框架组合引用了不存在的场景卡 "
-                        f"{', '.join(unknown_scenarios)}"
-                    )
-
-    link_files = [root / "README.md"] + list(root.glob("行业框架库/**/*.md"))
+    link_files = [root / "README.md", root / "01_框架依赖图与输出协议.md"] + files
     for path in link_files:
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8")
         for raw_target, resolved in local_markdown_links(path, text):
-            if resolved.exists():
-                continue
-            errors.append(f"{path.relative_to(root)}: 内部链接不存在 {raw_target}")
+            if not resolved.exists():
+                errors.append(f"{path.relative_to(root)}: 内部链接不存在 {raw_target}")
 
-    semiconductor_framework_ids = {
-        front.get("framework_id", "")
-        for path, front in metadata.items()
-        if classes.get(path) == "framework" and "半导体行业" in path.parts and "01_主框架" in path.parts
-    }
-    if semiconductor_framework_ids != EXPECTED_SEMICONDUCTOR_FRAMEWORK_IDS:
-        missing = sorted(EXPECTED_SEMICONDUCTOR_FRAMEWORK_IDS - semiconductor_framework_ids)
-        extra = sorted(semiconductor_framework_ids - EXPECTED_SEMICONDUCTOR_FRAMEWORK_IDS)
+    expected_frameworks = set(EXPECTED_BASE_FRAMEWORK_LAYERS) | set(EXPECTED_INDUSTRY_FRAMEWORK_LAYERS)
+    if set(framework_ids) != expected_frameworks:
+        missing = sorted(expected_frameworks - set(framework_ids))
+        extra = sorted(set(framework_ids) - expected_frameworks)
         if missing:
-            errors.append(f"半导体主框架缺失: {', '.join(missing)}")
+            errors.append(f"正式框架缺失: {', '.join(missing)}")
         if extra:
-            warnings.append(f"半导体主框架出现未登记ID: {', '.join(extra)}")
-
-    if known_scenario_ids != EXPECTED_SEMICONDUCTOR_SCENARIO_IDS:
-        missing = sorted(EXPECTED_SEMICONDUCTOR_SCENARIO_IDS - known_scenario_ids)
-        extra = sorted(known_scenario_ids - EXPECTED_SEMICONDUCTOR_SCENARIO_IDS)
+            warnings.append(f"正式框架出现未治理 ID: {', '.join(extra)}")
+    if set(scenario_ids) != EXPECTED_SEMICONDUCTOR_SCENARIO_IDS:
+        missing = sorted(EXPECTED_SEMICONDUCTOR_SCENARIO_IDS - set(scenario_ids))
+        extra = sorted(set(scenario_ids) - EXPECTED_SEMICONDUCTOR_SCENARIO_IDS)
         if missing:
             errors.append(f"半导体场景卡缺失: {', '.join(missing)}")
         if extra:
-            warnings.append(f"半导体场景卡出现未登记ID: {', '.join(extra)}")
+            warnings.append(f"半导体场景卡出现未登记 ID: {', '.join(extra)}")
 
-    framework_count = sum(1 for asset_class in classes.values() if asset_class == "framework")
-    scenario_count = sum(1 for asset_class in classes.values() if asset_class == "scenario_card")
-    return errors, warnings, framework_count, scenario_count
+    validate_duplicate_content(framework_texts, warnings)
+    return errors, warnings, len(framework_ids), len(scenario_ids)
 
 
 def main() -> int:
@@ -552,15 +669,9 @@ def main() -> int:
     for error in errors:
         print(f"ERROR: {error}")
     if errors:
-        print(
-            f"FAIL: 校验{framework_count}个框架、{scenario_count}张场景卡，"
-            f"发现{len(errors)}个错误、{len(warnings)}个警告"
-        )
+        print(f"FAIL: 校验{framework_count}个框架、{scenario_count}张场景卡，发现{len(errors)}个错误、{len(warnings)}个警告")
         return 1
-    print(
-        f"PASS: 校验{framework_count}个框架、{scenario_count}张场景卡，"
-        f"0个错误、{len(warnings)}个警告"
-    )
+    print(f"PASS: 校验{framework_count}个框架、{scenario_count}张场景卡，0个错误、{len(warnings)}个警告")
     return 0
 
 

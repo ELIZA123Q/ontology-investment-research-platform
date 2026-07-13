@@ -3,7 +3,7 @@ document_type: topic_evidence_source_registry
 schema_version: 1.1.0
 file_id: B04-TOPIC-GEOPOLITICAL
 file_name: B04-TOPIC-GEOPOLITICAL_地缘冲击取证来源清单.md
-updated_at: 2026-07-12
+updated_at: 2026-07-13
 topic: geopolitical_shock
 status: ready_to_use
 revision: event_state_exposure_and_outcome_protocol
@@ -11,7 +11,9 @@ revision: event_state_exposure_and_outcome_protocol
 
 # B04-TOPIC-GEOPOLITICAL_地缘冲击取证来源清单
 
-## 地缘取证按四层推进
+## 第一部分：来源清单与使用边界
+
+### 地缘取证按四层推进
 
 1. **规则事实**：正式文本、主体、产品/实体/用途范围、生效与豁免；
 2. **真实暴露**：产品分类、客户/供应关系、地域收入或采购、许可依赖；
@@ -20,7 +22,7 @@ revision: event_state_exposure_and_outcome_protocol
 
 只完成第一层时，只能确认事件；完成前两层可写条件性暴露；没有第三、四层，不应直接写“显著利好/利空”。新闻和专家解读可帮助理解规则，但关键范围必须回到正式文本与可核验业务数据。
 
-## 1. 定位
+### 1. 定位
 
 本文是 03 取证策略库中 B04 专题来源的第一份样板文件，用于处理“地缘冲击”类投研问题的来源选择。
 
@@ -39,7 +41,7 @@ revision: event_state_exposure_and_outcome_protocol
 5. 主源缺失时如何降级；
 6. 反证应该去哪里找。
 
-## 2. 适用问题
+### 2. 适用问题
 
 本文适用于以下问题类型：
 
@@ -61,7 +63,7 @@ revision: event_state_exposure_and_outcome_protocol
 3. 单纯宏观数据跟踪，应先用 B02 宏观来源；
 4. 无明确冲击机制的泛泛“国际形势分析”。
 
-## 3. 使用顺序
+### 3. 使用顺序
 
 03 做地缘冲击取证时，应按以下顺序使用来源：
 
@@ -99,22 +101,22 @@ revision: event_state_exposure_and_outcome_protocol
 | 公司影响 | SEC EDGAR、HKEXnews、DART、EDINET、公司 IR | 巨潮资讯、上交所、深交所、北交所、HKEXnews、A/H 股公司公告 | 风险披露、收入地区、供应链关系和实际损益要分开 |
 | 市场反应 | Bloomberg、LSEG、FactSet、交易所、CME/ICE | Wind、iFinD、Choice、中证指数、交易所、外汇交易中心、中债 | 市场反应只能说明定价，不等于基本面事实 |
 
-## 4. 地缘冲击的核心必要证据组合
+### 4. 地缘冲击的核心必要证据组合
 
-| 必要证据组合 | 回答的问题 | 首选来源方向 |
+| Basket ID / 专题子项 | 回答的问题 | 首选来源方向 |
 |---|---|---|
-| 冲突事实 | 事件是否真实发生，发生在何时何地，涉及哪些主体 | 官方声明、国际组织、冲突数据库、权威新闻 |
-| 升级强度 | 是口头威胁、局部冲突、制裁落地，还是实际军事行动 | 官方军事/外交声明、ACLED、CFR、ICG、Reuters/Bloomberg/AP |
-| 制裁管制 | 是否有正式制裁、实体清单、出口管制、投资限制 | OFAC、BIS、Federal Register、CSL、EU Official Journal、UK OFSI、中国商务部等 |
-| 贸易限制 | 是否有关税、禁运、许可证、海关限制、原产地规则变化 | USTR、CBP、USITC、WTO、海关、UN Comtrade、ITC Trade Map |
-| 航道物流 | 是否影响港口、航道、保险、运价、船舶绕行、交付时间 | Drewry、Freightos、Baltic Exchange、Clarksons、UKMTO、JMIC、EIA chokepoints |
-| 能源商品 | 是否影响原油、天然气、LNG、电力、金属、粮食、化肥 | EIA、IEA、OPEC、JODI、ICE、CME、LME、S&P Global Commodity Insights、Argus |
-| 供应链暴露 | 哪些国家、公司、产品、HS code、客户或供应商暴露 | 公司披露、海关、UN Comtrade、USITC DataWeb、Panjiva/ImportGenius、FactSet/Bloomberg 供应链数据 |
-| 金融市场反应 | 油价、汇率、利率、股价、信用、波动率如何反应 | Wind、Bloomberg、Refinitiv/LSEG、FactSet、Capital IQ、交易所、CME、ICE |
-| 公司经营影响 | 公司收入、成本、客户、供应商、物流、存货是否受影响 | 年报、季报、公告、IR、业绩会、风险因素、管理层指引 |
-| 反证和缓冲 | 是否有库存、替代路线、豁免、过渡期、战略储备、停火或影响有限证据 | 同层级反向来源、公司披露、库存数据、航运数据、能源储备、官方豁免文件 |
+| `TRANS_START_FACT` / 冲突事实 | 事件是否真实发生，发生在何时何地，涉及哪些主体 | 官方声明、国际组织、冲突数据库、权威新闻 |
+| `TRANS_START_FACT` / 升级强度 | 是口头威胁、局部冲突、制裁落地，还是实际军事行动 | 官方军事/外交声明、ACLED、CFR、ICG、Reuters/Bloomberg/AP |
+| `TRANS_START_FACT` / 制裁管制 | 是否有正式制裁、实体清单、出口管制、投资限制 | OFAC、BIS、Federal Register、CSL、EU Official Journal、UK OFSI、中国商务部等 |
+| `TRANS_START_FACT` / 贸易限制 | 是否有关税、禁运、许可证、海关限制、原产地规则变化 | USTR、CBP、USITC、WTO、海关、UN Comtrade、ITC Trade Map |
+| `TRANS_INTERMEDIATE_NODE` / 航道物流 | 是否影响港口、航道、保险、运价、船舶绕行、交付时间 | Drewry、Freightos、Baltic Exchange、Clarksons、UKMTO、JMIC、EIA chokepoints |
+| `TRANS_INTERMEDIATE_NODE` / 能源商品 | 是否影响原油、天然气、LNG、电力、金属、粮食、化肥 | EIA、IEA、OPEC、JODI、ICE、CME、LME、S&P Global Commodity Insights、Argus |
+| `TRANS_EXPOSED_SUBJECT` / 供应链暴露 | 哪些国家、公司、产品、HS code、客户或供应商暴露 | 公司披露、海关、UN Comtrade、USITC DataWeb、Panjiva/ImportGenius、FactSet/Bloomberg 供应链数据 |
+| `TRANS_OUTCOME_VARIABLE` / 金融市场反应 | 油价、汇率、利率、股价、信用、波动率如何反应 | Wind、Bloomberg、Refinitiv/LSEG、FactSet、Capital IQ、交易所、CME、ICE |
+| `TRANS_OUTCOME_VARIABLE` / 公司经营影响 | 公司收入、成本、客户、供应商、物流、存货是否受影响 | 年报、季报、公告、IR、业绩会、风险因素、管理层指引 |
+| `TRANS_BLOCKER_COUNTER` / 反证和缓冲 | 是否有库存、替代路线、豁免、过渡期、战略储备、停火或影响有限证据 | 同层级反向来源、公司披露、库存数据、航运数据、能源储备、官方豁免文件 |
 
-## 5. 来源优先级总表
+### 5. 来源优先级总表
 
 | 取证任务 | 主源 | 交叉验证 | 替代或线索 | 04 最多能形成的结论 |
 |---|---|---|---|---|
@@ -127,7 +129,7 @@ revision: event_state_exposure_and_outcome_protocol
 | 判断公司暴露 | SEC EDGAR、HKEXnews、巨潮、交易所公告、公司 IR | 供应链数据库、海关、客户/供应商披露 | 卖方研报、专家纪要 | 公司披露是主源；供应链和调研需说明口径 |
 | 判断反证 | 与主证据同层级的反向来源 | 库存、替代路线、豁免、停火、价格回落、公司无影响表述 | 市场传闻 | 没有反证检查，不能给高强度方向判断 |
 
-## 6. 具体来源清单
+### 6. 具体来源清单
 
 ### 6.1 冲突事实、军事行动和安全事件
 
@@ -474,7 +476,7 @@ revision: event_state_exposure_and_outcome_protocol
 4. 不得用匿名消息源支撑关键判断；
 5. 不得把媒体的“可能、据称、预计”写成已发生事实。
 
-## 7. 典型地缘场景的推荐来源包
+### 7. 典型地缘场景的推荐来源包
 
 ### 7.1 中东冲突 / 霍尔木兹海峡 / 原油和 LNG 冲击
 
@@ -558,7 +560,7 @@ revision: event_state_exposure_and_outcome_protocol
 | 行业变量 | 对应 B03 行业来源 |
 | 反证 | 豁免、许可证、过渡期、替代供应、客户结构、非受控产品占比 |
 
-## 8. 推荐检索路径
+### 8. 推荐检索路径
 
 ### 8.1 事件冲击路径
 
@@ -609,7 +611,7 @@ revision: event_state_exposure_and_outcome_protocol
 → 反证：增产、库存释放、需求走弱、价格回落
 ```
 
-## 9. 取证输出时的最低留痕要求
+### 9. 取证输出时的最低留痕要求
 
 地缘冲击取证至少记录：
 
@@ -630,7 +632,7 @@ revision: event_state_exposure_and_outcome_protocol
 3. A/H 股披露口径：公告日期、报告期、公司风险因素、收入/成本/供应链暴露；
 4. 全球来源与中国来源是否一致；若不一致，必须说明差异和采用理由。
 
-## 10. 04 最多能形成的结论
+### 10. 04 最多能形成的结论
 
 | 证据完成度 | 04 可使用强度 |
 |---|---|
@@ -641,7 +643,7 @@ revision: event_state_exposure_and_outcome_protocol
 | 有公司暴露、行业变量、市场反应和反证检查 | 可进入方向性判断 |
 | 有量价成本拆分、情景测算和改判条件 | 可进入财务影响测算和可执行跟踪 |
 
-## 11. 常见错误
+### 11. 常见错误
 
 1. 用新闻替代原文；
 2. 用地缘叙事替代数据；
@@ -654,11 +656,15 @@ revision: event_state_exposure_and_outcome_protocol
 9. 只查支持证据，不查反证；
 10. 不区分短期风险溢价和长期供需变化。
 
-## 12. 一句话原则
+### 12. 一句话原则
 
 > 地缘冲击取证不能从“新闻叙事”直接跳到“投资结论”，必须先确认事实，再确认正式动作，再确认传导通道，再确认行业或公司暴露，最后用市场反应和反证校验判断强度。
 
-## 13. 地缘事件状态机
+## 第二部分：专题取证附录
+
+> 本部分只提供地缘场景的取证提示，不是正式判断结构。传导路径与研究问题以 02 场景卡为准，最低证据组合、反证、降级与停止条件以 `ER-TRANS-01` 和 A04/A08 为准；出现冲突时不得以本附录覆盖正式合同。
+
+### 13. 地缘事件状态机
 
 地缘材料必须区分：
 
@@ -673,7 +679,7 @@ rumor / report
 
 媒体报道可发现事件；正式制裁、管制、航行警告或公司公告确认动作；贸易量、船舶轨迹、港口、库存、价格和交付确认实际扰动。任何一层未成立，不得直接使用后层结论。
 
-## 14. 暴露测量矩阵
+### 14. 暴露测量矩阵
 
 | 暴露类型 | 优先测量 | 常见错误 |
 |---|---|---|
@@ -684,7 +690,7 @@ rumor / report
 | 公司 | 收入、采购、资产、产能、客户和供应商地域 | 用注册地址代替经营暴露 |
 | 金融 | 币种、利率、流动性、信用和对冲 | 用短期股价代替基本面损失 |
 
-## 15. 冲击分解与时间窗口
+### 15. 冲击分解与时间窗口
 
 地缘冲击至少分开：
 
@@ -698,7 +704,7 @@ rumor / report
 
 短期价格跳升不能自动外推长期供需；长期结构变化也不能用事件日行情证明。
 
-## 16. 双侧与多侧取证
+### 16. 双侧与多侧取证
 
 - 冲突事实尽量检查涉事各方、国际组织和独立观测，不以单方表述自动定案；
 - 政策事实以制定和执行司法辖区的正式文本为主，同时检查受影响方回应；
@@ -706,7 +712,7 @@ rumor / report
 - 各方表述不可比时保留其“来源主张”身份，不归一成共同事实；
 - 安全敏感、实时性强的信息明确截止时点，过期材料不得继续支撑当前状态。
 
-## 17. 地缘冲击反证包
+### 17. 地缘冲击反证包
 
 每个方向性判断至少检查：
 
@@ -722,6 +728,6 @@ company_exposure_lower_than_assumed
 market_move_explained_by_other_macro_factors
 ```
 
-## 18. 停止与更新规则
+### 18. 停止与更新规则
 
 地缘事件是高频变化对象。单次运行必须固定截止时点；出现升级、停火、修订、豁免、恢复或新制裁时生成新版本，不覆盖旧快照。当前信息只够确认事件而不足以证明实际流量和公司结果时，停止在事实层并输出后续监测指标。

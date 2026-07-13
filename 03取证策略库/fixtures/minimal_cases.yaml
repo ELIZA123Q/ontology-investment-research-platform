@@ -1,0 +1,55 @@
+fixture_type: evidence_strategy_end_to_end_cases
+schema_version: 1.0.0
+updated_at: 2026-07-13
+
+cases:
+  - case_id: FIX-STORAGE-CYCLE
+    case_name: 存储芯片周期
+    judgment_unit:
+      judgment_type: cycle_phase
+      required_evidence_roles: [support, counter, alternative_explanation]
+      evidence_scope: {object: 存储芯片分产品, time_window: frozen_business_window}
+    source_plan_roles: [primary, cross_validation, counter]
+    expected:
+      normalized_judgment_type: cycle_phase
+      matched_recipe: ER-CYCLE-01
+      recipe_version: 2.0.0
+      mandatory_baskets: [CYCLE_DEMAND, CYCLE_SUPPLY, CYCLE_INVENTORY_ORDER, CYCLE_PRICE, COUNTER_GENERAL]
+      evidence_quality_level: Q3_directional_ready
+      recipe_readiness: directional_only
+      evidence_permission: directional_judgment
+      allowed_04_output: directional_only
+
+  - case_id: FIX-GEOPOLITICAL-SHOCK
+    case_name: 地缘冲击传导
+    judgment_unit:
+      judgment_type: policy_impact_judgment
+      required_evidence_roles: [support, counter, alternative_explanation]
+      evidence_scope: {object: 半导体供应链, time_window: event_and_business_lag_window}
+    source_plan_roles: [primary, cross_validation, counter]
+    expected:
+      normalized_judgment_type: mechanism_transmission
+      matched_recipe: ER-TRANS-01
+      recipe_version: 2.0.0
+      mandatory_baskets: [TRANS_START_FACT, TRANS_INTERMEDIATE_NODE, TRANS_EXPOSED_SUBJECT, TRANS_OUTCOME_VARIABLE, TRANS_BLOCKER_COUNTER]
+      evidence_quality_level: Q3_directional_ready
+      recipe_readiness: conditional_only
+      evidence_permission: conditional_judgment
+      allowed_04_output: conditional_only
+
+  - case_id: FIX-COMPANY-EARNINGS
+    case_name: 公司业绩弹性
+    judgment_unit:
+      judgment_type: company_earnings_elasticity_judgment
+      required_evidence_roles: [support, counter, alternative_explanation]
+      evidence_scope: {object: 单家公司或分部, time_window: reporting_period}
+    source_plan_roles: [primary, cross_validation, counter]
+    expected:
+      normalized_judgment_type: earnings_impact
+      matched_recipe: ER-EARN-01
+      recipe_version: 2.0.0
+      mandatory_baskets: [FIN_EXPOSURE, FIN_VOLUME_PRICE_MIX, FIN_COST_MARGIN, FIN_CAPACITY_RECOGNITION, FIN_PARAMETER_PROVENANCE, FIN_COUNTER]
+      evidence_quality_level: Q2_reasoning_usable
+      recipe_readiness: full_reasoning_ready
+      evidence_permission: conditional_judgment
+      allowed_04_output: conditional_only

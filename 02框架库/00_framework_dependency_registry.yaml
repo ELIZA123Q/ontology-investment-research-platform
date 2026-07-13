@@ -1,6 +1,15 @@
-schema_version: 1.0.0
+schema_version: 2.0.0
 document_type: framework_dependency_registry
+machine_truth: true
 gate_status_enum: [passed, provisional, failed, not_applicable]
+
+# 依赖语义只在本文件定义。框架正文只能引用 output gate ID，不得复制前置或解锁关系。
+dependency_semantics:
+  entry_requires: 进入框架、生成候选变量和问题树所需的最小任务上下文
+  output_gates: 输出某一类 CandidateClaim 必须满足的判断前置与最低证据
+  quality_gates: 不阻止进入，但限制结论精度、强度或可用范围的质量门槛
+  downstream_unlocks: 至少一个相应输出门槛通过后，允许考虑的下游框架
+  boundary_handoffs: 超出本框架职责的结论及其唯一承接框架，不构成本框架输出
 
 layers:
   judgment_generation:
@@ -12,115 +21,435 @@ layers:
   market_pricing:
     assets: [BF-FS-01, BF-EG-01, BF-RS-01, BF-VA-01]
 
+# 可独立进入的问题入口；其高级输出仍受各自 output_gates 约束。
+graph_roots:
+  - BF-IC-01
+  - BF-MF-01
+  - BF-PI-01
+  - BF-SD-01
+  - BF-VT-01
+  - BF-BM-01
+  - BF-CG-01
+  - BF-RS-01
+  - IF-SC-01
+  - IF-LOC-01
+  - IF-APP-01
+  - IF-DES-01
+  - IF-FAB-01
+  - IF-PKG-01
+  - IF-EQP-01
+  - IF-MAT-01
+
 frameworks:
   BF-IC-01:
     layer: mechanism
-    hard_requires: [judgment_unit]
-    unlocks: [BF-SD-01, BF-BM-01]
+    entry_requires: [judgment_unit, object_scope]
+    output_gates:
+      competitive_market_scope:
+        requires: [defined_substitution_boundary]
+        minimum_evidence: [customer_budget_or_substitution_evidence, comparable_product_and_geography]
+      structure_state:
+        requires: [competitive_market_scope]
+        minimum_evidence: [participant_and_share_series, entry_exit_or_capacity_commitment]
+      profit_pool_attribution:
+        requires: [structure_state]
+        minimum_evidence: [margin_or_return_distribution, bargaining_or_switching_evidence]
+    downstream_unlocks: [BF-SD-01, BF-BM-01, IF-SC-01, IF-DES-01]
+    boundary_handoffs:
+      company_earnings_realization: BF-EE-01
+
   BF-MF-01:
     layer: mechanism
-    hard_requires: [judgment_unit]
-    unlocks: [BF-SD-01, BF-VT-01]
+    entry_requires: [judgment_unit, geography_and_time_scope]
+    output_gates:
+      macro_state:
+        requires: [same_basis_macro_series]
+        minimum_evidence: [official_macro_observation, release_and_revision_timestamps]
+      financial_condition_transmission:
+        requires: [macro_state, transmission_channel]
+        minimum_evidence: [policy_or_market_rate, credit_currency_or_liquidity_observation]
+      industry_exposure:
+        requires: [financial_condition_transmission]
+        minimum_evidence: [industry_behavior_or_balance_sheet_exposure, timing_alignment]
+    downstream_unlocks: [BF-SD-01, BF-VT-01]
+    boundary_handoffs:
+      company_earnings_realization: BF-EE-01
+
   BF-PI-01:
     layer: mechanism
-    hard_requires: [judgment_unit]
-    unlocks: [BF-VT-01, BF-SD-01]
+    entry_requires: [judgment_unit, policy_object_scope]
+    output_gates:
+      policy_fact:
+        requires: [authoritative_policy_text]
+        minimum_evidence: [issuer_authority, effective_time_and_applicable_scope]
+      execution_state:
+        requires: [policy_fact]
+        minimum_evidence: [implementing_rule_budget_license_or_enforcement, target_behavior_observation]
+      industry_effect:
+        requires: [execution_state, validated_transmission_path]
+        minimum_evidence: [intermediate_constraint_change, industry_result_or_distinguishing_signal]
+    downstream_unlocks: [BF-SD-01, BF-VT-01, IF-LOC-01]
+    boundary_handoffs:
+      company_earnings_realization: BF-EE-01
+
   BF-SD-01:
     layer: mechanism
-    hard_requires: [judgment_unit]
-    contextual_requires_any: [BF-IC-01, BF-MF-01, BF-PI-01, task_scoping_judgment]
-    unlocks: [BF-PC-01, BF-VT-01, BF-EE-01]
+    entry_requires: [judgment_unit, object_scope]
+    output_gates:
+      balance_state:
+        requires: [demand_and_supply_definition]
+        minimum_evidence: [terminal_or_consumption_demand, effective_supply, layered_inventory]
+      driver_attribution:
+        requires: [balance_state]
+        minimum_evidence: [orders_shipments_and_cancellations, timing_or_cross_section_discrimination]
+      cycle_phase:
+        requires: [balance_state, driver_attribution]
+        minimum_evidence: [multi_period_series, price_lead_time_or_utilization_confirmation]
+    downstream_unlocks: [BF-PC-01, BF-VT-01, BF-EE-01, IF-SC-01, IF-APP-01, IF-FAB-01, IF-PKG-01]
+    boundary_handoffs:
+      price_state: BF-PC-01
+      company_earnings_realization: BF-EE-01
+
   BF-VT-01:
     layer: mechanism
-    hard_requires: [judgment_unit, path_nodes_and_relations]
-    contextual_requires_any: [BF-PI-01, BF-SD-01, BF-MF-01, exogenous_event_judgment]
-    unlocks: [BF-EE-01, BF-RS-01]
+    entry_requires: [judgment_unit, scoped_start_and_end_objects]
+    output_gates:
+      path_structure:
+        requires: [path_nodes_and_relations]
+        minimum_evidence: [node_facts, real_relation_evidence]
+      segment_pass_through:
+        requires: [path_structure]
+        minimum_evidence: [intermediate_state_change, absorption_substitution_or_amplification_test]
+      terminal_effect:
+        requires: [segment_pass_through]
+        minimum_evidence: [endpoint_result, scope_and_timing_alignment]
+    downstream_unlocks: [BF-EE-01, IF-LOC-01, IF-APP-01, IF-PKG-01]
+    boundary_handoffs:
+      company_earnings_realization: BF-EE-01
+
   BF-PC-01:
     layer: mechanism
-    hard_requires: [BF-SD-01]
-    unlocks: [BF-EE-01, BF-FS-01]
+    entry_requires: [judgment_unit, product_and_price_basis]
+    output_gates:
+      price_state:
+        requires: [same_basis_price_series]
+        minimum_evidence: [transaction_or_settlement_validation, volume_or_spread_cross_check]
+      driver_attribution:
+        requires: [price_state, BF-SD-01.balance_state]
+        minimum_evidence: [inventory_order_and_lead_time, cost_mix_or_contract_alternative_test]
+      realized_price_path:
+        requires: [price_state, contract_or_mix_definition]
+        minimum_evidence: [contract_reset_or_discount, realized_asp_or_equivalent]
+    downstream_unlocks: [BF-EE-01, IF-SC-01]
+    boundary_handoffs:
+      profit_pass_through: BF-EE-01
+
   BF-BM-01:
     layer: company_realization
-    hard_requires: [judgment_unit, company_scope]
-    contextual_requires_any: [BF-IC-01, industry_boundary_judgment]
-    unlocks: [BF-FQ-01, BF-EE-01, BF-CA-01]
+    entry_requires: [judgment_unit, company_scope]
+    output_gates:
+      revenue_model:
+        requires: [customer_value_and_pricing_definition]
+        minimum_evidence: [customer_or_contract_evidence, revenue_driver_breakdown]
+      unit_economics:
+        requires: [revenue_model]
+        minimum_evidence: [unit_revenue_and_delivery_cost, acquisition_retention_or_reinvestment]
+      business_model_quality:
+        requires: [revenue_model, unit_economics, BF-IC-01.competitive_market_scope]
+        minimum_evidence: [advantage_persistence, cash_and_capital_intensity]
+    downstream_unlocks: [BF-FQ-01, BF-EE-01, BF-CA-01, IF-DES-01]
+    boundary_handoffs:
+      short_term_earnings_change: BF-EE-01
+
   BF-FQ-01:
     layer: company_realization
-    hard_requires: [BF-BM-01]
-    unlocks: [BF-EE-01, BF-CA-01, BF-FS-01]
+    entry_requires: [judgment_unit, company_scope, reporting_period]
+    output_gates:
+      reported_fact:
+        requires: [financial_statement_scope]
+        minimum_evidence: [audited_or_regulatory_filing, accounting_policy_and_reconciliation]
+      normalized_baseline:
+        requires: [reported_fact]
+        minimum_evidence: [one_off_and_accounting_adjustments, cash_working_capital_cross_check]
+      earnings_quality:
+        requires: [normalized_baseline, BF-BM-01.revenue_model]
+        minimum_evidence: [profit_to_cash_bridge, receivable_inventory_or_capitalization_test]
+    downstream_unlocks: [BF-EE-01, BF-CA-01, BF-FS-01]
+    boundary_handoffs:
+      future_forecast: BF-FS-01
+
   BF-EE-01:
     layer: company_realization
-    hard_requires: [BF-BM-01, upstream_industry_or_mechanism_judgment]
-    contextual_requires_any: [BF-SD-01, BF-PC-01, BF-VT-01, BF-PI-01, BF-MF-01]
-    quality_gate: BF-FQ-01
-    unlocks: [BF-FS-01, BF-EG-01, BF-RS-01]
+    entry_requires: [judgment_unit, company_scope]
+    output_gates:
+      exposure_bridge:
+        requires: [BF-BM-01.revenue_model, upstream_industry_or_mechanism_judgment]
+        minimum_evidence: [product_customer_or_contract_exposure, deliverable_capacity]
+      earnings_bridge:
+        requires: [exposure_bridge]
+        minimum_evidence: [volume_price_mix_cost_bridge, recognition_timing]
+      cash_bridge:
+        requires: [earnings_bridge]
+        minimum_evidence: [working_capital_and_capex, operating_cash_or_collection]
+    quality_gates:
+      financial_baseline_quality:
+        requires: [BF-FQ-01.normalized_baseline]
+        on_failure: cap_at_provisional_and_use_range
+    downstream_unlocks: [BF-FS-01, BF-EG-01, BF-RS-01, BF-VA-01]
+    boundary_handoffs:
+      market_expectation_gap: BF-EG-01
+      valuation_input_change: BF-VA-01
+
   BF-CG-01:
     layer: company_realization
-    hard_requires: [judgment_unit, company_scope]
-    unlocks: [BF-CA-01, BF-RS-01]
+    entry_requires: [judgment_unit, company_scope]
+    output_gates:
+      governance_structure:
+        requires: [control_and_board_definition]
+        minimum_evidence: [ownership_board_and_related_party_disclosure, governance_event_history]
+      incentive_alignment:
+        requires: [governance_structure]
+        minimum_evidence: [compensation_or_ownership_terms, decision_and_outcome_history]
+      execution_quality:
+        requires: [incentive_alignment]
+        minimum_evidence: [guidance_delivery_record, capital_or_operating_decision_outcomes]
+    downstream_unlocks: [BF-CA-01, BF-RS-01]
+    boundary_handoffs:
+      earnings_forecast: BF-FS-01
+
   BF-CA-01:
     layer: company_realization
-    hard_requires: [BF-BM-01, BF-FQ-01]
-    contextual_requires_any: [BF-CG-01, governance_judgment]
-    unlocks: [BF-FS-01, BF-RS-01]
+    entry_requires: [judgment_unit, company_scope]
+    output_gates:
+      capital_action:
+        requires: [action_terms_and_funding_source]
+        minimum_evidence: [filing_or_board_decision, cash_debt_and_commitment_baseline]
+      value_creation:
+        requires: [capital_action, BF-BM-01.unit_economics, BF-FQ-01.normalized_baseline]
+        minimum_evidence: [incremental_return_vs_cost_of_capital, dilution_or_opportunity_cost]
+      cash_return_sustainability:
+        requires: [value_creation]
+        minimum_evidence: [free_cash_flow_capacity, balance_sheet_and_reinvestment_need]
+    downstream_unlocks: [BF-FS-01, BF-RS-01]
+    boundary_handoffs:
+      valuation_effect: BF-VA-01
+
   BF-FS-01:
     layer: market_pricing
-    hard_requires: [BF-BM-01, BF-FQ-01]
-    contextual_requires_any: [BF-EE-01, operating_driver_judgment]
-    unlocks: [BF-EG-01, BF-RS-01, BF-VA-01]
+    entry_requires: [judgment_unit, company_scope, forecast_horizon]
+    output_gates:
+      conditional_forecast:
+        requires: [BF-EE-01.earnings_bridge]
+        minimum_evidence: [driver_baseline, driver_to_financial_mapping]
+      scenario_range:
+        requires: [conditional_forecast, genuine_uncertainty_driver]
+        minimum_evidence: [scenario_entry_and_exit_conditions, sensitivity_or_historical_range]
+      precise_point_estimate:
+        requires: [conditional_forecast, BF-FQ-01.normalized_baseline]
+        minimum_evidence: [high_quality_driver_inputs, accounting_and_timing_reconciliation]
+    quality_gates:
+      historical_baseline_quality:
+        requires: [BF-FQ-01.normalized_baseline]
+        on_failure: allow_conditional_range_only
+    downstream_unlocks: [BF-EG-01, BF-VA-01]
+    boundary_handoffs:
+      expectation_gap: BF-EG-01
+
   BF-EG-01:
     layer: market_pricing
-    hard_requires: [timestamped_prior_expectation, new_information_judgment]
-    contextual_requires_any: [BF-FS-01, BF-EE-01, fundamental_change_judgment]
-    unlocks: [BF-VA-01]
+    entry_requires: [judgment_unit, asset_or_consensus_scope]
+    output_gates:
+      prior_expectation_baseline:
+        requires: [timestamped_prior_expectation]
+        minimum_evidence: [pre_event_snapshot, sample_scope_and_distribution]
+      expectation_gap:
+        requires: [prior_expectation_baseline, new_information_judgment]
+        minimum_evidence: [same_basis_old_new_comparison, already_known_or_priced_test]
+      convergence_path:
+        requires: [expectation_gap]
+        minimum_evidence: [revision_or_realization_trigger, price_positioning_or_risk_alternative]
+    downstream_unlocks: [BF-VA-01]
+    boundary_handoffs:
+      valuation_range: BF-VA-01
+
   BF-RS-01:
     layer: market_pricing
-    hard_requires: [judgment_unit, exposure_and_trigger]
-    contextual_requires_any: [BF-SD-01, BF-VT-01, BF-FQ-01, BF-CA-01, BF-FS-01]
-    unlocks: [BF-FS-01, BF-VA-01]
+    entry_requires: [judgment_unit, scoped_risk_factor]
+    output_gates:
+      risk_path:
+        requires: [exposure_and_trigger]
+        minimum_evidence: [observable_trigger, exposure_buffer_and_recovery_path]
+      stress_effect:
+        requires: [risk_path]
+        minimum_evidence: [linked_operating_or_financial_assumptions, compound_effect_test]
+      irreversible_threshold:
+        requires: [stress_effect]
+        minimum_evidence: [liquidity_covenant_supply_or_capacity_threshold, response_options]
+    downstream_unlocks: [BF-VA-01]
+    boundary_handoffs:
+      forecast_stress_case: BF-FS-01
+
   BF-VA-01:
     layer: market_pricing
-    hard_requires:
-      - upstream_industry_or_mechanism_judgment
-      - BF-EE-01
-      - BF-FS-01
-      - BF-EG-01
-      - valuation_input_change
-    unlocks: []
+    entry_requires: [judgment_unit, asset_scope]
+    output_gates:
+      valuation_entry:
+        requires:
+          - upstream_industry_or_mechanism_judgment
+          - BF-EE-01.earnings_bridge
+          - BF-FS-01.conditional_forecast
+          - BF-EG-01.prior_expectation_baseline
+          - valuation_input_change
+        minimum_evidence: [cash_flow_growth_duration_or_risk_delta, same_basis_market_baseline]
+      changed_input:
+        requires: [valuation_entry]
+        minimum_evidence: [input_direction_and_duration, sensitivity_or_comparable_validation]
+      valuation_range:
+        requires: [changed_input]
+        minimum_evidence: [scenario_specific_inputs, method_applicability_and_cross_check]
+    quality_gates:
+      provisional_inheritance:
+        requires: [all_prerequisite_outputs_passed]
+        on_failure: keep_valuation_conditional_or_failed
+    downstream_unlocks: []
+    boundary_handoffs: {}
 
 industry_overlays:
   IF-SC-01:
     layer: mechanism
-    hard_requires: [BF-IC-01, BF-SD-01, BF-PC-01]
-    unlocks: [BF-EE-01, BF-FS-01]
+    entry_requires: [judgment_unit, semiconductor_segment_scope]
+    output_gates:
+      segmented_cycle_state:
+        requires: [segmented_clock_definition]
+        minimum_evidence: [terminal_orders_and_layered_inventory, price_utilization_or_supply_clock]
+      phase_driver:
+        requires: [segmented_cycle_state, BF-SD-01.driver_attribution]
+        minimum_evidence: [restocking_vs_consumption_test, segment_diffusion_and_timing]
+      phase_switch:
+        requires: [phase_driver, BF-PC-01.price_state]
+        minimum_evidence: [leading_reversal_signal, lagging_confirmation_and_supply_response]
+    downstream_unlocks: [BF-EE-01, BF-FS-01]
+    boundary_handoffs:
+      company_earnings_realization: BF-EE-01
+
   IF-LOC-01:
     layer: mechanism
-    hard_requires: [BF-PI-01, BF-VT-01]
-    unlocks: [BF-EE-01, BF-RS-01]
+    entry_requires: [judgment_unit, constrained_item_and_geography]
+    output_gates:
+      constraint_path:
+        requires: [BF-PI-01.policy_fact, BF-VT-01.path_structure]
+        minimum_evidence: [license_or_restriction_fact, affected_dependency_and_buffer]
+      localization_stage:
+        requires: [qualification_stage_definition]
+        minimum_evidence: [customer_validation, batch_delivery_repurchase_or_replication]
+      resilience_state:
+        requires: [constraint_path, localization_stage]
+        minimum_evidence: [alternative_supply_and_core_dependency, concentration_and_recovery_test]
+    downstream_unlocks: [BF-EE-01, BF-RS-01]
+    boundary_handoffs:
+      revenue_profit_and_cash: BF-EE-01
+
   IF-APP-01:
     layer: mechanism
-    hard_requires: [BF-SD-01, BF-VT-01]
-    unlocks: [IF-DES-01, IF-FAB-01, IF-PKG-01, BF-EE-01]
+    entry_requires: [judgment_unit, application_and_system_scope]
+    output_gates:
+      theoretical_content:
+        requires: [terminal_units_and_configuration]
+        minimum_evidence: [system_bom_or_configuration, penetration_assumption]
+      realized_consumption:
+        requires: [theoretical_content]
+        minimum_evidence: [deployment_and_utilization, procurement_and_inventory_timing]
+      demand_transmission:
+        requires: [realized_consumption, BF-VT-01.segment_pass_through]
+        minimum_evidence: [substitution_or_budget_displacement_test, component_shipment_confirmation]
+    downstream_unlocks: [IF-DES-01, IF-FAB-01, IF-PKG-01, BF-EE-01]
+    boundary_handoffs:
+      company_earnings_realization: BF-EE-01
+
   IF-DES-01:
     layer: company_realization
-    hard_requires: [BF-BM-01, BF-IC-01]
-    unlocks: [BF-EE-01, BF-FS-01]
+    entry_requires: [judgment_unit, product_and_customer_scope]
+    output_gates:
+      commercialization_stage:
+        requires: [stage_definition]
+        minimum_evidence: [tapeout_validation_design_win_or_shipment, stage_specific_next_gate]
+      commercial_quality:
+        requires: [commercialization_stage, BF-BM-01.revenue_model, BF-IC-01.competitive_market_scope]
+        minimum_evidence: [ecosystem_and_supply_readiness, unit_economics_and_customer_concentration]
+      realization_readiness:
+        requires: [commercial_quality]
+        minimum_evidence: [mass_production_and_repeat_order, deliverable_capacity_and_recognition_terms]
+    downstream_unlocks: [BF-EE-01, BF-FS-01]
+    boundary_handoffs:
+      revenue_profit_and_cash: BF-EE-01
+
   IF-FAB-01:
     layer: mechanism
-    hard_requires: [BF-SD-01]
-    unlocks: [BF-EE-01, BF-FS-01]
+    entry_requires: [judgment_unit, fab_process_and_product_scope]
+    output_gates:
+      effective_capacity:
+        requires: [nominal_capacity_definition]
+        minimum_evidence: [tool_process_wafer_start_cycle_time, yield_mix_and_customer_qualification]
+      ramp_timing:
+        requires: [effective_capacity, BF-SD-01.balance_state]
+        minimum_evidence: [pilot_to_mass_production_series, bottleneck_and_supply_release_schedule]
+      manufacturing_economics_readiness:
+        requires: [effective_capacity]
+        minimum_evidence: [utilization_yield_mix_and_price, depreciation_or_unit_cost]
+    downstream_unlocks: [BF-EE-01, BF-FS-01]
+    boundary_handoffs:
+      revenue_profit_and_cash: BF-EE-01
+
   IF-PKG-01:
     layer: mechanism
-    hard_requires: [BF-SD-01, BF-VT-01]
-    unlocks: [BF-EE-01, BF-RS-01]
+    entry_requires: [judgment_unit, package_flow_and_product_scope]
+    output_gates:
+      bottleneck_location:
+        requires: [process_flow_and_capacity_definition]
+        minimum_evidence: [step_capacity_and_cycle_time, material_equipment_and_yield]
+      qualified_system_output:
+        requires: [bottleneck_location, BF-VT-01.segment_pass_through]
+        minimum_evidence: [cascaded_yield_and_test, thermal_and_customer_qualification]
+      profit_pool_readiness:
+        requires: [qualified_system_output]
+        minimum_evidence: [pricing_and_yield_responsibility, capital_intensity_and_customer_bargaining]
+    downstream_unlocks: [BF-EE-01, BF-RS-01]
+    boundary_handoffs:
+      revenue_profit_and_cash: BF-EE-01
+
   IF-EQP-01:
     layer: company_realization
-    hard_requires: [BF-VT-01]
-    unlocks: [BF-EE-01, BF-FS-01]
+    entry_requires: [judgment_unit, tool_process_and_customer_scope]
+    output_gates:
+      tool_demand:
+        requires: [fab_project_or_process_demand]
+        minimum_evidence: [project_node_capacity_and_timing, tool_category_and_intensity]
+      validation_stage:
+        requires: [stage_definition]
+        minimum_evidence: [line_position_and_process_result, multi_batch_stability]
+      order_to_acceptance_readiness:
+        requires: [tool_demand, validation_stage]
+        minimum_evidence: [order_delivery_installation_and_acceptance_terms, repeat_order_or_cross_line_copy]
+    downstream_unlocks: [BF-EE-01, BF-FS-01]
+    boundary_handoffs:
+      revenue_profit_and_cash: BF-EE-01
+
   IF-MAT-01:
     layer: company_realization
-    hard_requires: [BF-VT-01]
-    unlocks: [BF-EE-01, BF-FS-01]
+    entry_requires: [judgment_unit, material_process_and_customer_scope]
+    output_gates:
+      consumption_demand:
+        requires: [wafer_or_package_output_and_process_steps]
+        minimum_evidence: [unit_consumption_and_recovery, product_grade_and_mix]
+      qualification_stage:
+        requires: [stage_definition]
+        minimum_evidence: [line_test_and_quality_result, batch_consistency]
+      volume_release_readiness:
+        requires: [consumption_demand, qualification_stage]
+        minimum_evidence: [batch_supply_and_repeat_order, cross_fab_replication_and_supply_stability]
+    downstream_unlocks: [BF-EE-01, BF-FS-01]
+    boundary_handoffs:
+      revenue_profit_and_cash: BF-EE-01
 
 output_contract_required_fields:
   - framework_id

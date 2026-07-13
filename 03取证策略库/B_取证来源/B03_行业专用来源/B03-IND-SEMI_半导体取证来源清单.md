@@ -3,7 +3,7 @@ document_type: industry_evidence_source_registry
 schema_version: 1.1.0
 file_id: B03-IND-SEMI
 file_name: B03-IND-SEMI_半导体取证来源清单.md
-generated_at: 2026-07-12
+generated_at: 2026-07-13
 industry: semiconductor
 status: ready_to_use
 revision: measurement_granularity_and_triangulation
@@ -65,23 +65,23 @@ B02 负责政策、公司披露、金融市场、宏观、贸易、商品、新�
 
 ## 3. 半导体核心必要证据组合
 
-| 必要证据组合 | 需要回答的问题 | 典型变量 |
+| Basket ID / 半导体子项 | 需要回答的问题 | 典型变量 |
 |---|---|---|
-| 行业周期 | 全球半导体是在上行、下行、修复还是分化？ | 全球销售额、同比、环比、3MMA、区域、产品结构 |
-| 细分产品需求 | 哪些产品强，哪些产品弱？ | memory、logic、analog、MCU、power、sensor、discrete 等出货和收入 |
-| 价格/ASP | 价格是否上涨、下跌、分化？ | spot price、contract price、ASP、wafer price、module price |
-| 供给/产能 | 有效供给是否紧张？ | wafer capacity、utilization、capex、equipment shipment、lead time、yield |
-| 库存 | 库存处在去化、补库还是累库？ | supplier inventory、channel inventory、customer inventory、days inventory |
-| 订单/交期 | 需求是否真实传导？ | backlog、book-to-bill、lead time、订单能见度、客户排产 |
-| 下游需求 | 终端需求来自哪里？ | smartphone、PC、server、AI server、auto、industrial、optical |
-| 产业链瓶颈 | 约束在哪个环节？ | equipment、wafer、HBM、CoWoS、substrate、materials、testing |
-| 公司暴露 | 哪些公司受益或受损？ | 收入结构、客户结构、产能、ASP、库存、capex、毛利率 |
-| 市场预期 | 基本面变化是否已定价？ | 一致预期、股价反应、估值、卖方观点分布 |
-| 反证 | 什么会推翻判断？ | 价格回落、库存累积、订单取消、capex 下修、下游出货低于预期 |
+| `CYCLE_DEMAND` / 细分产品与下游需求 | 哪些产品强，终端需求来自哪里？ | memory、logic、analog、手机、PC、服务器、汽车、工业等出货和收入 |
+| `CYCLE_SUPPLY` / 供给与产能 | 有效供给是否紧张？ | wafer capacity、utilization、capex、equipment shipment、lead time、yield |
+| `CYCLE_INVENTORY_ORDER` / 库存与订单 | 在去库、补库还是累库，需求是否真实传导？ | supplier/channel/customer inventory、backlog、book-to-bill、客户排产 |
+| `CYCLE_PRICE` / 价格与 ASP | 价格是否上涨、下跌或分化？ | spot price、contract price、ASP、wafer price、module price |
+| `TRANS_INTERMEDIATE_NODE` / 产业链瓶颈 | 约束在哪个环节？ | equipment、wafer、HBM、CoWoS、substrate、materials、testing |
+| `DIFF_EXPOSURE` / 公司暴露 | 哪些公司受影响、暴露在哪里？ | 收入结构、客户结构、产能、ASP、库存、capex、毛利率 |
+| `EXPECT_PRIOR_CONSENSUS` / 市场预期 | 事件前市场预期是什么？ | 一致预期、样本、vintage、卖方观点分布 |
+| `EXPECT_PRICE_REACTION` / 定价反应 | 新信息后市场怎样反应？ | 相对收益、成交、估值和风险溢价 |
+| `COUNTER_GENERAL` / 反证 | 什么会推翻判断？ | 价格回落、库存累积、订单取消、capex 下修、下游出货低于预期 |
 
 ## 4. 必要证据组合到来源映射
 
-| 必要证据组合 | 首选来源 | 交叉验证来源 | 替代/线索来源 | 常见错误 |
+下表第一列是半导体来源任务标签，不是 Basket ID；运行时必须挂接到上表或 `00_basket_registry.yaml` 的稳定 ID。
+
+| 来源任务标签（非 Basket ID） | 首选来源 | 交叉验证来源 | 替代/线索来源 | 常见错误 |
 |---|---|---|---|---|
 | 全球半导体销售 | WSTS、SIA | Gartner、Omdia、IDC、公司披露 | 新闻转述、卖方研报 | 用单月收入直接判断周期，不看 3MMA 和产品结构 |
 | 半导体设备 | SEMI、SEAJ、设备公司披露 | ASML、Applied Materials、Lam Research、KLA、Tokyo Electron、Screen、Advantest、Teradyne | 卖方研报、行业新闻 | 把设备销售当作同步需求，不考虑 capex 滞后 |
@@ -106,7 +106,7 @@ B02 负责政策、公司披露、金融市场、宏观、贸易、商品、新�
 
 ### 4.1 中国半导体必要证据组合补充矩阵
 
-| 必要证据组合 | 中国侧首选来源 | 交叉验证来源 | 常见错误 |
+| 来源任务标签（非 Basket ID） | 中国侧首选来源 | 交叉验证来源 | 常见错误 |
 |---|---|---|---|
 | 中国集成电路产量 | 国家统计局、工信部电子信息制造业运行情况 | CSIA、地方统计、公司披露 | 把“块/个/亿块”口径混用；把产量等同销售额 |
 | 中国 IC 进出口 | 海关总署统计查询平台、商务部数据中心 | UN Comtrade、公司披露、行业协会 | 不核对 HS code、数量单位、币种和转口贸易 |

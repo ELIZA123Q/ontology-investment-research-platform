@@ -2,155 +2,85 @@
 framework_id: IF-DES-01
 name: 芯片设计、IP与产品商业化框架
 library: industry_semiconductor
-version: 5.0.0
+version: 6.0.0
 status: core
 framework_type: value_chain_main
-builds_on: [BF-BM-01, BF-IC-01, BF-EE-01]
-updated_at: 2026-07-08
+validation_status: pending_two_tasks
+validated_case_refs: []
+updated_at: 2026-07-13
 ---
 
 # 芯片设计、IP与产品商业化框架
 
 ## 研究员先看什么：每个商业化阶段都可能归零
 
-产品定义、架构/IP、设计验证、流片、回片、客户验证、design win、量产、复购和平台迭代是不同风险阶段。研究员应明确当前证据停在哪一级，以及下一阶段成功所需的客户、生态、成本和供应条件。
+```text
+产品定义 → 架构/IP → 设计验证 → 流片/回片 → 客户验证
+→ design win → 量产 → 复购 → 平台迭代
+```
 
-design win 不等于量产收入；量产也不等于良好经济性。重点检查软件生态、客户开发周期、晶圆/封测保障、die size 与良率、ASP 与成本、单一客户依赖、产品生命周期和迭代蚕食。
+design win 不等于量产收入，量产也不等于良好经济性。研究员必须说明当前证据停在哪一级、下一阶段成功需要什么，以及失败后是否回到前一阶段或产品归零。
 
-## 本框架应交付什么（系统名 Framework Output Contract）
+## 1. 适用边界与核心分歧
+
+适用于无晶圆厂设计公司、IDM 设计端、IP/EDA、定制芯片与平台化产品的研发、验证和商业化。必须固定产品代际、目标客户、应用、工艺节点和供应链方案。
+
+核心分歧是当前阶段是否被证据确认、技术可用能否转化为客户采用、商业模式和竞争边界是否支持可持续经济性。收入、利润和现金的实际兑现由 BF-EE-01 承接。
+
+## 2. 特有机制、阶段门与关键时钟
+
+| 阶段门 | 必要条件 | 可能归零点 |
+|---|---|---|
+| 产品与架构 | 需求定义、PPA/成本目标、IP/生态可得 | 目标变化或生态不兼容 |
+| 流片与回片 | 设计签核、工艺可制造、样片功能 | 延期、功能缺陷、重流片 |
+| 客户验证 | 系统适配、软件、可靠性、成本 | 测试失败或客户方案切换 |
+| design win | 项目定点与量产计划 | 项目取消、份额或时间不确定 |
+| 量产复购 | 供应、良率、交付、实际装机 | 良率/成本失控或无复购 |
+| 平台迭代 | 复用、生态、客户迁移、代际节奏 | 新品蚕食旧品且无净增长 |
+
+阶段状态可独立输出；商业质量才需要商业模式与竞争市场前置，不能把 BF-BM-01 当作进入本框架的总门槛。
+
+## 3. 决胜变量、区分信号与最低证据
+
+| 决胜变量 | 区分信号 | 最低证据 |
+|---|---|---|
+| 当前阶段 | 流片、样片、客户测试、定点、量产、复购 | 阶段对应的可追溯里程碑 |
+| 软件与生态 | 工具链、开发者、系统适配和迁移成本 | 客户/生态侧采用或兼容证据 |
+| 供应与良率 | 晶圆、封测、die size、良率和交期 | 供应安排 + 可交付性证据 |
+| 客户质量 | 客户数量、集中度、项目生命周期 | 客户/项目口径订单或出货 |
+| 单位经济 | ASP、晶圆封测成本、研发摊销、售后 | 同代际收入成本或可信代理 |
+| 复购与平台化 | 重复订单、跨客户、跨代际迁移 | 首次量产后的实际复购 |
+
+## 4. 竞争解释、候选反证与停止条件
+
+| 解释 | 区分预测 | 主要候选反证 |
+|---|---|---|
+| 主解释：产品跨过阶段门并形成可持续采用 | 客户验证后出现量产、复购和跨客户扩展 | 只有定点或一次性备货 |
+| 竞争解释：design win 被误写为收入 | 项目时间、份额和量产尚不确定 | 可追溯出货、装机与复购 |
+| 竞争解释：技术成功但经济性差 | 出货增长而毛利/现金或单位成本恶化 | 规模增长伴随单位经济改善 |
+| 竞争解释：单客户定制不可复制 | 收入集中且下一客户仍需完整重做 | 平台复用和跨客户采用出现 |
+
+产品代际或客户边界不清、阶段只有公司自述、验证与量产无法区分、供应或软件生态不可确认时，停止商业化质量判断，最多保留阶段候选。裁决动作由 04 决定。
+
+## 5. 本框架特有输出
 
 ```yaml
 framework_layer: company_realization
-hard_prerequisites: [BF-BM-01, BF-IC-01]
-judgment_types: [mechanism_transmission, state_measurement, object_comparison]
-state_variable_candidates: [development_stage, tapeout, validation, design_win, mass_production, repurchase]
-signal_candidates: [prototype, tapeout, customer_test, design_win, shipment, repeat_order]
-output_objects: [commercialization_stage, stage_gate, ecosystem_dependency, revenue_bridge]
-evidence_requirements: [产品定义, 技术验证, 客户验证, 量产交付, 复购]
-falsification_conditions: [stage_confusion, validation_failure, no_supply, no_repeat_order]
-scenarios: [stage_progression, delay, reset]
-downstream_unlocks: [BF-EE-01, BF-FS-01]
+output_gate_refs: [IF-DES-01.commercialization_stage, IF-DES-01.commercial_quality, IF-DES-01.realization_readiness]
+judgment_types: [state_measurement, mechanism_transmission, object_comparison]
+state_variable_candidates: [development_stage, tapeout, customer_validation, design_win, mass_production, repeat_order, ecosystem_readiness]
+signal_candidates: [prototype, tapeout, customer_test, design_win, shipment, installation, repeat_order]
+output_objects: [commercialization_stage, stage_gate, ecosystem_dependency, realization_readiness]
+evidence_requirements: [阶段里程碑, 客户与生态验证, 供应良率, 量产装机, 复购与单位经济]
+falsification_conditions: [stage_confusion, validation_failure, no_supply, poor_unit_economics, no_repeat_order]
+scenarios: [design_win_without_volume, volume_without_economics, repeatable_platform_adoption]
 ```
 
-运行时补齐 `gate_status`、`prerequisite_judgment_refs`、`candidate_claims` 和 `unresolved_gaps`，并遵守[框架依赖图与输出协议](../../../../01_框架依赖图与输出协议.md)。
+运行时字段从[依赖 registry 与输出协议](../../../../01_框架依赖图与输出协议.md)解析。
 
-## 1. 适用问题与边界
+## 6. 组合、裁剪与真实任务验证
 
-用于 Fabless、IDM 设计部门、EDA工具、半导体IP、设计服务和芯片产品从需求定义、架构、验证、流片到客户采用、量产和产品平台化的研究。产品发布、流片成功、试用授权和 Design Win 均不是收入事实；制造、封装和供应保障需作为外部约束接入。
-
-## 2. 核心判断任务与关键口径
-
-核心洞见：
-
-> 设计成功、流片成功、EDA/IP被试用、Design Win 和收入兑现是不同阶段，不能合并为“已突破”。
-
-关键口径要求：
-
-- 开发阶段：需求定义、设计、验证、流片、回片、调试、认证、量产。
-- 商业化阶段：样品、Design Win、试产、量产、复购、跨客户扩散。
-- EDA/IP阶段：试用、采购、生产项目使用、流片、复购和企业级扩张。
-- 平台能力：IP/工具复用、软件生态、产品组合和迭代节奏。
-- 经济性：研发投入、掩模/流片成本、单位成本、ASP、生命周期和库存风险。
-
-## 3. 核心问题树
-
-1. 产品解决何种客户问题，规格和替代方案是什么？
-2. 设计、验证、流片和后硅调试处于何阶段？
-3. EDA、IP、PDK、工艺、封装、软件和供应链是否就绪？
-4. 若研究EDA/IP，工具或IP是否进入真实生产项目，而不只是试用或采购？
-5. Design Win 是否对应明确项目、规格、数量和量产时间？
-6. 客户认证、采购、复购和跨客户扩散能否兑现？
-7. 收入模式是许可、订阅、版税、服务还是芯片销售？
-
-## 4. 分析模块与传导机制
-
-| 模块 | 源变量 → 目标变量 | 方向或非线性 | 领先/同步/滞后信号 | 典型窗口 | 失效边界 |
-|---|---|---|---|---|---|
-| DES-M1 产品定义 | 客户需求 → 产品规格 | 规格错配可整体阻断 | 需求文档/合作领先 | 一至三年 | 只有概念无客户场景 |
-| DES-M2 开发成熟 | 设计/验证 → 技术成熟度 | 流片迭代形成阶段阈值 | tape-out领先、回片滞后 | 六月至三年 | 流片等同成功 |
-| DES-M3 供应就绪 | 工艺/封装/软件 → 生产可用性 | 缺一环可能阻断 | 认证/适配领先 | 两至十季度 | 合作协议等同认证 |
-| DES-M4 EDA/IP生态 | 工具/IP/PDK → 完整设计流程能力 | 点工具不等于完整生产流程 | 采购/试用领先，真实流片滞后 | 两季度至多年 | 软件安装等同生产使用 |
-| DES-M5 客户阶梯 | 认证/Design Win → 订单能见度 | 定点转量产率非线性 | 定点领先、订单/收入滞后 | 两至十季度 | 合作协议等同订单 |
-| DES-M6 平台复用 | IP/软件/工具 → 开发效率 | 生态和复用有规模效应 | 多代产品迭代领先 | 多代产品 | 单品成功外推平台 |
-| DES-M7 财务兑现 | 出货/ASP/成本 → 业绩弹性 | 生命周期和库存放大 | 出货领先、现金滞后 | 一至八季度 | 收入增长不核库存现金 |
-
-## 5. 最低证据与交叉验证
-
-- 产品规格、开发里程碑、流片/回片、验证问题、制造封装准备和客户商业化阶段。
-- EDA/IP需区分试用、采购、生产项目使用、流片、复购和企业级扩张。
-- Design Win 必须说明是否有约束、目标项目、量产窗口及取消/替代风险。
-- 客户采用最好由项目、批量、复购和跨客户扩散交叉验证。
-
-## 6. 其他可能解释、逻辑失效与停止条件
-
-主要竞争解释和阻断条件：
-
-- 客户项目取消。
-- 二次流片或后硅调试失败。
-- EDA/IP只采购未进入生产项目。
-- 软件生态不成熟。
-- 客户认证延迟。
-- 库存和价格下行抵消出货。
-
-停止条件：
-
-- 研究对象、统计口径或时间边界无法拆清；
-- 只有单一来源或单一指标，无法交叉验证；
-- 关键中介环节缺失，且缺失环节可能改变结论方向；
-- 只能形成观察假设，不能形成方向性判断。
-
-## 7. 情景设置
-
-| 情景 | 成立条件 | 需要观察的信号 | 结论使用边界 |
-|---|---|---|---|
-| 基准情景 | 主路径成立，但斜率和兑现节奏仍受约束 | 核心变量多数同向，反证不强 | 可形成方向判断，需跟踪验证 |
-| 乐观情景 | 需求强、供给释放慢、认证或交付顺利 | 订单、价格、交期、稼动、复购同步改善 | 只能在证据充分时提高置信度 |
-| 悲观情景 | 需求下修、供给快于预期或关键认证失败 | 库存上升、取消单、价格回落、客户延期 | 降级为观察或反向判断 |
-
-## 8. 本体映射
-
-| 本体对象 | 常见实例 |
-|---|---|
-| Industry / Segment | 半导体、目标子行业或环节 |
-| Product / Technology | 目标产品、技术路线、工艺平台 |
-| StateVariable | 需求强度、供给可得性、库存位置、价格压力、认证进度、业绩弹性 |
-| Observation | 订单、出货、交期、价格、稼动、认证、收入、现金等观测 |
-| EvidenceEpisode | 原始披露、行业数据、客户证据、政策文本、标准或路线图 |
-| InferenceRule | 从变量变化到判断结果的传导规则 |
-| JudgmentOutput | 当前判断、置信度、反证条件和下一验证点 |
-
-## 9. 组合与裁剪
-
-推荐组合：
-
-- Fabless/IDM产品商业化：IF-DES-01 + IF-APP-01 + IF-FAB/IF-PKG。
-- EDA/IP国产替代：IF-DES-01 + IF-LOC-01。
-- 公司兑现：IF-DES-01 + BF-EE-01。
-
-裁剪原则：
-
-- 只保留会影响本次方向、强度或停止条件的模块；
-- 不为追求完整而扩展 01 未定义的对象、时间、地域和产业链范围；
-- 若公司兑现是问题核心，必须补充 BF-EE-01 公司业绩弹性框架；
-- 若涉及预期差，先接 BF-EE-01、BF-FS-01 与 BF-EG-01；只有产业、业绩、预测和事前预期前置条件全部前提满足后，才可接 BF-VA-01。
-
-## 10. 权威依据卡
-
-优先参考来源类型：
-
-- 中国政府部门、国家统计、国家标准化机构；
-- 中国半导体行业协会及专业分会、全国性产业联盟和标准组织；
-- 国际半导体行业组织、标准组织和技术路线图机构；
-- 原始公司披露、客户侧证据和可追溯产业数据库；
-- 机构研究只用于补充机制，不替代原始来源。
-
-## 11. 框架自检
-
-| 检查项 | 是否通过 |
-|---|---|
-| 对象是否明确到产品/环节/客户/地域/时间 |  |
-| 变量是否可观察 |  |
-| 传导是否保留关键中介 |  |
-| 证据是否可追溯且至少双源交叉 |  |
-| 反证和停止条件是否可执行 |  |
-| 是否避免从行业景气直接跳到公司或估值 |  |
+- 应用牵引不确定时增加 IF-APP-01；只判断技术阶段时无需先加载完整商业模式框架。
+- 判断商业化质量时读取 BF-BM-01 和 BF-IC-01 对应 output gate。
+- 车规芯片优先叠加 `SCN-AUTO`；AI 芯片优先叠加 `SCN-AI`，不同时加载无关场景。
+- 本框架尚无合格任务记录，保持 `pending_two_tasks`；公司兑现统一交给 BF-EE-01。

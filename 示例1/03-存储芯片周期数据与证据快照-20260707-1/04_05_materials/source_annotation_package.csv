@@ -1,4 +1,0 @@
-annotation_id,execution_id,source_id,evidence_ids,citation_phrase,source_type,published_at,business_time,data_scope,method_or_metric,supports_material_unit,usage_limit,permission_note
-ANN-01,EXEC-MEM-CYCLE-20260707-1,SRC-07,EV-04|EV-05,根据 TrendForce 对 2026Q1 传统 DRAM 合约价和供应商库存的统计,industry_research,2026-06-01,2026Q1-2026Q2,传统 DRAM 合约价与供应商库存,合约价环比区间与库存状态,价格图表|库存说明,不代表 HBM 同代际成交价；库存缺客户和渠道层级,公开来源可用于内部研究稿来源说明
-ANN-02,EXEC-MEM-CYCLE-20260707-1,SRC-08,EV-09,根据 TrendForce 对 HBM 晶圆投入占比的预测,industry_research,2026-06-01,2026-2027,前三大 DRAM 供应商 HBM 晶圆投入占比,年度预测点,供给约束图表,预测值；只能说明结构占用方向,公开来源可用于内部研究稿来源说明
-ANN-03,EXEC-MEM-CYCLE-20260707-1,SRC-01,EV-01|EV-02|EV-03|EV-15,根据 Micron FY2026 Q3 业绩材料和电话会表述,company_results,2026-06-24,FQ3 2026,Micron DRAM/NAND 价格、库存和供需展望,公司披露和管理层展望,价格辅助表|库存说明|风险提示,供应商利益相关；公司口径不得外推全行业,公开公司披露可用于内部研究稿来源说明

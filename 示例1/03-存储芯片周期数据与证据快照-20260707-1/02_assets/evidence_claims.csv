@@ -1,2 +1,0 @@
-claim_id,execution_id,source_document_id,source_run_refs,locator,statement,claim_type,business_time,claim_confidence,about_instance_refs,status,created_at,notes
-CL-MEM-001,EXEC-MEM-CYCLE-20260707-1,SD-MEM-001,SR-01,prepared remarks,AI需求与HBM供给约束支持结构性偏紧,reported_fact,2026-05-28,high,INST-P-HBM|INST-C-MU,active,2026-07-07T21:06:10+08:00,仅作分产品方向判断

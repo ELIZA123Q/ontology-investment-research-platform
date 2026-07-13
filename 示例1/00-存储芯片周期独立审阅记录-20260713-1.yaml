@@ -1,0 +1,131 @@
+document_type: independent_review_register
+schema_version: 1.1.0
+metadata:
+  task_id: JTASK-MEM-CYCLE-001
+  execution_id: EXEC-MEM-CYCLE-20260713-1
+  producer_id: sample-research-author
+reviews:
+  - review_id: REVIEW-MEM-01
+    stage: "01"
+    reviewer_id: sample-independent-reviewer
+    reviewer_role: independent_research_reviewer
+    reviewed_at: "2026-07-13T18:00:00+08:00"
+    independence_declaration: independent_of_producer
+    conflict_of_interest: none_declared
+    review_summary: 存储周期问题明确限定为产品分化与结束条件判断，范围、用途和关键反面线索足以交接至结构化研究。
+    decision: pass
+    criteria_results:
+      - criterion_id: question_alignment
+        result: pass
+        rationale: 研究对象、时点、产品分组和最终要回答的问题与原始任务一致，没有改写成泛行业研究。
+      - criterion_id: research_value
+        result: pass
+        rationale: 任务聚焦统一强景气叙事是否成立，明确其对跟踪重点和研究决策的实际影响。
+      - criterion_id: scope_and_alternatives
+        result: pass
+        rationale: 已限定HBM、通用DRAM和NAND，并记录库存、订单与供给等反证和竞争解释方向。
+      - criterion_id: handoff_readiness
+        result: pass
+        rationale: 对象、范围、观察变量和最终判断问题足以支持02形成最小判断结构而不需要补设前提。
+    artifact_hashes:
+      01-存储芯片周期投研需求说明-20260713-1.md: sha256:d6603d4710c0d739335d9838b1f5f7ad3fc06d483747d08e071c0f95748c2724
+  - review_id: REVIEW-MEM-02
+    stage: "02"
+    reviewer_id: sample-independent-reviewer
+    reviewer_role: independent_research_reviewer
+    reviewed_at: "2026-07-13T18:10:00+08:00"
+    independence_declaration: independent_of_producer
+    conflict_of_interest: none_declared
+    review_summary: 主判断、问题树、本体对象和反证路径一致，关键单元具备明确的最低验证条件和可交接的证据需求。
+    decision: pass
+    criteria_results:
+      - criterion_id: judgment_structure
+        result: pass
+        rationale: 判断结构围绕产品分化、价格、库存和合格供给展开，没有把所有行业变量并列为同等主线。
+      - criterion_id: falsifiability
+        result: pass
+        rationale: 每条主路径都给出可观察的削弱或阻断条件，避免以材料数量代替停止与改判规则。
+      - criterion_id: ontology_handoff
+        result: pass
+        rationale: 本体视图的对象、变量和路径能够承接研究逻辑，未用上位概念掩盖关键机制缺口。
+      - criterion_id: evidence_executability
+        result: pass
+        rationale: 关键判断单元的证据角色、最低验证条件和代理限制足以让03按单元制定取证方案。
+    artifact_hashes:
+      02-存储芯片周期研究逻辑-20260713-1.md: sha256:ab50d52e5c4dbd6533f05e05723259b8f6c68527fbeb6a5a81cd6b919edf9144
+      02-存储芯片周期本体视图-20260713-1.yaml: sha256:05c0895c4c7f999a500f14907942a4f860e2d54b4ab1bd8da2a3973838a15cdc
+  - review_id: REVIEW-MEM-03
+    stage: "03"
+    reviewer_id: sample-independent-reviewer
+    reviewer_role: independent_research_reviewer
+    reviewed_at: "2026-07-13T18:20:00+08:00"
+    independence_declaration: independent_of_producer
+    conflict_of_interest: none_declared
+    review_summary: 当前证据包覆盖了四类规范化来源与价格、长约、产品组合证据，可支持分产品的稀缺定价判断，同时继续限制统一结束日表达。
+    decision: pass
+    criteria_results:
+      - criterion_id: evidence_fitness
+        result: pass
+        rationale: Micron实现价与长约、Samsung和SK hynix经营披露、TrendForce合约价分别覆盖价格、订单、产品组合和供给状态。
+      - criterion_id: source_provenance
+        result: pass
+        rationale: 公司原文与行业研究均保存来源定位、业务时间、使用限制和结构化证据包，关键数字能够回查。
+      - criterion_id: counterevidence_and_limits
+        result: pass
+        rationale: 消费端疲弱、库存与订单缺口及跨厂供给量化不足均被登记，并已限制使用范围。
+      - criterion_id: reasoning_permission
+        result: pass
+        rationale: 03明确区分可作方向判断的内容与必须保留条件或暂不可判断的内容，可约束04越权。
+    artifact_hashes:
+      03-存储芯片周期数据与证据准备-20260713-1.md: sha256:3390b5aee310bd42e025033407598a1b0bead1250f3915c4cc8ef131173bbc5d
+      03-存储芯片周期数据与证据快照-20260713-1: sha256:988ee9981688e4900be79e4f3e8308db36d4fad48494f17013cccd9b80ccc35d
+  - review_id: REVIEW-MEM-04
+    stage: "04"
+    reviewer_id: sample-independent-reviewer
+    reviewer_role: independent_research_reviewer
+    reviewed_at: "2026-07-13T18:30:00+08:00"
+    independence_declaration: independent_of_producer
+    conflict_of_interest: none_declared
+    review_summary: 推理报告基于价格与长约证据确立稀缺定价强化期判断，并把产品分化、需求破坏与正常化条件写成可验证路径。
+    decision: pass
+    criteria_results:
+      - criterion_id: conclusion_evidence_alignment
+        result: pass
+        rationale: 报告仅对价格事实使用较强判断，分产品阶段保持方向性，新增供给窗口保持条件性，统一结束日仍为暂不可判断。
+      - criterion_id: competing_explanations
+        result: pass
+        rationale: 抢货补库、产品组合变化和消费端疲弱均被作为竞争或削弱解释处理，没有只保留单一路径。
+      - criterion_id: monitoring_and_reversibility
+        result: pass
+        rationale: 价格、长约履约、多层库存、HBM认证与新增合格供给均设有观察频率和阶段切换条件。
+      - criterion_id: reader_usable_reasoning
+        result: pass
+        rationale: 报告以当前判断、依据和下一步观察组织，研究员无需阅读审计文件即可理解关键边界。
+    artifact_hashes:
+      04-存储芯片周期推理报告-20260713-1.md: sha256:b752f8fb12b58fc5e2e0131f4f1518cb16e62671b54cf5be7bb9fa092b665145
+      04-存储芯片周期推理审计-20260713-1.yaml: sha256:d127d7d98f65f9214423fc75062cc1a55d385f7eb1f1328c176d280af58cdcec
+  - review_id: REVIEW-MEM-05
+    stage: "05"
+    reviewer_id: sample-independent-reviewer
+    reviewer_role: independent_research_reviewer
+    reviewed_at: "2026-07-13T18:40:00+08:00"
+    independence_declaration: independent_of_producer
+    conflict_of_interest: none_declared
+    review_summary: 正文以价格和订单证据开篇，完整解释HBM、通用DRAM、企业级NAND及消费端差异，并给出可复核来源与正常化观察框架。
+    decision: pass
+    criteria_results:
+      - criterion_id: conclusion_fidelity
+        result: pass
+        rationale: 标题与正文直接表达当前阶段判断，但没有把条件性供给窗口、HBM挤占或统一结束日强化为已确认结论。
+      - criterion_id: argument_quality
+        result: pass
+        rationale: 四章依次回答价格订单、DRAM/HBM、NAND分化和结束条件，每章均包含数字、解释和研究含义。
+      - criterion_id: source_material_traceability
+        result: pass
+        rationale: 图表、表格与来源注释均登记在03快照，并能通过表达审计回到已批准的判断和素材。
+      - criterion_id: reader_usability
+        result: pass
+        rationale: 首页直接说明当前阶段、关键数字和后续观察，足以让研究员独立使用。
+    artifact_hashes:
+      05-存储芯片周期行业周期判断-20260713-1.md: sha256:fb6bd28d08d96db99dad601036cce4e2f7e056c32b3af49c5c69cad73e808630
+      05-存储芯片周期表达审计-20260713-1.yaml: sha256:212a858dc1ebea7e0c92165699cfbfe1b31575e03c62300824d01ce1e7b9ad8d

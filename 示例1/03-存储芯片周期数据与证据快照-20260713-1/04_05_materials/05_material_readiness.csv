@@ -1,0 +1,5 @@
+material_unit_id,execution_id,target_05_archetype,material_unit,status,linked_judgment_unit_ids,linked_data_candidate_ids,linked_chart_ids,linked_table_ids,source_annotation_ids,impact_on_05,required_action
+MR-01,EXEC-MEM-CYCLE-20260713-1,industry_cycle_report,主结论证据,report_grade_ready,JU-01|JU-02|JU-05,DDC-01|DDC-04|DDC-06,FIG-01|FIG-02,TAB-01,ANN-01|ANN-02|ANN-03,可支撑行业周期判断主线；05 需继承产品分化和限制边界,none
+MR-02,EXEC-MEM-CYCLE-20260713-1,industry_cycle_report,图表素材,report_grade_ready,JU-02|JU-05,DDC-01|DDC-04,FIG-01|FIG-02,,ANN-01|ANN-02,满足 2 个研报级量化图表门槛；图表标题和结论由 04/05 在不越权前提下组织,none
+MR-03,EXEC-MEM-CYCLE-20260713-1,industry_cycle_report,强弱排序素材,report_grade_ready,JU-01|JU-02|JU-04|JU-05,DDC-06,,TAB-01,ANN-01|ANN-02|ANN-03,可支撑 HBM、服务器 DRAM、企业级 NAND、消费端存储排序；05 不得写成投资排序或收益排序,none
+MR-04,EXEC-MEM-CYCLE-20260713-1,industry_cycle_report,周期结束信号,report_grade_ready,JU-06|JU-07,DDC-03|DDC-05,FIG-03,TAB-02,ANN-03,只能写条件窗口和改判信号，不得写确定结束日；补客户库存、订单取消率、良率和认证连续证据,none
