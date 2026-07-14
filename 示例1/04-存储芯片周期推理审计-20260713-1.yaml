@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 3.0.0
+schema_version: 3.1.0
 metadata:
   task_id: JTASK-MEM-CYCLE-001
   execution_id: EXEC-MEM-CYCLE-20260713-1
@@ -673,3 +673,45 @@ compliance_check:
   no_new_unfrozen_evidence: true
   no_scope_drift: true
   citations_or_evidence_refs_complete: true
+method_library_usage:
+  library_ref: 知识库_04推理/README.md
+  methods_used:
+  - A00
+  - A01
+  - A02
+  - A03
+  - A05
+  - A07
+  - B01
+  - C01
+  - C02
+  - D01
+  claim_bindings:
+  - claim_id: C-01
+    method_ids:
+    - A03
+    - B01
+  - claim_id: C-02
+    method_ids:
+    - A02
+    - A05
+  - claim_id: C-03
+    method_ids:
+    - A05
+    - C02
+  - claim_id: C-04
+    method_ids:
+    - A07
+    - C01
+  - claim_id: C-05
+    method_ids:
+    - A01
+    - A03
+  - claim_id: C-06
+    method_ids:
+    - A03
+    - D01
+  - claim_id: C-07
+    method_ids:
+    - A00
+    - C01

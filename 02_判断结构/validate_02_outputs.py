@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -100,16 +101,27 @@ REQUIRED_VIEW_TOP = [
 LOGIC_SCHEMA_VERSION_02 = "1.1.0"
 VIEW_SCHEMA_VERSION_02 = "2.0.0"
 ONTOLOGY_GAP_SCAN_STATUSES = {"no_gap", "minor_gap", "major_gap", "blocking_gap"}
-JUDGMENT_TYPES = {
-    "industry_cycle_judgment",
-    "policy_impact_judgment",
-    "supply_chain_bottleneck_judgment",
-    "company_earnings_elasticity_judgment",
-    "valuation_rerating_judgment",
-    "event_impact_judgment",
-    "expectation_gap_judgment",
-    "risk_monitoring_judgment",
+CANONICAL_JUDGMENT_TYPES = {
+    "state_measurement",
+    "trend_or_phase",
+    "cycle_phase",
+    "causal_attribution",
+    "mechanism_transmission",
+    "object_comparison",
+    "valuation_expectation",
+    "risk_reassessment",
 }
+DEPRECATED_JUDGMENT_TYPE_ALIASES = {
+    "industry_cycle_judgment": "cycle_phase",
+    "policy_impact_judgment": "mechanism_transmission",
+    "supply_chain_bottleneck_judgment": "mechanism_transmission",
+    "company_earnings_elasticity_judgment": "earnings_impact",
+    "valuation_rerating_judgment": "valuation_expectation",
+    "event_impact_judgment": "mechanism_transmission",
+    "expectation_gap_judgment": "valuation_expectation",
+    "risk_monitoring_judgment": "risk_reassessment",
+}
+JUDGMENT_TYPES = CANONICAL_JUDGMENT_TYPES | set(DEPRECATED_JUDGMENT_TYPE_ALIASES)
 EVIDENCE_ROLE_KEYS = EVIDENCE_ROLES
 EVIDENCE_ROLE_STATUSES = {"required", "optional", "allowed_with_limit", "not_allowed", "not_applicable"}
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
@@ -131,10 +143,29 @@ PROXY_POLICIES = {"not_allowed", "allowed_but_must_discount_confidence", "requir
 GAP_SEVERITIES = {"none", "minor", "major", "blocking"}
 FRAMEWORK_LAYERS = {"mechanism", "company_realization", "market_pricing"}
 FRAMEWORK_GATE_STATUSES = {"passed", "provisional", "failed", "not_applicable"}
+FRAMEWORK_CALL_ROLES = {"direct", "prerequisite", "industry_overlay", "downstream"}
 FRAMEWORK_OUTPUT_FIELDS = [
     "framework_id",
+    "call_role",
+    "judgment_unit_refs",
+    "target_output_gates",
     "framework_layer",
     "gate_status",
+    "prerequisite_judgment_refs",
+    "judgment_types",
+    "candidate_claims",
+    "state_variable_candidates",
+    "signal_candidates",
+    "evidence_requirements",
+    "falsification_conditions",
+    "scenarios",
+    "output_objects",
+    "downstream_unlocks",
+    "unresolved_gaps",
+]
+FRAMEWORK_OUTPUT_LIST_FIELDS = [
+    "judgment_unit_refs",
+    "target_output_gates",
     "prerequisite_judgment_refs",
     "judgment_types",
     "candidate_claims",
@@ -150,6 +181,49 @@ FRAMEWORK_OUTPUT_FIELDS = [
 
 
 WORKSPACE = Path(__file__).resolve().parent.parent
+FRAMEWORK_REGISTRY_PATH = WORKSPACE / "知识库_02框架" / "00_framework_dependency_registry.yaml"
+SCENARIO_CARD_ROOT = WORKSPACE / "知识库_02框架" / "行业框架库"
+
+
+def _load_registered_framework_assets() -> set[str]:
+    """返回登记表中的 BF-/IF- 框架 ID，以及场景卡 SCN- ID。"""
+    if not FRAMEWORK_REGISTRY_PATH.is_file():
+        fail(f"缺少框架依赖登记表: {FRAMEWORK_REGISTRY_PATH.relative_to(WORKSPACE)}")
+    registry = load_yaml_file(FRAMEWORK_REGISTRY_PATH)
+    if not isinstance(registry, dict):
+        fail("框架依赖登记表必须是 YAML 对象")
+    asset_ids: set[str] = set()
+    frameworks = registry.get("frameworks", {})
+    if isinstance(frameworks, dict):
+        asset_ids.update(str(key) for key in frameworks)
+    industry = registry.get("industry_overlays", {})
+    if isinstance(industry, dict):
+        asset_ids.update(str(key) for key in industry)
+    layers = registry.get("layers", {})
+    if isinstance(layers, dict):
+        for layer in layers.values():
+            if isinstance(layer, dict):
+                asset_ids.update(str(item) for item in layer.get("assets", []) or [])
+    if SCENARIO_CARD_ROOT.is_dir():
+        for path in SCENARIO_CARD_ROOT.rglob("*.md"):
+            text = path.read_text(encoding="utf-8-sig")
+            if not text.startswith("---"):
+                continue
+            try:
+                front = text.split("---", 2)[1]
+            except IndexError:
+                continue
+            match = re.search(r"(?m)^scenario_id:\s*[\"']?([A-Za-z0-9_-]+)[\"']?\s*$", front)
+            if match:
+                asset_ids.add(match.group(1))
+    if not asset_ids:
+        fail("框架依赖登记表未提供任何可引用框架或场景卡 ID")
+    return asset_ids
+
+
+def _assert_framework_asset_registered(framework_id: str, label: str, registered: set[str]) -> None:
+    if framework_id not in registered:
+        fail(f"{label}: {framework_id} 未在知识库_02框架登记表或场景卡中定义")
 
 
 def _ontology_catalog(view: dict[str, object]) -> tuple[dict[str, set[str]], set[str]]:
@@ -273,6 +347,19 @@ def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
 
 def _validate_framework_execution(research_framework: dict[str, object]) -> None:
     library_reference = research_framework.get("library_reference")
+    registered_assets = _load_registered_framework_assets()
+    if isinstance(library_reference, dict):
+        consulted = library_reference.get("consulted")
+        if isinstance(consulted, list):
+            for index, raw_item in enumerate(consulted, 1):
+                item = require_mapping(raw_item, f"library_reference.consulted[{index}]")
+                framework_id = require_string(item.get("framework_id"), f"library_reference.consulted[{index}].framework_id")
+                _assert_framework_asset_registered(
+                    framework_id,
+                    f"library_reference.consulted[{index}].framework_id",
+                    registered_assets,
+                )
+
     if not isinstance(library_reference, dict):
         return
     if not str(library_reference.get("library_version", "")).startswith("2."):
@@ -299,14 +386,56 @@ def _validate_framework_execution(research_framework: dict[str, object]) -> None
         framework_id = str(call["framework_id"])
         if not framework_id.startswith(("BF-", "IF-")):
             fail(f"framework_execution.calls[{index}].framework_id 必须是 BF- 基础框架或 IF- 行业主框架")
+        _assert_framework_asset_registered(
+            framework_id,
+            f"framework_execution.calls[{index}].framework_id",
+            registered_assets,
+        )
         seen.add(framework_id)
+        require_allowed(call["call_role"], FRAMEWORK_CALL_ROLES, f"{framework_id}.call_role")
         require_allowed(call["framework_layer"], FRAMEWORK_LAYERS, f"{framework_id}.framework_layer")
         require_allowed(call["gate_status"], FRAMEWORK_GATE_STATUSES, f"{framework_id}.gate_status")
-        for field in FRAMEWORK_OUTPUT_FIELDS[3:]:
+        for field in FRAMEWORK_OUTPUT_LIST_FIELDS:
             if not isinstance(call[field], list):
                 fail(f"{framework_id}.{field} 必须是列表；允许为空但不得省略")
         if call["gate_status"] in {"passed", "provisional"} and not call["candidate_claims"]:
             fail(f"{framework_id} 已放行时 candidate_claims 不得为空")
+        for scenario_id in split_refs(call.get("scenarios")):
+            _assert_framework_asset_registered(
+                scenario_id,
+                f"{framework_id}.scenarios",
+                registered_assets,
+            )
+
+    # 限制并行宽度：同一判断单元至多 1 个 direct、至多 1 张主要场景卡；不限制串行深度。
+    direct_by_ju: dict[str, list[str]] = {}
+    scenarios_by_ju: dict[str, set[str]] = {}
+    for index, raw_call in enumerate(calls, 1):
+        call = require_mapping(raw_call, f"framework_execution.calls[{index}]")
+        framework_id = str(call["framework_id"])
+        ju_refs = [str(item) for item in call.get("judgment_unit_refs") or [] if str(item).strip()]
+        if not ju_refs:
+            ju_refs = [f"__unscoped_call_{index}__"]
+        if call.get("call_role") == "direct":
+            for ju_ref in ju_refs:
+                direct_by_ju.setdefault(ju_ref, []).append(framework_id)
+        for ju_ref in ju_refs:
+            scenarios_by_ju.setdefault(ju_ref, set()).update(
+                str(item) for item in (call.get("scenarios") or []) if str(item).strip()
+            )
+    for ju_ref, framework_ids in direct_by_ju.items():
+        if len(framework_ids) > 1:
+            label = "未绑定 judgment_unit_refs 的调用" if ju_ref.startswith("__unscoped_call_") else ju_ref
+            fail(
+                f"同一判断单元({label}) 的 direct 框架超过 1 个: {', '.join(framework_ids)}；"
+                "应拆分判断单元或改为前置/下游串行，不得并列多个直接框架"
+            )
+    for ju_ref, scenario_ids in scenarios_by_ju.items():
+        if len(scenario_ids) > 1:
+            label = "未绑定 judgment_unit_refs 的调用" if ju_ref.startswith("__unscoped_call_") else ju_ref
+            fail(
+                f"同一判断单元({label}) 的主要场景卡超过 1 张: {', '.join(sorted(scenario_ids))}"
+            )
 
     valuation = require_mapping(execution["valuation_gate"], "framework_execution.valuation_gate")
     require_keys(
@@ -335,6 +464,7 @@ def _validate_framework_execution(research_framework: dict[str, object]) -> None
         for field, expected in expected_refs.items():
             if valuation.get(field) != expected or expected not in seen:
                 fail(f"BF-VA-01 门禁要求已调用 {expected}，且 valuation_gate.{field} 必须引用它")
+            _assert_framework_asset_registered(expected, f"valuation_gate.{field}", registered_assets)
         changed_inputs = split_refs(valuation.get("changed_valuation_inputs"))
         if not changed_inputs:
             fail("BF-VA-01 门禁要求 changed_valuation_inputs 至少有一项")
@@ -454,6 +584,17 @@ def _validate_view(view_path: Path) -> dict[str, object]:
         )
         if "judgment_type" in unit and str(unit["judgment_type"]) not in JUDGMENT_TYPES:
             fail(f"{unit['judgment_unit_id']}.judgment_type 非法")
+        if str(unit["judgment_type"]) in DEPRECATED_JUDGMENT_TYPE_ALIASES:
+            canonical = DEPRECATED_JUDGMENT_TYPE_ALIASES[str(unit["judgment_type"])]
+            fail(
+                f"{unit['judgment_unit_id']}.judgment_type 已废弃别名 "
+                f"{unit['judgment_type']}，应改用规范类型 {canonical}"
+            )
+        if str(unit["judgment_type"]) not in CANONICAL_JUDGMENT_TYPES:
+            fail(
+                f"{unit['judgment_unit_id']}.judgment_type 必须是 02 八类规范类型之一: "
+                + ", ".join(sorted(CANONICAL_JUDGMENT_TYPES))
+            )
         if "decision_relevance" in unit:
             require_allowed(unit.get("decision_relevance"), DECISION_RELEVANCE, f"{unit['judgment_unit_id']}.decision_relevance")
         if "proxy_policy" in unit:

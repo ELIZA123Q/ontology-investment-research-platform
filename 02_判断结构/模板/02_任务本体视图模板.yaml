@@ -71,11 +71,14 @@ research_framework:
     consulted: []
     no_direct_reference_reason: ""
   framework_execution:
-    dependency_protocol_ref: 知识库_02框架/01_框架依赖与输出要求.md
+    dependency_protocol_ref: 知识库_02框架/README.md
     registry_ref: 知识库_02框架/00_framework_dependency_registry.yaml
     calls:
       - sequence: 1
         framework_id: "<BF-XX-01 | IF-XX-01>"
+        call_role: "<direct | prerequisite | industry_overlay | downstream>"
+        judgment_unit_refs: ["JU-01"]
+        target_output_gates: []
         framework_layer: "<mechanism | company_realization | market_pricing>"
         gate_status: "<passed | provisional | failed | not_applicable>"
         prerequisite_judgment_refs: ["JU-01"]
@@ -176,7 +179,7 @@ judgment_units:
     research_question_ref: "task_context.normalized_question"
     candidate_claim: "<04 预期回答的可证伪命题>"
     statement: "<04 可能输出的观点或边界>"
-    judgment_type: "<industry_cycle_judgment 等>"
+    judgment_type: "<state_measurement | trend_or_phase | cycle_phase | causal_attribution | mechanism_transmission | object_comparison | valuation_expectation | risk_reassessment>"
     priority_tier: "<critical | important | supporting | background>"
     decision_weight: 5
     decision_role: "<direction_driver | strength_driver | differentiation_explainer | mechanism_validator | background_context>"

@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 3.0.0
+schema_version: 3.1.0
 
 metadata:
   task_id: ""
@@ -63,6 +63,13 @@ overall_judgment:
     value_chain: ""
     objects: []
   downgrade_reasons: []
+
+method_library_usage:
+  library_ref: 知识库_04推理/README.md
+  methods_used: [A00, A01]
+  claim_bindings:
+    - claim_id: C-01
+      method_ids: [A01]
 
 judgment_update_register:
   - update_id: UPDATE-01

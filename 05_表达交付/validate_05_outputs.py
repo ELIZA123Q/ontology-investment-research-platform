@@ -13,7 +13,9 @@ from _path_setup import ensure_run_path  # noqa: E402
 ensure_run_path()
 
 from quality_gate_utils import (  # noqa: E402
+    judgment_level_rank,
     validate_gate_review_fields,
+    validate_judgment_level,
     validate_quality_status,
     validate_researcher_body,
     validate_stage_status,
@@ -120,6 +122,50 @@ LOCATION_KINDS = {
     "summary_conclusion",
 }
 
+EXPRESSION_AUDIT_SCHEMA_VERSION = "2.4.0"
+EXPRESSION_REQUIRED_FIELDS = [
+    "expression_id",
+    "source_claim_id",
+    "location_kind",
+    "section",
+    "expression_text",
+    "inherited_judgment_level",
+    "permitted_role",
+    "conditions",
+    "conditions_preserved",
+    "scope_relation",
+    "semantic_strength_review",
+]
+ROLE_ALLOWED_LOCATIONS = {
+    "core_thesis": LOCATION_KINDS,
+    "supporting_thesis": LOCATION_KINDS - {"report_title"},
+    "risk": LOCATION_KINDS - {"report_title"},
+    "observation": LOCATION_KINDS - {"report_title"},
+    "scenario_condition": LOCATION_KINDS - {"report_title"},
+}
+# 低等级判断正文不得使用绝对化措辞，防止表达强度静默升级。
+STRENGTH_UPGRADE_MARKERS = {
+    "J0": (
+        "必然",
+        "毫无疑问",
+        "已成定局",
+        "板上钉钉",
+        "已经确认",
+        "确定见顶",
+        "确定见底",
+        "确定结束",
+        "已经见顶",
+        "已经见底",
+    ),
+    "J1": (
+        "必然",
+        "毫无疑问",
+        "已成定局",
+        "板上钉钉",
+        "已经确认",
+    ),
+}
+
 
 def _header_text(body: str) -> str:
     for section in REQUIRED_FIXED_SECTIONS:
@@ -175,6 +221,29 @@ def _validate_body(path: Path, body: str) -> None:
             fail(f"05 正文不得包含投资建议或评级用语: {marker}")
 
 
+def _permission_index(
+    handoff: dict[str, object],
+) -> tuple[dict[str, dict[str, object]], dict[str, dict[str, object]], set[str]]:
+    approved_permissions = {
+        str(item.get("claim_id")): item
+        for item in handoff.get("approved_core_claims", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    restricted_permissions = {
+        str(item.get("claim_id")): item
+        for item in handoff.get("restricted_claims", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    return approved_permissions, restricted_permissions, set(approved_permissions) | set(restricted_permissions)
+
+
+def _assert_no_strength_upgrade(level: str, expression_text: str, label: str) -> None:
+    markers = STRENGTH_UPGRADE_MARKERS.get(level, ())
+    for marker in markers:
+        if marker in expression_text:
+            fail(f"{label}: {level} 表达不得使用绝对化措辞导致强度升级: {marker}")
+
+
 def _validate_expression_audit(
     path: Path,
     body: str,
@@ -190,9 +259,9 @@ def _validate_expression_audit(
     except ValueError as exc:
         fail(str(exc))
     require_keys(audit, ["document_type", "schema_version", "metadata", "claim_expression_register", "research_edge_check", "high_risk_section_coverage", "overall_check"], str(expression_audit_path))
-    require_schema_version(audit["schema_version"], str(expression_audit_path), expected="2.3.0")
-    if audit["document_type"] != "delivery_expression_audit" or str(audit["schema_version"]) != "2.3.0":
-        fail("05 表达审计必须使用 delivery_expression_audit / 2.3.0")
+    require_schema_version(audit["schema_version"], str(expression_audit_path), expected=EXPRESSION_AUDIT_SCHEMA_VERSION)
+    if audit["document_type"] != "delivery_expression_audit" or str(audit["schema_version"]) != EXPRESSION_AUDIT_SCHEMA_VERSION:
+        fail(f"05 表达审计必须使用 delivery_expression_audit / {EXPRESSION_AUDIT_SCHEMA_VERSION}")
     metadata = audit["metadata"]
     require_keys(metadata, ["task_id", "execution_id", "delivery_ref", "delivery_content_hash", "source_04_brief_ref", "source_04_audit_ref", "source_04_audit_hash", "stage_status", "quality_status", "quality_gate_ref", "deterministic_check_status", "semantic_review_status"], "05 audit.metadata")
     validate_stage_status(metadata["stage_status"], "05 audit.metadata")
@@ -236,22 +305,13 @@ def _validate_expression_audit(
     handoff = source_audit.get("handoff_to_05")
     if not isinstance(handoff, dict):
         fail("04 推理审计必须提供 handoff_to_05 表达权限")
-    approved_permissions = {
-        str(item.get("claim_id")): item
-        for item in handoff.get("approved_core_claims", [])
-        if isinstance(item, dict) and item.get("claim_id")
-    }
-    restricted_permissions = {
-        str(item.get("claim_id")): item
-        for item in handoff.get("restricted_claims", [])
-        if isinstance(item, dict) and item.get("claim_id")
-    }
+    approved_permissions, restricted_permissions, permitted_claim_ids = _permission_index(handoff)
+    permission_by_claim = {**restricted_permissions, **approved_permissions}
     prohibited_claim_ids = {
         str(item.get("claim_id_or_topic"))
         for item in handoff.get("prohibited_claims", [])
         if isinstance(item, dict) and str(item.get("claim_id_or_topic", "")) in source_claims
     }
-    permitted_claim_ids = set(approved_permissions) | set(restricted_permissions)
     if handoff.get("formal_report_allowed") is not True:
         fail("04 handoff_to_05 未允许形成正式研究稿")
     expressions = audit["claim_expression_register"]
@@ -261,7 +321,7 @@ def _validate_expression_audit(
     report_title = title_match.group(1).strip() if title_match else ""
     title_registered = False
     for item in expressions:
-        require_keys(item, ["expression_id", "source_claim_id", "location_kind", "section", "expression_text", "conditions", "conditions_preserved", "scope_relation", "semantic_strength_review"], "claim_expression_register[]")
+        require_keys(item, EXPRESSION_REQUIRED_FIELDS, "claim_expression_register[]")
         label = f"claim_expression_register#{item['expression_id']}"
         claim_id = str(item["source_claim_id"])
         if claim_id not in source_claims:
@@ -271,15 +331,33 @@ def _validate_expression_audit(
         if claim_id not in permitted_claim_ids:
             fail(f"{label}.source_claim_id 未获得 04 handoff_to_05 表达许可")
         source_claim = source_claims[claim_id]
+        permission = permission_by_claim[claim_id]
+        expected_level = str(source_claim.get("judgment_level", "")).strip()
+        validate_judgment_level(expected_level, f"{label}.source_claim")
+        inherited_level = str(item["inherited_judgment_level"]).strip()
+        validate_judgment_level(inherited_level, label)
+        if inherited_level != expected_level:
+            fail(f"{label}.inherited_judgment_level 必须等于 04 claim_register 的 {expected_level}")
+        expected_role = str(permission.get("permitted_role", "")).strip()
+        declared_role = str(item["permitted_role"]).strip()
+        if declared_role != expected_role:
+            fail(f"{label}.permitted_role 必须继承 04 handoff 许可角色 {expected_role}")
+        if declared_role not in ROLE_ALLOWED_LOCATIONS:
+            fail(f"{label}.permitted_role 非法: {declared_role}")
         if item["location_kind"] not in LOCATION_KINDS:
             fail(f"{label}.location_kind 非法")
+        if item["location_kind"] not in ROLE_ALLOWED_LOCATIONS[declared_role]:
+            fail(f"{label}: 角色 {declared_role} 不得用于 {item['location_kind']}")
         expression_text = str(item["expression_text"]).strip()
         if not expression_text or expression_text not in body:
             fail(f"{label}.expression_text 必须可在 05 正文中精确定位")
+        _assert_no_strength_upgrade(inherited_level, expression_text, label)
         if item["location_kind"] == "report_title" and expression_text == report_title:
             title_registered = True
         if item["location_kind"] == "report_title" and claim_id not in approved_permissions:
             fail(f"{label}: 受限观点不得用于 05 主标题")
+        if item["location_kind"] == "report_title" and declared_role != "core_thesis":
+            fail(f"{label}: 主标题只能使用 core_thesis")
         if set(split_refs(item["conditions"])) != set(split_refs(source_claim.get("conditions"))):
             fail(f"{label}.conditions 必须完整继承 04")
         if item["conditions_preserved"] is not True:
@@ -288,6 +366,8 @@ def _validate_expression_audit(
             fail(f"{label}.scope_relation 只能是 same 或 narrower")
         if item["semantic_strength_review"] != "pass":
             fail(f"{label}.semantic_strength_review 必须为 pass")
+        if judgment_level_rank(inherited_level) > judgment_level_rank(expected_level):
+            fail(f"{label}: 表达等级超过 04 判断许可")
     if not title_registered:
         fail("05 主标题必须登记到 claim_expression_register")
 
@@ -382,7 +462,7 @@ def validate(
         fail("05 交付物与表达审计的主题、日期、序号必须一致")
     audit_result = _validate_expression_audit(path, body, expression_audit_path, source_04_audit_path)
     return {
-        "schema_version": "2.3.0",
+        "schema_version": EXPRESSION_AUDIT_SCHEMA_VERSION,
         "delivery_kind": delivery_kind,
         "topic": topic,
         "date": date,

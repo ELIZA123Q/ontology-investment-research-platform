@@ -1,5 +1,5 @@
 document_type: delivery_expression_audit
-schema_version: 2.3.0
+schema_version: 2.4.0
 
 metadata:
   task_id: ""
@@ -21,6 +21,8 @@ claim_expression_register:
     location_kind: report_title
     section: "标题"
     expression_text: ""
+    inherited_judgment_level: J2
+    permitted_role: core_thesis
     conditions: []
     conditions_preserved: true
     scope_relation: same

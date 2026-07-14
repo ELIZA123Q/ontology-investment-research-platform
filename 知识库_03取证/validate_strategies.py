@@ -25,6 +25,10 @@ EXPECTED_RECIPE_IDS = {
     "ER-EARN-01",
     "ER-EXPECT-01",
 }
+# 02 README 八类判断类型之外，03 可额外保留的取证专用类型。
+ALLOWED_03_ONLY_JUDGMENT_TYPES = {"fact_confirmation", "earnings_impact"}
+JF_TYPE_DOC = Path("知识库_02框架") / "README.md"
+JF_TYPE_RE = re.compile(r"JF-[A-Z]+ / `([a-z_]+)`")
 EXPECTED_QUALITY_LEVELS = {
     "Q0": "Q0_unusable",
     "Q1": "Q1_background",
@@ -248,6 +252,38 @@ def normalize_judgment_type(
     return None
 
 
+def check_02_judgment_type_alignment(
+    root: Path,
+    strategy: dict[str, Any],
+    errors: list[str],
+) -> None:
+    """确保 03 注册表覆盖 02 八类判断类型，且不擅自扩张职责范围。"""
+    jf_path = root.parent / JF_TYPE_DOC
+    if not jf_path.is_file():
+        errors.append(f"缺少 02 判断类型文档: {JF_TYPE_DOC}")
+        return
+    text = jf_path.read_text(encoding="utf-8-sig")
+    jf_types = set(JF_TYPE_RE.findall(text))
+    if len(jf_types) != 8:
+        errors.append(
+            f"{JF_TYPE_DOC}: 应解析出 8 个 judgment_type，实际 {sorted(jf_types)}"
+        )
+    registry = strategy.get("judgment_type_registry", {})
+    if not isinstance(registry, dict):
+        errors.append("judgment_type_registry 必须是 mapping")
+        return
+    registry_types = set(registry)
+    missing = sorted(jf_types - registry_types)
+    if missing:
+        errors.append("03 未覆盖 02 判断类型: " + ", ".join(missing))
+    extras = sorted(registry_types - jf_types - ALLOWED_03_ONLY_JUDGMENT_TYPES)
+    if extras:
+        errors.append(
+            "03 judgment_type_registry 超出 02 范围且未列入允许扩展: "
+            + ", ".join(extras)
+        )
+
+
 def validate(root: Path, *, strict_links: bool = False) -> list[str]:
     errors: list[str] = []
     strategy = load_yaml(root / "00_strategy_registry.yaml", errors)
@@ -299,7 +335,7 @@ def validate(root: Path, *, strict_links: bool = False) -> list[str]:
         for ref in refs:
             if f"`{ref}`" not in text:
                 errors.append(f"{rule_id}: Markdown 未同步 Basket ID {ref}")
-        for phrase in ("专项执行协议", "降级规则", "停止规则", "输出到 03 快照"):
+        for phrase in ("专项执行约定", "降级规则", "停止规则", "输出到本次证据归档"):
             if phrase not in text:
                 errors.append(f"{path.relative_to(root)}: 缺少“{phrase}”")
 
@@ -384,6 +420,7 @@ def validate(root: Path, *, strict_links: bool = False) -> list[str]:
     )
     if upstream_fields != REQUIRED_02_JUDGMENT_FIELDS:
         errors.append("02→03 输入合同只能强制 judgment_type 与 required_evidence_roles")
+    check_02_judgment_type_alignment(root, strategy, errors)
     case_contract = strategy.get("evidence_pattern_case_contract", {})
     if set(case_contract.get("required_fields", [])) != REQUIRED_PATTERN_CASE_FIELDS:
         errors.append("Evidence Pattern Case 合同字段不完整")

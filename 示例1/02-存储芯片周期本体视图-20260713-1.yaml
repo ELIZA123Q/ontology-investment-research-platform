@@ -69,11 +69,11 @@ research_framework:
     library_ref: 知识库_02框架/README.md
     library_version: 1.0.0
     consulted:
-    - framework_id: IF-MEM-01
-      name: 存储芯片供需判断框架
-      version: 1.0.0
-      contribution: 产品分层、有效供给、库存订单、量价周期和结构迁移
-      difference_from_md: 本任务吸收 1.0.0 口径的 bit demand、HBM 挤占、die/堆叠/封装/认证和分价格口径检查，并额外区分涨价斜率放缓与供需紧张结束
+    - framework_id: SCN-MEM-CYCLE
+      name: 存储周期见顶或反转场景卡
+      version: 2.0.0
+      contribution: 存储专项四增量（分产品/多层库存/多价格口径/斜率转弱vs反转）
+      difference_from_md: 本任务吸收场景卡口径的 bit demand、HBM 挤占、die/堆叠/封装/认证和分价格口径检查，并额外区分涨价斜率放缓与供需紧张结束
     - framework_id: IF-SC-01
       name: 半导体周期判断框架
       contribution: 库存、订单、价格、产能和资本开支的错位定位
@@ -152,7 +152,7 @@ judgment_units:
 - judgment_unit_id: JU-01
   research_question_ref: task_context.normalized_question
   candidate_claim: HBM、非 HBM DRAM 与 NAND 可以按不同证据门槛形成分产品周期阶段判断
-  judgment_type: industry_cycle_judgment
+  judgment_type: cycle_phase
   priority_tier: critical
   decision_weight: 5
   decision_role: direction_driver
@@ -246,7 +246,7 @@ judgment_units:
 - judgment_unit_id: JU-02
   research_question_ref: task_context.normalized_question
   candidate_claim: AI 服务器与 HBM 需求足以支持 HBM 结构性偏紧延续
-  judgment_type: industry_cycle_judgment
+  judgment_type: cycle_phase
   priority_tier: critical
   decision_weight: 5
   decision_role: direction_driver
@@ -338,7 +338,7 @@ judgment_units:
 - judgment_unit_id: JU-03
   research_question_ref: task_context.normalized_question
   candidate_claim: HBM 晶圆与封装资源挤占正在约束通用 DRAM 有效供给
-  judgment_type: supply_chain_bottleneck_judgment
+  judgment_type: mechanism_transmission
   priority_tier: important
   decision_weight: 4
   decision_role: mechanism_validator
@@ -428,7 +428,7 @@ judgment_units:
 - judgment_unit_id: JU-04
   research_question_ref: task_context.normalized_question
   candidate_claim: 企业级 SSD 需求支持 NAND 改善但消费端疲弱限制上行强度
-  judgment_type: industry_cycle_judgment
+  judgment_type: cycle_phase
   priority_tier: important
   decision_weight: 4
   decision_role: differentiation_explainer
@@ -524,7 +524,7 @@ judgment_units:
 - judgment_unit_id: JU-05
   research_question_ref: task_context.normalized_question
   candidate_claim: 历史价格上涨已确认，但当前斜率变化只足以支持拐点观察
-  judgment_type: risk_monitoring_judgment
+  judgment_type: risk_reassessment
   priority_tier: supporting
   decision_weight: 3
   decision_role: strength_driver
@@ -616,7 +616,7 @@ judgment_units:
 - judgment_unit_id: JU-06
   research_question_ref: task_context.normalized_question
   candidate_claim: 2027H2 至 2028 只能作为新增有效供给缓解的条件窗口
-  judgment_type: risk_monitoring_judgment
+  judgment_type: risk_reassessment
   priority_tier: supporting
   decision_weight: 2
   decision_role: mechanism_validator
@@ -705,7 +705,7 @@ judgment_units:
 - judgment_unit_id: JU-07
   research_question_ref: task_context.normalized_question
   candidate_claim: 现有证据不能支持 HBM、非 HBM DRAM 与 NAND 存在统一周期结束日
-  judgment_type: risk_monitoring_judgment
+  judgment_type: risk_reassessment
   priority_tier: background
   decision_weight: 1
   decision_role: background_context

@@ -252,7 +252,7 @@ judgment_units:
 - judgment_unit_id: JU-01
   research_question_ref: task_context.normalized_question
   candidate_claim: 现行美国管制形成定向且可执行的设备供给约束，但并非全面禁运
-  judgment_type: policy_impact_judgment
+  judgment_type: mechanism_transmission
   priority_tier: important
   decision_weight: 4
   decision_role: mechanism_validator
@@ -341,7 +341,7 @@ judgment_units:
 - judgment_unit_id: JU-02
   research_question_ref: task_context.normalized_question
   candidate_claim: 海外设备供给缺口只有经过验证、复购与经营兑现才能转化为国产受益
-  judgment_type: supply_chain_bottleneck_judgment
+  judgment_type: mechanism_transmission
   priority_tier: critical
   decision_weight: 5
   decision_role: direction_driver
@@ -429,7 +429,7 @@ judgment_units:
 - judgment_unit_id: JU-03
   research_question_ref: task_context.normalized_question
   candidate_claim: 设备类别与公司强弱主要由商业成熟度而非名义供给缺口大小决定
-  judgment_type: event_impact_judgment
+  judgment_type: mechanism_transmission
   priority_tier: important
   decision_weight: 4
   decision_role: differentiation_explainer
@@ -520,7 +520,7 @@ judgment_units:
 - judgment_unit_id: JU-04
   research_question_ref: task_context.normalized_question
   candidate_claim: 现行管制在未来十二个月强化国产替代必要性，但不会自动保证所有类别同步兑现
-  judgment_type: policy_impact_judgment
+  judgment_type: mechanism_transmission
   priority_tier: critical
   decision_weight: 5
   decision_role: direction_driver

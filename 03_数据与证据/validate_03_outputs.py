@@ -67,6 +67,10 @@ from snapshot_layout_03 import SCHEMA_VERSION_03, SNAPSHOT_CSV_LAYOUT, snapshot_
 REQUIRED_CSV_FILES: list[str] = list(SNAPSHOT_CSV_LAYOUT.keys())
 
 TEMPLATE_DIR = Path(__file__).resolve().parent / "模板" / "03_数据与证据快照模板"
+WORKSPACE = Path(__file__).resolve().parents[1]
+STRATEGY_ROOT = WORKSPACE / "知识库_03取证"
+STRATEGY_REGISTRY_PATH = STRATEGY_ROOT / "00_strategy_registry.yaml"
+BASKET_REGISTRY_PATH = STRATEGY_ROOT / "00_basket_registry.yaml"
 
 REQUIRED_PREP_META = [
     "document_type",
@@ -314,6 +318,98 @@ def _validate_normalized_evidence_graph(rows: dict[str, list[dict[str, str]]]) -
         assert_subset(split_refs(assessment.get("linked_judgment_unit_ids")), judgment_units, f"{aid}.linked_judgment_unit_ids")
         if not targets or not targets.issubset(assessment_links.get(aid, set())):
             fail(f"{aid} 的 evidence_refs 必须逐项存在 assessmentEvaluatesEvidence")
+
+
+def _load_strategy_knowledge() -> tuple[dict[str, object], dict[str, object], dict[str, object], dict[str, object]]:
+    strategy = load_yaml_file(STRATEGY_REGISTRY_PATH)
+    basket = load_yaml_file(BASKET_REGISTRY_PATH)
+    if not isinstance(strategy, dict) or not isinstance(basket, dict):
+        fail("知识库_03取证 注册表必须是 YAML 对象")
+    recipes = strategy.get("evidence_recipes", {})
+    judgment_types = strategy.get("judgment_type_registry", {})
+    aliases = strategy.get("judgment_type_migration_aliases", {})
+    baskets = basket.get("basket_registry", {})
+    if not isinstance(recipes, dict) or not isinstance(judgment_types, dict):
+        fail("00_strategy_registry.yaml 缺少 evidence_recipes 或 judgment_type_registry")
+    if not isinstance(aliases, dict):
+        fail("00_strategy_registry.yaml: judgment_type_migration_aliases 必须是 mapping")
+    if not isinstance(baskets, dict) or not baskets:
+        fail("00_basket_registry.yaml: basket_registry 不得为空")
+    return recipes, judgment_types, aliases, baskets
+
+
+def _normalize_strategy_judgment_type(
+    judgment_type: str,
+    registry: dict[str, object],
+    aliases: dict[str, object],
+) -> str | None:
+    if judgment_type in registry:
+        return judgment_type
+    alias = aliases.get(judgment_type)
+    if isinstance(alias, dict):
+        target = str(alias.get("canonical_type", "")).strip()
+        return target if target in registry else None
+    return None
+
+
+def _resolve_strategy_library_ref(raw_ref: str, label: str) -> Path:
+    text = str(raw_ref or "").strip()
+    if not text:
+        fail(f"{label}.strategy_library_ref 不得为空")
+    candidates = [
+        WORKSPACE / text,
+        STRATEGY_ROOT / text,
+        STRATEGY_ROOT / Path(text).name,
+    ]
+    for path in candidates:
+        if path.is_file():
+            try:
+                path.resolve().relative_to(STRATEGY_ROOT.resolve())
+            except ValueError:
+                fail(f"{label}.strategy_library_ref 必须落在知识库_03取证目录内: {text}")
+            return path
+    fail(f"{label}.strategy_library_ref 无法解析到知识库_03取证文件: {text}")
+
+
+def _validate_strategy_library_bindings(rows: dict[str, list[dict[str, str]]]) -> None:
+    recipes, judgment_types, aliases, baskets = _load_strategy_knowledge()
+    for row in rows["evidence_recipe_matches.csv"]:
+        label = f"evidence_recipe_matches#{row.get('recipe_match_id')}"
+        match_status = str(row.get("match_status", "")).strip()
+        _resolve_strategy_library_ref(row.get("strategy_library_ref", ""), label)
+        raw_type = str(row.get("judgment_type", "")).strip()
+        if not raw_type:
+            fail(f"{label}.judgment_type 不得为空")
+        canonical_type = _normalize_strategy_judgment_type(raw_type, judgment_types, aliases)
+        if canonical_type is None:
+            fail(f"{label}.judgment_type 未在知识库_03 judgment_type_registry 注册: {raw_type}")
+        if match_status in {"not_found", "not_applicable"}:
+            continue
+        library_recipe_id = str(row.get("library_recipe_id", "")).strip()
+        if not library_recipe_id:
+            fail(f"{label}.library_recipe_id 在 match_status={match_status} 时不得为空")
+        recipe = recipes.get(library_recipe_id)
+        if not isinstance(recipe, dict):
+            fail(f"{label}.library_recipe_id 未在知识库_03 evidence_recipes 注册: {library_recipe_id}")
+        applicable = {str(item) for item in recipe.get("applicable_judgment_types", []) or []}
+        if canonical_type not in applicable:
+            fail(
+                f"{label}: 规范判断类型 {canonical_type} 不适用 Recipe {library_recipe_id} "
+                f"(允许: {', '.join(sorted(applicable)) or '无'})"
+            )
+        declared_baskets = set(split_refs(row.get("library_basket_ids")))
+        if not declared_baskets:
+            fail(f"{label}.library_basket_ids 不得为空")
+        unknown = sorted(declared_baskets - set(baskets))
+        if unknown:
+            fail(f"{label}.library_basket_ids 未在知识库_03 basket_registry 注册: " + ", ".join(unknown))
+        required = {str(item) for item in recipe.get("minimum_pass_baskets", []) or []}
+        missing = sorted(required - declared_baskets)
+        if missing:
+            fail(
+                f"{label}.library_basket_ids 未覆盖 {library_recipe_id}.minimum_pass_baskets: "
+                + ", ".join(missing)
+            )
 
 
 def _validate_instance_manifest(
@@ -1170,6 +1266,7 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     _validate_return_actions(rows)
     constraints = _validate_constraints_v13(view, rows)
     _validate_cross_stage_requirement_trace(view, rows)
+    _validate_strategy_library_bindings(rows)
     if stage_status == "complete":
         for name in ["acquisition_log.csv", "semantic_instances.csv"]:
             if not rows[name]:

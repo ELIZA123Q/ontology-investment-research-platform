@@ -141,11 +141,15 @@ REQUIRED_AUDIT_TOP = [
     "path_results",
     "state_variable_results",
     "data_logic",
+    "method_library_usage",
     "handoff_to_05",
     "brief_quality_check",
     "compliance_check",
 ]
 
+AUDIT_SCHEMA_VERSION = "3.1.0"
+METHOD_LIBRARY_ROOT = _ROOT / "知识库_04推理"
+METHOD_ID_RE = re.compile(r"^(A|B|C|D)\d{2}$")
 INVESTMENT_INTERPRETATIONS = {
     "fundamental_trend_improving",
     "marginal_improvement",
@@ -201,9 +205,9 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
     if not isinstance(audit, dict):
         fail("04 审计文件必须是 YAML 对象")
     require_keys(audit, REQUIRED_AUDIT_TOP, str(audit_path))
-    require_schema_version(audit["schema_version"], str(audit_path), expected="3.0.0")
-    if str(audit["schema_version"]) != "3.0.0":
-        fail("04 审计 schema_version 必须为 3.0.0")
+    require_schema_version(audit["schema_version"], str(audit_path), expected=AUDIT_SCHEMA_VERSION)
+    if str(audit["schema_version"]) != AUDIT_SCHEMA_VERSION:
+        fail(f"04 审计 schema_version 必须为 {AUDIT_SCHEMA_VERSION}")
     if audit["document_type"] != "reasoning_audit":
         fail("04 审计 document_type 必须为 reasoning_audit")
     metadata = audit["metadata"]
@@ -248,6 +252,89 @@ def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, object
     if not constraints:
         fail("evidence_readiness_assessments.csv 至少需要一行")
     return manifest_rows[0], constraints
+
+
+def _load_method_catalog() -> dict[str, Path]:
+    catalog: dict[str, Path] = {}
+    if not METHOD_LIBRARY_ROOT.is_dir():
+        fail(f"缺少知识库_04推理目录: {METHOD_LIBRARY_ROOT}")
+    for path in METHOD_LIBRARY_ROOT.glob("[ABCD]_*/[ABCD][0-9][0-9]_*.md"):
+        method_id = path.name.split("_", 1)[0]
+        if METHOD_ID_RE.fullmatch(method_id):
+            catalog[method_id] = path
+    if not catalog:
+        fail("知识库_04推理未发现任何 A/B/C/D 方法卡")
+    return catalog
+
+
+def _validate_method_library_usage(audit: dict[str, object]) -> None:
+    usage = audit.get("method_library_usage")
+    if not isinstance(usage, dict):
+        fail("method_library_usage 必须是对象")
+    require_keys(usage, ["library_ref", "methods_used", "claim_bindings"], "method_library_usage")
+    library_ref = str(usage.get("library_ref", "")).strip()
+    if not library_ref:
+        fail("method_library_usage.library_ref 不得为空")
+    ref_path = _ROOT / library_ref
+    if not ref_path.is_file():
+        fail(f"method_library_usage.library_ref 无法解析: {library_ref}")
+    try:
+        ref_path.resolve().relative_to(METHOD_LIBRARY_ROOT.resolve())
+    except ValueError:
+        fail("method_library_usage.library_ref 必须落在知识库_04推理目录内")
+
+    catalog = _load_method_catalog()
+    raw_methods = usage.get("methods_used")
+    if isinstance(raw_methods, str):
+        methods_used = split_refs(raw_methods)
+    elif isinstance(raw_methods, list):
+        methods_used = [str(item).strip() for item in raw_methods if str(item).strip()]
+    else:
+        fail("method_library_usage.methods_used 必须是列表或分隔字符串")
+    if not methods_used:
+        fail("method_library_usage.methods_used 至少需要一项")
+    unknown = [item for item in methods_used if item not in catalog]
+    if unknown:
+        fail("method_library_usage.methods_used 未在知识库_04推理注册: " + ", ".join(unknown))
+    methods_set = set(methods_used)
+
+    claim_ids = {
+        str(item["claim_id"])
+        for item in audit.get("claim_register", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    bindings = usage.get("claim_bindings")
+    if not isinstance(bindings, list) or not bindings:
+        fail("method_library_usage.claim_bindings 至少需要一项")
+    bound: set[str] = set()
+    for index, item in enumerate(bindings, 1):
+        if not isinstance(item, dict):
+            fail(f"method_library_usage.claim_bindings[{index}] 必须是对象")
+        require_keys(item, ["claim_id", "method_ids"], f"method_library_usage.claim_bindings[{index}]")
+        claim_id = str(item["claim_id"]).strip()
+        if claim_id not in claim_ids:
+            fail(f"method_library_usage.claim_bindings[{index}].claim_id 未在 claim_register 中: {claim_id}")
+        if claim_id in bound:
+            fail(f"method_library_usage.claim_bindings 重复绑定 {claim_id}")
+        bound.add(claim_id)
+        raw_ids = item.get("method_ids")
+        if isinstance(raw_ids, str):
+            method_ids = split_refs(raw_ids)
+        elif isinstance(raw_ids, list):
+            method_ids = [str(value).strip() for value in raw_ids if str(value).strip()]
+        else:
+            fail(f"method_library_usage.claim_bindings[{index}].method_ids 必须是列表或分隔字符串")
+        if not method_ids:
+            fail(f"method_library_usage.claim_bindings[{index}].method_ids 不得为空")
+        extra = [mid for mid in method_ids if mid not in methods_set]
+        if extra:
+            fail(
+                f"method_library_usage.claim_bindings[{index}].method_ids "
+                f"必须先列入 methods_used: " + ", ".join(extra)
+            )
+    missing = sorted(claim_ids - bound)
+    if missing:
+        fail("method_library_usage.claim_bindings 未覆盖全部 claim: " + ", ".join(missing))
 
 
 def _validate_claims(audit: dict[str, object], constraints_by_id: dict[str, object]) -> None:
@@ -772,6 +859,7 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
             fail(f"audit.evidence_context.{field} 必须与 manifest 一致")
 
     _validate_claims(audit, constraints_by_id)
+    _validate_method_library_usage(audit)
     reasoning_instance_fields = {
         "hypotheses",
         "signals",
@@ -796,7 +884,7 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
     _validate_quality_and_compliance(audit)
 
     return {
-        "schema_version": "3.0.0",
+        "schema_version": AUDIT_SCHEMA_VERSION,
         "task_id": report_meta["task_id"],
         "execution_id": report_meta["execution_id"],
         "claims": len(audit["claim_register"]),

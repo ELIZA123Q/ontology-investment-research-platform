@@ -39,10 +39,12 @@ file,field,description
 01_plan/evidence_baskets.csv,notes,
 01_plan/evidence_recipe_matches.csv,recipe_match_id,
 01_plan/evidence_recipe_matches.csv,execution_id,
-01_plan/evidence_recipe_matches.csv,evidence_recipe_id,
+01_plan/evidence_recipe_matches.csv,evidence_recipe_id,任务内配方实例 ID，可与知识库 Recipe 不同
+01_plan/evidence_recipe_matches.csv,library_recipe_id,必须引用知识库_03取证/00_strategy_registry.yaml 中的 ER-* Recipe
+01_plan/evidence_recipe_matches.csv,library_basket_ids,至少覆盖该 Recipe 的 minimum_pass_baskets
 01_plan/evidence_recipe_matches.csv,recipe_name,
 01_plan/evidence_recipe_matches.csv,target_judgment_unit_id,对应 02 的核心判断单元
-01_plan/evidence_recipe_matches.csv,judgment_type,
+01_plan/evidence_recipe_matches.csv,judgment_type,必须是知识库_03 judgment_type_registry 规范类型或可迁移别名
 01_plan/evidence_recipe_matches.csv,strategy_library_ref,
 01_plan/evidence_recipe_matches.csv,strategy_version,
 01_plan/evidence_recipe_matches.csv,applicable_conditions,

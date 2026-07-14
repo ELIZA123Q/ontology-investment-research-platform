@@ -4,6 +4,7 @@ machine_truth: true
 gate_status_enum: [passed, provisional, failed, not_applicable]
 
 # 依赖语义只在本文件定义。框架正文只能引用 output gate ID，不得复制前置或解锁关系。
+# 02 选用时应从目标 output_gates 反向读取 requires / downstream_unlocks，再决定 direct、prerequisite、industry_overlay 与下游承接；本表不另建倒推索引。
 dependency_semantics:
   entry_requires: 进入框架、生成候选变量和问题树所需的最小任务上下文
   output_gates: 输出某一类 CandidateClaim 必须满足的判断前置与最低证据
@@ -453,6 +454,9 @@ industry_overlays:
 
 output_contract_required_fields:
   - framework_id
+  - call_role
+  - judgment_unit_refs
+  - target_output_gates
   - framework_layer
   - gate_status
   - prerequisite_judgment_refs

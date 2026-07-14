@@ -24,17 +24,20 @@ import yaml
 
 
 REQUIRED_FRONT_MATTER = ("framework_id", "name", "library", "version")
-REQUIRED_SCENARIO_FRONT_MATTER = ("document_type", "scenario_id", "name", "version")
+REQUIRED_SCENARIO_FRONT_MATTER = (
+    "document_type",
+    "scenario_id",
+    "name",
+    "version",
+    "scenario_kind",
+    "default_framework_id",
+)
 REQUIRED_SCENARIO_SECTIONS = (
-    "适用问题",
-    "推荐主框架组合",
-    "最小判断链",
-    "关键变量",
-    "最低证据",
-    "主要反证与阻断",
-    "停止条件",
-    "常见误判",
-    "输出到 03 的证据要求",
+    "本场景相对于主框架增加什么",
+    "调用路由",
+    "场景特有判断脊柱",
+    "场景增量变量与竞争解释",
+    "对 02 和 03 的增量交接",
 )
 REQUIRED_CONTRACT_FIELDS = (
     "framework_layer",
@@ -55,6 +58,9 @@ BANNED_STATIC_DEPENDENCY_FIELDS = (
 )
 EXPECTED_OUTPUT_CONTRACT_FIELDS = {
     "framework_id",
+    "call_role",
+    "judgment_unit_refs",
+    "target_output_gates",
     "framework_layer",
     "gate_status",
     "prerequisite_judgment_refs",
@@ -174,7 +180,7 @@ def classify_asset(path: Path, root: Path, front: Mapping[str, Any]) -> str:
     parts = rel.parts
     name = path.name
     doc_type = str(front.get("document_type", ""))
-    if name == "README.md" or name.startswith("00_") or "03_治理与迁移" in parts:
+    if name == "README.md" or name.startswith("00_") or "治理" in parts:
         return "skip"
     if doc_type in {
         "industry_framework_governance",
@@ -183,9 +189,11 @@ def classify_asset(path: Path, root: Path, front: Mapping[str, Any]) -> str:
         "framework_usage_record_template",
     }:
         return "skip"
-    if "02_场景卡" in parts or doc_type == "semiconductor_scenario_card":
-        return "scenario_card" if "02_场景卡" in parts else "invalid"
-    if parts[0] == "基础框架库" or "01_主框架" in parts or front.get("framework_id"):
+    if "场景卡" in parts:
+        return "scenario_card" if doc_type == "semiconductor_scenario_card" else "skip"
+    if parts[0] == "基础框架库" or "主框架" in parts:
+        return "framework"
+    if front.get("framework_id") and "行业框架库" not in parts:
         return "framework"
     if parts[:2] == ("行业框架库", "半导体行业"):
         return "invalid"
@@ -239,9 +247,11 @@ def meaningful_lines(text: str) -> Set[str]:
     _, body, _ = parse_front_matter(text)
     body = re.sub(r"```yaml.*?```", "", body, flags=re.DOTALL)
     ignored = {
-        "使用时字段从[依赖登记表与输出要求](../../../../01_框架依赖与输出要求.md)解析。",
-        "使用时字段和职责交接从[依赖登记表与输出要求](../../../../01_框架依赖与输出要求.md)解析。",
-        "使用时字段和下游可接续内容从[依赖登记表与输出要求](../../../../01_框架依赖与输出要求.md)解析。",
+        "使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。",
+        "使用时字段和职责交接见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。",
+        "使用时字段和下游可接续内容见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。",
+        "使用本框架时，写清：前提判断是否具备、待验证观点有哪些、还有哪些未决缺口；字段说明见[README](../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../00_framework_dependency_registry.yaml)。",
+        "使用本框架时，写清：前提判断是否具备、待验证观点有哪些、还有哪些未决缺口，以及下游可接续什么；字段说明见[README](../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../00_framework_dependency_registry.yaml)。",
         "02 只登记候选反证；是否命中、降级或改判由 04 裁决。",
     }
     lines: Set[str] = set()
@@ -294,6 +304,41 @@ def validate_discrimination_table(relative: Path, text: str, errors: List[str]) 
     for prediction in predictions:
         if prediction in {"关注数据", "待验证", "数据改善", "数据恶化"}:
             errors.append(f"{relative}: 区分预测‘{prediction}’不可执行")
+
+
+TASK_SELECTION_REQUIRED_KEYS = (
+    "main_route",
+    "competing_route",
+    "critical_judgment_units",
+    "decisive_variable_refs",
+    "activated_modules",
+    "excluded_modules",
+    "target_output_gates",
+    "prerequisite_frameworks",
+    "downstream_handoffs",
+    "stop_conditions",
+)
+
+
+def validate_task_selection_block(relative: Path, text: str, errors: List[str]) -> None:
+    """基础框架必须提供统一的 *_task_selection 裁剪结果样板。"""
+    if re.search(r"(?m)^\w+_task_cut:", text):
+        errors.append(f"{relative}: 禁止使用 *_task_cut 根键，请统一为 *_task_selection")
+    matches = list(re.finditer(r"(?m)^(\w+_task_selection):\s*$", text))
+    if not matches:
+        errors.append(f"{relative}: 缺少 *_task_selection 单次 02 裁剪结果块")
+        return
+    for match in matches:
+        start = match.end()
+        block_lines: List[str] = []
+        for line in text[start:].splitlines():
+            if line.strip() == "```":
+                break
+            block_lines.append(line)
+        block = "\n".join(block_lines)
+        for key in TASK_SELECTION_REQUIRED_KEYS:
+            if not re.search(rf"(?m)^\s*{re.escape(key)}\s*:", block):
+                errors.append(f"{relative}: {match.group(1)} 缺少必填键 {key}")
 
 
 def find_cycle(graph: Mapping[str, Set[str]]) -> Optional[List[str]]:
@@ -479,29 +524,24 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
     if registry_entries:
         validate_registry(registry, registry_entries, errors)
 
-    dependency_doc = root / "01_框架依赖与输出要求.md"
-    if not dependency_doc.exists():
-        errors.append("框架库: 缺少框架依赖与输出要求")
+    registry_path = root / "00_framework_dependency_registry.yaml"
+    if not registry_path.exists():
+        errors.append("框架库: 缺少依赖登记表 00_framework_dependency_registry.yaml")
 
-    router = root / "判断框架库" / "00_判断类型选用与问题拆解.md"
-    claim_library = root / "Claim模板库" / "00_Claim模板与检查清单.md"
+    router = root / "README.md"
     if not router.exists():
-        errors.append("判断单元生成与路由: 文件缺失")
+        errors.append("README: 缺少判断类型选用说明")
     else:
         router_text = router.read_text(encoding="utf-8")
         missing = sorted(EXPECTED_JUDGMENT_FRAMEWORK_IDS - set(re.findall(r"\bJF-[A-Z]+\b", router_text)))
         if missing:
-            errors.append(f"判断单元生成与路由缺失: {', '.join(missing)}")
-        for phrase in ("竞争解释", "区分信号", "候选推翻条件", "CandidateClaim", "04"):
+            errors.append(f"README 判断类型缺失: {', '.join(missing)}")
+        for phrase in ("竞争解释", "区分信号", "推翻条件", "待验证观点", "04"):
             if phrase not in router_text:
-                errors.append(f"判断单元生成与路由缺少核心要素‘{phrase}’")
-    if not claim_library.exists():
-        errors.append("Claim模板库: 文件缺失")
-    else:
-        claim_text = claim_library.read_text(encoding="utf-8")
+                errors.append(f"README 缺少判断类型核心要素‘{phrase}’")
         for phrase in ("可证伪", "有边界", "不跳步", "可区分", "可降级", "atomic_claim", "mechanism_ref"):
-            if phrase not in claim_text:
-                errors.append(f"Claim模板库缺少检查项‘{phrase}’")
+            if phrase not in router_text:
+                errors.append(f"README 缺少待验证观点检查项‘{phrase}’")
 
     metadata: Dict[Path, Dict[str, Any]] = {}
     classes: Dict[Path, str] = {}
@@ -572,8 +612,10 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
                     f"{relative}: output_gate_refs 与 registry 不一致；"
                     f"缺少 {sorted(expected_refs - actual_refs)}，多出 {sorted(actual_refs - expected_refs)}"
                 )
-        if front.get("library") == "base" and not str(front.get("version", "")).startswith("2."):
-            errors.append(f"{relative}: 基础框架 version 应为 2.x")
+        if front.get("library") == "base" and not re.match(r"^[23]\.", str(front.get("version", ""))):
+            errors.append(f"{relative}: 基础框架 version 应为 2.x 或 3.x")
+        if front.get("library") == "base":
+            validate_task_selection_block(relative, text, errors)
         if "研究员先看什么" not in text:
             errors.append(f"{relative}: 缺少‘研究员先看什么’")
         semantic_groups = (
@@ -587,7 +629,7 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
         for alternatives in semantic_groups:
             if not any(term in text for term in alternatives):
                 errors.append(f"{relative}: 缺少语义单元 {'/'.join(alternatives)}")
-        if "半导体行业" in path.parts and "01_主框架" in path.parts:
+        if "半导体行业" in path.parts and "主框架" in path.parts:
             validate_discrimination_table(relative, text, errors)
             if front.get("validation_status") not in {"pending_two_tasks", "validated_two_tasks"}:
                 errors.append(f"{relative}: validation_status 非法或缺失")
@@ -618,16 +660,19 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
         text = path.read_text(encoding="utf-8")
         relative = path.relative_to(root)
         validate_scenario_sections(relative, text, errors)
-        if "## 2. 推荐主框架组合" in text:
-            combo = text.split("## 2. 推荐主框架组合", 1)[1].split("## 3.", 1)[0]
+        if "## 2. 调用路由" in text:
+            combo = text.split("## 2. 调用路由", 1)[1].split("## 3.", 1)[0]
             unknown_frameworks = sorted(set(FRAMEWORK_ID_RE.findall(combo)) - set(framework_ids))
             unknown_scenarios = sorted(set(SCENARIO_REF_RE.findall(combo)) - set(scenario_ids))
             if unknown_frameworks:
-                errors.append(f"{relative}: 推荐组合引用未知框架 {', '.join(unknown_frameworks)}")
+                errors.append(f"{relative}: 调用路由引用未知框架 {', '.join(unknown_frameworks)}")
             if unknown_scenarios:
-                errors.append(f"{relative}: 推荐组合引用未知场景卡 {', '.join(unknown_scenarios)}")
+                errors.append(f"{relative}: 调用路由引用未知场景卡 {', '.join(unknown_scenarios)}")
+        line_count = len(text.splitlines())
+        if line_count > 120:
+            warnings.append(f"{relative}: 场景卡仍有 {line_count} 行，建议压缩到 80—120 行")
 
-    link_files = [root / "README.md", root / "01_框架依赖与输出要求.md"] + files
+    link_files = [root / "README.md"] + files
     for path in link_files:
         if not path.exists():
             continue
