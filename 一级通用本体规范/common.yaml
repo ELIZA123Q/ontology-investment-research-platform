@@ -108,7 +108,6 @@ common_enums:
   rule_type: [validation, inference, scoring, blocking]
   confidence: [low, medium, high, unknown]
   judgment_level: [J0, J1, J2, J3, J4]
-  judgment_status: [normal, weakened, contested]
   signal_role: [support, catalyst, track, weaken, block]
   direction: [increase, decrease, stable, positive, negative, neutral, uncertain]
 

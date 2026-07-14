@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-GLOSSARY = ROOT / "00_项目定位与边界.md"
+GLOSSARY = ROOT / "00_全局" / "00_项目定位与边界.md"
 
 # 这些词可以在项目说明的反例中出现，但不应出现在其他文档的自然语言正文中。
 FORBIDDEN = (
@@ -34,6 +34,12 @@ FORBIDDEN = (
     "可消费",
     "answer first",
     "overclaim",
+    "阶段包",
+    "本体同源",
+    "机器事实",
+    "派生矩阵",
+    "包级准入",
+    "质量门槛槛",
 )
 
 AWKWARD = ("必需必要", "可可", "本次本次", "判断判断")

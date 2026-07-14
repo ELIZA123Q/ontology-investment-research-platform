@@ -1,0 +1,76 @@
+document_type: research_quality_scorecard
+schema_version: 1.3.0
+evaluation_status: scored
+metadata:
+  eval_task_id: EVAL-T03
+  execution_id: EXEC-EVAL-T03-20260713-1
+  scored_at: '2026-07-13T20:10:00+08:00'
+  scorer_id: eval-trial-scorer
+  producer_id: eval-trial-producer
+  artifact_dir: 评测集/04_评测结果/评测存档/EVAL-T03/
+  ontology_snapshot_ref: ONTOLOGY-20260713
+  methodology_ref: STAGE-01-05@20260713
+  evaluation_scope_applied:
+    terminal_stage: '04'
+    required_artifacts:
+    - '04'
+    note: 本题回归评测以04判断简报为终点；完整05非必需。若升为表达层基准题须改 scope。
+  trial_note: 按 evaluation_scope=04 复评：缺少完整05不再扣分。
+independence:
+  independence_status: self_check
+  independent_reviewer_id: ''
+  independent_review_ref: ''
+  notes: 首轮内部试跑为同一方法链路自检（producer/scorer ID不同但非独立主体），不构成正式独立审阅。
+endpoint_check:
+  expected_judgment_status: 成立
+  actual_endpoint: 成立
+  matched: true
+  core_judgment_within_outline: true
+  notes: 超预期成立；主因算力需求出货，结构协同；原增长假设上修。终点命中≠质量自动通过。
+hard_fail:
+  triggered: false
+  items: []
+  notes: 无目标价/买卖；未把节奏故事写成主因。
+core_metrics:
+  问题保持:
+    结果: 通过
+    说明: 紧扣中际旭创2026Q1与原增长假设更新，未滑向目标价。
+  证据支撑:
+    结果: 通过
+    说明: 一季报收入/归母净利润及公司原因说明支撑超预期与需求主因；分产品更细拆解仍偏粗但已声明边界。
+  推理成立:
+    结果: 通过
+    说明: 先归因（需求/结构/节奏）再决定假设上修，未跳步。
+  反证处理:
+    结果: 通过
+    说明: 关键反证「交付提前确认导致的一次性抬升」：用持续需求表述与非节奏主因裁决为不成立主导；成本/ASP压力保留跟踪。
+  判断强度:
+    结果: 通过
+    说明: 成立+单季外推边界，未写成全面景气永久确认。
+  交付可用性:
+    结果: 通过
+    说明: scope仅要求04判断简报；简报可直接使用。完整05不在本轮扣分范围。
+evidence_audit:
+  checked_items:
+  - claim_or_fact: 2026Q1业绩超预期及需求主因
+    source_or_ref: 中际旭创2026年一季报（披露日早于2026-04-30）
+    as_of_or_publish_date: ≤2026-04-30
+    locator: 试跑简报内财报关键数字引用
+    supports_which_judgment: 成立/假设上修
+    opened_by_scorer: self_check_claimed
+  notes: 未做独立第三方打开源文件复核。
+operational_records:
+  运行时间与成本:
+    wall_clock_minutes: 45
+    human_minutes: 35
+    model_or_tool_cost_cny: 0
+    说明: ''
+  增量更新复用程度:
+    applicable: false
+    说明: ''
+overall:
+  结果: 通过
+  主要问题: 无实质缺口（在04范围内）
+  返工项: ''
+  改进建议: 若升为表达层基准题，先改 evaluation_scope 要求05再评。
+  reliability_note: 终点命中与研究质量已分开记录；本卡为 self_check 基线，非正式独立评测结论。

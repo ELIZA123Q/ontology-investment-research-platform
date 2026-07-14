@@ -1,0 +1,70 @@
+document_type: research_quality_scorecard
+schema_version: 1.3.0
+metadata:
+  eval_task_id: EVAL-T01
+  execution_id: EXEC-MEM-CYCLE-20260713-1
+  scored_at: '2026-07-13T17:20:00+08:00'
+  scorer_id: eval-trial-scorer
+  producer_id: sample-research-author
+  artifact_dir: 示例1/
+  ontology_snapshot_ref: ONTOLOGY-20260713
+  methodology_ref: STAGE-01-05@20260713
+  trial_note: 首轮试跑。以既有示例1全链产物对照 EVAL-T01 评审参考评分，不重新执行 01—05。
+  evaluation_scope_applied:
+    terminal_stage: '04'
+    required_artifacts:
+    - '04'
+    note: 质量评测以判断简报为终点；不因缺少完整05扣分。
+endpoint_check:
+  expected_judgment_status: 条件成立
+  actual_endpoint: 条件成立
+  matched: true
+  core_judgment_within_outline: true
+  notes: "04 简报 J2：分产品稀缺定价强化、明确禁止统一结束日， 并给出 HBM / 通用 DRAM / 企业级与消费端 NAND 分化。\n 终点命中≠质量自动通过。"
+hard_fail:
+  triggered: false
+  items: []
+  notes: 未发现偷换问题、无证据决定性结论、忽略反证或强度越权。
+core_metrics:
+  问题保持:
+    结果: 通过
+    说明: 始终围绕分产品周期位置与转向条件，未滑向个股或交易建议。
+  证据支撑:
+    结果: 通过
+    说明: 价格/实现价、长约与厂商披露等锚点具备；统一结束日被显式限制。
+  推理成立:
+    结果: 通过
+    说明: 主路径分段成立到方向判断；资源挤占未量化处未升格为确认。
+  反证处理:
+    结果: 通过
+    说明: 消费端 NAND 疲弱、供给窗口、抢货/库存竞争解释均入账并影响强度。
+  判断强度:
+    结果: 通过
+    说明: 总判断 J2 条件成立；统一结束日保持不可判断，未编造日期。
+  交付可用性:
+    结果: 通过
+    说明: 结论、分化、边界与改判信号可直接进入研究使用；完整 05 已具备。
+operational_records:
+  运行时间与成本:
+    wall_clock_minutes: null
+    human_minutes: null
+    model_or_tool_cost_cny: null
+    说明: 本卡复用既有示例1，不计本次新跑成本。
+  增量更新复用程度:
+    applicable: false
+    说明: 首次运行锚定样例，不适用。
+overall:
+  结果: 通过
+  主要问题: 无
+  返工项: ''
+  改进建议: 可作为条件成立类基线样例；后续比较时关注分产品表述是否回退为统一强景气。
+  reliability_note: 终点命中与研究质量已分开记录；本卡为 self_check 基线，非正式独立评测结论。
+evaluation_status: scored
+independence:
+  independence_status: self_check
+  independent_reviewer_id: ''
+  independent_review_ref: ''
+  notes: 首轮内部试跑为同一方法链路自检（producer/scorer ID不同但非独立主体），不构成正式独立审阅。
+evidence_audit:
+  checked_items: []
+  notes: 首轮未系统登记来源打开记录；仅逻辑自洽检查。

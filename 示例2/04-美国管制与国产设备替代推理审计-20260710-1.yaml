@@ -1,16 +1,16 @@
 document_type: reasoning_audit
-schema_version: 2.0.0
+schema_version: 3.0.0
 metadata:
   task_id: JTASK-USCTRL-CNSEMI-EQP-001
   execution_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
   judgment_as_of: '2026-07-10'
-  report_ref: 04-美国管制与国产设备替代推理报告-20260710-1.md
+  brief_ref: 04-美国管制与国产设备替代判断简报-20260710-1.md
   source_01_ref: 01-美国管制与国产设备替代投研需求说明-20260710-1.md
   source_02_logic_ref: 02-美国管制与国产设备替代研究逻辑-20260710-1.md
   source_02_view_ref: 02-美国管制与国产设备替代本体视图-20260710-1.yaml
   preparation_ref: 03-美国管制与国产设备替代数据与证据准备-20260710-1.md
   snapshot_ref: 03-美国管制与国产设备替代数据与证据快照-20260710-1/manifest.csv
-  audit_status: complete
+  stage_status: complete
   quality_gate_ref: 04_推理输出规范.md#10-质量门槛与返工规则
   quality_status: high_quality_pass
   deterministic_check_status: checked
@@ -23,20 +23,12 @@ input_integrity:
   no_unfrozen_evidence_used: true
   no_new_path_or_rule_created: true
   issues: []
-evidence_admission:
-  admission: restricted_pass
-  evidence_quality_level: medium
-  coverage_unit_total: 8
-  evidence_backed_unit_count: 8
-  evidence_coverage_rate: 1.0
-  confidence_ceiling: medium
-  allowed_scope: 方向性行业逻辑与类别公司分组
-  blocked_coverage_refs: []
-  interpretation: 证据覆盖支持可追溯推理但商业和前瞻单元仅允许方向性判断
+evidence_context:
+  stage_status: complete
 judgment_unit_gate_results:
 - judgment_unit_id: JU-01
   statement: 现行规则形成定向可执行约束但并非全面禁运
-  source_03_gate_ref: judgment_unit_readiness.csv#JU-01
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-01
   evidence_gate_status: met
   required_evidence_refs:
   - EV-01
@@ -60,12 +52,11 @@ judgment_unit_gate_results:
   main_limit: 只确认截至判断日现行规则
   effect_on_claims:
   - C-01
-  reasoning_readiness: full_reasoning_ready
-  maximum_judgment_level: J4
-  judgment_status: normal
+  evidence_grade: Q4
+  counterevidence_result: cleared
 - judgment_unit_id: JU-02
   statement: 供给缺口需经复购和经营兑现
-  source_03_gate_ref: judgment_unit_readiness.csv#JU-02
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-02
   evidence_gate_status: met
   required_evidence_refs:
   - EV-10
@@ -89,12 +80,11 @@ judgment_unit_gate_results:
   main_limit: 不给统一转化率
   effect_on_claims:
   - C-02
-  reasoning_readiness: restricted_reasoning_ready
-  maximum_judgment_level: J2
-  judgment_status: normal
+  evidence_grade: Q2
+  counterevidence_result: weakened
 - judgment_unit_id: JU-03
   statement: 类别公司强弱由成熟度与质量主导
-  source_03_gate_ref: judgment_unit_readiness.csv#JU-03
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-03
   evidence_gate_status: met
   required_evidence_refs:
   - EV-13
@@ -119,12 +109,11 @@ judgment_unit_gate_results:
   main_limit: 只作强中弱组
   effect_on_claims:
   - C-03
-  reasoning_readiness: restricted_reasoning_ready
-  maximum_judgment_level: J2
-  judgment_status: normal
+  evidence_grade: Q2
+  counterevidence_result: weakened
 - judgment_unit_id: JU-04
   statement: 主逻辑不逆转而升级为质量优先
-  source_03_gate_ref: judgment_unit_readiness.csv#JU-04
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-04
   evidence_gate_status: met
   required_evidence_refs:
   - EV-01
@@ -151,9 +140,8 @@ judgment_unit_gate_results:
   main_limit: 中等置信度未来十二个月
   effect_on_claims:
   - C-04
-  reasoning_readiness: full_reasoning_ready
-  maximum_judgment_level: J3
-  judgment_status: normal
+  evidence_grade: Q3
+  counterevidence_result: weakened
 overall_judgment:
   confidence: medium
   statement: 未来十二个月现行美国管制不会逆转国产替代主逻辑而会强化商业兑现质量驱动的结构分化
@@ -171,9 +159,48 @@ overall_judgment:
   - 全行业上游自主率未知
   - 未来规则和需求可能变化
   primary_claim_id: C-04
-  judgment_level: J3
+  judgment_level: J2
   investment_interpretation: high_level_divergence
   interpretation_basis: 国产替代必要性仍在，但商业成熟度、利润质量和关键部件独立性决定类别与公司分化
+investment_thesis_verdict:
+  applicable: true
+  applicability_reason: 01要求判断国产替代逻辑是否足以形成未来十二个月投资研究主线
+  source_claim_refs:
+  - C-01
+  - C-02
+  - C-03
+  - C-04
+  source_a08_claim_refs:
+  - C-03
+  - C-04
+  source_a09_claim_refs:
+  - C-04
+  target_asset: 中国半导体设备行业与公开披露充分的代表公司样本
+  time_window: 未来十二个月
+  gate_results:
+    research_validity: pass
+    expectation_comparability: conditional
+    pricing_not_fully_reflected: conditional
+    payoff_risk_asymmetry: conditional
+    validation_window: pass
+  priced_in_assessment: unknown
+  base_case: 国产替代主逻辑不变但商业兑现质量驱动分化
+  upside_case: 复购、跨线复制和利润连续改善且部件再认证顺利
+  downside_case: 设备需求下修或关键部件再认证失败阻断交付
+  catalyst_or_validation_signals:
+  - 2026年11月规则状态
+  - 设备支出与复购跨线复制
+  - 部件再认证与利润质量
+  strongest_counterevidence: 全球设备周期与国内扩产也能解释国产设备增长
+  verdict: conditional
+  judgment_level: J2
+  confidence: medium
+  verdict_reason: 研究判断和验证窗口成立，但市场计价、类别口径与资产不对称证据不完整
+  invalidation_conditions:
+  - 许可大范围放松
+  - 中国设备需求持续下修
+  - 上游部件切换失败
+  handoff_to_05: conditional_expression_only
 claim_register:
 - claim_id: C-01
   report_section: 1-3
@@ -212,11 +239,8 @@ claim_register:
     scope_not_expanded: true
     no_unfrozen_fact_used: true
   target_claim_type: current_state
-  source_maximum_judgment_level: J4
-  actual_judgment_level: J4
-  claim_mode: unconditional
+  judgment_level: J4
   conditions: []
-  judgment_status: normal
   downgrade_reason: 无
   strength_consistency_check: true
 - claim_id: C-02
@@ -258,11 +282,8 @@ claim_register:
     scope_not_expanded: true
     no_unfrozen_fact_used: true
   target_claim_type: directional_outlook
-  source_maximum_judgment_level: J2
-  actual_judgment_level: J2
-  claim_mode: unconditional
+  judgment_level: J2
   conditions: []
-  judgment_status: normal
   downgrade_reason: 无
   strength_consistency_check: true
 - claim_id: C-03
@@ -305,16 +326,13 @@ claim_register:
     scope_not_expanded: true
     no_unfrozen_fact_used: true
   target_claim_type: causal_inference
-  source_maximum_judgment_level: J2
-  actual_judgment_level: J2
-  claim_mode: unconditional
+  judgment_level: J2
   conditions: []
-  judgment_status: normal
   downgrade_reason: 无
   strength_consistency_check: true
 - claim_id: C-04
   report_section: 1-6
-  reader_label: 高概率
+  reader_label: 方向判断
   statement: 现行管制不会逆转主逻辑而会将其升级为商业兑现质量优先的结构分化
   scope: 中国半导体设备行业整体
   time_horizon: 未来十二个月
@@ -369,11 +387,8 @@ claim_register:
     scope_not_expanded: true
     no_unfrozen_fact_used: true
   target_claim_type: forecast
-  source_maximum_judgment_level: J3
-  actual_judgment_level: J3
-  claim_mode: unconditional
+  judgment_level: J2
   conditions: []
-  judgment_status: normal
   downgrade_reason: 无
   strength_consistency_check: true
 uncertainty_register:
@@ -411,7 +426,7 @@ uncertainty_register:
   judgment_change: 重排类别强弱
   gap_refs: []
 change_gate_register:
-- gate_id: GATE-01
+- gate_id: RC-01
   report_section: '6'
   baseline: 附属实体规则暂停
   observation_variable: 正式效力覆盖与许可
@@ -421,7 +436,7 @@ change_gate_register:
   linked_claim_refs:
   - C-01
   - C-04
-- gate_id: GATE-02
+- gate_id: RC-02
   report_section: '6'
   baseline: 中国设备需求高位平台
   observation_variable: 实际设备销售和扩产
@@ -431,7 +446,7 @@ change_gate_register:
   linked_claim_refs:
   - C-02
   - C-04
-- gate_id: GATE-03
+- gate_id: RC-03
   report_section: '6'
   baseline: 部分公司已有批量复购
   observation_variable: 跨线复制验收和利润
@@ -442,7 +457,7 @@ change_gate_register:
   - C-02
   - C-03
   - C-04
-- gate_id: GATE-04
+- gate_id: RC-04
   report_section: '6'
   baseline: 受限部件需客户再认证
   observation_variable: 交付延期认证和毛利
@@ -492,6 +507,85 @@ review_plan:
   - 连续两个报告期复购与利润同向改善，或部件再认证失败并阻断交付
   review_due_at: '2027-01-20'
   review_status: scheduled
+handoff_to_05:
+  target_05_archetype: theme_deep_dive
+  target_05_quality: high_quality_pass
+  handoff_status: ready
+  output_ceiling: full_report
+  formal_report_allowed: true
+  approved_core_claims:
+  - claim_id: C-01
+    permitted_role: supporting_thesis
+    judgment_level: J4
+    scope: 截至2026年7月10日现行规则
+    conditions: []
+    confidence: high
+    required_caveats:
+    - 不得写成所有成熟制程设备全面禁运
+  - claim_id: C-02
+    permitted_role: supporting_thesis
+    judgment_level: J2
+    scope: 中国半导体设备行业未来十二个月
+    conditions: []
+    confidence: medium
+    required_caveats:
+    - 必须保留验证复购跨线复制和经营兑现条件
+  - claim_id: C-04
+    permitted_role: core_thesis
+    judgment_level: J2
+    scope: 中国半导体设备行业整体未来十二个月
+    conditions: []
+    confidence: medium
+    required_caveats:
+    - 政策必要性不等于所有类别同步兑现
+    - 投资命题仅可条件性表达
+  restricted_claims:
+  - claim_id: C-03
+    permitted_role: supporting_thesis
+    required_conditions:
+    - 类别比较只基于公开代表公司样本
+    - 不作精确份额或个股排序
+    required_scope: 设备类别与公开披露充分的代表公司样本
+    reason: 类别口径与客户级复购数据不统一
+  prohibited_claims:
+  - claim_id_or_topic: 行业统一国产化率或未来十二个月精确份额
+    reason: 缺统一类别口径和客户级数据
+  - claim_id_or_topic: 先进光刻批量量产与近端业绩兑现
+    reason: 缺正式批量复购和收入证据
+  - claim_id_or_topic: 个股评级目标价或仓位建议
+    reason: 超出01交付边界且未经估值审计
+  required_caveats:
+  - 海外成熟制程供给仍有残余
+  - 全球设备周期与国内扩产是竞争解释
+  - 上游部件再认证可能阻断兑现
+  decision_gates:
+  - gate_id: RC-01
+    signal: 美国规则与许可状态
+    threshold_or_condition: 2026年11月恢复、扩围、延后或放松
+    implication: 更新政策必要性与上游风险
+  - gate_id: RC-02
+    signal: 中国设备需求
+    threshold_or_condition: 设备支出和订单连续两个季度下修
+    implication: 下调整体经营兑现强度
+  - gate_id: RC-03
+    signal: 复购跨线复制与利润
+    threshold_or_condition: 连续两个报告期改善或停滞
+    implication: 重排类别强弱
+  - gate_id: RC-04
+    signal: 关键部件再认证
+    threshold_or_condition: 持续延期或认证失败
+    implication: 削弱或阻断受影响类别判断
+  expression_rules:
+    must_preserve:
+    - 判断方向
+    - 判断等级
+    - 范围
+    - 条件
+    must_avoid:
+    - 政策贡献率
+    - 统一国产化率
+    - 未经审计的个股推荐
+  confidence_ceiling: medium
 ontology_context:
   ontology_refs:
   - semiconductor_domain_ontology
@@ -793,8 +887,6 @@ judgments:
   - RE-04
   target_claim_type: current_state
   judgment_level: J4
-  judgment_status: normal
-  claim_mode: unconditional
   conditions: []
   scope:
     time: 截至2026-07-10
@@ -813,8 +905,6 @@ judgments:
   - RE-04
   target_claim_type: directional_outlook
   judgment_level: J2
-  judgment_status: normal
-  claim_mode: unconditional
   conditions: []
   scope:
     objects: 中国半导体设备行业
@@ -834,8 +924,6 @@ judgments:
   - RE-04
   target_claim_type: causal_inference
   judgment_level: J2
-  judgment_status: normal
-  claim_mode: unconditional
   conditions: []
   scope:
     objects: 设备类别与代表公司样本
@@ -856,9 +944,7 @@ judgments:
   - RE-03
   - RE-04
   target_claim_type: forecast
-  judgment_level: J3
-  judgment_status: normal
-  claim_mode: unconditional
+  judgment_level: J2
   conditions: []
   scope:
     objects: 中国半导体设备行业整体
@@ -987,7 +1073,7 @@ path_results:
   linked_judgment_units:
   - JU-01
   - JU-04
-  status: confirmed
+  path_result_status: established
   question: 当前规则是否有效
   input_refs:
   - RI-01
@@ -1012,7 +1098,7 @@ path_results:
   linked_judgment_units:
   - JU-01
   - JU-04
-  status: directional
+  path_result_status: partially_established
   question: 海外供给是否归零
   input_refs:
   - RI-04
@@ -1035,7 +1121,7 @@ path_results:
   linked_judgment_units:
   - JU-02
   - JU-04
-  status: directional
+  path_result_status: partially_established
   question: 需求是否维持
   input_refs:
   - RI-05
@@ -1059,7 +1145,7 @@ path_results:
   - JU-02
   - JU-03
   - JU-04
-  status: directional
+  path_result_status: partially_established
   question: 是否进入复购复制
   input_refs:
   - RI-07
@@ -1089,7 +1175,7 @@ path_results:
   linked_judgment_units:
   - JU-03
   - JU-04
-  status: directional
+  path_result_status: established
   question: 收入利润是否同步
   input_refs:
   - RI-08
@@ -1117,7 +1203,7 @@ path_results:
   linked_judgment_units:
   - JU-03
   - JU-04
-  status: conditional
+  path_result_status: partially_established
   question: 上游是否限制交付
   input_refs:
   - RI-01
@@ -1138,7 +1224,7 @@ path_results:
   linked_judgment_units:
   - JU-03
   - JU-04
-  status: directional
+  path_result_status: partially_established
   question: 合并净效应如何
   input_refs:
   - RI-02
@@ -1294,17 +1380,19 @@ data_logic:
   - 缺统一国产化率
   - 缺客户级台数
   - 缺全行业上游自主率
-report_quality_check:
+brief_quality_check:
   answer_first: true
-  one_page_summary_under_500_chars: true
-  core_landing_has_three_layers: true
+  length_within_2_4_page_proxy: true
+  required_decision_functions_present: true
+  no_formal_report_structure: true
   claims_within_03_use_limits: true
   claim_labels_match_evidence_strength: true
   object_differentiation_clear: true
   change_gates_observable: true
+  expression_permission_explicit: true
   no_internal_ids_in_main_text: true
   no_investment_advice: true
-  audit_report_consistent: true
+  audit_brief_consistent: true
   result: pass
   return_required: false
   return_stage: null
@@ -1314,4 +1402,3 @@ compliance_check:
   no_new_unfrozen_evidence: true
   no_scope_drift: true
   citations_or_evidence_refs_complete: true
-  publishable: true

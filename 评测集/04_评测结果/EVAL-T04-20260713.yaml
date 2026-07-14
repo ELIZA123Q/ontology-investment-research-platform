@@ -1,0 +1,76 @@
+document_type: research_quality_scorecard
+schema_version: 1.3.0
+evaluation_status: scored
+metadata:
+  eval_task_id: EVAL-T04
+  execution_id: EXEC-EVAL-T04-20260713-1
+  scored_at: '2026-07-13T20:20:00+08:00'
+  scorer_id: eval-trial-scorer
+  producer_id: eval-trial-producer
+  artifact_dir: 评测集/04_评测结果/评测存档/EVAL-T04/
+  ontology_snapshot_ref: ONTOLOGY-20260713
+  methodology_ref: STAGE-01-05@20260713
+  evaluation_scope_applied:
+    terminal_stage: '04'
+    required_artifacts:
+    - '04'
+    note: 质量评测以判断简报为终点；不因缺少完整05扣分。
+  trial_note: 补任务特定评分说明；仍为self_check。
+independence:
+  independence_status: self_check
+  independent_reviewer_id: ''
+  independent_review_ref: ''
+  notes: 首轮内部试跑为同一方法链路自检（producer/scorer ID不同但非独立主体），不构成正式独立审阅。
+endpoint_check:
+  expected_judgment_status: 成立
+  actual_endpoint: 成立
+  matched: true
+  core_judgment_within_outline: true
+  notes: 确认2024-12规则增量成立；近端影响落在先进制程相关许可/可得性，非全面断供。
+hard_fail:
+  triggered: false
+  items: []
+  notes: ''
+core_metrics:
+  问题保持:
+    结果: 通过
+    说明: 对象固定为2024-12 BIS增量及≤2025-03-31近端影响，未扩成全历史管制综述。
+  证据支撑:
+    结果: 通过
+    说明: 规则增量锚点：BIS 2024-12-02公告/89 FR 96790（约24类设备、SME FDP、HBM、Entity List）。近端反馈用合规日后许可摩擦与国产订单预期叙事，已标明非全量订单洪峰已兑现。
+  推理成立:
+    结果: 通过
+    说明: 增量规则→许可/FDP收紧→先进节点设备可得性↓→国产相关订单预期↑；在成熟制程全面断供处断开。
+  反证处理:
+    结果: 通过
+    说明: 关键反证「无实质增量」：以FDP/清单/名单扩张核对后裁决不成立；「仅情绪」：合规日与规则文本视为事实，股价不作为产业兑现证据。
+  判断强度:
+    结果: 通过
+    说明: 成立限于规则增量与先进制程相关近端影响，禁止全面断供。
+  交付可用性:
+    结果: 通过
+    说明: scope=04；简报边界清楚，可直接用于事件点评初稿。
+evidence_audit:
+  checked_items:
+  - claim_or_fact: 2024-12 BIS 规则增量要点
+    source_or_ref: BIS新闻稿；89 FR 96790；律师评述
+    as_of_or_publish_date: 2024-12
+    locator: 简报第二节增量表
+    supports_which_judgment: 规则增量成立
+    opened_by_scorer: self_check_claimed
+  notes: 未做独立原文逐段复核。
+operational_records:
+  运行时间与成本:
+    wall_clock_minutes: 40
+    human_minutes: 30
+    model_or_tool_cost_cny: 0
+    说明: ''
+  增量更新复用程度:
+    applicable: false
+    说明: ''
+overall:
+  结果: 通过
+  主要问题: 无实质缺口（self_check口径）
+  返工项: ''
+  改进建议: 独立复评时应抽查FR文本与Entity List条目。
+  reliability_note: 终点命中与研究质量已分开记录；本卡为 self_check 基线，非正式独立评测结论。

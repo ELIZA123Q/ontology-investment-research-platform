@@ -50,7 +50,7 @@ task_context:
     - 尚未生效规则作为当前事实
 quality_control:
   quality_gate_ref: 02_判断结构与本体视图规范.md#8-质量门槛与返工规则
-  stage_status: aligned
+  stage_status: complete
   quality_status: high_quality_pass
   deterministic_check_status: checked
   semantic_review_status: reviewed
@@ -60,7 +60,7 @@ quality_control:
 research_framework:
   judgment_spine:
     statement: 管制升级只有在真实压缩海外设备可得性且国产设备完成验证复购跨线复制和经营兑现时才会改变未来十二个月国产替代逻辑
-    md_section: 1.3 核心判断
+    md_section: 1.3 核心待验证命题
   minimum_question_tree:
   - question_id: Q-01
     question: 现行规则是否形成可执行约束
@@ -163,7 +163,7 @@ evidence_contract:
   - support
   - counter
   - alternative_explanation
-  minimum_admission_conditions:
+  minimum_evidence_conditions:
   - 来源可追溯
   - 主张最小化
   - 事实回到主张
@@ -1012,7 +1012,7 @@ evidence_requirements:
   required_counter_evidence:
   - 许可和豁免
   minimum_standard: 三轮规则可追溯
-  maximum_judgment_level_if_missing: J0
+  evidence_grade_ceiling_if_missing: Q0
 - evidence_requirement_id: ER-02
   question: 未来规则状态如何
   linked_instance_requirement: IR-01
@@ -1027,7 +1027,7 @@ evidence_requirements:
   required_counter_evidence:
   - 暂停状态
   minimum_standard: 生效日期可核验
-  maximum_judgment_level_if_missing: J1
+  evidence_grade_ceiling_if_missing: Q1
 - evidence_requirement_id: ER-03
   question: 海外成熟设备是否仍可供货
   linked_instance_requirement: IR-02
@@ -1041,7 +1041,7 @@ evidence_requirements:
   - 海外厂商年报
   required_counter_evidence: []
   minimum_standard: 三家独立厂商
-  maximum_judgment_level_if_missing: J0
+  evidence_grade_ceiling_if_missing: Q0
 - evidence_requirement_id: ER-04
   question: 中国设备需求是否维持
   linked_instance_requirement: IR-03
@@ -1057,7 +1057,7 @@ evidence_requirements:
   required_counter_evidence:
   - 高位趋缓
   minimum_standard: 实际与预测分开
-  maximum_judgment_level_if_missing: J1
+  evidence_grade_ceiling_if_missing: Q1
 - evidence_requirement_id: ER-05
   question: 国产设备是否复购和批量
   linked_instance_requirement: IR-04
@@ -1073,7 +1073,7 @@ evidence_requirements:
   required_counter_evidence:
   - 首台不等于复购
   minimum_standard: 五类样本
-  maximum_judgment_level_if_missing: J1
+  evidence_grade_ceiling_if_missing: Q1
 - evidence_requirement_id: ER-06
   question: 类别成熟度如何分化
   linked_instance_requirement: IR-04
@@ -1088,7 +1088,7 @@ evidence_requirements:
   required_counter_evidence:
   - 光刻量产不足
   minimum_standard: 五类六家公司
-  maximum_judgment_level_if_missing: J0
+  evidence_grade_ceiling_if_missing: Q0
 - evidence_requirement_id: ER-07
   question: 收入与利润如何兑现
   linked_instance_requirement: IR-05
@@ -1104,7 +1104,7 @@ evidence_requirements:
   required_counter_evidence:
   - 毛利和利润承压
   minimum_standard: 五家公司实际数据
-  maximum_judgment_level_if_missing: J1
+  evidence_grade_ceiling_if_missing: Q1
 - evidence_requirement_id: ER-08
   question: 关键部件软件是否反向受限
   linked_instance_requirement: IR-06
@@ -1119,7 +1119,7 @@ evidence_requirements:
   required_counter_evidence:
   - 部件替代和再认证
   minimum_standard: 规则加公司披露
-  maximum_judgment_level_if_missing: J0
+  evidence_grade_ceiling_if_missing: Q0
 candidate_structures:
   used: false
   items: []
@@ -1148,7 +1148,7 @@ handoff_to_03:
   - reasoning_inputs.csv
   - state_variable_coverage.csv
   - path_readiness.csv
-  - judgment_unit_readiness.csv
+  - evidence_readiness_assessments.csv
   - evidence_records.csv
   special_limits:
   - 当前生效与未来规则分开

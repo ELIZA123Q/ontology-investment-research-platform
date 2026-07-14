@@ -542,7 +542,7 @@ class Validator:
                 if not dependency_path.exists():
                     self.error(f"{path.relative_to(WORKSPACE)} missing dependency: {dependency}")
 
-        template = load_yaml(WORKSPACE / "输出模板" / "02_任务本体视图模板.yaml")
+        template = load_yaml(WORKSPACE / "02_判断结构" / "模板" / "02_任务本体视图模板.yaml")
         domain = template.get("ontology_sources", {}).get("domain_ontology", {})
         if domain.get("version") != "1.0.0":
             self.error("output template domain_ontology.version expected 1.0.0")

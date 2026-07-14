@@ -1,14 +1,14 @@
 document_type: delivery_expression_audit
-schema_version: 2.1.0
+schema_version: 2.3.0
 metadata:
   task_id: JTASK-USCTRL-CNSEMI-EQP-001
   execution_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
   delivery_ref: 05-美国管制与国产设备替代主题深度研究-20260710-1.md
   delivery_content_hash: sha256:033c1205858899b1b6b6a895e2df3523401149a65b10afe36515c48da99179ee
-  source_04_report_ref: 04-美国管制与国产设备替代推理报告-20260710-1.md
+  source_04_brief_ref: 04-美国管制与国产设备替代判断简报-20260710-1.md
   source_04_audit_ref: 04-美国管制与国产设备替代推理审计-20260710-1.yaml
-  source_04_audit_hash: sha256:ed2608331ac71dcc4e48ceaac26e2cde91aea1545b0525bd10a477c8bc140c02
-  audit_status: complete
+  source_04_audit_hash: sha256:6b14aabf34d60febf384a4cc053a0218b3e6c192ea5a2f45a686dc1cb42ab16a
+  stage_status: complete
   quality_status: high_quality_pass
   quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则
   deterministic_check_status: checked
@@ -19,13 +19,8 @@ claim_expression_register:
   location_kind: report_title
   section: 标题
   expression_text: 美国管制不会逆转国产设备替代主逻辑，而会把未来十二个月的研究重点推向商业兑现质量
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-02
@@ -33,13 +28,8 @@ claim_expression_register:
   location_kind: subtitle
   section: 副标题
   expression_text: 从政策缺口驱动转向业绩落地驱动的设备替代分化
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-03
@@ -47,13 +37,8 @@ claim_expression_register:
   location_kind: investment_point
   section: 投资要点
   expression_text: 主逻辑不变，投资逻辑升级。
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-04
@@ -61,13 +46,8 @@ claim_expression_register:
   location_kind: investment_point
   section: 投资要点
   expression_text: 管制在收紧且执行在加强，但是分品类、分客户、分用途的约束
-  source_actual_judgment_level: J4
-  expression_judgment_level: J4
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-05
@@ -75,13 +55,8 @@ claim_expression_register:
   location_kind: investment_point
   section: 投资要点
   expression_text: 已有验证、复购、批量交付和收入兑现的刻蚀、薄膜沉积与热处理、清洗、CMP/减薄及先进封装更强
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: narrower
   semantic_strength_review: pass
 - expression_id: EX-06
@@ -89,13 +64,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 国产替代主逻辑不变，但投资逻辑从主题驱动转向业绩驱动
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-07
@@ -103,13 +73,8 @@ claim_expression_register:
   location_kind: section_heading
   section: 第一章
   expression_text: 管制在收紧但未归零，替代窗口呈现类别化而非一次性全面打开
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-08
@@ -117,13 +82,8 @@ claim_expression_register:
   location_kind: section_heading
   section: 第二章
   expression_text: 中国设备需求维持高位平台，可兑现空间须用商业成熟度而非统一国产化率衡量
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-09
@@ -131,13 +91,8 @@ claim_expression_register:
   location_kind: section_heading
   section: 第三章
   expression_text: 复购与跨线复制已成为类别强弱的决定性变量
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-10
@@ -145,13 +100,8 @@ claim_expression_register:
   location_kind: section_heading
   section: 第四章
   expression_text: 收入、利润与关键部件独立性正在筛选真正受益对象
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-11
@@ -159,13 +109,8 @@ claim_expression_register:
   location_kind: paragraph_lead
   section: 投资要点
   expression_text: 未来十二个月，美国对华半导体设备出口管制大概率不会推翻中国设备国产替代的主逻辑
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-12
@@ -173,13 +118,8 @@ claim_expression_register:
   location_kind: summary_conclusion
   section: 投资要点
   expression_text: 业绩落地驱动的细分赛道分化
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: narrower
   semantic_strength_review: pass
 - expression_id: EX-13
@@ -187,13 +127,8 @@ claim_expression_register:
   location_kind: investment_point
   section: 投资要点
   expression_text: 2022—2024年规则持续扩大设备、软件、实体与规避路径控制
-  source_actual_judgment_level: J4
-  expression_judgment_level: J4
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-14
@@ -201,13 +136,8 @@ claim_expression_register:
   location_kind: investment_point
   section: 投资要点
   expression_text: SEMI 显示中国 2025 年设备销售 493 亿美元、同比略降
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: narrower
   semantic_strength_review: pass
 - expression_id: EX-15
@@ -215,13 +145,8 @@ claim_expression_register:
   location_kind: investment_point
   section: 投资要点
   expression_text: 重点观察 2026 年 11 月规则恢复、中国晶圆厂设备支出、客户复购与跨线复制、关键部件再认证
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-16
@@ -229,13 +154,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 政策约束真实且持续，但不再足以解释所有类别同步兑现；商业成熟度成为类别强弱主变量
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-17
@@ -243,13 +163,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 定向管制与执行、海外供给残余、中国需求高位平台、客户复购与跨线复制、上游部件独立性
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-18
@@ -257,13 +172,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 刻蚀、沉积、热处理、清洗、CMP/减薄、先进封装近端更强；量测、离子注入、涂胶显影居中；先进光刻近端偏弱
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-19
@@ -271,13 +181,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 市场易把政策缺口等同于近端业绩受益，低估成熟制程海外供给残余和利润质量筛选
-  source_actual_judgment_level: J2
-  expression_judgment_level: J2
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-20
@@ -285,13 +190,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 2026年11月附属实体规则恢复、晶圆厂扩产与设备订单、重复订单与跨线复制、部件切换与客户再认证
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 - expression_id: EX-21
@@ -299,13 +199,8 @@ claim_expression_register:
   location_kind: conclusion_overview
   section: 核心结论概览
   expression_text: 政策口径变化、需求周期下修、海外供给另一面、商业化与利润质量、上游供应链与样本外推
-  source_actual_judgment_level: J3
-  expression_judgment_level: J3
-  claim_mode: unconditional
   conditions: []
   conditions_preserved: true
-  judgment_status: normal
-  status_preserved: true
   scope_relation: same
   semantic_strength_review: pass
 research_edge_check:

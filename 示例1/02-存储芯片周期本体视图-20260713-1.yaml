@@ -8,8 +8,7 @@ task_context:
   source_requirement_version: 1
   source_document: 01-存储芯片周期投研需求说明-20260713-1.md
   logic_document: 02-存储芯片周期研究逻辑-20260713-1.md
-  normalized_question: 截至每次运行的数据截止时点，全球存储芯片中 HBM、非 HBM DRAM 与 NAND 分别处于什么供需与价格周期阶段；在未来
-    6—24 个月内，哪些需求、库存、有效供给、价格和产能信号将支持周期延续或表明周期转入见顶、正常化或下行？
+  normalized_question: 截至每次运行的数据截止时点，全球存储芯片中 HBM、非 HBM DRAM 与 NAND 分别处于什么供需与价格周期阶段；在未来 6—24 个月内，哪些需求、库存、有效供给、价格和产能信号将支持周期延续或表明周期转入见顶、正常化或下行？
   judgment_landing: 状态定位
   task_type:
     primary: 状态与趋势判断
@@ -50,7 +49,7 @@ task_context:
   frozen_at: '2026-07-13T15:17:44+08:00'
 quality_control:
   quality_gate_ref: 02_判断结构与本体视图规范.md#8-质量门槛与返工规则
-  stage_status: aligned
+  stage_status: complete
   quality_status: high_quality_pass
   deterministic_check_status: checked
   semantic_review_status: reviewed
@@ -61,13 +60,13 @@ research_framework:
   logic_document_ref: 02-存储芯片周期研究逻辑-20260713-1.md
   judgment_spine:
     statement: 本次需要区分 AI/HBM 拉动的结构性紧张、通用产品被动紧缺、消费端削弱和新增合格供给缓解窗口，而不是把存储芯片写成一个统一周期。
-    md_section: 1.3 核心判断
+    md_section: 1.3 核心待验证命题
   basis:
     source: mixed
     md_section: 3. 本次采用的分析框架
     alignment_summary: 先按产品拆分需求、库存、有效供给和价格，再用新增供给或需求破坏判断条件式结束窗口。
   library_reference:
-    library_ref: 02框架库/README.md
+    library_ref: 知识库_02框架/README.md
     library_version: 1.0.0
     consulted:
     - framework_id: IF-MEM-01
@@ -1945,7 +1944,7 @@ evidence_requirements:
   - industry_research
   required_counter_evidence: []
   minimum_standard: 至少一条需求端证据，业务时间明确，并检查消费终端反向变化。
-  maximum_judgment_level_if_missing: J2
+  evidence_grade_ceiling_if_missing: Q2
 - evidence_requirement_id: ER-02
   question: 长协、订单覆盖、排产、出货或交付的连续记录及取消风险。
   linked_instance_requirement: ''
@@ -1960,7 +1959,7 @@ evidence_requirements:
   - company_results
   required_counter_evidence: []
   minimum_standard: 至少一条订单或交付证据；说明约束性、期限与业务时间。
-  maximum_judgment_level_if_missing: J2
+  evidence_grade_ceiling_if_missing: Q2
 - evidence_requirement_id: ER-03
   question: 有效产能、利用率、交期、产品分配、封装瓶颈或替代供应。
   linked_instance_requirement: ''
@@ -1978,7 +1977,7 @@ evidence_requirements:
   - industry_research
   required_counter_evidence: []
   minimum_standard: 产能/设施与交期或分配至少各一项，并区分名义与有效供给。
-  maximum_judgment_level_if_missing: J2
+  evidence_grade_ceiling_if_missing: Q2
 - evidence_requirement_id: ER-04
   question: 原厂、渠道、OEM/客户至少两个层级的库存、覆盖期或消耗速度。
   linked_instance_requirement: ''
@@ -1996,7 +1995,7 @@ evidence_requirements:
   - industry_research
   required_counter_evidence: []
   minimum_standard: 至少两个层级、时间序列和终端需求对照。
-  maximum_judgment_level_if_missing: J2
+  evidence_grade_ceiling_if_missing: Q2
 - evidence_requirement_id: ER-05
   question: 同规格合约、成交或实现价格的连续变化及下一季斜率指引。
   linked_instance_requirement: ''
@@ -2014,7 +2013,7 @@ evidence_requirements:
   - industry_price_survey
   required_counter_evidence: []
   minimum_standard: 成交、合约或实现价格；至少两个连续时点；说明产品组合影响。
-  maximum_judgment_level_if_missing: J2
+  evidence_grade_ceiling_if_missing: Q2
 - evidence_requirement_id: ER-06
   question: 新增晶圆/封装产能的建设、设备、试产、良率、认证和量产时间表。
   linked_instance_requirement: ''
@@ -2031,7 +2030,7 @@ evidence_requirements:
   - industry_research
   required_counter_evidence: []
   minimum_standard: 至少有设施与投产时间；有效供给结论还需良率或量产验证。
-  maximum_judgment_level_if_missing: J2
+  evidence_grade_ceiling_if_missing: Q2
 candidate_structures:
   used: false
   items: []
@@ -2052,7 +2051,7 @@ handoff_to_03:
   required_csv_or_snapshot_outputs:
   - state_variable_coverage.csv
   - path_readiness.csv
-  - judgment_unit_readiness.csv
+  - evidence_readiness_assessments.csv
   - evidence_records.csv
   special_limits:
   - 不得合并 HBM、非 HBM DRAM、NAND 为统一强景气阶段

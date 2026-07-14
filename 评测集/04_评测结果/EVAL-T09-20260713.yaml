@@ -1,0 +1,70 @@
+document_type: research_quality_scorecard
+schema_version: 1.3.0
+metadata:
+  eval_task_id: EVAL-T09
+  execution_id: EXEC-EVAL-T09-20260713-1
+  scored_at: '2026-07-13T18:15:00+08:00'
+  scorer_id: eval-trial-scorer
+  producer_id: eval-trial-producer
+  artifact_dir: 评测集/04_评测结果/评测存档/EVAL-T09/
+  ontology_snapshot_ref: ONTOLOGY-20260713
+  methodology_ref: STAGE-01-05@20260713
+  trial_note: 第三批试跑。代理/局部披露条件下的条件成立判断。
+  evaluation_scope_applied:
+    terminal_stage: '04'
+    required_artifacts:
+    - '04'
+    note: 质量评测以判断简报为终点；不因缺少完整05扣分。
+endpoint_check:
+  expected_judgment_status: 条件成立
+  actual_endpoint: 条件成立
+  matched: true
+  core_judgment_within_outline: true
+  notes: "明确缺少官方统一成熟制程稼动率；以中芯 2Q25 利用率 92.5% 及华虹等高稼动公开信息作条件判断； 未写成官方确认事实。\n 终点命中≠质量自动通过。"
+hard_fail:
+  triggered: false
+  items: []
+  notes: 未把公司利用率写成官方行业稼动率确认。
+core_metrics:
+  问题保持:
+    结果: 通过
+    说明: 对象与截止日保持；未使用截止日后全年回顾数据。
+  证据支撑:
+    结果: 通过
+    说明: 公司披露 + 第二家样本/产业辅助；并声明官方统一序列缺失。
+  推理成立:
+    结果: 通过
+    说明: 从“龙头口径回升”推到“大陆成熟制程整体倾向回升”时保留了样本外推限制。
+  反证处理:
+    结果: 通过
+    说明: 公司≠行业、新产能验证、二手稿偏误均已列出。
+  判断强度:
+    结果: 通过
+    说明: J2 条件成立，未升格为确认。
+  交付可用性:
+    结果: 通过
+    说明: 结论、依据、代理/样本限制与禁止表达清楚。
+operational_records:
+  运行时间与成本:
+    wall_clock_minutes: 35
+    human_minutes: 25
+    model_or_tool_cost_cny: 0
+    说明: 含截止日前公开财报/报道检索。
+  增量更新复用程度:
+    applicable: false
+    说明: ''
+overall:
+  结果: 通过
+  主要问题: 无
+  返工项: ''
+  改进建议: 与 T15 对照很好；本题意外发现“公司利用率披露”强于纯用电代理，任务卡可注明允许公司披露作为准直接证据。
+  reliability_note: 终点命中与研究质量已分开记录；本卡为 self_check 基线，非正式独立评测结论。
+evaluation_status: scored
+independence:
+  independence_status: self_check
+  independent_reviewer_id: ''
+  independent_review_ref: ''
+  notes: 首轮内部试跑为同一方法链路自检（producer/scorer ID不同但非独立主体），不构成正式独立审阅。
+evidence_audit:
+  checked_items: []
+  notes: 首轮未系统登记来源打开记录；仅逻辑自洽检查。

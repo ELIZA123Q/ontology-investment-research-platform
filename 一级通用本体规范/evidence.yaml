@@ -112,7 +112,7 @@ object_types:
       requiredObjectScope: {type: string, required: false, description: 对象范围。}
       requiredTimeScope: {type: string, required: false, description: 时间范围。}
       requiredGrain: {type: string, required: false, description: 粒度要求。}
-      minimumQualityLevel: {type: enum, required: true, allowed_values: [Q1_background, Q2_reasoning_usable, Q3_directional_ready, Q4_report_grade], description: 最低证据质量。}
+      minimumQualityLevel: {type: enum, required: true, allowed_values: [Q1, Q2, Q3, Q4], description: 最低证据质量，只表示可形成判断的强度，不表示报告展示能力。}
       minimumSourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
       minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
       allowedProxy: {type: boolean, required: true, description: 是否允许代理指标。}
@@ -155,7 +155,7 @@ object_types:
       basketStatus: {type: enum, required: true, allowed_values: [met, partial, not_met, missing, contested, blocked, not_applicable], description: 篮子满足状态。}
       conflictStatus: {type: enum, required: true, allowed_values: [no_material_conflict, minor_conflict, material_conflict, unresolved_conflict, contested, not_checked, not_applicable], description: 冲突状态。}
       counterCheckStatus: {type: enum, required: true, allowed_values: [met, partial, checked, not_checked, not_applicable, missing, blocked], description: 反证检查状态。}
-      qualityLevel: {type: enum, required: true, allowed_values: [Q1_background, Q2_reasoning_usable, Q3_directional_ready, Q4_report_grade], description: 篮子质量等级。}
+      qualityLevel: {type: enum, required: true, allowed_values: [Q1, Q2, Q3, Q4], description: 篮子质量等级，只表示可形成判断的强度，不表示报告展示能力。}
       usageLimit: {type: string, required: false, description: 使用限制。}
       gapAction: {type: string, required: false, description: 缺口补齐动作。}
   SourceProfile:
@@ -260,12 +260,12 @@ object_types:
       conflictStatus: {type: enum, required: true, allowed_values: [no_material_conflict, minor_conflict, material_conflict, unresolved_conflict, contested, not_checked, not_applicable], description: 冲突状态。}
       sourceQualityStatus: {type: string, required: true, description: 来源质量状态。}
       proxyDependencyStatus: {type: enum, required: true, allowed_values: [none, low, moderate, high, proxy_only, not_applicable], description: 代理依赖状态。}
-      overallReadinessStatus: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 整体准入状态。}
+      overallReadinessStatus: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 该判断单元派生后的就绪边界（非包级准入状态）。}
       allowed04Output: {type: enum, required: true, allowed_values: [full_reasoning_ready, directional_only, conditional_only, insufficient, blocked, contested], description: 04 最高使用方式。}
       confidenceCeiling: {type: enum, required: true, allowed_values: [low, medium, high], description: 04 置信上限。}
       forbidden04Outputs: {type: array, required: false, description: 禁止 04 输出。}
       gapAction: {type: string, required: false, description: 缺口动作。}
-      assessmentReason: {type: string, required: true, description: 准入理由。}
+      assessmentReason: {type: string, required: true, description: 评估理由。}
 
 relation_types:
   claimCitesSource:

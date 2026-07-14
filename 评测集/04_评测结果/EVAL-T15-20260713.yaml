@@ -1,0 +1,70 @@
+document_type: research_quality_scorecard
+schema_version: 1.3.0
+metadata:
+  eval_task_id: EVAL-T15
+  execution_id: EXEC-EVAL-T15-20260713-1
+  scored_at: '2026-07-13T18:35:00+08:00'
+  scorer_id: eval-trial-scorer
+  producer_id: eval-trial-producer
+  artifact_dir: 评测集/04_评测结果/评测存档/EVAL-T15/
+  ontology_snapshot_ref: ONTOLOGY-20260713
+  methodology_ref: STAGE-01-05@20260713
+  trial_note: 第四批试跑。严格遵守 2025-12-31 截止日，未用 2026 年报回溯。
+  evaluation_scope_applied:
+    terminal_stage: '04'
+    required_artifacts:
+    - '04'
+    note: 质量评测以判断简报为终点；不因缺少完整05扣分。
+endpoint_check:
+  expected_judgment_status: 条件成立
+  actual_endpoint: 条件成立
+  matched: true
+  core_judgment_within_outline: true
+  notes: "标明龙头样本已证实到收入；招标代理不充分；海关缺口明确； 禁止中标=收入。\n 终点命中≠质量自动通过。"
+hard_fail:
+  triggered: false
+  items: []
+  notes: 未仅凭中标确认收入传导。
+core_metrics:
+  问题保持:
+    结果: 通过
+    说明: 紧扣刻蚀/薄膜需求向收入传导，未扩成全设备平台投资建议。
+  证据支撑:
+    结果: 通过
+    说明: 中微三季报分项收入为强锚点；北方华创营收为辅；招标/海关局限已声明。
+  推理成立:
+    结果: 通过
+    说明: 环节表清楚，断点在行业映射而非龙头收入本身。
+  反证处理:
+    结果: 通过
+    说明: 中标取消、框架未提货、重复统计、样本偏差均处理。
+  判断强度:
+    结果: 通过
+    说明: J2 条件成立，未升格为全行业确认。
+  交付可用性:
+    结果: 通过
+    说明: 证实到哪一步、卡在哪一步可读。
+operational_records:
+  运行时间与成本:
+    wall_clock_minutes: 40
+    human_minutes: 30
+    model_or_tool_cost_cny: 0
+    说明: ''
+  增量更新复用程度:
+    applicable: false
+    说明: ''
+overall:
+  结果: 通过
+  主要问题: 无
+  返工项: ''
+  改进建议: 与 T09 成对效果好；任务卡可强调“若出现公司分项收入，应优先于中标代理，但仍须标样本边界”。
+  reliability_note: 终点命中与研究质量已分开记录；本卡为 self_check 基线，非正式独立评测结论。
+evaluation_status: scored
+independence:
+  independence_status: self_check
+  independent_reviewer_id: ''
+  independent_review_ref: ''
+  notes: 首轮内部试跑为同一方法链路自检（producer/scorer ID不同但非独立主体），不构成正式独立审阅。
+evidence_audit:
+  checked_items: []
+  notes: 首轮未系统登记来源打开记录；仅逻辑自洽检查。

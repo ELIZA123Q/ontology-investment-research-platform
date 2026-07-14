@@ -1,0 +1,70 @@
+document_type: research_quality_scorecard
+schema_version: 1.3.0
+metadata:
+  eval_task_id: EVAL-T07
+  execution_id: EXEC-EVAL-T07-20260713-1
+  scored_at: '2026-07-13T17:45:00+08:00'
+  scorer_id: eval-trial-scorer
+  producer_id: eval-trial-producer
+  artifact_dir: 评测集/04_评测结果/评测存档/EVAL-T07/
+  ontology_snapshot_ref: ONTOLOGY-20260713
+  methodology_ref: STAGE-01-05@20260713
+  trial_note: 第二批试跑。轻量判断简报；任务输入未预设“争议”终点。
+  evaluation_scope_applied:
+    terminal_stage: '04'
+    required_artifacts:
+    - '04'
+    note: 质量评测以判断简报为终点；不因缺少完整05扣分。
+endpoint_check:
+  expected_judgment_status: 争议
+  actual_endpoint: 争议
+  matched: true
+  core_judgment_within_outline: true
+  notes: "同时呈现 2Q25 合约价上修与关税抢运/库存抬升材料； 明确不得确认可持续景气改善。\n 终点命中≠质量自动通过。"
+hard_fail:
+  triggered: false
+  items: []
+  notes: 未在冲突未裁决时确认阶段切换成立。
+core_metrics:
+  问题保持:
+    结果: 通过
+    说明: 紧扣“是否已进入可持续景气改善”，未改写成单边涨价叙事。
+  证据支撑:
+    结果: 通过
+    说明: 价格侧与库存/抢运侧均有截止日前公开锚点，并说明窗口可比。
+  推理成立:
+    结果: 通过
+    说明: 给出确认可持续改善所需主路径，并裁决当前未打通。
+  反证处理:
+    结果: 通过
+    说明: 补库、抢运、EOL 抢货等竞争解释均入账。
+  判断强度:
+    结果: 通过
+    说明: J1/争议，未升格为条件成立或确认。
+  交付可用性:
+    结果: 通过
+    说明: 按争议标准，分歧来源、两侧证据与消解条件清楚；无完整 05 不扣分。
+operational_records:
+  运行时间与成本:
+    wall_clock_minutes: 35
+    human_minutes: 25
+    model_or_tool_cost_cny: 0
+    说明: 含公开材料检索与轻量简报。
+  增量更新复用程度:
+    applicable: false
+    说明: ''
+overall:
+  结果: 通过
+  主要问题: 无
+  返工项: ''
+  改进建议: 若升级为基准题，应把 TrendForce 等锚点固化进最低证据锚点的可复核链接清单。
+  reliability_note: 终点命中与研究质量已分开记录；本卡为 self_check 基线，非正式独立评测结论。
+evaluation_status: scored
+independence:
+  independence_status: self_check
+  independent_reviewer_id: ''
+  independent_review_ref: ''
+  notes: 首轮内部试跑为同一方法链路自检（producer/scorer ID不同但非独立主体），不构成正式独立审阅。
+evidence_audit:
+  checked_items: []
+  notes: 首轮未系统登记来源打开记录；仅逻辑自洽检查。

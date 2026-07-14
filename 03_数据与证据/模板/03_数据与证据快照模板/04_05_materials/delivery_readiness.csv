@@ -1,0 +1,1 @@
+delivery_readiness_id,execution_id,target_report_type,status,chart_readiness,table_readiness,source_annotation_readiness,linked_judgment_unit_ids,linked_data_candidate_ids,linked_chart_ids,linked_table_ids,source_annotation_ids,delivery_limit,gap_action,notes
