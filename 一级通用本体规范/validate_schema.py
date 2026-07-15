@@ -195,8 +195,8 @@ class Validator:
         evidence = self.schemas["evidence.yaml"]
 
         expected_versions = {
-            "common.yaml": "2.0.0",
-            "semantic.yaml": "1.0.0",
+            "common.yaml": "2.1.0",
+            "semantic.yaml": "1.1.0",
             "evidence.yaml": "2.0.0",
             "reasoning.yaml": "2.0.0",
         }
@@ -209,6 +209,8 @@ class Validator:
             "Application",
             "Organization",
             "PolicyInstrument",
+            "PolicyRequirement",
+            "TechnicalConstraint",
             "FinancialInstrument",
             "Identifier",
             "IdentificationScheme",
@@ -242,6 +244,11 @@ class Validator:
             "policyAdministeredBy",
             "policyAppliesIn",
             "policyAppliesTo",
+            "policyHasRequirement",
+            "requirementAppliesTo",
+            "requirementSpecifiesCharacteristic",
+            "requirementImposesConstraint",
+            "requirementSupersededBy",
             "identifierIdentifiesObject",
             "identifierDefinedInScheme",
             "identifierIssuedBy",
@@ -291,7 +298,17 @@ class Validator:
             targets = evidence.get("relation_types", {}).get(relation_id, {}).get("target_types", [])
             if "StateVariable" in targets:
                 self.error(f"evidence.yaml:{relation_id} must not target StateVariable")
-            for required_target in ("Organization", "PolicyInstrument", "FinancialInstrument", "Identifier", "TradingVenue", "Listing", "RoleAssignment"):
+            for required_target in (
+                "Organization",
+                "PolicyInstrument",
+                "PolicyRequirement",
+                "TechnicalConstraint",
+                "FinancialInstrument",
+                "Identifier",
+                "TradingVenue",
+                "Listing",
+                "RoleAssignment",
+            ):
                 if required_target not in targets:
                     self.error(f"evidence.yaml:{relation_id} missing target: {required_target}")
 
@@ -307,9 +324,85 @@ class Validator:
 
         for relation_id in ("variableAnchoredOn", "eventAnchoredOn", "expectationAbout"):
             targets = reasoning.get("relation_types", {}).get(relation_id, {}).get("target_types", [])
-            for required_target in ("Organization", "PolicyInstrument", "FinancialInstrument", "Identifier", "TradingVenue", "Listing", "RoleAssignment"):
+            for required_target in (
+                "Organization",
+                "PolicyInstrument",
+                "PolicyRequirement",
+                "TechnicalConstraint",
+                "FinancialInstrument",
+                "Identifier",
+                "TradingVenue",
+                "Listing",
+                "RoleAssignment",
+            ):
                 if required_target not in targets:
                     self.error(f"reasoning.yaml:{relation_id} missing target: {required_target}")
+
+
+    def validate_axiom_checks(self) -> None:
+        common = self.schemas["common.yaml"]
+        families = common.get("object_role_families", {})
+        stable = set(families.get("stable_semantics", []))
+        evidence_family = set(families.get("evidence", []))
+        reasoning_families = (
+            set(families.get("state_and_fact", []))
+            | set(families.get("hypothesis_and_judgment", []))
+            | set(families.get("pricing_comparison", []))
+            | set(families.get("scenario_and_record", []))
+        )
+        for left_name, left, right_name, right in (
+            ("stable_semantics", stable, "evidence", evidence_family),
+            ("stable_semantics", stable, "reasoning_families", reasoning_families),
+            ("evidence", evidence_family, "reasoning_families", reasoning_families),
+        ):
+            overlap = sorted(left & right)
+            if overlap:
+                self.error(f"object_role_families overlap between {left_name} and {right_name}: {overlap}")
+
+        shared = common.get("shared_object_properties", {})
+        for field in ("validFrom", "validTo"):
+            if field not in shared:
+                self.error(f"common.yaml missing shared_object_properties.{field}")
+            elif shared[field].get("type") != "datetime":
+                self.error(f"common.yaml shared_object_properties.{field} must be datetime")
+
+        for schema_name in ("semantic.yaml", "evidence.yaml", "reasoning.yaml"):
+            for object_id, object_type in self.schemas[schema_name].get("object_types", {}).items():
+                properties = object_type.get("properties", {})
+                for field in ("validFrom", "validTo"):
+                    if field in properties and properties[field].get("type") not in (None, "datetime"):
+                        self.error(f"{schema_name}:{object_id}.{field} must be datetime")
+
+        allowed_cardinality = set(common.get("common_enums", {}).get("cardinality", []))
+        for schema_name in ("semantic.yaml", "evidence.yaml", "reasoning.yaml"):
+            for relation_id, relation in self.schemas[schema_name].get("relation_types", {}).items():
+                cardinality = relation.get("cardinality")
+                if cardinality not in allowed_cardinality:
+                    self.error(f"{schema_name}:{relation_id} missing or invalid cardinality")
+
+        policy = self.schemas["semantic.yaml"].get("object_types", {}).get("PolicyInstrument", {})
+        if "canonicalIdentifier" not in policy.get("properties", {}):
+            self.error("PolicyInstrument must retain canonicalIdentifier for uniqueness intent")
+
+        claim = self.schemas["evidence.yaml"].get("object_types", {}).get("EvidenceClaim", {})
+        locator = claim.get("properties", {}).get("locator")
+        if not locator or not locator.get("required"):
+            self.error("EvidenceClaim.locator must remain required")
+        if "supersedes" not in self.schemas["evidence.yaml"].get("relation_types", {}):
+            self.error("evidence.yaml must retain supersedes relation")
+
+        if not common.get("namespace", {}).get("base_iri"):
+            self.error("common.yaml must declare namespace.base_iri")
+        declared = {item.get("id") for item in common.get("axiom_checks", []) if isinstance(item, dict)}
+        for required_id in (
+            "layer_object_family_disjoint",
+            "temporal_validity_fields",
+            "no_redefine_platform_types",
+            "evidence_locator_required",
+            "supersession_relation_present",
+        ):
+            if required_id not in declared:
+                self.error(f"common.yaml axiom_checks missing {required_id}")
 
     def validate_semiconductor_v2(self) -> None:
         domain_dir = WORKSPACE / "二级半导体领域本体规范"
@@ -370,6 +463,29 @@ class Validator:
                     self.error(f"semiconductor semantic.yaml:{object_id} overrides level-one property: {prop}")
 
         platform_semantic = self.schemas["semantic.yaml"]
+        platform_objects = set(platform_semantic.get("object_types", {}))
+        platform_relations = set(platform_semantic.get("relation_types", {}))
+        redefined_objects = sorted(platform_objects & set(semantic.get("object_types", {})))
+        if redefined_objects:
+            self.error(f"semiconductor semantic.yaml redefines platform object types: {redefined_objects}")
+        redefined_relations = sorted(platform_relations & set(semantic.get("relation_types", {})))
+        if redefined_relations:
+            self.error(f"semiconductor semantic.yaml redefines platform relation types: {redefined_relations}")
+        if not common.get("namespace", {}).get("base_iri"):
+            self.error("semiconductor common.yaml must declare namespace.base_iri")
+        governance = common.get("extension_governance", {})
+        if not governance.get("must_not_redefine_platform_object_types"):
+            self.error("semiconductor common.yaml must set extension_governance.must_not_redefine_platform_object_types")
+        relation_extensions = semantic.get("relation_type_extensions", {})
+        for relation_id in ("policyAppliesTo", "requirementAppliesTo"):
+            targets = relation_extensions.get(relation_id, {}).get("add_target_types", [])
+            for required_target in ("TechnologyRoute", "ManufacturingFacility"):
+                if required_target not in targets:
+                    self.error(f"semiconductor semantic.yaml:{relation_id} missing target extension: {required_target}")
+        for required_object in ("PolicyRequirement", "TechnicalConstraint"):
+            reused = set(common.get("inheritance", {}).get("platform_resources_reused", {}).get("semantic_objects", []))
+            if required_object not in reused:
+                self.error(f"semiconductor common.yaml missing reused platform object: {required_object}")
         object_closure = set(platform_semantic.get("object_types", {})) | set(semantic.get("object_types", {}))
         for relation_id, relation in semantic.get("relation_types", {}).items():
             for endpoint in (*relation.get("source_types", []), *relation.get("target_types", [])):
@@ -509,8 +625,8 @@ class Validator:
 
     def validate_docs_and_paths(self) -> None:
         required_docs = {
-            "00_投研本体框架概述.md": ("Organization", "PolicyInstrument", "ValidationRecord", "FinancialInstrument", "Identifier"),
-            "01_语义结构域规范.md": ("organizationLocatedIn", "policyIssuedBy", "companySuppliesCompany", "assetIssuedBy", "identifierIdentifiesObject", "TradingVenue"),
+            "00_投研本体框架概述.md": ("Organization", "PolicyInstrument", "PolicyRequirement", "TechnicalConstraint", "ValidationRecord", "FinancialInstrument", "Identifier"),
+            "01_语义结构域规范.md": ("organizationLocatedIn", "policyIssuedBy", "policyHasRequirement", "requirementAppliesTo", "companySuppliesCompany", "assetIssuedBy", "identifierIdentifiesObject", "TradingVenue"),
             "02_判断推理域规范.md": ("PolicyInstrument", "ValidationRecord", "impactUnderScenario", "FinancialInstrument", "Listing"),
             "03_证据域规范.md": ("sourcePublishedBy", "evidenceGroundsReasoning", "推理域拥有", "FinancialInstrument", "Identifier"),
         }
@@ -567,6 +683,7 @@ class Validator:
         self.validate_inheritance()
         self.validate_layering()
         self.validate_contract_scenarios()
+        self.validate_axiom_checks()
         self.validate_semiconductor_v2()
         self.validate_docs_and_paths()
         if self.errors:

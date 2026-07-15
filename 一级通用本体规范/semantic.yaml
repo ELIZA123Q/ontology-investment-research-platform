@@ -1,5 +1,5 @@
 schema_name: ontology_semantic
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
 depends_on: [common.yaml]
 description: 语义结构域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
@@ -129,6 +129,36 @@ object_types:
       canonicalIdentifier: {type: string, required: false, description: 法案号、文件号、规则编号或标准编号。}
       instrumentType: {type: enum, required: true, allowed_values: [law, regulation, regulatory_rule, policy_program, subsidy_scheme, control_measure, industry_standard, guidance, other], description: 政策与监管工具类型。}
       scopeDescription: {type: string, required: true, description: 工具的稳定适用主题和边界，不包含当前执行强弱判断。}
+  PolicyRequirement:
+    id: PolicyRequirement
+    name: 政策要求
+    label_zh: 政策要求
+    description: 政策或监管工具内部可稳定引用的一条要求、禁令、许可、定义或程序条款；用于锚定“哪条规定了什么”，不承载章条排版结构，也不表示当前执法强度。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 要求名称或摘要标题。}
+      requirementCode: {type: string, required: false, description: 条款号、条目号或内部稳定编号。}
+      requirementKind: {type: enum, required: true, allowed_values: [obligation, prohibition, permission, definition, procedure, other], description: 要求类型。}
+      status: {type: enum, required: true, allowed_values: [active, superseded, withdrawn], description: 该要求当前是否仍作为有效语义单元；被替代时通过 requirementSupersededBy 指向后继。}
+      statement: {type: string, required: true, description: 要求的稳定语义摘要，不是原文全文仓库。}
+  TechnicalConstraint:
+    id: TechnicalConstraint
+    name: 技术约束
+    label_zh: 技术约束
+    description: 对对象特性施加的可复核约束条件，如数值区间、枚举取值、符合性引用或逻辑表达式；由政策要求或其他稳定规范引用，不表示一次观测读数。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 约束名称。}
+      constraintForm: {type: enum, required: true, allowed_values: [numeric_range, enum_value, logical_expression, conformance], description: 约束形式。}
+      minValue: {type: number, required: false, description: 数值下限；constraintForm=numeric_range 时使用。}
+      maxValue: {type: number, required: false, description: 数值上限；constraintForm=numeric_range 时使用。}
+      unit: {type: string, required: false, description: 测量单位。}
+      allowedValues: {type: array, required: false, description: 允许枚举值；constraintForm=enum_value 时使用。}
+      expression: {type: string, required: false, description: 逻辑表达式或符合性说明；constraintForm 为 logical_expression 或 conformance 时使用。}
   Asset:
     id: Asset
     name: 资产
@@ -252,7 +282,7 @@ relation_types:
     name: 概念映射对象
     description: 概念映射到现实对象。
     source_types: [Concept]
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     direction: directed
     cardinality: many_to_many
     evidence_required: false
@@ -462,6 +492,59 @@ relation_types:
     evidence_required: true
     properties:
       applicabilityRole: {type: enum, required: false, allowed_values: [regulated, supported, restricted, required, exempted, referenced], description: 政策对目标的稳定适用角色，不代表当前影响结论。}
+  policyHasRequirement:
+    id: policyHasRequirement
+    name: 政策包含要求
+    description: 政策或监管工具包含一条可稳定引用的政策要求；要求级修订与替代不改变工具身份本身。
+    source_types: [PolicyInstrument]
+    target_types: [PolicyRequirement]
+    direction: directed
+    cardinality: one_to_many
+    evidence_required: true
+    properties: {}
+  requirementAppliesTo:
+    id: requirementAppliesTo
+    name: 要求适用对象
+    description: 某条政策要求稳定适用于组织、产业、环节、产品、材料、工序或应用；比 policyAppliesTo 更细，用于条款级锚定。
+    source_types: [PolicyRequirement]
+    target_types: [Organization, Industry, Segment, Product, Material, ProcessStep, Application]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      applicabilityRole: {type: enum, required: false, allowed_values: [regulated, supported, restricted, required, exempted, referenced], description: 要求对目标的稳定适用角色。}
+  requirementSpecifiesCharacteristic:
+    id: requirementSpecifiesCharacteristic
+    name: 要求规定特性
+    description: 政策要求对某类对象特性做出规定；特性键用于跨任务复用，不保存时点读数。
+    source_types: [PolicyRequirement]
+    target_types: [TechnicalConstraint]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      characteristicKey: {type: string, required: true, description: 特性键，如 process_node_nm、throughput、export_control_parameter。}
+      characteristicKind: {type: enum, required: false, allowed_values: [descriptive, capability, constraint], description: 特性类别：描述型、能力型或约束型。}
+  requirementImposesConstraint:
+    id: requirementImposesConstraint
+    name: 要求施加约束
+    description: 政策要求直接施加一条技术约束；可与 requirementSpecifiesCharacteristic 同时使用，前者强调约束对象，后者强调被规定的特性键。
+    source_types: [PolicyRequirement]
+    target_types: [TechnicalConstraint]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  requirementSupersededBy:
+    id: requirementSupersededBy
+    name: 要求被替代
+    description: 旧政策要求被新要求替代；status=superseded 时应指向后继要求。
+    source_types: [PolicyRequirement]
+    target_types: [PolicyRequirement]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
   materialUsedInProduct:
     id: materialUsedInProduct
     name: 产品使用材料
@@ -555,7 +638,7 @@ relation_types:
     name: 识别码识别对象
     description: 识别码在其适用体系或上下文中识别某个稳定语义对象。
     source_types: [Identifier]
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, TradingVenue, Listing, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, TradingVenue, Listing, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     direction: directed
     cardinality: many_to_one
     evidence_required: true
@@ -773,7 +856,7 @@ action_types:
     id: RegisterSemanticObject
     name: 登记语义对象
     description: 解析身份后创建稳定语义对象。
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     parameters: [objectType, name, description, properties]
     preconditions: [身份可解析且未重复]
     effects: [create_semantic_object]
@@ -781,12 +864,12 @@ action_types:
     rule_refs: [unique_identity, organization_kind_required]
     function_ref: ResolveEntityIdentity
     logic_refs: [ObjectIdentityResolutionLogic]
-    write_scope: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    write_scope: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
   ReviseSemanticObject:
     id: ReviseSemanticObject
     name: 修订语义对象
     description: 在不改变对象身份的前提下修订允许属性。
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     parameters: [objectRef, changedProperties, basis]
     preconditions: [对象存在且类型不变]
     effects: [update_allowed_properties]
@@ -794,12 +877,12 @@ action_types:
     rule_refs: [stable_semantics_only]
     function_ref: null
     logic_refs: []
-    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
   MergeSemanticObjects:
     id: MergeSemanticObjects
     name: 合并语义对象
     description: 合并被确认属于同一实体的同类型对象。
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     parameters: [primaryObjectRef, mergedObjectRefs, basis]
     preconditions: [对象同类型且身份一致]
     effects: [merge_properties, preserve_reference_mapping]
@@ -807,12 +890,12 @@ action_types:
     rule_refs: [unique_identity]
     function_ref: DetectDuplicateObject
     logic_refs: [ObjectIdentityResolutionLogic]
-    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
   DeprecateSemanticObject:
     id: DeprecateSemanticObject
     name: 废弃语义对象
     description: 终止对象当前定义的有效期并保留历史。
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     parameters: [objectRef, reason, invalidAt]
     preconditions: [对象存在]
     effects: [set_validTo, mark_deprecated]
@@ -820,7 +903,7 @@ action_types:
     rule_refs: [stable_semantics_only]
     function_ref: null
     logic_refs: []
-    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    write_scope: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
   CreateSemanticRelation:
     id: CreateSemanticRelation
     name: 创建语义关系

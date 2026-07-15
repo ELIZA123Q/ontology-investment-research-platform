@@ -1412,24 +1412,19 @@ method_library_usage:
   - A08
   - A09
   - A10
-  - B01
-  - B02
-  - C01
-  - C02
-  - D01
   claim_bindings:
   - claim_id: C-01
     method_ids:
     - A04
-    - B01
+    - A00
   - claim_id: C-02
     method_ids:
     - A06
-    - B02
+    - A00
   - claim_id: C-03
     method_ids:
     - A07
-    - C02
+    - A00
   - claim_id: C-04
     method_ids:
     - A08

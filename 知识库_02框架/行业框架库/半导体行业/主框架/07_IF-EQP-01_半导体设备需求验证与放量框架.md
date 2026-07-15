@@ -25,7 +25,7 @@ Fab需求 → 招标订单 → 交付安装 → 量产线验证 → 验收
 
 固定设备类别、工序、节点/尺寸、客户设施与项目时间。候选：`tool_demand`；`validation_stage`；`order_to_acceptance_readiness`。工艺位置状态变量：`process_position` = 试用 / 备份或非关键 / 量产稳定 / 主工艺关键层 / 主供 / 跨线跨厂。
 
-## 2. 特有机制、阶段门与关键时钟
+## 2. 特有机制、关键环节与关键时钟
 
 | 阶段门 | 必须回答 | 失败点 |
 |---|---|---|
@@ -62,6 +62,8 @@ Fab需求 → 招标订单 → 交付安装 → 量产线验证 → 验收
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: company_realization
 output_gate_refs: [IF-EQP-01.tool_demand, IF-EQP-01.validation_stage, IF-EQP-01.order_to_acceptance_readiness]
@@ -74,9 +76,9 @@ falsification_conditions: [backup_only, project_delay, validation_failure, no_re
 scenarios: [backup_not_main_process, validation_without_repurchase, platform_scale]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - `SCN-LOC-EQP + IF-LOC`：EQP 判工艺位置与复购，LOC 判约束增量。封装设备用 `SCN-PKG-BTL`。
-- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md)。尚需首台强但未主工艺/未复购失败案。`pending_two_tasks`。
+- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md)。尚需首台强但未主工艺/未复购失败案。`尚待两次真实任务验证`。

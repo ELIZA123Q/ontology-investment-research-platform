@@ -34,7 +34,7 @@ REQUIRED_SCENARIO_FRONT_MATTER = (
 )
 REQUIRED_SCENARIO_SECTIONS = (
     "本场景相对于主框架增加什么",
-    "调用路由",
+    "和哪个主框架一起用",
     "场景特有判断脊柱",
     "场景增量变量与竞争解释",
     "对 02 和 03 的增量交接",
@@ -252,6 +252,10 @@ def meaningful_lines(text: str) -> Set[str]:
         "使用时字段和下游可接续内容见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。",
         "使用本框架时，写清：前提判断是否具备、待验证观点有哪些、还有哪些未决缺口；字段说明见[README](../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../00_framework_dependency_registry.yaml)。",
         "使用本框架时，写清：前提判断是否具备、待验证观点有哪些、还有哪些未决缺口，以及下游可接续什么；字段说明见[README](../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../00_framework_dependency_registry.yaml)。",
+        "组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。",
+        "候选变量和信号不表示单次任务全部使用。组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。",
+        "候选节点、变量和信号不表示单次任务全部使用。组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。",
+        "以下为系统登记，研究员可不读。",
         "02 只登记候选反证；是否命中、降级或改判由 04 裁决。",
     }
     lines: Set[str] = set()
@@ -660,14 +664,14 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
         text = path.read_text(encoding="utf-8")
         relative = path.relative_to(root)
         validate_scenario_sections(relative, text, errors)
-        if "## 2. 调用路由" in text:
-            combo = text.split("## 2. 调用路由", 1)[1].split("## 3.", 1)[0]
+        if "## 2. 和哪个主框架一起用" in text:
+            combo = text.split("## 2. 和哪个主框架一起用", 1)[1].split("## 3.", 1)[0]
             unknown_frameworks = sorted(set(FRAMEWORK_ID_RE.findall(combo)) - set(framework_ids))
             unknown_scenarios = sorted(set(SCENARIO_REF_RE.findall(combo)) - set(scenario_ids))
             if unknown_frameworks:
-                errors.append(f"{relative}: 调用路由引用未知框架 {', '.join(unknown_frameworks)}")
+                errors.append(f"{relative}: 和哪个主框架一起用引用未知框架 {', '.join(unknown_frameworks)}")
             if unknown_scenarios:
-                errors.append(f"{relative}: 调用路由引用未知场景卡 {', '.join(unknown_scenarios)}")
+                errors.append(f"{relative}: 和哪个主框架一起用引用未知场景卡 {', '.join(unknown_scenarios)}")
         line_count = len(text.splitlines())
         if line_count > 120:
             warnings.append(f"{relative}: 场景卡仍有 {line_count} 行，建议压缩到 80—120 行")

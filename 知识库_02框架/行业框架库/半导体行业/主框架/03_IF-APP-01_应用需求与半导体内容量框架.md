@@ -30,7 +30,7 @@ updated_at: 2026-07-14
 
 核心分歧：配置是否真实采用并扩散；净内容量是否被替代/效率抵消；场景时钟是否已用对。候选：`theoretical_content` 未建立 / 路线图 / 实际配置 / 可比净内容量；`realized_consumption` 未采用 / 采用未扩散 / 净消耗增长 / 分化；`demand_transmission` 增强 / 稳定 / 减弱 / 分化。
 
-## 2. 特有机制、阶段门与关键时钟
+## 2. 特有机制、关键环节与关键时钟
 
 | 阶段门 | 必须回答 | 常见错位 |
 |---|---|---|
@@ -65,6 +65,8 @@ updated_at: 2026-07-14
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-APP-01.theoretical_content, IF-APP-01.realized_consumption, IF-APP-01.demand_transmission]
@@ -77,10 +79,10 @@ falsification_conditions: [specification_without_adoption, narrow_penetration, s
 scenarios: [config_without_spread, net_content_growth, substitution_offset]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - AI：`SCN-AI` 追加部署/利用；车规：`SCN-AUTO` 默认接 DES，内容量问题再加本框架；光/SiC 用对应卡。
 - 周期确认交 IF-SC-01；财务交 BF-EE-01。
-- 需验证：净内容量成立案例；规格升但未扩散/被抵消的失败案例。保持 `pending_two_tasks`。
+- 需验证：净内容量成立案例；规格升但未扩散/被抵消的失败案例。保持 `尚待两次真实任务验证`。

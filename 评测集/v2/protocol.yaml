@@ -1,0 +1,31 @@
+document_type: model_adapter_protocol
+schema_version: 1.0.0
+transport: streaming_jsonl_stdio
+request_required:
+  - request_id
+  - role
+  - model_profile
+  - messages
+  - temperature
+  - seed
+  - max_output_tokens
+  - response_schema
+  - prompt_version
+  - case_hash
+response_required:
+  - request_id
+  - status
+  - model_id
+  - text
+  - result
+  - usage
+  - latency_ms
+  - error
+status_values: [ok, error]
+runner_policy:
+  max_retries: 2
+  third_failure_is_recorded: true
+  idempotency_key: request_id
+  secrets_in_logs: false
+  response_request_id_must_match: true
+

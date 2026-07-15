@@ -33,7 +33,7 @@ registry 门保持：`constraint_path` / `localization_stage` / `resilience_stat
 | `localization_stage` | **替代加速度**：相对反事实，验证/主供/复购是否因约束而加快（读取下游阶段，不自建阶梯） |
 | `resilience_state` | 集中度、双源、恢复时间、残存依赖是否改善 |
 
-## 2. 特有机制、阶段门与关键时钟
+## 2. 特有机制、关键环节与关键时钟
 
 | 阶段门 | 关键问题 | 失败方式 |
 |---|---|---|
@@ -69,6 +69,8 @@ registry 门保持：`constraint_path` / `localization_stage` / `resilience_stat
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-LOC-01.constraint_path, IF-LOC-01.localization_stage, IF-LOC-01.resilience_state]
@@ -81,9 +83,9 @@ falsification_conditions: [license_relief, no_acceleration, new_single_source, d
 scenarios: [constraint_absorbed, accelerated_localization, substitution_without_resilience]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - 设备：`SCN-LOC-EQP + IF-EQP`；材料：`SCN-LOC-MAT + IF-MAT`；地缘：`SCN-GEO`（市场通道交预期差/估值基础框架）。
-- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md)。尚需失败案（份额升+新单点依赖）。`pending_two_tasks`。
+- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md)。尚需失败案（份额升+新单点依赖）。`尚待两次真实任务验证`。

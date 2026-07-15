@@ -39,12 +39,12 @@ file,field,description
 01_plan/evidence_baskets.csv,notes,
 01_plan/evidence_recipe_matches.csv,recipe_match_id,
 01_plan/evidence_recipe_matches.csv,execution_id,
-01_plan/evidence_recipe_matches.csv,evidence_recipe_id,任务内配方实例 ID，可与知识库 Recipe 不同
-01_plan/evidence_recipe_matches.csv,library_recipe_id,必须引用知识库_03取证/00_strategy_registry.yaml 中的 ER-* Recipe
-01_plan/evidence_recipe_matches.csv,library_basket_ids,至少覆盖该 Recipe 的 minimum_pass_baskets
+01_plan/evidence_recipe_matches.csv,evidence_recipe_id,既有快照兼容字段；任务内取证任务 ID
+01_plan/evidence_recipe_matches.csv,library_recipe_id,兼容字段名；填写知识库_03取证的 A01—A09 方法 ID
+01_plan/evidence_recipe_matches.csv,library_basket_ids,兼容字段名；填写统一六类证据角色 ID
 01_plan/evidence_recipe_matches.csv,recipe_name,
 01_plan/evidence_recipe_matches.csv,target_judgment_unit_id,对应 02 的核心判断单元
-01_plan/evidence_recipe_matches.csv,judgment_type,必须是知识库_03 judgment_type_registry 规范类型或可迁移别名
+01_plan/evidence_recipe_matches.csv,judgment_type,必须是 02 与知识库_03统一的八类规范判断类型
 01_plan/evidence_recipe_matches.csv,strategy_library_ref,
 01_plan/evidence_recipe_matches.csv,strategy_version,
 01_plan/evidence_recipe_matches.csv,applicable_conditions,
@@ -353,7 +353,7 @@ file,field,description
 03_gate/evidence_readiness_assessments.csv,cross_validation_status,
 03_gate/evidence_readiness_assessments.csv,counter_status,反证检查状态
 03_gate/evidence_readiness_assessments.csv,conflict_status,冲突证据状态
-03_gate/evidence_readiness_assessments.csv,evidence_grade,综合全部限制后的最终证据等级，唯一使用 `Q0`—`Q4`
+03_gate/evidence_readiness_assessments.csv,evidence_grade,机器证据等级；研究员界面映射为充分/受限/观察/不可用
 03_gate/evidence_readiness_assessments.csv,counterevidence_result,
 03_gate/evidence_readiness_assessments.csv,proxy_dependency_status,
 03_gate/evidence_readiness_assessments.csv,freshness_status,

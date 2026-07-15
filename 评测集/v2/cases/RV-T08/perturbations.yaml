@@ -1,0 +1,27 @@
+document_type: evaluation_perturbation_set
+schema_version: 1.0.0
+case_id: RV-T08
+items:
+  - perturbation_id: T08-P1
+    type: delete_critical_evidence
+    operation: exclude_evidence
+    target: [T08-E01, T08-E02]
+    expected_action: maintain_abstention_with_lower_specificity
+  - perturbation_id: T08-P2
+    type: replace_scope
+    operation: mark_scope_mismatch
+    target: [T08-E03]
+    replacement_scope: 全行业统一合格供给
+    expected_action: reject_scope_substitution
+  - perturbation_id: T08-P3
+    type: inject_counterevidence
+    operation: add_synthetic_scenario
+    payload: 三类产品价格、订单和库存连续两个季度同步转弱
+    expected_action: reopen_question
+  - perturbation_id: T08-P4
+    type: shift_time
+    operation: change_cutoff
+    new_cutoff: '2026-02-01'
+    expected_filtered_evidence: [T08-E01, T08-E02, T08-E03, T08-E04]
+    expected_action: abstain
+

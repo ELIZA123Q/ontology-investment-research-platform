@@ -7,7 +7,7 @@ metadata:
   delivery_content_hash: sha256:033c1205858899b1b6b6a895e2df3523401149a65b10afe36515c48da99179ee
   source_04_brief_ref: 04-美国管制与国产设备替代判断简报-20260710-1.md
   source_04_audit_ref: 04-美国管制与国产设备替代推理审计-20260710-1.yaml
-  source_04_audit_hash: sha256:5d5adaec93286429e86fbeba40727934b3010d8ce43ad48f1d21e4b4fd9cb629
+  source_04_audit_hash: sha256:8b0259a55731bc45f85f3d97203b9c608a200b0df53f874d284aa286ce2ca7ad
   stage_status: complete
   quality_status: high_quality_pass
   quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则

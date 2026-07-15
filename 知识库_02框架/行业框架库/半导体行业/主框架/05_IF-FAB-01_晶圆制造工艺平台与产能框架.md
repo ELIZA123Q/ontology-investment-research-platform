@@ -25,7 +25,7 @@ updated_at: 2026-07-14
 
 固定厂区、尺寸、节点/工艺、产品组合、客户与统计单位。候选：`effective_capacity` 名义/设施/试运行/认证中/合格产出/稳定有效；`ramp_timing` 未开始/延期/学习/加速/稳定/回退。`manufacturing_economics_readiness` 只问：良率能否经济生产、利用率能否吸收固定成本、组合是否支撑合理 ASP——不展开毛利折旧桥。
 
-## 2. 特有机制、阶段门与关键时钟
+## 2. 特有机制、关键环节与关键时钟
 
 | 阶段门 | 关键机制 | 典型时钟 |
 |---|---|---|
@@ -61,6 +61,8 @@ updated_at: 2026-07-14
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-FAB-01.effective_capacity, IF-FAB-01.ramp_timing, IF-FAB-01.manufacturing_economics_readiness]
@@ -73,9 +75,9 @@ falsification_conditions: [nameplate_only, low_productivity, yield_failure, util
 scenarios: [tool_ready_process_not, qualified_ramp, utilization_without_demand]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - 周期供给：+ IF-SC；后段：+ IF-PKG。EQP/MAT 仅当成为爬坡瓶颈。财务交 BF-EE-01。
-- 需验证合格爬坡成立案 + 稼动来自备货/抢单失败案。`pending_two_tasks`。
+- 需验证合格爬坡成立案 + 稼动来自备货/抢单失败案。`尚待两次真实任务验证`。

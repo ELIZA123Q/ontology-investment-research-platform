@@ -1,0 +1,64 @@
+document_type: frozen_evidence_pack
+schema_version: 1.0.0
+case_id: RV-T02
+frozen_at: '2026-07-15T00:00:00+08:00'
+information_cutoff: '2026-07-10'
+evaluation_boundary: 评测器只判断产出是否被本冻结证据包支持，不把包外世界知识当作自动真值。
+evidence:
+  - evidence_id: T02-E01
+    publisher: U.S. Bureau of Industry and Security
+    title: Commerce Strengthens Export Controls for Advanced Semiconductors
+    source_url: https://www.bis.gov/press-release/commerce-strengthens-export-controls-restrict-chinas-capability-produce-advanced-semiconductors-military
+    published_at: '2024-12-02'
+    business_time: '2024-12-02'
+    independence_group: BIS-2024-RULE
+    source_type: official_rule_release
+    statement_nature: reported_fact
+    locator: package summary bullets
+    excerpt: The December 2024 BIS package added controls on 24 types of semiconductor manufacturing equipment and 3 types of software tools, new HBM controls, and 140 Entity List additions.
+    content_hash: sha256:b940f2289d571077130f86bc21c18a38dacdc2a79163b29dfa8d01856e803c8d
+    supports: [管制持续收紧且按物项和实体分层]
+    limits: [规则数量不能直接证明国产设备收入]
+  - evidence_id: T02-E02
+    publisher: SEMI
+    title: 2025 Worldwide Semiconductor Equipment Market Statistics
+    source_url: https://www.semi.org/zh/node/171071
+    published_at: '2026-04-13'
+    business_time: '2025'
+    independence_group: SEMI-WWSEMS-2025
+    source_type: industry_statistics
+    statement_nature: reported_fact
+    locator: regional equipment spending summary
+    excerpt: China mainland semiconductor equipment spending reached US$49.3 billion in 2025, down only 0.5% from the prior year and remaining near a record level.
+    content_hash: sha256:b0e6b68a92212f27975c56669c3674f925535026728246648c7039f70e3d82a0
+    supports: [中国设备需求维持高位平台]
+    limits: [区域销售不等于国产设备公司收入]
+  - evidence_id: T02-E03
+    publisher: 上海证券交易所
+    title: 科创板公司2024年度经营业绩概览
+    source_url: https://star.sse.com.cn/star/media/news/c/c_20250430_10786938.shtml
+    published_at: '2025-04-30'
+    business_time: '2024'
+    independence_group: SSE-STAR-2024-OVERVIEW
+    source_type: exchange_summary
+    statement_nature: reported_fact
+    locator: 集成电路企业段落
+    excerpt: More than ten STAR Market semiconductor equipment companies shipped over 16,000 units in 2024, driving combined revenue growth of 38.8%.
+    content_hash: sha256:5f34a275012b0dc098f25c695b9d3697503dbc67c785734be5209c47c9f2e219
+    supports: [国产设备出货与收入扩张]
+    limits: [汇总口径不能代替分设备类别成熟度]
+  - evidence_id: T02-E04
+    publisher: 中微半导体设备（上海）股份有限公司
+    title: 2025年半年度报告
+    source_url: https://static.cninfo.com.cn/finalpage/2025-08-29/1224606011.PDF
+    published_at: '2025-08-29'
+    business_time: 2025H1
+    independence_group: AMEC-2025H1
+    source_type: company_filing
+    statement_nature: reported_fact
+    locator: page 17, 主营业务情况
+    excerpt: AMEC reported that several newly developed LPCVD and ALD products had entered the market and received large-volume repeat orders.
+    content_hash: sha256:98e10e2a3e38c870bd1e8d0714d1e712f20de7cfdc7d883285e212975cffbe07
+    supports: [复购与商业成熟度]
+    limits: [单公司单品类样本, 不代表全部设备]
+

@@ -135,6 +135,10 @@ object_types:
 relation_type_extensions:
   conceptMapsToObject:
     add_target_types: [TechnologyRoute, ManufacturingFacility]
+  policyAppliesTo:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  requirementAppliesTo:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
   identifierIdentifiesObject:
     add_target_types: [TechnologyRoute, ManufacturingFacility]
   upstreamOf:

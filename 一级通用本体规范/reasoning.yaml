@@ -216,7 +216,7 @@ relation_types:
     name: 变量挂载对象
     description: 变量挂到稳定研究对象上。
     source_types: [StateVariable]
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     direction: directed
     cardinality: many_to_one
     evidence_required: false
@@ -247,7 +247,7 @@ relation_types:
     name: 事件挂载对象
     description: 事件关联研究对象。
     source_types: [Event]
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     direction: directed
     cardinality: many_to_many
     evidence_required: true
@@ -348,7 +348,7 @@ relation_types:
     name: 预期指向
     description: 预期所指的语义对象或状态变量。
     source_types: [MarketExpectation]
-    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, StateVariable]
+    target_types: [Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint, StateVariable]
     direction: directed
     cardinality: many_to_many
     evidence_required: true

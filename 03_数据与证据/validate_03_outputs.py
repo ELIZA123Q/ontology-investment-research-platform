@@ -69,8 +69,7 @@ REQUIRED_CSV_FILES: list[str] = list(SNAPSHOT_CSV_LAYOUT.keys())
 TEMPLATE_DIR = Path(__file__).resolve().parent / "模板" / "03_数据与证据快照模板"
 WORKSPACE = Path(__file__).resolve().parents[1]
 STRATEGY_ROOT = WORKSPACE / "知识库_03取证"
-STRATEGY_REGISTRY_PATH = STRATEGY_ROOT / "00_strategy_registry.yaml"
-BASKET_REGISTRY_PATH = STRATEGY_ROOT / "00_basket_registry.yaml"
+STRATEGY_REGISTRY_PATH = STRATEGY_ROOT / "03_registry.yaml"
 
 REQUIRED_PREP_META = [
     "document_type",
@@ -118,7 +117,7 @@ REQUIRED_PREP_SECTIONS = [
     "本次范围",
     "研究基线",
     "数据与证据需求",
-    "来源类型、最低证据组合与获取方式",
+    "来源计划与获取方式",
     "处理、归一与实例入库",
     "各结论的证据把握",
     "覆盖与路径就绪状态",
@@ -320,36 +319,27 @@ def _validate_normalized_evidence_graph(rows: dict[str, list[dict[str, str]]]) -
             fail(f"{aid} 的 evidence_refs 必须逐项存在 assessmentEvaluatesEvidence")
 
 
-def _load_strategy_knowledge() -> tuple[dict[str, object], dict[str, object], dict[str, object], dict[str, object]]:
-    strategy = load_yaml_file(STRATEGY_REGISTRY_PATH)
-    basket = load_yaml_file(BASKET_REGISTRY_PATH)
-    if not isinstance(strategy, dict) or not isinstance(basket, dict):
-        fail("知识库_03取证 注册表必须是 YAML 对象")
-    recipes = strategy.get("evidence_recipes", {})
-    judgment_types = strategy.get("judgment_type_registry", {})
-    aliases = strategy.get("judgment_type_migration_aliases", {})
-    baskets = basket.get("basket_registry", {})
-    if not isinstance(recipes, dict) or not isinstance(judgment_types, dict):
-        fail("00_strategy_registry.yaml 缺少 evidence_recipes 或 judgment_type_registry")
-    if not isinstance(aliases, dict):
-        fail("00_strategy_registry.yaml: judgment_type_migration_aliases 必须是 mapping")
-    if not isinstance(baskets, dict) or not baskets:
-        fail("00_basket_registry.yaml: basket_registry 不得为空")
-    return recipes, judgment_types, aliases, baskets
+def _load_strategy_knowledge() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
+    registry = load_yaml_file(STRATEGY_REGISTRY_PATH)
+    if not isinstance(registry, dict):
+        fail("知识库_03取证/03_registry.yaml 必须是 YAML 对象")
+    methods = registry.get("methods", {})
+    judgment_types = registry.get("judgment_types", {})
+    roles = registry.get("evidence_roles", {})
+    if not isinstance(methods, dict) or not methods:
+        fail("03_registry.yaml.methods 不得为空")
+    if not isinstance(judgment_types, dict) or not judgment_types:
+        fail("03_registry.yaml.judgment_types 不得为空")
+    if not isinstance(roles, dict) or not roles:
+        fail("03_registry.yaml.evidence_roles 不得为空")
+    return methods, judgment_types, roles
 
 
 def _normalize_strategy_judgment_type(
     judgment_type: str,
     registry: dict[str, object],
-    aliases: dict[str, object],
 ) -> str | None:
-    if judgment_type in registry:
-        return judgment_type
-    alias = aliases.get(judgment_type)
-    if isinstance(alias, dict):
-        target = str(alias.get("canonical_type", "")).strip()
-        return target if target in registry else None
-    return None
+    return judgment_type if judgment_type in registry else None
 
 
 def _resolve_strategy_library_ref(raw_ref: str, label: str) -> Path:
@@ -372,7 +362,7 @@ def _resolve_strategy_library_ref(raw_ref: str, label: str) -> Path:
 
 
 def _validate_strategy_library_bindings(rows: dict[str, list[dict[str, str]]]) -> None:
-    recipes, judgment_types, aliases, baskets = _load_strategy_knowledge()
+    methods, judgment_types, roles = _load_strategy_knowledge()
     for row in rows["evidence_recipe_matches.csv"]:
         label = f"evidence_recipe_matches#{row.get('recipe_match_id')}"
         match_status = str(row.get("match_status", "")).strip()
@@ -380,34 +370,37 @@ def _validate_strategy_library_bindings(rows: dict[str, list[dict[str, str]]]) -
         raw_type = str(row.get("judgment_type", "")).strip()
         if not raw_type:
             fail(f"{label}.judgment_type 不得为空")
-        canonical_type = _normalize_strategy_judgment_type(raw_type, judgment_types, aliases)
+        canonical_type = _normalize_strategy_judgment_type(raw_type, judgment_types)
         if canonical_type is None:
-            fail(f"{label}.judgment_type 未在知识库_03 judgment_type_registry 注册: {raw_type}")
+            fail(f"{label}.judgment_type 未在知识库_03 judgment_types 注册: {raw_type}")
         if match_status in {"not_found", "not_applicable"}:
             continue
-        library_recipe_id = str(row.get("library_recipe_id", "")).strip()
-        if not library_recipe_id:
-            fail(f"{label}.library_recipe_id 在 match_status={match_status} 时不得为空")
-        recipe = recipes.get(library_recipe_id)
-        if not isinstance(recipe, dict):
-            fail(f"{label}.library_recipe_id 未在知识库_03 evidence_recipes 注册: {library_recipe_id}")
-        applicable = {str(item) for item in recipe.get("applicable_judgment_types", []) or []}
-        if canonical_type not in applicable:
-            fail(
-                f"{label}: 规范判断类型 {canonical_type} 不适用 Recipe {library_recipe_id} "
-                f"(允许: {', '.join(sorted(applicable)) or '无'})"
-            )
-        declared_baskets = set(split_refs(row.get("library_basket_ids")))
-        if not declared_baskets:
-            fail(f"{label}.library_basket_ids 不得为空")
-        unknown = sorted(declared_baskets - set(baskets))
+        method_id = str(row.get("library_recipe_id", "")).strip()
+        if not method_id:
+            fail(f"{label}.library_recipe_id 在 match_status={match_status} 时必须填写 A01—A09 方法 ID")
+        method = methods.get(method_id)
+        if not isinstance(method, dict):
+            fail(f"{label}.library_recipe_id 未在知识库_03 methods 注册: {method_id}")
+        route = judgment_types.get(canonical_type)
+        if not isinstance(route, dict):
+            fail(f"{label}: 无法读取判断类型 {canonical_type} 的方法路由")
+        expected_method = str(route.get("method", "")).strip()
+        if method_id != expected_method:
+            fail(f"{label}: 规范判断类型 {canonical_type} 应使用 {expected_method}，实际为 {method_id}")
+        declared_roles = set(split_refs(row.get("library_basket_ids")))
+        if not declared_roles:
+            fail(f"{label}.library_basket_ids 必须填写统一证据角色")
+        # 历史快照可含 scope（有效性检查）；新注册表五类角色不含 scope。
+        legacy_scope = {"scope"}
+        unknown = sorted(declared_roles - set(roles) - legacy_scope)
         if unknown:
-            fail(f"{label}.library_basket_ids 未在知识库_03 basket_registry 注册: " + ", ".join(unknown))
-        required = {str(item) for item in recipe.get("minimum_pass_baskets", []) or []}
-        missing = sorted(required - declared_baskets)
+            fail(f"{label}.library_basket_ids 含未注册证据角色: " + ", ".join(unknown))
+        comparable_roles = declared_roles - legacy_scope
+        required = {str(item) for item in route.get("required_roles", []) or []}
+        missing = sorted(required - comparable_roles)
         if missing:
             fail(
-                f"{label}.library_basket_ids 未覆盖 {library_recipe_id}.minimum_pass_baskets: "
+                f"{label}.library_basket_ids 未覆盖 {canonical_type}.required_roles: "
                 + ", ".join(missing)
             )
 

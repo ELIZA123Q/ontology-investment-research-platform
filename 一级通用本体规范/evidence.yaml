@@ -16,7 +16,7 @@ object_types:
       title: {type: string, required: true, description: 来源标题或稳定名称。}
       sourceProfileId: {type: string, required: false, description: 匹配的稳定 SourceProfile ID；正式证据必须填写或建立 sourceDocumentUsesProfile。}
       sourceName: {type: string, required: true, description: 来源生产者、发布者或数据提供方名称。}
-      sourceTier: {type: enum, required: false, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级，定义见 B_取证来源。}
+      sourceTier: {type: enum, required: false, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 后台来源分类；研究员按知识库_03取证/B00—B02 选择适用来源。}
       contentDomain: {type: string, required: false, description: 本材料实际覆盖的内容领域。}
       acquisitionChannel: {type: enum, required: true, allowed_values: [web, database_terminal, api, mcp, file, manual, internal_system, file_search, other], description: 本次材料取得方式；MCP、API、网页、人工上传、文件检索均属于获取通道。}
       accessScope: {type: enum, required: true, allowed_values: [public, licensed, internal, confidential, restricted, unknown], description: 来源访问和使用边界；不清时不得进入正式证据包。}
@@ -167,7 +167,7 @@ object_types:
     validity: true
     properties:
       sourceName: {type: string, required: true, description: 稳定来源生产者、发布者或来源类型名称。}
-      sourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 来源层级，定义见 B_取证来源。}
+      sourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 后台来源分类；研究员按知识库_03取证/B00—B02 选择适用来源。}
       sourceCategory: {type: string, required: true, description: 来源类别。}
       authorityType: {type: string, required: true, description: 权威类型，例如 official, exchange, company_disclosure, licensed_database, industry_provider, research, media, ai_or_search_lead。}
       typicalContentDomains: {type: array, required: true, description: 常见内容领域。}
@@ -294,7 +294,7 @@ relation_types:
     name: 主张涉及对象
     description: 主张涉及某个稳定语义对象；状态变量通过推理域的观测或事件间接关联。
     source_types: [EvidenceClaim]
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     direction: directed
     cardinality: many_to_many
     evidence_required: false
@@ -316,7 +316,7 @@ relation_types:
     name: 事实涉及对象
     description: 事实候选描述某个稳定语义对象；状态变量通过推理域的观测或事件间接关联。
     source_types: [EvidenceFact]
-    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument]
+    target_types: [Concept, Organization, Industry, Segment, Company, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
     direction: directed
     cardinality: many_to_many
     evidence_required: false

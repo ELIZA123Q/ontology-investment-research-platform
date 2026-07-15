@@ -1,0 +1,46 @@
+document_type: research_value_eval_suite
+schema_version: 2.0.0
+suite_id: RV-EVAL-PILOT-20260715
+title: 研究价值代理评测体系四题校准试点
+status: calibration_pilot
+primary_outcomes: [R, U, delta]
+guardrails: [S, C]
+cases:
+  - case_id: RV-T01
+    path: cases/RV-T01/case.yaml
+    stratum: report_value
+  - case_id: RV-T02
+    path: cases/RV-T02/case.yaml
+    stratum: report_value
+  - case_id: RV-T07
+    path: cases/RV-T07/case.yaml
+    stratum: restraint
+  - case_id: RV-T08
+    path: cases/RV-T08/case.yaml
+    stratum: restraint
+run_policy:
+  judge_models: 2
+  repetitions_per_judge: 3
+  seeds: [11, 22, 33]
+  prompt_variants: [A, B]
+  candidate_order_balance: [D_first, baseline_first, D_first, baseline_first, D_first, baseline_first]
+  reliability_threshold: R2
+  suppress_proxy_probability_below: C2
+  no_composite_score: true
+contexts:
+  A: 原始问题
+  B: 原始问题与冻结证据包
+  C: 原始问题与直接生成报告
+  D: 原始问题与系统允许的最终产物
+  E: 原始问题、系统产物与关键冻结证据
+pairwise_baselines:
+  direct_report: 问题直答生成稿
+  evidence_summary: 同证据条件下普通摘要稿
+expansion_gate:
+  calibration_minimum: C2
+  note: 试点通过后按冻结证据与密封裁决契约的准备度扩展，而不是直接迁移全部旧题。
+future_expert_review:
+  required_for_pilot: false
+  target_sample_rate: [0.05, 0.10]
+  fields: [reviewer_id_hash, blind_case_id, R, U, hardest_error, rationale, reviewed_at]
+  current_status: not_collected

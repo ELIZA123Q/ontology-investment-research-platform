@@ -11,6 +11,16 @@ depends_on:
   - ../一级通用本体规范/evidence.yaml
   - ../一级通用本体规范/reasoning.yaml
 
+namespace:
+  prefix: ir-sc
+  base_iri: "ir://invest-ontology/semiconductor#"
+  note: 半导体领域扩展命名空间；仅可新增领域类型或通过 add_* 扩展端点，不得重定义一级 object_types / relation_types 本地标识。
+
+extension_governance:
+  must_not_redefine_platform_object_types: true
+  must_not_redefine_platform_relation_types: true
+  allowed_extension_modes: [add_object_type, add_relation_type, object_type_extensions, relation_type_extensions, controlled_vocabularies]
+
 domain_scope:
   domain: semiconductor
   scope_type: industry
@@ -55,6 +65,8 @@ inheritance:
       - RoleAssignment
       - Region
       - Application
+      - PolicyRequirement
+      - TechnicalConstraint
     reasoning_objects:
       - StateVariable
       - Observation

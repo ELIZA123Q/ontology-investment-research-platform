@@ -63,6 +63,8 @@ updated_at: 2026-07-14
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: company_realization
 output_gate_refs: [IF-MAT-01.consumption_demand, IF-MAT-01.qualification_stage, IF-MAT-01.volume_release_readiness]
@@ -75,9 +77,9 @@ falsification_conditions: [family_confusion, sample_only, unstable_quality, no_r
 scenarios: [pilot_without_batch, demand_without_share, repeatable_volume]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - `SCN-LOC-MAT + IF-LOC`；封装材料 + IF-PKG；SiC 按场景卡限定衬底/外延/器件边界。
-- 需验证放量成立案 + 送样小批过但批次/复购失败案。`pending_two_tasks`。
+- 需验证放量成立案 + 送样小批过但批次/复购失败案。`尚待两次真实任务验证`。

@@ -1,0 +1,27 @@
+document_type: evaluation_perturbation_set
+schema_version: 1.0.0
+case_id: RV-T02
+items:
+  - perturbation_id: T02-P1
+    type: delete_critical_evidence
+    operation: exclude_evidence
+    target: [T02-E03, T02-E04]
+    expected_action: downgrade
+  - perturbation_id: T02-P2
+    type: replace_scope
+    operation: mark_scope_mismatch
+    target: [T02-E04]
+    replacement_scope: 全部国产半导体设备公司
+    expected_action: downgrade
+  - perturbation_id: T02-P3
+    type: inject_counterevidence
+    operation: add_synthetic_scenario
+    payload: 关键部件切换导致客户重新认证并显著拖慢交付
+    expected_action: differentiate_or_weaken
+  - perturbation_id: T02-P4
+    type: shift_time
+    operation: change_cutoff
+    new_cutoff: '2024-11-30'
+    expected_filtered_evidence: [T02-E01, T02-E02, T02-E03, T02-E04]
+    expected_action: abstain_or_downgrade
+

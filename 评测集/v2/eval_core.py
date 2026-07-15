@@ -1,0 +1,722 @@
+#!/usr/bin/env python3
+"""Shared validation, adapter and metric utilities for research-value eval v2."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import os
+import re
+import select
+import subprocess
+import time
+from collections import Counter
+from dataclasses import dataclass
+from datetime import date
+from pathlib import Path
+from typing import Any, Iterable
+
+import yaml
+
+
+V2_ROOT = Path(__file__).resolve().parent
+EVAL_ROOT = V2_ROOT.parent
+REPO_ROOT = EVAL_ROOT.parent
+SUITE_PATH = V2_ROOT / "suite.yaml"
+METRICS_PATH = V2_ROOT / "metrics.yaml"
+PROMPTS_PATH = V2_ROOT / "prompts" / "prompts.yaml"
+DEFECTS_PATH = V2_ROOT / "calibration" / "defects.yaml"
+PROTOCOL_PATH = V2_ROOT / "protocol.yaml"
+
+R_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3}
+C_ORDER = {"C0": 0, "C1": 1, "C2": 2, "C3": 3}
+U_THRESHOLDS = {
+    "core_restatement": 0.85,
+    "tracking_plan": 0.80,
+    "information_update": 0.75,
+    "research_questions": 0.80,
+}
+PERTURBATION_TYPES = {
+    "delete_critical_evidence",
+    "replace_scope",
+    "inject_counterevidence",
+    "shift_time",
+}
+BANNED_BLIND_PATTERNS = (
+    "high_quality_pass",
+    "PUBLISHABLE",
+    "quality_status",
+    "deterministic_check_status",
+    "semantic_review_status",
+    "source_01_ref",
+    "source_02_logic_ref",
+    "source_02_view_ref",
+    "preparation_ref",
+    "snapshot_ref",
+    "audit_ref",
+    "eval_note",
+    "stage_status",
+    "quality_gate_ref",
+    "confidence:",
+)
+
+
+class EvalError(RuntimeError):
+    """Raised for a contract or execution failure."""
+
+
+def load_yaml(path: Path) -> dict[str, Any]:
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
+    except Exception as exc:  # noqa: BLE001
+        raise EvalError(f"{path} 无法解析: {exc}") from exc
+    if not isinstance(data, dict):
+        raise EvalError(f"{path} 根节点必须为映射")
+    return data
+
+
+def dump_yaml(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False, width=120),
+        encoding="utf-8",
+    )
+
+
+def dump_json(path: Path, data: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def sha256_text(text: str) -> str:
+    return "sha256:" + hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def stable_hash(value: Any) -> str:
+    raw = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def parse_date(value: Any, label: str) -> date:
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError as exc:
+        raise EvalError(f"{label} 不是有效日期: {value}") from exc
+
+
+def resolve_repo_path(value: str) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else REPO_ROOT / path
+
+
+def require(mapping: dict[str, Any], keys: Iterable[str], label: str) -> None:
+    for key in keys:
+        if key not in mapping or mapping[key] in (None, "", []):
+            raise EvalError(f"{label} 缺少 {key}")
+
+
+def validate_profiles(path: Path, require_official: bool = False) -> dict[str, Any]:
+    registry = load_yaml(path)
+    require(registry, ["run_mode", "profiles", "role_bindings"], str(path))
+    profiles = registry["profiles"]
+    bindings = registry["role_bindings"]
+    if not isinstance(profiles, dict) or not isinstance(bindings, dict):
+        raise EvalError("模型 profiles 与 role_bindings 必须为映射")
+    require(bindings, ["producer", "judges", "downstream_models"], "role_bindings")
+    judge_names = list(bindings["judges"])
+    downstream_names = list(bindings["downstream_models"])
+    if len(judge_names) != 2 or len(set(judge_names)) != 2:
+        raise EvalError("必须配置两个不同的评测模型档案")
+    if len(downstream_names) != 2 or len(set(downstream_names)) != 2:
+        raise EvalError("必须配置两个不同的下游模型档案")
+    bound_names = [bindings["producer"], *judge_names, *downstream_names]
+    for name in bound_names:
+        if name not in profiles:
+            raise EvalError(f"role_bindings 引用未知模型档案 {name}")
+        profile = profiles[name]
+        require(profile, ["model_id", "provider_family", "command"], f"profiles.{name}")
+        if not isinstance(profile["command"], list) or not profile["command"]:
+            raise EvalError(f"profiles.{name}.command 必须为非空数组")
+    producer_id = profiles[bindings["producer"]]["model_id"]
+    judge_ids = [profiles[name]["model_id"] for name in judge_names]
+    downstream_ids = [profiles[name]["model_id"] for name in downstream_names]
+    if producer_id in judge_ids:
+        raise EvalError("生产模型不得兼任评测模型")
+    if len(set(judge_ids)) != 2:
+        raise EvalError("两个评测档案必须使用不同 model_id")
+    if set(judge_ids) & set(downstream_ids):
+        raise EvalError("下游任务执行模型不得给自己的任务产出评分")
+    official = registry["run_mode"] == "official" or require_official
+    if official:
+        blob = yaml.safe_dump(registry, allow_unicode=True)
+        if "replace-with" in blob or "mock-" in blob:
+            raise EvalError("正式模型配置仍含占位符或 mock 模型")
+    return registry
+
+
+def validate_case(case_path: Path) -> dict[str, Any]:
+    case = load_yaml(case_path)
+    require(
+        case,
+        [
+            "case_id",
+            "stratum",
+            "task_input",
+            "system_artifact",
+            "evidence_pack_ref",
+            "adjudication_ref",
+            "perturbation_ref",
+            "experiment",
+            "isolation",
+        ],
+        str(case_path),
+    )
+    if case["stratum"] not in {"report_value", "restraint"}:
+        raise EvalError(f"{case['case_id']} stratum 非法")
+    task = case["task_input"]
+    require(task, ["question", "object", "scope", "information_cutoff", "terminal_artifact_type"], "task_input")
+    cutoff = parse_date(task["information_cutoff"], f"{case['case_id']} information_cutoff")
+    artifact = case["system_artifact"]
+    require(artifact, ["stage", "path", "allowed_terminal_status"], "system_artifact")
+    artifact_path = resolve_repo_path(str(artifact["path"]))
+    if not artifact_path.is_file():
+        raise EvalError(f"{case['case_id']} 系统产物不存在: {artifact_path}")
+    if case["stratum"] == "restraint" and str(artifact["stage"]) == "05":
+        raise EvalError(f"{case['case_id']} restraint 案例不得强制升为05")
+
+    evidence_path = case_path.parent / str(case["evidence_pack_ref"])
+    adjudication_path = case_path.parent / str(case["adjudication_ref"])
+    perturbation_path = case_path.parent / str(case["perturbation_ref"])
+    for path in (evidence_path, adjudication_path, perturbation_path):
+        if not path.is_file():
+            raise EvalError(f"{case['case_id']} 缺少文件: {path}")
+
+    evidence_pack = load_yaml(evidence_path)
+    if evidence_pack.get("case_id") != case["case_id"]:
+        raise EvalError(f"{case['case_id']} evidence.case_id 不一致")
+    if str(evidence_pack.get("information_cutoff")) != str(task["information_cutoff"]):
+        raise EvalError(f"{case['case_id']} evidence信息截止日与公开任务不一致")
+    evidence = evidence_pack.get("evidence")
+    if not isinstance(evidence, list) or len(evidence) < 3:
+        raise EvalError(f"{case['case_id']} 至少需要3条冻结证据")
+    evidence_ids: set[str] = set()
+    for item in evidence:
+        require(
+            item,
+            [
+                "evidence_id",
+                "publisher",
+                "title",
+                "source_url",
+                "published_at",
+                "business_time",
+                "independence_group",
+                "source_type",
+                "statement_nature",
+                "locator",
+                "excerpt",
+                "content_hash",
+                "supports",
+                "limits",
+            ],
+            f"{case['case_id']}.evidence[]",
+        )
+        eid = str(item["evidence_id"])
+        if eid in evidence_ids:
+            raise EvalError(f"{case['case_id']} 重复 evidence_id: {eid}")
+        evidence_ids.add(eid)
+        if parse_date(item["published_at"], f"{eid}.published_at") > cutoff:
+            raise EvalError(f"{case['case_id']} {eid} 晚于信息截止日")
+        expected_hash = sha256_text(str(item["excerpt"]))
+        if item["content_hash"] != expected_hash:
+            raise EvalError(f"{case['case_id']} {eid} 摘录哈希不匹配")
+        if not str(item["source_url"]).startswith(("https://", "http://")):
+            raise EvalError(f"{case['case_id']} {eid} source_url 非网页地址")
+
+    adjudication = load_yaml(adjudication_path)
+    if adjudication.get("case_id") != case["case_id"] or not adjudication.get("not_a_reference_report"):
+        raise EvalError(f"{case['case_id']} 密封裁决契约标识错误")
+    claims = adjudication.get("core_claims")
+    if not isinstance(claims, list) or not 3 <= len(claims) <= 7:
+        raise EvalError(f"{case['case_id']} 核心判断必须为3—7条")
+    if not any(item.get("criticality") == "primary" for item in claims):
+        raise EvalError(f"{case['case_id']} 至少需要一条primary判断")
+    for claim in claims:
+        require(
+            claim,
+            ["claim_id", "statement", "criticality", "strength_ceiling", "minimum_evidence_basket"],
+            f"{case['case_id']}.core_claims[]",
+        )
+        if claim["criticality"] not in {"primary", "supporting", "boundary"}:
+            raise EvalError(f"{claim['claim_id']} criticality 非法")
+        unknown = set(claim["minimum_evidence_basket"]) - evidence_ids
+        if unknown:
+            raise EvalError(f"{claim['claim_id']} 引用未知证据: {sorted(unknown)}")
+    require(
+        adjudication,
+        [
+            "allowed_disagreements",
+            "strongest_counterevidence",
+            "prohibited_expressions",
+            "update_scenarios",
+            "downstream_required_units",
+        ],
+        f"{case['case_id']}.adjudication",
+    )
+
+    perturbations = load_yaml(perturbation_path)
+    items = perturbations.get("items")
+    if not isinstance(items, list) or len(items) < 4:
+        raise EvalError(f"{case['case_id']} 至少需要四项扰动")
+    observed_types = {str(item.get("type")) for item in items}
+    if not PERTURBATION_TYPES <= observed_types:
+        raise EvalError(f"{case['case_id']} 扰动类型不完整: {sorted(PERTURBATION_TYPES - observed_types)}")
+
+    isolation = case["isolation"]
+    forbidden = set(isolation.get("producer_forbidden") or [])
+    visible = set(isolation.get("producer_visible") or [])
+    required_forbidden = {
+        "system_artifact",
+        "reasoning_materials",
+        "sealed/adjudication.yaml",
+        "../../calibration/defects.yaml",
+    }
+    if visible != {"task_input", "evidence.yaml"}:
+        raise EvalError(f"{case['case_id']} 生产者只能看到task_input与evidence.yaml")
+    if not required_forbidden <= forbidden or forbidden & visible:
+        raise EvalError(f"{case['case_id']} 生产者密封隔离无效")
+    if not isolation.get("adjudication_open_after_artifact_freeze"):
+        raise EvalError(f"{case['case_id']} 未声明产物冻结后才打开裁决契约")
+    axes = set(case["experiment"].get("axes") or [])
+    if axes != {"R", "U", "delta", "S", "C"}:
+        raise EvalError(f"{case['case_id']} 评测轴必须为R/U/delta/S/C")
+    return {
+        "case": case,
+        "case_path": case_path,
+        "artifact_path": artifact_path,
+        "evidence": evidence_pack,
+        "adjudication": adjudication,
+        "perturbations": perturbations,
+    }
+
+
+def apply_defect(text: str, item: dict[str, Any]) -> str:
+    operation = item.get("operation")
+    if operation == "replace":
+        target = str(item.get("target", ""))
+        if not target or target not in text:
+            raise EvalError(f"{item.get('defect_id')} 找不到注入锚点")
+        return text.replace(target, str(item.get("replacement", "")), 1)
+    if operation == "append":
+        return text + str(item.get("replacement", ""))
+    raise EvalError(f"{item.get('defect_id')} 不支持的operation: {operation}")
+
+
+def validate_suite(suite_path: Path = SUITE_PATH) -> list[dict[str, Any]]:
+    suite = load_yaml(suite_path)
+    require(
+        suite,
+        ["suite_id", "status", "primary_outcomes", "guardrails", "cases", "run_policy", "future_expert_review"],
+        str(suite_path),
+    )
+    if suite["primary_outcomes"] != ["R", "U", "delta"] or suite["guardrails"] != ["S", "C"]:
+        raise EvalError("suite 顶层指标必须为R/U/delta，护栏必须为S/C")
+    if not suite["run_policy"].get("no_composite_score"):
+        raise EvalError("v2 禁止综合总分")
+    policy = suite["run_policy"]
+    if policy.get("judge_models") != 2 or policy.get("repetitions_per_judge") != 3:
+        raise EvalError("正式协议必须为两个评测模型、每个角色三次运行")
+    if policy.get("prompt_variants") != ["A", "B"]:
+        raise EvalError("正式协议必须配置A/B两套等价提示表述")
+    expert = suite["future_expert_review"]
+    if expert.get("required_for_pilot") or expert.get("target_sample_rate") != [0.05, 0.10]:
+        raise EvalError("专家盲审应预留5%—10%字段，但不得设为首版前置条件")
+    cases: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in suite["cases"]:
+        case_id = row.get("case_id")
+        if case_id in seen:
+            raise EvalError(f"重复 case_id: {case_id}")
+        seen.add(case_id)
+        case_info = validate_case(V2_ROOT / str(row["path"]))
+        if case_info["case"]["case_id"] != case_id:
+            raise EvalError(f"suite 与 case.yaml 的case_id不一致: {case_id}")
+        if case_info["case"]["stratum"] != row.get("stratum"):
+            raise EvalError(f"{case_id} stratum 与suite不一致")
+        cases.append(case_info)
+    if seen != {"RV-T01", "RV-T02", "RV-T07", "RV-T08"}:
+        raise EvalError("校准试点必须固定为RV-T01/RV-T02/RV-T07/RV-T08")
+
+    defects = load_yaml(DEFECTS_PATH).get("items")
+    if not isinstance(defects, list) or len(defects) != 10:
+        raise EvalError("缺陷校准集必须恰好包含10类变体")
+    case_map = {item["case"]["case_id"]: item for item in cases}
+    defect_types: set[str] = set()
+    for item in defects:
+        require(
+            item,
+            [
+                "defect_id",
+                "defect_type",
+                "base_case",
+                "severity",
+                "expected_dimension",
+                "operation",
+                "expected_location",
+                "normal_should_rank_above",
+            ],
+            "defects[]",
+        )
+        if "replacement" not in item:
+            raise EvalError(f"{item['defect_id']} 缺少 replacement")
+        defect_types.add(str(item["defect_type"]))
+        base = case_map.get(item["base_case"])
+        if not base:
+            raise EvalError(f"{item['defect_id']} 引用未知案例")
+        normal = base["artifact_path"].read_text(encoding="utf-8-sig")
+        mutated = apply_defect(normal, item)
+        if mutated == normal:
+            raise EvalError(f"{item['defect_id']} 未改变产物")
+    if len(defect_types) != 10:
+        raise EvalError("十个校准变体必须覆盖十种不同缺陷")
+    metrics = load_yaml(METRICS_PATH)
+    if not metrics.get("no_composite_score"):
+        raise EvalError("指标契约禁止综合总分")
+    prompts = load_yaml(PROMPTS_PATH)
+    if set((prompts.get("prompt_variants") or {}).keys()) != {"A", "B"}:
+        raise EvalError("提示词注册表缺少A/B等价表述")
+    load_yaml(PROTOCOL_PATH)
+    return cases
+
+
+def blind_text(text: str, *, strip_body_labels: bool = False) -> str:
+    normalized = text.replace("\r\n", "\n")
+    if normalized.startswith("---\n"):
+        parts = normalized.split("---\n", 2)
+        if len(parts) == 3:
+            normalized = parts[2]
+    kept: list[str] = []
+    for line in normalized.splitlines():
+        if any(pattern.lower() in line.lower() for pattern in BANNED_BLIND_PATTERNS):
+            if strip_body_labels:
+                continue
+            raise EvalError("正文中发现无法安全删除的内部质量、阶段或置信标签")
+        if re.search(r"<!--\s*(material|source-annotation)-refs:", line, re.I):
+            continue
+        kept.append(line.rstrip())
+    result = "\n".join(kept).strip() + "\n"
+    if any(pattern.lower() in result.lower() for pattern in BANNED_BLIND_PATTERNS):
+        raise EvalError("盲化结果仍含内部质量或流程标签")
+    return result
+
+
+def blind_candidate(text: str) -> str:
+    """Remove process metadata and normalize the visible candidate title."""
+
+    result = blind_text(text)
+    lines = result.splitlines()
+    for index, line in enumerate(lines):
+        if re.match(r"^#\s+", line):
+            lines[index] = "# 候选研究产物"
+            break
+    normalized = "\n".join(lines).strip() + "\n"
+    if any(pattern.lower() in normalized.lower() for pattern in BANNED_BLIND_PATTERNS):
+        raise EvalError("候选盲化后仍含内部质量、阶段或置信标签")
+    return normalized
+
+
+def blind_data(value: Any) -> Any:
+    """Recursively remove internal process fields from structured reasoning material."""
+
+    if isinstance(value, dict):
+        cleaned: dict[str, Any] = {}
+        for key, item in value.items():
+            key_text = str(key).lower()
+            if any(pattern.rstrip(":").lower() in key_text for pattern in BANNED_BLIND_PATTERNS):
+                continue
+            cleaned[str(key)] = blind_data(item)
+        return cleaned
+    if isinstance(value, list):
+        return [blind_data(item) for item in value]
+    return value
+
+
+def conservative_median(levels: Iterable[int]) -> int:
+    values = sorted(int(value) for value in levels)
+    if not values:
+        raise EvalError("无法对空等级集合聚合")
+    return values[(len(values) - 1) // 2]
+
+
+def apply_r_hard_gate(level: str, hard_failures: Iterable[Any]) -> int:
+    if level not in R_ORDER:
+        raise EvalError(f"非法R等级: {level}")
+    return R_ORDER["R0"] if any(str(item).strip() for item in hard_failures) else R_ORDER[level]
+
+
+def wilson_interval(successes: float, total: int, z: float = 1.6448536269514722) -> tuple[float, float]:
+    if total <= 0:
+        return (0.0, 0.0)
+    p = successes / total
+    denominator = 1.0 + z * z / total
+    center = (p + z * z / (2 * total)) / denominator
+    margin = z * math.sqrt((p * (1 - p) + z * z / (4 * total)) / total) / denominator
+    return (max(0.0, center - margin), min(1.0, center + margin))
+
+
+def grade_u(task_scores: dict[str, float], critical_error: bool) -> str:
+    if critical_error:
+        return "U0"
+    passed = sum(task_scores.get(task, 0.0) >= threshold for task, threshold in U_THRESHOLDS.items())
+    return {0: "U0", 1: "U1", 2: "U1", 3: "U2", 4: "U3"}[passed]
+
+
+def grade_s(r_exact: float, downstream_agreement: float, flip_rate: float, r_span: int) -> str:
+    if r_span >= 3 or (r_exact < 0.55 and downstream_agreement < 0.60):
+        return "S0"
+    if r_exact >= 0.80 and downstream_agreement >= 0.80 and flip_rate <= 0.10 and r_span <= 1:
+        return "S3"
+    if r_exact >= 0.65 and downstream_agreement >= 0.70 and flip_rate <= 0.20 and r_span < 3:
+        return "S2"
+    return "S1"
+
+
+def grade_c(
+    recall: float,
+    false_kill: float,
+    ranking: float,
+    location: float,
+    sensitivity: float,
+    severity: float = 1.0,
+    consistency: float = 1.0,
+) -> str:
+    if (
+        recall >= 0.90
+        and false_kill <= 0.10
+        and ranking >= 0.90
+        and location >= 0.80
+        and sensitivity >= 0.80
+        and severity >= 0.80
+        and consistency >= 0.80
+    ):
+        return "C3"
+    if (
+        recall >= 0.80
+        and false_kill <= 0.20
+        and ranking >= 0.80
+        and location >= 0.70
+        and sensitivity >= 0.70
+        and severity >= 0.70
+        and consistency >= 0.70
+    ):
+        return "C2"
+    if recall >= 0.60 and sensitivity >= 0.60:
+        return "C1"
+    return "C0"
+
+
+def agreement_rate(values: Iterable[Any]) -> float:
+    items = list(values)
+    if not items:
+        return 0.0
+    return max(Counter(items).values()) / len(items)
+
+
+def read_jsonl(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise EvalError(f"{path}:{number} 不是有效JSON: {exc}") from exc
+        if not isinstance(row, dict):
+            raise EvalError(f"{path}:{number} 必须为JSON对象")
+        rows.append(row)
+    return rows
+
+
+def append_jsonl(path: Path, row: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+@dataclass
+class AdapterSession:
+    """Synchronous streaming JSONL adapter with retry and timeout handling."""
+
+    command: list[str]
+    model_id: str
+    cwd: Path = REPO_ROOT
+    timeout_seconds: float = 30.0
+    max_retries: int = 2
+    process: subprocess.Popen[str] | None = None
+
+    def _start(self) -> None:
+        self.close()
+        self.process = subprocess.Popen(
+            self.command,
+            cwd=self.cwd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+
+    def _readline(self) -> str:
+        if not self.process or not self.process.stdout:
+            raise EvalError("适配器进程未启动")
+        ready, _, _ = select.select([self.process.stdout], [], [], self.timeout_seconds)
+        if not ready:
+            raise TimeoutError(f"适配器在{self.timeout_seconds}秒内无响应")
+        line = self.process.stdout.readline()
+        if not line:
+            stderr = ""
+            if self.process.stderr:
+                stderr = self.process.stderr.read()
+            raise EvalError(f"适配器提前退出: {stderr.strip()}")
+        return line
+
+    def send(self, request: dict[str, Any]) -> dict[str, Any]:
+        errors: list[str] = []
+        for attempt in range(self.max_retries + 1):
+            try:
+                if not self.process or self.process.poll() is not None:
+                    self._start()
+                assert self.process and self.process.stdin
+                self.process.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
+                self.process.stdin.flush()
+                raw = self._readline()
+                response = json.loads(raw)
+                if not isinstance(response, dict):
+                    raise EvalError("适配器响应必须为JSON对象")
+                required = load_yaml(PROTOCOL_PATH)["response_required"]
+                missing = [key for key in required if key not in response]
+                if missing:
+                    raise EvalError(f"适配器响应缺字段: {missing}")
+                if response["request_id"] != request["request_id"]:
+                    raise EvalError("适配器响应request_id不匹配")
+                if response["status"] not in {"ok", "error"}:
+                    raise EvalError("适配器响应status非法")
+                return response
+            except Exception as exc:  # noqa: BLE001
+                errors.append(f"attempt={attempt + 1}: {exc}")
+                self.close()
+        return {
+            "request_id": request["request_id"],
+            "status": "error",
+            "model_id": self.model_id,
+            "text": "",
+            "result": {},
+            "usage": {},
+            "latency_ms": 0,
+            "error": "; ".join(errors),
+        }
+
+    def close(self) -> None:
+        if not self.process:
+            return
+        process = self.process
+        try:
+            if process.stdin:
+                process.stdin.close()
+            process.terminate()
+            process.wait(timeout=1)
+        except Exception:  # noqa: BLE001
+            try:
+                process.kill()
+                process.wait(timeout=1)
+            except Exception:  # noqa: BLE001
+                pass
+        finally:
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream and not stream.closed:
+                    stream.close()
+            self.process = None
+
+
+def make_request(
+    *,
+    role: str,
+    profile_name: str,
+    profile: dict[str, Any],
+    case_id: str,
+    payload: dict[str, Any],
+    seed: int,
+    prompt_variant: str,
+    request_suffix: str,
+    case_hash: str,
+    response_schema: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    prompts = load_yaml(PROMPTS_PATH)
+    role_prompt = prompts["roles"].get(role)
+    if not role_prompt:
+        raise EvalError(f"缺少角色提示词: {role}")
+    variant_instruction = (prompts.get("prompt_variants") or {}).get(prompt_variant)
+    if not variant_instruction:
+        raise EvalError(f"缺少提示词等价表述: {prompt_variant}")
+    request_id = "REQ-" + stable_hash(
+        [case_id, role, profile_name, seed, prompt_variant, request_suffix, case_hash, stable_hash(payload)]
+    )[:24]
+    return {
+        "request_id": request_id,
+        "role": role,
+        "model_profile": profile_name,
+        "messages": [
+            {"role": "system", "content": f"{role_prompt['system']}\n{variant_instruction}"},
+            {
+                "role": "user",
+                "content": json.dumps(
+                    {"prompt_variant": prompt_variant, "payload": payload},
+                    ensure_ascii=False,
+                    sort_keys=True,
+                ),
+            },
+        ],
+        "temperature": 0.2,
+        "seed": seed,
+        "max_output_tokens": 2400,
+        "response_schema": response_schema or {"type": "object"},
+        "prompt_version": prompts["prompt_version"],
+        "case_hash": case_hash,
+        "metadata": {
+            "case_id": case_id,
+            "role": role,
+            "profile_name": profile_name,
+            "model_id": profile["model_id"],
+            "seed": seed,
+            "prompt_variant": prompt_variant,
+            "request_suffix": request_suffix,
+        },
+    }
+
+
+def execute_request(
+    request: dict[str, Any],
+    session: AdapterSession,
+    request_log: Path,
+    response_log: Path,
+    existing: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    request_id = request["request_id"]
+    if request_id in existing:
+        return existing[request_id]
+    append_jsonl(request_log, request)
+    started = time.monotonic()
+    response = session.send(request)
+    response["latency_ms"] = response.get("latency_ms") or int((time.monotonic() - started) * 1000)
+    response["request_metadata"] = request["metadata"]
+    append_jsonl(response_log, response)
+    existing[request_id] = response
+    return response
+
+
+def close_sessions(sessions: dict[str, AdapterSession]) -> None:
+    for session in sessions.values():
+        session.close()

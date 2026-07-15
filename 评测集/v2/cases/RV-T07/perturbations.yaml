@@ -1,0 +1,27 @@
+document_type: evaluation_perturbation_set
+schema_version: 1.0.0
+case_id: RV-T07
+items:
+  - perturbation_id: T07-P1
+    type: delete_critical_evidence
+    operation: exclude_evidence
+    target: [T07-E02]
+    expected_action: sensitivity_failure_if_unchanged
+  - perturbation_id: T07-P2
+    type: replace_scope
+    operation: mark_scope_mismatch
+    target: [T07-E03]
+    replacement_scope: 合约市场长期价格
+    expected_action: downgrade
+  - perturbation_id: T07-P3
+    type: inject_counterevidence
+    operation: add_synthetic_scenario
+    payload: 关税窗口结束后库存下降且终端订单继续增长
+    expected_action: strengthen_or_resolve
+  - perturbation_id: T07-P4
+    type: shift_time
+    operation: change_cutoff
+    new_cutoff: '2025-04-16'
+    expected_filtered_evidence: [T07-E01, T07-E02]
+    expected_action: abstain_or_downgrade
+

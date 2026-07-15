@@ -149,7 +149,7 @@ REQUIRED_AUDIT_TOP = [
 
 AUDIT_SCHEMA_VERSION = "3.1.0"
 METHOD_LIBRARY_ROOT = _ROOT / "知识库_04推理"
-METHOD_ID_RE = re.compile(r"^(A|B|C|D)\d{2}$")
+METHOD_ID_RE = re.compile(r"^A\d{2}$")
 INVESTMENT_INTERPRETATIONS = {
     "fundamental_trend_improving",
     "marginal_improvement",
@@ -258,12 +258,12 @@ def _load_method_catalog() -> dict[str, Path]:
     catalog: dict[str, Path] = {}
     if not METHOD_LIBRARY_ROOT.is_dir():
         fail(f"缺少知识库_04推理目录: {METHOD_LIBRARY_ROOT}")
-    for path in METHOD_LIBRARY_ROOT.glob("[ABCD]_*/[ABCD][0-9][0-9]_*.md"):
+    for path in METHOD_LIBRARY_ROOT.glob("A[0-9][0-9]_*.md"):
         method_id = path.name.split("_", 1)[0]
         if METHOD_ID_RE.fullmatch(method_id):
             catalog[method_id] = path
     if not catalog:
-        fail("知识库_04推理未发现任何 A/B/C/D 方法卡")
+        fail("知识库_04推理未发现任何 A 方法卡")
     return catalog
 
 

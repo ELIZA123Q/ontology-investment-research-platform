@@ -45,7 +45,7 @@ updated_at: 2026-07-14
 
 决胜点：NRE、项目生命周期、客户集中、后续代际复制。归零：单项目结束无复制。
 
-商业质量门槛才读 BF-BM-01 / BF-IC-01。
+要谈商业模式质量时再读 BF-BM-01 / BF-IC-01。
 
 ## 3. 洞见层：领先关系、组合预测与利润池
 
@@ -74,6 +74,8 @@ updated_at: 2026-07-14
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: company_realization
 output_gate_refs: [IF-DES-01.commercialization_stage, IF-DES-01.commercial_quality, IF-DES-01.realization_readiness]
@@ -86,9 +88,9 @@ falsification_conditions: [route_confusion, stage_confusion, no_active_use, no_r
 scenarios: [design_win_without_volume, license_without_royalty, repeatable_platform]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - 车规默认：`SCN-AUTO + IF-DES-01`；应用量再加 APP。AI/Fab 问题分别加场景卡或 FAB。财务交 BF-EE-01。
-- 需验证芯片量产复购成立案 + design win/授权未兑现失败案；IP/EDA 任务增多后再考虑拆库。`pending_two_tasks`。
+- 需验证芯片量产复购成立案 + design win/授权未兑现失败案；IP/EDA 任务增多后再考虑拆库。`尚待两次真实任务验证`。

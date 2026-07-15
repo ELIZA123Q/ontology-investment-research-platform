@@ -31,7 +31,7 @@ updated_at: 2026-07-14
 
 状态变量（非新增 registry gate）：`bottleneck_controller`、`yield_loss_bearer`、`incremental_value_captor`。
 
-## 2. 特有机制、阶段门与关键时钟
+## 2. 特有机制、关键环节与关键时钟
 
 | 阶段门 | 关键机制 | 典型误判 |
 |---|---|---|
@@ -67,6 +67,8 @@ updated_at: 2026-07-14
 
 ## 5. 本框架特有输出
 
+以下为系统登记，研究员可不读。
+
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-PKG-01.bottleneck_location, IF-PKG-01.qualified_system_output, IF-PKG-01.profit_pool_readiness]
@@ -79,9 +81,9 @@ falsification_conditions: [nameplate_only, bottleneck_shift, yield_loss, value_w
 scenarios: [capacity_bottleneck, bottleneck_migration, value_capture_mismatch]
 ```
 
-使用时字段见[README](../../../README.md#4-依赖登记与输出合同)，精确门槛读[依赖登记表](../../../00_framework_dependency_registry.yaml)。
+组合方式见框架库 README「怎样选用」；系统核对见文末登记说明。需要核对进入条件与可写到哪一层时，见根目录依赖说明。
 
 ## 6. 组合、裁剪与真实任务验证
 
 - `SCN-PKG-BTL`；HBM 加 `SCN-MEM-HBM`。EQP/MAT 仅候选瓶颈时调用。
-- 需验证瓶颈定位成立 + 扩产后迁移失败两类。`pending_two_tasks`。
+- 需验证瓶颈定位成立 + 扩产后迁移失败两类。`尚待两次真实任务验证`。

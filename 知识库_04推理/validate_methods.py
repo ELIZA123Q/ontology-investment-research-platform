@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验 04 推理方法库的资产、接口、值域、链接和职责边界。"""
+"""校验 04 推理方法库 V2.1：统一接口、认知错误、等级、路径、链接与边界。"""
 
 from __future__ import annotations
 
@@ -11,66 +11,105 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parent
 PROJECT_ROOT = ROOT.parent
 
-COMMON_A_SECTIONS = ["最低输入", "判断步骤", "判断结果", "必须输出", "输出上限与下一方法", "强制退回条件"]
+METHOD_SECTIONS = [
+    "方法定位",
+    "判断模型与停止点",
+    "方法特有判断原则",
+    "判断流程",
+    "裁决与输出增量",
+    "边界与退回",
+    "例与误判",
+]
+
+LEGACY_METHOD_HEADINGS = {
+    "开始前需要什么",
+    "最低输入",
+    "最低输入（开始前需要什么）",
+    "等级使用提示",
+    "必须输出",
+    "必须写清",
+    "强制退回条件",
+    "缺什么就退回",
+    "输出上限与下一方法",
+    "能说到哪、下一步去哪",
+    "裁决矩阵",
+}
 
 REQUIRED_FILES = {
     "README.md": [
-        "库里有什么",
-        "本库与其他资产的边界",
-        "如何使用",
-        "常见任务的最小调用组合",
-        "统一执行接口与判断记录",
-        "质量与准入标准",
+        "从哪组方法进入",
+        "判断单元",
+        "主研究命题",
+        "方法怎么分层看",
+        "和 02、03、05 的边界",
+        "怎么用",
+        "四份附录",
+        "七部分",
         "案例回归",
+        "不能证明",
+        "方法有效性验证",
     ],
-    "A_单项判断裁决/A00_A类选择与判断等级规则.md": [
+    "A00_裁决总则.md": [
         "先选主问题，再选主方法",
-        "统一执行契约",
-        "什么时候不能用",
-        "统一判断等级",
+        "主研究命题",
+        "判断单元",
+        "统一输入规范",
+        "统一输出规范",
+        "统一等级规则",
+        "统一退回规则",
+        "统一案例规范",
+        "附录4：通用认知错误与误用索引",
+        "A02—A10 | J3",
     ],
-    "A_单项判断裁决/A01_状态判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A02_趋势判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A03_阶段判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A04_机制判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A05_归因判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A06_传导判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A07_分化判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A08_影响判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A09_预期差判断.md": COMMON_A_SECTIONS,
-    "A_单项判断裁决/A10_投资命题裁决.md": [
-        "综合裁决定位",
-        "最低输入",
-        "进入条件",
-        "五道判断前提",
-        "判断步骤",
-        "判断结果",
-        "输出上限与下一方法",
-        "必须输出",
-        "强制退回条件",
-        "不是投资建议",
+    "A00-附录1_路径与阻断协议.md": [
+        "每一段先问这六个问题",
+        "节点与路径角色",
+        "中间有没有真正接上",
+        "这一段路径走到哪一步",
+        "承接、时滞与阻断",
+        "多路径输入边界",
+        "至少写清这五件事",
     ],
-    "B_推理路径验证/B01_路径成立与逐段验证.md": ["每段六问", "路径状态", "逐段验证规则", "研究员输出"],
-    "B_推理路径验证/B02_中间承接时滞与阻断.md": ["三类承接", "时滞判断"],
-    "B_推理路径验证/B03_规则适用与多路径合成.md": ["规则适用评价", "多路径如何合成"],
-    "C_反证与竞争解释/C01_反证命中与裁决动作.md": ["反证先定位，再动作", "五步判断"],
-    "C_反证与竞争解释/C02_竞争解释比较.md": ["对称比较表", "判断处理"],
-    "C_反证与竞争解释/C03_冲突证据裁决.md": ["真冲突还是表面冲突", "四种处理"],
-    "D_改判与复盘/D01_改判触发与判断版本.md": [
-        "改判是判断等级的状态迁移",
-        "改判与复盘的边界",
-        "改判在首次形成判断时就写好",
-        "五种版本动作",
-        "投资命题的双重更新",
+    "A00-附录2_反证与竞争解释协议.md": [
+        "反证：先看打在哪，再决定怎么改",
+        "竞争解释：用同一张表比",
+        "材料看起来打架时",
     ],
-    "D_改判与复盘/D02_历史复盘与方法反馈.md": ["复盘定位", "六类复盘结果", "最低复盘记录", "反馈去向"],
+    "A00-附录3_改判与版本协议.md": [
+        "改判是等级怎么跟着证据走",
+        "改判条件要写到能执行",
+        "七种版本动作",
+        "投资命题要盯两套变化",
+        "历史复盘与方法反馈",
+    ],
+    "A00-附录4_通用认知错误与误用索引.md": [
+        "CE01 相关替代因果",
+        "CE02 相邻判断类型偷换",
+        "CE03 代理替代真实变量",
+        "CE04 未观测替代零或未发生",
+        "CE05 单点、局部或幸存样本外推总体",
+        "CE06 同源材料替代独立验证",
+        "CE07 遗漏共同驱动和最强竞争解释",
+        "CE08 事后调整基线、阈值、窗口或阶段定义",
+        "CE09 时间窗口错配或顺序倒置",
+        "CE10 跨层跳跃",
+    ],
 }
 
 BOUNDARY_FILES = {
     "知识库_02框架/README.md": ["知识库_03取证", "知识库_04推理"],
     "知识库_03取证/README.md": ["知识库_02框架", "知识库_04推理"],
-    "04_推理/04_推理输出规范.md": ["知识库_04推理/README.md", "不新增判断路径"],
-    "00_全局/00_项目定位与边界.md": ["02 决定判断什么", "03 决定什么证据可以用", "04 决定合格证据"],
+    "04_推理/04_推理输出规范.md": [
+        "知识库_04推理/README.md",
+        "不新增判断路径",
+        "四份附录",
+        "附录4",
+    ],
+    "00_全局/00_项目定位与边界.md": [
+        "02 决定判断什么",
+        "03 决定什么证据可以用",
+        "04 决定合格证据",
+    ],
 }
 
 A_METHOD_LABELS = [
@@ -83,7 +122,7 @@ A_METHOD_LABELS = [
     "A07 分化",
     "A08 影响",
     "A09 预期差",
-    "A10 投资命题裁决",
+    "A10 投资命题",
 ]
 
 PATH_RESULT_STATUS_CODES = {
@@ -97,11 +136,18 @@ PATH_RESULT_STATUS_CODES = {
 }
 
 METHOD_BOUNDARY_REQUIREMENTS = {
-    "A_单项判断裁决/A04_机制判断.md": ["不能回答 | 该机制是否为主要原因", "判断到达节点进入 A06", "经营/财务意义进入 A08"],
-    "A_单项判断裁决/A05_归因判断.md": ["调用或继承 C02", "不能回答 | 仅凭某机制成立"],
-    "A_单项判断裁决/A06_传导判断.md": ["A06 不重复给每条边定状态", "读取 B01 的正式路径状态", "经营或财务结果时进入 A08"],
-    "A_单项判断裁决/A08_影响判断.md": ["暴露、可能影响、经营兑现或财务兑现", "不能回答 | 把概念暴露写成已发生影响"],
-    "A_单项判断裁决/A10_投资命题裁决.md": ["特殊综合裁决方法", "只消费前序判断", "不得达到 J4"],
+    "A04_机制判断.md": ["主因", "A05", "A06", "A08", "附录1", "附录2"],
+    "A05_归因判断.md": ["附录2", "主要由", "共同驱动", "精确贡献"],
+    "A06_传导判断.md": ["附录1", "最后可达节点", "第一条未通过路径", "A08"],
+    "A08_影响判断.md": ["边际贡献", "总量结果", "A05", "A09"],
+    "A09_预期差判断.md": ["事前共识或关键假设＋预测修订＋定价反应", "只有价格变化", "J0", "A10"],
+    "A10_投资命题裁决.md": [
+        "同一组敏感变量",
+        "幅度区间",
+        "不得写“收益风险比显著有利”",
+        "G4 只算部分通过",
+        "最高 J3",
+    ],
 }
 
 FORBIDDEN_AFFIRMATIVE_PHRASES = (
@@ -116,8 +162,6 @@ NEGATORS = ("不", "不得", "禁止", "不能", "无权", "退回")
 
 
 def normalize_title(value: str) -> str:
-    """忽略空白、下划线和标点后比较文件名与一级标题。"""
-
     return re.sub(r"[\W_]+", "", value, flags=re.UNICODE)
 
 
@@ -126,8 +170,21 @@ def first_h1(text: str) -> str | None:
     return match.group(1) if match else None
 
 
+def h2_titles(text: str) -> list[str]:
+    return re.findall(r"(?m)^##\s+(.+?)\s*$", text)
+
+
+def section_body(text: str, title: str) -> str:
+    match = re.search(
+        rf"(?ms)^##\s+{re.escape(title)}\s*$\n(.*?)(?=^##\s+|\Z)",
+        text,
+    )
+    return match.group(1) if match else ""
+
+
 def table_status_codes(text: str) -> set[str]:
-    return set(re.findall(r"(?m)^\|\s*`([a-z_]+)`\s*\|", text))
+    """Extract formal status codes from Markdown table cells."""
+    return set(re.findall(r"(?m)^\|(?:[^|\n]*\|)*?\s*`([a-z_]+)`\s*\|", text))
 
 
 def check_required_assets(errors: list[str]) -> None:
@@ -152,72 +209,150 @@ def check_required_assets(errors: list[str]) -> None:
                 errors.append(f"{relative_path} 缺少三库边界说明：{phrase}")
 
 
-def check_a_contracts(errors: list[str]) -> None:
+def check_canonical_method_files(errors: list[str]) -> dict[int, Path]:
+    catalog: dict[int, Path] = {}
+    for number in range(1, 11):
+        matches = sorted(ROOT.rglob(f"A{number:02d}_*.md"))
+        if len(matches) != 1:
+            listed = [str(path.relative_to(ROOT)) for path in matches]
+            errors.append(
+                f"A{number:02d} 正式方法文件递归数量应为 1，实际为 {len(matches)}：{listed}"
+            )
+            continue
+        path = matches[0]
+        if path.parent != ROOT:
+            errors.append(f"{path.relative_to(ROOT)} 不得作为子目录中的正式方法卡")
+            continue
+        catalog[number] = path
+    return catalog
+
+
+def check_a_contracts(errors: list[str], warnings: list[str]) -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     for label in A_METHOD_LABELS:
         if label not in readme:
-            errors.append(f"README.md 的最小调用组合缺少方法名称：{label}")
+            errors.append(f"README.md 缺少方法名称：{label}")
 
-    for number in range(1, 11):
-        matches = list((ROOT / "A_单项判断裁决").glob(f"A{number:02d}_*.md"))
-        if len(matches) != 1:
-            errors.append(f"A{number:02d} 方法文件数量应为 1，实际为 {len(matches)}")
-            continue
-        text = matches[0].read_text(encoding="utf-8")
-        for section in ("最低输入", "必须输出", "输出上限与下一方法", "强制退回条件"):
-            if f"## {section}" not in text:
-                errors.append(f"{matches[0].relative_to(ROOT)} 缺少统一接口章节：{section}")
+    catalog = check_canonical_method_files(errors)
+    registry_text = (ROOT / "A00-附录4_通用认知错误与误用索引.md").read_text(
+        encoding="utf-8"
+    )
+    registry_ids = set(re.findall(r"(?m)^##\s+(CE\d{2})\b", registry_text))
+    expected_ids = {f"CE{number:02d}" for number in range(1, 11)}
+    if registry_ids != expected_ids:
+        errors.append(
+            f"附录4 认知错误 ID 不完整：缺少 {sorted(expected_ids - registry_ids)}；"
+            f"多出 {sorted(registry_ids - expected_ids)}"
+        )
 
-        level_matches = re.findall(r"\|\s*最高允许等级\s*\|\s*J([0-4])\b", text)
-        if len(level_matches) != 1:
-            errors.append(f"{matches[0].relative_to(ROOT)} 必须且只能声明一次最高允许等级")
-            continue
-        if number >= 4 and int(level_matches[0]) > 3:
-            errors.append(f"{matches[0].relative_to(ROOT)} 属于因果/综合判断，最高允许等级不得超过 J3")
+    for number, path in sorted(catalog.items()):
+        text = path.read_text(encoding="utf-8")
+        headings = h2_titles(text)
+        if headings != METHOD_SECTIONS:
+            errors.append(f"{path.name} 七段模板不一致：{headings}")
 
-    a10 = (ROOT / "A_单项判断裁决/A10_投资命题裁决.md").read_text(encoding="utf-8")
-    if "| 最高允许等级 | J3" not in a10:
-        errors.append("A10 必须明确最高允许等级为 J3")
-    if "不得达到 J4" not in a10 and "不得使用 J4" not in a10:
-        errors.append("A10 必须明确禁止 J4")
+        legacy = sorted(set(headings) & LEGACY_METHOD_HEADINGS)
+        if legacy:
+            errors.append(f"{path.name} 重复维护全局章节：{legacy}")
+
+        if "一句话哲学" not in section_body(text, "方法定位"):
+            errors.append(f"{path.name} 方法定位缺少一句话哲学")
+
+        workflow = section_body(text, "判断流程")
+        step_count = len(re.findall(r"(?m)^\d+\.\s+", workflow))
+        if not 5 <= step_count <= 7:
+            errors.append(f"{path.name} 判断流程应为 5—7 步，实际为 {step_count} 步")
+
+        if text.count("**合格例：**") != 1 or text.count("**高迷惑性反例：**") != 1:
+            errors.append(f"{path.name} 必须且只能有一个合格例和一个高迷惑性反例")
+
+        ce_ids = set(re.findall(r"\bCE\d{2}\b", text))
+        unknown = sorted(ce_ids - registry_ids)
+        if unknown:
+            errors.append(f"{path.name} 引用了未注册认知错误：{unknown}")
+        if not 2 <= len(ce_ids) <= 4:
+            errors.append(f"{path.name} 应引用 2—4 个通用认知错误，实际为 {sorted(ce_ids)}")
+
+        line_count = len(text.splitlines())
+        maximum = 290 if number == 10 else 240
+        if line_count > maximum:
+            warnings.append(f"{path.name} 当前 {line_count} 行，超过编辑软上限 {maximum} 行")
+
+    a00 = (ROOT / "A00_裁决总则.md").read_text(encoding="utf-8")
+    for phrase in (
+        "| A01 | J4 |",
+        "| A02—A10 | J3 |",
+        "最终等级取“03 上限、方法上限、决定性环节上限”中的最低者",
+    ):
+        if phrase not in a00:
+            errors.append(f"A00_裁决总则.md 缺少集中等级规则：{phrase}")
+    for forbidden in ("| A02 | J4 / J3 |", "| A03 | J4 / J3 |", "| A04—A10 | J3 |"):
+        if forbidden in a00:
+            errors.append(f"A00_裁决总则.md 仍含已废弃等级口径：{forbidden}")
 
     for relative_path, required_phrases in METHOD_BOUNDARY_REQUIREMENTS.items():
         text = (ROOT / relative_path).read_text(encoding="utf-8")
         for phrase in required_phrases:
             if phrase not in text:
-                errors.append(f"{relative_path} 缺少相邻方法边界：{phrase}")
+                errors.append(f"{relative_path} 缺少方法硬规则或边界：{phrase}")
 
 
 def check_path_result_status_contract(errors: list[str]) -> None:
-    b01_path = ROOT / "B_推理路径验证/B01_路径成立与逐段验证.md"
-    b01_text = b01_path.read_text(encoding="utf-8")
-    b01_codes = table_status_codes(b01_text)
-    if b01_codes != PATH_RESULT_STATUS_CODES:
-        missing = sorted(PATH_RESULT_STATUS_CODES - b01_codes)
-        extra = sorted(b01_codes - PATH_RESULT_STATUS_CODES)
-        errors.append(f"B01 路径结果状态值域不一致：缺少 {missing or '无'}；多出 {extra or '无'}")
-    if "path_result_status" not in b01_text and "正式路径状态" not in b01_text:
-        errors.append("B01 必须明确这些状态属于 04 的 path_result_status / 正式路径结果状态")
-    if re.search(r"(?m)^\|\s*条件成立\s*\|", b01_text):
-        errors.append("B01 不得把“条件成立”定义为正式路径状态")
+    appendix1 = ROOT / "A00-附录1_路径与阻断协议.md"
+    text = appendix1.read_text(encoding="utf-8")
+    section_text = section_body(text, "这一段路径走到哪一步") or text
+    codes = table_status_codes(section_text)
+    if codes != PATH_RESULT_STATUS_CODES:
+        errors.append(
+            f"附录1 路径状态不一致：缺少 {sorted(PATH_RESULT_STATUS_CODES - codes) or '无'}；"
+            f"多出 {sorted(codes - PATH_RESULT_STATUS_CODES) or '无'}"
+        )
+    if "path_result_status" not in text:
+        errors.append("附录1 须说明与审计 path_result_status 对应")
+    if re.search(r"(?m)^\|\s*条件成立\s*\|", section_text):
+        errors.append("附录1 不得把“条件成立”定义为正式路径状态")
 
-    output_spec = (PROJECT_ROOT / "04_推理" / "04_推理输出规范.md").read_text(encoding="utf-8")
-    output_codes = table_status_codes(output_spec)
-    missing_in_spec = PATH_RESULT_STATUS_CODES - output_codes
+    output_spec = (PROJECT_ROOT / "04_推理" / "04_推理输出规范.md").read_text(
+        encoding="utf-8"
+    )
+    missing_in_spec = PATH_RESULT_STATUS_CODES - table_status_codes(output_spec)
     if missing_in_spec:
-        errors.append(f"04_推理/04_推理输出规范.md 缺少 B01 正式状态码：{sorted(missing_in_spec)}")
+        errors.append(f"04_推理输出规范.md 缺少路径状态码：{sorted(missing_in_spec)}")
 
-    status_definition_files = []
-    for path in ROOT.glob("[ABCD]_*/*.md"):
-        if re.search(r"(?m)^##\s+路径(结果)?状态\b", path.read_text(encoding="utf-8")):
-            status_definition_files.append(str(path.relative_to(ROOT)))
-    if status_definition_files != ["B_推理路径验证/B01_路径成立与逐段验证.md"]:
-        errors.append(f"正式路径状态只能由 B01 定义，当前定义位置：{status_definition_files}")
+
+def check_rule_scenarios(errors: list[str]) -> None:
+    """静态回归两条最容易被后续编辑稀释的规则场景。"""
+    a09 = (ROOT / "A09_预期差判断.md").read_text(encoding="utf-8")
+    a09_requirements = (
+        "只有价格变化或事后评论 | 无有效基线 | J0",
+        "禁止使用“超预期、低于预期、未计价”",
+        "事前共识或关键假设＋预测修订＋定价反应",
+    )
+    missing_a09 = [phrase for phrase in a09_requirements if phrase not in a09]
+    if missing_a09:
+        errors.append(
+            "A09 场景回归失败：只有价格、无事前基线时必须停在 J0；缺少 "
+            + "、".join(missing_a09)
+        )
+
+    a10 = (ROOT / "A10_投资命题裁决.md").read_text(encoding="utf-8")
+    a10_requirements = (
+        "同一组敏感变量",
+        "方向、幅度区间、窗口和可逆性",
+        "不得写“收益风险比显著有利”",
+        "G4 只算部分通过",
+        "最高输出条件性投资命题或观察命题",
+    )
+    missing_a10 = [phrase for phrase in a10_requirements if phrase not in a10]
+    if missing_a10:
+        errors.append(
+            "A10 场景回归失败：情景不可比或无幅度区间时不得写显著有利；缺少 "
+            + "、".join(missing_a10)
+        )
 
 
 def check_titles_and_sections(errors: list[str]) -> None:
-    title_to_files: dict[str, list[str]] = {}
-    for path in sorted(ROOT.glob("[ABCD]_*/*.md")):
+    for path in sorted(ROOT.glob("A[0-9][0-9]_*.md")):
         relative = str(path.relative_to(ROOT))
         text = path.read_text(encoding="utf-8")
         title = first_h1(text)
@@ -227,7 +362,6 @@ def check_titles_and_sections(errors: list[str]) -> None:
         expected = path.stem.replace("_", " ", 1)
         if normalize_title(title) != normalize_title(expected):
             errors.append(f"{relative} 一级标题与文件名不一致：{title}")
-        title_to_files.setdefault(normalize_title(title), []).append(relative)
 
         headings = list(re.finditer(r"(?m)^(#{2,6})\s+(.+?)\s*$", text))
         for index, heading in enumerate(headings):
@@ -242,10 +376,6 @@ def check_titles_and_sections(errors: list[str]) -> None:
             if len(re.sub(r"\s+", "", body_without_headings)) < 8:
                 errors.append(f"{relative} 章节内容过空：{heading.group(2)}")
 
-    for files in title_to_files.values():
-        if len(files) > 1:
-            errors.append(f"重复方法标题：{files}")
-
 
 def iter_markdown_links(text: str) -> list[str]:
     return re.findall(r"(?<!!)\[[^\]]+\]\(([^)]+)\)", text)
@@ -256,7 +386,9 @@ def check_relative_links(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         for raw_target in iter_markdown_links(text):
             target = raw_target.strip().strip("<>").split()[0]
-            if not target or target.startswith("#") or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", target):
+            if not target or target.startswith("#") or re.match(
+                r"^[a-zA-Z][a-zA-Z0-9+.-]*:", target
+            ):
                 continue
             local_part = unquote(target.split("#", 1)[0].split("?", 1)[0])
             if not local_part:
@@ -267,25 +399,35 @@ def check_relative_links(errors: list[str]) -> None:
 
 
 def check_boundary_language(errors: list[str]) -> None:
-    for path in sorted(ROOT.glob("[ABCD]_*/*.md")):
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+    paths = list(ROOT.glob("A[0-9][0-9]_*.md")) + list(ROOT.glob("A00*.md"))
+    for path in sorted(paths):
+        for line_number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
             for phrase in FORBIDDEN_AFFIRMATIVE_PHRASES:
                 start = line.find(phrase)
                 if start == -1:
                     continue
-                prefix = line[max(0, start - 10) : start]
+                prefix = line[max(0, start - 12) : start]
                 if not any(negator in prefix for negator in NEGATORS):
                     errors.append(f"{path.relative_to(ROOT)}:{line_number} 存在越界表述：{phrase}")
 
 
 def main() -> int:
     errors: list[str] = []
+    warnings: list[str] = []
     check_required_assets(errors)
-    check_a_contracts(errors)
+    check_a_contracts(errors, warnings)
     check_path_result_status_contract(errors)
+    check_rule_scenarios(errors)
     check_titles_and_sections(errors)
     check_relative_links(errors)
     check_boundary_language(errors)
+
+    if warnings:
+        print("METHOD_LIBRARY_EDITORIAL_WARNINGS")
+        for warning in warnings:
+            print(f"- {warning}")
 
     if errors:
         print("METHOD_LIBRARY_RETURN_REQUIRED")
@@ -294,7 +436,8 @@ def main() -> int:
         return 1
 
     print(
-        "METHOD_LIBRARY_PASS: A/B/C/D 资产、统一接口、等级上限、路径状态、标题链接及 02/03/04/05 边界有效。"
+        "METHOD_LIBRARY_PASS: V2.1 方法卡与四附录齐全，七段接口、集中等级、"
+        "认知错误、路径状态、链接及边界有效。（合规通过 ≠ 方法已验证有效）"
     )
     return 0
 

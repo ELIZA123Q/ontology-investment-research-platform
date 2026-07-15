@@ -682,15 +682,11 @@ method_library_usage:
   - A03
   - A05
   - A07
-  - B01
-  - C01
-  - C02
-  - D01
   claim_bindings:
   - claim_id: C-01
     method_ids:
     - A03
-    - B01
+    - A00
   - claim_id: C-02
     method_ids:
     - A02
@@ -698,11 +694,11 @@ method_library_usage:
   - claim_id: C-03
     method_ids:
     - A05
-    - C02
+    - A00
   - claim_id: C-04
     method_ids:
     - A07
-    - C01
+    - A00
   - claim_id: C-05
     method_ids:
     - A01
@@ -710,8 +706,7 @@ method_library_usage:
   - claim_id: C-06
     method_ids:
     - A03
-    - D01
+    - A00
   - claim_id: C-07
     method_ids:
     - A00
-    - C01
