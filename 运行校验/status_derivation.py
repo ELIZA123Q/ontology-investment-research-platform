@@ -111,7 +111,7 @@ _LEVEL_OUTPUT = {
     "J1": ("background_only", "observation_only", "只作事实观察或线索"),
     "J2": ("conditional_judgment", "conditional_only", "保留条件的方向判断"),
     "J3": ("directional_judgment", "directional_only", "方向判断或高概率判断"),
-    "J4": ("core_judgment", "full_reasoning_ready", "确认事实或当前状态"),
+    "J4": ("core_judgment", "full_reasoning_ready", "在明确范围内形成确认判断"),
 }
 
 

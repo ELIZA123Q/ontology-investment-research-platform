@@ -1,0 +1,2323 @@
+schema_name: task_ontology_view
+schema_version: 2.1.0
+task_context:
+  task_id: JTASK-MEM-CYCLE-001
+  view_id: TOV-MEM-CYCLE-20260715-1
+  logic_id: RLOG-MEM-CYCLE-20260715-1
+  generated_at: '2026-07-15T15:17:44+08:00'
+  source_requirement_version: 1
+  source_document: 01-存储芯片周期投研需求说明-20260715-1.md
+  logic_document: 02-存储芯片周期研究逻辑-20260715-1.md
+  normalized_question: 截至每次运行的数据截止时点，全球存储芯片中 HBM、非 HBM DRAM 与 NAND 分别处于什么供需与价格周期阶段；在未来 6—24 个月内，哪些需求、库存、有效供给、价格和产能信号将支持周期延续或表明周期转入见顶、正常化或下行？
+  judgment_landing: 状态定位
+  task_type:
+    primary: 状态与趋势判断
+    secondary:
+    - 阶段切换
+    - 传导路径判断
+  scope:
+    time: 回看最近六个季度并前瞻 6—24 个月
+    time_policy:
+      mode: rolling
+      anchor: execution_date
+      anchor_value: null
+      timezone: Asia/Shanghai
+      lookback: P18M
+      lookforward: P24M
+      fixed_start: null
+      fixed_end: null
+      data_cutoff: execution_date
+    geography: 全球
+    value_chain: 终端需求—订单与库存—晶圆制造/先进封装—产品供给—合约及实现价格
+    objects:
+    - HBM
+    - 通用DRAM
+    - NANDFLASH
+    object_selection:
+      mode: fixed
+      as_of: execution_date
+      criteria:
+      - 分产品覆盖，不以单一行业均值替代
+      count_or_coverage: 三类产品与分产品主要原厂
+      refresh_on_each_run: true
+    exclusions:
+    - 个股评级
+    - 目标价
+    - 收益率预测
+    - 仓位建议
+  view_version: 1
+  frozen_at: '2026-07-15T15:17:44+08:00'
+quality_control:
+  quality_gate_ref: 02_判断结构与本体视图规范.md#8-质量门槛与返工规则
+  stage_status: complete
+  quality_status: high_quality_pass
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+  return_required: false
+  return_stage: null
+  return_reasons: []
+research_framework:
+  logic_document_ref: 02-存储芯片周期研究逻辑-20260715-1.md
+  judgment_spine:
+    statement: 本次需要区分 AI/HBM 拉动的结构性紧张、通用产品被动紧缺、消费端削弱和新增合格供给缓解窗口，而不是把存储芯片写成一个统一周期。
+    md_section: 1.3 核心待验证命题
+  basis:
+    source: mixed
+    md_section: 3. 本次采用的分析框架
+    alignment_summary: 先按产品拆分需求、库存、有效供给和价格，再用新增供给或需求破坏判断条件式结束窗口。
+  library_reference:
+    library_ref: 知识库_02框架/README.md
+    library_version: 1.0.0
+    consulted:
+    - framework_id: SCN-MEM-CYCLE
+      name: 存储周期见顶或反转场景卡
+      version: 2.0.0
+      contribution: 存储专项四增量（分产品/多层库存/多价格口径/斜率转弱vs反转）
+      difference_from_md: 本任务吸收场景卡口径的 bit demand、HBM 挤占、die/堆叠/封装/认证和分价格口径检查，并额外区分涨价斜率放缓与供需紧张结束
+    - framework_id: IF-SC-01
+      name: 半导体周期判断框架
+      contribution: 库存、订单、价格、产能和资本开支的错位定位
+      difference_from_md: 不延伸至公司业绩弹性
+    - framework_id: BF-SD-01
+      name: 供需判断框架
+      contribution: 名义产能与有效供给、库存缓冲和停止条件
+      difference_from_md: 按三类存储产品分别执行
+    - framework_id: BF-PC-01
+      name: 价格周期框架
+      contribution: 价格口径、涨幅斜率、持续条件和供给响应时滞
+      difference_from_md: 不做业绩和资产定价传导
+    no_direct_reference_reason: ''
+  minimum_question_tree:
+  - question_id: Q-01
+    question: AI/服务器和消费终端需求是否分化
+    relation_to_overall: precondition
+    sequence: 1
+    failure_action: switch_to_competing_explanation
+    md_section: '2.2'
+  - question_id: Q-02
+    question: 订单和库存是否支持可兑现需求
+    relation_to_overall: precondition
+    sequence: 2
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-03
+    question: 有效供给和产能是否真实紧张
+    relation_to_overall: parallel
+    sequence: 3
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-04
+    question: 价格事实和斜率对应哪个阶段
+    relation_to_overall: outcome
+    sequence: 4
+    failure_action: downgrade
+    md_section: '2.2'
+  - question_id: Q-05
+    question: 新增供给或需求破坏何时触发正常化
+    relation_to_overall: competing
+    sequence: 5
+    failure_action: return_to_01_or_02
+    md_section: '2.2'
+  alignment_checks:
+    independently_formed_in_md: true
+    library_consulted_in_md: true
+    judgment_spine_consistent_with_md: true
+    problem_tree_consistent_with_md: true
+ontology_sources:
+  platform_ontology:
+    name: ontology_platform
+    version: 2.0.0
+    schema_versions:
+      common: 2.0.0
+      semantic: 1.0.0
+      evidence: 2.0.0
+      reasoning: 2.0.0
+    files:
+    - 一级通用本体规范/common.yaml
+    - 一级通用本体规范/semantic.yaml
+    - 一级通用本体规范/evidence.yaml
+    - 一级通用本体规范/reasoning.yaml
+  domain_ontology:
+    name: semiconductor_domain
+    version: 1.0.0
+    depends_on: ontology_platform
+    optimization_report: ../二级半导体领域本体规范/optimization_report.yaml
+    optimization_status: completed
+    files:
+    - 二级半导体领域本体规范/common.yaml
+    - 二级半导体领域本体规范/semantic.yaml
+    - 二级半导体领域本体规范/evidence.yaml
+    - 二级半导体领域本体规范/reasoning.yaml
+judgment_units:
+- judgment_unit_id: JU-01
+  content_hash: sha256:7df592e1f116cd2eba11700c48a4408a9e620ae63e3cce3ac4d52ddfabb502d2
+  research_question_ref: task_context.normalized_question
+  candidate_claim: HBM、非 HBM DRAM 与 NAND 可以按不同证据门槛形成分产品周期阶段判断
+  judgment_type: cycle_phase
+  priority_tier: critical
+  decision_weight: 5
+  decision_role: direction_driver
+  priority_rationale: 分产品阶段定位直接决定整体周期判断，避免平均值掩盖分化
+  critical_failure_effect: recalculate_overall
+  statement: 可按 HBM 非 HBM DRAM NAND 分产品给方向性阶段定位
+  linked_questions:
+  - Q-01
+  - Q-02
+  - Q-03
+  - Q-04
+  linked_paths:
+  - P-01
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: directional_outlook
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-01
+    role: support
+    evidence_requirement_refs: &id001
+    - ER-01
+    - ER-02
+    - ER-03
+    - ER-04
+    - ER-05
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id001
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-01
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-01
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-01
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.industry.phase
+  claim_scope_ref: SCOPE-MEMORY-INDUSTRY
+  aggregation_role: parent
+  aggregation_contract_ref: AGG-MEMORY-PHASE
+- judgment_unit_id: JU-02
+  content_hash: sha256:77a8590ed707106201e6a7fdedc6ce6cc22f3996d74bbf649948b0d8155b5cf8
+  research_question_ref: task_context.normalized_question
+  candidate_claim: AI 服务器与 HBM 需求足以支持 HBM 结构性偏紧延续
+  judgment_type: trend_direction
+  priority_tier: critical
+  decision_weight: 5
+  decision_role: direction_driver
+  priority_rationale: HBM 是本轮结构性需求与资源挤占的起点
+  critical_failure_effect: recalculate_overall
+  statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+  linked_questions:
+  - Q-01
+  - Q-02
+  - Q-03
+  linked_paths:
+  - P-01
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: directional_outlook
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-02
+    role: support
+    evidence_requirement_refs: &id002
+    - ER-01
+    - ER-02
+    - ER-03
+    - ER-04
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id002
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-01
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-02
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-02
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.hbm.phase
+  claim_scope_ref: SCOPE-HBM
+  aggregation_role: leaf
+  aggregation_contract_ref: null
+- judgment_unit_id: JU-03
+  content_hash: sha256:ca588b3c3ee598ea8236fe80a9af36f8f25ea69161b7ace1419cdce65d342936
+  research_question_ref: task_context.normalized_question
+  candidate_claim: HBM 晶圆与封装资源挤占正在约束通用 DRAM 有效供给
+  judgment_type: causal_attribution
+  priority_tier: important
+  decision_weight: 4
+  decision_role: mechanism_validator
+  priority_rationale: 该机制决定 HBM 景气能否外溢到传统 DRAM
+  critical_failure_effect: downgrade_overall
+  statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+  linked_questions:
+  - Q-03
+  - Q-04
+  linked_paths:
+  - P-01
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: causal_inference
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-03
+    role: support
+    evidence_requirement_refs: &id003
+    - ER-03
+    - ER-04
+    - ER-05
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id003
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-01
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-03
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-03
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.dram.capacity_mechanism
+  claim_scope_ref: SCOPE-DRAM
+  aggregation_role: leaf
+  aggregation_contract_ref: null
+- judgment_unit_id: JU-04
+  content_hash: sha256:1dc5a8228099a255ff45a4c2b26e69f3e0cfc8065ac0ac0931bcf6b1e2fa15be
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 企业级 SSD 需求支持 NAND 改善但消费端疲弱限制上行强度
+  judgment_type: object_differentiation
+  priority_tier: important
+  decision_weight: 4
+  decision_role: differentiation_explainer
+  priority_rationale: NAND 与 DRAM 的需求结构不同，决定周期不能合并
+  critical_failure_effect: downgrade_overall
+  statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+  linked_questions:
+  - Q-01
+  - Q-03
+  - Q-04
+  - Q-05
+  linked_paths:
+  - P-01
+  - P-02
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: directional_outlook
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-04
+    role: support
+    evidence_requirement_refs: &id004
+    - ER-01
+    - ER-02
+    - ER-03
+    - ER-04
+    - ER-05
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id004
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-01
+  - P-02
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-04
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-04
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.nand.phase
+  claim_scope_ref: SCOPE-NAND
+  aggregation_role: leaf
+  aggregation_contract_ref: null
+- judgment_unit_id: JU-05
+  content_hash: sha256:4d9b44dde249b486ef7d878d57c56da2feb85ae8b4f9963f68289c8f29f46f7a
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 历史价格上涨已确认，但当前斜率变化只足以支持拐点观察
+  judgment_type: state_measurement
+  priority_tier: supporting
+  decision_weight: 3
+  decision_role: strength_driver
+  priority_rationale: 价格斜率决定周期判断强度而非单独决定方向
+  critical_failure_effect: no_overall_effect
+  statement: 历史价格大幅上行已确认 斜率放缓只支持拐点观察
+  linked_questions:
+  - Q-04
+  - Q-05
+  linked_paths:
+  - P-01
+  - P-02
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: directional_outlook
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-05
+    role: support
+    evidence_requirement_refs: &id005
+    - ER-04
+    - ER-05
+    - ER-06
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id005
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-01
+  - P-02
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-05
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-05
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.server_dram.price_phase
+  claim_scope_ref: SCOPE-SERVER-DRAM
+  aggregation_role: leaf
+  aggregation_contract_ref: null
+- judgment_unit_id: JU-06
+  content_hash: sha256:61bcef0a6d15e80a5d2b35a7f498eb6d76ee09e870eb65e9afe435cb59671203
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 2027H2 至 2028 只能作为新增有效供给缓解的条件窗口
+  judgment_type: cycle_phase
+  priority_tier: supporting
+  decision_weight: 2
+  decision_role: mechanism_validator
+  priority_rationale: 该单元约束周期结束时间表达，防止确定性日期预测
+  critical_failure_effect: no_overall_effect
+  statement: 2027H2 至 2028 只能作为条件式缓解窗口
+  linked_questions:
+  - Q-05
+  linked_paths:
+  - P-02
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: forecast
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-06
+    role: support
+    evidence_requirement_refs: &id006
+    - ER-03
+    - ER-05
+    - ER-06
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id006
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-02
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-06
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-06
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.supply.relief_window
+  claim_scope_ref: SCOPE-MEMORY-SUPPLY
+  aggregation_role: leaf
+  aggregation_contract_ref: null
+- judgment_unit_id: JU-07
+  content_hash: sha256:287cb3d45003d59c4f1b35124cc9a10efceb8c1e713afb893e57169271d7d36c
+  research_question_ref: task_context.normalized_question
+  candidate_claim: 现有证据不能支持 HBM、非 HBM DRAM 与 NAND 存在统一周期结束日
+  judgment_type: cycle_phase
+  priority_tier: background
+  decision_weight: 1
+  decision_role: background_context
+  priority_rationale: 该单元只限定表达边界，不单独改变各产品方向
+  critical_failure_effect: no_overall_effect
+  statement: 不能确认三类产品统一结束日
+  linked_questions:
+  - Q-05
+  linked_paths:
+  - P-02
+  evidence_profile_refs:
+  - demand_orders
+  - inventory_cycle
+  - capacity_supply
+  - pricing_economics
+  - counter_evidence
+  md_section: '5'
+  target_claim_type: forecast
+  required_evidence_roles:
+  - support
+  - counter
+  - alternative_explanation
+  mandatory_evidence_baskets:
+  - basket_id: EB-JU-07
+    role: support
+    evidence_requirement_refs: &id007
+    - ER-05
+    - ER-06
+    required_for_levels:
+    - J2
+    - J3
+  counter_evidence_requirement_refs: *id007
+  alternative_explanation_refs:
+  - CE-01
+  required_path_condition_refs:
+  - P-02
+  level_requirements:
+    J4:
+      applicable: false
+      required_evidence_basket_refs: []
+      minimum_source_authority: primary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions:
+      - 仅事实或当前状态允许确认
+    J3:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-07
+      minimum_source_authority: authoritative_secondary
+      minimum_independent_source_groups: 2
+      counter_evidence_check: required
+      alternative_explanation_check: required
+      required_conditions: []
+    J2:
+      applicable: true
+      required_evidence_basket_refs:
+      - EB-JU-07
+      minimum_source_authority: informed_secondary
+      minimum_independent_source_groups: 1
+      counter_evidence_check: required
+      alternative_explanation_check: optional
+      required_conditions:
+      - 完成反证与竞争解释检查
+    J1:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: indirect
+      minimum_independent_source_groups: 1
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 至少一项可追溯信号
+    J0:
+      applicable: true
+      required_evidence_basket_refs: []
+      minimum_source_authority: unknown
+      minimum_independent_source_groups: 0
+      counter_evidence_check: optional
+      alternative_explanation_check: optional
+      required_conditions:
+      - 关键证据缺失或路径阻断
+  stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: memory.industry.end_window
+  claim_scope_ref: SCOPE-MEMORY-INDUSTRY
+  aggregation_role: leaf
+  aggregation_contract_ref: null
+path_design:
+  main_paths:
+  - path_id: P-01
+    name: 当前周期位置判断
+    description: 分产品验证需求、订单库存、有效供给和价格共同指向的周期阶段。
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-03
+    - JU-04
+    - JU-05
+    nodes:
+    - node_id: N-01
+      name: AI/服务器和消费终端需求分别处于什么状态
+      role: start
+      question: AI/服务器和消费终端需求分别处于什么状态？
+      required_state_variables:
+      - end_market_demand_strength
+      required_instance_requirements:
+      - IR-O-01
+      - IR-O-02
+      - IR-R-02
+      - IR-E-01
+      - IR-OBS-01
+      - IR-OBS-08
+      - IR-OBS-09
+      required_evidence_requirements:
+      - ER-01
+      - CER-01
+      failure_action: downgrade
+    - node_id: N-02
+      name: 订单、长协和库存是否支持可兑现需求，而非抢货或重复下单
+      role: transmission
+      question: 订单、长协和库存是否支持可兑现需求，而非抢货或重复下单？
+      required_state_variables:
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      required_instance_requirements:
+      - IR-O-03
+      - IR-R-03
+      - IR-E-01
+      - IR-OBS-02
+      - IR-OBS-03
+      - IR-OBS-10
+      - IR-OBS-11
+      - IR-OBS-12
+      - IR-OBS-13
+      required_evidence_requirements:
+      - ER-02
+      - ER-04
+      - CER-01
+      failure_action: downgrade
+    - node_id: N-03
+      name: 有效供给和产能是否真实紧张，HBM/服务器产品是否挤出通用供给
+      role: transmission
+      question: 有效供给和产能是否真实紧张，HBM/服务器产品是否挤出通用供给？
+      required_state_variables:
+      - supply_availability
+      - capacity_tightness
+      - inventory_buffer_capacity
+      required_instance_requirements:
+      - IR-O-01
+      - IR-O-04
+      - IR-R-01
+      - IR-R-05
+      - IR-OBS-04
+      - IR-OBS-12
+      - IR-OBS-13
+      - IR-OBS-14
+      - IR-OBS-15
+      required_evidence_requirements:
+      - ER-03
+      - ER-04
+      - CER-02
+      failure_action: downgrade
+    - node_id: N-04
+      name: 合约或实现价格和涨幅斜率对应哪个周期阶段
+      role: outcome
+      question: 合约或实现价格和涨幅斜率对应哪个周期阶段？
+      required_state_variables:
+      - product_price_pressure
+      - pricing_power
+      - inventory_buffer_capacity
+      - capacity_tightness
+      required_instance_requirements:
+      - IR-OBS-04
+      - IR-OBS-05
+      - IR-OBS-12
+      - IR-OBS-13
+      - IR-OBS-18
+      required_evidence_requirements:
+      - ER-05
+      - CER-03
+      failure_action: downgrade
+  - path_id: P-02
+    name: 周期结束条件与时间窗口
+    description: 验证新增合格供给或需求破坏何时使库存、交期和价格共同正常化。
+    linked_judgment_units:
+    - JU-04
+    - JU-05
+    - JU-06
+    - JU-07
+    nodes:
+    - node_id: N-05
+      name: 2027—2028 新增晶圆和封装产能何时转化为合格有效供给
+      role: transmission
+      question: 2027—2028 新增晶圆和封装产能何时转化为合格有效供给？
+      required_state_variables:
+      - capacity_expansion_progress
+      - yield_maturity
+      - supply_elasticity
+      - supply_availability
+      required_instance_requirements:
+      - IR-O-04
+      - IR-R-04
+      - IR-R-05
+      - IR-E-02
+      - IR-OBS-06
+      - IR-OBS-07
+      - IR-OBS-14
+      - IR-OBS-15
+      - IR-OBS-16
+      - IR-OBS-17
+      required_evidence_requirements:
+      - ER-06
+      - CER-02
+      failure_action: downgrade
+    - node_id: N-06
+      name: 高价是否已引发终端配置下调、出货下降或订单取消
+      role: transmission
+      question: 高价是否已引发终端配置下调、出货下降或订单取消？
+      required_state_variables:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - pricing_power
+      required_instance_requirements:
+      - IR-O-02
+      - IR-OBS-01
+      - IR-OBS-02
+      - IR-OBS-03
+      - IR-OBS-07
+      - IR-OBS-10
+      - IR-OBS-11
+      - IR-OBS-18
+      required_evidence_requirements:
+      - ER-01
+      - ER-02
+      - CER-01
+      failure_action: downgrade
+    - node_id: N-07
+      name: 供给释放与需求变化何时共同使价格、库存和交期转入正常化或下行
+      role: outcome
+      question: 供给释放与需求变化何时共同使价格、库存和交期转入正常化或下行？
+      required_state_variables:
+      - supply_availability
+      - capacity_tightness
+      - capacity_expansion_progress
+      - yield_maturity
+      - supply_elasticity
+      - inventory_cycle_position
+      - product_price_pressure
+      - pricing_power
+      required_instance_requirements:
+      - IR-OBS-03
+      - IR-OBS-04
+      - IR-OBS-05
+      - IR-OBS-06
+      - IR-OBS-07
+      - IR-OBS-11
+      - IR-OBS-14
+      - IR-OBS-15
+      - IR-OBS-16
+      - IR-OBS-17
+      - IR-OBS-18
+      required_evidence_requirements:
+      - ER-03
+      - ER-04
+      - ER-05
+      - ER-06
+      - CER-01
+      - CER-02
+      - CER-03
+      failure_action: downgrade
+  weakening_conditions:
+  - condition_id: W-01
+    statement: PC、手机需求继续下修或配置下降
+    linked_paths:
+    - P-01
+    - P-02
+    distinguish_evidence:
+    - ER-01
+    - CER-01
+    effect_on_04: 降低为分化或条件判断
+  blocking_conditions:
+  - condition_id: B-01
+    statement: 多层库存累积、订单取消或新增有效供给提前兑现
+    linked_paths:
+    - P-01
+    - P-02
+    distinguish_evidence:
+    - ER-02
+    - ER-04
+    - ER-06
+    effect_on_04: 路径停止或暂不可判断
+  competing_explanations:
+  - explanation_id: CE-01
+    statement: 涨价来自产品组合或抢货补库，而非真实供需缺口
+    distinguish_from_main_path: 同口径价格、实际拉货和库存层级交叉验证
+    required_evidence:
+    - ER-04
+    - ER-05
+    - CER-03
+    effect_on_04: 保留竞争解释并降低置信度
+ontology_bindings:
+  selected_objects:
+  - object_type: Industry
+    ontology_ref: 一级通用本体规范/semantic.yaml#object_types.Industry
+  - object_type: PolicyInstrument
+    ontology_ref: 一级通用本体规范/semantic.yaml#object_types.PolicyInstrument
+  - object_type: Organization
+    ontology_ref: 一级通用本体规范/semantic.yaml#object_types.Organization
+  - object_type: Company
+    ontology_ref: 一级通用本体规范/semantic.yaml#object_types.Company
+  - object_type: Product
+    ontology_ref: 一级通用本体规范/semantic.yaml#object_types.Product
+  - object_type: Segment
+    ontology_ref: 一级通用本体规范/semantic.yaml#object_types.Segment
+  selected_relations:
+  - policyIssuedBy
+  - policyAppliesTo
+  - companyBelongsToIndustry
+  - companyParticipatesInSegment
+  - productProducedBy
+  selected_events:
+  - trade_export_control_change
+  - customer_capex_change
+  - qualification_mass_production_change
+  - order_shipment_change
+  selected_state_variables:
+  - state_variable_id: end_market_demand_strength
+    name: 终端需求强度
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.end_market_demand_strength
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-04
+    linked_path_nodes:
+    - N-01
+    - N-06
+    state_binding_refs:
+    - SB-end_market_demand_strength
+    observation_requirement_refs:
+    - OR-end_market_demand_strength
+    evidence_profile_refs:
+    - demand_orders
+  - state_variable_id: order_visibility
+    name: 订单能见度
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.order_visibility
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-04
+    linked_path_nodes:
+    - N-02
+    - N-06
+    state_binding_refs:
+    - SB-order_visibility
+    observation_requirement_refs:
+    - OR-order_visibility
+    evidence_profile_refs:
+    - demand_orders
+  - state_variable_id: inventory_cycle_position
+    name: 库存周期位置
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.inventory_cycle_position
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-04
+    - JU-05
+    - JU-06
+    - JU-07
+    linked_path_nodes:
+    - N-02
+    - N-06
+    - N-07
+    state_binding_refs:
+    - SB-inventory_cycle_position
+    observation_requirement_refs:
+    - OR-inventory_cycle_position
+    evidence_profile_refs:
+    - inventory_cycle
+  - state_variable_id: inventory_buffer_capacity
+    name: 库存缓冲能力
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.inventory_buffer_capacity
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-03
+    - JU-04
+    - JU-05
+    linked_path_nodes:
+    - N-02
+    - N-03
+    - N-04
+    state_binding_refs:
+    - SB-inventory_buffer_capacity
+    observation_requirement_refs:
+    - OR-inventory_buffer_capacity
+    evidence_profile_refs:
+    - inventory_cycle
+  - state_variable_id: supply_availability
+    name: 供给可得性
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.supply_availability
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-03
+    - JU-04
+    - JU-06
+    - JU-05
+    - JU-07
+    linked_path_nodes:
+    - N-03
+    - N-05
+    - N-07
+    state_binding_refs:
+    - SB-supply_availability
+    observation_requirement_refs:
+    - OR-supply_availability
+    evidence_profile_refs:
+    - capacity_supply
+  - state_variable_id: capacity_tightness
+    name: 产能紧张度
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.capacity_tightness
+    linked_judgment_units:
+    - JU-01
+    - JU-02
+    - JU-03
+    - JU-04
+    - JU-05
+    - JU-06
+    - JU-07
+    linked_path_nodes:
+    - N-03
+    - N-04
+    - N-07
+    state_binding_refs:
+    - SB-capacity_tightness
+    observation_requirement_refs:
+    - OR-capacity_tightness
+    evidence_profile_refs:
+    - capacity_supply
+  - state_variable_id: capacity_expansion_progress
+    name: 产能扩张进展
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.capacity_expansion_progress
+    linked_judgment_units:
+    - JU-06
+    - JU-05
+    - JU-07
+    linked_path_nodes:
+    - N-05
+    - N-07
+    state_binding_refs:
+    - SB-capacity_expansion_progress
+    observation_requirement_refs:
+    - OR-capacity_expansion_progress
+    evidence_profile_refs:
+    - capacity_supply
+  - state_variable_id: yield_maturity
+    name: 良率成熟度
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.yield_maturity
+    linked_judgment_units:
+    - JU-06
+    - JU-05
+    - JU-07
+    linked_path_nodes:
+    - N-05
+    - N-07
+    state_binding_refs:
+    - SB-yield_maturity
+    observation_requirement_refs:
+    - OR-yield_maturity
+    evidence_profile_refs:
+    - manufacturing_yield
+  - state_variable_id: supply_elasticity
+    name: 供给响应弹性
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.supply_elasticity
+    linked_judgment_units:
+    - JU-06
+    - JU-05
+    - JU-07
+    linked_path_nodes:
+    - N-05
+    - N-07
+    state_binding_refs:
+    - SB-supply_elasticity
+    observation_requirement_refs:
+    - OR-supply_elasticity
+    evidence_profile_refs:
+    - capacity_supply
+  - state_variable_id: product_price_pressure
+    name: 产品价格压力
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.product_price_pressure
+    linked_judgment_units:
+    - JU-01
+    - JU-03
+    - JU-04
+    - JU-05
+    - JU-06
+    - JU-07
+    linked_path_nodes:
+    - N-04
+    - N-07
+    state_binding_refs:
+    - SB-product_price_pressure
+    observation_requirement_refs:
+    - OR-product_price_pressure
+    evidence_profile_refs:
+    - pricing_economics
+  - state_variable_id: pricing_power
+    name: 定价与成本传导能力
+    ontology_ref: 二级半导体领域本体规范/reasoning.yaml#state_variables.pricing_power
+    linked_judgment_units:
+    - JU-01
+    - JU-03
+    - JU-04
+    - JU-05
+    - JU-06
+    - JU-07
+    linked_path_nodes:
+    - N-04
+    - N-06
+    - N-07
+    state_binding_refs:
+    - SB-pricing_power
+    observation_requirement_refs:
+    - OR-pricing_power
+    evidence_profile_refs:
+    - pricing_economics
+  propagation_templates:
+  - export_control_to_supply
+  - qualification_to_mass_production
+  - exposure_execution_to_earnings
+  - bottleneck_cascade_to_supply
+  - localization_to_resilience
+  inference_rules:
+  - variable_propagation_inference
+  - time_alignment
+  - blocking_signal_precedence
+  - judgment_evidence_threshold
+  - reasoning_trace_required
+  - rule_evaluation_trace_required
+instance_requirements:
+- requirement_id: IR-O-01
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-03
+  - N-04
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  - JU-03
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-O-02
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-O-03
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-03
+  - N-05
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-O-04
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-O-05
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-O-06
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-R-01
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-R-02
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-R-03
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-03
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-R-04
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  linked_judgment_units:
+  - JU-06
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-R-05
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-E-01
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-02
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-E-02
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-01
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-02
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-03
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-04
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-04
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-05
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-04
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-06
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-07
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-08
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-09
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-10
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-11
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-06
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-12
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-03
+  - N-04
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-13
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-03
+  - N-04
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-14
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-15
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-16
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-17
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-SB-18
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-04
+  - N-06
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-01
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-02
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-03
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-04
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-04
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-05
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-04
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-06
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-07
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-06
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-04
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-08
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-09
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-01
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-10
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-06
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-11
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-06
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-12
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-03
+  - N-04
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-13
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-02
+  - N-03
+  - N-04
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-14
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-15
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-03
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-16
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-17
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-05
+  - N-07
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+- requirement_id: IR-OBS-18
+  target: 对象/观测
+  purpose: 支持/削弱/阻断/区分竞争解释
+  linked_path_nodes:
+  - N-04
+  - N-06
+  - N-07
+  linked_judgment_units:
+  - JU-01
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  minimum_fields: []
+  scope_constraints: []
+evidence_requirements:
+- evidence_requirement_id: ER-01
+  question: AI/服务器及 PC/手机等终端的实际需求、部署、出货或明确展望。
+  linked_instance_requirement: ''
+  linked_state_variables: []
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  evidence_profile: demand_orders
+  required_sources:
+  - company_filing
+  - company_results
+  - industry_statistics
+  - industry_research
+  required_counter_evidence: []
+  minimum_standard: 至少一条需求端证据，业务时间明确，并检查消费终端反向变化。
+  evidence_grade_ceiling_if_missing: Q2
+- evidence_requirement_id: ER-02
+  question: 长协、订单覆盖、排产、出货或交付的连续记录及取消风险。
+  linked_instance_requirement: ''
+  linked_state_variables: []
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-04
+  evidence_profile: demand_orders
+  required_sources:
+  - company_filing
+  - company_results
+  required_counter_evidence: []
+  minimum_standard: 至少一条订单或交付证据；说明约束性、期限与业务时间。
+  evidence_grade_ceiling_if_missing: Q2
+- evidence_requirement_id: ER-03
+  question: 有效产能、利用率、交期、产品分配、封装瓶颈或替代供应。
+  linked_instance_requirement: ''
+  linked_state_variables: []
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-06
+  evidence_profile: capacity_supply
+  required_sources:
+  - company_filing
+  - company_results
+  - industry_research
+  required_counter_evidence: []
+  minimum_standard: 产能/设施与交期或分配至少各一项，并区分名义与有效供给。
+  evidence_grade_ceiling_if_missing: Q2
+- evidence_requirement_id: ER-04
+  question: 原厂、渠道、OEM/客户至少两个层级的库存、覆盖期或消耗速度。
+  linked_instance_requirement: ''
+  linked_state_variables: []
+  linked_judgment_units:
+  - JU-01
+  - JU-02
+  - JU-03
+  - JU-04
+  - JU-05
+  evidence_profile: inventory_cycle
+  required_sources:
+  - company_filing
+  - company_results
+  - industry_research
+  required_counter_evidence: []
+  minimum_standard: 至少两个层级、时间序列和终端需求对照。
+  evidence_grade_ceiling_if_missing: Q2
+- evidence_requirement_id: ER-05
+  question: 同规格合约、成交或实现价格的连续变化及下一季斜率指引。
+  linked_instance_requirement: ''
+  linked_state_variables: []
+  linked_judgment_units:
+  - JU-01
+  - JU-03
+  - JU-04
+  - JU-05
+  - JU-06
+  - JU-07
+  evidence_profile: pricing_economics
+  required_sources:
+  - company_results
+  - industry_price_survey
+  required_counter_evidence: []
+  minimum_standard: 成交、合约或实现价格；至少两个连续时点；说明产品组合影响。
+  evidence_grade_ceiling_if_missing: Q2
+- evidence_requirement_id: ER-06
+  question: 新增晶圆/封装产能的建设、设备、试产、良率、认证和量产时间表。
+  linked_instance_requirement: ''
+  linked_state_variables: []
+  linked_judgment_units:
+  - JU-06
+  - JU-05
+  - JU-07
+  evidence_profile: capacity_supply
+  required_sources:
+  - company_filing
+  - company_results
+  - company_release
+  - industry_research
+  required_counter_evidence: []
+  minimum_standard: 至少有设施与投产时间；有效供给结论还需良率或量产验证。
+  evidence_grade_ceiling_if_missing: Q2
+candidate_structures:
+  used: false
+  items: []
+  usage_boundary: ''
+  effect_on_03: ''
+  effect_on_04: ''
+ontology_gaps:
+  has_gap: false
+  gap_note_ref: ''
+  gap_ids: []
+  highest_severity: none
+  blocks_evidence_preparation: false
+  blocks_directional_reasoning: false
+handoff_to_03:
+  required_files:
+  - 02-存储芯片周期研究逻辑-20260715-1.md
+  - 02-存储芯片周期本体视图-20260715-1.yaml
+  required_csv_or_snapshot_outputs:
+  - state_variable_coverage.csv
+  - path_readiness.csv
+  - evidence_readiness_assessments.csv
+  - evidence_records.csv
+  special_limits:
+  - 不得合并 HBM、非 HBM DRAM、NAND 为统一强景气阶段
+  - 不得输出确定周期结束日
+validation:
+  checks:
+    scope_consistent_with_01: true
+    judgment_spine_present: true
+    minimum_question_tree_present: true
+    main_counter_competing_paths_present: true
+    state_variable_chain_complete: true
+    evidence_requirements_executable_by_03: true
+    md_yaml_consistent: true
+    judgment_units_have_level_requirements: true
+  result: pass
+  return_required: false
+  return_reasons: []
+semantic_scope:
+  object_type_refs:
+  - Industry
+  - PolicyInstrument
+  - Organization
+  - Company
+  - Product
+  - Segment
+  - Application
+  - ManufacturingFacility
+  relation_type_refs:
+  - policyIssuedBy
+  - policyAppliesTo
+  - companyBelongsToIndustry
+  - companyParticipatesInSegment
+  - productProducedBy
+  - facilityOperatedBy
+  - facilityProducesProduct
+  - productBelongsToSegment
+  - productUsedInApplication
+  event_type_refs:
+  - trade_export_control_change
+  - customer_capex_change
+  - qualification_mass_production_change
+  - order_shipment_change
+  instance_requirement_refs:
+  - IR-O-01
+  - IR-O-02
+  - IR-O-03
+  - IR-O-04
+  - IR-O-05
+  - IR-O-06
+  - IR-R-01
+  - IR-R-02
+  - IR-R-03
+  - IR-R-04
+  - IR-R-05
+  - IR-E-01
+  - IR-E-02
+  - IR-SB-01
+  - IR-SB-02
+  - IR-SB-03
+  - IR-SB-04
+  - IR-SB-05
+  - IR-SB-06
+  - IR-SB-07
+  - IR-SB-08
+  - IR-SB-09
+  - IR-SB-10
+  - IR-SB-11
+  - IR-SB-12
+  - IR-SB-13
+  - IR-SB-14
+  - IR-SB-15
+  - IR-SB-16
+  - IR-SB-17
+  - IR-SB-18
+  - IR-OBS-01
+  - IR-OBS-02
+  - IR-OBS-03
+  - IR-OBS-04
+  - IR-OBS-05
+  - IR-OBS-06
+  - IR-OBS-07
+  - IR-OBS-08
+  - IR-OBS-09
+  - IR-OBS-10
+  - IR-OBS-11
+  - IR-OBS-12
+  - IR-OBS-13
+  - IR-OBS-14
+  - IR-OBS-15
+  - IR-OBS-16
+  - IR-OBS-17
+  - IR-OBS-18
+evidence_contract:
+  evidence_profile_refs:
+  - policy_trade
+  - capacity_supply
+  - demand_orders
+  - qualification_commercialization
+  - company_exposure_execution
+  - competition_structure
+  - counter_evidence
+  evidence_requirement_refs:
+  - ER-01
+  - ER-02
+  - ER-03
+  - ER-04
+  - ER-05
+  - ER-06
+  runtime_object_types:
+  - SourceDocument
+  - EvidenceClaim
+  - EvidenceFact
+  - EvidenceAssessment
+  required_relation_types:
+  - claimCitesSource
+  - factSupportedByClaim
+  - assessmentEvaluatesEvidence
+  conflict_relation_types:
+  - conflictsWith
+  - supersedes
+  - invalidates
+  frozen: true
+reasoning_plan:
+  state_variable_refs:
+  - end_market_demand_strength
+  - order_visibility
+  - inventory_cycle_position
+  - inventory_buffer_capacity
+  - supply_availability
+  - capacity_tightness
+  - capacity_expansion_progress
+  - yield_maturity
+  - supply_elasticity
+  - product_price_pressure
+  - pricing_power
+  hypothesis_slots:
+  - hypothesis_slot_id: HS-01
+    statement: 分产品需求、库存、供给和价格共同决定周期位置
+    state_variable_refs:
+    - end_market_demand_strength
+    - order_visibility
+    - inventory_cycle_position
+    - inventory_buffer_capacity
+    falsification_conditions:
+    - 需求或供给证据显示主路径不成立
+  path_refs:
+  - P-01
+  - P-02
+  propagation_template_refs:
+  - export_control_to_supply
+  - qualification_to_mass_production
+  - exposure_execution_to_earnings
+  - bottleneck_cascade_to_supply
+  - localization_to_resilience
+  inference_rule_refs:
+  - variable_propagation_inference
+  - time_alignment
+  - blocking_signal_precedence
+  - judgment_evidence_threshold
+  - reasoning_trace_required
+  - rule_evaluation_trace_required
+  runtime_object_types:
+  - Observation
+  - Event
+  - Hypothesis
+  - Signal
+  - RuleEvaluation
+  - Judgment
+  - ReasoningTrace
+  frozen: true
+scope_graph:
+  root_scope_ref: SCOPE-MEMORY-INDUSTRY
+  nodes:
+  - scope_ref: SCOPE-MEMORY-INDUSTRY
+    label: 全球存储芯片行业
+    parent_scope_ref: null
+    dimensions:
+      object:
+      - memory_chip
+      geography:
+      - global
+      customer:
+      - all
+      metric:
+      - demand_inventory_supply_price
+      time:
+      - run_anchor_forward_6_24m
+  - scope_ref: SCOPE-HBM
+    label: HBM
+    parent_scope_ref: SCOPE-MEMORY-INDUSTRY
+    dimensions:
+      object:
+      - HBM
+  - scope_ref: SCOPE-DRAM
+    label: 通用DRAM
+    parent_scope_ref: SCOPE-MEMORY-INDUSTRY
+    dimensions:
+      object:
+      - commodity_DRAM
+  - scope_ref: SCOPE-SERVER-DRAM
+    label: 服务器DRAM
+    parent_scope_ref: SCOPE-DRAM
+    dimensions:
+      object:
+      - server_DRAM
+      customer:
+      - server_customer
+  - scope_ref: SCOPE-NAND
+    label: NAND
+    parent_scope_ref: SCOPE-MEMORY-INDUSTRY
+    dimensions:
+      object:
+      - NAND
+  - scope_ref: SCOPE-MEMORY-SUPPLY
+    label: 存储新增合格供给
+    parent_scope_ref: SCOPE-MEMORY-INDUSTRY
+    dimensions:
+      object:
+      - qualified_memory_supply
+      metric:
+      - capacity_yield_qualification
+aggregation_contracts:
+- aggregation_contract_ref: AGG-MEMORY-PHASE
+  parent_judgment_unit_ref: JU-01
+  required_child_judgment_unit_refs:
+  - JU-02
+  - JU-04
+  - JU-05
+  dominant_child_judgment_unit_refs: []
+  allowed_outcomes:
+  - synchronized
+  - dominant
+  - differentiated
+  - insufficient

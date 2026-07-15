@@ -1,0 +1,23 @@
+schema_name: independent_semantic_review
+schema_version: 1.0.0
+review_id: "ISR-<run_id>"
+reviewed_at: "<ISO 8601>"
+reviewer:
+  reviewer_id: "<匿名且不同于 producer_id 的审阅者 ID>"
+  reviewer_type: model
+  independent_from_producer: true
+  test_reviewer: false
+inputs:
+  public_contract_version: 1.1.0
+  stage_hashes:
+    stage_02: "sha256:<冻结哈希>"
+    stage_03: "sha256:<冻结哈希>"
+    stage_04: "sha256:<冻结哈希>"
+    stage_05: "sha256:<冻结哈希>"
+checks:
+  - {check_id: local_evidence_not_globalized, result: needs_human, reason: "<审查理由>", return_to_stage: "04"}
+  - {check_id: parent_aggregation_complete, result: needs_human, reason: "<审查理由>", return_to_stage: "04"}
+  - {check_id: incremental_update_is_local_first, result: needs_human, reason: "<审查理由>", return_to_stage: "04"}
+  - {check_id: title_represents_major_scopes, result: needs_human, reason: "<审查理由>", return_to_stage: "05"}
+  - {check_id: conditions_scope_and_prohibitions_preserved, result: needs_human, reason: "<审查理由>", return_to_stage: "05"}
+verdict: needs_human

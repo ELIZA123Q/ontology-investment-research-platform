@@ -1,4 +1,4 @@
-fact_id,execution_id,statement,fact_type,business_time,normalized_value,unit,fact_confidence,about_instance_refs,status,created_at,notes
+﻿fact_id,execution_id,statement,fact_type,business_time,normalized_value,unit,fact_confidence,about_instance_refs,status,created_at,notes
 EV-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,2022年建立先进计算和设备定向控制,occurrence,2022-10-07,初始控制基线,text,high,INS-CONTROL,active,2026-07-10T19:20:00+08:00,
 EV-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,2023年增加设备并收紧规避路径,occurrence,2023-10-17,控制范围加深,text,high,INS-CONTROL,active,2026-07-10T19:20:00+08:00,
 EV-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,新增24类设备3类软件和140实体,occurrence,2024-12-02,覆盖多类前道设备及软件,text,high,INS-CONTROL,active,2026-07-10T19:20:00+08:00,不等于全面禁运

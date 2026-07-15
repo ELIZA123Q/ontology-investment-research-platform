@@ -24,7 +24,7 @@
 一级/二级…本体规范/      正式对象、关系、规则
 运行校验/                全链发布前检查、结论强度对照规则、公共工具
 示例1/ 示例2/            01—05 完整案例
-评测集/                  研究价值代理评测方案、四题试点与运行框架
+评测集/                  研究价值评测（规范 docs/ + 运行时 runtime/）
 validate_project.py      全库正式自检入口
 ```
 
@@ -41,8 +41,8 @@ python3 validate_project.py
 单次运行的发布前检查：
 
 ```bash
-python3 运行校验/validate_publish.py 示例1
-python3 运行校验/validate_publish.py 示例2
+python3 运行校验/validate_run.py 示例1
+python3 运行校验/validate_run.py 示例2
 ```
 
 分阶段检查命令见 [`运行校验/README.md`](运行校验/README.md)。各知识库目录内也有各自的检查脚本。

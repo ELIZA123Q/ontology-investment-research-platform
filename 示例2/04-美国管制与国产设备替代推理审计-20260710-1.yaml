@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 3.1.0
+schema_version: 3.2.0
 metadata:
   task_id: JTASK-USCTRL-CNSEMI-EQP-001
   execution_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
@@ -27,7 +27,9 @@ evidence_context:
   stage_status: complete
 judgment_unit_gate_results:
 - judgment_unit_id: JU-01
-  statement: 现行规则形成定向可执行约束但并非全面禁运
+  judgment_type: mechanism_validation
+  source_02_hash: sha256:19408b177e9d86c567fc74ea10f90e93538f9747c36a9f398062febd0bc4b64f
+  statement: 现行规则形成定向且可执行的供给约束但并非所有成熟制程设备全面禁运
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-01
   evidence_gate_status: met
   required_evidence_refs:
@@ -54,8 +56,25 @@ judgment_unit_gate_results:
   - C-01
   evidence_grade: Q4
   counterevidence_result: cleared
+  scope_ref: SCOPE-EXPORT-CONTROL
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  candidate_04_claim_hash: sha256:d8e448ae43b9427dd097875b82a750936852c4bea3c18778104e5a1101bf3f2a
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-CN-SEMI-EQUIPMENT-THESIS
 - judgment_unit_id: JU-02
-  statement: 供给缺口需经复购和经营兑现
+  judgment_type: transmission_path
+  source_02_hash: sha256:0d4152926b1a4c175871e30169b6d35c0168ca58f0f58c1cd1f8b8c53adc8f72
+  statement: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-02
   evidence_gate_status: met
   required_evidence_refs:
@@ -82,8 +101,26 @@ judgment_unit_gate_results:
   - C-02
   evidence_grade: Q2
   counterevidence_result: weakened
+  scope_ref: SCOPE-COMMERCIAL-REALIZATION
+  source_evidence_refs:
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  candidate_04_claim_hash: sha256:58d885e287159149f99f6bb1aa26a64b06540149f2022758fa04277205239254
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-CN-SEMI-EQUIPMENT-THESIS
 - judgment_unit_id: JU-03
-  statement: 类别公司强弱由成熟度与质量主导
+  judgment_type: object_differentiation
+  source_02_hash: sha256:b8177b63f2f5c206028fc5e95a6ce4e47eeea27a83d170e77c2e4262d3ad2ea0
+  statement: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-03
   evidence_gate_status: met
   required_evidence_refs:
@@ -111,8 +148,24 @@ judgment_unit_gate_results:
   - C-03
   evidence_grade: Q2
   counterevidence_result: weakened
+  scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+  source_evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  candidate_04_claim_hash: sha256:0146e7cf12dcddc6117096a9acd8e7b048ef0e97d59c62201a36615882921d89
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-CN-SEMI-EQUIPMENT-THESIS
 - judgment_unit_id: JU-04
-  statement: 主逻辑不逆转而升级为质量优先
+  judgment_type: impact_realization
+  source_02_hash: sha256:95060fd18d337f1ab0e85d6fc5484cf07efc69e92bd0f6c7286076e4882bb61d
+  statement: 现行管制不会逆转国产替代主逻辑，但政策约束、类别成熟度与商业兑现并不同步，未来十二个月应输出结构分化而非同步受益。
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-04
   evidence_gate_status: met
   required_evidence_refs:
@@ -142,9 +195,34 @@ judgment_unit_gate_results:
   - C-04
   evidence_grade: Q3
   counterevidence_result: weakened
+  scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  candidate_04_claim_hash: sha256:56877787461c3e647dc4dbf6b17cdd7a5d9e38a0a358031373ee6139c4e6c99d
+  aggregation_eligible: 'false'
+  prohibited_generalization_refs: []
 overall_judgment:
   confidence: medium
-  statement: 未来十二个月现行美国管制不会逆转国产替代主逻辑而会强化商业兑现质量驱动的结构分化
+  statement: 现行管制不会逆转国产替代主逻辑，但政策约束、类别成熟度与商业兑现并不同步，未来十二个月应输出结构分化而非同步受益。
   scope:
     time: 2026-07-10至2027-07-09
     geography: 中国大陆
@@ -240,9 +318,36 @@ claim_register:
     no_unfrozen_fact_used: true
   target_claim_type: current_state
   judgment_level: J4
+  j4_upgrade_review:
+    q4_evidence: true
+    method_gate_passed: true
+    independent_evidence_chain_refs:
+    - official_rule_chain
+    - issuer_execution_disclosure_chain
+    alternatives_discriminated: true
+    no_decisive_counterevidence: true
+    scope_time_invalidation_explicit: true
+    semantic_review_passed: true
   conditions: []
   downgrade_reason: 无
   strength_consistency_check: true
+  stable_claim_key: equipment.policy.constraint
+  scope_ref: SCOPE-EXPORT-CONTROL
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-01
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: targeted_constraint
 - claim_id: C-02
   report_section: 2-3
   reader_label: 方向判断
@@ -286,6 +391,24 @@ claim_register:
   conditions: []
   downgrade_reason: 无
   strength_consistency_check: true
+  stable_claim_key: equipment.commercial.realization
+  scope_ref: SCOPE-COMMERCIAL-REALIZATION
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-02
+  source_evidence_refs:
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: conditional_realization
 - claim_id: C-03
   report_section: '4'
   reader_label: 方向判断
@@ -330,10 +453,26 @@ claim_register:
   conditions: []
   downgrade_reason: 无
   strength_consistency_check: true
+  stable_claim_key: equipment.category.differentiation
+  scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-03
+  source_evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: maturity_differentiation
 - claim_id: C-04
   report_section: 1-6
   reader_label: 方向判断
-  statement: 现行管制不会逆转主逻辑而会将其升级为商业兑现质量优先的结构分化
+  statement: 现行管制不会逆转国产替代主逻辑，但政策约束、类别成熟度与商业兑现并不同步，未来十二个月应输出结构分化而非同步受益。
   scope: 中国半导体设备行业整体
   time_horizon: 未来十二个月
   linked_judgment_unit: JU-04
@@ -391,6 +530,35 @@ claim_register:
   conditions: []
   downgrade_reason: 无
   strength_consistency_check: true
+  stable_claim_key: equipment.thesis.overall
+  scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-04
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  aggregation_result_ref: AGGR-ROOT
+  required_caveat_refs:
+  - CAV-ROOT
+  aggregation_state_code: parent_scope-cn-semi-equipment-thesis
 uncertainty_register:
 - uncertainty_id: U-01
   tier: material
@@ -520,16 +688,18 @@ handoff_to_05:
     scope: 截至2026年7月10日现行规则
     conditions: []
     confidence: high
-    required_caveats:
-    - 不得写成所有成熟制程设备全面禁运
+    required_caveats: []
+    scope_ref: SCOPE-EXPORT-CONTROL
+    required_caveat_refs: []
   - claim_id: C-02
     permitted_role: supporting_thesis
     judgment_level: J2
     scope: 中国半导体设备行业未来十二个月
     conditions: []
     confidence: medium
-    required_caveats:
-    - 必须保留验证复购跨线复制和经营兑现条件
+    required_caveats: []
+    scope_ref: SCOPE-COMMERCIAL-REALIZATION
+    required_caveat_refs: []
   - claim_id: C-04
     permitted_role: core_thesis
     judgment_level: J2
@@ -537,8 +707,10 @@ handoff_to_05:
     conditions: []
     confidence: medium
     required_caveats:
-    - 政策必要性不等于所有类别同步兑现
-    - 投资命题仅可条件性表达
+    - 所有类别同步兑现
+    scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+    required_caveat_refs:
+    - CAV-ROOT
   restricted_claims:
   - claim_id: C-03
     permitted_role: supporting_thesis
@@ -547,17 +719,25 @@ handoff_to_05:
     - 不作精确份额或个股排序
     required_scope: 设备类别与公开披露充分的代表公司样本
     reason: 类别口径与客户级复购数据不统一
+    scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+    required_caveat_refs: []
   prohibited_claims:
   - claim_id_or_topic: 行业统一国产化率或未来十二个月精确份额
     reason: 缺统一类别口径和客户级数据
+    topic_code: PROH-01
+    match_terms:
+    - 所有国产设备类别同步受益
   - claim_id_or_topic: 先进光刻批量量产与近端业绩兑现
     reason: 缺正式批量复购和收入证据
+    topic_code: PROH-02
+    match_terms: []
   - claim_id_or_topic: 个股评级目标价或仓位建议
     reason: 超出01交付边界且未经估值审计
+    topic_code: PROH-03
+    match_terms: []
   required_caveats:
-  - 海外成熟制程供给仍有残余
-  - 全球设备周期与国内扩产是竞争解释
-  - 上游部件再认证可能阻断兑现
+  - caveat_ref: CAV-ROOT
+    text: 所有类别同步兑现
   decision_gates:
   - gate_id: RC-01
     signal: 美国规则与许可状态
@@ -585,6 +765,10 @@ handoff_to_05:
     - 政策贡献率
     - 统一国产化率
     - 未经审计的个股推荐
+    must_avoid_rules:
+    - rule_code: AVOID-ROOT-OVERGENERALIZATION
+      match_terms:
+      - 所有国产设备类别同步受益
   confidence_ceiling: medium
 ontology_context:
   ontology_refs:
@@ -1404,29 +1588,42 @@ compliance_check:
   citations_or_evidence_refs_complete: true
 method_library_usage:
   library_ref: 知识库_04推理/README.md
+  library_version: 1.0.0
   methods_used:
-  - A00
-  - A04
-  - A06
-  - A07
-  - A08
-  - A09
-  - A10
+  - kb04:A04
+  - kb04:A06
+  - kb04:A07
+  - kb04:A08
   claim_bindings:
   - claim_id: C-01
     method_ids:
-    - A04
-    - A00
+    - kb04:A04
+    reason: 规则是否形成可执行约束属于机制验证，并由 A00 约束确认范围
   - claim_id: C-02
     method_ids:
-    - A06
-    - A00
+    - kb04:A06
+    reason: 从供给缺口到验证复购与经营兑现属于传导路径判断
   - claim_id: C-03
     method_ids:
-    - A07
-    - A00
+    - kb04:A07
+    reason: 类别和公司强弱按统一口径进行对象分化
   - claim_id: C-04
     method_ids:
-    - A08
-    - A09
-    - A10
+    - kb04:A08
+    reason: 以影响兑现为主，并辅助检查市场预期和研究命题边界
+aggregation_results:
+- aggregation_result_ref: AGGR-ROOT
+  aggregation_contract_ref: AGG-EQUIPMENT-THESIS
+  parent_judgment_unit_ref: JU-04
+  child_claim_refs:
+  - C-01
+  - C-02
+  - C-03
+  child_state_codes:
+    C-01: targeted_constraint
+    C-02: conditional_realization
+    C-03: maturity_differentiation
+  insufficient_child_claim_refs: []
+  outcome: differentiated
+  parent_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+judgment_update_register: []

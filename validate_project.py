@@ -16,11 +16,14 @@ CHECKS = (
     ("投研框架库", [sys.executable, "知识库_02框架/validate_frameworks.py"]),
     ("取证策略库", [sys.executable, "知识库_03取证/validate_03.py"]),
     ("唯一状态派生矩阵", [sys.executable, "运行校验/status_derivation.py"]),
+    ("可控研究链对抗测试", [sys.executable, "运行校验/tests/test_controlled_chain.py"]),
+    ("范围聚合发布门禁回归", [sys.executable, "运行校验/tests/test_scope_aggregation_release.py"]),
     ("推理方法库", [sys.executable, "知识库_04推理/validate_methods.py"]),
     ("研究价值评测契约", [sys.executable, "评测集/validate_eval_set.py"]),
-    ("研究价值评测v2端到端", [sys.executable, "评测集/v2/tests/test_eval_v2.py"]),
-    ("存储芯片周期验收样例", [sys.executable, "运行校验/validate_publish.py", "示例1"]),
-    ("国产设备替代验收样例", [sys.executable, "运行校验/validate_publish.py", "示例2"]),
+    ("研究价值评测端到端", [sys.executable, "评测集/runtime/tests/test_eval_runtime.py"]),
+    ("存储芯片周期基线验收样例", [sys.executable, "运行校验/validate_run.py", "示例1-基线-20260713-1", "--no-write"]),
+    ("存储芯片周期增量验收样例", [sys.executable, "运行校验/validate_run.py", "示例1", "--no-write"]),
+    ("国产设备替代验收样例", [sys.executable, "运行校验/validate_run.py", "示例2", "--no-write"]),
 )
 
 
@@ -36,7 +39,7 @@ def main() -> int:
         print("\nPROJECT_RETURN_REQUIRED: " + "、".join(failures))
         return 1
 
-    print("\nPROJECT_PASS: Markdown 用语、本体、知识库、研究价值评测契约与端到端测试、校验器及两个 01—05 验收样例全部通过。")
+    print("\nPROJECT_PASS: Markdown 用语、本体、知识库、研究价值评测契约与端到端测试、校验器及三个 01—05 验收样例全部通过。")
     return 0
 
 

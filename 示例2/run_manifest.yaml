@@ -1,0 +1,84 @@
+schema_name: controlled_research_run_manifest
+schema_version: 1.1.0
+task_id: JTASK-USCTRL-CNSEMI-EQP-001
+run_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
+parent_run: null
+run_mode: fixture
+producer_id: fixture-producer-equipment_policy
+versions:
+  contract: 1.1.0
+  ontology: 2.1.0
+  kb02: 2.0.0
+  kb03: 3.1.0
+  kb04: 1.0.0
+  stage_01_schema: 1.5.0
+  stage_02_logic_schema: 1.2.0
+  stage_02_view_schema: 2.1.0
+  stage_03_schema: 1.4.0
+  stage_04_brief_schema: 3.0.0
+  stage_04_audit_schema: 3.2.0
+  stage_05_audit_schema: 2.6.0
+  semantic_review_schema: 1.0.0
+stages:
+  stage_01:
+    artifact:
+    - 01-美国管制与国产设备替代投研需求说明-20260710-1.md
+    hash: sha256:081b79db195f0632aa46bcc2fed8f1bc2cd4b7abc375d2e310fc558b38cc09a6
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_02:
+    artifact:
+    - 02-美国管制与国产设备替代研究逻辑-20260710-1.md
+    - 02-美国管制与国产设备替代本体视图-20260710-1.yaml
+    hash: sha256:5b26f7b03f0f0bd29c12351133938d228b0bb0869bfbabb1973ecb156fd71089
+    source_hashes:
+      stage_01: sha256:081b79db195f0632aa46bcc2fed8f1bc2cd4b7abc375d2e310fc558b38cc09a6
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_03:
+    artifact:
+    - 03-美国管制与国产设备替代数据与证据准备-20260710-1.md
+    - 03-美国管制与国产设备替代数据与证据快照-20260710-1
+    - 03-美国管制与国产设备替代语义域与证据域实例清单-20260710-1.yaml
+    hash: sha256:56d3cc906175dedbf98e9ae299cced36b7a75334b5300ab94733410113188354
+    source_hashes:
+      stage_02: sha256:5b26f7b03f0f0bd29c12351133938d228b0bb0869bfbabb1973ecb156fd71089
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_04:
+    artifact:
+    - 04-美国管制与国产设备替代判断简报-20260710-1.md
+    - 04-美国管制与国产设备替代推理审计-20260710-1.yaml
+    hash: sha256:f56e347df94c0ce2a703497143e068a6de4996a5108b780414e1a81c46f6a9c6
+    source_hashes:
+      stage_03: sha256:56d3cc906175dedbf98e9ae299cced36b7a75334b5300ab94733410113188354
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_05:
+    artifact:
+    - 05-美国管制与国产设备替代主题深度研究-20260710-1.md
+    - 05-美国管制与国产设备替代表达审计-20260710-1.yaml
+    hash: sha256:b6023992a838ee32fa8f481be8a58fd0c48e98c59947311c1740b2250c096221
+    source_hashes:
+      stage_04: sha256:f56e347df94c0ce2a703497143e068a6de4996a5108b780414e1a81c46f6a9c6
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+validation_issues: []
+validation_summary:
+  quality_pass: false
+  publishable: false
+  publish_status: RETURN_REQUIRED
+  judgment_level: null
+  directional_conclusion_available: false
+  contract_version: 1.1.0

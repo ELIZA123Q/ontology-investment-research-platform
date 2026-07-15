@@ -74,7 +74,7 @@ registry 门保持：`constraint_path` / `localization_stage` / `resilience_stat
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-LOC-01.constraint_path, IF-LOC-01.localization_stage, IF-LOC-01.resilience_state]
-judgment_types: [mechanism_transmission, object_comparison, risk_reassessment]
+judgment_types: [mechanism_validation, transmission_path, object_differentiation, impact_realization]
 state_variable_candidates: [constraint_effect, buffer_duration, substitution_acceleration, residual_dependency, dependency_concentration, alternate_supply]
 signal_candidates: [license, inventory_runoff, repurchase_read, concentration_change, recovery_time]
 output_objects: [constraint_path, substitution_acceleration, residual_dependency, resilience_change]

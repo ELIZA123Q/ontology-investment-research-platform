@@ -1,5 +1,5 @@
 document_type: delivery_expression_audit
-schema_version: 2.4.0
+schema_version: 2.6.0
 
 metadata:
   task_id: ""
@@ -18,6 +18,8 @@ metadata:
 claim_expression_register:
   - expression_id: EX-01
     source_claim_id: C-01
+    source_rcs: [C-01]
+    expression_role: paraphrase  # direct | paraphrase | synthesis
     location_kind: report_title
     section: "标题"
     expression_text: ""
@@ -25,6 +27,8 @@ claim_expression_register:
     permitted_role: core_thesis
     conditions: []
     conditions_preserved: true
+    expression_scope_ref: "SCOPE-ROOT"
+    preserved_caveat_refs: []
     scope_relation: same
     semantic_strength_review: pass
 

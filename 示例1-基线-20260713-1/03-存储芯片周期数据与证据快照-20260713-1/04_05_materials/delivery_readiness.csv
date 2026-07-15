@@ -1,0 +1,2 @@
+﻿delivery_readiness_id,execution_id,target_report_type,status,chart_readiness,table_readiness,source_annotation_readiness,linked_judgment_unit_ids,linked_data_candidate_ids,linked_chart_ids,linked_table_ids,source_annotation_ids,delivery_limit,gap_action,notes
+DR-01,EXEC-MEM-CYCLE-20260713-1,industry_cycle_report,ready,ready,ready,ready,JU-01|JU-02|JU-04|JU-05|JU-06|JU-07,DDC-01|DDC-03|DDC-04|DDC-05|DDC-06,FIG-01|FIG-02|FIG-03,TAB-01|TAB-02,ANN-01|ANN-02|ANN-03,可交付行业周期报告；周期结束只能写条件窗口和改判信号，不得写确定结束日,none,交付准备度独立于 evidence_readiness 和 03 high_quality_pass

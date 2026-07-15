@@ -68,7 +68,7 @@ updated_at: 2026-07-14
 ```yaml
 framework_layer: company_realization
 output_gate_refs: [IF-MAT-01.consumption_demand, IF-MAT-01.qualification_stage, IF-MAT-01.volume_release_readiness]
-judgment_types: [state_measurement, mechanism_transmission, object_comparison]
+judgment_types: [state_measurement, mechanism_validation, transmission_path, object_differentiation]
 state_variable_candidates: [material_family, wafer_or_package_output, unit_consumption, recovery_rate, qualification_stage, batch_supply, repurchase]
 signal_candidates: [sample, pilot_batch, line_qualification, batch_order, repeat_order, cross_fab_copy]
 output_objects: [consumption_model, family_specific_gate, volume_release_path]

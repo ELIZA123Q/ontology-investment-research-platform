@@ -1,0 +1,946 @@
+document_type: reasoning_audit
+schema_version: 3.2.0
+metadata:
+  task_id: JTASK-MEM-CYCLE-001
+  execution_id: EXEC-MEM-CYCLE-20260713-1
+  judgment_as_of: '2026-07-13T21:06:10+08:00'
+  brief_ref: 04-存储芯片周期判断简报-20260713-1.md
+  source_01_ref: 01-存储芯片周期投研需求说明-20260713-1.md
+  source_02_logic_ref: 02-存储芯片周期研究逻辑-20260713-1.md
+  source_02_view_ref: 02-存储芯片周期本体视图-20260713-1.yaml
+  preparation_ref: 03-存储芯片周期数据与证据准备-20260713-1.md
+  snapshot_ref: 03-存储芯片周期数据与证据快照-20260713-1/manifest.csv
+  stage_status: complete
+  quality_gate_ref: 04_推理输出规范.md#10-质量门槛与返工规则
+  quality_status: high_quality_pass
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+input_integrity:
+  task_id_consistent: true
+  execution_id_consistent: true
+  scope_consistent: true
+  source_refs_resolvable: true
+  no_unfrozen_evidence_used: true
+  no_new_path_or_rule_created: true
+  issues: []
+evidence_context:
+  stage_status: complete
+judgment_unit_gate_results:
+- judgment_unit_id: JU-01
+  statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 的周期位置已经分化，不能生成统一阶段标签。
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-01
+  main_limit: 不得合并为统一强景气阶段
+  effect_on_claims:
+  - C-01
+  evidence_grade: Q2
+  counterevidence_result: weakened
+  source_02_hash: sha256:7df592e1f116cd2eba11700c48a4408a9e620ae63e3cce3ac4d52ddfabb502d2
+  scope_ref: SCOPE-MEMORY-INDUSTRY
+  source_evidence_refs:
+  - EV-01
+  - EV-04
+  - EV-05
+  - EV-10
+  - EV-18
+  - EV-23
+  - EV-46
+  candidate_04_claim_hash: sha256:b4dfda66fa1fb8c617aa2d138c633d7e8225e4785da231e7a2575cf3354e41c5
+  aggregation_eligible: 'false'
+  prohibited_generalization_refs: []
+  judgment_type: cycle_phase
+- judgment_unit_id: JU-02
+  statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-02
+  main_limit: 供应商展望不能等同全年实际交付
+  effect_on_claims:
+  - C-02
+  evidence_grade: Q2
+  counterevidence_result: weakened
+  source_02_hash: sha256:5e6c1083f6c56dae8ce11cb1cc7fcbaf903f3335d3045c399137803454384b89
+  scope_ref: SCOPE-HBM
+  source_evidence_refs:
+  - EV-01
+  - EV-09
+  - EV-10
+  - EV-18
+  - EV-45
+  - EV-48
+  candidate_04_claim_hash: sha256:6f56b82f036ff9cc0258bfe1478a69eda0b5b4a58d5f2713e388e9e2daacdc26
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-MEMORY-INDUSTRY
+  judgment_type: cycle_phase
+- judgment_unit_id: JU-03
+  statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-03
+  main_limit: 缺跨厂量化挤占比例和统一有效产能
+  effect_on_claims:
+  - C-03
+  evidence_grade: Q1
+  counterevidence_result: weakened
+  source_02_hash: sha256:ca588b3c3ee598ea8236fe80a9af36f8f25ea69161b7ace1419cdce65d342936
+  scope_ref: SCOPE-DRAM
+  source_evidence_refs:
+  - EV-09
+  - EV-10
+  - EV-23
+  - EV-45
+  - EV-48
+  candidate_04_claim_hash: sha256:7000d48b8f7ac49b6461eaba72e34d256b334af37f27280e01fbbb5793407dea
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-MEMORY-INDUSTRY
+  judgment_type: causal_attribution
+- judgment_unit_id: JU-04
+  statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-04
+  main_limit: 不得把企业级需求外推为全 NAND 需求
+  effect_on_claims:
+  - C-04
+  evidence_grade: Q2
+  counterevidence_result: weakened
+  source_02_hash: sha256:46f71b28c23ddbb25fd527400345abbb092c72185a0701e533d87871d73a6aab
+  scope_ref: SCOPE-NAND
+  source_evidence_refs:
+  - EV-07
+  - EV-11
+  - EV-20
+  - EV-22
+  - EV-24
+  - EV-29
+  - EV-47
+  candidate_04_claim_hash: sha256:4c37df1c9eeb31a9978499f7e0685eeff7631090bca641536770e24d787ac101
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-MEMORY-INDUSTRY
+  judgment_type: cycle_phase
+- judgment_unit_id: JU-05
+  statement: 服务器 DRAM 历史价格上行已确认，但斜率放缓只支持高位消化观察。
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-05
+  main_limit: HBM 同代际成交价不足 不得统一斜率
+  effect_on_claims:
+  - C-05
+  evidence_grade: Q3
+  counterevidence_result: weakened
+  source_02_hash: sha256:4d9b44dde249b486ef7d878d57c56da2feb85ae8b4f9963f68289c8f29f46f7a
+  scope_ref: SCOPE-SERVER-DRAM
+  source_evidence_refs:
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-16
+  - EV-45
+  - EV-46
+  - EV-47
+  candidate_04_claim_hash: sha256:ca32e23979d4e64f0515ea666d52c22f726659eac4dfde8f844fce4cc459b376
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-DRAM
+  - SCOPE-MEMORY-INDUSTRY
+  judgment_type: state_measurement
+- judgment_unit_id: JU-06
+  statement: 2027H2 至 2028 只能作为条件式缓解窗口
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-06
+  main_limit: 未来良率和客户认证尚未发生
+  effect_on_claims:
+  - C-06
+  evidence_grade: Q1
+  counterevidence_result: weakened
+  source_02_hash: sha256:61bcef0a6d15e80a5d2b35a7f498eb6d76ee09e870eb65e9afe435cb59671203
+  scope_ref: SCOPE-MEMORY-SUPPLY
+  source_evidence_refs:
+  - EV-06
+  - EV-07
+  - EV-41
+  - EV-42
+  - EV-43
+  - EV-44
+  candidate_04_claim_hash: sha256:c3c221edf4419a92509937f79ac2a911899635fc744586d5a55b505de5d6bddf
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-MEMORY-INDUSTRY
+  judgment_type: cycle_phase
+- judgment_unit_id: JU-07
+  statement: 不能确认三类产品统一结束日
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-07
+  main_limit: 缺关键连续序列且产品分化显著
+  effect_on_claims:
+  - C-07
+  evidence_grade: Q0
+  counterevidence_result: not_checked
+  source_02_hash: sha256:287cb3d45003d59c4f1b35124cc9a10efceb8c1e713afb893e57169271d7d36c
+  scope_ref: SCOPE-MEMORY-INDUSTRY
+  source_evidence_refs:
+  - EV-03
+  - EV-05
+  - EV-15
+  - EV-21
+  - EV-22
+  candidate_04_claim_hash: sha256:c9e77fcb5ad2d19f9911b216644b1447ed35470d593b3a778e709b7f7e3e5d17
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs: []
+  judgment_type: cycle_phase
+overall_judgment:
+  primary_claim_id: C-01
+  judgment_level: J2
+  statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 的周期位置已经分化，不能生成统一阶段标签。
+  confidence: medium
+  investment_interpretation: high_level_divergence
+  interpretation_basis: 价格与 AI/HBM 需求支持改善，但三类产品驱动、库存和有效供给条件分化，不能合并为同步强景气
+  scope:
+    time: 截至2026-07-13，前瞻6—24个月
+    geography: 全球
+    value_chain: 终端需求—订单库存—有效供给—价格
+    objects:
+    - HBM
+    - 通用DRAM
+    - NAND
+  downgrade_reasons:
+  - 多层库存和订单取消率不足
+  - 新增供给认证未发生
+  - HBM 同代际价格不足
+investment_thesis_verdict:
+  applicable: true
+  applicability_reason: 01要求说明行业判断能否形成可用于投资研究的命题
+  source_claim_refs:
+  - C-01
+  - C-02
+  - C-04
+  - C-05
+  source_a08_claim_refs: []
+  source_a09_claim_refs: []
+  target_asset: 存储芯片行业及分产品研究对象
+  time_window: 未来6至24个月
+  gate_results:
+    research_validity: pass
+    expectation_comparability: fail
+    pricing_not_fully_reflected: not_assessed
+    payoff_risk_asymmetry: not_assessed
+    validation_window: pass
+  priced_in_assessment: unknown
+  base_case: 稀缺定价强化且产品分化延续
+  upside_case: 价格与订单继续兑现且新增合格供给延迟
+  downside_case: 库存、取消率、价格和合格供给共振转向
+  catalyst_or_validation_signals:
+  - 分产品价格与订单执行
+  - HBM认证与新增合格供给
+  strongest_counterevidence: 客户抢货与预防性库存可能放大当期需求
+  verdict: watch
+  judgment_level: J1
+  confidence: low
+  verdict_reason: 缺事前一致预期、计价程度和资产层面情景不对称证据
+  invalidation_conditions:
+  - 多层库存与取消率上升且价格连续转弱
+  handoff_to_05: tracking_only
+claim_register:
+- claim_id: C-01
+  report_section: '2'
+  reader_label: 方向判断
+  statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 的周期位置已经分化，不能生成统一阶段标签。
+  linked_judgment_unit: JU-01
+  target_claim_type: directional_outlook
+  judgment_level: J2
+  conditions: ''
+  confidence: medium
+  downgrade_reason: 不得合并为统一强景气阶段
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.industry.phase
+  scope_ref: SCOPE-MEMORY-INDUSTRY
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-01
+  source_evidence_refs:
+  - EV-01
+  - EV-04
+  - EV-05
+  - EV-10
+  - EV-18
+  - EV-23
+  - EV-46
+  aggregation_result_ref: AGGR-ROOT
+  required_caveat_refs:
+  - CAV-ROOT
+  aggregation_state_code: parent_scope-memory-industry
+- claim_id: C-02
+  report_section: '2'
+  reader_label: 方向判断
+  statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+  linked_judgment_unit: JU-02
+  target_claim_type: directional_outlook
+  judgment_level: J2
+  conditions: ''
+  confidence: medium
+  downgrade_reason: 供应商展望不能等同全年实际交付
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.hbm.phase
+  scope_ref: SCOPE-HBM
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-02
+  source_evidence_refs:
+  - EV-01
+  - EV-09
+  - EV-10
+  - EV-18
+  - EV-45
+  - EV-48
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: structural_expansion
+- claim_id: C-03
+  report_section: '2'
+  reader_label: 观察
+  statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+  linked_judgment_unit: JU-03
+  target_claim_type: causal_inference
+  judgment_level: J1
+  conditions: 缺跨厂量化挤占比例和统一有效产能
+  confidence: low
+  downgrade_reason: 缺跨厂量化挤占比例和统一有效产能
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.dram.capacity_mechanism
+  scope_ref: SCOPE-DRAM
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-03
+  source_evidence_refs:
+  - EV-09
+  - EV-10
+  - EV-23
+  - EV-45
+  - EV-48
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: parent_scope-memory-industry
+- claim_id: C-04
+  report_section: '2'
+  reader_label: 方向判断
+  statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+  linked_judgment_unit: JU-04
+  target_claim_type: directional_outlook
+  judgment_level: J2
+  conditions: ''
+  confidence: medium
+  downgrade_reason: 不得把企业级需求外推为全 NAND 需求
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.nand.phase
+  scope_ref: SCOPE-NAND
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-04
+  source_evidence_refs:
+  - EV-07
+  - EV-11
+  - EV-20
+  - EV-22
+  - EV-24
+  - EV-29
+  - EV-47
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: enterprise_tight_consumer_weak
+- claim_id: C-05
+  report_section: '5'
+  reader_label: 方向判断
+  statement: 服务器 DRAM 历史价格上行已确认，但斜率放缓只支持高位消化观察。
+  linked_judgment_unit: JU-05
+  target_claim_type: directional_outlook
+  judgment_level: J2
+  conditions: ''
+  confidence: medium
+  downgrade_reason: HBM 同代际成交价不足 不得统一斜率
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.server_dram.price_phase
+  scope_ref: SCOPE-SERVER-DRAM
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-05
+  source_evidence_refs:
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-16
+  - EV-45
+  - EV-46
+  - EV-47
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: high_price_slope_watch
+- claim_id: C-06
+  report_section: '5'
+  reader_label: 观察
+  statement: 2027H2 至 2028 只能作为条件式缓解窗口
+  linked_judgment_unit: JU-06
+  target_claim_type: forecast
+  judgment_level: J1
+  conditions: 未来良率和客户认证尚未发生
+  confidence: low
+  downgrade_reason: 未来良率和客户认证尚未发生
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.supply.relief_window
+  scope_ref: SCOPE-MEMORY-SUPPLY
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-06
+  source_evidence_refs:
+  - EV-06
+  - EV-07
+  - EV-41
+  - EV-42
+  - EV-43
+  - EV-44
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: parent_scope-memory-industry
+- claim_id: C-07
+  report_section: '7'
+  reader_label: 暂不可判断
+  statement: 不能确认三类产品统一结束日
+  linked_judgment_unit: JU-07
+  target_claim_type: forecast
+  judgment_level: J0
+  conditions: ''
+  confidence: low
+  downgrade_reason: 缺关键连续序列且产品分化显著
+  strength_consistency_check: true
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  stable_claim_key: memory.industry.end_window
+  scope_ref: SCOPE-MEMORY-INDUSTRY
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-JU-07
+  source_evidence_refs:
+  - EV-03
+  - EV-05
+  - EV-15
+  - EV-21
+  - EV-22
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: parent_scope-memory-industry
+uncertainty_register:
+- uncertainty_id: U-01
+  description: 多层库存、订单取消率和客户库存仍不足
+  affects_claim_refs: C-01|C-02|C-07
+  handling: 保留分产品判断并禁止统一结束日
+- uncertainty_id: U-02
+  description: 新增产能良率和客户认证尚未发生
+  affects_claim_refs: C-06|C-07
+  handling: 只写条件窗口
+change_gate_register:
+- gate_id: RC-01
+  description: 连续两个季度价格斜率、客户库存和订单兑现发生反向变化
+  linked_claim_refs: C-01|C-05|C-07
+  monitoring_signal: 价格、库存、订单和良率连续序列
+tracking_register:
+- tracking_id: T-01
+  description: 跟踪价格、库存、订单兑现、HBM认证和新增供给良率
+  frequency: 季度
+  linked_claim_refs: C-01|C-05|C-06|C-07
+review_plan:
+- review_id: REVIEW-01
+  source_claim_id: C-01
+  judgment_as_of: '2026-07-13'
+  prediction_horizon: 未来两个季度至2028年中
+  expected_signals:
+  - 分产品价格斜率、客户库存、订单兑现和新增合格供给变化
+  change_thresholds:
+  - 连续两个季度出现价格转弱、库存累积、订单取消和合格供给释放的共振
+  review_due_at: '2027-01-15'
+  review_status: scheduled
+handoff_to_05:
+  target_05_archetype: industry_cycle_report
+  target_05_quality: high_quality_pass
+  handoff_status: ready
+  output_ceiling: full_report
+  formal_report_allowed: true
+  approved_core_claims:
+  - claim_id: C-01
+    permitted_role: core_thesis
+    judgment_level: J2
+    scope: HBM、通用DRAM与NAND分产品阶段
+    conditions: []
+    confidence: medium
+    required_caveats:
+    - 分产品判断
+    scope_ref: SCOPE-MEMORY-INDUSTRY
+    required_caveat_refs:
+    - CAV-ROOT
+  - claim_id: C-02
+    permitted_role: supporting_thesis
+    judgment_level: J2
+    scope: AI服务器与HBM需求对存储供需的影响
+    conditions: []
+    confidence: medium
+    required_caveats: []
+    scope_ref: SCOPE-HBM
+    required_caveat_refs: []
+  - claim_id: C-04
+    permitted_role: supporting_thesis
+    judgment_level: J2
+    scope: 企业级SSD与消费端NAND分化
+    conditions: []
+    confidence: medium
+    required_caveats: []
+    scope_ref: SCOPE-NAND
+    required_caveat_refs: []
+  - claim_id: C-05
+    permitted_role: supporting_thesis
+    judgment_level: J2
+    scope: 截至2026年7月13日的价格阶段
+    conditions: []
+    confidence: medium
+    required_caveats: []
+    scope_ref: SCOPE-SERVER-DRAM
+    required_caveat_refs: []
+  restricted_claims:
+  - claim_id: C-03
+    permitted_role: supporting_thesis
+    required_conditions:
+    - 缺跨厂量化挤占比例和统一有效产能
+    required_scope: HBM对通用DRAM供给的条件性机制解释
+    reason: 只能作方向性资源挤占解释
+    scope_ref: SCOPE-DRAM
+    required_caveat_refs: []
+  - claim_id: C-06
+    permitted_role: scenario_condition
+    required_conditions:
+    - 未来良率和客户认证尚未发生
+    required_scope: 2027H2至2028新增合格供给验证窗口
+    reason: 不得写成确定拐点或周期结束日
+    scope_ref: SCOPE-MEMORY-SUPPLY
+    required_caveat_refs: []
+  - claim_id: C-07
+    permitted_role: observation
+    required_conditions: []
+    required_scope: 三类产品统一结束日
+    reason: 只能表达当前无法确认
+    scope_ref: SCOPE-MEMORY-INDUSTRY
+    required_caveat_refs: []
+  prohibited_claims:
+  - claim_id_or_topic: 三类产品统一见顶或统一结束日
+    reason: 关键连续序列缺失且产品分化显著
+    topic_code: PROH-01
+    match_terms:
+    - 三类产品同步进入高位消化期
+  - claim_id_or_topic: 确定性超周期
+    reason: 资源挤占和远期供给仅达条件解释等级
+    topic_code: PROH-02
+    match_terms: []
+  required_caveats:
+  - caveat_ref: CAV-ROOT
+    text: 分产品判断
+  decision_gates:
+  - gate_id: RC-01
+    signal: 价格、库存、订单与新增合格供给共振转向
+    threshold_or_condition: 连续两个季度价格转弱、库存累积、订单取消且合格供给释放
+    implication: 下调为高位正常化或重新判断
+  expression_rules:
+    must_preserve:
+    - 判断方向
+    - 判断等级
+    - 范围
+    - 条件
+    must_avoid:
+    - 统一周期标签
+    - 确定结束日
+    must_avoid_rules:
+    - rule_code: AVOID-ROOT-OVERGENERALIZATION
+      match_terms:
+      - 三类产品同步进入高位消化期
+  confidence_ceiling: medium
+ontology_context:
+  object_type_refs: Industry|Company|Product|Segment|Application|ManufacturingFacility
+  relation_type_refs: companyBelongsToIndustry|productProducedBy|productBelongsToSegment|productUsedInApplication
+  event_refs: customer_capex_change|qualification_mass_production_change|order_shipment_change
+  propagation_template_refs: bottleneck_cascade_to_supply|localization_to_resilience
+  rule_refs: variable_propagation_inference|time_alignment|blocking_signal_precedence|judgment_evidence_threshold|reasoning_trace_required|rule_evaluation_trace_required
+path_results:
+- path_id: P-01
+  node_id: N-01
+  path_result_status: partially_established
+  notes: 7/7个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+- path_id: P-01
+  node_id: N-02
+  path_result_status: partially_established
+  notes: 16/18个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+- path_id: P-01
+  node_id: N-03
+  path_result_status: partially_established
+  notes: 12/13个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+- path_id: P-01
+  node_id: N-04
+  path_result_status: partially_established
+  notes: 14/15个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+- path_id: P-02
+  node_id: N-05
+  path_result_status: partially_established
+  notes: 14/14个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+- path_id: P-02
+  node_id: N-06
+  path_result_status: weakened
+  notes: 18/19个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+- path_id: P-02
+  node_id: N-07
+  path_result_status: insufficient_evidence
+  notes: 28/29个变量—锚点有直接可用证据；04仅使用counted单元，profile缺口继续限制结论强度
+state_variable_results:
+- coverage_id: SVC-001
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-02
+- coverage_id: SVC-002
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-003
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04
+- coverage_id: SVC-004
+  state_variable_id: order_visibility
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-02
+- coverage_id: SVC-005
+  state_variable_id: order_visibility
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-006
+  state_variable_id: order_visibility
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04
+- coverage_id: SVC-007
+  state_variable_id: inventory_cycle_position
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-07
+- coverage_id: SVC-008
+  state_variable_id: inventory_cycle_position
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-07
+- coverage_id: SVC-009
+  state_variable_id: inventory_cycle_position
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04|JU-07
+- coverage_id: SVC-010
+  state_variable_id: capacity_tightness
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-02|JU-03
+- coverage_id: SVC-011
+  state_variable_id: capacity_tightness
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-03
+- coverage_id: SVC-012
+  state_variable_id: capacity_tightness
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04
+- coverage_id: SVC-013
+  state_variable_id: product_price_pressure
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-07
+- coverage_id: SVC-014
+  state_variable_id: product_price_pressure
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-02|JU-03
+- coverage_id: SVC-015
+  state_variable_id: product_price_pressure
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-016
+  state_variable_id: capacity_expansion_progress
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-017
+  state_variable_id: capacity_expansion_progress
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-02
+- coverage_id: SVC-018
+  state_variable_id: supply_elasticity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-019
+  state_variable_id: supply_elasticity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-020
+  state_variable_id: supply_elasticity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-03
+- coverage_id: SVC-021
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04
+- coverage_id: SVC-022
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-023
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-03
+- coverage_id: SVC-024
+  state_variable_id: end_market_demand_strength
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04
+- coverage_id: SVC-025
+  state_variable_id: order_visibility
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-026
+  state_variable_id: order_visibility
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-027
+  state_variable_id: order_visibility
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-028
+  state_variable_id: inventory_cycle_position
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-029
+  state_variable_id: inventory_cycle_position
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-030
+  state_variable_id: inventory_cycle_position
+  coverage_status: missing
+  coverage_constraint: block
+  linked_judgment_unit_ids: JU-07
+- coverage_id: SVC-031
+  state_variable_id: inventory_buffer_capacity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-032
+  state_variable_id: inventory_buffer_capacity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-033
+  state_variable_id: inventory_buffer_capacity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-034
+  state_variable_id: inventory_buffer_capacity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-035
+  state_variable_id: inventory_buffer_capacity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-036
+  state_variable_id: inventory_buffer_capacity
+  coverage_status: missing
+  coverage_constraint: block
+  linked_judgment_unit_ids: JU-07
+- coverage_id: SVC-037
+  state_variable_id: supply_availability
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-038
+  state_variable_id: supply_availability
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-039
+  state_variable_id: supply_availability
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-06
+- coverage_id: SVC-040
+  state_variable_id: supply_availability
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-01|JU-05|JU-07
+- coverage_id: SVC-041
+  state_variable_id: yield_maturity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-04|JU-05|JU-07
+- coverage_id: SVC-042
+  state_variable_id: yield_maturity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-05|JU-07
+- coverage_id: SVC-043
+  state_variable_id: yield_maturity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-044
+  state_variable_id: yield_maturity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-045
+  state_variable_id: yield_maturity
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: ''
+- coverage_id: SVC-046
+  state_variable_id: pricing_power
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-03|JU-05
+- coverage_id: SVC-047
+  state_variable_id: pricing_power
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-05
+- coverage_id: SVC-048
+  state_variable_id: pricing_power
+  coverage_status: partial
+  coverage_constraint: downgrade
+  linked_judgment_unit_ids: JU-05
+data_logic:
+  metrics:
+  - 价格涨幅
+  - 库存天数
+  - 订单兑现
+  - 良率认证
+  formulas:
+  - 覆盖率=evidence_backed_unit_count/coverage_unit_total
+  scope_notes:
+  - 三类产品分开，不合并为统一周期
+  time_lag_notes:
+  - 新增供给到有效供给存在认证滞后
+  known_limitations:
+  - 缺多层库存、取消率、同代际 HBM 成交价
+brief_quality_check:
+  answer_first: true
+  length_within_2_4_page_proxy: true
+  required_decision_functions_present: true
+  no_formal_report_structure: true
+  claims_within_03_use_limits: true
+  claim_labels_match_evidence_strength: true
+  object_differentiation_clear: true
+  change_gates_observable: true
+  expression_permission_explicit: true
+  no_internal_ids_in_main_text: true
+  no_investment_advice: true
+  audit_brief_consistent: true
+  result: pass
+compliance_check:
+  no_rating_target_price_return_forecast_or_position_advice: true
+  no_new_unfrozen_evidence: true
+  no_scope_drift: true
+  citations_or_evidence_refs_complete: true
+method_library_usage:
+  library_ref: 知识库_04推理/README.md
+  methods_used:
+  - kb04:A01
+  - kb04:A03
+  - kb04:A05
+  claim_bindings:
+  - claim_id: C-01
+    method_ids:
+    - kb04:A03
+    reason: 按判断类型路由到公共推理方法
+  - claim_id: C-02
+    method_ids:
+    - kb04:A03
+    reason: 按判断类型路由到公共推理方法
+  - claim_id: C-03
+    method_ids:
+    - kb04:A05
+    reason: 按判断类型路由到公共推理方法
+  - claim_id: C-04
+    method_ids:
+    - kb04:A03
+    reason: 按判断类型路由到公共推理方法
+  - claim_id: C-05
+    method_ids:
+    - kb04:A01
+    reason: 按判断类型路由到公共推理方法
+  - claim_id: C-06
+    method_ids:
+    - kb04:A03
+    reason: 按判断类型路由到公共推理方法
+  - claim_id: C-07
+    method_ids:
+    - kb04:A03
+    reason: 按判断类型路由到公共推理方法
+  library_version: 1.0.0
+aggregation_results:
+- aggregation_result_ref: AGGR-ROOT
+  aggregation_contract_ref: AGG-MEMORY-PHASE
+  parent_judgment_unit_ref: JU-01
+  child_claim_refs:
+  - C-02
+  - C-04
+  - C-05
+  child_state_codes:
+    C-02: structural_expansion
+    C-04: enterprise_tight_consumer_weak
+    C-05: high_price_slope_watch
+  insufficient_child_claim_refs: []
+  outcome: differentiated
+  parent_scope_ref: SCOPE-MEMORY-INDUSTRY
+judgment_update_register: []

@@ -72,7 +72,7 @@ updated_at: 2026-07-14
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-PKG-01.bottleneck_location, IF-PKG-01.qualified_system_output, IF-PKG-01.profit_pool_readiness]
-judgment_types: [state_measurement, mechanism_transmission, causal_attribution]
+judgment_types: [state_measurement, mechanism_validation, transmission_path, causal_attribution]
 state_variable_candidates: [step_capacity, substrate_supply, cascaded_yield, bottleneck_controller, yield_loss_bearer, incremental_value_captor, qualified_output]
 signal_candidates: [bottleneck_utilization, wip, substrate_delivery, system_yield, customer_qualification, pricing_power]
 output_objects: [narrowest_bottleneck, bottleneck_migration, qualified_system_output, value_capture_map]

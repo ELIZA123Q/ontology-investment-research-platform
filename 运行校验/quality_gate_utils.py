@@ -54,7 +54,6 @@ TARGET_CLAIM_TYPES = {
     "forecast",
     "conditional_scenario",
 }
-J4_ELIGIBLE_CLAIM_TYPES = {"historical_fact", "current_state"}
 SOURCE_AUTHORITY_LEVELS = {
     "primary",
     "authoritative_secondary",
@@ -271,8 +270,8 @@ def validate_target_claim_level(target_claim_type: Any, level: Any, label: str) 
     if target not in TARGET_CLAIM_TYPES:
         fail(f"{label}.target_claim_type 非法: {target_claim_type}")
     validate_judgment_level(level, label)
-    if str(level) == "J4" and target not in J4_ELIGIBLE_CLAIM_TYPES:
-        fail(f"{label}: {target} 属于推断或前瞻主张，不得达到 J4")
+    # J4 不再按主张类型或方法编号机械封顶；跨阶段校验会核对 Q4、独立证据链、
+    # 竞争解释、反证、范围与语义审核等升级条件。
 
 
 RESEARCHER_BODY_MARKERS = [
@@ -305,6 +304,29 @@ RESEARCHER_BODY_STOP_MARKERS = (
     "进入 04 前质量检查",
 )
 
+# 04 handoff / 审计登记腔：语义约束可以保留在 YAML，不得原样抬成 05 标题、要点或概览。
+AUDIT_REGISTER_VOICE_MARKERS = (
+    "不是确定结束",
+    "不是确定拐点",
+    "不是确定周期结束",
+    "不得写成",
+    "不能写成",
+    "禁止给出",
+    "只能作为",
+    "条件式验证窗口",
+    "条件式缓解窗口",
+)
+
+HIGH_VISIBILITY_EXPRESSION_LOCATIONS = {
+    "report_title",
+    "subtitle",
+    "investment_point",
+    "section_heading",
+    "conclusion_overview",
+}
+
+CAVEAT_SEMANTIC_LABEL_MAX_LEN = 36
+
 
 def researcher_body_text(body: str) -> str:
     text = body
@@ -321,3 +343,20 @@ def validate_researcher_body(body: str, label: str) -> None:
     for marker in RESEARCHER_BODY_MARKERS:
         if marker in narrative:
             fail(f"{label} 正文不得包含机器字段或内部术语: {marker}")
+
+
+def assert_no_audit_register_voice(text: str, label: str) -> None:
+    """Reject permission/audit register phrasing in reader-facing research prose."""
+    for marker in AUDIT_REGISTER_VOICE_MARKERS:
+        if marker in text:
+            fail(f"{label} 不得使用审计登记腔（应改写成研究语言）: {marker}")
+
+
+def assert_caveat_is_semantic_label(text: str, label: str) -> None:
+    """required_caveats.text must stay a short semantic label, not draft report prose."""
+    cleaned = text.strip()
+    if not cleaned:
+        fail(f"{label} 不得为空")
+    if len(cleaned) > CAVEAT_SEMANTIC_LABEL_MAX_LEN:
+        fail(f"{label} 必须是短语义标签（≤{CAVEAT_SEMANTIC_LABEL_MAX_LEN}字），不得写入成稿句")
+    assert_no_audit_register_voice(cleaned, label)

@@ -1,10 +1,10 @@
-"""Canonical relative paths for 03 snapshot CSV files (schema 1.3.0)."""
+"""Canonical relative paths for 03 snapshot CSV files (schema 1.4.0)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-SCHEMA_VERSION_03 = "1.3.0"
+SCHEMA_VERSION_03 = "1.4.0"
 
 SNAPSHOT_CSV_LAYOUT: dict[str, str] = {
     "manifest.csv": "manifest.csv",

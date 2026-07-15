@@ -1,0 +1,119 @@
+schema_name: controlled_research_chain_public_contract
+schema_version: 1.1.0
+status: active
+
+# 这里只维护跨阶段共享语义。阶段内部字段继续由 01—05 各自规范维护。
+ownership:
+  public_contract:
+    - trace_id_patterns
+    - judgment_types
+    - judgment_levels
+    - stage_statuses
+    - path_statuses
+    - validity_statuses
+    - publish_statuses
+    - scope_relations
+    - aggregation_outcomes
+    - update_actions
+    - scope_graph
+    - claim_scope
+    - cross_stage_references
+  formal_ontology:
+    - object_types
+    - relation_types
+    - state_variables
+    - stable_domain_rules
+  knowledge_bases:
+    - reusable_methods
+    - method_applicability
+    - method_specific_gates
+  stage_specs:
+    - stage_internal_fields
+    - researcher_readable_explanations
+
+trace_id_patterns:
+  task_id: '^JTASK-[A-Z0-9][A-Z0-9_-]+$'
+  run_id: '^(?:RUN|EXEC)-[A-Z0-9][A-Z0-9_-]+$'
+  Q: '^Q-\d+$'
+  JU: '^JU-\d+$'
+  ER: '^ER-\d+$'
+  EV: '^EV-\d+$'
+  C: '^C-(?:\d+|[A-Z0-9][A-Z0-9_-]*)$'
+  RC: '^(?:RC|GATE|G)-\d+$'
+
+judgment_types:
+  - state_measurement
+  - trend_direction
+  - cycle_phase
+  - mechanism_validation
+  - causal_attribution
+  - transmission_path
+  - object_differentiation
+  - impact_realization
+  - expectation_gap
+  - valuation_impact
+
+legacy_judgment_type_migration:
+  trend_or_phase: trend_direction
+  mechanism_transmission: null
+  object_comparison: object_differentiation
+  valuation_expectation: null
+  risk_reassessment: null
+  note: null 表示旧类型语义不唯一，必须返回 02 重新拆分，禁止自动迁移。
+
+judgment_levels: [J0, J1, J2, J3, J4]
+stage_statuses: [not_started, in_progress, complete, blocked, returned]
+path_readiness_statuses: [ready, restricted, blocked, not_applicable]
+path_result_statuses:
+  - established
+  - partially_established
+  - weakened
+  - blocked
+  - insufficient_evidence
+  - contested
+  - not_applicable
+validity_statuses: [current, stale, revalidation_required, missing]
+publish_statuses: [PUBLISHABLE, RETURN_REQUIRED, STAGE_READY, INCOMPLETE_CHAIN]
+
+# 以下枚举由公共校验器计算或校验；阶段产物不得另行定义同名语义。
+scope_relations: [same, narrower, broader, overlap, incomparable]
+aggregation_outcomes: [synchronized, dominant, differentiated, insufficient]
+update_actions: [new, maintain, enhance, weaken, block, revise, retire]
+
+scope_graph:
+  schema_version: 1.0.0
+  dimensions: [object, geography, customer, metric, time]
+  node_contract:
+    required_fields: [scope_ref, label, dimensions, parent_scope_ref]
+    parent_rule: 除根节点外，每个范围节点必须引用同一图中的唯一父节点；图必须无环。
+    dimension_rule: dimensions 只能使用受控维度，值必须为非空字符串列表。
+  relation_rule: same/narrower/broader 由父子可达关系计算；无可达关系时，按维度交集派生 overlap 或 incomparable。
+
+claim_scope:
+  required_fields: [scope_ref, exclusions, time_basis]
+  rule: Claim 或表达的范围必须引用 02 冻结的 scope_graph 节点，排除项与时间口径属于范围合同的一部分。
+
+method_namespaces:
+  evidence: kb03
+  reasoning: kb04
+  rule: 跨阶段产物中的方法引用必须带命名空间；知识库内部文件名可继续使用 A01—A10。
+
+runtime_objects:
+  - Task
+  - Run
+  - StageArtifact
+  - ValidationIssue
+
+publish_semantics:
+  quality_pass: 研究过程与阶段合同是否合格
+  publishable: 当前产物是否可正式交付；只能由总校验器派生
+  judgment_level: 单条判断的证据与推理强度
+  directional_conclusion_available: 是否存在可表达的方向性结论
+  insufficient_can_publish: true
+
+stale_propagation:
+  stage_01: [stage_02, stage_03, stage_04, stage_05]
+  stage_02: [stage_03, stage_04, stage_05]
+  stage_03: [stage_04, stage_05]
+  stage_04: [stage_05]
+  stage_05: []

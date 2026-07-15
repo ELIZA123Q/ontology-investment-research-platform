@@ -72,7 +72,7 @@ judgment_types:
     formal_a08: false
     auto_add: []
     max_completeness_without_direct_data: observation
-  trend_or_phase:
+  trend_direction:
     method: A03
     required_roles: [primary, baseline, cross_check, counter]
     optional_roles: []
@@ -88,6 +88,13 @@ judgment_types:
     auto_add: []
     requires_methods: [A02]
     max_completeness_without_direct_data: observation
+  mechanism_validation:
+    method: A04
+    required_roles: [primary, mechanism, cross_check, counter]
+    optional_roles: [baseline]
+    formal_a08: true
+    auto_add: [A01]
+    max_completeness_without_direct_data: observation
   causal_attribution:
     method: A04
     required_roles: [primary, mechanism, cross_check, counter]
@@ -95,14 +102,14 @@ judgment_types:
     formal_a08: true
     auto_add: [A01]
     max_completeness_without_direct_data: observation
-  mechanism_transmission:
+  transmission_path:
     method: A04
     required_roles: [primary, mechanism, counter]
     optional_roles: [cross_check]
     formal_a08: true
     auto_add: [A01]
     max_completeness_without_direct_data: observation
-  object_comparison:
+  object_differentiation:
     method: A05
     required_roles: [primary, baseline, mechanism, counter]
     optional_roles: [cross_check]
@@ -110,7 +117,15 @@ judgment_types:
     auto_add: []
     forbidden_without: [unified_comparison_scope]
     max_completeness_without_direct_data: observation
-  valuation_expectation:
+  impact_realization:
+    method: A06
+    required_roles: [primary, mechanism, baseline, counter]
+    optional_roles: [cross_check]
+    formal_a08: true
+    auto_add: []
+    forbidden_without: [financial_baseline, critical_financial_bridge]
+    max_completeness_without_direct_data: observation
+  expectation_gap:
     method: A07
     required_roles: [primary, baseline, cross_check, counter]
     optional_roles: []
@@ -118,12 +133,13 @@ judgment_types:
     auto_add: []
     forbidden_without: [pre_event_consensus_vintage]
     max_completeness_without_direct_data: observation
-  risk_reassessment:
-    method: A04
-    required_roles: [primary, mechanism, counter]
-    optional_roles: [cross_check]
+  valuation_impact:
+    method: A07
+    required_roles: [primary, baseline, cross_check, counter]
+    optional_roles: [mechanism]
     formal_a08: true
-    auto_add: [A01]
+    auto_add: []
+    forbidden_without: [valuation_baseline]
     max_completeness_without_direct_data: observation
 
 methods:
@@ -221,6 +237,6 @@ runtime_references:
 
 runtime_compatibility:
   legacy_snapshot_fields:
-    library_recipe_id: 从 3.0 起填写 A01—A09 方法 ID
+    library_recipe_id: 从 3.1 起填写 kb03:A01—kb03:A09 命名空间方法 ID
     library_basket_ids: 填写 primary|baseline|mechanism|cross_check|counter；历史快照中的 scope 视为有效性检查已做，不再当作可收集角色
   rule: Q0—Q4 仅用于既有运行产物与统一状态派生，不在研究员任务卡中显示或填写

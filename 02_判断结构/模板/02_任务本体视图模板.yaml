@@ -1,5 +1,5 @@
 schema_name: task_ontology_view
-schema_version: 2.0.0
+schema_version: 2.1.0
 
 # 文件命名：02-<核心主题>本体视图-<YYYYMMDD>-<当日序号>.yaml
 # 必须与配对研究逻辑文件使用相同核心主题、日期和序号。
@@ -174,12 +174,32 @@ reasoning_plan:
   downgrade_conditions: []
   frozen: true
 
+scope_graph:
+  root_scope_ref: "SCOPE-ROOT"
+  nodes:
+    - scope_ref: "SCOPE-ROOT"
+      label: "任务根对象"
+      parent_scope_ref: null
+      dimensions:
+        object: ["<根对象>"]
+        geography: ["<地域>"]
+        customer: ["<客户范围>"]
+        metric: ["<指标口径>"]
+        time: ["<时间口径>"]
+
+aggregation_contracts: []
+
 judgment_units:
   - judgment_unit_id: "JU-01"
+    content_hash: "sha256:<由校验工具按完整 JU 内容计算>"
+    stable_claim_key: "<跨运行稳定命题键>"
+    claim_scope_ref: "SCOPE-ROOT"
+    aggregation_role: leaf
+    aggregation_contract_ref: null
     research_question_ref: "task_context.normalized_question"
     candidate_claim: "<04 预期回答的可证伪命题>"
     statement: "<04 可能输出的观点或边界>"
-    judgment_type: "<state_measurement | trend_or_phase | cycle_phase | causal_attribution | mechanism_transmission | object_comparison | valuation_expectation | risk_reassessment>"
+    judgment_type: "<state_measurement | trend_direction | cycle_phase | mechanism_validation | causal_attribution | transmission_path | object_differentiation | impact_realization | expectation_gap | valuation_impact>"
     priority_tier: "<critical | important | supporting | background>"
     decision_weight: 5
     decision_role: "<direction_driver | strength_driver | differentiation_explainer | mechanism_validator | background_context>"

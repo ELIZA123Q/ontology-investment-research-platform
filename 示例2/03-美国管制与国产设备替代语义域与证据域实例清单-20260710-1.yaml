@@ -5,7 +5,7 @@ metadata:
   execution_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
   source_02_view_ref: 02-美国管制与国产设备替代本体视图-20260710-1.yaml
   source_02_view_version: 1
-  source_02_view_hash: sha256:f696c21a30ce226cca2acc3b10f2dac52292d6c974fe6dc0d32045c27451b857
+  source_02_view_hash: sha256:6ebff1bf926cee9a40f805049ae43014681bbe3216e591a01d99f8ae90b59064
   snapshot_ref: 03-美国管制与国产设备替代数据与证据快照-20260710-1/manifest.csv
   frozen_at: "2026-07-10T20:30:00+08:00"
 ontology_versions:

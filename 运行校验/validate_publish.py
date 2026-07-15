@@ -112,6 +112,7 @@ class RunArtifacts:
     audit: Path | None = None
     delivery: Path | None = None
     expression_audit: Path | None = None
+    semantic_review: Path | None = None
 
     def triplet(self) -> tuple[str, str, str] | None:
         if self.requirement is not None:
@@ -276,6 +277,7 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
         names = ", ".join(path.name for path in delivery_matches)
         fail(f"{run_dir} 中存在多个 05 研报正文: {names}；一次运行只能有一份正式 05 交付物")
     expression_audit = _pick_optional(list(run_dir.glob("05-*表达审计-*.yaml")), "05 表达审计", run_dir)
+    semantic_review = _pick_optional(list(run_dir.glob("05-*独立语义审查-*.yaml")), "05 独立语义审查", run_dir)
     delivery = None
     if expression_audit is not None:
         expression_meta = load_yaml_file(expression_audit).get("metadata", {})
@@ -297,6 +299,7 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
         audit=audit,
         delivery=delivery,
         expression_audit=expression_audit,
+        semantic_review=semantic_review,
     )
 
 

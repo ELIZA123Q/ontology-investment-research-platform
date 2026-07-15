@@ -13,6 +13,8 @@ from _path_setup import ensure_run_path  # noqa: E402
 ensure_run_path()
 
 from quality_gate_utils import (  # noqa: E402
+    HIGH_VISIBILITY_EXPRESSION_LOCATIONS,
+    assert_no_audit_register_voice,
     judgment_level_rank,
     validate_gate_review_fields,
     validate_judgment_level,
@@ -37,6 +39,7 @@ from validator_utils import (  # noqa: E402
     split_refs,
 )
 from status_derivation import reject_manual_derived_fields  # noqa: E402
+from research_contract import derive_scope_relation, validate_scope_graph  # noqa: E402
 
 KNOWN_DELIVERY_KINDS = {
     "事件点评",
@@ -122,10 +125,10 @@ LOCATION_KINDS = {
     "summary_conclusion",
 }
 
-EXPRESSION_AUDIT_SCHEMA_VERSION = "2.4.0"
+EXPRESSION_AUDIT_SCHEMA_VERSION = "2.6.0"
 EXPRESSION_REQUIRED_FIELDS = [
     "expression_id",
-    "source_claim_id",
+    "source_rcs",
     "location_kind",
     "section",
     "expression_text",
@@ -133,6 +136,8 @@ EXPRESSION_REQUIRED_FIELDS = [
     "permitted_role",
     "conditions",
     "conditions_preserved",
+    "expression_scope_ref",
+    "preserved_caveat_refs",
     "scope_relation",
     "semantic_strength_review",
 ]
@@ -307,6 +312,21 @@ def _validate_expression_audit(
         fail("04 推理审计必须提供 handoff_to_05 表达权限")
     approved_permissions, restricted_permissions, permitted_claim_ids = _permission_index(handoff)
     permission_by_claim = {**restricted_permissions, **approved_permissions}
+    view_ref = str(source_metadata.get("source_02_view_ref", "")).strip()
+    view_path = source_04_audit_path.parent / view_ref
+    if not view_path.is_file():
+        fail("05 无法解析 04.metadata.source_02_view_ref")
+    source_view = load_yaml_file(view_path)
+    try:
+        scope_graph = validate_scope_graph(source_view)
+    except ValueError as exc:
+        fail(str(exc))
+    root_scope_ref = str(source_view.get("scope_graph", {}).get("root_scope_ref", ""))
+    caveat_catalog = {
+        str(item.get("caveat_ref")): str(item.get("text", ""))
+        for item in handoff.get("required_caveats", [])
+        if isinstance(item, dict) and item.get("caveat_ref") and item.get("text")
+    }
     prohibited_claim_ids = {
         str(item.get("claim_id_or_topic"))
         for item in handoff.get("prohibited_claims", [])
@@ -323,25 +343,43 @@ def _validate_expression_audit(
     for item in expressions:
         require_keys(item, EXPRESSION_REQUIRED_FIELDS, "claim_expression_register[]")
         label = f"claim_expression_register#{item['expression_id']}"
-        claim_id = str(item["source_claim_id"])
-        if claim_id not in source_claims:
-            fail(f"{label}.source_claim_id 未在 04 claim_register 中定义")
-        if claim_id in prohibited_claim_ids:
-            fail(f"{label}.source_claim_id 已被 04 明确禁止表达")
-        if claim_id not in permitted_claim_ids:
-            fail(f"{label}.source_claim_id 未获得 04 handoff_to_05 表达许可")
-        source_claim = source_claims[claim_id]
-        permission = permission_by_claim[claim_id]
-        expected_level = str(source_claim.get("judgment_level", "")).strip()
-        validate_judgment_level(expected_level, f"{label}.source_claim")
+        source_ids = split_refs(item.get("source_rcs"))
+        if not source_ids:
+            fail(f"{label} 必须填写 source_rcs")
+        expression_role = str(item.get("expression_role", "synthesis" if len(source_ids) > 1 else "paraphrase"))
+        if expression_role not in {"direct", "paraphrase", "synthesis"}:
+            fail(f"{label}.expression_role 非法")
+        if len(source_ids) > 1 and expression_role != "synthesis":
+            fail(f"{label} 引用多个 source_rcs 时 expression_role 必须为 synthesis")
+        unknown_sources = sorted(set(source_ids) - set(source_claims))
+        if unknown_sources:
+            fail(f"{label}.source_rcs 未在 04 claim_register 中定义: {', '.join(unknown_sources)}")
+        prohibited_sources = sorted(set(source_ids) & prohibited_claim_ids)
+        if prohibited_sources:
+            fail(f"{label}.source_rcs 已被 04 明确禁止表达: {', '.join(prohibited_sources)}")
+        unpermitted_sources = sorted(set(source_ids) - permitted_claim_ids)
+        if unpermitted_sources:
+            fail(f"{label}.source_rcs 未获得 04 handoff_to_05 表达许可: {', '.join(unpermitted_sources)}")
+        source_items = [source_claims[source_id] for source_id in source_ids]
+        permissions = [permission_by_claim[source_id] for source_id in source_ids]
+        source_levels = [str(source.get("judgment_level", "")).strip() for source in source_items]
+        for source_id, source_level in zip(source_ids, source_levels):
+            validate_judgment_level(source_level, f"{label}.source_rcs#{source_id}")
+        expected_level = min(source_levels, key=judgment_level_rank)
         inherited_level = str(item["inherited_judgment_level"]).strip()
         validate_judgment_level(inherited_level, label)
         if inherited_level != expected_level:
-            fail(f"{label}.inherited_judgment_level 必须等于 04 claim_register 的 {expected_level}")
-        expected_role = str(permission.get("permitted_role", "")).strip()
+            fail(f"{label}.inherited_judgment_level 必须等于来源主张中的最低等级 {expected_level}")
         declared_role = str(item["permitted_role"]).strip()
-        if declared_role != expected_role:
-            fail(f"{label}.permitted_role 必须继承 04 handoff 许可角色 {expected_role}")
+        allowed_roles: set[str] | None = None
+        for permission in permissions:
+            role = str(permission.get("permitted_role", "")).strip()
+            role_options = {role}
+            if role == "core_thesis":
+                role_options.add("supporting_thesis")
+            allowed_roles = role_options if allowed_roles is None else allowed_roles & role_options
+        if allowed_roles is None or declared_role not in allowed_roles:
+            fail(f"{label}.permitted_role 超出 source_rcs 的共同表达许可")
         if declared_role not in ROLE_ALLOWED_LOCATIONS:
             fail(f"{label}.permitted_role 非法: {declared_role}")
         if item["location_kind"] not in LOCATION_KINDS:
@@ -352,24 +390,72 @@ def _validate_expression_audit(
         if not expression_text or expression_text not in body:
             fail(f"{label}.expression_text 必须可在 05 正文中精确定位")
         _assert_no_strength_upgrade(inherited_level, expression_text, label)
+        if item["location_kind"] in HIGH_VISIBILITY_EXPRESSION_LOCATIONS:
+            assert_no_audit_register_voice(expression_text, label)
         if item["location_kind"] == "report_title" and expression_text == report_title:
             title_registered = True
-        if item["location_kind"] == "report_title" and claim_id not in approved_permissions:
+        if item["location_kind"] == "report_title" and any(source_id not in approved_permissions for source_id in source_ids):
             fail(f"{label}: 受限观点不得用于 05 主标题")
         if item["location_kind"] == "report_title" and declared_role != "core_thesis":
             fail(f"{label}: 主标题只能使用 core_thesis")
-        if set(split_refs(item["conditions"])) != set(split_refs(source_claim.get("conditions"))):
-            fail(f"{label}.conditions 必须完整继承 04")
+        expected_conditions: set[str] = set()
+        for source in source_items:
+            expected_conditions.update(split_refs(source.get("conditions")))
+        if set(split_refs(item["conditions"])) != expected_conditions:
+            fail(f"{label}.conditions 必须完整继承全部 source_rcs")
         if item["conditions_preserved"] is not True:
             fail(f"{label}.conditions_preserved 必须为 true")
-        if item["scope_relation"] not in {"same", "narrower"}:
-            fail(f"{label}.scope_relation 只能是 same 或 narrower")
+        expression_scope_ref = str(item.get("expression_scope_ref", "")).strip()
+        if expression_scope_ref not in scope_graph:
+            fail(f"{label}.expression_scope_ref 未在 02.scope_graph 定义")
+        relations = [
+            derive_scope_relation(expression_scope_ref, str(source.get("scope_ref", "")), scope_graph)
+            for source in source_items
+        ]
+        if any(relation not in {"same", "narrower"} for relation in relations):
+            fail(f"{label}: 表达范围超过或脱离来源 Claim: {relations}")
+        derived_scope_relation = "same" if all(relation == "same" for relation in relations) else "narrower"
+        if item["scope_relation"] != derived_scope_relation:
+            fail(f"{label}.scope_relation 应由范围图派生为 {derived_scope_relation}")
+        required_caveats: set[str] = set()
+        for source, permission in zip(source_items, permissions):
+            required_caveats.update(split_refs(source.get("required_caveat_refs")))
+            required_caveats.update(split_refs(permission.get("required_caveat_refs")))
+        preserved = set(split_refs(item.get("preserved_caveat_refs")))
+        if not required_caveats.issubset(preserved):
+            fail(f"{label}.preserved_caveat_refs 丢失 04 必要限定")
+        if not preserved.issubset(caveat_catalog):
+            fail(f"{label}.preserved_caveat_refs 含未定义限定")
         if item["semantic_strength_review"] != "pass":
             fail(f"{label}.semantic_strength_review 必须为 pass")
         if judgment_level_rank(inherited_level) > judgment_level_rank(expected_level):
             fail(f"{label}: 表达等级超过 04 判断许可")
+        if item["location_kind"] == "report_title":
+            if expression_scope_ref != root_scope_ref:
+                fail(f"{label}: 主标题必须使用任务根范围")
+            if any(str(source.get("scope_ref")) != root_scope_ref for source in source_items):
+                fail(f"{label}: 主标题不得用较窄 Claim 冒充根范围结论")
     if not title_registered:
         fail("05 主标题必须登记到 claim_expression_register")
+
+    # 禁止主题和 must_avoid 使用结构化代码与字面触发词，不能再靠 overall_check=true 自证。
+    forbidden_rules = [
+        item for item in handoff.get("prohibited_claims", [])
+        if isinstance(item, dict)
+    ] + [
+        item for item in handoff.get("expression_rules", {}).get("must_avoid_rules", [])
+        if isinstance(item, dict)
+    ]
+    for rule in forbidden_rules:
+        code = str(rule.get("topic_code") or rule.get("rule_code") or "UNKNOWN")
+        for pattern in split_refs(rule.get("match_terms")):
+            if pattern and pattern in body:
+                fail(f"05 正文触发 04 禁止主题 {code}: {pattern}")
+    for caveat_ref, caveat_text in caveat_catalog.items():
+        if caveat_ref in {
+            ref for item in expressions for ref in split_refs(item.get("preserved_caveat_refs"))
+        } and caveat_text not in body:
+            fail(f"05 正文未实际呈现必要限定 {caveat_ref}: {caveat_text}")
 
     def section_text(section_name: str) -> str:
         marker = f"## {section_name}"
@@ -422,11 +508,17 @@ def _validate_expression_audit(
         match.group(1).strip()
         for match in re.finditer(r"^##\s+[一二三四五]、(.+)$", body, re.MULTILINE)
     ]
+    for heading in argument_headings:
+        assert_no_audit_register_voice(heading, "05 论点章节标题")
     require_registered_fragments(
         argument_headings,
         location_kind="section_heading",
         label="05 论点章节标题",
     )
+    for line in investment_lines:
+        assert_no_audit_register_voice(line, "05 投资要点")
+    for cell in overview_rows:
+        assert_no_audit_register_voice(cell, "05 核心结论概览")
 
     coverage = audit["high_risk_section_coverage"]
     for key in ["report_title", "investment_points", "conclusion_overview", "section_headings", "paragraph_leads", "chart_and_table_titles", "summary_conclusions"]:

@@ -1,4 +1,4 @@
-claim_id,execution_id,source_document_id,source_run_refs,locator,statement,claim_type,business_time,claim_confidence,about_instance_refs,status,created_at,notes
+﻿claim_id,execution_id,source_document_id,source_run_refs,locator,statement,claim_type,business_time,claim_confidence,about_instance_refs,status,created_at,notes
 CL-EV-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,SRC-BIS-2022,SR-001,官方规则页,2022年建立先进计算和设备定向控制,reported_fact,2022-10-07,high,INS-CONTROL,active,2026-07-10T19:10:00+08:00,
 CL-EV-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,SRC-BIS-2023,SR-002,官方更新页,2023年增加设备并收紧规避路径,reported_fact,2023-10-17,high,INS-CONTROL,active,2026-07-10T19:10:00+08:00,
 CL-EV-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,SRC-BIS-2024,SR-003,官方更新页,新增24类设备3类软件和140实体,reported_fact,2024-12-02,high,INS-CONTROL,active,2026-07-10T19:10:00+08:00,

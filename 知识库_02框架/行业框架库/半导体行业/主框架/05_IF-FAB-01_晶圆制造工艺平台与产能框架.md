@@ -66,7 +66,7 @@ updated_at: 2026-07-14
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-FAB-01.effective_capacity, IF-FAB-01.ramp_timing, IF-FAB-01.manufacturing_economics_readiness]
-judgment_types: [state_measurement, mechanism_transmission, trend_or_phase]
+judgment_types: [state_measurement, mechanism_validation, transmission_path, trend_direction]
 state_variable_candidates: [installed_capacity, capacity_productivity, wafer_start, cycle_time, yield, product_mix, area_efficiency, qualified_output]
 signal_candidates: [tool_move_in, yield_ramp, utilization, customer_qualification, mix_shift]
 output_objects: [nominal_to_effective_bridge, capacity_productivity, supply_release_timing, economics_readiness]

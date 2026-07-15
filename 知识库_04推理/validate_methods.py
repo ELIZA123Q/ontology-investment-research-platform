@@ -59,7 +59,7 @@ REQUIRED_FILES = {
         "统一退回规则",
         "统一案例规范",
         "附录4：通用认知错误与误用索引",
-        "A02—A10 | J3",
+        "不按方法编号机械封顶",
     ],
     "A00-附录1_路径与阻断协议.md": [
         "每一段先问这六个问题",
@@ -146,7 +146,7 @@ METHOD_BOUNDARY_REQUIREMENTS = {
         "幅度区间",
         "不得写“收益风险比显著有利”",
         "G4 只算部分通过",
-        "最高 J3",
+        "通常最高 J3",
     ],
 }
 
@@ -280,13 +280,13 @@ def check_a_contracts(errors: list[str], warnings: list[str]) -> None:
 
     a00 = (ROOT / "A00_裁决总则.md").read_text(encoding="utf-8")
     for phrase in (
-        "| A01 | J4 |",
-        "| A02—A10 | J3 |",
-        "最终等级取“03 上限、方法上限、决定性环节上限”中的最低者",
+        "不按方法编号机械封顶",
+        "至少两条实质独立证据链",
+        "最终等级取“03 上限、判断类型通常上限或已通过的升级门槛、决定性环节上限”中的最低者",
     ):
         if phrase not in a00:
             errors.append(f"A00_裁决总则.md 缺少集中等级规则：{phrase}")
-    for forbidden in ("| A02 | J4 / J3 |", "| A03 | J4 / J3 |", "| A04—A10 | J3 |"):
+    for forbidden in ("| A02 | J4 / J3 |", "| A03 | J4 / J3 |", "| A04—A10 | J3 |", "| A02—A10 | J3 |"):
         if forbidden in a00:
             errors.append(f"A00_裁决总则.md 仍含已废弃等级口径：{forbidden}")
 

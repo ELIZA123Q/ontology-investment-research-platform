@@ -70,7 +70,7 @@ updated_at: 2026-07-14
 ```yaml
 framework_layer: mechanism
 output_gate_refs: [IF-APP-01.theoretical_content, IF-APP-01.realized_consumption, IF-APP-01.demand_transmission]
-judgment_types: [mechanism_transmission, causal_attribution, trend_or_phase]
+judgment_types: [mechanism_validation, transmission_path, causal_attribution, trend_direction]
 state_variable_candidates: [terminal_units, configuration_content, penetration, net_content, substitution, efficiency_offset]
 signal_candidates: [sku_adoption, penetration_spread, net_bom_change, component_shipment]
 output_objects: [terminal_to_net_content_bridge, theoretical_content, realized_consumption]

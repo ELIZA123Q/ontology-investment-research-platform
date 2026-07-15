@@ -37,6 +37,14 @@ from status_derivation import (
     reject_legacy_package_admission,
     reject_manual_derived_fields,
 )
+from research_contract import (
+    canonical_sha256,
+    derive_scope_relation,
+    local_method_id,
+    normalize_method_ref,
+    validate_scope_graph,
+    validate_evidence_routes,
+)
 from validate_delivery_readiness import validate_delivery_readiness
 from validator_utils import (
     assert_subset,
@@ -241,8 +249,8 @@ def _validate_upstream_02(prep_meta: dict[str, object], prep_path: Path) -> dict
         downstream_label=str(prep_path),
         default_return_stage="02",
     )
-    if str(view.get("schema_version")) != "2.0.0":
-        fail(f"{view_path} schema_version 必须为 2.0.0")
+    if str(view.get("schema_version")) != "2.1.0":
+        fail(f"{view_path} schema_version 必须为 2.1.0")
     return view
 
 
@@ -361,7 +369,14 @@ def _resolve_strategy_library_ref(raw_ref: str, label: str) -> Path:
     fail(f"{label}.strategy_library_ref 无法解析到知识库_03取证文件: {text}")
 
 
-def _validate_strategy_library_bindings(rows: dict[str, list[dict[str, str]]]) -> None:
+def _validate_strategy_library_bindings(
+    view: dict[str, object],
+    rows: dict[str, list[dict[str, str]]],
+) -> None:
+    try:
+        validate_evidence_routes(view, rows["evidence_recipe_matches.csv"])
+    except ValueError as exc:
+        fail(str(exc))
     methods, judgment_types, roles = _load_strategy_knowledge()
     for row in rows["evidence_recipe_matches.csv"]:
         label = f"evidence_recipe_matches#{row.get('recipe_match_id')}"
@@ -375,18 +390,17 @@ def _validate_strategy_library_bindings(rows: dict[str, list[dict[str, str]]]) -
             fail(f"{label}.judgment_type 未在知识库_03 judgment_types 注册: {raw_type}")
         if match_status in {"not_found", "not_applicable"}:
             continue
-        method_id = str(row.get("library_recipe_id", "")).strip()
-        if not method_id:
-            fail(f"{label}.library_recipe_id 在 match_status={match_status} 时必须填写 A01—A09 方法 ID")
+        try:
+            method_ref = normalize_method_ref(row.get("library_recipe_id"), "kb03", f"{label}.library_recipe_id")
+        except ValueError as exc:
+            fail(str(exc))
+        method_id = local_method_id(method_ref)
         method = methods.get(method_id)
         if not isinstance(method, dict):
-            fail(f"{label}.library_recipe_id 未在知识库_03 methods 注册: {method_id}")
+            fail(f"{label}.library_recipe_id 未在知识库_03 methods 注册: {method_ref}")
         route = judgment_types.get(canonical_type)
         if not isinstance(route, dict):
             fail(f"{label}: 无法读取判断类型 {canonical_type} 的方法路由")
-        expected_method = str(route.get("method", "")).strip()
-        if method_id != expected_method:
-            fail(f"{label}: 规范判断类型 {canonical_type} 应使用 {expected_method}，实际为 {method_id}")
         declared_roles = set(split_refs(row.get("library_basket_ids")))
         if not declared_roles:
             fail(f"{label}.library_basket_ids 必须填写统一证据角色")
@@ -1089,6 +1103,63 @@ def _validate_constraints_v13(
     return constraints
 
 
+def _validate_scope_permissions_v14(
+    view: dict[str, object], rows: dict[str, list[dict[str, str]]]
+) -> None:
+    """计算证据外推上限，并冻结 04 可继承的命题许可合同。"""
+    try:
+        graph = validate_scope_graph(view)
+    except ValueError as exc:
+        fail(str(exc))
+    units = {
+        str(item.get("judgment_unit_id")): item
+        for item in view.get("judgment_units", [])
+        if isinstance(item, dict) and item.get("judgment_unit_id")
+    }
+    for row in rows["evidence_records.csv"]:
+        label = f"evidence_records#{row.get('evidence_id')}"
+        direct_scope = str(row.get("direct_scope_ref", "")).strip()
+        ceiling_scope = str(row.get("maximum_generalization_scope_ref", "")).strip()
+        if direct_scope not in graph or ceiling_scope not in graph:
+            fail(f"{label}.direct_scope_ref/maximum_generalization_scope_ref 必须引用 02.scope_graph")
+        if derive_scope_relation(direct_scope, ceiling_scope, graph) not in {"same", "narrower"}:
+            fail(f"{label}.maximum_generalization_scope_ref 不得窄于或脱离直接证据范围")
+        linked = split_refs(row.get("linked_judgment_unit_ids"))
+        relations = {
+            derive_scope_relation(direct_scope, str(units[ju]["claim_scope_ref"]), graph)
+            for ju in linked if ju in units
+        }
+        derived = next(iter(relations)) if len(relations) == 1 else "overlap"
+        if str(row.get("scope_relation_to_requirement", "")).strip() != derived:
+            fail(f"{label}.scope_relation_to_requirement 应由范围图派生为 {derived}")
+
+    for row in rows["evidence_readiness_assessments.csv"]:
+        label = f"evidence_readiness_assessments#{row.get('assessment_id')}"
+        ju_id = str(row.get("target_judgment_unit_id", "")).strip()
+        unit = units.get(ju_id)
+        if unit is None:
+            fail(f"{label}.target_judgment_unit_id 未在 02 定义")
+        if str(row.get("source_02_claim_hash", "")).strip() != str(unit.get("content_hash", "")):
+            fail(f"{label}.source_02_claim_hash 未继承 {ju_id}.content_hash")
+        permitted = split_refs(row.get("permitted_claim_scope_refs"))
+        if not permitted or any(scope_ref not in graph for scope_ref in permitted):
+            fail(f"{label}.permitted_claim_scope_refs 必须引用 02.scope_graph")
+        ju_scope = str(unit.get("claim_scope_ref", ""))
+        if any(derive_scope_relation(scope_ref, ju_scope, graph) not in {"same", "narrower"} for scope_ref in permitted):
+            fail(f"{label}.permitted_claim_scope_refs 不得超过 02 JU 范围")
+        expected_hash = canonical_sha256({
+            "statement": str(row.get("candidate_04_claim", "")).strip(),
+            "permitted_claim_scope_refs": sorted(permitted),
+        })
+        if str(row.get("candidate_04_claim_hash", "")).strip() != expected_hash:
+            fail(f"{label}.candidate_04_claim_hash 与候选命题及范围许可不一致")
+        if str(row.get("aggregation_eligible", "")).strip().lower() not in {"true", "false"}:
+            fail(f"{label}.aggregation_eligible 必须为 true/false")
+        prohibited = split_refs(row.get("prohibited_generalization_refs"))
+        if any(scope_ref not in graph for scope_ref in prohibited):
+            fail(f"{label}.prohibited_generalization_refs 必须引用 02.scope_graph")
+
+
 def _validate_cross_stage_requirement_trace(
     view: dict[str, object], rows: dict[str, list[dict[str, str]]]
 ) -> None:
@@ -1258,8 +1329,9 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
     _validate_snapshot_refs(snapshot_dir, rows)
     _validate_return_actions(rows)
     constraints = _validate_constraints_v13(view, rows)
+    _validate_scope_permissions_v14(view, rows)
     _validate_cross_stage_requirement_trace(view, rows)
-    _validate_strategy_library_bindings(rows)
+    _validate_strategy_library_bindings(view, rows)
     if stage_status == "complete":
         for name in ["acquisition_log.csv", "semantic_instances.csv"]:
             if not rows[name]:

@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 3.1.0
+schema_version: 3.2.0
 
 metadata:
   task_id: ""
@@ -36,8 +36,15 @@ evidence_context:
 
 judgment_unit_gate_results:
   - judgment_unit_id: JU-01
+    judgment_type: state_measurement
+    source_02_hash: "sha256:<对应 02 judgment_unit.content_hash>"
     statement: ""
     source_03_gate_ref: "evidence_readiness_assessments.csv#ERA-01"
+    scope_ref: "SCOPE-ROOT"
+    source_evidence_refs: []
+    candidate_04_claim_hash: "sha256:<03 候选命题许可哈希>"
+    aggregation_eligible: "false"
+    prohibited_generalization_refs: []
     readiness_assessment_refs: ["ERA-01"]
     evidence_gate_status: "<met | partial | not_met | contested | blocked>"
     evidence_grade: "<Q0 | Q1 | Q2 | Q3 | Q4>"
@@ -66,24 +73,25 @@ overall_judgment:
 
 method_library_usage:
   library_ref: 知识库_04推理/README.md
-  methods_used: [A00, A01]
+  library_version: 1.0.0
+  methods_used: [kb04:A00, kb04:A01]
   claim_bindings:
     - claim_id: C-01
-      method_ids: [A01]
+      method_ids: [kb04:A01]
+      reason: "<为什么该方法与 JU 判断类型匹配>"
 
 judgment_update_register:
-  - update_id: UPDATE-01
+  - update_id: UPD-01
+    stable_claim_key: "<跨运行稳定命题键>"
     claim_id: C-01
-    prior_judgment_level: J0
-    prior_confidence: low
+    prior_claim_hash: null
+    current_claim_hash: "sha256:<当前 Claim 哈希>"
     evidence_changes: []
-    affected_structure: []
-    current_judgment_level: J0
-    current_confidence: low
-    update_action: "<maintain | enhance | weaken | block | revise>"
+    direct_impact_scope_refs: ["SCOPE-ROOT"]
+    update_action: "<new | maintain | enhance | weaken | block | revise | retire>"
+    parent_reaggregated: false
+    parent_claim_refs: []
     update_reason: ""
-    next_upgrade_signals: []
-    next_downgrade_or_block_signals: []
 
 investment_thesis_verdict:
   applicable: false
@@ -112,8 +120,17 @@ investment_thesis_verdict:
   invalidation_conditions: []
   handoff_to_05: "<investment_spine_allowed | conditional_expression_only | tracking_only | prohibited | not_applicable>"
 
+aggregation_results: []
+
 claim_register:
   - claim_id: C-01
+    stable_claim_key: "<跨运行稳定命题键>"
+    scope_ref: "SCOPE-ROOT"
+    source_gate_refs: ["evidence_readiness_assessments.csv#ERA-01"]
+    source_evidence_refs: []
+    aggregation_result_ref: null
+    required_caveat_refs: []
+    aggregation_state_code: "<可比较的子项状态代码>"
     report_section: "1"
     reader_label: "暂不可判断"
     statement: ""
@@ -196,19 +213,27 @@ handoff_to_05:
       permitted_role: "<core_thesis | supporting_thesis>"
       judgment_level: "<J0 | J1 | J2 | J3 | J4>"
       scope: ""
+      scope_ref: "SCOPE-ROOT"
       conditions: []
       confidence: "<high | medium | low>"
       required_caveats: []
+      required_caveat_refs: []
   restricted_claims:
     - claim_id: "C-01"
       permitted_role: "<supporting_thesis | risk | observation | scenario_condition>"
       required_conditions: []
       required_scope: ""
+      scope_ref: "SCOPE-ROOT"
+      required_caveat_refs: []
       reason: ""
   prohibited_claims:
     - claim_id_or_topic: ""
+      topic_code: "PROH-01"
+      match_terms: []
       reason: ""
-  required_caveats: []
+  required_caveats:
+    - caveat_ref: "CAV-01"
+      text: "<短语义标签；必须在 05 呈现含义，禁止写入审计成稿句或标题句>"
   decision_gates:
     - gate_id: "RC-01"
       signal: ""
@@ -217,6 +242,7 @@ handoff_to_05:
   expression_rules:
     must_preserve: ["判断方向", "判断等级", "范围", "条件", "状态"]
     must_avoid: []
+    must_avoid_rules: []
   confidence_ceiling: "<high | medium | low>"
 
 ontology_context:

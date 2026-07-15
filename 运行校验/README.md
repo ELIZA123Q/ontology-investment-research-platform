@@ -12,12 +12,14 @@
 | 02 | 02-主题研究逻辑-日期-序号.md | 02-主题本体视图-日期-序号.yaml | 研究逻辑 + 本次任务跨三域所需的本体范围 |
 | 03 | 03-主题数据与证据准备-日期-序号.md | 03-主题语义域与证据域实例清单-日期-序号.yaml + 快照目录 | 语义实例、证据实例、固定推理输入，以及各核心判断的证据是否够用 |
 | 04 | 04-主题判断简报-日期-序号.md | 04-主题推理审计-日期-序号.yaml | 2—4 页判断定稿 + 完整推理留痕 + 是否允许进入 05 表达 |
-| 05 | 05-主题报告类型-日期-序号.md | 05-主题表达审计-日期-序号.yaml | 最终研究稿 + 表达不漂移审计 |
+| 05 | 05-主题报告类型-日期-序号.md | 05-主题表达审计-日期-序号.yaml + 05-主题独立语义审查-日期-序号.yaml | 最终研究稿 + 确定性表达审计 + 独立语义校验 |
 | 事后复盘（非新增核心阶段） | 无固定正文 | 研究复盘记录，按 `04_推理/模板/研究复盘记录模板.yaml` | 对原判断追加兑现结果、错误归因和学习建议，不覆盖原留痕 |
 
-01 新运行使用 `judgment_task / 1.4.0`：以「足以让 02 不擅自改问题、扩边界、补核心假设」为完整性总判据；必填比较范围、时间三件套（回看/当前/前瞻）与交付深度（结论粒度/最低交付要求）；正文前提须三分（已知事实/用户假设/待验证假设）。`stage_status` 只表示本阶段是否做完，`task_disposition` 单独记录受理处置（`accepted` / `needs_clarification` / `out_of_scope` / `split_required`）。输入足够时直接提取并展示系统理解，只有结构性歧义才追问。校验器仍兼容历史 `1.1.0` / `1.2.0` / `1.3.0` 输出；正式通过须同时满足 `stage_status=complete` 与 `task_disposition=accepted`。
+01 新运行使用 `judgment_task / 1.5.0`：除比较范围、时间三件套和交付深度外，必须提供 `task_scope_contract`。02 使用逻辑 `1.2.0` / 视图 `2.1.0`，冻结 `scope_graph`、稳定命题键和父子聚合合同；03 使用 `1.4.0` 冻结证据直接范围、外推上限和 04 命题许可；04 审计使用 `3.2.0`；05 表达审计使用 `2.6.0`。
 
-02 本体视图须同时包含 semantic_scope、evidence_contract 和 reasoning_plan。02 只引用正式本体，不复制或改写正式定义。03、04 只产生本次任务记录；新能力只能进入候选与缺口文件，不能由单次任务直接写回正式本体。
+发布采用双层校验：确定性链通过但独立语义审查缺失时为 `STAGE_READY`；确定性失败或语义审查 `fail/needs_human` 时为 `RETURN_REQUIRED`；两层均通过且输入哈希有效时才为 `PUBLISHABLE`。增量运行必须在 `run_manifest / 1.1.0` 中绑定真实父清单路径与哈希，并逐稳定 Claim 填写更新登记。
+
+跨阶段公共字段、枚举、判断类型和状态以 [`public_contract.yaml`](../00_全局/contracts/public_contract.yaml) 为准，判断类型到 03/04 方法的默认与允许路由以 [`judgment_method_routes.yaml`](../00_全局/contracts/judgment_method_routes.yaml) 为准。02 本体视图须同时包含 semantic_scope、evidence_contract 和 reasoning_plan，并为每个 JU 生成 `content_hash`。03、04 必须继承该 JU 的类型和哈希，发现错误只能返回 02。
 
 复盘沿用一级推理本体的 ValidationRecord。04 先写 review_plan，复盘到期后再按模板追加原 Claim、预期信号、实际信号、结果、error_type 与 learning_targets；复盘不是第六个核心规范，也不回写历史判断。
 
@@ -87,12 +89,14 @@ python3 03_数据与证据/validate_delivery_readiness.py <03快照目录>
 python3 03_数据与证据/freeze_source_captures.py <03快照目录>
 python3 04_推理/validate_04_outputs.py <04判断简报.md> <04推理审计.yaml> <03快照目录>
 python3 05_表达交付/validate_05_outputs.py <05研报.md> <报告类型中文名> <05表达审计.yaml> <04推理审计.yaml>
-python3 运行校验/validate_publish.py <运行目录>
+python3 运行校验/validate_run.py <运行目录>
 ~~~
 
 报告类型中文名为：事件点评、行业动态点评、行业周期判断、公司业绩点评或主题深度研究。
 
-全链（从需求到研报的完整流程）跑到 05 时，各阶段须达到 `high_quality_pass`（本阶段规则校验通过）。没有“降低质量也能发布”的开关；通过时返回 `PUBLISHABLE`（可正式交付），否则返回 `RETURN_REQUIRED` 和分阶段返工清单。
+新 run 首次建立阶段哈希基线时执行 `python3 运行校验/validate_run.py <运行目录> --initialize`。之后常规校验不得覆盖基线；任一上游变化会把当前及下游阶段标记为 `stale`，合同、本体或关键知识库版本变化标记为 `revalidation_required`。
+
+总校验分别输出 `quality_pass`、`publishable`、`judgment_level` 和 `directional_conclusion_available`。J0/J1 的高质量缺口或观察报告可以发布；发布不要求必须形成强方向结论。
 
 项目级正式验收统一在根目录执行：
 
@@ -104,6 +108,6 @@ python3 validate_project.py
 
 ## 6. 校验边界
 
-校验器负责文件命名、字段与枚举、跨文件引用、来源独立性、反证、判断强度、04 不超过 03、05 不超过 04、范围与条件不丢失、关键观点登记和返工去向；并检查阶段产物与知识库绑定：02 `judgment_type` 必须为八类规范名，03 的兼容字段 `library_recipe_id`/`library_basket_ids` 必须分别填写 A 方法 ID 与六类证据角色，04 `method_library_usage` 必须声明所用 A 方法卡。
+校验器负责文件命名、字段与枚举、跨文件引用、来源独立性、反证、判断强度、04 不超过 03、05 不超过 04、范围与条件不丢失、关键观点登记和返工去向；并检查阶段产物与知识库绑定：02 `judgment_type` 必须为公共合同原子类型，03 使用 `kb03:` 方法引用，04 使用 `kb04:` 方法引用并记录理由，05 允许转述和综合但不得新增研究主张。
 
 校验器不能代替研究员判断资料是否真实充分、比较口径是否合理、推理是否有经济含义、标题是否真正有增量。正式发布以各阶段规则校验与 00A 发布条件为准；内容质量由执行者自行把关，不作为仓库内强制产物。

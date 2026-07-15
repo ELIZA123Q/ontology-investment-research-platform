@@ -79,7 +79,7 @@ updated_at: 2026-07-14
 ```yaml
 framework_layer: company_realization
 output_gate_refs: [IF-DES-01.commercialization_stage, IF-DES-01.commercial_quality, IF-DES-01.realization_readiness]
-judgment_types: [state_measurement, mechanism_transmission, object_comparison]
+judgment_types: [state_measurement, mechanism_validation, transmission_path, object_differentiation]
 state_variable_candidates: [commercialization_route, development_stage, design_win_or_license, mass_production_or_active_use, repeat_order_or_renewal, royalty_base, seat_penetration, ecosystem_readiness]
 signal_candidates: [tapeout, customer_test, design_win, license, shipment, renewal, repeat_order]
 output_objects: [commercialization_stage, commercial_quality, realization_readiness, route_specific_gate]

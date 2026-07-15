@@ -67,7 +67,7 @@ Fab需求 → 招标订单 → 交付安装 → 量产线验证 → 验收
 ```yaml
 framework_layer: company_realization
 output_gate_refs: [IF-EQP-01.tool_demand, IF-EQP-01.validation_stage, IF-EQP-01.order_to_acceptance_readiness]
-judgment_types: [state_measurement, mechanism_transmission, object_comparison]
+judgment_types: [state_measurement, mechanism_validation, transmission_path, object_differentiation]
 state_variable_candidates: [fab_project, tool_intensity, validation_stage, process_position, acceptance, repeat_order, cross_line_replication]
 signal_candidates: [tender, move_in, line_validation, critical_layer_adoption, acceptance, repeat_order]
 output_objects: [tool_demand_bridge, process_position_gate, order_to_acceptance_bridge]

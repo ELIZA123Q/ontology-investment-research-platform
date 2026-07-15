@@ -1,0 +1,30 @@
+document_type: research_value_eval_case
+schema_version: 2.0.0
+case_id: RV-T07
+title: DRAM涨价与库存回升冲突下的景气判断
+split: calibration_pilot
+stratum: restraint
+task_input:
+  question: 以2025年上半年公开信息为限，全球非HBM DRAM是否已经进入可持续的景气改善阶段？
+  object: 全球非HBM DRAM
+  scope: 综合价格、采购、库存和政策抢运信息判断阶段；不做个股建议。
+  information_cutoff: '2025-06-30'
+  terminal_artifact_type: judgment_brief
+system_artifact:
+  stage: '04'
+  path: 评测集/runtime/cases/RV-T07/system_artifact.md
+  allowed_terminal_status: 争议
+reasoning_materials:
+  - 评测集/runtime/cases/RV-T07/system_artifact.md
+evidence_pack_ref: evidence.yaml
+adjudication_ref: sealed/adjudication.yaml
+perturbation_ref: perturbations.yaml
+experiment:
+  axes: [R, U, delta, S, C]
+  contexts: [A, B, C, D, E]
+  downstream_tasks: [core_restatement, tracking_plan, information_update, research_questions]
+  target_length_policy: system_artifact_plus_or_minus_15_percent
+isolation:
+  producer_visible: [task_input, evidence.yaml]
+  producer_forbidden: [system_artifact, reasoning_materials, sealed/adjudication.yaml, ../../calibration/defects.yaml]
+  adjudication_open_after_artifact_freeze: true

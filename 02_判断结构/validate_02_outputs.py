@@ -14,7 +14,6 @@ ensure_run_path()
 
 from quality_gate_utils import (  # noqa: E402
     EVIDENCE_ROLES,
-    J4_ELIGIBLE_CLAIM_TYPES,
     JUDGMENT_LEVELS,
     SOURCE_AUTHORITY_LEVELS,
     TARGET_CLAIM_TYPES,
@@ -48,6 +47,7 @@ from validator_utils import (
     split_refs,
 )
 from status_derivation import reject_manual_derived_fields
+from research_contract import public_contract, validate_judgment_units
 
 
 REQUIRED_LOGIC_META = [
@@ -89,6 +89,8 @@ REQUIRED_VIEW_TOP = [
     "semantic_scope",
     "evidence_contract",
     "reasoning_plan",
+    "scope_graph",
+    "aggregation_contracts",
     "judgment_units",
     "path_design",
     "ontology_bindings",
@@ -98,30 +100,11 @@ REQUIRED_VIEW_TOP = [
     "validation",
 ]
 
-LOGIC_SCHEMA_VERSION_02 = "1.1.0"
-VIEW_SCHEMA_VERSION_02 = "2.0.0"
+LOGIC_SCHEMA_VERSION_02 = "1.2.0"
+VIEW_SCHEMA_VERSION_02 = "2.1.0"
 ONTOLOGY_GAP_SCAN_STATUSES = {"no_gap", "minor_gap", "major_gap", "blocking_gap"}
-CANONICAL_JUDGMENT_TYPES = {
-    "state_measurement",
-    "trend_or_phase",
-    "cycle_phase",
-    "causal_attribution",
-    "mechanism_transmission",
-    "object_comparison",
-    "valuation_expectation",
-    "risk_reassessment",
-}
-DEPRECATED_JUDGMENT_TYPE_ALIASES = {
-    "industry_cycle_judgment": "cycle_phase",
-    "policy_impact_judgment": "mechanism_transmission",
-    "supply_chain_bottleneck_judgment": "mechanism_transmission",
-    "company_earnings_elasticity_judgment": "earnings_impact",
-    "valuation_rerating_judgment": "valuation_expectation",
-    "event_impact_judgment": "mechanism_transmission",
-    "expectation_gap_judgment": "valuation_expectation",
-    "risk_monitoring_judgment": "risk_reassessment",
-}
-JUDGMENT_TYPES = CANONICAL_JUDGMENT_TYPES | set(DEPRECATED_JUDGMENT_TYPE_ALIASES)
+CANONICAL_JUDGMENT_TYPES = set(public_contract()["judgment_types"])
+JUDGMENT_TYPES = CANONICAL_JUDGMENT_TYPES
 EVIDENCE_ROLE_KEYS = EVIDENCE_ROLES
 EVIDENCE_ROLE_STATUSES = {"required", "optional", "allowed_with_limit", "not_allowed", "not_applicable"}
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
@@ -520,6 +503,10 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     judgment_units = view["judgment_units"]
     if not isinstance(judgment_units, list) or not judgment_units:
         fail("judgment_units 至少需要一项")
+    try:
+        validate_judgment_units(view)
+    except ValueError as exc:
+        fail(str(exc))
     require_keys(research_framework, ["judgment_spine", "minimum_question_tree", "alignment_checks"], "research_framework")
     _validate_framework_execution(research_framework)
     spine = require_mapping(research_framework["judgment_spine"], "research_framework.judgment_spine")
@@ -545,6 +532,10 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             unit,
             [
                 "judgment_unit_id",
+                "content_hash",
+                "stable_claim_key",
+                "claim_scope_ref",
+                "aggregation_role",
                 "research_question_ref",
                 "candidate_claim",
                 "statement",
@@ -582,17 +573,9 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             CRITICAL_FAILURE_EFFECTS,
             f"{unit['judgment_unit_id']}.critical_failure_effect",
         )
-        if "judgment_type" in unit and str(unit["judgment_type"]) not in JUDGMENT_TYPES:
-            fail(f"{unit['judgment_unit_id']}.judgment_type 非法")
-        if str(unit["judgment_type"]) in DEPRECATED_JUDGMENT_TYPE_ALIASES:
-            canonical = DEPRECATED_JUDGMENT_TYPE_ALIASES[str(unit["judgment_type"])]
-            fail(
-                f"{unit['judgment_unit_id']}.judgment_type 已废弃别名 "
-                f"{unit['judgment_type']}，应改用规范类型 {canonical}"
-            )
         if str(unit["judgment_type"]) not in CANONICAL_JUDGMENT_TYPES:
             fail(
-                f"{unit['judgment_unit_id']}.judgment_type 必须是 02 八类规范类型之一: "
+                f"{unit['judgment_unit_id']}.judgment_type 必须是公共合同规范类型之一: "
                 + ", ".join(sorted(CANONICAL_JUDGMENT_TYPES))
             )
         if "decision_relevance" in unit:
@@ -635,8 +618,12 @@ def _validate_view(view_path: Path) -> dict[str, object]:
             except (TypeError, ValueError):
                 fail(f"{unit['judgment_unit_id']}.level_requirements.{level}.minimum_independent_source_groups 必须为整数")
             assert_subset(split_refs(requirement["required_evidence_basket_refs"]), basket_ids, f"{unit['judgment_unit_id']}.level_requirements.{level}.required_evidence_basket_refs")
-        if target_claim_type not in J4_ELIGIBLE_CLAIM_TYPES and level_requirements["J4"]["applicable"] is not False:
-            fail(f"{unit['judgment_unit_id']}: {target_claim_type} 的 J4 必须标记 applicable=false")
+        j4_requirement = level_requirements["J4"]
+        if j4_requirement["applicable"] is True:
+            if int(j4_requirement["minimum_independent_source_groups"]) < 2:
+                fail(f"{unit['judgment_unit_id']}.level_requirements.J4 至少需要两组实质独立来源")
+            if not split_refs(j4_requirement["required_conditions"]):
+                fail(f"{unit['judgment_unit_id']}.level_requirements.J4 必须声明升级条件")
         require_non_empty(unit["stop_condition"], f"{unit['judgment_unit_id']}.stop_condition")
 
     critical_units = [unit for unit in judgment_units if unit.get("priority_tier") == "critical"]

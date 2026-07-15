@@ -75,9 +75,10 @@ SHARED_REQUIRED_META = [
     "needs_split",
 ]
 
-CURRENT_SCHEMA_VERSION = "1.4.0"
-LEGACY_SCHEMA_VERSIONS = {"1.1.0", "1.2.0", "1.3.0"}
+CURRENT_SCHEMA_VERSION = "1.5.0"
+LEGACY_SCHEMA_VERSIONS = {"1.1.0", "1.2.0", "1.3.0", "1.4.0"}
 SUPPORTED_SCHEMA_VERSIONS = LEGACY_SCHEMA_VERSIONS | {CURRENT_SCHEMA_VERSION}
+MODERN_SCHEMA_VERSIONS = {"1.4.0", CURRENT_SCHEMA_VERSION}
 INPUT_RESOLUTION_MODES = {"direct_extract", "inherited_context", "user_clarified"}
 REQUIRED_CONFIRMATION_TOPICS = {
     "core_object",
@@ -185,11 +186,11 @@ def _validate_main_judgment_axis(axis: object, *, schema_version: str) -> None:
         "expected_05_landing",
         "non_core_axes",
     ]
-    if schema_version == CURRENT_SCHEMA_VERSION:
+    if schema_version in MODERN_SCHEMA_VERSIONS:
         required_keys.insert(1, "comparison_scope")
     require_keys(axis, required_keys, "main_judgment_axis")
     _reject_vague_axis_value(axis["object"], "main_judgment_axis.object")
-    if schema_version == CURRENT_SCHEMA_VERSION:
+    if schema_version in MODERN_SCHEMA_VERSIONS:
         comparison = require_string(axis["comparison_scope"], "main_judgment_axis.comparison_scope", min_length=2)
         if re.sub(r"\s+", "", comparison) in {"待定", "TBD", "N/A", "无"}:
             fail("main_judgment_axis.comparison_scope 须写清比较对象，或显式写「无比较」")
@@ -223,6 +224,40 @@ def _validate_delivery_depth(value: object) -> None:
     require_keys(depth, ["conclusion_granularity", "minimum_delivery"], "delivery_depth")
     for field in ["conclusion_granularity", "minimum_delivery"]:
         require_string(depth[field], f"delivery_depth.{field}", min_length=4)
+
+
+def _validate_task_scope_contract(value: object) -> None:
+    contract = require_mapping(value, "task_scope_contract")
+    require_keys(
+        contract,
+        [
+            "root_scope_ref",
+            "required_split_scope_refs",
+            "comparison_policy",
+            "prohibited_aggregation_outcomes",
+        ],
+        "task_scope_contract",
+    )
+    require_string(contract["root_scope_ref"], "task_scope_contract.root_scope_ref")
+    splits = require_list(contract["required_split_scope_refs"], "task_scope_contract.required_split_scope_refs")
+    for index, item in enumerate(splits, 1):
+        require_string(item, f"task_scope_contract.required_split_scope_refs[{index}]")
+    require_allowed(
+        contract["comparison_policy"],
+        {"allow_unified_if_supported", "differentiated_allowed", "differentiated_required"},
+        "task_scope_contract.comparison_policy",
+    )
+    prohibited = require_list(
+        contract["prohibited_aggregation_outcomes"],
+        "task_scope_contract.prohibited_aggregation_outcomes",
+        allow_empty=True,
+    )
+    for index, item in enumerate(prohibited, 1):
+        require_allowed(
+            item,
+            {"synchronized", "dominant", "differentiated", "insufficient"},
+            f"task_scope_contract.prohibited_aggregation_outcomes[{index}]",
+        )
 
 
 def _validate_overscope_check(value: object, *, ready_status: str, needs_split: object) -> None:
@@ -501,10 +536,13 @@ def validate(path: str | Path) -> dict[str, object]:
     if "trading_recommendation" not in meta["not_allowed_use"]:
         fail("not_allowed_use 必须包含 trading_recommendation")
     _validate_main_judgment_axis(meta["main_judgment_axis"], schema_version=schema_version)
-    if schema_version == CURRENT_SCHEMA_VERSION:
+    if schema_version in MODERN_SCHEMA_VERSIONS:
         require_keys(meta, ["time_scope", "delivery_depth"], str(path))
         _validate_time_scope(meta["time_scope"])
         _validate_delivery_depth(meta["delivery_depth"])
+    if schema_version == CURRENT_SCHEMA_VERSION:
+        require_keys(meta, ["task_scope_contract"], str(path))
+        _validate_task_scope_contract(meta["task_scope_contract"])
     _validate_research_value_gate(meta["research_value_gate"], ready_status=str(meta["stage_status"]))
     _validate_overscope_check(meta["overscope_check"], ready_status=str(meta["stage_status"]), needs_split=meta["needs_split"])
     require_no_placeholders(meta, str(path) + " front matter")
@@ -513,14 +551,14 @@ def validate(path: str | Path) -> dict[str, object]:
     required_sections.extend(SHARED_ADDITIONAL_SECTIONS)
     required_sections.append(LEGACY_INPUT_SECTION if schema_version == "1.1.0" else CURRENT_INPUT_SECTION)
     required_sections.append(
-        CURRENT_PREMISE_SECTION if schema_version == CURRENT_SCHEMA_VERSION else LEGACY_PREMISE_SECTION
+        CURRENT_PREMISE_SECTION if schema_version in MODERN_SCHEMA_VERSIONS else LEGACY_PREMISE_SECTION
     )
     require_body_sections(body, required_sections, str(path))
     require_no_placeholders(body, str(path) + " body")
     required_phrases = ["支持、削弱、反证与竞争解释", "质量结论"]
     required_phrases.extend(["核心研究主线", "范围过宽检查"])
     required_phrases.append("研究价值检查")
-    if schema_version == CURRENT_SCHEMA_VERSION:
+    if schema_version in MODERN_SCHEMA_VERSIONS:
         required_phrases.extend(["已知事实", "用户假设", "待验证假设", "结论粒度", "最低交付要求"])
     for required_phrase in required_phrases:
         if required_phrase not in body:

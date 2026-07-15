@@ -1,4 +1,4 @@
-source_document_id,source_id,title,source_type,location,access_scope,source_reliability,publisher,published_at,publisher_instance_ref,status,created_at,notes
+﻿source_document_id,source_id,title,source_type,location,access_scope,source_reliability,publisher,published_at,publisher_instance_ref,status,created_at,notes
 SRC-BIS-2022,SRC-BIS-2022,BIS 2022对华先进计算与设备规则,policy,https://www.bis.gov/node/20292,public,high,BIS,2022-10-07,,active,2026-07-10T18:41:00+08:00,初始控制
 SRC-BIS-2023,SRC-BIS-2023,BIS 2023设备控制更新,policy,https://www.bis.gov/press-release/commerce-strengthens-restrictions-advanced-computing-semiconductors-semiconductor-manufacturing-equipment,public,high,BIS,2023-10-17,,active,2026-07-10T18:41:00+08:00,规则更新
 SRC-BIS-2024,SRC-BIS-2024,BIS 2024先进半导体制造控制升级,policy,https://www.bis.gov/press-release/commerce-strengthens-export-controls-restrict-chinas-capability-produce-advanced-semiconductors-military,public,high,BIS,2024-12-02,,active,2026-07-10T18:41:00+08:00,规则升级

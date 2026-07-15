@@ -14,7 +14,7 @@ REPO_ROOT = ROOT.parent
 
 def main() -> int:
     completed = subprocess.run(
-        [sys.executable, str(ROOT / "v2" / "eval_cli.py"), "validate"],
+        [sys.executable, str(ROOT / "runtime" / "eval_cli.py"), "validate"],
         cwd=REPO_ROOT,
         text=True,
         stdout=subprocess.PIPE,
@@ -24,7 +24,7 @@ def main() -> int:
     print(completed.stdout.strip())
     if completed.returncode:
         return completed.returncode
-    print("EVAL_SET_PASS: R/U/delta核心结果、S/C护栏、四题试点与模型协议全部有效。")
+    print("EVAL_SET_PASS: 评测契约、同证据基线、裁决支持频率与四题试点全部有效。")
     return 0
 
 

@@ -16,6 +16,7 @@ ensure_run_path()
 
 from quality_gate_utils import (  # noqa: E402
     JUDGMENT_LEVELS,
+    assert_caveat_is_semantic_label,
     judgment_level_rank,
     validate_gate_review_fields,
     validate_quality_status,
@@ -47,6 +48,15 @@ from validator_utils import (  # noqa: E402
     require_trace_id,
     same_ref,
     split_refs,
+)
+from research_contract import (
+    derive_aggregation_outcome,
+    derive_scope_relation,
+    local_method_id,
+    normalize_method_ref,
+    validate_aggregation_contracts,
+    validate_reasoning_routes,
+    validate_scope_graph,
 )
 
 
@@ -130,9 +140,11 @@ REQUIRED_AUDIT_TOP = [
     "input_integrity",
     "evidence_context",
     "judgment_unit_gate_results",
+    "aggregation_results",
     "overall_judgment",
     "investment_thesis_verdict",
     "claim_register",
+    "judgment_update_register",
     "uncertainty_register",
     "change_gate_register",
     "tracking_register",
@@ -147,7 +159,7 @@ REQUIRED_AUDIT_TOP = [
     "compliance_check",
 ]
 
-AUDIT_SCHEMA_VERSION = "3.1.0"
+AUDIT_SCHEMA_VERSION = "3.2.0"
 METHOD_LIBRARY_ROOT = _ROOT / "知识库_04推理"
 METHOD_ID_RE = re.compile(r"^A\d{2}$")
 INVESTMENT_INTERPRETATIONS = {
@@ -271,7 +283,7 @@ def _validate_method_library_usage(audit: dict[str, object]) -> None:
     usage = audit.get("method_library_usage")
     if not isinstance(usage, dict):
         fail("method_library_usage 必须是对象")
-    require_keys(usage, ["library_ref", "methods_used", "claim_bindings"], "method_library_usage")
+    require_keys(usage, ["library_ref", "library_version", "methods_used", "claim_bindings"], "method_library_usage")
     library_ref = str(usage.get("library_ref", "")).strip()
     if not library_ref:
         fail("method_library_usage.library_ref 不得为空")
@@ -293,7 +305,11 @@ def _validate_method_library_usage(audit: dict[str, object]) -> None:
         fail("method_library_usage.methods_used 必须是列表或分隔字符串")
     if not methods_used:
         fail("method_library_usage.methods_used 至少需要一项")
-    unknown = [item for item in methods_used if item not in catalog]
+    try:
+        methods_used = [normalize_method_ref(item, "kb04", "method_library_usage.methods_used") for item in methods_used]
+    except ValueError as exc:
+        fail(str(exc))
+    unknown = [item for item in methods_used if local_method_id(item) not in catalog]
     if unknown:
         fail("method_library_usage.methods_used 未在知识库_04推理注册: " + ", ".join(unknown))
     methods_set = set(methods_used)
@@ -310,7 +326,7 @@ def _validate_method_library_usage(audit: dict[str, object]) -> None:
     for index, item in enumerate(bindings, 1):
         if not isinstance(item, dict):
             fail(f"method_library_usage.claim_bindings[{index}] 必须是对象")
-        require_keys(item, ["claim_id", "method_ids"], f"method_library_usage.claim_bindings[{index}]")
+        require_keys(item, ["claim_id", "method_ids", "reason"], f"method_library_usage.claim_bindings[{index}]")
         claim_id = str(item["claim_id"]).strip()
         if claim_id not in claim_ids:
             fail(f"method_library_usage.claim_bindings[{index}].claim_id 未在 claim_register 中: {claim_id}")
@@ -326,6 +342,15 @@ def _validate_method_library_usage(audit: dict[str, object]) -> None:
             fail(f"method_library_usage.claim_bindings[{index}].method_ids 必须是列表或分隔字符串")
         if not method_ids:
             fail(f"method_library_usage.claim_bindings[{index}].method_ids 不得为空")
+        try:
+            method_ids = [
+                normalize_method_ref(value, "kb04", f"method_library_usage.claim_bindings[{index}].method_ids")
+                for value in method_ids
+            ]
+        except ValueError as exc:
+            fail(str(exc))
+        if not str(item.get("reason", "")).strip():
+            fail(f"method_library_usage.claim_bindings[{index}].reason 不得为空")
         extra = [mid for mid in method_ids if mid not in methods_set]
         if extra:
             fail(
@@ -368,6 +393,13 @@ def _validate_claims(audit: dict[str, object], constraints_by_id: dict[str, obje
             claim,
             [
                 "claim_id",
+                "stable_claim_key",
+                "scope_ref",
+                "source_gate_refs",
+                "source_evidence_refs",
+                "aggregation_result_ref",
+                "required_caveat_refs",
+                "aggregation_state_code",
                 "report_section",
                 "reader_label",
                 "statement",
@@ -547,33 +579,26 @@ def _validate_claims(audit: dict[str, object], constraints_by_id: dict[str, obje
             assert_subset(split_refs(row.get(ref_field)), claim_ids, f"{register}.{ref_field}")
 
     updates = audit.get("judgment_update_register")
-    if updates is not None:
-        if not isinstance(updates, list) or not updates:
-            fail("judgment_update_register 存在时至少需要一项")
+    if not isinstance(updates, list):
+        fail("judgment_update_register 必须是列表；是否允许为空由运行清单的 parent_run 决定")
+    if updates:
         claim_by_id = {str(item["claim_id"]): item for item in claims}
         for index, item in enumerate(updates, 1):
             require_keys(
                 item,
                 [
-                    "update_id", "claim_id", "prior_judgment_level", "prior_confidence",
-                    "evidence_changes", "affected_structure", "current_judgment_level",
-                    "current_confidence", "update_action", "update_reason",
-                    "next_upgrade_signals",
-                    "next_downgrade_or_block_signals",
+                    "update_id", "stable_claim_key", "claim_id", "prior_claim_hash",
+                    "current_claim_hash", "evidence_changes", "direct_impact_scope_refs",
+                    "update_action", "parent_reaggregated", "parent_claim_refs", "update_reason",
                 ],
                 f"judgment_update_register[{index}]",
             )
             claim_id = str(item["claim_id"])
             assert_subset([claim_id], claim_ids, f"judgment_update_register[{index}].claim_id")
-            for field in ["prior_judgment_level", "current_judgment_level"]:
-                if str(item[field]) not in JUDGMENT_LEVELS:
-                    fail(f"judgment_update_register[{index}].{field} 非法")
-            if item["update_action"] not in {"maintain", "enhance", "weaken", "block", "revise"}:
+            if item["update_action"] not in {"new", "maintain", "enhance", "weaken", "block", "revise", "retire"}:
                 fail(f"judgment_update_register[{index}].update_action 非法")
             if not str(item["update_reason"]).strip():
                 fail(f"judgment_update_register[{index}].update_reason 不得为空")
-            if str(item["current_judgment_level"]) != str(claim_by_id[claim_id]["judgment_level"]):
-                fail(f"judgment_update_register[{index}] 当前等级必须与 {claim_id} 一致")
 
     verdict = audit.get("investment_thesis_verdict")
     if verdict is not None:
@@ -597,8 +622,17 @@ def _validate_claims(audit: dict[str, object], constraints_by_id: dict[str, obje
             fail("investment_thesis_verdict.verdict 非法")
         if str(verdict["judgment_level"]) not in JUDGMENT_LEVELS:
             fail("investment_thesis_verdict.judgment_level 非法")
-        if judgment_level_rank(str(verdict["judgment_level"])) > judgment_level_rank("J3"):
-            fail("A10 投资命题裁决不得达到 J4")
+        if str(verdict["judgment_level"]) == "J4":
+            source_levels = [
+                str(claim_by_id[ref]["judgment_level"])
+                for ref in split_refs(verdict["source_claim_refs"])
+                if ref in claim_by_id
+            ]
+            if not source_levels or any(level != "J4" for level in source_levels):
+                fail("投资命题达到 J4 时，全部来源主张必须先达到 J4")
+            review = verdict.get("j4_upgrade_review")
+            if not isinstance(review, dict) or review.get("semantic_review_passed") is not True:
+                fail("投资命题达到 J4 时必须提供通过的 j4_upgrade_review")
         if verdict["priced_in_assessment"] not in {"unpriced", "partially_priced", "priced", "unknown", "not_applicable"}:
             fail("investment_thesis_verdict.priced_in_assessment 非法")
         if verdict["handoff_to_05"] not in {"investment_spine_allowed", "conditional_expression_only", "tracking_only", "prohibited", "not_applicable"}:
@@ -708,6 +742,214 @@ def _id_set(items: object, field: str, label: str) -> set[str]:
     return output
 
 
+def _ref_tail(value: object) -> str:
+    return str(value or "").rsplit("#", 1)[-1].strip()
+
+
+def _validate_scope_aggregation_and_permissions(
+    audit: dict[str, object],
+    view: dict[str, object],
+    snapshot_dir: Path,
+) -> None:
+    """不用自证布尔值，直接重算 03→04 的范围、证据和父子聚合许可。"""
+    try:
+        graph = validate_scope_graph(view)
+        units = validate_reasoning_units = {
+            str(item["judgment_unit_id"]): item
+            for item in view.get("judgment_units", [])
+            if isinstance(item, dict) and item.get("judgment_unit_id")
+        }
+        contracts = validate_aggregation_contracts(view, validate_reasoning_units)
+    except ValueError as exc:
+        fail(str(exc))
+    root_scope_ref = str(view["scope_graph"].get("root_scope_ref", ""))
+    assessments = {
+        str(row.get("assessment_id", "")).strip(): row
+        for row in read_csv(snapshot_csv_path(snapshot_dir, "evidence_readiness_assessments.csv"))
+        if str(row.get("assessment_id", "")).strip()
+    }
+    evidence_ids = {
+        str(row.get("evidence_id", "")).strip()
+        for row in read_csv(snapshot_csv_path(snapshot_dir, "evidence_records.csv"))
+        if str(row.get("evidence_id", "")).strip()
+    }
+    gate_by_ju: dict[str, dict[str, object]] = {}
+    for index, gate in enumerate(audit.get("judgment_unit_gate_results", []), 1):
+        if not isinstance(gate, dict):
+            fail(f"judgment_unit_gate_results[{index}] 必须是对象")
+        require_keys(
+            gate,
+            [
+                "judgment_unit_id", "source_03_gate_ref", "statement", "scope_ref",
+                "source_evidence_refs", "candidate_04_claim_hash",
+                "aggregation_eligible", "prohibited_generalization_refs",
+            ],
+            f"judgment_unit_gate_results[{index}]",
+        )
+        ju_id = str(gate["judgment_unit_id"])
+        assessment = assessments.get(_ref_tail(gate["source_03_gate_ref"]))
+        if assessment is None:
+            fail(f"04 {ju_id}.source_03_gate_ref 无法解析到真实 03 行")
+        exact_fields = {
+            "statement": "candidate_04_claim",
+            "candidate_04_claim_hash": "candidate_04_claim_hash",
+            "aggregation_eligible": "aggregation_eligible",
+        }
+        for gate_field, source_field in exact_fields.items():
+            if str(gate.get(gate_field, "")).strip().lower() != str(assessment.get(source_field, "")).strip().lower():
+                fail(f"04 {ju_id}.{gate_field} 未逐字段继承 03.{source_field}")
+        permitted = set(split_refs(assessment.get("permitted_claim_scope_refs")))
+        if str(gate["scope_ref"]) not in permitted:
+            fail(f"04 {ju_id}.scope_ref 超过 03 permitted_claim_scope_refs")
+        source_evidence = set(split_refs(gate.get("source_evidence_refs")))
+        if source_evidence != set(split_refs(assessment.get("linked_evidence_ids"))):
+            fail(f"04 {ju_id}.source_evidence_refs 未完整继承 03 证据集合")
+        if not source_evidence.issubset(evidence_ids):
+            fail(f"04 {ju_id}.source_evidence_refs 含不存在证据")
+        if set(split_refs(gate.get("prohibited_generalization_refs"))) != set(
+            split_refs(assessment.get("prohibited_generalization_refs"))
+        ):
+            fail(f"04 {ju_id}.prohibited_generalization_refs 未继承 03")
+        gate_by_ju[ju_id] = gate
+    if set(gate_by_ju) != set(units):
+        fail("04 gate 必须逐一且仅继承全部 02 JU")
+
+    claims = {
+        str(item["claim_id"]): item
+        for item in audit.get("claim_register", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
+    stable_keys: set[str] = set()
+    for claim_id, claim in claims.items():
+        stable_key = str(claim.get("stable_claim_key", "")).strip()
+        if not stable_key or stable_key in stable_keys:
+            fail(f"{claim_id}.stable_claim_key 为空或重复")
+        stable_keys.add(stable_key)
+        scope_ref = str(claim.get("scope_ref", "")).strip()
+        if scope_ref not in graph:
+            fail(f"{claim_id}.scope_ref 未在 02.scope_graph 定义")
+        linked_units = split_refs(claim.get("linked_judgment_unit"))
+        gates = split_refs(claim.get("source_gate_refs"))
+        if {_ref_tail(item) for item in gates} != {
+            _ref_tail(gate_by_ju[ju]["source_03_gate_ref"]) for ju in linked_units
+        }:
+            fail(f"{claim_id}.source_gate_refs 未完整对应 linked_judgment_unit")
+        inherited_evidence: set[str] = set()
+        allowed_scopes: set[str] = set()
+        expected_keys: set[str] = set()
+        for ju_id in linked_units:
+            gate = gate_by_ju[ju_id]
+            inherited_evidence.update(split_refs(gate.get("source_evidence_refs")))
+            allowed_scopes.add(str(gate.get("scope_ref")))
+            expected_keys.add(str(units[ju_id].get("stable_claim_key")))
+        if set(split_refs(claim.get("source_evidence_refs"))) != inherited_evidence:
+            fail(f"{claim_id}.source_evidence_refs 未完整继承来源 gate")
+        if len(linked_units) == 1 and units[linked_units[0]].get("aggregation_role") == "leaf":
+            if str(claim.get("statement", "")).strip() != str(gate_by_ju[linked_units[0]].get("statement", "")).strip():
+                fail(f"{claim_id}.statement 改写了 03 候选命题")
+            if scope_ref not in allowed_scopes:
+                fail(f"{claim_id}.scope_ref 超过 03 范围上限")
+            if stable_key not in expected_keys:
+                fail(f"{claim_id}.stable_claim_key 未继承 02")
+            if claim.get("aggregation_result_ref") not in {None, ""}:
+                fail(f"叶子 Claim {claim_id} 不得伪造 aggregation_result_ref")
+
+    results: dict[str, dict[str, object]] = {}
+    claim_by_ju: dict[str, str] = {}
+    for claim_id, claim in claims.items():
+        for ju_id in split_refs(claim.get("linked_judgment_unit")):
+            if units[ju_id].get("aggregation_role") == "leaf":
+                claim_by_ju[ju_id] = claim_id
+    for index, result in enumerate(audit.get("aggregation_results", []), 1):
+        if not isinstance(result, dict):
+            fail(f"aggregation_results[{index}] 必须是对象")
+        require_keys(
+            result,
+            [
+                "aggregation_result_ref", "aggregation_contract_ref", "parent_judgment_unit_ref",
+                "child_claim_refs", "child_state_codes", "insufficient_child_claim_refs",
+                "outcome", "parent_scope_ref",
+            ],
+            f"aggregation_results[{index}]",
+        )
+        result_ref = str(result["aggregation_result_ref"])
+        contract_ref = str(result["aggregation_contract_ref"])
+        contract = contracts.get(contract_ref)
+        if not result_ref or result_ref in results or contract is None:
+            fail(f"aggregation_results[{index}] 引用非法或重复")
+        parent_ju = str(result["parent_judgment_unit_ref"])
+        if parent_ju != str(contract.get("parent_judgment_unit_ref")):
+            fail(f"{result_ref}.parent_judgment_unit_ref 未继承 02 聚合合同")
+        required_child_jus = split_refs(contract.get("required_child_judgment_unit_refs"))
+        expected_child_claims = {claim_by_ju.get(ju) for ju in required_child_jus}
+        if None in expected_child_claims or set(split_refs(result["child_claim_refs"])) != expected_child_claims:
+            fail(f"{result_ref}.child_claim_refs 未覆盖 02 全部必要子项")
+        state_codes = result["child_state_codes"]
+        if not isinstance(state_codes, dict) or set(state_codes) != expected_child_claims:
+            fail(f"{result_ref}.child_state_codes 必须逐子 Claim 提供")
+        dominant_jus = set(split_refs(contract.get("dominant_child_judgment_unit_refs")))
+        ordered_claims = split_refs(result["child_claim_refs"])
+        dominant_indexes = {i for i, cid in enumerate(ordered_claims) if any(claim_by_ju.get(ju) == cid for ju in dominant_jus)}
+        insufficient_claims = set(split_refs(result["insufficient_child_claim_refs"]))
+        insufficient_indexes = {i for i, cid in enumerate(ordered_claims) if cid in insufficient_claims}
+        derived = derive_aggregation_outcome(
+            [str(state_codes[cid]) for cid in ordered_claims],
+            dominant_indexes=dominant_indexes,
+            insufficient_indexes=insufficient_indexes,
+        )
+        if str(result["outcome"]) != derived:
+            fail(f"{result_ref}.outcome 应由子项派生为 {derived}")
+        if str(result["parent_scope_ref"]) != str(units[parent_ju].get("claim_scope_ref")):
+            fail(f"{result_ref}.parent_scope_ref 未继承父 JU")
+        results[result_ref] = result
+
+    for claim_id, claim in claims.items():
+        linked_units = split_refs(claim.get("linked_judgment_unit"))
+        parent_units = [ju for ju in linked_units if units[ju].get("aggregation_role") == "parent"]
+        if parent_units:
+            result_ref = str(claim.get("aggregation_result_ref", "")).strip()
+            result = results.get(result_ref)
+            if result is None or str(result.get("parent_judgment_unit_ref")) not in parent_units:
+                fail(f"父级 Claim {claim_id} 必须引用合格 aggregation_result")
+            if str(claim.get("scope_ref")) != str(result.get("parent_scope_ref")):
+                fail(f"父级 Claim {claim_id}.scope_ref 必须继承聚合结果")
+
+    primary_claim_id = str(audit.get("overall_judgment", {}).get("primary_claim_id", ""))
+    primary = claims.get(primary_claim_id)
+    if primary is None:
+        fail("overall_judgment.primary_claim_id 未定义")
+    if str(primary.get("scope_ref")) != root_scope_ref:
+        fail("整体主结论必须是任务根范围 Claim")
+
+    handoff = audit.get("handoff_to_05", {})
+    caveat_catalog = handoff.get("required_caveats")
+    if not isinstance(caveat_catalog, list):
+        fail("handoff_to_05.required_caveats 必须是结构化列表")
+    caveat_ids: set[str] = set()
+    for index, item in enumerate(caveat_catalog, 1):
+        if not isinstance(item, dict) or not item.get("caveat_ref") or not item.get("text"):
+            continue
+        caveat_ref = str(item.get("caveat_ref"))
+        assert_caveat_is_semantic_label(
+            str(item.get("text")),
+            f"handoff_to_05.required_caveats[{index}].text#{caveat_ref}",
+        )
+        caveat_ids.add(caveat_ref)
+    for section in ["approved_core_claims", "restricted_claims"]:
+        for index, permission in enumerate(handoff.get(section, []), 1):
+            claim_id = str(permission.get("claim_id", ""))
+            source = claims.get(claim_id)
+            if source is None:
+                continue
+            if str(permission.get("scope_ref", "")) != str(source.get("scope_ref", "")):
+                fail(f"handoff_to_05.{section}[{index}].scope_ref 未继承 Claim")
+            refs = set(split_refs(permission.get("required_caveat_refs")))
+            if not refs.issubset(caveat_ids):
+                fail(f"handoff_to_05.{section}[{index}].required_caveat_refs 未在 caveat catalog 定义")
+            if not set(split_refs(source.get("required_caveat_refs"))).issubset(refs):
+                fail(f"handoff_to_05.{section}[{index}] 丢失 Claim 必要限定")
+
+
 def _validate_reasoning_instances(audit: dict[str, object], audit_path: Path, snapshot_dir: Path) -> None:
     metadata = audit["metadata"]
     view_ref = str(metadata.get("source_02_view_ref", "")).strip()
@@ -715,7 +957,7 @@ def _validate_reasoning_instances(audit: dict[str, object], audit_path: Path, sn
     if not view_path.is_file():
         fail(f"04 source_02_view_ref 无法解析: {view_ref}")
     view = load_yaml_file(view_path)
-    require_schema_version(view.get("schema_version"), str(view_path), expected="2.0.0")
+    require_schema_version(view.get("schema_version"), str(view_path), expected="2.1.0")
     reasoning_plan = view.get("reasoning_plan")
     semantic_scope = view.get("semantic_scope")
     evidence_contract = view.get("evidence_contract")
@@ -860,6 +1102,15 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
 
     _validate_claims(audit, constraints_by_id)
     _validate_method_library_usage(audit)
+    source_02_view = audit_path.parent / str(metadata.get("source_02_view_ref", ""))
+    if not source_02_view.is_file():
+        fail("04 audit.metadata.source_02_view_ref 无法解析")
+    try:
+        source_view_data = load_yaml_file(source_02_view)
+        validate_reasoning_routes(source_view_data, audit)
+    except ValueError as exc:
+        fail(str(exc))
+    _validate_scope_aggregation_and_permissions(audit, source_view_data, snapshot_dir)
     reasoning_instance_fields = {
         "hypotheses",
         "signals",

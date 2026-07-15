@@ -40,11 +40,12 @@ file,field,description
 01_plan/evidence_recipe_matches.csv,recipe_match_id,
 01_plan/evidence_recipe_matches.csv,execution_id,
 01_plan/evidence_recipe_matches.csv,evidence_recipe_id,既有快照兼容字段；任务内取证任务 ID
-01_plan/evidence_recipe_matches.csv,library_recipe_id,兼容字段名；填写知识库_03取证的 A01—A09 方法 ID
+01_plan/evidence_recipe_matches.csv,library_recipe_id,兼容字段名；填写知识库_03取证的 kb03:A01—kb03:A09 命名空间方法 ID
 01_plan/evidence_recipe_matches.csv,library_basket_ids,兼容字段名；填写统一六类证据角色 ID
 01_plan/evidence_recipe_matches.csv,recipe_name,
 01_plan/evidence_recipe_matches.csv,target_judgment_unit_id,对应 02 的核心判断单元
-01_plan/evidence_recipe_matches.csv,judgment_type,必须是 02 与知识库_03统一的八类规范判断类型
+01_plan/evidence_recipe_matches.csv,judgment_type,必须精确继承 02 对应 JU 的公共合同原子判断类型
+01_plan/evidence_recipe_matches.csv,source_02_hash,必须精确继承对应 02 judgment_unit.content_hash
 01_plan/evidence_recipe_matches.csv,strategy_library_ref,
 01_plan/evidence_recipe_matches.csv,strategy_version,
 01_plan/evidence_recipe_matches.csv,applicable_conditions,
@@ -216,6 +217,9 @@ file,field,description
 02_assets/evidence_records.csv,quote_ref,
 02_assets/evidence_records.csv,notes,
 02_assets/evidence_records.csv,evidence_basket_ids,
+02_assets/evidence_records.csv,direct_scope_ref,证据直接支持的 02 范围节点
+02_assets/evidence_records.csv,maximum_generalization_scope_ref,证据允许外推的最高范围节点
+02_assets/evidence_records.csv,scope_relation_to_requirement,由范围图派生的证据相对要求范围关系
 02_assets/evidence_relations.csv,relation_id,
 02_assets/evidence_relations.csv,execution_id,
 02_assets/evidence_relations.csv,relation_type,
@@ -369,6 +373,11 @@ file,field,description
 03_gate/evidence_readiness_assessments.csv,linked_gap_ids,
 03_gate/evidence_readiness_assessments.csv,assessment_reason,
 03_gate/evidence_readiness_assessments.csv,notes,
+03_gate/evidence_readiness_assessments.csv,source_02_claim_hash,对应 02 JU 的完整内容哈希
+03_gate/evidence_readiness_assessments.csv,permitted_claim_scope_refs,04 可使用的 Claim 范围许可
+03_gate/evidence_readiness_assessments.csv,candidate_04_claim_hash,候选命题与范围许可的组合哈希
+03_gate/evidence_readiness_assessments.csv,aggregation_eligible,是否允许作为父级聚合输入
+03_gate/evidence_readiness_assessments.csv,prohibited_generalization_refs,禁止外推到的范围节点
 03_gate/gaps_and_risks.csv,gap_id,
 03_gate/gaps_and_risks.csv,execution_id,
 03_gate/gaps_and_risks.csv,gap_type,

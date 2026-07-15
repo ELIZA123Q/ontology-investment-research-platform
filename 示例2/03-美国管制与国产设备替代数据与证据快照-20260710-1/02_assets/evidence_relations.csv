@@ -1,4 +1,4 @@
-relation_id,execution_id,relation_type,source_evidence_id,target_evidence_id,relation_role,relation_scope,status,notes
+﻿relation_id,execution_id,relation_type,source_evidence_id,target_evidence_id,relation_role,relation_scope,status,notes
 REL-CS-EV-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,claimCitesSource,CL-EV-01,SRC-BIS-2022,source,官方规则页,active,
 REL-FC-EV-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,factSupportedByClaim,EV-01,CL-EV-01,primary,,active,
 REL-CS-EV-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,claimCitesSource,CL-EV-02,SRC-BIS-2023,source,官方更新页,active,

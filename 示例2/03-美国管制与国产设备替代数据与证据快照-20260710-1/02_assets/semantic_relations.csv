@@ -1,4 +1,4 @@
-relation_id,execution_id,requirement_id,linked_judgment_unit_ids,relation_type,source_instance_id,target_instance_id,relation_scope,valid_from,valid_to,verification_status,relation_evidence_strength,source_run_refs,evidence_refs,notes
+﻿relation_id,execution_id,requirement_id,linked_judgment_unit_ids,relation_type,source_instance_id,target_instance_id,relation_scope,valid_from,valid_to,verification_status,relation_evidence_strength,source_run_refs,evidence_refs,notes
 REL-01,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-01,JU-01|JU-04,policyAppliesTo,INS-CONTROL,INS-INDUSTRY,对中国半导体设备行业相关主体和交易适用,2022-10-07,,verified,strong,SR-001|SR-002|SR-003|SR-004,EV-01|EV-02|EV-03|EV-04,供给方向在04推理
 REL-02,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyBelongsToIndustry,INS-NAURA,INS-INDUSTRY,平台设备,2025-01-01,2025-12-31,verified,strong,SR-014,EV-14,样本关系
 REL-03,EXEC-USCTRL-CNSEMI-EQP-20260710-1,ER-05,JU-02|JU-03,companyBelongsToIndustry,INS-AMEC,INS-INDUSTRY,刻蚀沉积,2025-01-01,2025-12-31,verified,strong,SR-015,EV-15,样本关系

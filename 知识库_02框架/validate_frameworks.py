@@ -23,6 +23,16 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Set, Tuple
 import yaml
 
 
+ROOT = Path(__file__).resolve().parent
+WORKSPACE = ROOT.parent
+sys.path.insert(0, str(WORKSPACE / "运行校验"))
+
+from research_contract import public_contract  # noqa: E402
+
+
+CANONICAL_JUDGMENT_TYPES = set(public_contract()["judgment_types"])
+
+
 REQUIRED_FRONT_MATTER = ("framework_id", "name", "library", "version")
 REQUIRED_SCENARIO_FRONT_MATTER = (
     "document_type",
@@ -81,10 +91,12 @@ EXPECTED_JUDGMENT_FRAMEWORK_IDS = {
     "JF-TREND",
     "JF-CYCLE",
     "JF-ATTR",
+    "JF-MECH",
     "JF-TRANS",
     "JF-DIFF",
+    "JF-IMPACT",
     "JF-EXPECT",
-    "JF-RISK",
+    "JF-VALUATION",
 }
 EXPECTED_BASE_FRAMEWORK_LAYERS = {
     "BF-IC-01": "mechanism",
@@ -600,6 +612,15 @@ def validate(root: Path) -> Tuple[List[str], List[str], int, int]:
         for field in REQUIRED_CONTRACT_FIELDS:
             if field not in contract:
                 errors.append(f"{relative}: Framework Output Contract 缺少 {field}")
+        judgment_types = contract.get("judgment_types")
+        if not isinstance(judgment_types, list) or not judgment_types:
+            errors.append(f"{relative}: judgment_types 必须是非空列表")
+        else:
+            unknown_types = sorted(set(map(str, judgment_types)) - CANONICAL_JUDGMENT_TYPES)
+            if unknown_types:
+                errors.append(
+                    f"{relative}: judgment_types 含公共合同之外的类型 {', '.join(unknown_types)}"
+                )
         for field in BANNED_STATIC_DEPENDENCY_FIELDS:
             if field in contract:
                 errors.append(f"{relative}: 静态合同不得声明 {field}，请读取 registry")

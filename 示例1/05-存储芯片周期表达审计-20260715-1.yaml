@@ -1,0 +1,399 @@
+document_type: delivery_expression_audit
+schema_version: 2.6.0
+metadata:
+  task_id: JTASK-MEM-CYCLE-001
+  execution_id: EXEC-MEM-CYCLE-20260715-1
+  delivery_ref: 05-存储芯片周期行业周期判断-20260715-1.md
+  delivery_content_hash: sha256:ea47c71e11d7f47d8639b6631612457f22fe37addd810f487382a1d259043805
+  source_04_brief_ref: 04-存储芯片周期判断简报-20260715-1.md
+  source_04_audit_ref: 04-存储芯片周期推理审计-20260715-1.yaml
+  source_04_audit_hash: sha256:79709ca6b5da557e64f2cd865c224f5ef08c8c1a934d088a123f7dc0d637091d
+  stage_status: complete
+  quality_status: high_quality_pass
+  quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+claim_expression_register:
+- expression_id: EX-01
+  source_claim_id: C-05
+  location_kind: report_title
+  section: 标题
+  expression_text: 存储芯片进入内部高位分化：HBM扩张、服务器DRAM消化、NAND分层
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-02
+  source_claim_id: C-07
+  location_kind: subtitle
+  section: 副标题
+  expression_text: 价格仍涨但服务器 DRAM 涨幅明显放缓，部分客户库存累积是早期削弱信号，尚不能确认行业普遍见顶
+  inherited_judgment_level: J0
+  permitted_role: observation
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-07
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs: []
+- expression_id: EX-03
+  source_claim_id: C-01
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: 三类产品不能合并，但共同处于供给约束背景
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-04
+  source_claim_id: C-05
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: 当前处于供给约束仍在、子产品阶段分化的状态
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-05
+  source_claim_id: C-02
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: HBM 是 AI 算力驱动的结构性扩张
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-02
+  expression_scope_ref: SCOPE-HBM
+  preserved_caveat_refs: []
+- expression_id: EX-06
+  source_claim_id: C-03
+  location_kind: paragraph_lead
+  section: 第二章
+  expression_text: HBM 对通用 DRAM 的影响只能作方向性解释
+  inherited_judgment_level: J1
+  permitted_role: supporting_thesis
+  conditions:
+  - 缺跨厂量化挤占比例和统一有效产能
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-03
+  expression_scope_ref: SCOPE-DRAM
+  preserved_caveat_refs: []
+- expression_id: EX-07
+  source_claim_id: C-06
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: 周期何时转向，要看新增供给能否过检、需求是否共振转弱
+  inherited_judgment_level: J1
+  permitted_role: scenario_condition
+  conditions:
+  - 未来良率和客户认证尚未发生
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-06
+  expression_scope_ref: SCOPE-MEMORY-SUPPLY
+  preserved_caveat_refs: []
+- expression_id: EX-08
+  source_claim_id: C-07
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: 只有库存扩散、订单转弱、价格转负与合格供给释放形成共振，才能下调为正常化或下行
+  inherited_judgment_level: J0
+  permitted_role: observation
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-07
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs: []
+- expression_id: EX-09
+  source_claim_id: C-01
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: HBM、通用 DRAM 与 NAND 需要分产品判断
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-10
+  source_claim_id: C-05
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: 卖方定价仍在，但 3Q26 涨幅预计明显放缓
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-11
+  source_claim_id: C-02
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: HBM 处于结构性扩张与世代迭代
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-02
+  expression_scope_ref: SCOPE-HBM
+  preserved_caveat_refs: []
+- expression_id: EX-12
+  source_claim_id: C-04
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: 企业级 NAND 处于 AI 存储主导的稀缺涨价
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-04
+  expression_scope_ref: SCOPE-NAND
+  preserved_caveat_refs: []
+- expression_id: EX-13
+  source_claim_id: C-06
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: 2027 下半年至 2028：新增供给开始过检
+  inherited_judgment_level: J1
+  permitted_role: scenario_condition
+  conditions:
+  - 未来良率和客户认证尚未发生
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-06
+  expression_scope_ref: SCOPE-MEMORY-SUPPLY
+  preserved_caveat_refs: []
+- expression_id: EX-14
+  source_claim_id: C-07
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: 周期结束暂不能给统一日期
+  inherited_judgment_level: J0
+  permitted_role: observation
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-07
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs: []
+- expression_id: EX-15
+  source_claim_id: C-05
+  location_kind: section_heading
+  section: 第一章
+  expression_text: 价格仍在上涨，但涨价斜率进入高位放缓
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-16
+  source_claim_id: C-02
+  location_kind: section_heading
+  section: 第二章
+  expression_text: HBM 是结构性扩张，通用 DRAM 是供给约束下的卖方定价
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-02
+  expression_scope_ref: SCOPE-HBM
+  preserved_caveat_refs: []
+- expression_id: EX-17
+  source_claim_id: C-04
+  location_kind: section_heading
+  section: 第三章
+  expression_text: NAND 的强势来自企业级 SSD，消费端是最早压力测试
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-04
+  expression_scope_ref: SCOPE-NAND
+  preserved_caveat_refs: []
+- expression_id: EX-18
+  source_claim_id: C-06
+  location_kind: section_heading
+  section: 第四章
+  expression_text: 2027H2—2028 是供给验证窗口，不是确定结束日
+  inherited_judgment_level: J1
+  permitted_role: scenario_condition
+  conditions:
+  - 未来良率和客户认证尚未发生
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-06
+  expression_scope_ref: SCOPE-MEMORY-SUPPLY
+  preserved_caveat_refs: []
+- expression_id: EX-19
+  source_claim_id: C-05
+  location_kind: paragraph_lead
+  section: 第一章
+  expression_text: 本次重跑最重要的新信息是斜率，而不是方向
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-20
+  source_claim_id: C-07
+  location_kind: summary_conclusion
+  section: 第四章
+  expression_text: 当前能够给出的不是结束日期，而是一套可执行的阶段切换条件
+  inherited_judgment_level: J0
+  permitted_role: observation
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-07
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs: []
+- expression_id: EX-21
+  source_claim_id: C-01
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: 多年协议强化近期订单可见度
+  inherited_judgment_level: J2
+  permitted_role: supporting_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-22
+  source_claim_id: C-05
+  location_kind: investment_point
+  section: 投资要点
+  expression_text: 客户库存已出现早期削弱信号，但成因不是单一需求转弱
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+- expression_id: EX-23
+  source_claim_id: C-05
+  location_kind: conclusion_overview
+  section: 核心结论概览
+  expression_text: 供给约束仍在，但 HBM、服务器 DRAM 与 NAND 内部高位分化
+  inherited_judgment_level: J2
+  permitted_role: core_thesis
+  conditions: []
+  conditions_preserved: true
+  scope_relation: same
+  semantic_strength_review: pass
+  source_rcs:
+  - C-01
+  expression_scope_ref: SCOPE-MEMORY-INDUSTRY
+  preserved_caveat_refs:
+  - CAV-ROOT
+research_edge_check:
+  reference_view_present: true
+  differentiated_claim_mapped_to_04: true
+  underappreciated_mechanism_supported: true
+  falsification_signal_observable: true
+  evidence_boundary_disclosed: true
+  no_fabricated_consensus: true
+  result: pass
+high_risk_section_coverage:
+  report_title: true
+  investment_points: true
+  conclusion_overview: true
+  section_headings: true
+  paragraph_leads: true
+  chart_and_table_titles: true
+  summary_conclusions: true
+overall_check:
+  all_expressions_mapped_to_04_claims: true
+  no_expression_level_upgrade: true
+  no_condition_loss: true
+  no_scope_expansion: true
+  no_status_washing: true
+  semantic_review_complete: true
+  result: pass

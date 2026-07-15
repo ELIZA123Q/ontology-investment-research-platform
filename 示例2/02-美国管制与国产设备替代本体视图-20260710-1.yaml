@@ -1,5 +1,5 @@
 schema_name: task_ontology_view
-schema_version: 2.0.0
+schema_version: 2.1.0
 task_context:
   task_id: JTASK-USCTRL-CNSEMI-EQP-001
   view_id: TOV-USCTRL-CNSEMI-EQP-20260710-1
@@ -250,9 +250,10 @@ reasoning_plan:
   frozen: true
 judgment_units:
 - judgment_unit_id: JU-01
+  content_hash: sha256:19408b177e9d86c567fc74ea10f90e93538f9747c36a9f398062febd0bc4b64f
   research_question_ref: task_context.normalized_question
   candidate_claim: 现行美国管制形成定向且可执行的设备供给约束，但并非全面禁运
-  judgment_type: mechanism_transmission
+  judgment_type: mechanism_validation
   priority_tier: important
   decision_weight: 4
   decision_role: mechanism_validator
@@ -295,7 +296,7 @@ judgment_units:
       required_evidence_basket_refs:
       - EB-01
       minimum_source_authority: primary
-      minimum_independent_source_groups: 1
+      minimum_independent_source_groups: 2
       counter_evidence_check: required
       alternative_explanation_check: required
       required_conditions:
@@ -338,10 +339,15 @@ judgment_units:
       required_conditions:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: equipment.policy.constraint
+  claim_scope_ref: SCOPE-EXPORT-CONTROL
+  aggregation_role: leaf
+  aggregation_contract_ref: null
 - judgment_unit_id: JU-02
+  content_hash: sha256:0d4152926b1a4c175871e30169b6d35c0168ca58f0f58c1cd1f8b8c53adc8f72
   research_question_ref: task_context.normalized_question
   candidate_claim: 海外设备供给缺口只有经过验证、复购与经营兑现才能转化为国产受益
-  judgment_type: mechanism_transmission
+  judgment_type: transmission_path
   priority_tier: critical
   decision_weight: 5
   decision_role: direction_driver
@@ -426,10 +432,15 @@ judgment_units:
       required_conditions:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: equipment.commercial.realization
+  claim_scope_ref: SCOPE-COMMERCIAL-REALIZATION
+  aggregation_role: leaf
+  aggregation_contract_ref: null
 - judgment_unit_id: JU-03
+  content_hash: sha256:b8177b63f2f5c206028fc5e95a6ce4e47eeea27a83d170e77c2e4262d3ad2ea0
   research_question_ref: task_context.normalized_question
   candidate_claim: 设备类别与公司强弱主要由商业成熟度而非名义供给缺口大小决定
-  judgment_type: mechanism_transmission
+  judgment_type: object_differentiation
   priority_tier: important
   decision_weight: 4
   decision_role: differentiation_explainer
@@ -517,10 +528,15 @@ judgment_units:
       required_conditions:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: equipment.category.differentiation
+  claim_scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+  aggregation_role: leaf
+  aggregation_contract_ref: null
 - judgment_unit_id: JU-04
+  content_hash: sha256:95060fd18d337f1ab0e85d6fc5484cf07efc69e92bd0f6c7286076e4882bb61d
   research_question_ref: task_context.normalized_question
   candidate_claim: 现行管制在未来十二个月强化国产替代必要性，但不会自动保证所有类别同步兑现
-  judgment_type: mechanism_transmission
+  judgment_type: impact_realization
   priority_tier: critical
   decision_weight: 5
   decision_role: direction_driver
@@ -617,6 +633,10 @@ judgment_units:
       required_conditions:
       - 关键证据缺失或路径阻断
   stop_condition: 达到目标等级或关键路径无法继续验证时停止
+  stable_claim_key: equipment.thesis.overall
+  claim_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+  aggregation_role: parent
+  aggregation_contract_ref: AGG-EQUIPMENT-THESIS
 path_design:
   main_paths:
   - path_id: P-01
@@ -1167,3 +1187,57 @@ validation:
   result: pass
   return_required: false
   return_reasons: []
+scope_graph:
+  root_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+  nodes:
+  - scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+    label: 中国半导体设备国产替代逻辑
+    parent_scope_ref: null
+    dimensions:
+      object:
+      - cn_semiconductor_equipment
+      geography:
+      - us_to_china
+      customer:
+      - china_fabs
+      metric:
+      - policy_supply_validation_commercialization
+      time:
+      - forward_12m
+  - scope_ref: SCOPE-EXPORT-CONTROL
+    label: 美国出口管制规则
+    parent_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+    dimensions:
+      object:
+      - export_control
+      metric:
+      - rule_scope_enforcement
+  - scope_ref: SCOPE-COMMERCIAL-REALIZATION
+    label: 国产设备商业兑现
+    parent_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+    dimensions:
+      object:
+      - domestic_equipment
+      metric:
+      - validation_repurchase_profit
+  - scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+    label: 设备类别与公司分化
+    parent_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+    dimensions:
+      object:
+      - equipment_categories_companies
+      metric:
+      - maturity_quality
+aggregation_contracts:
+- aggregation_contract_ref: AGG-EQUIPMENT-THESIS
+  parent_judgment_unit_ref: JU-04
+  required_child_judgment_unit_refs:
+  - JU-01
+  - JU-02
+  - JU-03
+  dominant_child_judgment_unit_refs: []
+  allowed_outcomes:
+  - synchronized
+  - dominant
+  - differentiated
+  - insufficient

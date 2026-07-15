@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -12,22 +13,19 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parent
+WORKSPACE = ROOT.parent
+sys.path.insert(0, str(WORKSPACE / "运行校验"))
+
+from research_contract import public_contract  # noqa: E402
+
+
 REGISTRY_PATH = ROOT / "03_registry.yaml"
 METHOD_IDS = {f"A{i:02d}" for i in range(1, 10)}
 PRIMARY_METHOD_IDS = {f"A{i:02d}" for i in range(1, 8)}
 ROLE_IDS = {"primary", "baseline", "mechanism", "cross_check", "counter"}
 ROLE_ORDER = ("primary", "baseline", "mechanism", "cross_check", "counter")
 QUALITY_IDS = {"sufficient", "limited", "observation", "unusable"}
-JUDGMENT_TYPES = {
-    "state_measurement",
-    "trend_or_phase",
-    "cycle_phase",
-    "causal_attribution",
-    "mechanism_transmission",
-    "object_comparison",
-    "valuation_expectation",
-    "risk_reassessment",
-}
+JUDGMENT_TYPES = set(public_contract()["judgment_types"])
 METHOD_HEADINGS = [
     "## 1. 什么时候使用",
     "## 2. 取证逻辑",
@@ -144,7 +142,7 @@ def validate_registry(registry: dict[str, Any], errors: list[str]) -> None:
 
     judgment_types = as_mapping(registry.get("judgment_types"), "judgment_types", errors)
     if set(judgment_types) != JUDGMENT_TYPES:
-        errors.append("judgment_types 必须与 02 八类规范类型完全一致")
+        errors.append("judgment_types 必须与最小公共合同的十类判断类型完全一致")
     for judgment_type, item in judgment_types.items():
         if not isinstance(item, dict):
             errors.append(f"judgment_types.{judgment_type} 必须是 mapping")
@@ -160,15 +158,22 @@ def validate_registry(registry: dict[str, Any], errors: list[str]) -> None:
             errors.append(f"judgment_types.{judgment_type} 的 required_roles 与 optional_roles 重复")
         if "scope" in required or "scope" in optional:
             errors.append(f"judgment_types.{judgment_type} 不得把 scope 列为证据角色")
-        if judgment_type in {"trend_or_phase", "cycle_phase"}:
+        if judgment_type in {"trend_direction", "cycle_phase"}:
             if "A02" not in set(item.get("requires_methods", []) or []):
                 errors.append(f"judgment_types.{judgment_type}.requires_methods 必须含 A02")
-        if judgment_type in {"causal_attribution", "mechanism_transmission", "risk_reassessment"}:
+        if judgment_type in {"mechanism_validation", "causal_attribution", "transmission_path"}:
             if "A01" not in set(item.get("auto_add", []) or []):
                 errors.append(f"judgment_types.{judgment_type}.auto_add 必须含 A01")
-        if judgment_type == "valuation_expectation":
+        if judgment_type == "impact_realization":
+            required_inputs = {"financial_baseline", "critical_financial_bridge"}
+            if not required_inputs <= set(item.get("forbidden_without", []) or []):
+                errors.append("judgment_types.impact_realization.forbidden_without 必须含财务基线与关键财务桥")
+        if judgment_type == "expectation_gap":
             if "pre_event_consensus_vintage" not in set(item.get("forbidden_without", []) or []):
-                errors.append("judgment_types.valuation_expectation.forbidden_without 必须含 pre_event_consensus_vintage")
+                errors.append("judgment_types.expectation_gap.forbidden_without 必须含 pre_event_consensus_vintage")
+        if judgment_type == "valuation_impact":
+            if "valuation_baseline" not in set(item.get("forbidden_without", []) or []):
+                errors.append("judgment_types.valuation_impact.forbidden_without 必须含 valuation_baseline")
 
     deps = as_mapping(registry.get("dependency_rules"), "dependency_rules", errors)
     for key in (

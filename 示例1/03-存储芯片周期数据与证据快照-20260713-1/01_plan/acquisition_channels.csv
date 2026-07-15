@@ -1,2 +1,0 @@
-acquisition_channel_id,execution_id,channel_name,channel_type,supported_source_profile_ids,supported_content_domains,repeatability,traceability_level,permission_requirement,typical_failure_modes,allowed_usage,forbidden_usage,notes
-AC-PUBLIC-WEB,EXEC-MEM-CYCLE-20260713-1,公开网页和公司披露检索,web_public,SP-COMPANY-DISCLOSURE|SP-INDUSTRY-DATA|SP-PUBLIC-WEB,financial_result|capacity|order|inventory|pricing|forecast|event,medium_high,URL_and_date,public_access,网页迁移、PDF解析、部分来源403或订阅限制,冻结公开材料中的事实、数据和管理层展望,不得只记录搜索摘要或模型记忆,当前03快照结构已固化
