@@ -40,9 +40,6 @@ _FORBIDDEN_AUTHORITY_PATTERNS: list[tuple[str, str]] = [
 _SCAN_ALLOWLIST_SUFFIXES = {
     "运行校验/status_derivation.py",  # 仅从本体规则加载集合
     "运行校验/validate_parameter_authority.py",
-    "运行校验/migrate_contract_v1_1.py",
-    "运行校验/migrate_contract_v1_2.py",
-    "运行校验/migrate_runtime_instance_graphs.py",
 }
 
 
@@ -69,8 +66,6 @@ def _scan_duplicate_authority(errors: list[str]) -> None:
             if "/tests/" in f"/{relative}/" or relative.startswith("运行校验/tests/"):
                 continue
             if relative in _SCAN_ALLOWLIST_SUFFIXES:
-                continue
-            if relative.endswith("migrate_contract_v1_1.py") or relative.endswith("migrate_contract_v1_2.py"):
                 continue
             text = path.read_text(encoding="utf-8-sig", errors="ignore")
             for pattern, message in _FORBIDDEN_AUTHORITY_PATTERNS:

@@ -1,9 +1,12 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: ontology_semantic
 schema_version: 1.1.0
 status: active
 depends_on: [common.yaml]
 description: 语义结构域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
 
+# --- object_types（对象类型）---
 object_types:
   Concept:
     id: Concept
@@ -244,6 +247,7 @@ object_types:
       contextType: {type: enum, required: true, allowed_values: [instrument_issuance, listing, ownership, market_operation, fund_operation, policy_administration, supply_chain, other], description: 角色成立的业务上下文。}
       roleDescription: {type: string, required: false, description: 角色边界、职责或适用范围。}
 
+# --- relation_types（关系类型）---
 relation_types:
   conceptBroaderThan:
     id: conceptBroaderThan
@@ -825,6 +829,7 @@ relation_types:
     properties:
       roleObjectScope: {type: string, required: false, description: 角色作用范围。}
 
+# --- action_types（动作）---
 action_types:
   DefineConcept:
     id: DefineConcept
@@ -944,6 +949,7 @@ action_types:
     logic_refs: []
     write_scope: [semantic_relation]
 
+# --- functions（函数）---
 functions:
   NormalizeTerm:
     id: NormalizeTerm
@@ -990,6 +996,7 @@ functions:
     side_effects: false
     version: 1.0.0
 
+# --- logic_flows（逻辑流）---
 logic_flows:
   ConceptAdmissionLogic:
     id: ConceptAdmissionLogic
@@ -1025,6 +1032,7 @@ logic_flows:
     outputs: [admittedRelation, rejectionReason]
     fallback: 动态关系转交推理域。
 
+# --- rules（规则）---
 rules:
   concept_definition_required:
     id: concept_definition_required

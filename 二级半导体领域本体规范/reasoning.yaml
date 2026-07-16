@@ -1,3 +1,5 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: semiconductor_domain_reasoning
 schema_version: 1.0.0
 status: active
@@ -7,6 +9,8 @@ depends_on:
 - evidence.yaml
 - ../一级通用本体规范/reasoning.yaml
 description: 半导体领域的事件分类、判断型状态变量、业务传导模板和通用情景骨架。
+
+# --- reasoning_type_extensions ---
 reasoning_type_extensions:
   StateVariable:
     allowed_anchor_types:
@@ -68,6 +72,8 @@ default_qualitative_scale:
   - divergent
   - uncertain
   rule: 定性等级必须由带业务时间的 Observation 或 Signal 支撑，不得直接视为事实。
+
+# --- event_type_taxonomy（事件类型）---
 event_type_taxonomy:
   demand_forecast_change:
     id: demand_forecast_change

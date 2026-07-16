@@ -1,3 +1,5 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: semiconductor_domain_evidence
 schema_version: 1.0.0
 status: active
@@ -6,6 +8,8 @@ depends_on:
 - semantic.yaml
 - ../一级通用本体规范/evidence.yaml
 description: 半导体领域证据 profile、商业化阶段、最低覆盖规则和质量约束；变量绑定由推理域单向引用。
+
+# --- evidence_quality_dimensions ---
 evidence_quality_dimensions:
   source_authority:
     description: 来源主体是否有权掌握并披露该信息。
@@ -53,6 +57,8 @@ evidence_quality_dimensions:
     - judgment
     - assumption
     - unverified
+
+# --- source_type_guidance ---
 source_type_guidance:
   official_primary:
     examples:
@@ -189,6 +195,8 @@ evidence_constraints:
   statement: 证据不得绕过状态变量、假设和判断直接生成资产影响。
 - id: reasoning_owns_variable_profile_binding
   statement: 变量到 evidence profile 的绑定由 reasoning.yaml 单向引用；evidence.yaml 不得反向列举状态变量。
+
+# --- commercialization_stages ---
 commercialization_stages:
   concept:
     id: concept
@@ -230,6 +238,8 @@ commercialization_stages:
     name: 规模采用
     description: 跨客户扩散并进入主流采用。
     order: 8
+
+# --- minimum_evidence_coverage ---
 minimum_evidence_coverage:
   order_visibility:
     evidence_profile_ref: demand_orders

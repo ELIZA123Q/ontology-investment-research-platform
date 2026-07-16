@@ -1,3 +1,5 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: semiconductor_domain_semantic
 schema_version: 1.0.0
 status: active
@@ -6,6 +8,7 @@ depends_on:
   - ../一级通用本体规范/semantic.yaml
 description: 半导体领域的语义对象扩展、稳定关系和受控分类体系。
 
+# --- object_type_extensions（类型扩展）---
 object_type_extensions:
   Industry:
     description: 在平台产业对象上补充半导体产业层级和相邻产业边界。
@@ -95,6 +98,7 @@ object_type_extensions:
   Region:
     description: 复用一级 Region 表达公司、设施、政策、贸易、许可和市场准入的地理或监管范围。
 
+# --- object_types（对象类型）---
 object_types:
   TechnologyRoute:
     id: TechnologyRoute
@@ -132,6 +136,7 @@ object_types:
         description: 设施类别。
       capabilityScope: {type: string, required: true, description: 设施可稳定提供的工艺或产出范围。}
 
+# --- relation_type_extensions（关系扩展）---
 relation_type_extensions:
   conceptMapsToObject:
     add_target_types: [TechnologyRoute, ManufacturingFacility]
@@ -152,6 +157,7 @@ relation_type_extensions:
   roleAppliesToObject:
     add_target_types: [TechnologyRoute, ManufacturingFacility]
 
+# --- relation_types（关系类型）---
 relation_types:
   technologyRouteAppliesTo:
     id: technologyRouteAppliesTo
@@ -275,6 +281,7 @@ relation_types:
     properties:
       productionRole: {type: string, required: false, description: 晶圆、气体、化学品、基板或其他材料生产。}
 
+# --- controlled_vocabularies（受控词表）---
 controlled_vocabularies:
   industry_role:
     description: 半导体领域及其相邻产业的层级角色。
@@ -549,6 +556,7 @@ controlled_vocabularies:
       assembly_packaging_plant: {id: assembly_packaging_plant, name: 组装与封装厂, description: 传统或先进封装设施。}
       test_facility: {id: test_facility, name: 测试与可靠性设施, description: 晶圆测试、成品测试、可靠性和失效分析设施。}
 
+# --- semantic_constraints ---
 semantic_constraints:
   - id: product_multi_axis_allowed
     statement: 产品可同时使用 productDomain、semiconductorDeviceCategory、memoryProductCategory、equipmentCategory 和 moduleSystemCategory，不强制单一分类。

@@ -31,6 +31,45 @@ ownership:
     - stage_internal_fields
     - researcher_readable_explanations
 
+# 跨阶段主链与标识：本块为唯一机器权威；阶段规范只解释本阶段如何使用。
+# 主链：01 核心问题 → 02 JU → 03 ER → 03 EV → 04 C → 05 EX
+cross_stage_references:
+  primary_chain: [Q, JU, ER, EV, C, RC, EX]
+  objects:
+    Q:
+      field: question_id
+      created_in: stage_02
+      note: 问题树子问题
+    JU:
+      field: judgment_unit_id
+      created_in: stage_02
+      note: 全链主键，后续不得重编号
+    ER:
+      field: evidence_requirement_id
+      created_in: stage_02
+      inherited_by: stage_03
+      note: 规范主键仅 ER-nn；反证可另用 CER-nn；ER-JU-nn 只可作 03 计划汇总行
+    EV:
+      field: evidence_id
+      created_in: stage_03
+    C:
+      field: claim_id
+      created_in: stage_04
+      note: 不用 CL-；CL- 仅用于 01 澄清问题
+    RC:
+      field: change_gate_register[].gate_id
+      created_in: stage_04
+      note: 新运行用 RC-nn；兼容历史 GATE- / G-
+    EX:
+      field: expression_id
+      created_in: stage_05
+  required_links:
+    - C_to_JU
+    - JU_to_ER_for_critical_or_important
+    - ER_to_EV_or_GAP
+    - EX_to_C
+  researcher_body_rule: 主链编号不得大量进入 05 研究员交付正文；追溯留在表达审计 YAML。
+
 trace_id_patterns:
   task_id: '^JTASK-[A-Z0-9][A-Z0-9_-]+$'
   run_id: '^(?:RUN|EXEC)-[A-Z0-9][A-Z0-9_-]+$'
@@ -40,6 +79,8 @@ trace_id_patterns:
   EV: '^EV-\d+$'
   C: '^C-(?:\d+|[A-Z0-9][A-Z0-9_-]*)$'
   RC: '^(?:RC|GATE|G)-\d+$'
+  EX: '^EX-\d+$'
+  CER: '^CER-\d+$'
 
 business_authority_refs:
   judgment_types: 一级通用本体规范/reasoning.yaml#object_types.JudgmentUnit.properties.judgment_type.allowed_values

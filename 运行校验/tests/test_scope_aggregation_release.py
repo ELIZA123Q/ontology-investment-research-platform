@@ -21,7 +21,7 @@ from semantic_review import validate_independent_semantic_review  # noqa: E402
 from validate_04_outputs import _validate_scope_aggregation_and_permissions  # noqa: E402
 from validate_05_outputs import validate as validate_05  # noqa: E402
 from validate_publish import discover_artifacts  # noqa: E402
-from validate_run import _validate_incremental_updates, derive_run_outcome  # noqa: E402
+from validate_run import derive_run_outcome  # noqa: E402
 from validator_utils import file_sha256, load_yaml_file  # noqa: E402
 
 
@@ -80,25 +80,6 @@ class ScopeAggregationReleaseTests(unittest.TestCase):
             artifacts.expression_audit.write_text(yaml.safe_dump(expression, allow_unicode=True, sort_keys=False), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "主标题必须使用任务根范围"):
                 validate_05(artifacts.delivery, "行业周期判断", artifacts.expression_audit, artifacts.audit)
-
-    def test_parent_run_requires_complete_update_register(self) -> None:
-        manifest = load(self.run.run_dir / "run_manifest.yaml")
-        audit = copy.deepcopy(self.audit)
-        audit["judgment_update_register"] = []
-        with self.assertRaisesRegex(ValueError, "逐稳定 Claim"):
-            _validate_incremental_updates(manifest, self.run, audit)
-
-    def test_one_local_change_cannot_directly_revise_parent(self) -> None:
-        manifest = load(self.run.run_dir / "run_manifest.yaml")
-        audit = copy.deepcopy(self.audit)
-        parent = next(item for item in audit["judgment_update_register"] if item["stable_claim_key"] == "memory.industry.phase")
-        parent["update_action"] = "revise"
-        for item in audit["judgment_update_register"]:
-            if item is not parent:
-                item["update_action"] = "maintain"
-        next(item for item in audit["judgment_update_register"] if item["stable_claim_key"] == "memory.server_dram.price_phase")["update_action"] = "weaken"
-        with self.assertRaisesRegex(ValueError, "单个局部子项变化"):
-            _validate_incremental_updates(manifest, self.run, audit)
 
     def test_missing_semantic_review_is_only_stage_ready(self) -> None:
         outcome = derive_run_outcome(

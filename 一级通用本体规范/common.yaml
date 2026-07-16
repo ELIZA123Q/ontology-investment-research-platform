@@ -1,13 +1,17 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: ontology_common
 schema_version: 2.1.0
 status: active
 description: 投研本体公共元模型，定义 Object、Relation、Action、Function、Logic、Rule 的共同结构。
 
+# --- namespace ---
 namespace:
   prefix: ir
   base_iri: "ir://invest-ontology#"
   note: 类型本地标识与 base_iri 拼接形成稳定 IRI；领域扩展必须使用独立命名空间，不得改写本核心命名空间下的类型定义。
 
+# --- resource_contracts（资源合同）---
 resource_contracts:
   object_type:
     purpose: 定义具有独立身份、属性和生命周期的业务名词。
@@ -45,6 +49,7 @@ resource_contracts:
     optional_fields:
       [version, input_types, output_types, required_evidence, counter_conditions, time_lag]
 
+# --- axiom_checks ---
 axiom_checks:
   - id: layer_object_family_disjoint
     description: object_role_families 中 stable_semantics、evidence 与推理角色族集合不得交叉。
@@ -63,6 +68,7 @@ axiom_checks:
   - id: supersession_relation_present
     description: 证据域须保留 supersedes 关系，用于版本替代与失效链。
 
+# --- reference_direction ---
 reference_direction:
   canonical_rule: 调用方保存正向引用；被调用方的 called_by 关系由正向引用派生，不重复维护。
   action:
@@ -78,6 +84,7 @@ reference_direction:
     owns: [condition, result, failure_handling]
     invocation: 由 Action 的 rule_refs 或 Logic step 的 rule_refs 调用。
 
+# --- object_type_inheritance ---
 object_type_inheritance:
   declaration: 子类型通过 extends 保存唯一父类型引用；父类型可直接实例化，也可由子类型继承。
   identity_rule: 同一现实主体只创建一个最具体类型实例；Company 实例同时满足 Organization 端点，不再创建重复 Organization 实例。
@@ -85,10 +92,12 @@ object_type_inheritance:
   endpoint_rule: 关系允许父类型作为端点时，其所有子类型实例均兼容该端点。
   validation: extends 必须指向已存在对象类型，继承链不得形成环。
 
+# --- data_types ---
 data_types:
   scalar: [string, integer, number, boolean, date, datetime, any]
   compound: [array, object, enum, object_ref, semantic_ref, reasoning_ref, evidence_ref]
 
+# --- shared_object_properties ---
 shared_object_properties:
   id:
     type: string
@@ -107,6 +116,7 @@ shared_object_properties:
     required: false
     description: 对象结束有效的业务时间。
 
+# --- shared_relation_properties ---
 shared_relation_properties:
   id:
     type: string
@@ -129,6 +139,7 @@ shared_relation_properties:
     required: false
     description: 关系结束有效的业务时间。
 
+# --- common_enums ---
 common_enums:
   cardinality: [one_to_one, one_to_many, many_to_one, many_to_many]
   rule_type: [validation, inference, scoring, blocking]
@@ -137,6 +148,7 @@ common_enums:
   signal_role: [support, catalyst, track, weaken, block]
   direction: [increase, decrease, stable, positive, negative, neutral, uncertain]
 
+# --- layer_model ---
 layer_model:
   semantic:
     purpose: 定义稳定对象、属性和结构关系。
@@ -148,6 +160,7 @@ layer_model:
     purpose: 定义状态、事件、假设、信号、判断、定价比较、事后验证、推理留痕和推理能力。
     may_depend_on: [semantic, evidence]
 
+# --- object_role_families ---
 object_role_families:
   stable_semantics: [Concept, Organization, Company, Industry, Segment, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
   research_planning: [ResearchPlan, ResearchScope, ResearchQuestion, JudgmentUnit, CandidateClaim, ResearchPath, PathNode, InstanceRequirement, JudgmentLevelCriterion, AggregationContract, PropagationTemplate, ScenarioTemplate, BusinessScenarioTag, PathCondition, CompetingExplanation, ResearchFrameworkSelection, SemanticScopeSelection, EvidenceContract, ReasoningPlan, OntologyBindingSet, OntologyCandidateSet, OntologyGapSet]
@@ -158,6 +171,7 @@ object_role_families:
   scenario_and_record: [Scenario, RuleEvaluation, ReasoningTrace, ValidationRecord]
   note: 以上是按本体职责和推理角色划分的对象族；Object、Relation、Action、Function、Logic、Rule 属于元模型资源，不与业务对象并列。PolicyRequirement 与 TechnicalConstraint 属于政策工具内部可稳定引用的语义单元，不是证据对象。
 
+# --- cross_layer_constraints ---
 cross_layer_constraints:
   - id: semantic_contains_stable_meaning_only
     description: 时点数值、变化方向、单次事件和判断不得写入语义层。
@@ -188,6 +202,7 @@ cross_layer_constraints:
   - id: formal_rule_use_requires_evaluation
     description: 正式推理使用 Rule 时必须生成 RuleEvaluation，并由 ReasoningTrace 引用；未执行的规则不得事后补写为已使用。
 
+# --- modeling_granularity ---
 modeling_granularity:
   - id: separate_type_and_instance
     description: 核心 schema 只定义通用类型，不包含行业、公司、事件、日期或数值实例。

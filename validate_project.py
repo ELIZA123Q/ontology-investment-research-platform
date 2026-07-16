@@ -26,9 +26,7 @@ CHECKS = (
     ("推理方法库", [sys.executable, "知识库_04推理/validate_methods.py"]),
     ("研究价值评测契约", [sys.executable, "评测集/validate_eval_set.py"]),
     ("研究价值评测端到端", [sys.executable, "评测集/runtime/tests/test_eval_runtime.py"]),
-    ("存储芯片周期基线验收样例", [sys.executable, "运行校验/validate_run.py", "示例1-基线-20260713-1", "--no-write"]),
-    ("存储芯片周期增量验收样例", [sys.executable, "运行校验/validate_run.py", "示例1", "--no-write"]),
-    ("国产设备替代基线验收样例", [sys.executable, "运行校验/validate_run.py", "示例2-基线-20260710-1", "--no-write"]),
+    ("存储芯片周期验收样例", [sys.executable, "运行校验/validate_run.py", "示例1", "--no-write"]),
     ("国产设备替代验收样例", [sys.executable, "运行校验/validate_run.py", "示例2", "--no-write"]),
 )
 
@@ -45,7 +43,7 @@ def main() -> int:
         print("\nPROJECT_RETURN_REQUIRED: " + "、".join(failures))
         return 1
 
-    print("\nPROJECT_PASS: Markdown 用语、本体、知识库、研究价值评测契约与端到端测试、校验器及四个 01—05 验收样例全部通过。")
+    print("\nPROJECT_PASS: Markdown 用语、本体、知识库、研究价值评测契约与端到端测试、校验器及两个 01—05 验收样例全部通过。")
     return 0
 
 

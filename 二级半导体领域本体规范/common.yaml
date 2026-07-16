@@ -1,3 +1,5 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: semiconductor_domain_common
 schema_version: 1.0.0
 status: active
@@ -5,22 +7,26 @@ description: >-
   半导体领域本体的公共声明。该本体继承平台语义、推理和证据边界，
   只补充半导体投研中稳定、可复用的领域语言与判断结构。
 
+# --- depends_on ---
 depends_on:
   - ../一级通用本体规范/common.yaml
   - ../一级通用本体规范/semantic.yaml
   - ../一级通用本体规范/evidence.yaml
   - ../一级通用本体规范/reasoning.yaml
 
+# --- namespace ---
 namespace:
   prefix: ir-sc
   base_iri: "ir://invest-ontology/semiconductor#"
   note: 半导体领域扩展命名空间；仅可新增领域类型或通过 add_* 扩展端点，不得重定义一级 object_types / relation_types 本地标识。
 
+# --- extension_governance ---
 extension_governance:
   must_not_redefine_platform_object_types: true
   must_not_redefine_platform_relation_types: true
   allowed_extension_modes: [add_object_type, add_relation_type, object_type_extensions, relation_type_extensions, controlled_vocabularies]
 
+# --- domain_scope ---
 domain_scope:
   domain: semiconductor
   scope_type: industry
@@ -44,6 +50,7 @@ domain_scope:
     - 买卖建议、目标价、收益率预测或仓位建议
     - 数据接口、运行配置、任务编排和系统部署信息
 
+# --- inheritance ---
 inheritance:
   platform_resources_reused:
     semantic_objects:
@@ -101,6 +108,7 @@ inheritance:
     - DemandSource
     - Jurisdiction
 
+# --- platform_alignment ---
 platform_alignment:
   notes:
     - 公司总部或注册地使用一级 organizationLocatedIn；生产、销售、服务和监管暴露使用 companyOperatesInRegion。
@@ -108,6 +116,7 @@ platform_alignment:
     - 产品分类拆为 productDomain、semiconductorDeviceCategory、memoryProductCategory、equipmentCategory、moduleSystemCategory 五轴。
     - 半导体相关证券、基金份额、指数或衍生品复用一级 FinancialInstrument；证券代码、交易代码、LEI、MIC 和内部编码使用 Identifier 与 IdentificationScheme。
 
+# --- modeling_principles ---
 modeling_principles:
   - id: domain_structure_not_database
     statement: 领域本体定义可复用结构，不收录现实世界全量样本。
@@ -126,6 +135,7 @@ modeling_principles:
   - id: counter_evidence_first_class
     statement: 每个判断变量和传导模板都必须定义削弱或阻断条件。
 
+# --- naming_conventions ---
 naming_conventions:
   machine_keys: snake_case
   type_names: PascalCase
@@ -135,6 +145,7 @@ naming_conventions:
     YAML 中仅使用稳定的类型键、分类键、变量键和模板键；不得使用日期流水号、
     bundle ID、对象实例 ID 或环境相关标识。
 
+# --- controlled_vocabulary_contract ---
 controlled_vocabulary_contract:
   value_required_fields: [id, name, description]
   hierarchy_fields: [parent_id]
@@ -147,6 +158,7 @@ controlled_vocabulary_contract:
     - 同一分类轴内遵循最细粒度优先；跨轴可多选，同轴父子项不作为并列判断依据。
     - 领域扩展字段使用 semiconductor 前缀，不得覆盖一级通用属性名。
 
+# --- reference_basis ---
 reference_basis:
   authority_sources:
     - name: WSTS
@@ -158,6 +170,7 @@ reference_basis:
     - name: NIST CHIPS for America
       purpose: 材料与设备供应链、设施专业化、地域集中风险校准
 
+# --- prohibited_keys ---
 prohibited_keys:
   - runtime_index
   - manifest
@@ -171,6 +184,7 @@ prohibited_keys:
   - rule_refs
   - validation_report
 
+# --- quality_gates ---
 quality_gates:
   semantic:
     - 六类半导体器件、完整价值链、主要工艺、设备、材料、商业模式和需求来源均有分类。
@@ -186,6 +200,7 @@ quality_gates:
     - 高误判变量具备最低证据覆盖规则。
     - 支持证据、反证、竞争解释、时间匹配和来源独立性均有约束。
 
+# --- resource_counts ---
 resource_counts:
   state_variables: 46
   propagation_templates: 28

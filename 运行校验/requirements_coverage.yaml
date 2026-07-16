@@ -15,7 +15,7 @@ rules:
     validator_refs: [运行校验/research_loop.py]
     test_refs: [运行校验/tests/test_research_loop.py]
   - rule_id: LOOP-STALE-001
-    source_ref: 00_全局/00_项目定位与边界.md#5-基本运行逻辑
+    source_ref: 00_全局/00_项目定位与边界.md#5-运行骨架细则在阶段规范
     requirement: 对象 stale 只向依赖图可达下游传播，不得按阶段一刀切。
     execution_mode: automated
     validator_refs: [运行校验/research_loop.py]

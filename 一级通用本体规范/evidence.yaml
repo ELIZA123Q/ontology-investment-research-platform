@@ -1,9 +1,12 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
 schema_name: ontology_evidence
 schema_version: 2.0.0
 status: active
 depends_on: [common.yaml, semantic.yaml]
 description: 证据域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
 
+# --- object_types（对象类型）---
 object_types:
   EvidenceProfile:
     id: EvidenceProfile
@@ -32,6 +35,8 @@ object_types:
       minimum_source_tier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
       minimum_independent_source_count: {type: integer, required: true, description: 最少独立来源数。}
       allowed_proxy: {type: boolean, required: true, description: 是否允许代理指标。}
+
+  # --- 来源与采集 ---
   SourceDocument:
     id: SourceDocument
     name: 来源文档
@@ -120,6 +125,8 @@ object_types:
       usageLimit: {type: string, required: false, description: 该事实候选的使用限制。}
       status: {type: enum, required: true, allowed_values: [candidate, active, conflicted, invalidated, superseded], description: 事实候选生命周期状态。}
       createdAt: {type: datetime, required: true, description: 事实候选形成时间。}
+
+  # --- 需求与篮子 ---
   EvidenceRequirement:
     id: EvidenceRequirement
     name: 证据需求
@@ -292,6 +299,7 @@ object_types:
       gapAction: {type: string, required: false, description: 缺口动作。}
       assessmentReason: {type: string, required: true, description: 评估理由。}
 
+# --- relation_types（关系类型）---
 relation_types:
   claimCitesSource:
     id: claimCitesSource
@@ -558,6 +566,7 @@ relation_types:
     evidence_required: false
     properties: {}
 
+# --- action_types（动作）---
 action_types:
   RegisterSource:
     id: RegisterSource
@@ -768,6 +777,7 @@ action_types:
     logic_refs: [EvidenceReadinessAssessmentLogic]
     write_scope: [EvidenceReadinessAssessment, readinessAssessesRequirement, readinessEvaluatesBasket]
 
+# --- functions（函数）---
 functions:
   ExtractClaims:
     id: ExtractClaims
@@ -913,6 +923,7 @@ functions:
     side_effects: false
     version: 1.0.0
 
+# --- logic_flows（逻辑流）---
 logic_flows:
   SourceToClaimLogic:
     id: SourceToClaimLogic
@@ -1042,6 +1053,7 @@ logic_flows:
     outputs: [EvidenceAssessment]
     fallback: 无法确认口径或可追溯性时记为 unusable 或 blocked。
 
+# --- rules（规则）---
 rules:
   assessment_requires_evidence:
     id: assessment_requires_evidence

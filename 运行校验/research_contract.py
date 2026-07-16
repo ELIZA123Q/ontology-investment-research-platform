@@ -80,8 +80,15 @@ LEGACY_VERSION_SETS: dict[str, dict[str, str]] = {}  # 已清零；旧合同版�
 
 
 def current_versions(contract_version: str | None = None) -> dict[str, str]:
-    """返回当前公共合同版本集合；不再提供 1.1.0 等 legacy 版本集。"""
+    """返回当前公共合同版本集合。
+
+    不再提供 1.1.0 等 legacy 版本集作为 fallback；若调用方显式请求已删除的
+    legacy 合同版本，直接报错。其他未知/过期 contract_version 仍返回当前
+    版本集，由 validate_run 通过 recorded vs current 对比触发 revalidation。
+    """
     requested = str(contract_version or "").strip()
+    if requested == "1.1.0":
+        raise ContractError("已删除 legacy 版本集；run_manifest 不得再声明 contract=1.1.0")
     contract = public_contract()
     routes = route_registry()
     ontology = _mapping(load_yaml_file(ONTOLOGY_CONTRACT_PATH), "ontology_common")
@@ -91,7 +98,7 @@ def current_versions(contract_version: str | None = None) -> dict[str, str]:
     kb02 = _mapping(load_yaml_file(KB02_REGISTRY_PATH), "kb02_registry")
     kb03 = _mapping(load_yaml_file(KB03_REGISTRY_PATH), "kb03_registry")
     knowledge_versions = _mapping(routes.get("knowledge_versions"), "knowledge_versions")
-    versions = {
+    return {
         "contract": str(contract.get("schema_version", "")),
         "ontology": str(ontology.get("schema_version", "")),
         "ontology_reasoning": str(ontology_reasoning.get("schema_version", "")),
@@ -107,11 +114,6 @@ def current_versions(contract_version: str | None = None) -> dict[str, str]:
         "stage_05_audit_schema": "2.6.0",
         "semantic_review_schema": "1.0.0",
     }
-    if requested and requested != versions["contract"]:
-        raise ContractError(
-            f"已删除 legacy 版本集；仅支持当前合同 {versions['contract']}，收到 {requested}"
-        )
-    return versions
 
 
 def claim_version_hash(claim: Mapping[str, Any]) -> str:

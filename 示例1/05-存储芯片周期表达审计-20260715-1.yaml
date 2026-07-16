@@ -7,7 +7,7 @@ metadata:
   delivery_content_hash: sha256:f3f4ceee89f077112d0d56ac39e20422866670fdbfe28342664534312ed80c40
   source_04_brief_ref: 04-存储芯片周期判断简报-20260715-1.md
   source_04_audit_ref: 04-存储芯片周期推理审计-20260715-1.yaml
-  source_04_audit_hash: sha256:f72422ea43da8701b8bb6a424a9b7ceb892355fd374a42219e5e23e0b0a386db
+  source_04_audit_hash: sha256:6bfe33a0ba59c94561b549444520ead6ed0ca92f1b2a956e200cc66f8dd44463
   stage_status: complete
   quality_status: high_quality_pass
   quality_gate_ref: 05_投研表达与交付规范.md#9-质量门槛与返工规则

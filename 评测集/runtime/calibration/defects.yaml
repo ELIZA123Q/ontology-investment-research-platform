@@ -8,9 +8,9 @@ items:
     severity: critical
     expected_dimension: R
     operation: replace
-    target: DRAM 和 NAND 实现价环比分别上涨低 60% 段和中 80% 段
-    replacement: DRAM 和 NAND 实现价环比分别上涨低 6% 段和中 8% 段
-    expected_location: 投资要点第一条
+    target: 价格上涨低 60% 段；NAND 收入环比增长 99%，位出货仅增长中个位数，价格上涨中 80% 段
+    replacement: 价格上涨低 6% 段；NAND 收入环比增长 99%，位出货仅增长中个位数，价格上涨中 8% 段
+    expected_location: 第一章 Micron 交叉验证
     normal_should_rank_above: true
   - defect_id: DEF-02
     defect_type: scope_extrapolation

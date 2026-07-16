@@ -52,7 +52,7 @@ stages:
     - 03-美国管制与国产设备替代语义域与证据域实例清单-20260715-1.yaml
     hash: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
     source_hashes:
-      stage_02: sha256:17b6f6e8aca6c51f4a5d25197dc312fe16703fecf57b31c22a7610f0b9781976
+      stage_02: sha256:dd80887fac8251ad4ed11f677bba0409c8e1396feb6bcbf34f7adc01ba974217
     stage_status: complete
     validity_status: stale
     attempt: 1
@@ -65,7 +65,7 @@ stages:
     - 04-美国管制与国产设备替代推理审计-20260715-1.yaml
     hash: sha256:c7a67e8a6aaafe448ca8bb31443514fb8edea66a3396e7a5126b8bd789dcd18f
     source_hashes:
-      stage_03: sha256:e1c77974be33d43b86af54964a0c94a54ae1a3a4bdbc66991c22f9fedd1fe207
+      stage_03: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
     stage_status: complete
     validity_status: stale
     attempt: 1
@@ -78,7 +78,7 @@ stages:
     - 05-美国管制与国产设备替代表达审计-20260715-1.yaml
     hash: sha256:9a506cbb550bdf02a78d0ccdcf16da268a40462c0668b9043b6a09996208a20d
     source_hashes:
-      stage_04: sha256:44ae4b9cf2670de06f4f78fa9a4a79179f2877a2935fdd0434ec45c671ef6076
+      stage_04: sha256:c7a67e8a6aaafe448ca8bb31443514fb8edea66a3396e7a5126b8bd789dcd18f
     stage_status: complete
     validity_status: stale
     attempt: 1
