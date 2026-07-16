@@ -311,7 +311,7 @@ object_types:
   JudgmentLevelCriterion:
     id: JudgmentLevelCriterion
     name: 判断等级条件
-    description: 某判断单元达到特定 J 等级必须满足的证据和反证条件。
+    description: 某判断单元达到特定 J 等级必须满足的证据和反证条件；可由可复用模板实例绑定并允许任务覆盖。
     primary_key: id
     title_property: judgment_level
     validity: true
@@ -362,6 +362,64 @@ object_types:
         type: array
         required: true
         description: 其他必要条件。
+  JudgmentLevelCriterionTemplate:
+    id: JudgmentLevelCriterionTemplate
+    name: 判断等级条件模板
+    description: 跨任务可复用的默认 J 等级证据与反证门槛；任务通过绑定引用，仅覆盖篮子引用等任务字段。
+    primary_key: id
+    title_property: judgment_level
+    validity: true
+    properties:
+      judgment_level:
+        type: enum
+        required: true
+        allowed_values:
+        - J0
+        - J1
+        - J2
+        - J3
+        - J4
+        description: 目标判断等级。
+      applicable:
+        type: boolean
+        required: true
+        description: 默认是否适用。
+      minimum_source_authority:
+        type: enum
+        required: true
+        allowed_values:
+        - unknown
+        - indirect
+        - informed_secondary
+        - authoritative_secondary
+        - primary
+        description: 最低来源权威性。
+      minimum_independent_source_groups:
+        type: integer
+        required: true
+        description: 最少独立来源组数。
+      counter_evidence_check:
+        type: enum
+        required: true
+        allowed_values:
+        - required
+        - optional
+        description: 反证检查要求。
+      alternative_explanation_check:
+        type: enum
+        required: true
+        allowed_values:
+        - required
+        - optional
+        description: 竞争解释检查要求。
+      required_conditions:
+        type: array
+        required: true
+        description: 其他必要条件。
+      template_scope:
+        type: string
+        required: false
+        description: 模板适用范围说明。
   AggregationContract:
     id: AggregationContract
     name: 判断聚合合同
@@ -1435,6 +1493,36 @@ relation_types:
     cardinality: one_to_many
     evidence_required: false
     properties: {}
+  judgmentUnitUsesCriterionTemplate:
+    id: judgmentUnitUsesCriterionTemplate
+    name: 判断单元采用等级条件模板
+    description: 判断单元绑定可复用的默认 J 等级门槛模板；任务覆盖写入绑定属性。
+    source_types:
+    - JudgmentUnit
+    target_types:
+    - JudgmentLevelCriterionTemplate
+    direction: directed
+    cardinality: one_to_many
+    evidence_required: false
+    properties:
+      judgment_level:
+        type: enum
+        required: true
+        allowed_values:
+        - J0
+        - J1
+        - J2
+        - J3
+        - J4
+        description: 绑定的目标等级。
+      required_evidence_basket_refs:
+        type: array
+        required: false
+        description: 任务级篮子引用覆盖。
+      overrides:
+        type: object
+        required: false
+        description: 对模板字段的任务级覆盖。
   pathNodeRequiresInstance:
     id: pathNodeRequiresInstance
     name: 路径节点要求实例
@@ -3140,6 +3228,30 @@ rules:
         restricted: J2
         blocked: J0
         not_applicable: J4
+      path_result_statuses:
+      - established
+      - partially_established
+      - weakened
+      - blocked
+      - insufficient_evidence
+      - contested
+      - not_applicable
+      quality_language_to_evidence_grades:
+        sufficient:
+        - Q3
+        - Q4
+        limited:
+        - Q2
+        observation:
+        - Q1
+        unusable:
+        - Q0
+      evidence_method_role_to_basket_role:
+        primary: primary_support
+        baseline: background_evidence
+        mechanism: cross_validation
+        cross_check: cross_validation
+        counter: counter_evidence
       level_outputs:
         J0:
           evidence_permission: prohibited

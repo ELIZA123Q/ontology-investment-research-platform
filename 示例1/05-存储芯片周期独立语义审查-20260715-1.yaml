@@ -1,3 +1,5 @@
+# 发布闸门产物（非研究员交付物）。由独立于生产者的审阅者填写；
+# 登记于 run_manifest，供 validate_run 判定 PUBLISHABLE。
 schema_name: independent_semantic_review
 schema_version: 1.0.0
 review_id: ISR-EXEC-MEM-CYCLE-20260715-1
@@ -8,7 +10,7 @@ reviewer:
   independent_from_producer: true
   test_reviewer: true
 inputs:
-  public_contract_version: 1.2.0
+  public_contract_version: 1.2.1
   stage_hashes:
     stage_02: sha256:f4373c87ceae10848b9072ced6415266baf91d03f42aba816b77fa61b4825178
     stage_03: sha256:ff787a4b29a40c91ca5e1e4beb0c3fd81bc6593db53b90e55d939889e798f96f

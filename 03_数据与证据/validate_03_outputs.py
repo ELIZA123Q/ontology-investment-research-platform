@@ -36,6 +36,7 @@ from status_derivation import (
     normalize_counterevidence_result,
     reject_legacy_package_admission,
     reject_manual_derived_fields,
+    CONFIDENCE_LEVELS,
 )
 from research_contract import (
     canonical_sha256,
@@ -197,7 +198,6 @@ CONFLICT_STATUSES = {
     "not_applicable",
 }
 PROXY_DEPENDENCY_STATUSES = {"none", "low", "moderate", "high", "proxy_only", "not_applicable"}
-CONFIDENCE_LEVELS = {"high", "medium", "low"}
 PREPARATION_STATUSES = {
     "planned",
     "in_progress",

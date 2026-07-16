@@ -29,7 +29,9 @@ import yaml
 
 
 _REASONING_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "一级通用本体规范" / "reasoning.yaml"
+_EVIDENCE_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "一级通用本体规范" / "evidence.yaml"
 _REASONING_SCHEMA = yaml.safe_load(_REASONING_SCHEMA_PATH.read_text(encoding="utf-8"))
+_EVIDENCE_SCHEMA = yaml.safe_load(_EVIDENCE_SCHEMA_PATH.read_text(encoding="utf-8"))
 _THRESHOLD_POLICY = _REASONING_SCHEMA["rules"]["judgment_evidence_threshold"]["parameters"]
 
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
@@ -42,17 +44,31 @@ TASK_DISPOSITIONS = {
 EVIDENCE_GRADES = set(_THRESHOLD_POLICY["evidence_grade_caps"])
 JUDGMENT_LEVELS = set(_THRESHOLD_POLICY["level_outputs"])
 PATH_READINESS_STATUSES = set(_THRESHOLD_POLICY["path_readiness_caps"])
-PATH_RESULT_STATUSES = {
-    "established",
-    "partially_established",
-    "weakened",
-    "blocked",
-    "insufficient_evidence",
-    "contested",
-    "not_applicable",
-}
+PATH_RESULT_STATUSES = set(_THRESHOLD_POLICY["path_result_statuses"])
 COUNTEREVIDENCE_RESULTS = set(_THRESHOLD_POLICY["counterevidence_caps"])
-
+QUALITY_LANGUAGE_TO_EVIDENCE_GRADES = {
+    key: set(values)
+    for key, values in (_THRESHOLD_POLICY.get("quality_language_to_evidence_grades") or {}).items()
+}
+EVIDENCE_METHOD_ROLE_TO_BASKET_ROLE = dict(
+    _THRESHOLD_POLICY.get("evidence_method_role_to_basket_role") or {}
+)
+SOURCE_AUTHORITY_LEVELS = set(
+    _REASONING_SCHEMA["object_types"]["JudgmentLevelCriterion"]["properties"][
+        "minimum_source_authority"
+    ]["allowed_values"]
+)
+SOURCE_TIERS = set(
+    _EVIDENCE_SCHEMA["object_types"]["SourceProfile"]["properties"]["sourceTier"]["allowed_values"]
+)
+CONFIDENCE_LEVELS = set(
+    _EVIDENCE_SCHEMA["object_types"]["EvidenceReadinessAssessment"]["properties"][
+        "confidenceCeiling"
+    ]["allowed_values"]
+)
+BASKET_ROLES = set(
+    _EVIDENCE_SCHEMA["object_types"]["EvidenceBasket"]["properties"]["basketRole"]["allowed_values"]
+)
 DERIVED_LIMIT_FIELDS = {
     "evidence_permission",
     "allowed_04_output",
@@ -125,7 +141,7 @@ def canonical_path_readiness_status(value: Any) -> str:
 
 
 def evidence_profile_quality_floor(profile_id: str) -> str:
-    """从二级 EvidenceProfile 实例派生质量下限；画像实例是权威源。"""
+    """从二级 EvidenceProfile 实例读取质量下限；画像实例是权威源。"""
     profile_path = Path(__file__).resolve().parent.parent / "二级半导体领域本体规范" / "business_instances.yaml"
     document = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     graph = document.get("business_instance_graph") or {}
@@ -136,10 +152,10 @@ def evidence_profile_quality_floor(profile_id: str) -> str:
         explicit = str(props.get("quality_floor") or props.get("minimum_quality_level") or "").strip()
         if explicit in EVIDENCE_GRADES:
             return explicit
-        requirements = props.get("minimum_requirements") or []
-        if isinstance(requirements, list) and len(requirements) >= 3:
-            return "Q3"
-        return "Q2"
+        raise ValueError(
+            f"EvidenceProfile {profile_id} 缺少权威 quality_floor（Q0—Q4）；"
+            "不得再按 minimum_requirements 长度启发式推断"
+        )
     raise ValueError(f"未找到 EvidenceProfile 实例: {profile_id}")
 
 

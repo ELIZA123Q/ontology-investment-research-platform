@@ -1,3 +1,5 @@
+# 发布闸门产物（非研究员交付物）。由独立于生产者的审阅者填写；
+# 登记于 run_manifest，供 validate_run 判定 PUBLISHABLE。
 schema_name: independent_semantic_review
 schema_version: 1.0.0
 review_id: "ISR-<run_id>"

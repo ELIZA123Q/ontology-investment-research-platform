@@ -10,14 +10,15 @@
 |---|---|---|---|
 | 01 | 01-主题投研需求说明-日期-序号.md | 无 | 投研需求说明；不读取、引用或受制于本体 |
 | 02 | 02-主题研究逻辑-日期-序号.md | 02-主题本体视图-日期-序号.yaml | 研究逻辑 + 本次任务跨三域所需的本体范围 |
-| 03 | 03-主题数据与证据准备-日期-序号.md | 03-主题语义域与证据域实例清单-日期-序号.yaml + 快照目录 | 语义实例、证据实例、固定推理输入，以及各核心判断的证据是否够用 |
-| 04 | 04-主题判断简报-日期-序号.md | 04-主题推理审计-日期-序号.yaml | 2—4 页判断定稿 + 完整推理留痕 + 是否允许进入 05 表达 |
-| 05 | 05-主题报告类型-日期-序号.md | 05-主题表达审计-日期-序号.yaml + 05-主题独立语义审查-日期-序号.yaml | 最终研究稿 + 确定性表达审计 + 独立语义校验 |
+| 03 | 03-主题数据与证据准备-日期-序号.md | 03-主题语义域与证据域实例清单-日期-序号.yaml + 快照目录 | 语义/证据运行实例 + **冻结推理输入**（Observation/Event 等），以及各核心判断的证据是否够用；**不含** RuleEvaluation / Judgment |
+| 04 | 04-主题判断简报-日期-序号.md | 04-主题推理审计-日期-序号.yaml | 2—4 页判断定稿；**完整推理域运行实例**（Hypothesis/Signal/RuleEvaluation/Judgment/ReasoningTrace）嵌在审计的 `business_instance_graph` 内，**不再单独产出** `04-*推理域实例清单*.yaml` |
+| 05 | 05-主题报告类型-日期-序号.md | 05-主题表达审计-日期-序号.yaml | 最终研究稿 + 确定性表达审计（研究员交付） |
+| 05 发布闸门 | （无单独正文） | 05-主题独立语义审查-日期-序号.yaml | 独立审阅留痕；非研究员交付物，缺则最多 `STAGE_READY` |
 | 事后复盘（非新增核心阶段） | 无固定正文 | 研究复盘记录，按 `04_推理/模板/研究复盘记录模板.yaml` | 对原判断追加兑现结果、错误归因和学习建议，不覆盖原留痕 |
 
-01 新运行使用 `judgment_task / 1.5.0`：除比较范围、时间三件套和交付深度外，必须提供 `task_scope_contract`。02 使用逻辑 `1.2.0` / 视图 `2.2.0`，冻结 `scope_graph`、稳定命题键、父子聚合合同及证据回环合同；03 继续使用 `1.4.0` 快照，并要求语义/证据实例清单 `3.0.0` 以 `business_instance_graph` 为权威、CSV 为只读投影；04 审计使用 `4.0.0` 实例图；05 表达审计使用 `2.6.0`。旧专用列表权威格式不再兼容。
+01 新运行使用 `judgment_task / 1.5.0`：除比较范围、时间三件套和交付深度外，必须提供 `task_scope_contract`。02 使用逻辑 `1.2.0` / 视图 `2.2.0`，冻结 `scope_graph`、稳定命题键、父子聚合合同及证据回环合同；03 继续使用 `1.4.0` 快照，并要求语义/证据实例清单 `3.0.0` 以 `business_instance_graph` 为权威、CSV 为只读投影（文件名写「语义域与证据域」，YAML 的 `included_domains` 另含 `reasoning_input`）；04 审计使用 `4.0.0` 实例图；05 表达审计使用 `2.6.0`。旧专用列表权威格式不再兼容。
 
-发布采用双层校验：确定性链通过但独立语义审查缺失时为 `STAGE_READY`；确定性失败或语义审查 `fail/needs_human` 时为 `RETURN_REQUIRED`；两层均通过且输入哈希有效时才为 `PUBLISHABLE`。新运行使用 `run_manifest / 1.2.0`：每阶段保留 current、pending、history 与 `supersedes_attempt`，证据循环还记录 wave、plan 和对象 stale；跨运行增量仍绑定真实父清单路径与哈希，并逐稳定 Claim 填写更新登记。
+发布采用双层校验：确定性链通过但独立语义审查缺失时为 `STAGE_READY`；确定性失败或语义审查 `fail/needs_human` 时为 `RETURN_REQUIRED`；两层均通过且输入哈希有效时才为 `PUBLISHABLE`。独立语义审查是发布闸门产物（独立审阅者填写），不是研究员交付物；研究员侧只需研报与表达审计。新运行使用 `run_manifest / 1.2.0`：每阶段保留 current、pending、history 与 `supersedes_attempt`，证据循环还记录 wave、plan 和对象 stale；跨运行增量仍绑定真实父清单路径与哈希，并逐稳定 Claim 填写更新登记。`stage_05.artifact` 仍须登记研报、表达审计与独立语义审查（后两者分别为确定性审计与发布闸门留痕）；**stage_05 内容哈希只覆盖前两者**（审查文件会回写该哈希，纳入会产生循环依赖）。
 
 跨阶段公共字段、枚举、判断类型和状态以 [`public_contract.yaml`](../00_全局/contracts/public_contract.yaml) 为准，判断类型到 03/04 方法的默认与允许路由以 [`judgment_method_routes.yaml`](../00_全局/contracts/judgment_method_routes.yaml) 为准。02 本体视图须同时包含 semantic_scope、evidence_contract 和 reasoning_plan，并为每个 JU 生成 `content_hash`。03、04 必须继承该 JU 的类型和哈希，发现错误只能返回 02。
 

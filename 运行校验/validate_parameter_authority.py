@@ -28,9 +28,13 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # 禁止在模板/校验代码中重新声明已由本体权威承载的业务枚举或门槛矩阵。
 _FORBIDDEN_AUTHORITY_PATTERNS: list[tuple[str, str]] = [
-    (r"JUDGMENT_LEVELS\s*=\s*\{", "不得硬编码 JUDGMENT_LEVELS 集合"),
-    (r"EVIDENCE_GRADES\s*=\s*\{", "不得硬编码 EVIDENCE_GRADES 集合"),
-    (r"PATH_READINESS_STATUSES\s*=\s*\{", "不得硬编码 PATH_READINESS_STATUSES 集合"),
+    (r"(?<![A-Z_])JUDGMENT_LEVELS\s*=\s*\{", "不得硬编码 JUDGMENT_LEVELS 集合"),
+    (r"(?<![A-Z_])EVIDENCE_GRADES\s*=\s*\{", "不得硬编码 EVIDENCE_GRADES 集合"),
+    (r"(?<![A-Z_])PATH_READINESS_STATUSES\s*=\s*\{", "不得硬编码 PATH_READINESS_STATUSES 集合"),
+    (r"(?<![A-Z_])PATH_RESULT_STATUSES\s*=\s*\{", "不得硬编码 PATH_RESULT_STATUSES 集合"),
+    (r"(?<![A-Z_])SOURCE_TIERS\s*=\s*\{", "不得硬编码 SOURCE_TIERS 集合"),
+    (r"(?<![A-Z_])SOURCE_AUTHORITY_LEVELS\s*=\s*\{", "不得硬编码 SOURCE_AUTHORITY_LEVELS 集合"),
+    (r"(?<![A-Z_])CONFIDENCE_LEVELS\s*=\s*\{", "不得硬编码 CONFIDENCE_LEVELS 集合"),
     (r"evidence_grade_caps\s*=\s*\{", "不得硬编码 evidence_grade_caps 门槛矩阵"),
     (r"counterevidence_caps\s*=\s*\{", "不得硬编码 counterevidence_caps 门槛矩阵"),
     (r"path_readiness_caps\s*=\s*\{", "不得硬编码 path_readiness_caps 门槛矩阵"),
@@ -40,6 +44,7 @@ _FORBIDDEN_AUTHORITY_PATTERNS: list[tuple[str, str]] = [
 _SCAN_ALLOWLIST_SUFFIXES = {
     "运行校验/status_derivation.py",  # 仅从本体规则加载集合
     "运行校验/validate_parameter_authority.py",
+    "运行校验/ontology_instance_graph.py",  # 兼容展开旧 level_requirements
 }
 
 
@@ -88,7 +93,20 @@ def _assert_nested_parameters_instantiated(path: Path, data: dict, errors: list[
             if nested in props:
                 errors.append(
                     f"{path.relative_to(ROOT)} JudgmentUnit {item.get('id')} 仍内嵌 {nested}；"
-                    "应拆为正式实例"
+                    "应拆为正式实例或 criterion_template_bindings"
+                )
+        if "JudgmentUnit" in types and not props.get("criterion_template_bindings"):
+            # Allow legacy full JudgmentLevelCriterion objects on disk.
+            has_local_criteria = any(
+                obj.get("type") == "JudgmentLevelCriterion"
+                and (obj.get("properties") or {}).get("judgment_unit_id")
+                in {item.get("id"), (item.get("properties") or {}).get("judgment_unit_id")}
+                for obj in data["business_instance_graph"].get("objects", [])
+            )
+            if not has_local_criteria:
+                errors.append(
+                    f"{path.relative_to(ROOT)} JudgmentUnit {item.get('id')} "
+                    "缺少 criterion_template_bindings"
                 )
 
 
@@ -100,6 +118,7 @@ def main() -> int:
         "stage03_manifests": 0,
         "stage04_audits": 0,
         "authority_refs": 0,
+        "authority_matrix": 0,
     }
 
     task_views = sorted(ROOT.glob("示例*/02-*本体视图-*.yaml")) + [
@@ -145,12 +164,22 @@ def main() -> int:
         "propagation_templates": 28,
         "scenario_templates": 4,
         "business_scenario_tags": 9,
+        "judgment_level_criterion_templates": 5,
+        "source_profiles": 3,
+        "evidence_recipes": 3,
+        "proxy_indicators": 1,
     }
     if counts != expected:
         errors.append(f"二级业务实例数量不一致: {counts} != {expected}")
     for filename, forbidden in {
-        "evidence.yaml": {"evidence_profiles"},
-        "reasoning.yaml": {"state_variables", "propagation_templates", "scenario_templates", "business_scenario_tags"},
+        "evidence.yaml": {"evidence_profiles", "evidence_recipes", "source_profiles", "proxy_indicators"},
+        "reasoning.yaml": {
+            "state_variables",
+            "propagation_templates",
+            "scenario_templates",
+            "business_scenario_tags",
+            "judgment_level_criterion_templates",
+        },
     }.items():
         schema = yaml.safe_load((domain_dir / filename).read_text(encoding="utf-8"))
         duplicated = sorted(forbidden & set(schema))
@@ -209,7 +238,16 @@ def main() -> int:
             errors.append(f"{path.relative_to(ROOT)}: {exc}")
 
     raw_contract = yaml.safe_load((ROOT / "00_全局/contracts/public_contract.yaml").read_text(encoding="utf-8"))
-    for field in ("judgment_types", "judgment_levels", "path_readiness_statuses"):
+    for field in (
+        "judgment_types",
+        "judgment_levels",
+        "path_readiness_statuses",
+        "path_result_statuses",
+        "source_authority_levels",
+        "source_tiers",
+        "confidence_levels",
+        "basket_roles",
+    ):
         if field in raw_contract:
             errors.append(f"public_contract 不得重复定义业务参数 {field}")
     refs = raw_contract.get("business_authority_refs") or {}
@@ -219,6 +257,113 @@ def main() -> int:
         errors.append("judgment_levels 未由本体一致驱动")
     if set(contract["path_readiness_statuses"]) != status.PATH_READINESS_STATUSES:
         errors.append("path_readiness_statuses 未由本体一致驱动")
+    if set(contract["path_result_statuses"]) != status.PATH_RESULT_STATUSES:
+        errors.append("path_result_statuses 未由本体一致驱动")
+    if set(contract["source_tiers"]) != status.SOURCE_TIERS:
+        errors.append("source_tiers 未由本体一致驱动")
+    if set(contract["confidence_levels"]) != status.CONFIDENCE_LEVELS:
+        errors.append("confidence_levels 未由本体一致驱动")
+
+    matrix_path = ROOT / "00_全局" / "contracts" / "parameter_authority_matrix.yaml"
+    if not matrix_path.is_file():
+        errors.append("缺少 parameter_authority_matrix.yaml")
+    else:
+        matrix = yaml.safe_load(matrix_path.read_text(encoding="utf-8")) or {}
+        entries = matrix.get("parameters") or []
+        if len(entries) < 8:
+            errors.append("parameter_authority_matrix.parameters 条目过少")
+        allowed_kinds = {
+            "formal_ontology_instance",
+            "ontology_rule_param",
+            "knowledge_base_ref",
+            "runtime_contract",
+        }
+        matrix_ids: set[str] = set()
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, dict):
+                errors.append(f"parameter_authority_matrix.parameters[{index}] 必须是对象")
+                continue
+            if entry.get("authority_kind") not in allowed_kinds:
+                errors.append(
+                    f"parameter_authority_matrix.parameters[{index}].authority_kind 非法"
+                )
+            entry_id = str(entry.get("id") or "").strip()
+            if not entry_id:
+                errors.append(f"parameter_authority_matrix.parameters[{index}].id 为空")
+            else:
+                matrix_ids.add(entry_id)
+        # 领域实例族与 business_authority_refs 必须在矩阵中有权威登记。
+        required_matrix_ids = set(expected) | set(refs) | {
+            "judgment_evidence_threshold",
+            "judgment_method_routes",
+            "stage_statuses",
+            "quality_status",
+        }
+        missing_matrix = sorted(required_matrix_ids - matrix_ids)
+        if missing_matrix:
+            errors.append(
+                f"parameter_authority_matrix 缺少已有权威项登记: {missing_matrix}"
+            )
+        ownership = raw_contract.get("ownership") or {}
+        formal_owned = set(ownership.get("formal_ontology") or [])
+        required_formal = {
+            "state_variables",
+            "evidence_profiles",
+            "propagation_templates",
+            "scenario_templates",
+            "business_scenario_tags",
+            "judgment_level_criterion_templates",
+            "evidence_recipes",
+            "source_profiles",
+            "proxy_indicators",
+        }
+        missing_formal = sorted(required_formal - formal_owned)
+        if missing_formal:
+            errors.append(
+                f"public_contract.ownership.formal_ontology 缺少: {missing_formal}"
+            )
+        public_owned = set(ownership.get("public_contract") or [])
+        if "judgment_method_routes" not in public_owned:
+            errors.append(
+                "public_contract.ownership.public_contract 缺少 judgment_method_routes"
+            )
+        not_promoted = matrix.get("not_promoted") or []
+        if not isinstance(not_promoted, list) or len(not_promoted) < 3:
+            errors.append(
+                "parameter_authority_matrix.not_promoted 须登记不升格项"
+                "（二级证据维度 / 事件分类 / 04 审计枚举等）"
+            )
+        else:
+            for index, item in enumerate(not_promoted):
+                if not isinstance(item, dict) or not str(item.get("id") or "").strip():
+                    errors.append(
+                        f"parameter_authority_matrix.not_promoted[{index}] 须含 id"
+                    )
+                elif str(item.get("id")) in matrix_ids:
+                    errors.append(
+                        f"not_promoted.{item.get('id')} 不得同时出现在 parameters"
+                    )
+        coverage["authority_matrix"] = len(entries)
+
+    kb03 = yaml.safe_load((ROOT / "知识库_03取证" / "03_registry.yaml").read_text(encoding="utf-8")) or {}
+    if "ontology_authority_refs" not in kb03:
+        errors.append("知识库_03取证/03_registry.yaml 缺少 ontology_authority_refs")
+    for role, meta in (kb03.get("evidence_roles") or {}).items():
+        if not isinstance(meta, dict) or not meta.get("basket_role_ref"):
+            errors.append(f"KB03 evidence_roles.{role} 缺少 basket_role_ref")
+        elif meta.get("basket_role_ref") not in status.BASKET_ROLES:
+            errors.append(
+                f"KB03 evidence_roles.{role}.basket_role_ref 不在本体篮子角色中"
+            )
+    for key, meta in (kb03.get("quality_language") or {}).items():
+        if key not in status.QUALITY_LANGUAGE_TO_EVIDENCE_GRADES:
+            errors.append(f"KB03 quality_language.{key} 未在本体规则参数中登记")
+        if not isinstance(meta, dict) or "machine_evidence_grades_ref" not in meta:
+            errors.append(f"KB03 quality_language.{key} 缺少 machine_evidence_grades_ref")
+        if "machine_evidence_grades" in (meta or {}):
+            errors.append(
+                f"KB03 quality_language.{key} 不得再内联 machine_evidence_grades；只保留 ref"
+            )
 
     _scan_duplicate_authority(errors)
 
@@ -228,6 +373,7 @@ def main() -> int:
         + coverage["stage03_manifests"]
         + coverage["stage04_audits"]
         + coverage["authority_refs"]
+        + coverage.get("authority_matrix", 0)
     )
     required = (
         len(task_views)
@@ -235,6 +381,7 @@ def main() -> int:
         + len(list(ROOT.glob("示例*/03-*语义域与证据域实例清单-*.yaml")))
         + len(list(ROOT.glob("示例*/04-*推理审计-*.yaml")))
         + len(refs)
+        + coverage.get("authority_matrix", 0)
     )
     coverage_rate = 0.0 if required == 0 else owned / required
 
@@ -250,7 +397,8 @@ def main() -> int:
         return 1
     print(
         "PARAMETER_AUTHORITY_PASS: 02 任务参数、03/04 运行实例、12 个证据画像、46 个状态变量、"
-        "28 个传导模板、4 个情景模板、9 个情景标签及判断门槛均由本体单一驱动。"
+        "28 个传导模板、4 个情景模板、9 个情景标签、5 个 J 门槛模板、取证配方/来源画像/代理指标"
+        "及判断门槛均由本体单一驱动。"
     )
     print(f"PARAMETER_OWNERSHIP_COVERAGE: {coverage_rate:.2%} ({owned}/{required})")
     return 0

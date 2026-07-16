@@ -97,6 +97,11 @@ def manifest_binding_hash(manifest: dict[str, Any]) -> str:
 
 
 def _stage_paths(artifacts: RunArtifacts) -> dict[str, list[Path]]:
+    """阶段内容哈希所用路径。
+
+    stage_05 哈希刻意不含独立语义审查：该审查文件会回写 stage_05 哈希，
+    若纳入哈希会产生循环依赖。审查文件仍登记在 manifest artifact 列表中。
+    """
     stage_03_extra = sorted(artifacts.run_dir.glob("03-*语义域与证据域实例清单-*.yaml"))
     return {
         "stage_01": [path for path in [artifacts.requirement] if path],
@@ -105,6 +110,14 @@ def _stage_paths(artifacts: RunArtifacts) -> dict[str, list[Path]]:
         "stage_04": [path for path in [artifacts.report, artifacts.audit] if path],
         "stage_05": [path for path in [artifacts.delivery, artifacts.expression_audit] if path],
     }
+
+
+def _stage_artifacts(artifacts: RunArtifacts) -> dict[str, list[Path]]:
+    """manifest 登记的 artifact 列表；stage_05 额外包含独立语义审查。"""
+    paths = _stage_paths(artifacts)
+    if artifacts.semantic_review is not None:
+        paths["stage_05"] = [*paths["stage_05"], artifacts.semantic_review]
+    return paths
 
 
 def _stage_hash(paths: list[Path], run_dir: Path) -> str:
@@ -174,21 +187,22 @@ def build_manifest(
     producer_id: str = "producer",
 ) -> dict[str, Any]:
     contract = public_contract()
-    paths_by_stage = _stage_paths(artifacts)
+    hash_paths = _stage_paths(artifacts)
+    artifact_paths = _stage_artifacts(artifacts)
     task_id, run_id = _identity(artifacts)
     hashes = {
         stage: _stage_hash(paths, artifacts.run_dir) if paths else ""
-        for stage, paths in paths_by_stage.items()
+        for stage, paths in hash_paths.items()
     }
     stages: dict[str, Any] = {}
     for stage in STAGES:
         upstream = IMMEDIATE_UPSTREAM[stage]
         stages[stage] = {
-            "artifact": [_relative(path, artifacts.run_dir) for path in paths_by_stage[stage]],
+            "artifact": [_relative(path, artifacts.run_dir) for path in artifact_paths[stage]],
             "hash": hashes[stage],
             "source_hashes": {upstream: hashes[upstream]} if upstream else {},
             "stage_status": _stage_status(stage, artifacts),
-            "validity_status": "current" if paths_by_stage[stage] else "missing",
+            "validity_status": "current" if hash_paths[stage] else "missing",
             "attempt": 1,
             "supersedes_attempt": None,
             "attempt_history": [],

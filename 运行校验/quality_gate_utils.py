@@ -6,8 +6,12 @@ from __future__ import annotations
 from typing import Any
 
 from status_derivation import (
+    BASKET_ROLES,
+    CONFIDENCE_LEVELS,
     EVIDENCE_GRADES,
     JUDGMENT_LEVELS,
+    SOURCE_AUTHORITY_LEVELS,
+    SOURCE_TIERS,
     STAGE_STATUSES,
     TASK_DISPOSITIONS,
     canonical_evidence_grade,
@@ -34,17 +38,9 @@ SEARCH_STATUSES = {
     "blocked_by_access",
 }
 
-EVIDENCE_ROLES = {
-    "primary_support",
-    "cross_validation",
-    "counter_evidence",
-    "blocking_condition",
-    "proxy_indicator",
-    "background_evidence",
-}
+EVIDENCE_ROLES = BASKET_ROLES
 REQUIREMENT_PURPOSES = {"support", "weaken", "block", "validate", "cross_validate", "counter", "background"}
 QUALITY_LEVELS = EVIDENCE_GRADES
-SOURCE_TIERS = {"S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"}
 
 TARGET_CLAIM_TYPES = {
     "historical_fact",
@@ -53,13 +49,6 @@ TARGET_CLAIM_TYPES = {
     "directional_outlook",
     "forecast",
     "conditional_scenario",
-}
-SOURCE_AUTHORITY_LEVELS = {
-    "primary",
-    "authoritative_secondary",
-    "informed_secondary",
-    "indirect",
-    "unknown",
 }
 
 RETURN_STAGES = ("01", "02", "03", "04", "05")

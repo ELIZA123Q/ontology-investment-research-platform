@@ -340,47 +340,24 @@ business_instance_graph:
       counter_evidence_requirement_refs: []
       alternative_explanation_refs: []
       required_path_condition_refs: []
-      level_requirements:
-        J4:
-          applicable: false
-          required_evidence_basket_refs: []
-          minimum_source_authority: primary
-          minimum_independent_source_groups: 1
-          counter_evidence_check: required
-          alternative_explanation_check: required
-          required_conditions: []
-        J3:
-          applicable: true
-          required_evidence_basket_refs: []
-          minimum_source_authority: authoritative_secondary
-          minimum_independent_source_groups: 2
-          counter_evidence_check: required
-          alternative_explanation_check: required
-          required_conditions: []
-        J2:
-          applicable: true
-          required_evidence_basket_refs: []
-          minimum_source_authority: informed_secondary
-          minimum_independent_source_groups: 1
-          counter_evidence_check: required
-          alternative_explanation_check: optional
-          required_conditions: []
-        J1:
-          applicable: true
-          required_evidence_basket_refs: []
-          minimum_source_authority: indirect
-          minimum_independent_source_groups: 1
-          counter_evidence_check: optional
-          alternative_explanation_check: optional
-          required_conditions: []
-        J0:
-          applicable: true
-          required_evidence_basket_refs: []
-          minimum_source_authority: unknown
-          minimum_independent_source_groups: 0
-          counter_evidence_check: optional
-          alternative_explanation_check: optional
-          required_conditions: []
+      criterion_template_bindings:
+      - judgment_level: J0
+        template_id: jlc_default_j0
+        template_ref: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.jlc_default_j0
+      - judgment_level: J1
+        template_id: jlc_default_j1
+        template_ref: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.jlc_default_j1
+      - judgment_level: J2
+        template_id: jlc_default_j2
+        template_ref: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.jlc_default_j2
+        required_evidence_basket_refs: []
+      - judgment_level: J3
+        template_id: jlc_default_j3
+        template_ref: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.jlc_default_j3
+        required_evidence_basket_refs: []
+      - judgment_level: J4
+        template_id: jlc_default_j4
+        template_ref: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.jlc_default_j4
       stop_condition: <达到目标等级或路径无法继续验证时停止>
       evidence_profile_refs: []
       md_section: '5'

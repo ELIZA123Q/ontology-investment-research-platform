@@ -6,11 +6,11 @@ parent_run: null
 run_mode: fixture
 producer_id: fixture-producer-equipment_rerun
 versions:
-  contract: 1.2.0
+  contract: 1.2.1
   ontology: 2.1.0
   ontology_reasoning: 2.1.0
   kb02: 2.0.0
-  kb03: 3.1.0
+  kb03: 3.2.0
   kb04: 1.0.0
   stage_01_schema: 1.5.0
   stage_02_logic_schema: 1.2.0
@@ -54,7 +54,7 @@ stages:
     source_hashes:
       stage_02: sha256:dd80887fac8251ad4ed11f677bba0409c8e1396feb6bcbf34f7adc01ba974217
     stage_status: complete
-    validity_status: stale
+    validity_status: current
     attempt: 1
     supersedes_attempt: null
     attempt_history: []
@@ -67,20 +67,22 @@ stages:
     source_hashes:
       stage_03: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
     stage_status: complete
-    validity_status: stale
+    validity_status: current
     attempt: 1
     supersedes_attempt: null
     attempt_history: []
     pending_attempt: null
   stage_05:
     artifact:
+    # 研报 + 表达审计为研究员交付；独立语义审查为发布闸门留痕
     - 05-美国管制与国产设备替代主题深度研究-20260715-1.md
     - 05-美国管制与国产设备替代表达审计-20260715-1.yaml
+    - 05-美国管制与国产设备替代独立语义审查-20260715-1.yaml
     hash: sha256:9a506cbb550bdf02a78d0ccdcf16da268a40462c0668b9043b6a09996208a20d
     source_hashes:
       stage_04: sha256:c7a67e8a6aaafe448ca8bb31443514fb8edea66a3396e7a5126b8bd789dcd18f
     stage_status: complete
-    validity_status: stale
+    validity_status: current
     attempt: 1
     supersedes_attempt: null
     attempt_history: []
@@ -96,47 +98,11 @@ reasoning_loop:
   pending_stage_attempts: []
   structural_checkpoint_required: false
   converged: true
-validation_issues:
-- issue_id: STALE-stage_03
-  detected_at_stage: stage_03
-  rule_id: stage_03.artifact_hash
-  return_to_stage: stage_03
-  reason: stage_03 当前内容哈希与已提交哈希不一致
-  severity: blocking
-- issue_id: STALE-stage_04
-  detected_at_stage: stage_04
-  rule_id: stage_04.artifact_hash
-  return_to_stage: stage_04
-  reason: stage_04 当前内容哈希与已提交哈希不一致
-  severity: blocking
-- issue_id: STALE-stage_05
-  detected_at_stage: stage_05
-  rule_id: stage_05.artifact_hash
-  return_to_stage: stage_05
-  reason: stage_05 当前内容哈希与已提交哈希不一致
-  severity: blocking
-- issue_id: SOURCE-stage_04
-  detected_at_stage: stage_04
-  rule_id: stage_04.source_hashes.stage_03
-  return_to_stage: stage_04
-  reason: stage_04 记录的上游哈希与当前 stage_03 不一致
-  severity: blocking
-- issue_id: SOURCE-stage_05
-  detected_at_stage: stage_05
-  rule_id: stage_05.source_hashes.stage_04
-  return_to_stage: stage_05
-  reason: stage_05 记录的上游哈希与当前 stage_04 不一致
-  severity: blocking
-- issue_id: SEMANTIC-REVIEW
-  detected_at_stage: stage_05
-  rule_id: semantic_review.contract
-  return_to_stage: stage_05
-  reason: 独立语义审查输入哈希与冻结后的 02—05 内容不一致
-  severity: blocking
+validation_issues: []
 validation_summary:
   quality_pass: true
-  publishable: false
-  publish_status: RETURN_REQUIRED
+  publishable: true
+  publish_status: PUBLISHABLE
   judgment_level: J2
   directional_conclusion_available: true
-  contract_version: 1.2.0
+  contract_version: 1.2.1

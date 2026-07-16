@@ -1,5 +1,5 @@
 schema_name: controlled_research_chain_public_contract
-schema_version: 1.2.0
+schema_version: 1.2.1
 status: active
 
 # 这里只维护跨阶段共享语义。阶段内部字段继续由 01—05 各自规范维护。
@@ -18,11 +18,20 @@ ownership:
     - scope_graph
     - claim_scope
     - cross_stage_references
+    - judgment_method_routes
   formal_ontology:
     - object_types
     - relation_types
     - state_variables
+    - evidence_profiles
+    - propagation_templates
+    - scenario_templates
+    - business_scenario_tags
     - stable_domain_rules
+    - judgment_level_criterion_templates
+    - evidence_recipes
+    - source_profiles
+    - proxy_indicators
   knowledge_bases:
     - reusable_methods
     - method_applicability
@@ -30,6 +39,11 @@ ownership:
   stage_specs:
     - stage_internal_fields
     - researcher_readable_explanations
+  notes:
+    - 运行路由枚举（stage_status / task_disposition / quality_status）保持运行合同，不新建治理域本体。
+    - judgment_method_routes 为跨阶段方法路由合同；judgment_type 值域仍由一级本体驱动。
+    - 参数归属清单见 parameter_authority_matrix.yaml；覆盖率指已登记参数权威唯一，不是一切皆本体。
+    - 二级 evidence_quality_dimensions / event_type_taxonomy 与 04 handoff 审计枚举见矩阵 not_promoted，本期不升格为 ontology_rule_param。
 
 # 跨阶段主链与标识：本块为唯一机器权威；阶段规范只解释本阶段如何使用。
 # 主链：01 核心问题 → 02 JU → 03 ER → 03 EV → 04 C → 05 EX
@@ -86,6 +100,11 @@ business_authority_refs:
   judgment_types: 一级通用本体规范/reasoning.yaml#object_types.JudgmentUnit.properties.judgment_type.allowed_values
   judgment_levels: 一级通用本体规范/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.judgment_level.allowed_values
   path_readiness_statuses: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps.@keys
+  path_result_statuses: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
+  source_authority_levels: 一级通用本体规范/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.minimum_source_authority.allowed_values
+  source_tiers: 一级通用本体规范/evidence.yaml#object_types.SourceProfile.properties.sourceTier.allowed_values
+  confidence_levels: 一级通用本体规范/evidence.yaml#object_types.EvidenceReadinessAssessment.properties.confidenceCeiling.allowed_values
+  basket_roles: 一级通用本体规范/evidence.yaml#object_types.EvidenceBasket.properties.basketRole.allowed_values
 
 legacy_judgment_type_migration:
   trend_or_phase: trend_direction
@@ -96,14 +115,6 @@ legacy_judgment_type_migration:
   note: null 表示旧类型语义不唯一，必须返回 02 重新拆分，禁止自动迁移。
 
 stage_statuses: [not_started, in_progress, complete, blocked, returned]
-path_result_statuses:
-  - established
-  - partially_established
-  - weakened
-  - blocked
-  - insufficient_evidence
-  - contested
-  - not_applicable
 validity_statuses: [current, stale, revalidation_required, missing]
 publish_statuses: [PUBLISHABLE, RETURN_REQUIRED, STAGE_READY, INCOMPLETE_CHAIN]
 

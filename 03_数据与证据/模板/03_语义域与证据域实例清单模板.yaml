@@ -1,6 +1,10 @@
 document_type: cross_domain_runtime_instance_manifest
 schema_version: 3.0.0
 
+# 产出文件名惯例：03-<主题>语义域与证据域实例清单-<日期>-<序号>.yaml
+# 尽管文件名侧重语义/证据，included_domains 另含 reasoning_input（冻结输入）；
+# 完整推理裁决实例在 04 推理审计的 business_instance_graph，不在本清单。
+
 metadata:
   task_id: ""
   execution_id: ""

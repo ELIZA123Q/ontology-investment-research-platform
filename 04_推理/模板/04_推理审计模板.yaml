@@ -1,6 +1,9 @@
 document_type: reasoning_audit
 schema_version: 4.0.0
 
+# 产出文件名：04-<主题>推理审计-<日期>-<序号>.yaml
+# 完整推理域运行实例只保存在下方 business_instance_graph；不另交推理域实例清单。
+
 metadata:
   task_id: ""
   execution_id: ""

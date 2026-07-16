@@ -66,8 +66,10 @@ def as_mapping(value: Any, label: str, errors: list[str]) -> dict[str, Any]:
 def validate_registry(registry: dict[str, Any], errors: list[str]) -> None:
     if registry.get("registry_type") != "evidence_method_registry":
         errors.append("03_registry.yaml.registry_type 必须为 evidence_method_registry")
-    if str(registry.get("schema_version")) != "3.1.0":
-        errors.append("03_registry.yaml.schema_version 必须为 3.1.0")
+    if str(registry.get("schema_version")) not in {"3.1.0", "3.2.0"}:
+        errors.append("03_registry.yaml.schema_version 必须为 3.1.0 或 3.2.0")
+    if "ontology_authority_refs" not in registry:
+        errors.append("03_registry.yaml 缺少 ontology_authority_refs")
 
     preconditions = registry.get("validity_preconditions")
     if not isinstance(preconditions, list) or len(preconditions) < 6:

@@ -6,11 +6,11 @@ parent_run: null
 run_mode: fixture
 producer_id: fixture-producer-memory
 versions:
-  contract: 1.2.0
+  contract: 1.2.1
   ontology: 2.1.0
   ontology_reasoning: 2.1.0
   kb02: 2.0.0
-  kb03: 3.1.0
+  kb03: 3.2.0
   kb04: 1.0.0
   stage_01_schema: 1.5.0
   stage_02_logic_schema: 1.2.0
@@ -74,8 +74,10 @@ stages:
     pending_attempt: null
   stage_05:
     artifact:
+    # 研报 + 表达审计为研究员交付；独立语义审查为发布闸门留痕
     - 05-存储芯片周期行业周期判断-20260715-1.md
     - 05-存储芯片周期表达审计-20260715-1.yaml
+    - 05-存储芯片周期独立语义审查-20260715-1.yaml
     hash: sha256:832df3755c31e5ba7fc41820440229a6f071bd07d6a303070abee0c75276cb4e
     source_hashes:
       stage_04: sha256:40b280e868c7b421cc239cfb32f257ff8c6ffc47c8fdfd0019b2586e2e200a72
@@ -103,4 +105,4 @@ validation_summary:
   publish_status: PUBLISHABLE
   judgment_level: J2
   directional_conclusion_available: true
-  contract_version: 1.2.0
+  contract_version: 1.2.1

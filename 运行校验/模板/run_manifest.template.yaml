@@ -6,11 +6,11 @@ parent_run: null
 run_mode: production
 producer_id: "<产物生成者标识>"
 versions:
-  contract: 1.2.0
+  contract: 1.2.1
   ontology: 2.1.0
   ontology_reasoning: 2.1.0
   kb02: 2.0.0
-  kb03: 3.1.0
+  kb03: 3.2.0
   kb04: 1.0.0
   stage_01_schema: 1.5.0
   stage_02_logic_schema: 1.2.0

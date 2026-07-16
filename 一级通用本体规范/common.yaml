@@ -163,7 +163,7 @@ layer_model:
 # --- object_role_families ---
 object_role_families:
   stable_semantics: [Concept, Organization, Company, Industry, Segment, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
-  research_planning: [ResearchPlan, ResearchScope, ResearchQuestion, JudgmentUnit, CandidateClaim, ResearchPath, PathNode, InstanceRequirement, JudgmentLevelCriterion, AggregationContract, PropagationTemplate, ScenarioTemplate, BusinessScenarioTag, PathCondition, CompetingExplanation, ResearchFrameworkSelection, SemanticScopeSelection, EvidenceContract, ReasoningPlan, OntologyBindingSet, OntologyCandidateSet, OntologyGapSet]
+  research_planning: [ResearchPlan, ResearchScope, ResearchQuestion, JudgmentUnit, CandidateClaim, ResearchPath, PathNode, InstanceRequirement, JudgmentLevelCriterion, JudgmentLevelCriterionTemplate, AggregationContract, PropagationTemplate, ScenarioTemplate, BusinessScenarioTag, PathCondition, CompetingExplanation, ResearchFrameworkSelection, SemanticScopeSelection, EvidenceContract, ReasoningPlan, OntologyBindingSet, OntologyCandidateSet, OntologyGapSet]
   evidence: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceProfile, EvidenceBasketRequirement]
   state_and_fact: [StateVariable, Observation, Event]
   hypothesis_and_judgment: [Hypothesis, Signal, Judgment]

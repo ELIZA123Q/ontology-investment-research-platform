@@ -1,3 +1,5 @@
+# 发布闸门产物（非研究员交付物）。由独立于生产者的审阅者填写；
+# 登记于 run_manifest，供 validate_run 判定 PUBLISHABLE。
 schema_name: independent_semantic_review
 schema_version: 1.0.0
 review_id: ISR-EXEC-USCTRL-CNSEMI-EQP-20260715-1
@@ -8,7 +10,7 @@ reviewer:
   independent_from_producer: true
   test_reviewer: true
 inputs:
-  public_contract_version: 1.2.0
+  public_contract_version: 1.2.1
   stage_hashes:
     stage_02: sha256:dd80887fac8251ad4ed11f677bba0409c8e1396feb6bcbf34f7adc01ba974217
     stage_03: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e

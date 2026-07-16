@@ -117,6 +117,48 @@ def _basket_role(raw: Any) -> str:
     return BASKET_ROLE_MAP.get(value, "primary_support")
 
 
+def _load_criterion_templates() -> dict[str, dict[str, Any]]:
+    """Load reusable JudgmentLevelCriterionTemplate instances from domain authority."""
+    path = ROOT / "二级半导体领域本体规范" / "business_instances.yaml"
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    graph = document.get("business_instance_graph") or {}
+    templates: dict[str, dict[str, Any]] = {}
+    for item in graph.get("objects") or []:
+        if item.get("type") != "JudgmentLevelCriterionTemplate":
+            continue
+        templates[str(item.get("id"))] = dict(item.get("properties") or {})
+    return templates
+
+
+def _materialize_criterion_from_template(
+    *,
+    ju_id: str,
+    level: str,
+    template_id: str,
+    template_props: Mapping[str, Any],
+    basket_refs: list[Any] | None = None,
+    overrides: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    merged = {
+        "judgment_level": level,
+        "applicable": bool(template_props.get("applicable")),
+        "minimum_source_authority": template_props.get("minimum_source_authority") or "unknown",
+        "minimum_independent_source_groups": int(template_props.get("minimum_independent_source_groups") or 0),
+        "counter_evidence_check": template_props.get("counter_evidence_check") or "optional",
+        "alternative_explanation_check": template_props.get("alternative_explanation_check") or "optional",
+        "required_conditions": list(template_props.get("required_conditions") or []),
+        "required_evidence_basket_refs": list(basket_refs or []),
+        "judgment_unit_id": ju_id,
+        "template_id": template_id,
+    }
+    if overrides:
+        for key, value in overrides.items():
+            if key in {"judgment_unit_id", "judgment_level", "template_id"}:
+                continue
+            merged[key] = copy.deepcopy(value)
+    return merged
+
+
 def expand_judgment_nested_parameters(graph: Mapping[str, Any]) -> dict[str, Any]:
     """把 JU 内嵌候选命题、等级条件与篮子需求拆成正式对象与关系。"""
     value = copy.deepcopy(dict(graph))
@@ -124,6 +166,7 @@ def expand_judgment_nested_parameters(graph: Mapping[str, Any]) -> dict[str, Any
     relations = list(value.get("relations") or [])
     existing_ids = {str(item.get("id")) for item in objects}
     existing_rel_ids = {str(item.get("id")) for item in relations}
+    templates = _load_criterion_templates()
 
     def add_object(item: dict[str, Any]) -> None:
         if item["id"] in existing_ids:
@@ -167,9 +210,108 @@ def expand_judgment_nested_parameters(graph: Mapping[str, Any]) -> dict[str, Any
                 "properties": {},
             })
 
+        bindings = props.get("criterion_template_bindings")
+        materialized_levels: set[str] = set()
+        if isinstance(bindings, list) and bindings:
+            for index, raw_binding in enumerate(bindings):
+                binding = _mapping(raw_binding, f"{ju_id}.criterion_template_bindings[{index}]")
+                level = str(binding.get("judgment_level") or "").strip()
+                template_id = str(binding.get("template_id") or "").strip()
+                if not template_id:
+                    ref = str(binding.get("template_ref") or "").strip()
+                    template_id = ref.rsplit(".", 1)[-1] if ref else ""
+                if not level or not template_id:
+                    raise InstanceGraphError(
+                        f"{ju_id}.criterion_template_bindings[{index}] 缺少 judgment_level/template_id"
+                    )
+                template_props = templates.get(template_id)
+                if template_props is None:
+                    raise InstanceGraphError(
+                        f"{ju_id} 引用未知 JudgmentLevelCriterionTemplate: {template_id}"
+                    )
+                criterion_id = f"{ju_id}-{level}"
+                add_object(_instance(
+                    criterion_id,
+                    "JudgmentLevelCriterion",
+                    _materialize_criterion_from_template(
+                        ju_id=ju_id,
+                        level=level,
+                        template_id=template_id,
+                        template_props=template_props,
+                        basket_refs=list(binding.get("required_evidence_basket_refs") or []),
+                        overrides=_mapping(binding.get("overrides") or {}, f"{ju_id}.overrides"),
+                    ),
+                    "judgment_level_criteria",
+                    index,
+                    group=ju_id,
+                ))
+                add_relation({
+                    "id": f"REL-{ju_id}-CRIT-{level}",
+                    "type": "judgmentUnitUsesCriterion",
+                    "sourceId": item["id"],
+                    "targetId": criterion_id,
+                    "properties": {"judgment_level": level, "template_id": template_id},
+                })
+                # Keep template binding on the criterion properties; do not add
+                # cross-graph template relations into the task instance graph.
+                materialized_levels.add(level)
+            # Keep bindings on the JU for lossless disk round-trip.
+            props["criterion_template_bindings"] = copy.deepcopy(bindings)
+
+        # Also honor template relations already present on disk (without bindings list).
+        for relation in list(relations):
+            if relation.get("type") != "judgmentUnitUsesCriterionTemplate":
+                continue
+            if relation.get("sourceId") != item["id"]:
+                continue
+            rel_props = dict(relation.get("properties") or {})
+            level = str(rel_props.get("judgment_level") or "").strip()
+            template_id = str(relation.get("targetId") or "").strip()
+            if not level or level in materialized_levels:
+                continue
+            template_props = templates.get(template_id)
+            if template_props is None:
+                raise InstanceGraphError(
+                    f"{ju_id} 关系引用未知 JudgmentLevelCriterionTemplate: {template_id}"
+                )
+            # Ensure template stub exists so endpoint checks can pass after expand.
+            add_object(_instance(
+                template_id,
+                "JudgmentLevelCriterionTemplate",
+                template_props,
+                "judgment_level_criterion_templates",
+                0,
+            ))
+            criterion_id = f"{ju_id}-{level}"
+            add_object(_instance(
+                criterion_id,
+                "JudgmentLevelCriterion",
+                _materialize_criterion_from_template(
+                    ju_id=ju_id,
+                    level=level,
+                    template_id=template_id,
+                    template_props=template_props,
+                    basket_refs=list(rel_props.get("required_evidence_basket_refs") or []),
+                    overrides=_mapping(rel_props.get("overrides") or {}, f"{ju_id}.rel.overrides"),
+                ),
+                "judgment_level_criteria",
+                len(materialized_levels),
+                group=ju_id,
+            ))
+            add_relation({
+                "id": f"REL-{ju_id}-CRIT-{level}",
+                "type": "judgmentUnitUsesCriterion",
+                "sourceId": item["id"],
+                "targetId": criterion_id,
+                "properties": {"judgment_level": level, "template_id": template_id},
+            })
+            materialized_levels.add(level)
+
         level_requirements = props.pop("level_requirements", None)
         if isinstance(level_requirements, dict):
             for index, (level, raw_req) in enumerate(sorted(level_requirements.items())):
+                if str(level) in materialized_levels:
+                    continue
                 req = _mapping(raw_req, f"{ju_id}.level_requirements.{level}")
                 criterion_id = f"{ju_id}-{level}"
                 add_object(_instance(
@@ -254,6 +396,13 @@ def expand_judgment_nested_parameters(graph: Mapping[str, Any]) -> dict[str, Any
                 "properties": {},
             })
 
+    # Cross-graph template relations are resolved via bindings; keep task graph local-only.
+    relations = [
+        relation
+        for relation in relations
+        if relation.get("type") != "judgmentUnitUsesCriterionTemplate"
+    ]
+
     value["objects"] = objects
     value["relations"] = relations
     return value
@@ -274,6 +423,8 @@ def _fold_judgment_nested_parameters(
         criteria = [props for _, props, _ in sorted(grouped.get(("judgment_level_criteria", ju_id), []))]
         if criteria:
             level_requirements = {}
+            bindings: list[dict[str, Any]] = []
+            all_templated = True
             for props in criteria:
                 level = str(props.get("judgment_level", "")).strip()
                 if not level:
@@ -287,7 +438,40 @@ def _fold_judgment_nested_parameters(
                     "alternative_explanation_check": props.get("alternative_explanation_check"),
                     "required_conditions": list(props.get("required_conditions") or []),
                 }
+                template_id = str(props.get("template_id") or "").strip()
+                if not template_id:
+                    all_templated = False
+                    continue
+                binding: dict[str, Any] = {
+                    "judgment_level": level,
+                    "template_id": template_id,
+                    "template_ref": (
+                        "二级半导体领域本体规范/business_instances.yaml"
+                        f"#business_instance_graph.objects.{template_id}"
+                    ),
+                }
+                basket_refs = list(props.get("required_evidence_basket_refs") or [])
+                if basket_refs:
+                    binding["required_evidence_basket_refs"] = basket_refs
+                templates = _load_criterion_templates()
+                template_props = templates.get(template_id) or {}
+                overrides = {}
+                for key in (
+                    "applicable",
+                    "minimum_source_authority",
+                    "minimum_independent_source_groups",
+                    "counter_evidence_check",
+                    "alternative_explanation_check",
+                    "required_conditions",
+                ):
+                    if key in props and props.get(key) != template_props.get(key):
+                        overrides[key] = copy.deepcopy(props.get(key))
+                if overrides:
+                    binding["overrides"] = overrides
+                bindings.append(binding)
             item["level_requirements"] = level_requirements
+            if all_templated and bindings:
+                item["criterion_template_bindings"] = bindings
         basket_entries = sorted(grouped.get(("evidence_basket_requirements", ju_id), []))
         if basket_entries:
             item["mandatory_evidence_baskets"] = []
@@ -306,13 +490,101 @@ def _fold_judgment_nested_parameters(
     return folded
 
 
+def compress_criterion_templates_for_disk(graph: Mapping[str, Any]) -> dict[str, Any]:
+    """磁盘只保留模板绑定；运行时再物化 JudgmentLevelCriterion。"""
+    value = copy.deepcopy(dict(graph))
+    objects = list(value.get("objects") or [])
+    relations = list(value.get("relations") or [])
+    criteria = [item for item in objects if item.get("type") == "JudgmentLevelCriterion"]
+    if not criteria:
+        value["objects"] = objects
+        value["relations"] = relations
+        return value
+
+    by_ju: dict[str, list[dict[str, Any]]] = {}
+    for item in criteria:
+        props = dict(item.get("properties") or {})
+        ju_id = str(props.get("judgment_unit_id") or "").strip()
+        if not ju_id or not props.get("template_id"):
+            # Keep legacy explicit criteria that are not template-backed.
+            continue
+        by_ju.setdefault(ju_id, []).append(item)
+
+    removable_ids = {item["id"] for items in by_ju.values() for item in items}
+    if not removable_ids:
+        value["objects"] = objects
+        value["relations"] = relations
+        return value
+
+    templates = _load_criterion_templates()
+    ju_objects = {
+        str((item.get("properties") or {}).get("judgment_unit_id") or item.get("id")): item
+        for item in objects
+        if item.get("type") == "JudgmentUnit"
+    }
+    for ju_id, items in by_ju.items():
+        ju = ju_objects.get(ju_id)
+        if not ju:
+            continue
+        bindings: list[dict[str, Any]] = []
+        for item in sorted(
+            items,
+            key=lambda raw: str((raw.get("properties") or {}).get("judgment_level") or ""),
+        ):
+            props = dict(item.get("properties") or {})
+            level = str(props.get("judgment_level") or "").strip()
+            template_id = str(props.get("template_id") or "").strip()
+            template_props = templates.get(template_id) or {}
+            binding: dict[str, Any] = {
+                "judgment_level": level,
+                "template_id": template_id,
+                "template_ref": (
+                    "二级半导体领域本体规范/business_instances.yaml"
+                    f"#business_instance_graph.objects.{template_id}"
+                ),
+            }
+            basket_refs = list(props.get("required_evidence_basket_refs") or [])
+            if basket_refs:
+                binding["required_evidence_basket_refs"] = basket_refs
+            overrides = {}
+            for key in (
+                "applicable",
+                "minimum_source_authority",
+                "minimum_independent_source_groups",
+                "counter_evidence_check",
+                "alternative_explanation_check",
+                "required_conditions",
+            ):
+                if key in props and props.get(key) != template_props.get(key):
+                    overrides[key] = copy.deepcopy(props.get(key))
+            if overrides:
+                binding["overrides"] = overrides
+            bindings.append(binding)
+        ju_props = dict(ju.get("properties") or {})
+        ju_props["criterion_template_bindings"] = bindings
+        ju_props.pop("level_requirements", None)
+        ju["properties"] = ju_props
+
+    objects = [item for item in objects if item.get("id") not in removable_ids]
+    relations = [
+        relation
+        for relation in relations
+        if relation.get("sourceId") not in removable_ids
+        and relation.get("targetId") not in removable_ids
+        and relation.get("type") != "judgmentUnitUsesCriterion"
+    ]
+    value["objects"] = objects
+    value["relations"] = relations
+    return value
+
+
 def compact_task_view(view: Mapping[str, Any]) -> dict[str, Any]:
     """把传统 02 任务视图转换成只有实例图的磁盘合同。"""
     source = copy.deepcopy(dict(view))
     if "business_instance_graph" in source:
         graph = expand_judgment_nested_parameters(source["business_instance_graph"])
         validate_instance_graph(graph)
-        source["business_instance_graph"] = graph
+        source["business_instance_graph"] = compress_criterion_templates_for_disk(graph)
         return source
 
     schema_name = str(source.pop("schema_name", "task_ontology_view"))
@@ -406,13 +678,15 @@ def compact_task_view(view: Mapping[str, Any]) -> dict[str, Any]:
         "schema_name": schema_name,
         "schema_version": schema_version,
         **outer,
-        "business_instance_graph": expand_judgment_nested_parameters({
-            "schema_name": GRAPH_SCHEMA_NAME,
-            "schema_version": GRAPH_SCHEMA_VERSION,
-            "authority": "business_parameters",
-            "objects": objects,
-            "relations": relations,
-        }),
+        "business_instance_graph": compress_criterion_templates_for_disk(
+            expand_judgment_nested_parameters({
+                "schema_name": GRAPH_SCHEMA_NAME,
+                "schema_version": GRAPH_SCHEMA_VERSION,
+                "authority": "business_parameters",
+                "objects": objects,
+                "relations": relations,
+            })
+        ),
     }
     validate_instance_graph(result["business_instance_graph"])
     return result
