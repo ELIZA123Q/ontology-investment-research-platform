@@ -7,7 +7,7 @@ depends_on:
 - common.yaml
 - semantic.yaml
 - ../一级通用本体规范/evidence.yaml
-description: 半导体领域证据 profile、商业化阶段、最低覆盖规则和质量约束；变量绑定由推理域单向引用。
+description: 半导体领域证据质量维度、商业化阶段、最低覆盖规则和质量约束；证据画像与变量绑定实例见 business_instances.yaml。
 
 # --- evidence_quality_dimensions ---
 evidence_quality_dimensions:
@@ -194,7 +194,7 @@ evidence_constraints:
 - id: evidence_cannot_skip_reasoning
   statement: 证据不得绕过状态变量、假设和判断直接生成资产影响。
 - id: reasoning_owns_variable_profile_binding
-  statement: 变量到 evidence profile 的绑定由 reasoning.yaml 单向引用；evidence.yaml 不得反向列举状态变量。
+  statement: 变量到证据画像的绑定写在 business_instances.yaml 的 StateVariable.evidence_profile_ref；evidence.yaml 不得反向列举状态变量。
 
 # --- commercialization_stages ---
 commercialization_stages:

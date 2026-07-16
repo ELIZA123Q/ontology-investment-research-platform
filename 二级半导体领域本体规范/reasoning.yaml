@@ -8,7 +8,7 @@ depends_on:
 - semantic.yaml
 - evidence.yaml
 - ../一级通用本体规范/reasoning.yaml
-description: 半导体领域的事件分类、判断型状态变量、业务传导模板和通用情景骨架。
+description: 半导体领域的事件分类、推理类型扩展与约束；可复用状态变量、传导模板与情景模板实例见 business_instances.yaml。
 
 # --- reasoning_type_extensions ---
 reasoning_type_extensions:

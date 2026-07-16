@@ -119,6 +119,7 @@ FORBIDDEN_STAGE_MARKERS = [
     "propagation_template",
     "inference_rule",
     "本体",
+    "证据画像",
     "证据 profile",
     "传导模板",
     "推理规则",

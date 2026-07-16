@@ -131,7 +131,7 @@ modeling_principles:
   - id: business_language_not_rule_engine
     statement: 传导模板使用业务语言表达，不包含阈值、表达式或执行器配置。
   - id: evidence_by_variable
-    statement: 证据要求围绕判断变量组织，变量到 profile 的绑定由推理域单向引用。
+    statement: 证据要求围绕判断变量组织；变量到证据画像的绑定写在 business_instances.yaml。
   - id: counter_evidence_first_class
     statement: 每个判断变量和传导模板都必须定义削弱或阻断条件。
 
@@ -192,11 +192,11 @@ quality_gates:
     - 每条新增关系都声明合法端点、方向、基数和证据要求。
     - 领域扩展字段不与一级通用属性名冲突。
   reasoning:
-    - 状态变量 46 个，全部标注 variable_role 和 evidence_profile_ref。
-    - 传导模板 28 条，含锚点对齐、方向逻辑、证据 profile 和默认竞争解释。
+    - 状态变量 46 个，全部标注 variable_role 和 evidence_profile_ref（实例权威在 business_instances.yaml）。
+    - 传导模板 28 条，含锚点对齐、方向逻辑、证据画像引用和默认竞争解释。
     - base、upside、downside、stress 四类结果情景与九类业务场景标签均有验证点和证伪点。
   evidence:
-    - 12 类证据 profile；变量绑定由推理域单向引用，单次 profile 使用结果由一级 EvidenceAssessment 承接。
+    - 12 类证据画像（实例在 business_instances.yaml）；变量到画像绑定单向写在 StateVariable.evidence_profile_ref，单次使用结果由一级 EvidenceAssessment 承接。
     - 高误判变量具备最低证据覆盖规则。
     - 支持证据、反证、竞争解释、时间匹配和来源独立性均有约束。
 
