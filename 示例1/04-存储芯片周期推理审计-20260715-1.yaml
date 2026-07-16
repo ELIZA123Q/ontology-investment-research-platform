@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 3.2.0
+schema_version: 4.0.0
 metadata:
   task_id: JTASK-MEM-CYCLE-001
   execution_id: EXEC-MEM-CYCLE-20260715-1
@@ -28,7 +28,7 @@ evidence_context:
 judgment_unit_gate_results:
 - judgment_unit_id: JU-01
   judgment_type: cycle_phase
-  source_02_hash: sha256:7df592e1f116cd2eba11700c48a4408a9e620ae63e3cce3ac4d52ddfabb502d2
+  source_02_hash: sha256:a04a556beb83212bffa715cc3c35b8cccac2fd92707108bc0de36bb1e725f327
   statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 已进入内部高位分化，不能生成统一的高位消化阶段标签。
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-01
   main_limit: 不得合并为统一强景气阶段
@@ -50,7 +50,7 @@ judgment_unit_gate_results:
   prohibited_generalization_refs: []
 - judgment_unit_id: JU-02
   judgment_type: trend_direction
-  source_02_hash: sha256:77a8590ed707106201e6a7fdedc6ce6cc22f3996d74bbf649948b0d8155b5cf8
+  source_02_hash: sha256:98247ae984f9d8ab30f59eccf1cad58f6390b08aecf6c551bef00d5039c27189
   statement: AI 服务器和 HBM 需求支持结构性偏紧方向
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-02
   main_limit: 供应商展望不能等同全年实际交付
@@ -72,7 +72,7 @@ judgment_unit_gate_results:
   - SCOPE-MEMORY-INDUSTRY
 - judgment_unit_id: JU-03
   judgment_type: causal_attribution
-  source_02_hash: sha256:ca588b3c3ee598ea8236fe80a9af36f8f25ea69161b7ace1419cdce65d342936
+  source_02_hash: sha256:f8e2377828dd51a11f56c04637088e79f99ed546a00e01da7534262357b3f531
   statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-03
   main_limit: 缺跨厂量化挤占比例和统一有效产能
@@ -93,7 +93,7 @@ judgment_unit_gate_results:
   - SCOPE-MEMORY-INDUSTRY
 - judgment_unit_id: JU-04
   judgment_type: object_differentiation
-  source_02_hash: sha256:1dc5a8228099a255ff45a4c2b26e69f3e0cfc8065ac0ac0931bcf6b1e2fa15be
+  source_02_hash: sha256:64ad24310f018f0b91af134c35486e2df38b6611550da2a04738cc5120fea8ce
   statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-04
   main_limit: 不得把企业级需求外推为全 NAND 需求
@@ -116,7 +116,7 @@ judgment_unit_gate_results:
   - SCOPE-MEMORY-INDUSTRY
 - judgment_unit_id: JU-05
   judgment_type: state_measurement
-  source_02_hash: sha256:4d9b44dde249b486ef7d878d57c56da2feb85ae8b4f9963f68289c8f29f46f7a
+  source_02_hash: sha256:a3fc6a26a6ee09b8df3a82921a95be0a6e49f57b851cac15ad9c157d589f19e8
   statement: 服务器 DRAM 涨价斜率放缓且部分美国 CSP 库存累积，只支持服务器 DRAM 高位消化观察。
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-05
   main_limit: HBM 同代际成交价不足 不得统一斜率
@@ -140,7 +140,7 @@ judgment_unit_gate_results:
   - SCOPE-MEMORY-INDUSTRY
 - judgment_unit_id: JU-06
   judgment_type: cycle_phase
-  source_02_hash: sha256:61bcef0a6d15e80a5d2b35a7f498eb6d76ee09e870eb65e9afe435cb59671203
+  source_02_hash: sha256:831468999c57ca2ccc5216635820889b5dff43d26ce4b01e74331bd98e4e7ac4
   statement: 2027H2 至 2028 只能作为条件式缓解窗口
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-06
   main_limit: 未来良率和客户认证尚未发生
@@ -162,7 +162,7 @@ judgment_unit_gate_results:
   - SCOPE-MEMORY-INDUSTRY
 - judgment_unit_id: JU-07
   judgment_type: cycle_phase
-  source_02_hash: sha256:287cb3d45003d59c4f1b35124cc9a10efceb8c1e713afb893e57169271d7d36c
+  source_02_hash: sha256:27cdcf2ca607414ed8c17af2e6626010629e0bd89c959ae921356ff7314346c8
   statement: 不能确认三类产品统一结束日
   source_03_gate_ref: evidence_readiness_assessments.csv#ERA-JU-07
   main_limit: 缺关键连续序列且产品分化显著
@@ -542,15 +542,15 @@ handoff_to_05:
     permitted_role: scenario_condition
     required_conditions:
     - 未来良率和客户认证尚未发生
-    required_scope: 2027H2至2028新增合格供给验证窗口
-    reason: 不得写成确定拐点或周期结束日
+    required_scope: 2027H2—2028新增合格供给的条件窗口
+    reason: 禁止统一结束日或确定拐点；须保留未兑现条件
     scope_ref: SCOPE-MEMORY-SUPPLY
     required_caveat_refs: []
   - claim_id: C-07
     permitted_role: observation
     required_conditions: []
     required_scope: 三类产品统一结束日
-    reason: 只能表达当前无法确认
+    reason: 当前无法确认统一结束日
     scope_ref: SCOPE-MEMORY-INDUSTRY
     required_caveat_refs: []
   prohibited_claims:
@@ -591,6 +591,7 @@ ontology_context:
   event_refs: customer_capex_change|qualification_mass_production_change|order_shipment_change
   propagation_template_refs: bottleneck_cascade_to_supply|localization_to_resilience
   rule_refs: variable_propagation_inference|time_alignment|blocking_signal_precedence|judgment_evidence_threshold|reasoning_trace_required|rule_evaluation_trace_required
+  view_hash: sha256:b73b0a4a0f2a90640b0bfa7289ef9394d2b6aacaef90ae0ed8bb7290daa23c5c
 path_results:
 - path_id: P-01
   node_id: N-01
@@ -1041,3 +1042,772 @@ judgment_update_register:
   parent_claim_refs:
   - C-01
   update_reason: 与真实父运行逐稳定 Claim 比较
+iteration_context:
+  evidence_wave_refs: []
+  evidence_wave_hashes: []
+  dependency_projection_ref: ontology_dependency_projection.yaml
+  dependency_projection_hash: sha256:f84b534657bff23e4f71196c86f2ed2118ef22018fdeda7f005f16f958d60918
+  source_stage_attempts:
+    stage_02: 1
+    stage_03: 1
+  current_stage_attempt: 1
+  supersedes_stage_attempt: null
+  critical_stale_refs_at_start: []
+  critical_stale_refs_at_completion: []
+  structural_checkpoint_ref: null
+reasoning_revision_register: []
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  objects:
+  - id: HYP-RUN-01
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-01
+      source_slot_ref: HS-01
+      statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 已进入内部高位分化，不能生成统一的高位消化阶段标签。
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-01
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 0
+  - id: HYP-RUN-02
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-02
+      source_slot_ref: HS-01
+      statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-02
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 1
+  - id: HYP-RUN-03
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-03
+      source_slot_ref: HS-01
+      statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-03
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 2
+  - id: HYP-RUN-04
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-04
+      source_slot_ref: HS-01
+      statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-04
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 3
+  - id: HYP-RUN-05
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-05
+      source_slot_ref: HS-01
+      statement: 服务器 DRAM 涨价斜率放缓且部分美国 CSP 库存累积，只支持服务器 DRAM 高位消化观察。
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-05
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 4
+  - id: HYP-RUN-06
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-06
+      source_slot_ref: HS-01
+      statement: 2027H2 至 2028 只能作为条件式缓解窗口
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-06
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 5
+  - id: HYP-RUN-07
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-07
+      source_slot_ref: HS-01
+      statement: 不能确认三类产品统一结束日
+      state_variable_refs:
+      - end_market_demand_strength
+      - order_visibility
+      - inventory_cycle_position
+      - inventory_buffer_capacity
+      direction: conditional
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      falsification_conditions:
+      - 需求或供给证据显示主路径不成立
+      signal_refs:
+      - SIG-RUN-07
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 6
+  - id: SIG-RUN-01
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-01
+      statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 已进入内部高位分化，不能生成统一的高位消化阶段标签。
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-01
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 0
+  - id: SIG-RUN-02
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-02
+      statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-02
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 1
+  - id: SIG-RUN-03
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-03
+      statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-03
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 2
+  - id: SIG-RUN-04
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-04
+      statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-04
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 3
+  - id: SIG-RUN-05
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-05
+      statement: 服务器 DRAM 涨价斜率放缓且部分美国 CSP 库存累积，只支持服务器 DRAM 高位消化观察。
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-05
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 4
+  - id: SIG-RUN-06
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-06
+      statement: 2027H2 至 2028 只能作为条件式缓解窗口
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-06
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 5
+  - id: SIG-RUN-07
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-07
+      statement: 不能确认三类产品统一结束日
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15T21:06:10+08:00'
+      target_hypothesis_refs:
+      - HYP-RUN-07
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+    projection:
+      section: signals
+      index: 6
+  - id: RE-RUN-01
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-01
+      rule_ref: variable_propagation_inference
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-01
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 已进入内部高位分化，不能生成统一的高位消化阶段标签。
+      output_refs:
+      - J-RUN-01
+    projection:
+      section: rule_evaluations
+      index: 0
+  - id: RE-RUN-02
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-02
+      rule_ref: time_alignment
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-02
+      condition_results:
+      - matched
+      status: matched
+      result_summary: AI 服务器和 HBM 需求支持结构性偏紧方向
+      output_refs:
+      - J-RUN-02
+    projection:
+      section: rule_evaluations
+      index: 1
+  - id: RE-RUN-03
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-03
+      rule_ref: blocking_signal_precedence
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-03
+      condition_results:
+      - matched
+      status: matched
+      result_summary: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+      output_refs:
+      - J-RUN-03
+    projection:
+      section: rule_evaluations
+      index: 2
+  - id: RE-RUN-04
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-04
+      rule_ref: judgment_evidence_threshold
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-04
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+      output_refs:
+      - J-RUN-04
+    projection:
+      section: rule_evaluations
+      index: 3
+  - id: RE-RUN-05
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-05
+      rule_ref: reasoning_trace_required
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-05
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 服务器 DRAM 涨价斜率放缓且部分美国 CSP 库存累积，只支持服务器 DRAM 高位消化观察。
+      output_refs:
+      - J-RUN-05
+    projection:
+      section: rule_evaluations
+      index: 4
+  - id: RE-RUN-06
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-06
+      rule_ref: rule_evaluation_trace_required
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-06
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 2027H2 至 2028 只能作为条件式缓解窗口
+      output_refs:
+      - J-RUN-06
+    projection:
+      section: rule_evaluations
+      index: 5
+  - id: RE-RUN-07
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-07
+      rule_ref: variable_propagation_inference
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EF-MEM-001
+      target_refs:
+      - HYP-RUN-07
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 不能确认三类产品统一结束日
+      output_refs:
+      - J-RUN-07
+    projection:
+      section: rule_evaluations
+      index: 6
+  - id: J-RUN-01
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-01
+      claim_id: C-01
+      statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 已进入内部高位分化，不能生成统一的高位消化阶段标签。
+      hypothesis_refs:
+      - HYP-RUN-01
+      rule_evaluation_refs:
+      - RE-RUN-01
+      target_claim_type: directional_outlook
+      judgment_level: J2
+      conditions: ''
+      scope: SCOPE-MEMORY-INDUSTRY
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 0
+  - id: J-RUN-02
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-02
+      claim_id: C-02
+      statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+      hypothesis_refs:
+      - HYP-RUN-02
+      rule_evaluation_refs:
+      - RE-RUN-02
+      target_claim_type: directional_outlook
+      judgment_level: J2
+      conditions: ''
+      scope: SCOPE-HBM
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 1
+  - id: J-RUN-03
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-03
+      claim_id: C-03
+      statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+      hypothesis_refs:
+      - HYP-RUN-03
+      rule_evaluation_refs:
+      - RE-RUN-03
+      target_claim_type: causal_inference
+      judgment_level: J1
+      conditions: 缺跨厂量化挤占比例和统一有效产能
+      scope: SCOPE-DRAM
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: low
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 2
+  - id: J-RUN-04
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-04
+      claim_id: C-04
+      statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+      hypothesis_refs:
+      - HYP-RUN-04
+      rule_evaluation_refs:
+      - RE-RUN-04
+      target_claim_type: directional_outlook
+      judgment_level: J2
+      conditions: ''
+      scope: SCOPE-NAND
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 3
+  - id: J-RUN-05
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-05
+      claim_id: C-05
+      statement: 服务器 DRAM 涨价斜率放缓且部分美国 CSP 库存累积，只支持服务器 DRAM 高位消化观察。
+      hypothesis_refs:
+      - HYP-RUN-05
+      rule_evaluation_refs:
+      - RE-RUN-05
+      target_claim_type: directional_outlook
+      judgment_level: J2
+      conditions: ''
+      scope: SCOPE-SERVER-DRAM
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 4
+  - id: J-RUN-06
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-06
+      claim_id: C-06
+      statement: 2027H2 至 2028 只能作为条件式缓解窗口
+      hypothesis_refs:
+      - HYP-RUN-06
+      rule_evaluation_refs:
+      - RE-RUN-06
+      target_claim_type: forecast
+      judgment_level: J1
+      conditions: 未来良率和客户认证尚未发生
+      scope: SCOPE-MEMORY-SUPPLY
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: low
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 5
+  - id: J-RUN-07
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-07
+      claim_id: C-07
+      statement: 不能确认三类产品统一结束日
+      hypothesis_refs:
+      - HYP-RUN-07
+      rule_evaluation_refs:
+      - RE-RUN-07
+      target_claim_type: forecast
+      judgment_level: J0
+      conditions: ''
+      scope: SCOPE-MEMORY-INDUSTRY
+      time_horizon: '2026-07-15T21:06:10+08:00'
+      confidence: low
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 6
+  - id: RT-RUN-01
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-01
+      judgment_ref: J-RUN-01
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-01
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - variable_propagation_inference
+      output_refs:
+      - C-01
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 0
+  - id: RT-RUN-02
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-02
+      judgment_ref: J-RUN-02
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-02
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - time_alignment
+      output_refs:
+      - C-02
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 1
+  - id: RT-RUN-03
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-03
+      judgment_ref: J-RUN-03
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-03
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - blocking_signal_precedence
+      output_refs:
+      - C-03
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 2
+  - id: RT-RUN-04
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-04
+      judgment_ref: J-RUN-04
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-04
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - judgment_evidence_threshold
+      output_refs:
+      - C-04
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 3
+  - id: RT-RUN-05
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-05
+      judgment_ref: J-RUN-05
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-05
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - reasoning_trace_required
+      output_refs:
+      - C-05
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 4
+  - id: RT-RUN-06
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-06
+      judgment_ref: J-RUN-06
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-06
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - rule_evaluation_trace_required
+      output_refs:
+      - C-06
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 5
+  - id: RT-RUN-07
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-07
+      judgment_ref: J-RUN-07
+      evaluated_at: '2026-07-15T21:06:10+08:00'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-07
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - variable_propagation_inference
+      output_refs:
+      - C-07
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 6
+  relations:
+  - id: REL-TRACE-RT-RUN-01
+    type: traceForJudgment
+    sourceId: RT-RUN-01
+    targetId: J-RUN-01
+    properties: {}
+  - id: REL-TRACE-RT-RUN-02
+    type: traceForJudgment
+    sourceId: RT-RUN-02
+    targetId: J-RUN-02
+    properties: {}
+  - id: REL-TRACE-RT-RUN-03
+    type: traceForJudgment
+    sourceId: RT-RUN-03
+    targetId: J-RUN-03
+    properties: {}
+  - id: REL-TRACE-RT-RUN-04
+    type: traceForJudgment
+    sourceId: RT-RUN-04
+    targetId: J-RUN-04
+    properties: {}
+  - id: REL-TRACE-RT-RUN-05
+    type: traceForJudgment
+    sourceId: RT-RUN-05
+    targetId: J-RUN-05
+    properties: {}
+  - id: REL-TRACE-RT-RUN-06
+    type: traceForJudgment
+    sourceId: RT-RUN-06
+    targetId: J-RUN-06
+    properties: {}
+  - id: REL-TRACE-RT-RUN-07
+    type: traceForJudgment
+    sourceId: RT-RUN-07
+    targetId: J-RUN-07
+    properties: {}

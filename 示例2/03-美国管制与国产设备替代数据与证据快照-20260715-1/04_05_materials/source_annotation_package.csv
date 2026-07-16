@@ -1,0 +1,13 @@
+﻿annotation_id,execution_id,source_id,evidence_ids,citation_phrase,source_type,published_at,business_time,data_scope,method_or_metric,supports_material_unit,usage_limit,permission_note
+ANNO-01,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-BIS-2022,EV-01,据美国商务部工业与安全局2022年10月规则,official_rule,2022-10-07,2022-10-07起,初始对华先进计算与设备控制,正式规则事实,政策时间线与基线,只用于生效范围,公开链接引用
+ANNO-02,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-BIS-2024,EV-03,据美国商务部工业与安全局2024年12月更新,official_release,2024-12-02,2024-12-02起,新增24类设备3类软件和140个实体,官方规则包概要,政策升级与设备类别覆盖,不等于全面禁运,公开链接引用
+ANNO-03,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-BIS-AFFIL,EV-05,据Federal Register附属实体规则暂停文件,official_rule,2025-11-12,2025-11-10至2026-11-09,暂停与预定恢复日期,法规生效状态,未来十二个月跟踪变量,不得写成当前已生效,公开PDF引用
+ANNO-04,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-KLA-2025,EV-07,据KLA 2025财年年报,annual_report,2025-08-08,2023财年至2025财年,中国收入占比,公司收入地区口径,海外供给反面证据图,只代表KLA产品结构,公开SEC文件引用
+ANNO-05,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-SEMI-BILLINGS,EV-10,据SEMI 2025年设备销售实际统计,industry_release,2026-04-07,2025年,中国设备销售额与同比,SEMI设备销售口径,中国需求图,不等于晶圆厂资本开支或国产采购,公开链接引用
+ANNO-06,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-SEMI-FORECAST,EV-11,据SEMI 2025年末设备市场预测,industry_release,2025-12-16,2025至2027年,全球设备销售预测,SEMI年末预测口径,全球周期图,2026与2027可修订,公开链接引用
+ANNO-07,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-NAURA-2025,EV-14,据北方华创2025年年度报告,annual_report,2026-04-18,2025年,收入增长研发与毛利,公司合并口径,公司增长图和类别表,总营收含非集成电路设备,公开年报引用
+ANNO-08,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-AMEC-H1,EV-15,据中微公司2025年半年度报告,interim_report,2025-08-29,2025年上半年,LPCVD与ALD重复订单,公司产品披露,类别成熟度表,客户及台数未披露,公开半年报引用
+ANNO-09,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-ACMR-2025,EV-17,据ACM Research 2025年年度报告,annual_report,2026-02-26,2025年,受限部件与客户再认证,风险因素披露,上游风险与清洗类别,公司称影响可管理仍需验证,公开SEC文件引用
+ANNO-10,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-HWATSING-2025,EV-18,据华海清科2025年年度报告,annual_report,2026-04-23,2025年,装备收入与湿法批量销售,公司装备业务口径,公司增长图和CMP类别,不同产品阶段不可混同,公开年报引用
+ANNO-11,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-KINGSEMI-2025,EV-19,据芯源微2025年年度报告,annual_report,2026-04-18,2025年,收入增长与利润下降,公司合并口径,涂胶显影类别与利润反面证据,新品投入影响利润可比性,公开年报引用
+ANNO-12,EXEC-USCTRL-CNSEMI-EQP-20260715-1,SRC-PIOTECH-2025,EV-16,据拓荆科技2025年年度报告,annual_report,2026-04-27,2025年,收入增长与混合键合批量订单,公司合并口径,薄膜沉积和先进封装类别,高增速受基数与结构影响,公开年报引用

@@ -1,20 +1,20 @@
 schema_name: controlled_research_chain_public_contract
-schema_version: 1.1.0
+schema_version: 1.2.0
 status: active
 
 # 这里只维护跨阶段共享语义。阶段内部字段继续由 01—05 各自规范维护。
 ownership:
   public_contract:
     - trace_id_patterns
-    - judgment_types
-    - judgment_levels
     - stage_statuses
-    - path_statuses
     - validity_statuses
     - publish_statuses
     - scope_relations
     - aggregation_outcomes
     - update_actions
+    - evidence_wave_classifications
+    - stage_attempt_states
+    - object_validity_propagation
     - scope_graph
     - claim_scope
     - cross_stage_references
@@ -41,17 +41,10 @@ trace_id_patterns:
   C: '^C-(?:\d+|[A-Z0-9][A-Z0-9_-]*)$'
   RC: '^(?:RC|GATE|G)-\d+$'
 
-judgment_types:
-  - state_measurement
-  - trend_direction
-  - cycle_phase
-  - mechanism_validation
-  - causal_attribution
-  - transmission_path
-  - object_differentiation
-  - impact_realization
-  - expectation_gap
-  - valuation_impact
+business_authority_refs:
+  judgment_types: 一级通用本体规范/reasoning.yaml#object_types.JudgmentUnit.properties.judgment_type.allowed_values
+  judgment_levels: 一级通用本体规范/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.judgment_level.allowed_values
+  path_readiness_statuses: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps.@keys
 
 legacy_judgment_type_migration:
   trend_or_phase: trend_direction
@@ -61,9 +54,7 @@ legacy_judgment_type_migration:
   risk_reassessment: null
   note: null 表示旧类型语义不唯一，必须返回 02 重新拆分，禁止自动迁移。
 
-judgment_levels: [J0, J1, J2, J3, J4]
 stage_statuses: [not_started, in_progress, complete, blocked, returned]
-path_readiness_statuses: [ready, restricted, blocked, not_applicable]
 path_result_statuses:
   - established
   - partially_established
@@ -79,6 +70,15 @@ publish_statuses: [PUBLISHABLE, RETURN_REQUIRED, STAGE_READY, INCOMPLETE_CHAIN]
 scope_relations: [same, narrower, broader, overlap, incomparable]
 aggregation_outcomes: [synchronized, dominant, differentiated, insufficient]
 update_actions: [new, maintain, enhance, weaken, block, revise, retire]
+
+# 以下枚举只控制运行路由，不定义新的业务变量、证据强度或推理权重。
+evidence_wave_classifications:
+  - task_contract_revision
+  - reasoning_structure_revision
+  - evidence_update
+  - presentation_revision
+  - no_semantic_delta
+stage_attempt_states: [pending, committed, superseded]
 
 scope_graph:
   schema_version: 1.0.0
@@ -102,7 +102,11 @@ runtime_objects:
   - Task
   - Run
   - StageArtifact
+  - StageAttempt
   - ValidationIssue
+  - EvidenceWave
+  - OntologyDependencyProjection
+  - IterationPlan
 
 publish_semantics:
   quality_pass: 研究过程与阶段合同是否合格
@@ -117,3 +121,28 @@ stale_propagation:
   stage_03: [stage_04, stage_05]
   stage_04: [stage_05]
   stage_05: []
+
+# 对象级传播是阶段 stale 的依据；箭头表示“上游变化使下游需要重算”。
+# ReportClaim 是 04/05 发布投影，不扩展一级正式本体。
+object_validity_propagation:
+  dependency_order:
+    - [EvidenceClaim_or_EvidenceFact, Observation_or_Event_or_Signal_or_MarketExpectation]
+    - [Observation_or_Event_or_Signal, Hypothesis]
+    - [Hypothesis, RuleEvaluation]
+    - [RuleEvaluation, Judgment]
+    - [Judgment, ExpectationGap_or_AssetImpact]
+    - [MarketExpectation, ExpectationGap]
+    - [ExpectationGap_or_AssetImpact, ReportClaim]
+  authority_rule: 每条依赖必须引用正式本体 Relation；只有 ReportClaim 边允许 stageProjection。
+  invalidation_rule: 只传播到可达下游对象，不因同属一个阶段而使无关对象 stale。
+
+iteration_semantics:
+  evidence_unit: frozen_batch
+  existing_structure_route: stage_03_then_affected_stage_04
+  structural_discovery_route: full_stage_02_quality_gate_then_affected_stage_03_and_stage_04
+  task_contract_route: stage_01
+  presentation_only_route: stage_05
+  immutable_reasoning_revision_relation: reasoningSupersedes
+  immutable_reasoning_revision_action: ReviseReasoningObject
+  convergence_rule: 无待处理结构触发、无关键 stale 对象、attempt 哈希为 current、冲突已 resolved/contested/blocked，且最新波次未改变关键判断或路径。
+  forbidden_rule: 禁止用固定最大循环次数替代语义收敛。

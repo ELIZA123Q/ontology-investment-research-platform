@@ -22,7 +22,7 @@ from validate_04_outputs import _validate_scope_aggregation_and_permissions  # n
 from validate_05_outputs import validate as validate_05  # noqa: E402
 from validate_publish import discover_artifacts  # noqa: E402
 from validate_run import _validate_incremental_updates, derive_run_outcome  # noqa: E402
-from validator_utils import file_sha256  # noqa: E402
+from validator_utils import file_sha256, load_yaml_file  # noqa: E402
 
 
 def load(path: Path):
@@ -32,7 +32,7 @@ def load(path: Path):
 class ScopeAggregationReleaseTests(unittest.TestCase):
     def setUp(self) -> None:
         self.run = discover_artifacts(ROOT / "示例1")
-        self.view = load(self.run.view)
+        self.view = load_yaml_file(self.run.view)
         self.audit = load(self.run.audit)
 
     def test_scope_relation_is_derived_not_self_reported(self) -> None:
@@ -123,7 +123,7 @@ class ScopeAggregationReleaseTests(unittest.TestCase):
                 validate_independent_semantic_review(
                     path,
                     stage_hashes={stage: manifest["stages"][stage]["hash"] for stage in ["stage_02", "stage_03", "stage_04", "stage_05"]},
-                    contract_version="1.1.0",
+                    contract_version="1.2.0",
                     run_mode="fixture",
                     producer_id=manifest["producer_id"],
                 )
@@ -134,7 +134,7 @@ class ScopeAggregationReleaseTests(unittest.TestCase):
                 validate_independent_semantic_review(
                     path,
                     stage_hashes={stage: manifest["stages"][stage]["hash"] for stage in ["stage_02", "stage_03", "stage_04", "stage_05"]},
-                    contract_version="1.1.0",
+                    contract_version="1.2.0",
                     run_mode="fixture",
                     producer_id=manifest["producer_id"],
                 )

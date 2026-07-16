@@ -22,6 +22,7 @@ claim_expression_register:
     expression_role: paraphrase  # direct | paraphrase | synthesis
     location_kind: report_title
     section: "标题"
+    # 登记改写后的研报句；标题/要点/概览不得使用「只能作为」「不是确定结束日」等审计登记腔
     expression_text: ""
     inherited_judgment_level: J2
     permitted_role: core_thesis

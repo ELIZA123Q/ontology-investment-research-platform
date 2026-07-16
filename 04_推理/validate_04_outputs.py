@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import sys
 import re
+from datetime import datetime
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +34,7 @@ from status_derivation import (  # noqa: E402
 from snapshot_layout_03 import snapshot_csv_path  # noqa: E402
 from validator_utils import (  # noqa: E402
     assert_subset,
+    artifact_sha256,
     error_payload,
     fail,
     file_name,
@@ -41,14 +43,17 @@ from validator_utils import (  # noqa: E402
     parse_markdown,
     parse_triplet,
     read_csv,
+    read_text,
     ref_set,
     require_body_sections,
     require_keys,
+    require_mapping,
     require_schema_version,
     require_trace_id,
     same_ref,
     split_refs,
 )
+from research_loop import validate_dependency_projection, validate_evidence_wave
 from research_contract import (
     derive_aggregation_outcome,
     derive_scope_relation,
@@ -57,6 +62,7 @@ from research_contract import (
     validate_aggregation_contracts,
     validate_reasoning_routes,
     validate_scope_graph,
+    task_view_hash,
 )
 
 
@@ -159,7 +165,8 @@ REQUIRED_AUDIT_TOP = [
     "compliance_check",
 ]
 
-AUDIT_SCHEMA_VERSION = "3.2.0"
+AUDIT_SCHEMA_VERSION = "4.0.0"
+SUPPORTED_AUDIT_SCHEMA_VERSIONS = {AUDIT_SCHEMA_VERSION}
 METHOD_LIBRARY_ROOT = _ROOT / "知识库_04推理"
 METHOD_ID_RE = re.compile(r"^A\d{2}$")
 INVESTMENT_INTERPRETATIONS = {
@@ -213,13 +220,22 @@ def _validate_report(report_path: Path) -> tuple[dict[str, object], str]:
 
 
 def _validate_audit(audit_path: Path) -> dict[str, object]:
+    raw_text = read_text(audit_path)
+    for section in ("hypotheses", "signals", "rule_evaluations", "judgments", "reasoning_traces"):
+        if re.search(rf"^{section}:", raw_text, re.MULTILINE):
+            fail(f"04 审计不得磁盘双写推理实例段 {section}；权威源必须是 business_instance_graph")
+    if "business_instance_graph:" not in raw_text:
+        fail("04 审计必须提供 business_instance_graph 作为推理实例权威源")
     audit = load_yaml_file(audit_path)
     if not isinstance(audit, dict):
         fail("04 审计文件必须是 YAML 对象")
     require_keys(audit, REQUIRED_AUDIT_TOP, str(audit_path))
-    require_schema_version(audit["schema_version"], str(audit_path), expected=AUDIT_SCHEMA_VERSION)
-    if str(audit["schema_version"]) != AUDIT_SCHEMA_VERSION:
-        fail(f"04 审计 schema_version 必须为 {AUDIT_SCHEMA_VERSION}")
+    audit_version = str(audit["schema_version"])
+    if audit_version not in SUPPORTED_AUDIT_SCHEMA_VERSIONS:
+        fail(
+            f"04 审计 schema_version 必须为 "
+            + " 或 ".join(sorted(SUPPORTED_AUDIT_SCHEMA_VERSIONS))
+        )
     if audit["document_type"] != "reasoning_audit":
         fail("04 审计 document_type 必须为 reasoning_audit")
     metadata = audit["metadata"]
@@ -227,7 +243,190 @@ def _validate_audit(audit_path: Path) -> dict[str, object]:
     validate_quality_status(metadata["quality_status"], "audit.metadata")
     validate_gate_review_fields(metadata, "audit.metadata")
     validate_stage_status(metadata["stage_status"], "audit.metadata")
+    if audit_version == AUDIT_SCHEMA_VERSION:
+        _validate_iteration_audit(audit, audit_path)
     return audit
+
+
+def _resolve_iteration_ref(audit_path: Path, raw_ref: object, label: str) -> Path:
+    ref = str(raw_ref or "").strip()
+    if not ref:
+        fail(f"{label} 不得为空")
+    candidates = [audit_path.parent / ref, _ROOT / ref]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    fail(f"{label} 无法解析: {ref}")
+
+
+def _validate_iteration_audit(audit: dict[str, object], audit_path: Path) -> None:
+    require_keys(
+        audit,
+        ["iteration_context", "reasoning_revision_register"],
+        "04 audit 4.0.0",
+    )
+    context = require_mapping(audit.get("iteration_context"), "iteration_context")
+    require_keys(
+        context,
+        [
+            "evidence_wave_refs",
+            "evidence_wave_hashes",
+            "dependency_projection_ref",
+            "dependency_projection_hash",
+            "source_stage_attempts",
+            "current_stage_attempt",
+            "supersedes_stage_attempt",
+            "critical_stale_refs_at_start",
+            "critical_stale_refs_at_completion",
+            "structural_checkpoint_ref",
+        ],
+        "iteration_context",
+    )
+    wave_refs = split_refs(context.get("evidence_wave_refs"))
+    wave_hashes = split_refs(context.get("evidence_wave_hashes"))
+    if len(wave_refs) != len(wave_hashes):
+        fail("iteration_context.evidence_wave_refs 与 evidence_wave_hashes 必须一一对应")
+    metadata = require_mapping(audit.get("metadata"), "metadata")
+    wave_trigger_refs: set[str] = set()
+    source_view_hashes: set[str] = set()
+    for ref, expected_hash in zip(wave_refs, wave_hashes):
+        wave_path = _resolve_iteration_ref(audit_path, ref, "iteration_context.evidence_wave_refs")
+        wave = validate_evidence_wave(load_yaml_file(wave_path))
+        if str(wave["wave_hash"]) != str(expected_hash):
+            fail(f"{ref} 的 wave_hash 与 iteration_context 不一致")
+        if str(wave.get("task_id")) != str(metadata.get("task_id")):
+            fail(f"{ref}.task_id 与 04 审计不一致")
+        if str(wave.get("run_id")) != str(metadata.get("execution_id")):
+            fail(f"{ref}.run_id 与 04 审计不一致")
+        source_view_hashes.add(str(wave.get("source_02_view_hash")))
+        wave_trigger_refs.update(split_refs(wave.get("evidence_refs")))
+        for delta in wave.get("ontology_deltas", []) or []:
+            if isinstance(delta, dict):
+                for field in ("delta_id", "object_ref", "prior_object_ref"):
+                    value = str(delta.get(field, "")).strip()
+                    if value:
+                        wave_trigger_refs.add(value)
+                wave_trigger_refs.update(split_refs(delta.get("evidence_refs")))
+                wave_trigger_refs.update(split_refs(delta.get("affects_refs")))
+
+    projection_path = _resolve_iteration_ref(
+        audit_path,
+        context.get("dependency_projection_ref"),
+        "iteration_context.dependency_projection_ref",
+    )
+    if artifact_sha256(projection_path) != str(context.get("dependency_projection_hash")):
+        fail("iteration_context.dependency_projection_hash 与实际投影文件不一致")
+    projection = validate_dependency_projection(load_yaml_file(projection_path))
+    if str(projection.get("task_id")) != str(metadata.get("task_id")):
+        fail("依赖投影 task_id 与 04 审计不一致")
+    if str(projection.get("run_id")) != str(metadata.get("execution_id")):
+        fail("依赖投影 run_id 与 04 审计不一致")
+    if source_view_hashes and source_view_hashes != {str(projection.get("source_02_view_hash"))}:
+        fail("证据波次与依赖投影未绑定同一 02 view_hash")
+    view_path = _resolve_iteration_ref(
+        audit_path,
+        metadata.get("source_02_view_ref"),
+        "metadata.source_02_view_ref",
+    )
+    view = load_yaml_file(view_path)
+    declared_view_hash = str((view.get("task_context") or {}).get("view_hash", ""))
+    if declared_view_hash != task_view_hash(view):
+        fail("04 引用的 02 task_context.view_hash 与视图内容不一致")
+    if str(projection.get("source_02_view_hash")) != declared_view_hash:
+        fail("依赖投影未绑定 04 实际使用的 02 view_hash")
+    projected_critical_stale = {
+        str(node.get("object_ref"))
+        for node in projection.get("nodes", []) or []
+        if isinstance(node, dict)
+        and node.get("critical") is True
+        and node.get("validity_status") == "stale"
+    }
+    if set(split_refs(context.get("critical_stale_refs_at_start"))) != projected_critical_stale:
+        fail("iteration_context.critical_stale_refs_at_start 必须从依赖投影派生")
+    source_attempts = require_mapping(
+        context.get("source_stage_attempts"), "iteration_context.source_stage_attempts"
+    )
+    if set(source_attempts) != {"stage_02", "stage_03"}:
+        fail("iteration_context.source_stage_attempts 必须完整引用 stage_02 与 stage_03")
+    try:
+        current_attempt = int(context.get("current_stage_attempt"))
+    except (TypeError, ValueError):
+        fail("iteration_context.current_stage_attempt 必须为正整数")
+    if current_attempt < 1:
+        fail("iteration_context.current_stage_attempt 必须为正整数")
+    for stage, attempt in source_attempts.items():
+        if not isinstance(attempt, int) or isinstance(attempt, bool) or attempt < 1:
+            fail(f"iteration_context.source_stage_attempts.{stage} 必须为正整数")
+    supersedes_attempt = context.get("supersedes_stage_attempt")
+    if current_attempt == 1 and supersedes_attempt is not None:
+        fail("初始 04 attempt 的 supersedes_stage_attempt 必须为 null")
+    if current_attempt > 1 and supersedes_attempt != current_attempt - 1:
+        fail("04 supersedes_stage_attempt 必须紧邻当前 attempt")
+    if split_refs(context.get("critical_stale_refs_at_completion")):
+        fail("04 attempt 完成时不得残留 critical stale 对象")
+
+    revisions = audit.get("reasoning_revision_register")
+    if not isinstance(revisions, list):
+        fail("reasoning_revision_register 必须为列表")
+    seen: set[str] = set()
+    allowed_types = {
+        "Hypothesis", "Judgment", "Scenario", "MarketExpectation", "ExpectationGap", "AssetImpact"
+    }
+    for index, item in enumerate(revisions, 1):
+        if not isinstance(item, dict):
+            fail(f"reasoning_revision_register[{index}] 必须为对象")
+        require_keys(
+            item,
+            [
+                "revision_id", "new_object_ref", "superseded_object_ref", "object_type_ref",
+                "relation_type_ref", "action_ref", "revision_type", "revision_reason",
+                "trigger_refs", "revised_at", "new_reasoning_trace_ref",
+                "new_scope_ref", "superseded_scope_ref",
+            ],
+            f"reasoning_revision_register[{index}]",
+        )
+        revision_id = str(item.get("revision_id", "")).strip()
+        if not revision_id or revision_id in seen:
+            fail("reasoning_revision_register.revision_id 为空或重复")
+        seen.add(revision_id)
+        if str(item.get("new_object_ref")) == str(item.get("superseded_object_ref")):
+            fail(f"{revision_id} 新旧对象引用不得相同")
+        if str(item.get("object_type_ref")) not in allowed_types:
+            fail(f"{revision_id}.object_type_ref 非法")
+        if item.get("relation_type_ref") != "reasoningSupersedes":
+            fail(f"{revision_id} 必须使用 reasoningSupersedes")
+        if item.get("action_ref") != "ReviseReasoningObject":
+            fail(f"{revision_id} 必须使用 ReviseReasoningObject")
+        if str(item.get("revision_type")) not in {
+            "evidence_update", "structural_revision", "scope_revision", "correction", "retirement"
+        }:
+            fail(f"{revision_id}.revision_type 非法")
+        if not str(item.get("revision_reason", "")).strip() or not split_refs(item.get("trigger_refs")):
+            fail(f"{revision_id} 必须说明原因并引用触发对象")
+        if set(split_refs(item.get("trigger_refs"))) - wave_trigger_refs:
+            fail(f"{revision_id}.trigger_refs 必须来自已冻结证据波次")
+        if str(item.get("new_scope_ref", "")).strip() != str(
+            item.get("superseded_scope_ref", "")
+        ).strip():
+            fail(f"{revision_id} 新旧推理对象必须保持同一适用范围")
+        try:
+            datetime.fromisoformat(str(item.get("revised_at", "")).replace("Z", "+00:00"))
+        except ValueError:
+            fail(f"{revision_id}.revised_at 必须为 ISO 8601 时间")
+        if str(item.get("object_type_ref")) == "Judgment" and not str(
+            item.get("new_reasoning_trace_ref", "")
+        ).strip():
+            fail(f"{revision_id} 的新版 Judgment 必须有独立 ReasoningTrace")
+    if any(
+        isinstance(item, dict)
+        and item.get("revision_type") in {"structural_revision", "scope_revision"}
+        for item in revisions
+    ):
+        _resolve_iteration_ref(
+            audit_path,
+            context.get("structural_checkpoint_ref"),
+            "iteration_context.structural_checkpoint_ref",
+        )
 
 
 def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, object]]:
@@ -957,7 +1156,8 @@ def _validate_reasoning_instances(audit: dict[str, object], audit_path: Path, sn
     if not view_path.is_file():
         fail(f"04 source_02_view_ref 无法解析: {view_ref}")
     view = load_yaml_file(view_path)
-    require_schema_version(view.get("schema_version"), str(view_path), expected="2.1.0")
+    if str(view.get("schema_version")) not in {"2.1.0", "2.2.0"}:
+        fail(f"{view_path}.schema_version 必须为 2.1.0 或 2.2.0")
     reasoning_plan = view.get("reasoning_plan")
     semantic_scope = view.get("semantic_scope")
     evidence_contract = view.get("evidence_contract")
@@ -974,7 +1174,18 @@ def _validate_reasoning_instances(audit: dict[str, object], audit_path: Path, sn
     evaluations = _id_set(audit["rule_evaluations"], "rule_evaluation_id", "rule_evaluations")
     judgments = _id_set(audit["judgments"], "judgment_id", "judgments")
     traces = _id_set(audit["reasoning_traces"], "trace_id", "reasoning_traces")
-    del traces
+    for revision in audit.get("reasoning_revision_register", []) or []:
+        if not isinstance(revision, dict):
+            continue
+        object_type = str(revision.get("object_type_ref"))
+        new_ref = str(revision.get("new_object_ref", ""))
+        if object_type == "Hypothesis" and new_ref not in hypotheses:
+            fail(f"{revision.get('revision_id')}.new_object_ref 未指向当前 Hypothesis")
+        if object_type == "Judgment" and new_ref not in judgments:
+            fail(f"{revision.get('revision_id')}.new_object_ref 未指向当前 Judgment")
+        trace_ref = str(revision.get("new_reasoning_trace_ref", "")).strip()
+        if trace_ref and trace_ref not in traces:
+            fail(f"{revision.get('revision_id')}.new_reasoning_trace_ref 未指向当前 ReasoningTrace")
 
     planned_slots = {str(item.get("hypothesis_slot_id")) for item in reasoning_plan.get("hypothesis_slots", [])}
     planned_variables = set(split_refs(reasoning_plan.get("state_variable_refs")))
@@ -1119,6 +1330,8 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
         "reasoning_traces",
     }
     present_reasoning_fields = reasoning_instance_fields.intersection(audit)
+    if str(audit.get("schema_version")) == AUDIT_SCHEMA_VERSION and present_reasoning_fields != reasoning_instance_fields:
+        fail("04 审计 4.0.0 必须完整提供正式推理实例")
     if present_reasoning_fields and present_reasoning_fields != reasoning_instance_fields:
         fail("04 推理实例字段必须成组出现，不得只提供部分字段")
     if present_reasoning_fields:
@@ -1135,7 +1348,7 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
     _validate_quality_and_compliance(audit)
 
     return {
-        "schema_version": AUDIT_SCHEMA_VERSION,
+        "schema_version": str(audit["schema_version"]),
         "task_id": report_meta["task_id"],
         "execution_id": report_meta["execution_id"],
         "claims": len(audit["claim_register"]),

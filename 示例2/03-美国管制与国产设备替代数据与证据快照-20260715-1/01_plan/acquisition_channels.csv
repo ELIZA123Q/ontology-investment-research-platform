@@ -1,0 +1,4 @@
+﻿acquisition_channel_id,execution_id,channel_name,channel_type,supported_source_profile_ids,supported_content_domains,repeatability,traceability_level,permission_requirement,typical_failure_modes,allowed_usage,forbidden_usage,notes
+AC-OFFICIAL-WEB,EXEC-USCTRL-CNSEMI-EQP-20260715-1,官方网页与法规检索,web_public,SP-US-GOV|SP-INDUSTRY-ASSOC,export_control|effective_date|equipment_spending|enforcement,high,URL_and_date,public_access,页面更新或旧链接迁移,冻结规则事实与行业数据,不得只记录搜索摘要,保存直接URL和发布日期
+AC-FILING-WEB,EXEC-USCTRL-CNSEMI-EQP-20260715-1,公司与交易所法定披露,filing_public,SP-COMPANY-FILING|SP-EXCHANGE,revenue|margin|product_stage|risk_factor|fab_utilization,high,filing_URL_and_period,public_access,PDF解析或业务口径差异,冻结实际财务和产品阶段,不得用券商预测替代财报,按报告期和公司范围归一
+AC-REGULATION-CURRENT,EXEC-USCTRL-CNSEMI-EQP-20260715-1,现行EAR与Federal Register,regulation_current,SP-US-GOV,current_EAR|effective_note|suspension,high,section_and_FR_citation,public_access,法规页面滚动更新,确认判断日有效状态,不得把未来生效条款写成当前事实,判断日前复核

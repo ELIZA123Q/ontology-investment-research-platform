@@ -8,12 +8,12 @@ reviewer:
   independent_from_producer: true
   test_reviewer: true
 inputs:
-  public_contract_version: 1.1.0
+  public_contract_version: 1.2.0
   stage_hashes:
-    stage_02: sha256:ae6e167fc159212257379d1e3436bab7a03364a6d5aa9d6730bdc43c5effa812
-    stage_03: sha256:d6fe4e4a504335fc554efcbcd4fe8f397ba595712cb4397a287263d00b9181f2
-    stage_04: sha256:863093f1f83dce046b985add3c00a87ef9970c6d8aff4be1a3ef4dbdac72ee75
-    stage_05: sha256:5a87032a47dc1739284efdf2f92529537216ed94a116b9f86cbe492fa097c3a7
+    stage_02: sha256:f4373c87ceae10848b9072ced6415266baf91d03f42aba816b77fa61b4825178
+    stage_03: sha256:ff787a4b29a40c91ca5e1e4beb0c3fd81bc6593db53b90e55d939889e798f96f
+    stage_04: sha256:a659d0fc8ae1f5bea13f9b6b242b5d8552ac2ae1084a4057add7f431ccfc3cd2
+    stage_05: sha256:bfec207416fe762d25bc0b54c7225fb54e6ea5bd7d718f649f634befacb73642
 checks:
 - check_id: local_evidence_not_globalized
   result: pass

@@ -21,9 +21,16 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from itertools import product
+from pathlib import Path
 import re
 from typing import Any, Iterable, Mapping
 
+import yaml
+
+
+_REASONING_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "一级通用本体规范" / "reasoning.yaml"
+_REASONING_SCHEMA = yaml.safe_load(_REASONING_SCHEMA_PATH.read_text(encoding="utf-8"))
+_THRESHOLD_POLICY = _REASONING_SCHEMA["rules"]["judgment_evidence_threshold"]["parameters"]
 
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
 TASK_DISPOSITIONS = {
@@ -32,9 +39,9 @@ TASK_DISPOSITIONS = {
     "out_of_scope",
     "split_required",
 }
-EVIDENCE_GRADES = {"Q0", "Q1", "Q2", "Q3", "Q4"}
-JUDGMENT_LEVELS = {"J0", "J1", "J2", "J3", "J4"}
-PATH_READINESS_STATUSES = {"ready", "restricted", "blocked", "not_applicable"}
+EVIDENCE_GRADES = set(_THRESHOLD_POLICY["evidence_grade_caps"])
+JUDGMENT_LEVELS = set(_THRESHOLD_POLICY["level_outputs"])
+PATH_READINESS_STATUSES = set(_THRESHOLD_POLICY["path_readiness_caps"])
 PATH_RESULT_STATUSES = {
     "established",
     "partially_established",
@@ -44,14 +51,7 @@ PATH_RESULT_STATUSES = {
     "contested",
     "not_applicable",
 }
-COUNTEREVIDENCE_RESULTS = {
-    "cleared",
-    "weakened",
-    "contested",
-    "decisive",
-    "not_checked",
-    "not_applicable",
-}
+COUNTEREVIDENCE_RESULTS = set(_THRESHOLD_POLICY["counterevidence_caps"])
 
 DERIVED_LIMIT_FIELDS = {
     "evidence_permission",
@@ -60,7 +60,8 @@ DERIVED_LIMIT_FIELDS = {
     "publishable",
 }
 
-LEGACY_PARALLEL_FIELDS = {
+# 已废弃并行限制字段；出现即拒绝，不再做兼容映射。
+RETIRED_PARALLEL_FIELDS = {
     "admission",
     "admission_status",
     "claim_mode",
@@ -71,47 +72,24 @@ LEGACY_PARALLEL_FIELDS = {
 }
 
 # 已废弃的 03 包级证据准入状态；后续能力只由 stage_status + Q/反证/path_readiness 决定。
-LEGACY_PACKAGE_ADMISSION_STATUSES = {
+RETIRED_PACKAGE_ADMISSION_STATUSES = {
     "normal_pass",
     "restricted_pass",
     "incomplete_pass",
 }
 
-FORBIDDEN_MANUAL_LIMIT_FIELDS = DERIVED_LIMIT_FIELDS | LEGACY_PARALLEL_FIELDS
+FORBIDDEN_MANUAL_LIMIT_FIELDS = DERIVED_LIMIT_FIELDS | RETIRED_PARALLEL_FIELDS
 
-LEGACY_EVIDENCE_GRADES = {
-    "Q0_unusable": "Q0",
-    "Q1_background": "Q1",
-    "Q2_conditional_usable": "Q2",
-    "Q3_directional_ready": "Q3",
-    "Q4_decision_grade": "Q4",
-}
-
-LEGACY_PATH_READINESS = {
-    "active": "ready",
-}
-
-_GRADE_CAP = {"Q0": "J0", "Q1": "J1", "Q2": "J2", "Q3": "J3", "Q4": "J4"}
-_COUNTEREVIDENCE_CAP = {
-    "cleared": "J4",
-    "weakened": "J2",
-    "contested": "J1",
-    "decisive": "J0",
-    "not_checked": "J1",
-    "not_applicable": "J4",
-}
-_PATH_READINESS_CAP = {
-    "ready": "J4",
-    "restricted": "J2",
-    "blocked": "J0",
-    "not_applicable": "J4",
-}
+_GRADE_CAP = {str(key): str(value) for key, value in _THRESHOLD_POLICY["evidence_grade_caps"].items()}
+_COUNTEREVIDENCE_CAP = {str(key): str(value) for key, value in _THRESHOLD_POLICY["counterevidence_caps"].items()}
+_PATH_READINESS_CAP = {str(key): str(value) for key, value in _THRESHOLD_POLICY["path_readiness_caps"].items()}
 _LEVEL_OUTPUT = {
-    "J0": ("prohibited", "insufficient", "只说明缺口，不形成方向"),
-    "J1": ("background_only", "observation_only", "只作事实观察或线索"),
-    "J2": ("conditional_judgment", "conditional_only", "保留条件的方向判断"),
-    "J3": ("directional_judgment", "directional_only", "方向判断或高概率判断"),
-    "J4": ("core_judgment", "full_reasoning_ready", "在明确范围内形成确认判断"),
+    str(level): (
+        str(values["evidence_permission"]),
+        str(values["allowed_04_output"]),
+        str(values["allowed_expression"]),
+    )
+    for level, values in _THRESHOLD_POLICY["level_outputs"].items()
 }
 
 
@@ -131,21 +109,38 @@ class DerivedConstraint:
 
 
 def canonical_evidence_grade(value: Any) -> str:
-    """Return the canonical Q0—Q4 code; legacy labels are migration-only input."""
+    """Return the canonical Q0—Q4 code; retired aliases are rejected."""
     text = str(value).strip()
-    text = LEGACY_EVIDENCE_GRADES.get(text, text)
     if text not in EVIDENCE_GRADES:
         raise ValueError(f"evidence_grade 非法: {value}")
     return text
 
 
 def canonical_path_readiness_status(value: Any) -> str:
-    """Return ready/restricted/blocked/not_applicable; accept legacy active."""
+    """Return ready/restricted/blocked/not_applicable; retired aliases are rejected."""
     text = str(value).strip()
-    text = LEGACY_PATH_READINESS.get(text, text)
     if text not in PATH_READINESS_STATUSES:
         raise ValueError(f"path_readiness_status 非法: {value}")
     return text
+
+
+def evidence_profile_quality_floor(profile_id: str) -> str:
+    """从二级 EvidenceProfile 实例派生质量下限；画像实例是权威源。"""
+    profile_path = Path(__file__).resolve().parent.parent / "二级半导体领域本体规范" / "business_instances.yaml"
+    document = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    graph = document.get("business_instance_graph") or {}
+    for item in graph.get("objects") or []:
+        if item.get("type") != "EvidenceProfile" or str(item.get("id")) != str(profile_id):
+            continue
+        props = item.get("properties") or {}
+        explicit = str(props.get("quality_floor") or props.get("minimum_quality_level") or "").strip()
+        if explicit in EVIDENCE_GRADES:
+            return explicit
+        requirements = props.get("minimum_requirements") or []
+        if isinstance(requirements, list) and len(requirements) >= 3:
+            return "Q3"
+        return "Q2"
+    raise ValueError(f"未找到 EvidenceProfile 实例: {profile_id}")
 
 
 def canonical_path_result_status(value: Any) -> str:
@@ -229,7 +224,7 @@ DERIVATION_MATRIX = {
 }
 
 
-LEGACY_PACKAGE_ADMISSION_TERMS = (
+RETIRED_PACKAGE_ADMISSION_TERMS = (
     "normal_pass",
     "restricted_pass",
     "incomplete_pass",
@@ -240,12 +235,16 @@ LEGACY_PACKAGE_ADMISSION_TERMS = (
 def reject_legacy_package_admission(text: Any, label: str) -> None:
     """Reject retired package-level admission vocabulary in authored prose/meta."""
     body = str(text or "")
-    hits = [term for term in LEGACY_PACKAGE_ADMISSION_TERMS if term in body]
+    hits = [term for term in RETIRED_PACKAGE_ADMISSION_TERMS if term in body]
+    hits.extend(token for token in RETIRED_PACKAGE_ADMISSION_STATUSES if token in body)
     if re.search(r"(?m)^\s*admission\s*:", body):
         hits.append("admission")
+    if "整体准入状态" in body:
+        hits.append("整体准入状态")
     if hits:
         raise ValueError(
-            f"{label} 不得再使用包级准入词: " + ", ".join(sorted(set(hits)))
+            f"{label} 不得再使用已废弃的包级证据准入状态 "
+            f"{', '.join(sorted(set(hits)))}；请改用 stage_status + evidence_grade + path_readiness_status"
         )
 
 
@@ -270,29 +269,21 @@ def reject_manual_derived_fields(data: Any, label: str) -> None:
         raise ValueError("不得人工填写派生或废弃的并行限制字段: " + ", ".join(found))
 
 
-def reject_legacy_package_admission(text: Any, label: str) -> None:
-    """Reject retired package-level admission statuses in authored text."""
-    content = str(text or "")
-    hits = sorted(token for token in LEGACY_PACKAGE_ADMISSION_STATUSES if token in content)
-    if "整体准入状态" in content:
-        hits.append("整体准入状态")
-    if hits:
-        raise ValueError(
-            f"{label} 不得再使用已废弃的包级证据准入状态 "
-            f"{', '.join(hits)}；请改用 stage_status + evidence_grade + path_readiness_status"
-        )
-
-
 def _self_test() -> None:
     assert len(DERIVATION_MATRIX) == 120
     assert derive_constraint("Q4", "cleared", "ready").maximum_judgment_level == "J4"
-    assert derive_constraint("Q4", "cleared", "active").maximum_judgment_level == "J4"
     assert derive_constraint("Q4", "weakened", "ready").maximum_judgment_level == "J2"
     assert derive_constraint("Q4", "contested", "ready").maximum_judgment_level == "J1"
     assert derive_constraint("Q4", "cleared", "blocked").maximum_judgment_level == "J0"
     assert derive_constraint("Q2", "cleared", "ready").allowed_04_output == "conditional_only"
     assert effective_path_readiness_status(["ready", "restricted"]) == "restricted"
     assert canonical_path_result_status("partially_established") == "partially_established"
+    try:
+        canonical_path_readiness_status("active")
+    except ValueError:
+        pass
+    else:  # pragma: no cover - executable contract
+        raise AssertionError("retired path readiness alias 必须被拒绝")
     try:
         reject_manual_derived_fields({"nested": {"path_status": "ready"}}, "fixture")
     except ValueError:

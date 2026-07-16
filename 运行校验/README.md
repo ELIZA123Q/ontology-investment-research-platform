@@ -15,9 +15,9 @@
 | 05 | 05-主题报告类型-日期-序号.md | 05-主题表达审计-日期-序号.yaml + 05-主题独立语义审查-日期-序号.yaml | 最终研究稿 + 确定性表达审计 + 独立语义校验 |
 | 事后复盘（非新增核心阶段） | 无固定正文 | 研究复盘记录，按 `04_推理/模板/研究复盘记录模板.yaml` | 对原判断追加兑现结果、错误归因和学习建议，不覆盖原留痕 |
 
-01 新运行使用 `judgment_task / 1.5.0`：除比较范围、时间三件套和交付深度外，必须提供 `task_scope_contract`。02 使用逻辑 `1.2.0` / 视图 `2.1.0`，冻结 `scope_graph`、稳定命题键和父子聚合合同；03 使用 `1.4.0` 冻结证据直接范围、外推上限和 04 命题许可；04 审计使用 `3.2.0`；05 表达审计使用 `2.6.0`。
+01 新运行使用 `judgment_task / 1.5.0`：除比较范围、时间三件套和交付深度外，必须提供 `task_scope_contract`。02 使用逻辑 `1.2.0` / 视图 `2.2.0`，冻结 `scope_graph`、稳定命题键、父子聚合合同及证据回环合同；03 继续使用 `1.4.0` 快照，并要求语义/证据实例清单 `3.0.0` 以 `business_instance_graph` 为权威、CSV 为只读投影；04 审计使用 `4.0.0` 实例图；05 表达审计使用 `2.6.0`。旧专用列表权威格式不再兼容。
 
-发布采用双层校验：确定性链通过但独立语义审查缺失时为 `STAGE_READY`；确定性失败或语义审查 `fail/needs_human` 时为 `RETURN_REQUIRED`；两层均通过且输入哈希有效时才为 `PUBLISHABLE`。增量运行必须在 `run_manifest / 1.1.0` 中绑定真实父清单路径与哈希，并逐稳定 Claim 填写更新登记。
+发布采用双层校验：确定性链通过但独立语义审查缺失时为 `STAGE_READY`；确定性失败或语义审查 `fail/needs_human` 时为 `RETURN_REQUIRED`；两层均通过且输入哈希有效时才为 `PUBLISHABLE`。新运行使用 `run_manifest / 1.2.0`：每阶段保留 current、pending、history 与 `supersedes_attempt`，证据循环还记录 wave、plan 和对象 stale；跨运行增量仍绑定真实父清单路径与哈希，并逐稳定 Claim 填写更新登记。
 
 跨阶段公共字段、枚举、判断类型和状态以 [`public_contract.yaml`](../00_全局/contracts/public_contract.yaml) 为准，判断类型到 03/04 方法的默认与允许路由以 [`judgment_method_routes.yaml`](../00_全局/contracts/judgment_method_routes.yaml) 为准。02 本体视图须同时包含 semantic_scope、evidence_contract 和 reasoning_plan，并为每个 JU 生成 `content_hash`。03、04 必须继承该 JU 的类型和哈希，发现错误只能返回 02。
 
@@ -89,12 +89,23 @@ python3 03_数据与证据/validate_delivery_readiness.py <03快照目录>
 python3 03_数据与证据/freeze_source_captures.py <03快照目录>
 python3 04_推理/validate_04_outputs.py <04判断简报.md> <04推理审计.yaml> <03快照目录>
 python3 05_表达交付/validate_05_outputs.py <05研报.md> <报告类型中文名> <05表达审计.yaml> <04推理审计.yaml>
+python3 运行校验/research_loop.py --view <02本体视图.yaml> --wave <冻结证据波次.yaml> --dependency-projection <对象依赖投影.yaml>
 python3 运行校验/validate_run.py <运行目录>
 ~~~
 
 报告类型中文名为：事件点评、行业动态点评、行业周期判断、公司业绩点评或主题深度研究。
 
 新 run 首次建立阶段哈希基线时执行 `python3 运行校验/validate_run.py <运行目录> --initialize`。之后常规校验不得覆盖基线；任一上游变化会把当前及下游阶段标记为 `stale`，合同、本体或关键知识库版本变化标记为 `revalidation_required`。
+
+闭环计划确认后，可在命令中追加 `--manifest <运行目录>/run_manifest.yaml --apply-manifest`。控制器会先把即将被替代的 current attempt 复制到 `.research_attempts/stage_xx/attempt-nnnn/`，再建立 pending attempt；不会覆盖历史 archive。完成某阶段并通过该阶段完整 `high_quality_pass` 后，显式执行：
+
+```bash
+python3 运行校验/validate_run.py <运行目录> --commit-stage stage_02
+python3 运行校验/validate_run.py <运行目录> --commit-stage stage_03
+python3 运行校验/validate_run.py <运行目录> --commit-stage stage_04 --commit-stage stage_05 --loop-state <loop_state.yaml>
+```
+
+最后一个 pending attempt 提交时必须绑定 `loop_state.yaml`；校验器会核对其文件哈希，并重新计算收敛状态。`critical stale`、未完成 attempt 或未解决冲突任一存在时，不允许将运行标记为已收敛。
 
 总校验分别输出 `quality_pass`、`publishable`、`judgment_level` 和 `directional_conclusion_available`。J0/J1 的高质量缺口或观察报告可以发布；发布不要求必须形成强方向结论。
 
@@ -111,3 +122,27 @@ python3 validate_project.py
 校验器负责文件命名、字段与枚举、跨文件引用、来源独立性、反证、判断强度、04 不超过 03、05 不超过 04、范围与条件不丢失、关键观点登记和返工去向；并检查阶段产物与知识库绑定：02 `judgment_type` 必须为公共合同原子类型，03 使用 `kb03:` 方法引用，04 使用 `kb04:` 方法引用并记录理由，05 允许转述和综合但不得新增研究主张。
 
 校验器不能代替研究员判断资料是否真实充分、比较口径是否合理、推理是否有经济含义、标题是否真正有增量。正式发布以各阶段规则校验与 00A 发布条件为准；内容质量由执行者自行把关，不作为仓库内强制产物。
+
+## 7. 本体驱动证据闭环
+
+闭环的三个 sidecar 模板位于 [`运行校验/模板`](模板/)：
+
+- `evidence_wave.template.yaml`：冻结一个证据批次，并把 delta 映射到正式本体 Object / Relation；
+- `dependency_projection.template.yaml`：记录正式本体对象之间的失效传播方向，ReportClaim 边仅允许 `stageProjection`；
+- `loop_state.template.yaml`：记录结构触发、critical stale、attempt 哈希、冲突与最新波次变化，用于语义收敛。
+
+分类与返工是自动派生的：根问题、研究范围或任务目标变化回 01；未知变量、路径、竞争假设或结构关系回完整 02；既有结构内证据回 03 并重算受影响 04；纯表达变化回 05；相同 wave hash 幂等。控制器不接受 `max_iterations`、`max_loop_count` 或 `iteration_limit`，因为循环是否结束取决于结构触发、对象 stale、哈希、冲突和关键判断/路径是否稳定，而不是执行次数。
+
+对象 stale 按依赖图传递：
+
+```text
+EvidenceClaim / EvidenceFact
+→ Observation / Event / Signal / MarketExpectation
+→ Hypothesis
+→ RuleEvaluation
+→ Judgment
+→ ExpectationGap / AssetImpact
+→ ReportClaim
+```
+
+这些文件只决定“重跑什么”，不决定“业务上是什么”。正式对象、关系、动作、变量和规则仍分别以一级/二级本体和 02 冻结视图为唯一权威；`reasoningSupersedes` 与 `ReviseReasoningObject` 是推理修订的唯一正式入口。

@@ -12,28 +12,29 @@ file,field,description
 01_plan/acquisition_channels.csv,allowed_usage,
 01_plan/acquisition_channels.csv,forbidden_usage,
 01_plan/acquisition_channels.csv,notes,
-01_plan/evidence_baskets.csv,evidence_basket_id,
+01_plan/evidence_baskets.csv,evidence_basket_id,运行评估实例 ID
+01_plan/evidence_baskets.csv,basket_requirement_ref,对应 02 EvidenceBasketRequirement；计划门槛权威源
 01_plan/evidence_baskets.csv,execution_id,
-01_plan/evidence_baskets.csv,basket_type,
-01_plan/evidence_baskets.csv,target_judgment_unit_id,对应 02 的核心判断单元
+01_plan/evidence_baskets.csv,basket_type,需求投影字段，非第二权威
+01_plan/evidence_baskets.csv,target_judgment_unit_id,对应 02 的核心判断单元（需求投影）
 01_plan/evidence_baskets.csv,target_requirement_ids,
-01_plan/evidence_baskets.csv,basket_role,
-01_plan/evidence_baskets.csv,required_evidence_categories,
-01_plan/evidence_baskets.csv,required_claim_types,
-01_plan/evidence_baskets.csv,required_source_profile_ids,
-01_plan/evidence_baskets.csv,minimum_source_tier,最低来源层级
-01_plan/evidence_baskets.csv,minimum_independent_source_count,最少独立来源数
-01_plan/evidence_baskets.csv,required_time_coverage,
-01_plan/evidence_baskets.csv,required_object_coverage,
-01_plan/evidence_baskets.csv,required_content_domains,财务、经营、产业、政策、市场价格等内容域
-01_plan/evidence_baskets.csv,allowed_proxy,是否允许代理指标
-01_plan/evidence_baskets.csv,actual_evidence_ids,
-01_plan/evidence_baskets.csv,actual_fact_ids,
-01_plan/evidence_baskets.csv,actual_source_ids,
-01_plan/evidence_baskets.csv,basket_status,
-01_plan/evidence_baskets.csv,conflict_status,冲突证据状态
-01_plan/evidence_baskets.csv,counter_check_status,
-01_plan/evidence_baskets.csv,basket_quality,
+01_plan/evidence_baskets.csv,basket_role,需求投影字段，非第二权威
+01_plan/evidence_baskets.csv,required_evidence_categories,需求投影
+01_plan/evidence_baskets.csv,required_claim_types,需求投影
+01_plan/evidence_baskets.csv,required_source_profile_ids,需求投影
+01_plan/evidence_baskets.csv,minimum_source_tier,EvidenceBasketRequirement 投影；不得手改成第二权威
+01_plan/evidence_baskets.csv,minimum_independent_source_count,EvidenceBasketRequirement 投影
+01_plan/evidence_baskets.csv,required_time_coverage,需求投影
+01_plan/evidence_baskets.csv,required_object_coverage,需求投影
+01_plan/evidence_baskets.csv,required_content_domains,需求投影；财务、经营、产业、政策、市场价格等内容域
+01_plan/evidence_baskets.csv,allowed_proxy,EvidenceBasketRequirement 投影
+01_plan/evidence_baskets.csv,actual_evidence_ids,运行填充结果
+01_plan/evidence_baskets.csv,actual_fact_ids,运行填充结果
+01_plan/evidence_baskets.csv,actual_source_ids,运行填充结果
+01_plan/evidence_baskets.csv,basket_status,运行满足状态
+01_plan/evidence_baskets.csv,conflict_status,运行冲突状态
+01_plan/evidence_baskets.csv,counter_check_status,运行反证检查状态
+01_plan/evidence_baskets.csv,basket_quality,运行质量等级
 01_plan/evidence_baskets.csv,usage_limit,可展示但不可外推的限制
 01_plan/evidence_baskets.csv,gap_action,若未就绪，应补齐素材、调整报告类型还是降级交付
 01_plan/evidence_baskets.csv,notes,

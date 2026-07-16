@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from ontology_instance_graph import materialize_document
 from validator_utils import load_yaml_file, split_refs
 
 
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_CONTRACT_PATH = ROOT / "00_全局" / "contracts" / "public_contract.yaml"
 ROUTE_REGISTRY_PATH = ROOT / "00_全局" / "contracts" / "judgment_method_routes.yaml"
 ONTOLOGY_CONTRACT_PATH = ROOT / "一级通用本体规范" / "common.yaml"
+ONTOLOGY_REASONING_PATH = ROOT / "一级通用本体规范" / "reasoning.yaml"
 KB02_REGISTRY_PATH = ROOT / "知识库_02框架" / "00_framework_dependency_registry.yaml"
 KB03_REGISTRY_PATH = ROOT / "知识库_03取证" / "03_registry.yaml"
 
@@ -32,8 +34,33 @@ def _mapping(value: Any, label: str) -> dict[str, Any]:
     return value
 
 
+def _task_view_projection(view: Mapping[str, Any]) -> dict[str, Any]:
+    """统一从 02 业务实例图物化消费投影。
+
+    磁盘上的 ``business_instance_graph`` 是业务参数权威源；这里返回的
+    平铺结构只是为现有跨阶段合同提供的确定性投影。
+    """
+    try:
+        return _mapping(materialize_document(view), "02.task_ontology_view")
+    except ValueError as exc:
+        raise ContractError(f"02.business_instance_graph 无法物化: {exc}") from exc
+
+
 def public_contract() -> dict[str, Any]:
-    return _mapping(load_yaml_file(PUBLIC_CONTRACT_PATH), "public_contract")
+    contract = _mapping(load_yaml_file(PUBLIC_CONTRACT_PATH), "public_contract")
+    refs = _mapping(contract.get("business_authority_refs", {}), "business_authority_refs")
+    for field, raw_ref in refs.items():
+        file_ref, pointer = str(raw_ref).split("#", 1)
+        node: Any = load_yaml_file(ROOT / file_ref)
+        for part in pointer.split("."):
+            if part == "@keys":
+                node = list(node)
+            else:
+                node = _mapping(node, f"{raw_ref}:{part}").get(part)
+        if not isinstance(node, list):
+            raise ContractError(f"{raw_ref} 必须解析为列表")
+        contract[str(field)] = list(node)
+    return contract
 
 
 def route_registry() -> dict[str, Any]:
@@ -49,34 +76,58 @@ def route_registry() -> dict[str, Any]:
     return registry
 
 
-def current_versions() -> dict[str, str]:
+LEGACY_VERSION_SETS: dict[str, dict[str, str]] = {}  # 已清零；旧合同版本不再提供 fallback。
+
+
+def current_versions(contract_version: str | None = None) -> dict[str, str]:
+    """返回当前公共合同版本集合；不再提供 1.1.0 等 legacy 版本集。"""
+    requested = str(contract_version or "").strip()
     contract = public_contract()
     routes = route_registry()
     ontology = _mapping(load_yaml_file(ONTOLOGY_CONTRACT_PATH), "ontology_common")
+    ontology_reasoning = _mapping(
+        load_yaml_file(ONTOLOGY_REASONING_PATH), "ontology_reasoning"
+    )
     kb02 = _mapping(load_yaml_file(KB02_REGISTRY_PATH), "kb02_registry")
     kb03 = _mapping(load_yaml_file(KB03_REGISTRY_PATH), "kb03_registry")
     knowledge_versions = _mapping(routes.get("knowledge_versions"), "knowledge_versions")
-    return {
+    versions = {
         "contract": str(contract.get("schema_version", "")),
         "ontology": str(ontology.get("schema_version", "")),
+        "ontology_reasoning": str(ontology_reasoning.get("schema_version", "")),
         "kb02": str(kb02.get("schema_version", knowledge_versions.get("kb02", ""))),
         "kb03": str(kb03.get("schema_version", knowledge_versions.get("kb03", ""))),
         "kb04": str(knowledge_versions.get("kb04", "")),
         "stage_01_schema": "1.5.0",
         "stage_02_logic_schema": "1.2.0",
-        "stage_02_view_schema": "2.1.0",
+        "stage_02_view_schema": "2.2.0",
         "stage_03_schema": "1.4.0",
         "stage_04_brief_schema": "3.0.0",
-        "stage_04_audit_schema": "3.2.0",
+        "stage_04_audit_schema": "4.0.0",
         "stage_05_audit_schema": "2.6.0",
         "semantic_review_schema": "1.0.0",
     }
+    if requested and requested != versions["contract"]:
+        raise ContractError(
+            f"已删除 legacy 版本集；仅支持当前合同 {versions['contract']}，收到 {requested}"
+        )
+    return versions
 
 
 def claim_version_hash(claim: Mapping[str, Any]) -> str:
     """稳定 Claim 版本哈希；排除仅用于审计展示的自证字段。"""
     ignored = {"strength_consistency_check", "overreach_check"}
     return canonical_sha256({key: value for key, value in claim.items() if key not in ignored})
+
+
+def task_view_hash(view: Mapping[str, Any]) -> str:
+    """02 task_ontology_view 内容哈希；排除自证字段和纯审计生成时间。"""
+    payload = dict(_task_view_projection(view))
+    context = dict(payload.get("task_context", {}))
+    context.pop("view_hash", None)
+    context.pop("generated_at", None)
+    payload["task_context"] = context
+    return canonical_sha256(payload)
 
 
 def canonical_sha256(value: Any) -> str:
@@ -95,6 +146,7 @@ def _string_list(value: Any, label: str, *, allow_empty: bool = False) -> list[s
 
 def validate_scope_graph(view: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     """校验 02 冻结的通用范围图并返回 scope_ref 索引。"""
+    view = _task_view_projection(view)
     graph = _mapping(view.get("scope_graph"), "02.scope_graph")
     root_ref = str(graph.get("root_scope_ref", "")).strip()
     nodes = graph.get("nodes")
@@ -205,6 +257,7 @@ def validate_aggregation_contracts(
     view: Mapping[str, Any],
     units: Mapping[str, Mapping[str, Any]],
 ) -> dict[str, dict[str, Any]]:
+    view = _task_view_projection(view)
     contracts = view.get("aggregation_contracts")
     if not isinstance(contracts, list):
         raise ContractError("02.aggregation_contracts 必须是列表")
@@ -232,6 +285,7 @@ def judgment_unit_hash(unit: Mapping[str, Any]) -> str:
 
 
 def validate_judgment_units(view: Mapping[str, Any], *, require_hash: bool = True) -> dict[str, dict[str, Any]]:
+    view = _task_view_projection(view)
     contract = public_contract()
     allowed_types = set(str(item) for item in contract.get("judgment_types", []))
     legacy = _mapping(contract.get("legacy_judgment_type_migration", {}), "legacy_judgment_type_migration")
@@ -309,6 +363,7 @@ def validate_evidence_routes(
     view: Mapping[str, Any],
     recipe_rows: Iterable[Mapping[str, Any]],
 ) -> dict[str, str]:
+    view = _task_view_projection(view)
     units = validate_judgment_units(view)
     routes = _mapping(route_registry().get("routes"), "routes")
     matched: dict[str, str] = {}
@@ -397,6 +452,7 @@ def _validate_j4_claim(
 
 
 def validate_reasoning_routes(view: Mapping[str, Any], audit: Mapping[str, Any]) -> dict[str, list[str]]:
+    view = _task_view_projection(view)
     units = validate_judgment_units(view)
     routes = _mapping(route_registry().get("routes"), "routes")
     global_aux = set(str(item) for item in route_registry().get("global_optional_reasoning_methods", []))

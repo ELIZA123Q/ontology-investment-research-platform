@@ -27,6 +27,7 @@ from research_contract import (  # noqa: E402
 )
 from status_derivation import reject_manual_derived_fields  # noqa: E402
 from validate_run import derive_run_outcome  # noqa: E402
+from validator_utils import load_yaml_file  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "05_表达交付"))
 from validate_05_outputs import _validate_body  # noqa: E402
@@ -34,7 +35,7 @@ from validate_05_outputs import _validate_body  # noqa: E402
 
 def _view(example: str) -> dict:
     path = next((ROOT / example).glob("02-*本体视图-*.yaml"))
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    return load_yaml_file(path)
 
 
 def _audit(example: str) -> dict:

@@ -107,7 +107,7 @@ def command_validate(args: argparse.Namespace) -> int:
     claim_count = sum(len(item["adjudication"]["core_claims"]) for item in cases)
     print(
         f"EVAL_PASS: {len(cases)}个试点案例，{evidence_count}条冻结证据，"
-        f"{claim_count}条密封判断，10类缺陷；R/U/delta与S/C契约有效。"
+        f"{claim_count}条密封判断，11类缺陷；R/U/delta与S/C契约有效。"
     )
     return 0
 

@@ -5,6 +5,33 @@ depends_on: [common.yaml, semantic.yaml]
 description: 证据域的 Object、Relation、Action 及 Function、Logic、Rule 定义。
 
 object_types:
+  EvidenceProfile:
+    id: EvidenceProfile
+    name: 证据画像
+    description: 可复用的证据类别、来源优先级、质量限制与缺失降级策略。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 画像名称。}
+      description: {type: string, required: true, description: 适用边界。}
+      preferred_source_types: {type: array, required: true, description: 优先来源类型。}
+      minimum_requirements: {type: object, required: true, description: 最低证据要求。}
+      downgrade_rule: {type: string, required: true, description: 缺失或受限时的降级规则。}
+  EvidenceBasketRequirement:
+    id: EvidenceBasketRequirement
+    name: 证据篮子需求
+    description: 计划阶段冻结的证据组合门槛；不保存本次运行的满足状态。
+    primary_key: id
+    title_property: basket_type
+    validity: true
+    properties:
+      basket_type: {type: string, required: true, description: 篮子类型。}
+      target_judgment_unit_id: {type: string, required: true, description: 目标判断单元。}
+      basket_role: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色。}
+      minimum_source_tier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
+      minimum_independent_source_count: {type: integer, required: true, description: 最少独立来源数。}
+      allowed_proxy: {type: boolean, required: true, description: 是否允许代理指标。}
   SourceDocument:
     id: SourceDocument
     name: 来源文档
@@ -141,17 +168,15 @@ object_types:
   EvidenceBasket:
     id: EvidenceBasket
     name: 证据篮子
-    description: 判断单元所需的一组证据组合及其满足状态。
+    description: 本次运行对某项 EvidenceBasketRequirement 的满足状态评估；计划门槛只保存在需求对象中。
     primary_key: id
     title_property: basketType
     validity: true
     properties:
-      basketType: {type: string, required: true, description: 证据篮子类型。}
+      basketRequirementRef: {type: string, required: true, description: 对应 EvidenceBasketRequirement 的稳定引用。}
+      basketType: {type: string, required: true, description: 证据篮子类型（需求投影）。}
       targetJudgmentUnitId: {type: string, required: true, description: 对应判断单元 ID。}
-      basketRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色。}
-      minimumSourceTier: {type: enum, required: true, allowed_values: [S1, S2, S3, S4, S5, S6, S7, S8], description: 最低来源层级。}
-      minimumIndependentSourceCount: {type: integer, required: true, description: 最少独立来源数。}
-      allowedProxy: {type: boolean, required: true, description: 是否允许代理。}
+      basketRole: {type: enum, required: true, allowed_values: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence], description: 篮子角色（需求投影）。}
       basketStatus: {type: enum, required: true, allowed_values: [met, partial, not_met, missing, contested, blocked, not_applicable], description: 篮子满足状态。}
       conflictStatus: {type: enum, required: true, allowed_values: [no_material_conflict, minor_conflict, material_conflict, unresolved_conflict, contested, not_checked, not_applicable], description: 冲突状态。}
       counterCheckStatus: {type: enum, required: true, allowed_values: [met, partial, checked, not_checked, not_applicable, missing, blocked], description: 反证检查状态。}

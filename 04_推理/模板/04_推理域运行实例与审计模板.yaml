@@ -1,5 +1,5 @@
 document_type: reasoning_audit
-schema_version: 3.2.0
+schema_version: 4.0.0
 
 metadata:
   task_id: ""
@@ -23,6 +23,25 @@ input_integrity:
   no_unfrozen_evidence_used: false
   no_new_path_or_rule_created: false
   issues: []
+
+# 只记录证据波次、对象依赖与阶段 attempt；业务判断仍由下方正式本体实例表达。
+iteration_context:
+  evidence_wave_refs: []
+  evidence_wave_hashes: []
+  dependency_projection_ref: "<ontology_dependency_projection YAML>"
+  dependency_projection_hash: "sha256:<投影内容哈希>"
+  source_stage_attempts:
+    stage_02: 1
+    stage_03: 1
+  current_stage_attempt: 1
+  supersedes_stage_attempt: null
+  critical_stale_refs_at_start: []
+  critical_stale_refs_at_completion: []
+  structural_checkpoint_ref: null
+
+# 仅在正式推理对象形成新版本时登记；初始运行或评价未改变对象时为空列表。
+reasoning_revision_register: []
+# 非空时每项还必须填写 new_scope_ref 与 superseded_scope_ref，两者必须相同。
 
 evidence_context:
   stage_status: in_progress
@@ -255,64 +274,13 @@ ontology_context:
   candidate_structure_used: false
   missing_ontology_items: []
 
-hypotheses:
-  - hypothesis_id: H-01
-    source_slot_ref: H-01
-    statement: ""
-    state_variable_refs: []
-    direction: uncertain
-    time_horizon: ""
-    falsification_conditions: []
-    signal_refs: []
-    evaluation_status: open
-
-signals:
-  - signal_id: SIG-01
-    statement: ""
-    role: "<support | catalyst | track | weaken | block>"
-    strength: "<low | medium | high>"
-    observed_at: ""
-    target_hypothesis_refs: [H-01]
-    input_refs: []
-    evidence_refs: []
-
-rule_evaluations:
-  - rule_evaluation_id: RE-01
-    rule_ref: ""
-    rule_version: ""
-    evaluated_at: ""
-    input_refs: []
-    evidence_refs: []
-    target_refs: [H-01]
-    condition_results: []
-    status: "<matched | not_matched | blocked | error>"
-    result_summary: ""
-    output_refs: []
-
-judgments:
-  - judgment_id: J-01
-    claim_id: C-01
-    statement: ""
-    hypothesis_refs: [H-01]
-    rule_evaluation_refs: [RE-01]
-    target_claim_type: current_state
-    judgment_level: J0
-    conditions: []
-    scope: {}
-    time_horizon: ""
-    confidence: low
-    uncertainty_refs: []
-
-reasoning_traces:
-  - trace_id: RT-01
-    judgment_ref: J-01
-    evaluated_at: ""
-    input_refs: []
-    rule_evaluation_refs: [RE-01]
-    steps: []
-    rule_refs: []
-    output_refs: [J-01]
-    status: complete
+# 正式推理实例只保存在 business_instance_graph；禁止再磁盘双写 hypotheses/signals 等列表。
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  objects: []
+  relations: []
 
 path_results:
   - path_id: ""

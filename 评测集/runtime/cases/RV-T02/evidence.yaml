@@ -2,7 +2,7 @@ document_type: frozen_evidence_pack
 schema_version: 1.0.0
 case_id: RV-T02
 frozen_at: '2026-07-15T00:00:00+08:00'
-information_cutoff: '2026-07-10'
+information_cutoff: '2026-07-15'
 evaluation_boundary: 评测器只判断产出是否被本冻结证据包支持，不把包外世界知识当作自动真值。
 evidence:
   - evidence_id: T02-E01

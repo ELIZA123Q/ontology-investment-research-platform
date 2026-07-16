@@ -6,7 +6,7 @@ version: 6.2.0
 status: core
 framework_type: value_chain_main
 validation_status: pending_two_tasks
-validated_case_refs: [示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md]
+validated_case_refs: [示例2/02-美国管制与国产设备替代研究逻辑-20260715-1.md]
 updated_at: 2026-07-14
 ---
 
@@ -81,4 +81,4 @@ scenarios: [backup_not_main_process, validation_without_repurchase, platform_sca
 ## 6. 组合、裁剪与真实任务验证
 
 - `SCN-LOC-EQP + IF-LOC`：EQP 判工艺位置与复购，LOC 判约束增量。封装设备用 `SCN-PKG-BTL`。
-- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md)。尚需首台强但未主工艺/未复购失败案。`尚待两次真实任务验证`。
+- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260715-1.md)。尚需首台强但未主工艺/未复购失败案。`尚待两次真实任务验证`。

@@ -6,7 +6,7 @@ version: 6.2.1
 status: core
 framework_type: horizontal_constraint
 validation_status: pending_two_tasks
-validated_case_refs: [示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md]
+validated_case_refs: [示例2/02-美国管制与国产设备替代研究逻辑-20260715-1.md]
 updated_at: 2026-07-14
 ---
 
@@ -88,4 +88,4 @@ scenarios: [constraint_absorbed, accelerated_localization, substitution_without_
 ## 6. 组合、裁剪与真实任务验证
 
 - 设备：`SCN-LOC-EQP + IF-EQP`；材料：`SCN-LOC-MAT + IF-MAT`；地缘：`SCN-GEO`（市场通道交预期差/估值基础框架）。
-- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260710-1.md)。尚需失败案（份额升+新单点依赖）。`尚待两次真实任务验证`。
+- 成立案例：[`示例2/...`](../../../../示例2/02-美国管制与国产设备替代研究逻辑-20260715-1.md)。尚需失败案（份额升+新单点依赖）。`尚待两次真实任务验证`。

@@ -1,0 +1,27 @@
+schema_name: ontology_dependency_projection
+schema_version: 1.0.0
+task_id: "<任务标识>"
+run_id: "<运行标识>"
+source_02_view_hash: "sha256:<02 task_context.view_hash>"
+
+# 节点引用正式本体实例；ReportClaim 仅是 04/05 发布投影。
+nodes:
+  - object_ref: "EV-01"
+    object_type_ref: EvidenceClaim
+    stage: stage_03
+    content_hash: "sha256:<对象内容哈希>"
+    validity_status: current
+    critical: false
+  - object_ref: "OBS-01"
+    object_type_ref: Observation
+    stage: stage_03
+    content_hash: "sha256:<对象内容哈希>"
+    validity_status: current
+    critical: true
+
+# upstream/downstream 表示失效传播方向；basis_relation_ref 必须是正式本体 Relation。
+edges:
+  - dependency_ref: "DEP-01"
+    upstream_ref: "EV-01"
+    downstream_ref: "OBS-01"
+    basis_relation_ref: evidenceGroundsReasoning

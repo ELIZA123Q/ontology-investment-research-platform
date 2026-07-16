@@ -1,84 +1,142 @@
 schema_name: controlled_research_run_manifest
-schema_version: 1.1.0
+schema_version: 1.2.0
 task_id: JTASK-USCTRL-CNSEMI-EQP-001
-run_id: EXEC-USCTRL-CNSEMI-EQP-20260710-1
+run_id: EXEC-USCTRL-CNSEMI-EQP-20260715-1
 parent_run: null
 run_mode: fixture
-producer_id: fixture-producer-equipment_policy
+producer_id: fixture-producer-equipment_rerun
 versions:
-  contract: 1.1.0
+  contract: 1.2.0
   ontology: 2.1.0
+  ontology_reasoning: 2.1.0
   kb02: 2.0.0
   kb03: 3.1.0
   kb04: 1.0.0
   stage_01_schema: 1.5.0
   stage_02_logic_schema: 1.2.0
-  stage_02_view_schema: 2.1.0
+  stage_02_view_schema: 2.2.0
   stage_03_schema: 1.4.0
   stage_04_brief_schema: 3.0.0
-  stage_04_audit_schema: 3.2.0
+  stage_04_audit_schema: 4.0.0
   stage_05_audit_schema: 2.6.0
   semantic_review_schema: 1.0.0
 stages:
   stage_01:
     artifact:
-    - 01-美国管制与国产设备替代投研需求说明-20260710-1.md
-    hash: sha256:081b79db195f0632aa46bcc2fed8f1bc2cd4b7abc375d2e310fc558b38cc09a6
+    - 01-美国管制与国产设备替代投研需求说明-20260715-1.md
+    hash: sha256:a7b743469291bc31311388fff37a54567bd5fe8dcbbf330ea8ec003ce01f676c
     source_hashes: {}
     stage_status: complete
     validity_status: current
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_02:
     artifact:
-    - 02-美国管制与国产设备替代研究逻辑-20260710-1.md
-    - 02-美国管制与国产设备替代本体视图-20260710-1.yaml
-    hash: sha256:5b26f7b03f0f0bd29c12351133938d228b0bb0869bfbabb1973ecb156fd71089
+    - 02-美国管制与国产设备替代研究逻辑-20260715-1.md
+    - 02-美国管制与国产设备替代本体视图-20260715-1.yaml
+    hash: sha256:dd80887fac8251ad4ed11f677bba0409c8e1396feb6bcbf34f7adc01ba974217
     source_hashes:
-      stage_01: sha256:081b79db195f0632aa46bcc2fed8f1bc2cd4b7abc375d2e310fc558b38cc09a6
+      stage_01: sha256:a7b743469291bc31311388fff37a54567bd5fe8dcbbf330ea8ec003ce01f676c
     stage_status: complete
     validity_status: current
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_03:
     artifact:
-    - 03-美国管制与国产设备替代数据与证据准备-20260710-1.md
-    - 03-美国管制与国产设备替代数据与证据快照-20260710-1
-    - 03-美国管制与国产设备替代语义域与证据域实例清单-20260710-1.yaml
-    hash: sha256:56d3cc906175dedbf98e9ae299cced36b7a75334b5300ab94733410113188354
+    - 03-美国管制与国产设备替代数据与证据准备-20260715-1.md
+    - 03-美国管制与国产设备替代数据与证据快照-20260715-1
+    - 03-美国管制与国产设备替代语义域与证据域实例清单-20260715-1.yaml
+    hash: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
     source_hashes:
-      stage_02: sha256:5b26f7b03f0f0bd29c12351133938d228b0bb0869bfbabb1973ecb156fd71089
+      stage_02: sha256:17b6f6e8aca6c51f4a5d25197dc312fe16703fecf57b31c22a7610f0b9781976
     stage_status: complete
-    validity_status: current
+    validity_status: stale
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_04:
     artifact:
-    - 04-美国管制与国产设备替代判断简报-20260710-1.md
-    - 04-美国管制与国产设备替代推理审计-20260710-1.yaml
-    hash: sha256:f56e347df94c0ce2a703497143e068a6de4996a5108b780414e1a81c46f6a9c6
+    - 04-美国管制与国产设备替代判断简报-20260715-1.md
+    - 04-美国管制与国产设备替代推理审计-20260715-1.yaml
+    hash: sha256:c7a67e8a6aaafe448ca8bb31443514fb8edea66a3396e7a5126b8bd789dcd18f
     source_hashes:
-      stage_03: sha256:56d3cc906175dedbf98e9ae299cced36b7a75334b5300ab94733410113188354
+      stage_03: sha256:e1c77974be33d43b86af54964a0c94a54ae1a3a4bdbc66991c22f9fedd1fe207
     stage_status: complete
-    validity_status: current
+    validity_status: stale
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_05:
     artifact:
-    - 05-美国管制与国产设备替代主题深度研究-20260710-1.md
-    - 05-美国管制与国产设备替代表达审计-20260710-1.yaml
-    hash: sha256:b6023992a838ee32fa8f481be8a58fd0c48e98c59947311c1740b2250c096221
+    - 05-美国管制与国产设备替代主题深度研究-20260715-1.md
+    - 05-美国管制与国产设备替代表达审计-20260715-1.yaml
+    hash: sha256:9a506cbb550bdf02a78d0ccdcf16da268a40462c0668b9043b6a09996208a20d
     source_hashes:
-      stage_04: sha256:f56e347df94c0ce2a703497143e068a6de4996a5108b780414e1a81c46f6a9c6
+      stage_04: sha256:44ae4b9cf2670de06f4f78fa9a4a79179f2877a2935fdd0434ec45c671ef6076
     stage_status: complete
-    validity_status: current
+    validity_status: stale
     attempt: 1
     supersedes_attempt: null
-validation_issues: []
+    attempt_history: []
+    pending_attempt: null
+reasoning_loop:
+  mode: ontology_evidence_wave
+  latest_wave_ref: null
+  latest_wave_hash: null
+  latest_plan_hash: null
+  loop_state_ref: null
+  loop_state_hash: null
+  classification: no_semantic_delta
+  pending_stage_attempts: []
+  structural_checkpoint_required: false
+  converged: true
+validation_issues:
+- issue_id: STALE-stage_03
+  detected_at_stage: stage_03
+  rule_id: stage_03.artifact_hash
+  return_to_stage: stage_03
+  reason: stage_03 当前内容哈希与已提交哈希不一致
+  severity: blocking
+- issue_id: STALE-stage_04
+  detected_at_stage: stage_04
+  rule_id: stage_04.artifact_hash
+  return_to_stage: stage_04
+  reason: stage_04 当前内容哈希与已提交哈希不一致
+  severity: blocking
+- issue_id: STALE-stage_05
+  detected_at_stage: stage_05
+  rule_id: stage_05.artifact_hash
+  return_to_stage: stage_05
+  reason: stage_05 当前内容哈希与已提交哈希不一致
+  severity: blocking
+- issue_id: SOURCE-stage_04
+  detected_at_stage: stage_04
+  rule_id: stage_04.source_hashes.stage_03
+  return_to_stage: stage_04
+  reason: stage_04 记录的上游哈希与当前 stage_03 不一致
+  severity: blocking
+- issue_id: SOURCE-stage_05
+  detected_at_stage: stage_05
+  rule_id: stage_05.source_hashes.stage_04
+  return_to_stage: stage_05
+  reason: stage_05 记录的上游哈希与当前 stage_04 不一致
+  severity: blocking
+- issue_id: SEMANTIC-REVIEW
+  detected_at_stage: stage_05
+  rule_id: semantic_review.contract
+  return_to_stage: stage_05
+  reason: 独立语义审查输入哈希与冻结后的 02—05 内容不一致
+  severity: blocking
 validation_summary:
-  quality_pass: false
+  quality_pass: true
   publishable: false
   publish_status: RETURN_REQUIRED
-  judgment_level: null
-  directional_conclusion_available: false
-  contract_version: 1.1.0
+  judgment_level: J2
+  directional_conclusion_available: true
+  contract_version: 1.2.0

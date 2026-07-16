@@ -12,6 +12,8 @@ from typing import Any, Iterable
 
 import yaml
 
+from ontology_instance_graph import materialize_document
+
 
 class UniqueKeyLoader(yaml.SafeLoader):
     """YAML loader that rejects duplicate keys inside one mapping."""
@@ -85,7 +87,7 @@ def load_yaml_file(path: str | Path) -> Any:
     data = load_yaml_text(read_text(path), str(path))
     if data is None:
         fail(f"{path} 为空")
-    return data
+    return materialize_document(data)
 
 
 def parse_markdown(path: str | Path) -> tuple[dict[str, Any], str]:

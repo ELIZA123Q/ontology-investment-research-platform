@@ -150,7 +150,8 @@ layer_model:
 
 object_role_families:
   stable_semantics: [Concept, Organization, Company, Industry, Segment, Product, Material, ProcessStep, Asset, FinancialInstrument, Identifier, IdentificationScheme, TradingVenue, Listing, RoleAssignment, Region, Application, PolicyInstrument, PolicyRequirement, TechnicalConstraint]
-  evidence: [SourceDocument, EvidenceClaim, EvidenceFact]
+  research_planning: [ResearchPlan, ResearchScope, ResearchQuestion, JudgmentUnit, CandidateClaim, ResearchPath, PathNode, InstanceRequirement, JudgmentLevelCriterion, AggregationContract, PropagationTemplate, ScenarioTemplate, BusinessScenarioTag, PathCondition, CompetingExplanation, ResearchFrameworkSelection, SemanticScopeSelection, EvidenceContract, ReasoningPlan, OntologyBindingSet, OntologyCandidateSet, OntologyGapSet]
+  evidence: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceProfile, EvidenceBasketRequirement]
   state_and_fact: [StateVariable, Observation, Event]
   hypothesis_and_judgment: [Hypothesis, Signal, Judgment]
   pricing_comparison: [MarketExpectation, ExpectationGap, AssetImpact]
@@ -208,3 +209,5 @@ modeling_granularity:
     description: 同一语义只保留一个权威类型、关系、规则或效果实现。
   - id: preserve_traceability
     description: 动态对象、推理结果和重要关系必须保留时间、证据和适用条件。
+  - id: business_parameter_has_single_ontology_authority
+    description: 判断类型、研究范围、判断单元、路径、证据需求、画像、变量、模板、门槛和聚合规则只能由正式本体类型、实例、关系或规则参数定义；阶段文件与代码只能消费确定性投影。

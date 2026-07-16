@@ -24,10 +24,15 @@ from research_contract import (  # noqa: E402
 from semantic_review import validate_independent_semantic_review  # noqa: E402
 from validate_publish import RunArtifacts, discover_artifacts, validate_publish  # noqa: E402
 from validator_utils import artifact_sha256, load_yaml_file, parse_markdown  # noqa: E402
+from research_loop import (  # noqa: E402
+    CLASSIFICATIONS,
+    convergence_status,
+)
 
 
 MANIFEST_NAME = "run_manifest.yaml"
-MANIFEST_SCHEMA_VERSION = "1.1.0"
+MANIFEST_SCHEMA_VERSION = "1.2.0"
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {MANIFEST_SCHEMA_VERSION}
 STAGES = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]
 IMMEDIATE_UPSTREAM = {
     "stage_01": None,
@@ -39,6 +44,7 @@ IMMEDIATE_UPSTREAM = {
 VERSION_IMPACT = {
     "contract": STAGES,
     "ontology": STAGES[1:],
+    "ontology_reasoning": STAGES[1:],
     "kb02": STAGES[1:],
     "kb03": STAGES[2:],
     "kb04": STAGES[3:],
@@ -59,25 +65,35 @@ def _relative(path: Path, run_dir: Path) -> str:
 
 def manifest_binding_hash(manifest: dict[str, Any]) -> str:
     """父子绑定只覆盖不可变身份、版本与已提交阶段哈希，排除校验结果回写。"""
-    stages = {
-        stage: {
+    manifest_version = str(manifest.get("schema_version", ""))
+    stages: dict[str, dict[str, Any]] = {}
+    for stage, entry in (manifest.get("stages") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        stage_binding = {
             "artifact": entry.get("artifact"),
             "hash": entry.get("hash"),
             "source_hashes": entry.get("source_hashes"),
             "attempt": entry.get("attempt"),
             "supersedes_attempt": entry.get("supersedes_attempt"),
         }
-        for stage, entry in (manifest.get("stages") or {}).items()
-        if isinstance(entry, dict)
-    }
-    return canonical_sha256({
+        if manifest_version == MANIFEST_SCHEMA_VERSION:
+            stage_binding.update({
+                "attempt_history": entry.get("attempt_history"),
+                "pending_attempt": entry.get("pending_attempt"),
+            })
+        stages[stage] = stage_binding
+    payload = {
         "schema_name": manifest.get("schema_name"),
         "schema_version": manifest.get("schema_version"),
         "task_id": manifest.get("task_id"),
         "run_id": manifest.get("run_id"),
         "versions": manifest.get("versions"),
         "stages": stages,
-    })
+    }
+    if manifest_version == MANIFEST_SCHEMA_VERSION:
+        payload["reasoning_loop"] = manifest.get("reasoning_loop")
+    return canonical_sha256(payload)
 
 
 def _stage_paths(artifacts: RunArtifacts) -> dict[str, list[Path]]:
@@ -175,6 +191,8 @@ def build_manifest(
             "validity_status": "current" if paths_by_stage[stage] else "missing",
             "attempt": 1,
             "supersedes_attempt": None,
+            "attempt_history": [],
+            "pending_attempt": None,
         }
     return {
         "schema_name": "controlled_research_run_manifest",
@@ -186,6 +204,18 @@ def build_manifest(
         "producer_id": producer_id,
         "versions": current_versions(),
         "stages": stages,
+        "reasoning_loop": {
+            "mode": "ontology_evidence_wave",
+            "latest_wave_ref": None,
+            "latest_wave_hash": None,
+            "latest_plan_hash": None,
+            "loop_state_ref": None,
+            "loop_state_hash": None,
+            "classification": "no_semantic_delta",
+            "pending_stage_attempts": [],
+            "structural_checkpoint_required": False,
+            "converged": True,
+        },
         "validation_issues": [],
         "validation_summary": {
             "quality_pass": False,
@@ -246,8 +276,12 @@ def _manifest_validation(
 ) -> tuple[dict[str, str], list[dict[str, Any]], dict[str, str]]:
     if manifest.get("schema_name") != "controlled_research_run_manifest":
         raise ValueError("run_manifest.schema_name 非法")
-    if str(manifest.get("schema_version")) != MANIFEST_SCHEMA_VERSION:
-        raise ValueError(f"run_manifest.schema_version 必须为 {MANIFEST_SCHEMA_VERSION}")
+    manifest_version = str(manifest.get("schema_version"))
+    if manifest_version not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        raise ValueError(
+            "run_manifest.schema_version 必须为 "
+            + " 或 ".join(sorted(SUPPORTED_MANIFEST_SCHEMA_VERSIONS))
+        )
     if str(manifest.get("run_mode", "")) not in {"production", "fixture"}:
         raise ValueError("run_manifest.run_mode 必须为 production 或 fixture")
     if not str(manifest.get("producer_id", "")).strip():
@@ -258,6 +292,80 @@ def _manifest_validation(
     stages = manifest.get("stages")
     if not isinstance(stages, dict) or set(stages) != set(STAGES):
         raise ValueError("run_manifest.stages 必须完整包含 stage_01—stage_05")
+
+    if manifest_version == MANIFEST_SCHEMA_VERSION:
+        loop = manifest.get("reasoning_loop")
+        if not isinstance(loop, dict):
+            raise ValueError("run_manifest 1.2.0 必须包含 reasoning_loop")
+        if loop.get("mode") != "ontology_evidence_wave":
+            raise ValueError("run_manifest.reasoning_loop.mode 必须为 ontology_evidence_wave")
+        if str(loop.get("classification", "")) not in CLASSIFICATIONS:
+            raise ValueError("run_manifest.reasoning_loop.classification 非法")
+        for field in ("latest_wave_hash", "latest_plan_hash", "loop_state_hash"):
+            value = loop.get(field)
+            if value is not None and not str(value).startswith("sha256:"):
+                raise ValueError(f"run_manifest.reasoning_loop.{field} 必须为 sha256 哈希或 null")
+        if not isinstance(loop.get("structural_checkpoint_required"), bool):
+            raise ValueError("run_manifest.reasoning_loop.structural_checkpoint_required 必须为布尔值")
+        if not isinstance(loop.get("converged"), bool):
+            raise ValueError("run_manifest.reasoning_loop.converged 必须为布尔值")
+        pending_stages = loop.get("pending_stage_attempts")
+        if not isinstance(pending_stages, list) or not set(pending_stages).issubset(STAGES):
+            raise ValueError("run_manifest.reasoning_loop.pending_stage_attempts 非法")
+        for stage in STAGES:
+            entry = stages.get(stage)
+            if not isinstance(entry, dict):
+                continue
+            history = entry.get("attempt_history")
+            if not isinstance(history, list):
+                raise ValueError(f"run_manifest.{stage}.attempt_history 必须为列表")
+            attempts = [item.get("attempt") for item in history if isinstance(item, dict)]
+            if len(attempts) != len(set(attempts)):
+                raise ValueError(f"run_manifest.{stage}.attempt_history attempt 重复")
+            for history_index, item in enumerate(history, 1):
+                if not isinstance(item, dict):
+                    raise ValueError(f"run_manifest.{stage}.attempt_history[{history_index}] 必须为对象")
+                if item.get("attempt_state") not in {"committed", "superseded"}:
+                    raise ValueError(f"run_manifest.{stage}.attempt_history[{history_index}].attempt_state 非法")
+                for archive in item.get("archived_artifacts", []) or []:
+                    if not isinstance(archive, dict):
+                        raise ValueError(f"run_manifest.{stage} 历史归档记录非法")
+                    archive_path = artifacts.run_dir / str(archive.get("archive_ref", ""))
+                    try:
+                        archive_path.resolve().relative_to(artifacts.run_dir.resolve())
+                    except ValueError as exc:
+                        raise ValueError(f"run_manifest.{stage} 历史归档超出运行目录") from exc
+                    if not archive_path.exists():
+                        raise ValueError(f"run_manifest.{stage} 历史归档不存在: {archive_path}")
+                    if artifact_sha256(archive_path) != str(archive.get("content_hash", "")):
+                        raise ValueError(f"run_manifest.{stage} 历史归档内容哈希不一致")
+            pending = entry.get("pending_attempt")
+            if pending is not None:
+                if not isinstance(pending, dict):
+                    raise ValueError(f"run_manifest.{stage}.pending_attempt 必须为对象或 null")
+                if pending.get("attempt_state") != "pending":
+                    raise ValueError(f"run_manifest.{stage}.pending_attempt.attempt_state 必须为 pending")
+                if int(pending.get("supersedes_attempt", -1)) != int(entry.get("attempt", 1)):
+                    raise ValueError(f"run_manifest.{stage}.pending_attempt 必须替代当前 attempt")
+                if stage not in pending_stages:
+                    raise ValueError(f"{stage} 有 pending_attempt 但未登记到 reasoning_loop")
+            elif stage in pending_stages:
+                raise ValueError(f"reasoning_loop 登记 {stage}，但阶段没有 pending_attempt")
+
+        loop_state_ref = loop.get("loop_state_ref")
+        if loop_state_ref is not None:
+            loop_state_path = Path(str(loop_state_ref))
+            if not loop_state_path.is_absolute():
+                loop_state_path = artifacts.run_dir / loop_state_path
+            if not loop_state_path.is_file():
+                raise ValueError("run_manifest.reasoning_loop.loop_state_ref 无法解析")
+            if artifact_sha256(loop_state_path) != str(loop.get("loop_state_hash", "")):
+                raise ValueError("run_manifest.reasoning_loop.loop_state_hash 与实际文件不一致")
+            convergence = convergence_status(load_yaml_file(loop_state_path))
+            if bool(loop.get("converged")) != bool(convergence["converged"]):
+                raise ValueError("run_manifest.reasoning_loop.converged 与 loop_state 派生结果不一致")
+        elif loop.get("converged") is True and loop.get("latest_wave_ref") is not None:
+            raise ValueError("已应用证据波次的运行必须绑定 loop_state 才能标记收敛")
 
     parent_run = manifest.get("parent_run")
     if parent_run is not None:
@@ -277,8 +385,9 @@ def _manifest_validation(
         if str(parent_manifest.get("run_id", "")) != str(parent_run["run_id"]):
             raise ValueError("run_manifest.parent_run.run_id 与真实父清单不一致")
 
-    current = current_versions()
     recorded_versions = manifest.get("versions", {})
+    recorded_contract = str(recorded_versions.get("contract", ""))
+    current = current_versions(recorded_contract)
     statuses = {stage: "current" for stage in STAGES}
     issues: list[dict[str, Any]] = []
     for version_name, current_value in current.items():
@@ -296,6 +405,31 @@ def _manifest_validation(
             "reason": f"{version_name} 版本变化：记录={recorded or '<空>'}，当前={current_value}",
             "severity": "blocking",
         })
+
+    if manifest_version == MANIFEST_SCHEMA_VERSION:
+        for stage in STAGES:
+            if stages[stage].get("pending_attempt") is None:
+                continue
+            _mark_with_downstream(statuses, stage, "revalidation_required")
+            issues.append({
+                "issue_id": f"PENDING-{stage}",
+                "detected_at_stage": stage,
+                "rule_id": f"{stage}.pending_attempt",
+                "return_to_stage": stage,
+                "reason": f"{stage} 已建立新的不可变 attempt，尚未完成并提交哈希",
+                "severity": "blocking",
+            })
+        loop = manifest["reasoning_loop"]
+        if loop.get("converged") is not True:
+            statuses["stage_05"] = "revalidation_required"
+            issues.append({
+                "issue_id": "LOOP-NOT-CONVERGED",
+                "detected_at_stage": "stage_05",
+                "rule_id": "reasoning_loop.converged",
+                "return_to_stage": "stage_05",
+                "reason": "证据闭环尚未达到语义收敛，不得发布",
+                "severity": "blocking",
+            })
 
     paths_by_stage = _stage_paths(artifacts)
     actual_hashes: dict[str, str] = {}
@@ -440,6 +574,70 @@ def _validate_incremental_updates(
                 raise ValueError("单个局部子项变化不得直接把父级动作写成 revise")
 
 
+def _validate_iteration_manifest_binding(
+    manifest: dict[str, Any],
+    artifacts: RunArtifacts,
+    audit: dict[str, Any],
+) -> None:
+    """4.0 迭代审计必须绑定真实 manifest attempt 与历史对象。"""
+    if str(audit.get("schema_version")) != "4.0.0":
+        return
+    if str(manifest.get("schema_version")) != MANIFEST_SCHEMA_VERSION:
+        raise ValueError("04 审计 4.0.0 必须配对 run_manifest 1.2.0")
+    context = audit.get("iteration_context")
+    if not isinstance(context, dict):
+        raise ValueError("04 审计 4.0.0 缺少 iteration_context")
+    attempts = context.get("source_stage_attempts")
+    if not isinstance(attempts, dict):
+        raise ValueError("iteration_context.source_stage_attempts 非法")
+    for stage in ("stage_02", "stage_03"):
+        if int(attempts.get(stage, -1)) != int(manifest["stages"][stage].get("attempt", -2)):
+            raise ValueError(f"iteration_context.source_stage_attempts.{stage} 与 manifest 不一致")
+    stage_04 = manifest["stages"]["stage_04"]
+    if int(context.get("current_stage_attempt", -1)) != int(stage_04.get("attempt", -2)):
+        raise ValueError("iteration_context.current_stage_attempt 与 manifest.stage_04.attempt 不一致")
+    if context.get("supersedes_stage_attempt") != stage_04.get("supersedes_attempt"):
+        raise ValueError("iteration_context.supersedes_stage_attempt 与 manifest 不一致")
+    loop = manifest.get("reasoning_loop") or {}
+    latest_wave_hash = loop.get("latest_wave_hash")
+    if latest_wave_hash is not None and str(latest_wave_hash) not in {
+        str(item) for item in context.get("evidence_wave_hashes", []) or []
+    }:
+        raise ValueError("04 iteration_context 未绑定 manifest.latest_wave_hash")
+
+    archived_object_refs: set[str] = set()
+    for history in stage_04.get("attempt_history", []) or []:
+        if not isinstance(history, dict) or history.get("attempt_state") != "superseded":
+            continue
+        for archive in history.get("archived_artifacts", []) or []:
+            if not isinstance(archive, dict):
+                continue
+            archive_path = artifacts.run_dir / str(archive.get("archive_ref", ""))
+            if archive_path.suffix not in {".yaml", ".yml"} or not archive_path.is_file():
+                continue
+            previous = load_yaml_file(archive_path)
+            if not isinstance(previous, dict) or previous.get("document_type") != "reasoning_audit":
+                continue
+            for section, id_field in (
+                ("hypotheses", "hypothesis_id"),
+                ("judgments", "judgment_id"),
+            ):
+                archived_object_refs.update(
+                    str(item.get(id_field))
+                    for item in previous.get(section, []) or []
+                    if isinstance(item, dict) and item.get(id_field)
+                )
+    for revision in audit.get("reasoning_revision_register", []) or []:
+        if not isinstance(revision, dict):
+            continue
+        if str(revision.get("object_type_ref")) in {"Hypothesis", "Judgment"}:
+            old_ref = str(revision.get("superseded_object_ref", ""))
+            if old_ref not in archived_object_refs:
+                raise ValueError(
+                    f"{revision.get('revision_id')}.superseded_object_ref 未在已归档 04 attempt 中找到"
+                )
+
+
 def _judgment_summary(artifacts: RunArtifacts) -> tuple[str | None, bool]:
     if not artifacts.audit:
         return None, False
@@ -488,6 +686,8 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
         raise ValueError("run_manifest 必须是 YAML 对象")
 
     statuses, manifest_issues, actual_hashes = _manifest_validation(manifest, artifacts)
+    recorded_contract_version = str((manifest.get("versions") or {}).get("contract", ""))
+    expected_versions = current_versions(recorded_contract_version)
     chain_result = validate_publish(artifacts, through="05")
     stage_pass = all(item.get("status") == "pass" for item in chain_result.get("stages", {}).values())
     quality_pass = stage_pass and all(
@@ -496,6 +696,11 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
     )
     audit = load_yaml_file(artifacts.audit) if artifacts.audit else {}
     _validate_incremental_updates(manifest, artifacts, audit if isinstance(audit, dict) else {})
+    _validate_iteration_manifest_binding(
+        manifest,
+        artifacts,
+        audit if isinstance(audit, dict) else {},
+    )
     semantic_status = "missing"
     semantic_details: dict[str, Any] | None = None
     if artifacts.semantic_review is not None:
@@ -503,7 +708,7 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
             semantic_details = validate_independent_semantic_review(
                 artifacts.semantic_review,
                 stage_hashes=actual_hashes,
-                contract_version=current_versions()["contract"],
+                contract_version=expected_versions["contract"],
                 run_mode=str(manifest.get("run_mode")),
                 producer_id=str(manifest.get("producer_id")),
             )
@@ -544,7 +749,7 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
     for stage, status in statuses.items():
         manifest["stages"][stage]["validity_status"] = status
         manifest["stages"][stage]["stage_status"] = _stage_status(stage, artifacts)
-    manifest["validation_summary"] = {**outcome, "contract_version": current_versions()["contract"]}
+    manifest["validation_summary"] = {**outcome, "contract_version": expected_versions["contract"]}
     if write_manifest:
         _write_manifest(manifest_path, manifest)
     return {
@@ -564,6 +769,91 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
     }
 
 
+def commit_pending_stage_attempts(
+    run_dir: str | Path,
+    stages_to_commit: list[str],
+    *,
+    loop_state_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """阶段产物通过完整质量门后，显式提交已归档的 pending attempts。"""
+    from research_loop import commit_manifest_attempts  # 局部导入避免运行入口循环依赖
+
+    artifacts = discover_artifacts(run_dir)
+    manifest_path = artifacts.run_dir / MANIFEST_NAME
+    if not manifest_path.is_file():
+        raise ValueError(f"缺少 {MANIFEST_NAME}")
+    manifest = load_yaml_file(manifest_path)
+    if not isinstance(manifest, dict):
+        raise ValueError("run_manifest 必须是 YAML 对象")
+    if not stages_to_commit:
+        raise ValueError("--commit-stage 至少指定一个 pending stage")
+    selected = sorted(set(stages_to_commit), key=STAGES.index)
+    through = selected[-1].removeprefix("stage_")
+    chain_result = validate_publish(artifacts, through=through)
+    stage_results = chain_result.get("stages", {})
+    for stage in selected:
+        stage_id = stage.removeprefix("stage_")
+        result = stage_results.get(stage_id, {})
+        if result.get("status") != "pass":
+            raise ValueError(f"{stage} 尚未通过阶段校验，不得提交 attempt")
+        if result.get("quality_status") != "high_quality_pass":
+            raise ValueError(f"{stage} 必须达到 high_quality_pass 才能提交 attempt")
+    updated = commit_manifest_attempts(
+        manifest,
+        artifacts.run_dir,
+        stages_to_commit=selected,
+    )
+    remaining = updated["reasoning_loop"]["pending_stage_attempts"]
+    configured_state = loop_state_path or updated["reasoning_loop"].get("loop_state_ref")
+    if configured_state is not None:
+        state_path = Path(str(configured_state))
+        if not state_path.is_absolute():
+            state_path = artifacts.run_dir / state_path
+        state = load_yaml_file(state_path)
+        if not isinstance(state, dict):
+            raise ValueError("loop_state 必须是 YAML 对象")
+        state["pending_stage_attempts"] = list(remaining)
+        if "stage_02" in selected:
+            state["pending_structural_trigger_refs"] = []
+            state["structural_impact_scope_unresolved"] = False
+        attempt_hashes: dict[str, dict[str, str]] = {}
+        for stage in STAGES:
+            entry = updated["stages"][stage]
+            refs = [str(item) for item in entry.get("artifact", [])]
+            actual = _stage_hash(
+                [(artifacts.run_dir / ref) for ref in refs], artifacts.run_dir
+            ) if refs else ""
+            attempt_hashes[stage] = {
+                "declared_hash": str(entry.get("hash", "")),
+                "actual_hash": actual,
+            }
+        state["attempt_hashes"] = attempt_hashes
+        state_path.write_text(
+            yaml.safe_dump(state, allow_unicode=True, sort_keys=False, width=120),
+            encoding="utf-8",
+        )
+        convergence = convergence_status(state)
+        try:
+            state_ref = state_path.resolve().relative_to(artifacts.run_dir.resolve()).as_posix()
+        except ValueError:
+            state_ref = str(state_path.resolve())
+        updated["reasoning_loop"]["loop_state_ref"] = state_ref
+        updated["reasoning_loop"]["loop_state_hash"] = artifact_sha256(state_path)
+        updated["reasoning_loop"]["converged"] = bool(convergence["converged"])
+        if not remaining and not convergence["converged"]:
+            raise ValueError("最后一个 attempt 提交后仍未语义收敛: " + "; ".join(convergence["blockers"]))
+    elif not remaining:
+        raise ValueError("提交最后一个 pending attempt 必须提供 --loop-state")
+    _write_manifest(manifest_path, updated)
+    return {
+        "ok": True,
+        "committed_stages": selected,
+        "remaining_pending_stages": remaining,
+        "converged": updated["reasoning_loop"]["converged"],
+        "manifest": str(manifest_path),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate the controlled 01—05 research chain.")
     parser.add_argument("run_path", help="包含 01—05 产物的运行目录")
@@ -571,9 +861,30 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--parent-manifest", help="初始化时绑定真实父 run_manifest.yaml")
     parser.add_argument("--run-mode", choices=["production", "fixture"], default="production")
     parser.add_argument("--producer-id", default="producer")
+    parser.add_argument(
+        "--commit-stage",
+        action="append",
+        choices=STAGES,
+        default=[],
+        help="提交一个已通过完整质量门的 pending stage attempt；可重复指定",
+    )
+    parser.add_argument("--loop-state", help="语义收敛 sidecar；提交最后一个 pending attempt 时必填")
     parser.add_argument("--no-write", action="store_true", help="只校验，不刷新 manifest 的状态和摘要")
     args = parser.parse_args(argv)
     try:
+        if args.commit_stage:
+            if args.initialize:
+                raise ValueError("--commit-stage 不得与 --initialize 同时使用")
+            print(json.dumps(
+                commit_pending_stage_attempts(
+                    args.run_path,
+                    args.commit_stage,
+                    loop_state_path=args.loop_state,
+                ),
+                ensure_ascii=False,
+                indent=2,
+            ))
+            return 0
         if args.initialize:
             initialize_manifest(
                 args.run_path,

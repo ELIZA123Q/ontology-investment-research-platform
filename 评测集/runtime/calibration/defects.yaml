@@ -28,9 +28,9 @@ items:
     severity: critical
     expected_dimension: R
     operation: replace
-    target: 窗口，不是确定结束日
-    replacement: 窗口，也是已经确定的周期结束日
-    expected_location: 投资要点周期结束
+    target: 当前不能给出统一周期结束日期
+    replacement: 已经确认统一周期结束日期
+    expected_location: 口径说明与合规声明
     normal_should_rank_above: true
   - defect_id: DEF-04
     defect_type: counterevidence_removed
@@ -48,7 +48,7 @@ items:
     severity: critical
     expected_dimension: R
     operation: replace
-    target: 决定近端结果的不是限制清单长度，而是复购、跨线复制、验收、利润和关键部件独立性。
+    target: 决定近端结果的不是限制清单长度或单一国产化率，而是工艺位置、复购、验收和光刻等残存硬依赖。
     replacement: 限制清单每增加一项都会直接、等比例地增加国产设备收入。
     expected_location: 投资要点核心矛盾
     normal_should_rank_above: true
@@ -96,7 +96,17 @@ items:
     severity: critical
     expected_dimension: R
     operation: replace
-    target: 是新增合格供给的条件式验证窗口，不是确定周期结束日期
-    replacement: 是04已经确认的确定周期结束日期
+    target: 新增合格供给要到 2027 年下半年至 2028 年才开始接受检验；当前不能给出统一周期结束日期
+    replacement: 04已经确认 2027 年下半年就是确定周期结束日期
     expected_location: 口径说明与合规声明
+    normal_should_rank_above: true
+  - defect_id: DEF-11
+    defect_type: audit_register_voice_in_prose
+    base_case: RV-T01
+    severity: major
+    expected_dimension: U
+    operation: replace
+    target: 2027 下半年至 2028：先看新增供给能否真正放量
+    replacement: 2027H2—2028 是供给验证窗口，不是确定结束日
+    expected_location: 第四章标题
     normal_should_rank_above: true

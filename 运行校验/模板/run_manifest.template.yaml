@@ -1,0 +1,56 @@
+schema_name: controlled_research_run_manifest
+schema_version: 1.2.0
+task_id: "<任务标识>"
+run_id: "<运行标识>"
+parent_run: null
+run_mode: production
+producer_id: "<产物生成者标识>"
+versions:
+  contract: 1.2.0
+  ontology: 2.1.0
+  ontology_reasoning: 2.1.0
+  kb02: 2.0.0
+  kb03: 3.1.0
+  kb04: 1.0.0
+  stage_01_schema: 1.5.0
+  stage_02_logic_schema: 1.2.0
+  stage_02_view_schema: 2.2.0
+  stage_03_schema: 1.4.0
+  stage_04_brief_schema: 3.0.0
+  stage_04_audit_schema: 4.0.0
+  stage_05_audit_schema: 2.6.0
+  semantic_review_schema: 1.0.0
+stages:
+  stage_01: &stage_attempt
+    artifact: []
+    hash: ""
+    source_hashes: {}
+    stage_status: not_started
+    validity_status: missing
+    attempt: 1
+    supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
+  stage_02: {<<: *stage_attempt}
+  stage_03: {<<: *stage_attempt}
+  stage_04: {<<: *stage_attempt}
+  stage_05: {<<: *stage_attempt}
+reasoning_loop:
+  mode: ontology_evidence_wave
+  latest_wave_ref: null
+  latest_wave_hash: null
+  latest_plan_hash: null
+  loop_state_ref: null
+  loop_state_hash: null
+  classification: no_semantic_delta
+  pending_stage_attempts: []
+  structural_checkpoint_required: false
+  converged: true
+validation_issues: []
+validation_summary:
+  quality_pass: false
+  publishable: false
+  publish_status: INCOMPLETE_CHAIN
+  judgment_level: null
+  directional_conclusion_available: false
+  contract_version: 1.2.0

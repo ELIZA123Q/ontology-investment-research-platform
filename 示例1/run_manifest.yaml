@@ -1,25 +1,26 @@
 schema_name: controlled_research_run_manifest
-schema_version: 1.1.0
+schema_version: 1.2.0
 task_id: JTASK-MEM-CYCLE-001
 run_id: EXEC-MEM-CYCLE-20260715-1
 parent_run:
   run_id: EXEC-MEM-CYCLE-20260713-1
   manifest_ref: /Users/luyao/Documents/基于本体的投研推理平台/示例1-基线-20260713-1/run_manifest.yaml
-  manifest_hash: sha256:18976350733280a11a822704516cb0664ada9ce69138a9b2ed174a3d19551c09
+  manifest_hash: sha256:d6ff3caf67a5d7fbc51c6757fb327b26767daeae7d2e14214daf634fcbfc7ed5
 run_mode: fixture
 producer_id: fixture-producer-memory_rerun
 versions:
-  contract: 1.1.0
+  contract: 1.2.0
   ontology: 2.1.0
+  ontology_reasoning: 2.1.0
   kb02: 2.0.0
   kb03: 3.1.0
   kb04: 1.0.0
   stage_01_schema: 1.5.0
   stage_02_logic_schema: 1.2.0
-  stage_02_view_schema: 2.1.0
+  stage_02_view_schema: 2.2.0
   stage_03_schema: 1.4.0
   stage_04_brief_schema: 3.0.0
-  stage_04_audit_schema: 3.2.0
+  stage_04_audit_schema: 4.0.0
   stage_05_audit_schema: 2.6.0
   semantic_review_schema: 1.0.0
 stages:
@@ -32,56 +33,113 @@ stages:
     validity_status: current
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_02:
     artifact:
     - 02-存储芯片周期研究逻辑-20260715-1.md
     - 02-存储芯片周期本体视图-20260715-1.yaml
-    hash: sha256:ae6e167fc159212257379d1e3436bab7a03364a6d5aa9d6730bdc43c5effa812
+    hash: sha256:f4373c87ceae10848b9072ced6415266baf91d03f42aba816b77fa61b4825178
     source_hashes:
       stage_01: sha256:add6cd4fec14f1b93be87535d0ab8ed4f09ba2349099d2f0167af3bff45b0ab0
     stage_status: complete
     validity_status: current
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_03:
     artifact:
     - 03-存储芯片周期数据与证据准备-20260715-1.md
     - 03-存储芯片周期数据与证据快照-20260715-1
     - 03-存储芯片周期语义域与证据域实例清单-20260715-1.yaml
-    hash: sha256:d6fe4e4a504335fc554efcbcd4fe8f397ba595712cb4397a287263d00b9181f2
+    hash: sha256:ff787a4b29a40c91ca5e1e4beb0c3fd81bc6593db53b90e55d939889e798f96f
     source_hashes:
-      stage_02: sha256:ae6e167fc159212257379d1e3436bab7a03364a6d5aa9d6730bdc43c5effa812
+      stage_02: sha256:beaf3e979307f8576c7847fe17b4cc71136045d3cc1a20a9adae9eaeed38147b
     stage_status: complete
-    validity_status: current
+    validity_status: stale
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_04:
     artifact:
     - 04-存储芯片周期判断简报-20260715-1.md
     - 04-存储芯片周期推理审计-20260715-1.yaml
-    hash: sha256:863093f1f83dce046b985add3c00a87ef9970c6d8aff4be1a3ef4dbdac72ee75
+    hash: sha256:a659d0fc8ae1f5bea13f9b6b242b5d8552ac2ae1084a4057add7f431ccfc3cd2
     source_hashes:
-      stage_03: sha256:d6fe4e4a504335fc554efcbcd4fe8f397ba595712cb4397a287263d00b9181f2
+      stage_03: sha256:4ab7086bdfffa39dfd49bbc5118116e1e8edb7e755eeb5754788e5ce376dee8e
     stage_status: complete
-    validity_status: current
+    validity_status: stale
     attempt: 1
     supersedes_attempt: null
+    attempt_history: []
+    pending_attempt: null
   stage_05:
     artifact:
     - 05-存储芯片周期行业周期判断-20260715-1.md
     - 05-存储芯片周期表达审计-20260715-1.yaml
-    hash: sha256:5a87032a47dc1739284efdf2f92529537216ed94a116b9f86cbe492fa097c3a7
+    hash: sha256:bfec207416fe762d25bc0b54c7225fb54e6ea5bd7d718f649f634befacb73642
     source_hashes:
-      stage_04: sha256:863093f1f83dce046b985add3c00a87ef9970c6d8aff4be1a3ef4dbdac72ee75
+      stage_04: sha256:efc74abfbc60636c1cb9a9f8ad2bab298685838f090c7bf8895c6377eec1b6e8
     stage_status: complete
-    validity_status: current
+    validity_status: stale
     attempt: 1
     supersedes_attempt: null
-validation_issues: []
+    attempt_history: []
+    pending_attempt: null
+reasoning_loop:
+  mode: ontology_evidence_wave
+  latest_wave_ref: null
+  latest_wave_hash: null
+  latest_plan_hash: null
+  loop_state_ref: null
+  loop_state_hash: null
+  classification: no_semantic_delta
+  pending_stage_attempts: []
+  structural_checkpoint_required: false
+  converged: true
+validation_issues:
+- issue_id: STALE-stage_03
+  detected_at_stage: stage_03
+  rule_id: stage_03.artifact_hash
+  return_to_stage: stage_03
+  reason: stage_03 当前内容哈希与已提交哈希不一致
+  severity: blocking
+- issue_id: STALE-stage_04
+  detected_at_stage: stage_04
+  rule_id: stage_04.artifact_hash
+  return_to_stage: stage_04
+  reason: stage_04 当前内容哈希与已提交哈希不一致
+  severity: blocking
+- issue_id: STALE-stage_05
+  detected_at_stage: stage_05
+  rule_id: stage_05.artifact_hash
+  return_to_stage: stage_05
+  reason: stage_05 当前内容哈希与已提交哈希不一致
+  severity: blocking
+- issue_id: SOURCE-stage_04
+  detected_at_stage: stage_04
+  rule_id: stage_04.source_hashes.stage_03
+  return_to_stage: stage_04
+  reason: stage_04 记录的上游哈希与当前 stage_03 不一致
+  severity: blocking
+- issue_id: SOURCE-stage_05
+  detected_at_stage: stage_05
+  rule_id: stage_05.source_hashes.stage_04
+  return_to_stage: stage_05
+  reason: stage_05 记录的上游哈希与当前 stage_04 不一致
+  severity: blocking
+- issue_id: SEMANTIC-REVIEW
+  detected_at_stage: stage_05
+  rule_id: semantic_review.contract
+  return_to_stage: stage_05
+  reason: 独立语义审查输入哈希与冻结后的 02—05 内容不一致
+  severity: blocking
 validation_summary:
-  quality_pass: false
+  quality_pass: true
   publishable: false
   publish_status: RETURN_REQUIRED
-  judgment_level: null
-  directional_conclusion_available: false
-  contract_version: 1.1.0
+  judgment_level: J2
+  directional_conclusion_available: true
+  contract_version: 1.2.0

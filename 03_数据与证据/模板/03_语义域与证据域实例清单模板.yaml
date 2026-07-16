@@ -1,5 +1,5 @@
 document_type: cross_domain_runtime_instance_manifest
-schema_version: 2.0.0
+schema_version: 3.0.0
 
 metadata:
   task_id: ""
@@ -66,3 +66,13 @@ validation:
   result: "<pass | fail>"
   checked_at: ""
   issues: []
+
+# 正式语义/证据/观测实例权威源；下列 CSV 仅为只读投影。
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  objects: []
+  relations: []
+  projection_fingerprints: {}
+

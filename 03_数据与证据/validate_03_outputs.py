@@ -249,8 +249,8 @@ def _validate_upstream_02(prep_meta: dict[str, object], prep_path: Path) -> dict
         downstream_label=str(prep_path),
         default_return_stage="02",
     )
-    if str(view.get("schema_version")) != "2.1.0":
-        fail(f"{view_path} schema_version 必须为 2.1.0")
+    if str(view.get("schema_version")) not in {"2.1.0", "2.2.0"}:
+        fail(f"{view_path} schema_version 必须为 2.1.0 或 2.2.0")
     return view
 
 
@@ -449,10 +449,17 @@ def _validate_instance_manifest(
                 "operational_files",
                 "cross_domain_constraints",
                 "validation",
+                "business_instance_graph",
             ],
             str(path),
         )
-        require_schema_version(manifest["schema_version"], str(path), expected="2.0.0")
+        require_schema_version(manifest["schema_version"], str(path), expected="3.0.0")
+        try:
+            from runtime_instance_graph import assert_stage03_projections
+
+            assert_stage03_projections(manifest, snapshot_dir)
+        except Exception as exc:
+            fail(str(exc))
         metadata = manifest["metadata"]
         require_keys(
             metadata,
@@ -728,6 +735,8 @@ def _validate_snapshot_refs(snapshot_dir: Path, rows: dict[str, list[dict[str, s
 
     for row in rows["evidence_baskets.csv"]:
         label = f"evidence_baskets#{row.get('evidence_basket_id')}"
+        if not str(row.get("basket_requirement_ref", "")).strip():
+            fail(label + ".basket_requirement_ref 必须引用 EvidenceBasketRequirement")
         assert_subset(split_refs(row.get("target_judgment_unit_id")), judgment_units, label + ".target_judgment_unit_id")
         assert_subset(split_refs(row.get("target_requirement_ids")), requirements, label + ".target_requirement_ids")
         assert_subset(split_refs(row.get("required_source_profile_ids")), source_profiles, label + ".required_source_profile_ids")
@@ -740,6 +749,9 @@ def _validate_snapshot_refs(snapshot_dir: Path, rows: dict[str, list[dict[str, s
             fail(label + ".basket_status 非法")
         if row.get("counter_check_status") not in CHECK_STATUSES:
             fail(label + ".counter_check_status 非法")
+        # minimum_source_tier 等计划门槛只允许作为 EvidenceBasketRequirement 的投影字段保留。
+        if row.get("minimum_source_tier") and row.get("minimum_source_tier") not in SOURCE_TIERS:
+            fail(label + ".minimum_source_tier 非法")
         if row.get("conflict_status") not in CONFLICT_STATUSES:
             fail(label + ".conflict_status 非法")
         if not row.get("basket_quality"):

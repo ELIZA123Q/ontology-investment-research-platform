@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+import yaml
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "运行校验"))
 from _path_setup import ensure_run_path  # noqa: E402
 
@@ -47,7 +49,8 @@ from validator_utils import (
     split_refs,
 )
 from status_derivation import reject_manual_derived_fields
-from research_contract import public_contract, validate_judgment_units
+from research_contract import public_contract, task_view_hash, validate_judgment_units
+from ontology_instance_graph import validate_instance_graph
 
 
 REQUIRED_LOGIC_META = [
@@ -101,7 +104,8 @@ REQUIRED_VIEW_TOP = [
 ]
 
 LOGIC_SCHEMA_VERSION_02 = "1.2.0"
-VIEW_SCHEMA_VERSION_02 = "2.1.0"
+VIEW_SCHEMA_VERSION_02 = "2.2.0"
+SUPPORTED_VIEW_SCHEMA_VERSIONS_02 = {"2.1.0", VIEW_SCHEMA_VERSION_02}
 ONTOLOGY_GAP_SCAN_STATUSES = {"no_gap", "minor_gap", "major_gap", "blocking_gap"}
 CANONICAL_JUDGMENT_TYPES = set(public_contract()["judgment_types"])
 JUDGMENT_TYPES = CANONICAL_JUDGMENT_TYPES
@@ -242,6 +246,23 @@ def _ontology_catalog(view: dict[str, object]) -> tuple[dict[str, set[str]], set
                 values = data.get(section, {})
                 if isinstance(values, dict):
                     catalog[target].update(str(key) for key in values)
+            graph_ref = data.get("business_instance_graph_ref")
+            if graph_ref:
+                graph_relative = (Path(relative).parent / str(graph_ref)).as_posix()
+                graph_path = WORKSPACE / graph_relative
+                graph_document = load_yaml_file(graph_path)
+                graph = require_mapping(graph_document.get("business_instance_graph"), f"{graph_relative}.business_instance_graph")
+                source_files.add(graph_relative)
+                section_targets = {
+                    "evidence_profiles": "profiles",
+                    "state_variables": "variables",
+                    "propagation_templates": "templates",
+                }
+                for instance in require_list(graph.get("objects"), f"{graph_relative}.objects"):
+                    projection = require_mapping(instance.get("projection"), "business instance projection")
+                    target = section_targets.get(str(projection.get("section", "")))
+                    if target:
+                        catalog[target].add(str(instance.get("id", "")))
     return catalog, source_files
 
 
@@ -254,9 +275,15 @@ def _validate_ontology_pointer(ref: object, source_files: set[str], label: str) 
         fail(f"{label} 引用了未冻结的正式本体文件: {file_ref}")
     node: object = load_yaml_file(WORKSPACE / file_ref)
     for part in pointer.split("."):
-        if not isinstance(node, dict) or part not in node:
-            fail(f"{label} 无法解析: {text}")
-        node = node[part]
+        if isinstance(node, dict) and part in node:
+            node = node[part]
+            continue
+        if isinstance(node, list):
+            matches = [item for item in node if isinstance(item, dict) and str(item.get("id")) == part]
+            if len(matches) == 1:
+                node = matches[0]
+                continue
+        fail(f"{label} 无法解析: {text}")
 
 
 def _validate_cross_domain_contract(view: dict[str, object]) -> None:
@@ -291,6 +318,11 @@ def _validate_cross_domain_contract(view: dict[str, object]) -> None:
     assert_subset(split_refs(reasoning.get("state_variable_refs")), task_variable_ids, "reasoning_plan.state_variable_refs")
     assert_subset(split_refs(reasoning.get("propagation_template_refs")), catalog["templates"], "reasoning_plan.propagation_template_refs")
     assert_subset(split_refs(reasoning.get("inference_rule_refs")), catalog["rules"], "reasoning_plan.inference_rule_refs")
+    if str(view.get("schema_version")) == VIEW_SCHEMA_VERSION_02:
+        relation_refs = split_refs(reasoning.get("relation_type_refs"))
+        if not relation_refs:
+            fail("task_ontology_view 2.2.0 的 reasoning_plan.relation_type_refs 不得为空")
+        assert_subset(relation_refs, catalog["relations"], "reasoning_plan.relation_type_refs")
     assert_subset(split_refs(reasoning.get("runtime_object_types")), catalog["objects"], "reasoning_plan.runtime_object_types")
     for variable in selected_variables:
         _validate_ontology_pointer(variable.get("ontology_ref"), source_files, f"{variable.get('state_variable_id')}.ontology_ref")
@@ -302,6 +334,56 @@ def _validate_cross_domain_contract(view: dict[str, object]) -> None:
         assert_subset(split_refs(slot["state_variable_refs"]), task_variable_ids, f"{slot['hypothesis_slot_id']}.state_variable_refs")
         if not split_refs(slot["falsification_conditions"]):
             fail(f"{slot['hypothesis_slot_id']}.falsification_conditions 不得为空")
+
+
+def _validate_iteration_contract(view: dict[str, object]) -> None:
+    contract = require_mapping(view.get("iteration_contract"), "iteration_contract")
+    require_keys(
+        contract,
+        [
+            "evidence_wave_unit",
+            "evidence_wave_schema_ref",
+            "dependency_projection_schema_ref",
+            "ontology_authority",
+            "stage_attempt_policy",
+            "structural_revision_relation_ref",
+            "structural_revision_action_ref",
+            "routes",
+            "convergence_contract_ref",
+        ],
+        "iteration_contract",
+    )
+    expected = {
+        "evidence_wave_unit": "frozen_batch",
+        "ontology_authority": "formal_ontology",
+        "stage_attempt_policy": "immutable_superseding",
+        "structural_revision_relation_ref": "reasoningSupersedes",
+        "structural_revision_action_ref": "ReviseReasoningObject",
+    }
+    for field, expected_value in expected.items():
+        if str(contract.get(field)) != expected_value:
+            fail(f"iteration_contract.{field} 必须为 {expected_value}")
+    for field in ("evidence_wave_schema_ref", "dependency_projection_schema_ref"):
+        ref = str(contract.get(field, "")).strip()
+        if not ref or not (WORKSPACE / ref).is_file():
+            fail(f"iteration_contract.{field} 无法解析: {ref or '<空>'}")
+    routes = require_mapping(contract.get("routes"), "iteration_contract.routes")
+    route_expected = {
+        "task_contract_revision": "stage_01",
+        "reasoning_structure_revision": "stage_02",
+        "evidence_update": "stage_03",
+        "presentation_revision": "stage_05",
+        "no_semantic_delta": None,
+    }
+    if routes != route_expected:
+        fail("iteration_contract.routes 必须与公共闭环路由完全一致")
+    if str(contract.get("convergence_contract_ref")) != "00_全局/contracts/public_contract.yaml#iteration_semantics":
+        fail("iteration_contract.convergence_contract_ref 必须引用公共合同 iteration_semantics")
+    reasoning_schema = load_yaml_file(WORKSPACE / "一级通用本体规范" / "reasoning.yaml")
+    if contract["structural_revision_relation_ref"] not in reasoning_schema.get("relation_types", {}):
+        fail("iteration_contract 引用的推理修订关系未在一级正式本体定义")
+    if contract["structural_revision_action_ref"] not in reasoning_schema.get("action_types", {}):
+        fail("iteration_contract 引用的推理修订动作未在一级正式本体定义")
 
 
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:
@@ -456,11 +538,20 @@ def _validate_framework_execution(research_framework: dict[str, object]) -> None
 
 
 def _validate_view(view_path: Path) -> dict[str, object]:
+    raw_view = yaml.safe_load(view_path.read_text(encoding="utf-8-sig"))
+    if not isinstance(raw_view, dict) or "business_instance_graph" not in raw_view:
+        fail("02 本体视图必须以 business_instance_graph 作为业务参数唯一权威源")
+    validate_instance_graph(raw_view["business_instance_graph"])
     view = load_yaml_file(view_path)
     if not isinstance(view, dict):
         fail("02 本体视图必须是 YAML 对象")
     require_keys(view, REQUIRED_VIEW_TOP, str(view_path))
-    require_schema_version(view["schema_version"], str(view_path), expected=VIEW_SCHEMA_VERSION_02)
+    view_version = str(view["schema_version"])
+    if view_version not in SUPPORTED_VIEW_SCHEMA_VERSIONS_02:
+        fail(
+            f"{view_path}.schema_version 必须为 "
+            + " 或 ".join(sorted(SUPPORTED_VIEW_SCHEMA_VERSIONS_02))
+        )
     if view["schema_name"] != "task_ontology_view":
         fail("02 本体视图 schema_name 必须为 task_ontology_view")
 
@@ -470,6 +561,16 @@ def _validate_view(view_path: Path) -> dict[str, object]:
     validation = require_mapping(view["validation"], "validation")
 
     require_keys(task_context, ["task_id", "view_id", "logic_id", "logic_document", "normalized_question", "scope"], "task_context")
+    if view_version == VIEW_SCHEMA_VERSION_02:
+        require_keys(view, ["iteration_contract"], str(view_path))
+        require_keys(
+            task_context,
+            ["view_version", "view_hash", "frozen_at"],
+            "task_context",
+        )
+        if str(task_context.get("view_hash", "")) != task_view_hash(view):
+            fail("task_context.view_hash 与当前 02 本体视图内容不一致")
+        _validate_iteration_contract(view)
     require_keys(
         quality_control,
         [
@@ -781,7 +882,7 @@ def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]
         fail("stage_status=complete 的 02 交付到 03 时 can_enter_03 必须为 true")
 
     return {
-        "schema_version": VIEW_SCHEMA_VERSION_02,
+        "schema_version": str(view["schema_version"]),
         "task_id": logic_meta["task_id"],
         "logic_id": logic_meta["logic_id"],
         "view_id": task_context["view_id"],

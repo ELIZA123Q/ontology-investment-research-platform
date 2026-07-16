@@ -62,7 +62,7 @@ class ContractTests(unittest.TestCase):
         cases = validate_suite()
         self.assertEqual([item["case"]["case_id"] for item in cases], ["RV-T01", "RV-T02", "RV-T07", "RV-T08"])
         defects = load_yaml(RUNTIME_ROOT / "calibration" / "defects.yaml")["items"]
-        self.assertEqual(len(defects), 10)
+        self.assertEqual(len(defects), 11)
         case_map = {item["case"]["case_id"]: item for item in cases}
         for defect in defects:
             normal = case_map[defect["base_case"]]["artifact_path"].read_text(encoding="utf-8-sig")
@@ -256,7 +256,7 @@ class EndToEndTests(unittest.TestCase):
             )
             responses = run_dir / "responses.jsonl"
             before = responses.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(len(before), 1500)
+            self.assertEqual(len(before), 1506)
 
             # Re-running is a pure resume: no duplicate request or response rows are appended.
             run_cli(

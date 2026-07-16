@@ -382,8 +382,8 @@ def validate_suite(suite_path: Path = SUITE_PATH) -> list[dict[str, Any]]:
         raise EvalError("校准试点必须固定为RV-T01/RV-T02/RV-T07/RV-T08")
 
     defects = load_yaml(DEFECTS_PATH).get("items")
-    if not isinstance(defects, list) or len(defects) != 10:
-        raise EvalError("缺陷校准集必须恰好包含10类变体")
+    if not isinstance(defects, list) or len(defects) != 11:
+        raise EvalError("缺陷校准集必须恰好包含11类变体")
     case_map = {item["case"]["case_id"]: item for item in cases}
     defect_types: set[str] = set()
     for item in defects:
@@ -411,8 +411,8 @@ def validate_suite(suite_path: Path = SUITE_PATH) -> list[dict[str, Any]]:
         mutated = apply_defect(normal, item)
         if mutated == normal:
             raise EvalError(f"{item['defect_id']} 未改变产物")
-    if len(defect_types) != 10:
-        raise EvalError("十个校准变体必须覆盖十种不同缺陷")
+    if len(defect_types) != 11:
+        raise EvalError("十一个校准变体必须覆盖十一种不同缺陷")
     metrics = load_yaml(METRICS_PATH)
     if not metrics.get("no_composite_score"):
         raise EvalError("指标契约禁止综合总分")

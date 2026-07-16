@@ -198,7 +198,7 @@ class Validator:
             "common.yaml": "2.1.0",
             "semantic.yaml": "1.1.0",
             "evidence.yaml": "2.0.0",
-            "reasoning.yaml": "2.0.0",
+            "reasoning.yaml": "2.1.0",
         }
         for name, version in expected_versions.items():
             if self.schemas[name].get("schema_version") != version:
@@ -276,6 +276,7 @@ class Validator:
             "hypothesisContradicts",
             "judgmentUnderScenario",
             "impactUnderScenario",
+            "reasoningSupersedes",
             "validationOf",
             "validationUsesOutcome",
             "validationReferencesTrace",
@@ -294,6 +295,34 @@ class Validator:
             self.error("FormHypothesis must not require prior evidence")
         if "hypothesis_falsifiability_required" not in hypothesis_action.get("rule_refs", []):
             self.error("FormHypothesis must enforce falsifiability")
+        evaluate_hypothesis = reasoning.get("action_types", {}).get("EvaluateHypothesis", {})
+        if "update_Hypothesis_status" in evaluate_hypothesis.get("effects", []):
+            self.error("EvaluateHypothesis must not overwrite Hypothesis status")
+        if "RuleEvaluation" not in evaluate_hypothesis.get("outputs", []):
+            self.error("EvaluateHypothesis must output RuleEvaluation")
+        if list(evaluate_hypothesis.get("target_types", [])) != ["RuleEvaluation"]:
+            self.error("EvaluateHypothesis target_types must be exactly [RuleEvaluation]")
+        if "Hypothesis" in evaluate_hypothesis.get("write_scope", []):
+            self.error("EvaluateHypothesis must preserve Hypothesis and write only evaluation records")
+        revise_action = reasoning.get("action_types", {}).get("ReviseReasoningObject", {})
+        if "reasoningSupersedes" not in revise_action.get("write_scope", []):
+            self.error("ReviseReasoningObject must write reasoningSupersedes")
+        if "reasoning_revision_preserves_trace" not in revise_action.get("rule_refs", []):
+            self.error("ReviseReasoningObject must enforce immutable revision trace")
+        supersedes = reasoning.get("relation_types", {}).get("reasoningSupersedes", {})
+        if supersedes.get("same_type_required") is not True:
+            self.error("reasoningSupersedes must require same_type_required")
+        if set(revise_action.get("target_types", [])) != set(supersedes.get("source_types", [])):
+            self.error("ReviseReasoningObject target_types must match reasoningSupersedes endpoints")
+        if set(supersedes.get("source_types", [])) != set(supersedes.get("target_types", [])):
+            self.error("reasoningSupersedes source_types and target_types must match")
+        revision_types = (
+            supersedes.get("properties", {})
+            .get("revisionType", {})
+            .get("allowed_values", [])
+        )
+        if "structural_revision" not in revision_types:
+            self.error("reasoningSupersedes must distinguish structural_revision")
         for relation_id in ("claimAbout", "factAbout"):
             targets = evidence.get("relation_types", {}).get(relation_id, {}).get("target_types", [])
             if "StateVariable" in targets:
@@ -422,6 +451,28 @@ class Validator:
         evidence = domain_schemas["evidence.yaml"]
         reasoning = domain_schemas["reasoning.yaml"]
         common = domain_schemas["common.yaml"]
+        instance_path = domain_dir / "business_instances.yaml"
+        instance_document = load_yaml(instance_path)
+        instance_graph = instance_document.get("business_instance_graph", {})
+        catalog: dict[str, dict[str, dict[str, Any]]] = {}
+        for raw in instance_graph.get("objects", []):
+            projection = raw.get("projection", {})
+            section = str(projection.get("section", ""))
+            instance_id = str(raw.get("id", ""))
+            if not section or not instance_id:
+                self.error("semiconductor business_instances contains object without projection section/id")
+                continue
+            catalog.setdefault(section, {})[instance_id] = raw.get("properties", {})
+        if evidence.get("business_instance_graph_ref") != "business_instances.yaml":
+            self.error("semiconductor evidence.yaml must reference business_instances.yaml")
+        if reasoning.get("business_instance_graph_ref") != "business_instances.yaml":
+            self.error("semiconductor reasoning.yaml must reference business_instances.yaml")
+        for forbidden_registry in ("evidence_profiles",):
+            if forbidden_registry in evidence:
+                self.error(f"semiconductor evidence.yaml must not inline {forbidden_registry}")
+        for forbidden_registry in ("state_variables", "propagation_templates", "scenario_templates", "business_scenario_tags"):
+            if forbidden_registry in reasoning:
+                self.error(f"semiconductor reasoning.yaml must not inline {forbidden_registry}")
 
         if evidence.get("depends_on", []) != [
             "common.yaml",
@@ -492,22 +543,27 @@ class Validator:
                 if endpoint not in object_closure:
                     self.error(f"semiconductor semantic.yaml:{relation_id} unresolved endpoint: {endpoint}")
 
-        profiles = set(evidence.get("evidence_profiles", {}))
-        for profile in evidence.get("evidence_profiles", {}).values():
+        evidence_profiles = catalog.get("evidence_profiles", {})
+        state_variables = catalog.get("state_variables", {})
+        propagation_templates = catalog.get("propagation_templates", {})
+        scenario_templates = catalog.get("scenario_templates", {})
+        business_scenario_tags = catalog.get("business_scenario_tags", {})
+        profiles = set(evidence_profiles)
+        for profile in evidence_profiles.values():
             if profile.get("applies_to"):
                 self.error(f"semiconductor evidence profile {profile.get('id')} must not list applies_to state variables")
 
-        variables = reasoning.get("state_variables", {})
+        variables = state_variables
         if len(variables) != 46:
             self.error(f"semiconductor reasoning.yaml expected 46 state variables, found {len(variables)}")
-        templates = reasoning.get("propagation_templates", {})
+        templates = propagation_templates
         if len(templates) != 28:
             self.error(f"semiconductor reasoning.yaml expected 28 propagation templates, found {len(templates)}")
-        if len(evidence.get("evidence_profiles", {})) != 12:
+        if len(evidence_profiles) != 12:
             self.error("semiconductor evidence.yaml expected 12 evidence profiles")
-        if len(reasoning.get("scenario_templates", {})) != 4:
+        if len(scenario_templates) != 4:
             self.error("semiconductor reasoning.yaml expected 4 scenario templates")
-        if len(reasoning.get("business_scenario_tags", {})) != 9:
+        if len(business_scenario_tags) != 9:
             self.error("semiconductor reasoning.yaml expected 9 business scenario tags")
         if "business_scenario_prototypes" in reasoning:
             self.error("semiconductor reasoning.yaml must use business_scenario_tags, not business_scenario_prototypes")
@@ -532,8 +588,8 @@ class Validator:
                     self.error(f"semiconductor template {template.get('id')} missing {required_field}")
 
         for scenario_group in (
-            reasoning.get("scenario_templates", {}),
-            reasoning.get("business_scenario_tags", {}),
+            scenario_templates,
+            business_scenario_tags,
         ):
             for scenario in scenario_group.values():
                 for field in ("trigger_variables", "key_variable_conditions"):
@@ -627,7 +683,15 @@ class Validator:
         required_docs = {
             "00_投研本体框架概述.md": ("Organization", "PolicyInstrument", "PolicyRequirement", "TechnicalConstraint", "ValidationRecord", "FinancialInstrument", "Identifier"),
             "01_语义结构域规范.md": ("organizationLocatedIn", "policyIssuedBy", "policyHasRequirement", "requirementAppliesTo", "companySuppliesCompany", "assetIssuedBy", "identifierIdentifiesObject", "TradingVenue"),
-            "02_判断推理域规范.md": ("PolicyInstrument", "ValidationRecord", "impactUnderScenario", "FinancialInstrument", "Listing"),
+            "02_判断推理域规范.md": (
+                "PolicyInstrument",
+                "ValidationRecord",
+                "impactUnderScenario",
+                "FinancialInstrument",
+                "Listing",
+                "reasoningSupersedes",
+                "ReviseReasoningObject",
+            ),
             "03_证据域规范.md": ("sourcePublishedBy", "evidenceGroundsReasoning", "推理域拥有", "FinancialInstrument", "Identifier"),
         }
         for filename, needles in required_docs.items():
