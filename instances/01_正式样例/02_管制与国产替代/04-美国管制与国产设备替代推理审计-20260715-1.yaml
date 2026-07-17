@@ -1,0 +1,1621 @@
+document_type: reasoning_audit
+schema_version: 4.0.0
+metadata:
+  task_id: JTASK-USCTRL-CNSEMI-EQP-001
+  execution_id: EXEC-USCTRL-CNSEMI-EQP-20260715-1
+  judgment_as_of: '2026-07-15'
+  brief_ref: 04-美国管制与国产设备替代判断简报-20260715-1.md
+  source_01_ref: 01-美国管制与国产设备替代投研需求说明-20260715-1.md
+  source_02_logic_ref: 02-美国管制与国产设备替代研究逻辑-20260715-1.md
+  source_02_view_ref: 02-美国管制与国产设备替代本体视图-20260715-1.yaml
+  preparation_ref: 03-美国管制与国产设备替代数据与证据准备-20260715-1.md
+  snapshot_ref: 03-美国管制与国产设备替代数据与证据快照-20260715-1/manifest.csv
+  stage_status: complete
+  quality_gate_ref: workflow/stages/04_判断/04_推理输出规范.md#10-质量门槛与返工规则
+  quality_status: high_quality_pass
+  deterministic_check_status: checked
+  semantic_review_status: reviewed
+input_integrity:
+  task_id_consistent: true
+  execution_id_consistent: true
+  scope_consistent: true
+  source_refs_resolvable: true
+  no_unfrozen_evidence_used: true
+  no_new_path_or_rule_created: true
+  issues: []
+evidence_context:
+  stage_status: complete
+judgment_unit_gate_results:
+- judgment_unit_id: JU-01
+  judgment_type: mechanism_validation
+  source_02_hash: sha256:147e22ca81e8b5081ab4cabf256050ba2a88936708728cc88a769dab5d1d5127
+  statement: 设备层管制仍形成可执行约束；芯片层有条件许可不构成设备松绑，亦非全面禁运
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-01
+  evidence_gate_status: met
+  required_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  counter_evidence_refs:
+  - EV-07
+  - EV-08
+  - EV-09
+  competing_explanation_refs: []
+  main_limit: 只确认截至判断日现行规则
+  effect_on_claims:
+  - C-01
+  evidence_grade: Q4
+  counterevidence_result: cleared
+  scope_ref: SCOPE-EXPORT-CONTROL
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  candidate_04_claim_hash: sha256:b9616b30af68c4336dd906326f0115462de46504fc7dd314987fb077c0246515
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-CN-SEMI-EQUIPMENT-THESIS
+- judgment_unit_id: JU-02
+  judgment_type: transmission_path
+  source_02_hash: sha256:4b8eafdfc3a1a481740191097cba33fbcddae1426f81060d4c2ec963ff3f7863
+  statement: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-02
+  evidence_gate_status: met
+  required_evidence_refs:
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-15
+  - EV-16
+  evidence_refs:
+  - EV-10
+  - EV-12
+  - EV-13
+  - EV-15
+  - EV-16
+  counter_evidence_refs:
+  - EV-11
+  - EV-14
+  - EV-19
+  competing_explanation_refs:
+  - 全球设备周期
+  main_limit: 不给统一转化率
+  effect_on_claims:
+  - C-02
+  evidence_grade: Q2
+  counterevidence_result: weakened
+  scope_ref: SCOPE-COMMERCIAL-REALIZATION
+  source_evidence_refs:
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  candidate_04_claim_hash: sha256:58d885e287159149f99f6bb1aa26a64b06540149f2022758fa04277205239254
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-CN-SEMI-EQUIPMENT-THESIS
+- judgment_unit_id: JU-03
+  judgment_type: object_differentiation
+  source_02_hash: sha256:e7e4496d5d13ad9829dd0303e1d78472f81cd304f9e2e173c2ad579a2fe49a2d
+  statement: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-03
+  evidence_gate_status: met
+  required_evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-20
+  counter_evidence_refs:
+  - EV-17
+  - EV-19
+  competing_explanation_refs:
+  - 低价导入与研发投入
+  main_limit: 只作强中弱组
+  effect_on_claims:
+  - C-03
+  evidence_grade: Q2
+  counterevidence_result: weakened
+  scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+  source_evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  candidate_04_claim_hash: sha256:0146e7cf12dcddc6117096a9acd8e7b048ef0e97d59c62201a36615882921d89
+  aggregation_eligible: 'true'
+  prohibited_generalization_refs:
+  - SCOPE-CN-SEMI-EQUIPMENT-THESIS
+- judgment_unit_id: JU-04
+  judgment_type: impact_realization
+  source_02_hash: sha256:35113c93b949ae5de2ac67cb597364834e1741119920563be225a466569a8eb5
+  statement: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+  source_03_gate_ref: evidence_readiness_assessments.csv#ERA-04
+  evidence_gate_status: met
+  required_evidence_refs:
+  - EV-01
+  - EV-03
+  - EV-05
+  - EV-10
+  - EV-13
+  - EV-17
+  evidence_refs:
+  - EV-01
+  - EV-03
+  - EV-05
+  - EV-10
+  - EV-13
+  - EV-17
+  counter_evidence_refs:
+  - EV-07
+  - EV-08
+  - EV-09
+  - EV-11
+  - EV-19
+  competing_explanation_refs:
+  - 全球周期与国内扩产
+  main_limit: 中等置信度未来十二个月
+  effect_on_claims:
+  - C-04
+  evidence_grade: Q3
+  counterevidence_result: weakened
+  scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  candidate_04_claim_hash: sha256:914185f1db3b6846a30559e98c1d427d9a4f4b256b2fdf42e38776a25678bff2
+  aggregation_eligible: 'false'
+  prohibited_generalization_refs: []
+overall_judgment:
+  confidence: medium
+  statement: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+  scope:
+    time: 2026-07-15至2027-07-15
+    geography: 中国大陆
+    value_chain: 规则到经营兑现
+    objects:
+    - 中国半导体设备行业
+    - 设备类别
+    - 代表公司样本
+  downgrade_reasons:
+  - 客户级复购台数不足
+  - 类别口径不统一
+  - 全行业上游自主率未知
+  - 未来规则和需求可能变化
+  primary_claim_id: C-04
+  judgment_level: J2
+  investment_interpretation: high_level_divergence
+  interpretation_basis: 国产替代必要性仍在，但商业成熟度、利润质量和关键部件独立性决定类别与公司分化
+investment_thesis_verdict:
+  applicable: true
+  applicability_reason: 01要求判断国产替代逻辑是否足以形成未来十二个月投资研究主线
+  source_claim_refs:
+  - C-01
+  - C-02
+  - C-03
+  - C-04
+  source_a08_claim_refs:
+  - C-03
+  - C-04
+  source_a09_claim_refs:
+  - C-04
+  target_asset: 中国半导体设备行业与公开披露充分的代表公司样本
+  time_window: 未来十二个月
+  gate_results:
+    research_validity: pass
+    expectation_comparability: conditional
+    pricing_not_fully_reflected: conditional
+    payoff_risk_asymmetry: conditional
+    validation_window: pass
+  priced_in_assessment: unknown
+  base_case: 国产替代主逻辑不变但商业兑现质量驱动分化
+  upside_case: 复购、跨线复制和利润连续改善且部件再认证顺利
+  downside_case: 设备需求下修或关键部件再认证失败阻断交付
+  catalyst_or_validation_signals:
+  - 2026年11月规则状态
+  - 设备支出与复购跨线复制
+  - 部件再认证与利润质量
+  strongest_counterevidence: 全球设备周期与国内扩产也能解释国产设备增长
+  verdict: conditional
+  judgment_level: J2
+  confidence: medium
+  verdict_reason: 研究判断和验证窗口成立，但市场计价、类别口径与资产不对称证据不完整
+  invalidation_conditions:
+  - 许可大范围放松
+  - 中国设备需求持续下修
+  - 上游部件切换失败
+  handoff_to_05: conditional_expression_only
+claim_register:
+- claim_id: C-01
+  report_section: 1-3
+  reader_label: 确认
+  statement: 设备层管制仍形成可执行约束；芯片层有条件许可不构成设备松绑，亦非全面禁运
+  scope: 截至2026年7月15日现行规则
+  time_horizon: 当前基线
+  linked_judgment_unit: JU-01
+  confidence: high
+  path_refs:
+  - P-01
+  state_variable_refs:
+  - SV-01
+  - SV-02
+  - SV-08
+  evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  counter_evidence_refs:
+  - EV-07
+  - EV-08
+  - EV-09
+  uncertainty_refs:
+  - U-01
+  competing_explanation_refs: []
+  invalidation_conditions:
+  - 许可政策大范围放松
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  target_claim_type: current_state
+  judgment_level: J4
+  j4_upgrade_review:
+    q4_evidence: true
+    method_gate_passed: true
+    independent_evidence_chain_refs:
+    - official_rule_chain
+    - issuer_execution_disclosure_chain
+    alternatives_discriminated: true
+    no_decisive_counterevidence: true
+    scope_time_invalidation_explicit: true
+    semantic_review_passed: true
+  conditions: []
+  downgrade_reason: 无
+  strength_consistency_check: true
+  stable_claim_key: equipment.policy.constraint
+  scope_ref: SCOPE-EXPORT-CONTROL
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-01
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: targeted_constraint
+- claim_id: C-02
+  report_section: 2-3
+  reader_label: 方向判断
+  statement: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
+  scope: 中国半导体设备行业
+  time_horizon: 未来十二个月
+  linked_judgment_unit: JU-02
+  confidence: medium
+  path_refs:
+  - P-01
+  state_variable_refs:
+  - SV-03
+  - SV-04
+  - SV-05
+  evidence_refs:
+  - EV-10
+  - EV-12
+  - EV-13
+  - EV-15
+  - EV-16
+  - EV-18
+  counter_evidence_refs:
+  - EV-11
+  - EV-14
+  - EV-19
+  uncertainty_refs:
+  - U-02
+  competing_explanation_refs:
+  - 全球设备周期与国内扩产
+  invalidation_conditions:
+  - 设备需求持续下修
+  - 复购停滞
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  target_claim_type: directional_outlook
+  judgment_level: J2
+  conditions: []
+  downgrade_reason: 无
+  strength_consistency_check: true
+  stable_claim_key: equipment.commercial.realization
+  scope_ref: SCOPE-COMMERCIAL-REALIZATION
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-02
+  source_evidence_refs:
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: conditional_realization
+- claim_id: C-03
+  report_section: '4'
+  reader_label: 方向判断
+  statement: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
+  scope: 设备类别与代表公司样本
+  time_horizon: 未来十二个月
+  linked_judgment_unit: JU-03
+  confidence: medium
+  path_refs:
+  - P-01
+  - P-02
+  state_variable_refs:
+  - SV-04
+  - SV-05
+  - SV-06
+  - SV-07
+  evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-20
+  counter_evidence_refs:
+  - EV-17
+  - EV-19
+  uncertainty_refs:
+  - U-03
+  competing_explanation_refs:
+  - 公司基数与业务结构差异
+  invalidation_conditions:
+  - 中组出现连续复购和利润改善
+  - 光刻出现批量收入
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  target_claim_type: causal_inference
+  judgment_level: J2
+  conditions: []
+  downgrade_reason: 无
+  strength_consistency_check: true
+  stable_claim_key: equipment.category.differentiation
+  scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-03
+  source_evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  aggregation_result_ref: null
+  required_caveat_refs: []
+  aggregation_state_code: maturity_differentiation
+- claim_id: C-04
+  report_section: 1-6
+  reader_label: 方向判断
+  statement: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+  scope: 中国半导体设备行业整体
+  time_horizon: 未来十二个月
+  linked_judgment_unit: JU-04
+  confidence: medium
+  path_refs:
+  - P-01
+  - P-02
+  state_variable_refs:
+  - SV-01
+  - SV-02
+  - SV-03
+  - SV-04
+  - SV-05
+  - SV-06
+  - SV-07
+  - SV-08
+  evidence_refs:
+  - EV-01
+  - EV-03
+  - EV-05
+  - EV-10
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  counter_evidence_refs:
+  - EV-07
+  - EV-08
+  - EV-09
+  - EV-11
+  - EV-17
+  - EV-19
+  uncertainty_refs:
+  - U-01
+  - U-02
+  - U-03
+  competing_explanation_refs:
+  - 全球设备周期与国内扩产
+  invalidation_conditions:
+  - 许可大范围放松
+  - 中国设备需求持续下修
+  - 上游部件切换失败
+  overreach_check:
+    within_03_judgment_limit: true
+    evidence_label_consistent: true
+    conditions_preserved: true
+    scope_not_expanded: true
+    no_unfrozen_fact_used: true
+  target_claim_type: forecast
+  judgment_level: J2
+  conditions: []
+  downgrade_reason: 无
+  strength_consistency_check: true
+  stable_claim_key: equipment.thesis.overall
+  scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+  source_gate_refs:
+  - evidence_readiness_assessments.csv#ERA-04
+  source_evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  - EV-07
+  - EV-08
+  - EV-09
+  - EV-10
+  - EV-11
+  - EV-12
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-17
+  - EV-18
+  - EV-19
+  - EV-20
+  aggregation_result_ref: AGGR-ROOT
+  required_caveat_refs:
+  - CAV-ROOT
+  aggregation_state_code: parent_scope-cn-semi-equipment-thesis
+uncertainty_register:
+- uncertainty_id: U-01
+  tier: material
+  statement: 2026年11月规则可能调整
+  affects_claim_refs:
+  - C-01
+  - C-04
+  current_gap: 未来效力和覆盖未最终观察
+  observation_signal: Federal Register正式状态
+  update_trigger: 规则恢复或延后
+  judgment_change: 更新政策强度
+  gap_refs: []
+- uncertainty_id: U-02
+  tier: material
+  statement: 中国设备需求可能高位回落
+  affects_claim_refs:
+  - C-02
+  - C-04
+  current_gap: 缺未来季度实际订单
+  observation_signal: SEMI销售与晶圆厂扩产
+  update_trigger: 连续两个季度下修
+  judgment_change: 下调行业兑现
+  gap_refs: []
+- uncertainty_id: U-03
+  tier: material
+  statement: 客户级复购和部件自主率不足
+  affects_claim_refs:
+  - C-03
+  - C-04
+  current_gap: 公司披露口径不统一
+  observation_signal: 批量订单验收和再认证
+  update_trigger: 连续两个报告期改善或失败
+  judgment_change: 重排类别强弱
+  gap_refs: []
+change_gate_register:
+- gate_id: RC-01
+  report_section: '6'
+  baseline: 附属实体规则暂停
+  observation_variable: 正式效力覆盖与许可
+  trigger_condition: 2026年11月恢复并扩围
+  source_or_metric: Federal Register与美国商务部
+  judgment_change: revise
+  linked_claim_refs:
+  - C-01
+  - C-04
+- gate_id: RC-02
+  report_section: '6'
+  baseline: 中国设备需求高位平台
+  observation_variable: 实际设备销售和扩产
+  trigger_condition: 连续两个季度明显下修
+  source_or_metric: SEMI与晶圆厂披露
+  judgment_change: weaken
+  linked_claim_refs:
+  - C-02
+  - C-04
+- gate_id: RC-03
+  report_section: '6'
+  baseline: 部分公司已有批量复购
+  observation_variable: 跨线复制验收和利润
+  trigger_condition: 连续两个报告期扩散或停滞
+  source_or_metric: 公司财报和公告
+  judgment_change: enhance
+  linked_claim_refs:
+  - C-02
+  - C-03
+  - C-04
+- gate_id: RC-04
+  report_section: '6'
+  baseline: 受限部件需客户再认证
+  observation_variable: 交付延期认证和毛利
+  trigger_condition: 持续延期或认证失败
+  source_or_metric: 公司风险因素与经营披露
+  judgment_change: block
+  linked_claim_refs:
+  - C-03
+  - C-04
+tracking_register:
+- tracking_id: T-01
+  report_section: '6'
+  tracking_item: 美国规则与许可证状态
+  serves_claim_ref: C-01
+  preferred_source: Federal Register与美国商务部
+  frequency: 事件触发
+  action_after_trigger: 更新政策边界
+- tracking_id: T-02
+  report_section: '6'
+  tracking_item: 中国设备销售和晶圆厂扩产
+  serves_claim_ref: C-02
+  preferred_source: SEMI与晶圆厂年报
+  frequency: 季度
+  action_after_trigger: 更新行业强度
+- tracking_id: T-03
+  report_section: '6'
+  tracking_item: 复购跨线复制毛利服务收入
+  serves_claim_ref: C-03
+  preferred_source: 公司财报
+  frequency: 季度或半年
+  action_after_trigger: 重排类别
+- tracking_id: T-04
+  report_section: '6'
+  tracking_item: 关键部件切换与再认证
+  serves_claim_ref: C-04
+  preferred_source: 公司风险因素
+  frequency: 季度
+  action_after_trigger: 下调或恢复判断
+review_plan:
+- review_id: REVIEW-01
+  source_claim_id: C-04
+  judgment_as_of: '2026-07-15'
+  prediction_horizon: 未来十二个月
+  expected_signals:
+  - 管制执行、设备复购、跨线复制、验收利润和关键部件再认证变化
+  change_thresholds:
+  - 连续两个报告期复购与利润同向改善，或部件再认证失败并阻断交付
+  review_due_at: '2027-01-20'
+  review_status: scheduled
+handoff_to_05:
+  target_05_archetype: theme_deep_dive
+  target_05_quality: high_quality_pass
+  handoff_status: ready
+  output_ceiling: full_report
+  formal_report_allowed: true
+  approved_core_claims:
+  - claim_id: C-01
+    permitted_role: supporting_thesis
+    judgment_level: J4
+    scope: 截至2026年7月15日现行规则
+    conditions: []
+    confidence: high
+    required_caveats: []
+    scope_ref: SCOPE-EXPORT-CONTROL
+    required_caveat_refs: []
+  - claim_id: C-02
+    permitted_role: supporting_thesis
+    judgment_level: J2
+    scope: 中国半导体设备行业未来十二个月
+    conditions: []
+    confidence: medium
+    required_caveats: []
+    scope_ref: SCOPE-COMMERCIAL-REALIZATION
+    required_caveat_refs: []
+  - claim_id: C-04
+    permitted_role: core_thesis
+    judgment_level: J2
+    scope: 中国半导体设备行业整体未来十二个月
+    conditions: []
+    confidence: medium
+    required_caveats:
+    - 所有类别同步兑现
+    scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+    required_caveat_refs:
+    - CAV-ROOT
+  restricted_claims:
+  - claim_id: C-03
+    permitted_role: supporting_thesis
+    required_conditions:
+    - 类别比较只基于公开代表公司样本
+    - 不作精确份额或个股排序
+    required_scope: 设备类别与公开披露充分的代表公司样本
+    reason: 类别口径与客户级复购数据不统一
+    scope_ref: SCOPE-EQUIPMENT-CATEGORIES
+    required_caveat_refs: []
+  prohibited_claims:
+  - claim_id_or_topic: 行业统一国产化率或未来十二个月精确份额
+    reason: 缺统一类别口径和客户级数据
+    topic_code: PROH-01
+    match_terms:
+    - 所有国产设备类别同步受益
+  - claim_id_or_topic: 先进光刻批量量产与近端业绩兑现
+    reason: 缺正式批量复购和收入证据
+    topic_code: PROH-02
+    match_terms: []
+  - claim_id_or_topic: 个股评级目标价或仓位建议
+    reason: 超出01交付边界且未经估值审计
+    topic_code: PROH-03
+    match_terms: []
+  required_caveats:
+  - caveat_ref: CAV-ROOT
+    text: 所有类别同步兑现
+  decision_gates:
+  - gate_id: RC-01
+    signal: 美国规则与许可状态
+    threshold_or_condition: 2026年11月恢复、扩围、延后或放松
+    implication: 更新政策必要性与上游风险
+  - gate_id: RC-02
+    signal: 中国设备需求
+    threshold_or_condition: 设备支出和订单连续两个季度下修
+    implication: 下调整体经营兑现强度
+  - gate_id: RC-03
+    signal: 复购跨线复制与利润
+    threshold_or_condition: 连续两个报告期改善或停滞
+    implication: 重排类别强弱
+  - gate_id: RC-04
+    signal: 关键部件再认证
+    threshold_or_condition: 持续延期或认证失败
+    implication: 削弱或阻断受影响类别判断
+  expression_rules:
+    must_preserve:
+    - 判断方向
+    - 判断等级
+    - 范围
+    - 条件
+    must_avoid:
+    - 政策贡献率
+    - 统一国产化率
+    - 未经审计的个股推荐
+    must_avoid_rules:
+    - rule_code: AVOID-ROOT-OVERGENERALIZATION
+      match_terms:
+      - 所有国产设备类别同步受益
+  confidence_ceiling: medium
+ontology_context:
+  ontology_refs:
+  - semiconductor_domain_ontology
+  object_type_refs:
+  - Industry
+  - PolicyInstrument
+  - Company
+  relation_type_refs:
+  - policyAppliesTo
+  - companyBelongsToIndustry
+  event_refs:
+  - trade_export_control_change
+  - customer_capex_change
+  - qualification_mass_production_change
+  - order_shipment_change
+  propagation_template_refs:
+  - export_control_to_supply
+  - qualification_to_mass_production
+  - exposure_execution_to_earnings
+  - bottleneck_cascade_to_supply
+  - localization_to_resilience
+  rule_refs:
+  - variable_propagation_inference
+  - time_alignment
+  - blocking_signal_precedence
+  - judgment_evidence_threshold
+  - reasoning_trace_required
+  - rule_evaluation_trace_required
+  candidate_structure_used: false
+  missing_ontology_items: []
+  view_hash: sha256:04129f6e38c29dc90d6462b5d47dfc888b731b9f5152935b97e90ec6ae8a5e3b
+path_results:
+- path_id: P-01
+  node_id: N-01
+  node_name: 现行规则与执行
+  linked_judgment_units:
+  - JU-01
+  - JU-04
+  path_result_status: established
+  question: 当前规则是否有效
+  input_refs:
+  - RI-01
+  - RI-02
+  - RI-03
+  evidence_refs:
+  - EV-01
+  - EV-02
+  - EV-03
+  - EV-04
+  - EV-05
+  - EV-06
+  counter_evidence_refs: []
+  competing_explanation_refs: []
+  result: 定向约束有效
+  effect_on_claims:
+  - C-01
+  - C-04
+- path_id: P-01
+  node_id: N-02
+  node_name: 海外设备实际可得性
+  linked_judgment_units:
+  - JU-01
+  - JU-04
+  path_result_status: partially_established
+  question: 海外供给是否归零
+  input_refs:
+  - RI-04
+  evidence_refs:
+  - EV-07
+  - EV-08
+  - EV-09
+  counter_evidence_refs:
+  - EV-07
+  - EV-08
+  - EV-09
+  competing_explanation_refs: []
+  result: 成熟制程部分供给仍在
+  effect_on_claims:
+  - C-01
+  - C-04
+- path_id: P-01
+  node_id: N-03
+  node_name: 中国设备需求池
+  linked_judgment_units:
+  - JU-02
+  - JU-04
+  path_result_status: partially_established
+  question: 需求是否维持
+  input_refs:
+  - RI-05
+  - RI-06
+  evidence_refs:
+  - EV-10
+  - EV-11
+  - EV-12
+  counter_evidence_refs:
+  - EV-11
+  competing_explanation_refs:
+  - 全球周期
+  result: 需求大但高位趋缓
+  effect_on_claims:
+  - C-02
+  - C-04
+- path_id: P-01
+  node_id: N-04
+  node_name: 国产验证与复购
+  linked_judgment_units:
+  - JU-02
+  - JU-03
+  - JU-04
+  path_result_status: partially_established
+  question: 是否进入复购复制
+  input_refs:
+  - RI-07
+  - RI-08
+  - RI-09
+  - RI-11
+  - RI-12
+  evidence_refs:
+  - EV-13
+  - EV-14
+  - EV-15
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  counter_evidence_refs:
+  - EV-19
+  competing_explanation_refs: []
+  result: 多类别批量但口径不统一
+  effect_on_claims:
+  - C-02
+  - C-03
+  - C-04
+- path_id: P-01
+  node_id: N-05
+  node_name: 经营兑现与分化
+  linked_judgment_units:
+  - JU-03
+  - JU-04
+  path_result_status: established
+  question: 收入利润是否同步
+  input_refs:
+  - RI-08
+  - RI-09
+  - RI-11
+  - RI-12
+  evidence_refs:
+  - EV-14
+  - EV-16
+  - EV-18
+  - EV-19
+  - EV-20
+  counter_evidence_refs:
+  - EV-14
+  - EV-19
+  competing_explanation_refs:
+  - 业务结构差异
+  result: 经营质量显著分化
+  effect_on_claims:
+  - C-03
+  - C-04
+- path_id: P-02
+  node_id: N-06
+  node_name: 国产整机上游依赖
+  linked_judgment_units:
+  - JU-03
+  - JU-04
+  path_result_status: partially_established
+  question: 上游是否限制交付
+  input_refs:
+  - RI-01
+  - RI-10
+  evidence_refs:
+  - EV-03
+  - EV-17
+  counter_evidence_refs:
+  - EV-17
+  competing_explanation_refs: []
+  result: 机制存在但行业幅度未知
+  effect_on_claims:
+  - C-03
+  - C-04
+- path_id: P-02
+  node_id: N-07
+  node_name: 反向约束后的净效应
+  linked_judgment_units:
+  - JU-03
+  - JU-04
+  path_result_status: partially_established
+  question: 合并净效应如何
+  input_refs:
+  - RI-02
+  - RI-05
+  - RI-06
+  - RI-08
+  - RI-10
+  - RI-11
+  - RI-12
+  evidence_refs:
+  - EV-05
+  - EV-10
+  - EV-11
+  - EV-14
+  - EV-17
+  - EV-18
+  - EV-19
+  counter_evidence_refs:
+  - EV-11
+  - EV-17
+  - EV-19
+  competing_explanation_refs:
+  - 全球周期
+  result: 逻辑质量升级而非逆转
+  effect_on_claims:
+  - C-03
+  - C-04
+state_variable_results:
+- state_variable_id: SV-01
+  name: 现行设备管制覆盖与执行强度
+  linked_judgment_units:
+  - JU-01
+  - JU-04
+  coverage_refs:
+  - COV-01
+  observed_direction: 收紧
+  evidence_status: met
+  effect_on_path: 支持起点
+  effect_on_claims:
+  - C-01
+  - C-04
+- state_variable_id: SV-02
+  name: 海外设备可得性
+  linked_judgment_units:
+  - JU-01
+  - JU-04
+  coverage_refs:
+  - COV-02
+  observed_direction: 分层收缩
+  evidence_status: met
+  effect_on_path: 削弱全面禁运叙事
+  effect_on_claims:
+  - C-01
+  - C-04
+- state_variable_id: SV-03
+  name: 中国设备支出强度
+  linked_judgment_units:
+  - JU-02
+  - JU-04
+  coverage_refs:
+  - COV-03
+  observed_direction: 高位趋缓
+  evidence_status: met
+  effect_on_path: 保留需求同时降低斜率
+  effect_on_claims:
+  - C-02
+  - C-04
+- state_variable_id: SV-04
+  name: 验证与重复采购
+  linked_judgment_units:
+  - JU-02
+  - JU-03
+  - JU-04
+  coverage_refs:
+  - COV-04
+  observed_direction: 多类别批量
+  evidence_status: met
+  effect_on_path: 支持商业转化
+  effect_on_claims:
+  - C-02
+  - C-03
+  - C-04
+- state_variable_id: SV-05
+  name: 收入与利润质量
+  linked_judgment_units:
+  - JU-02
+  - JU-03
+  - JU-04
+  coverage_refs:
+  - COV-05
+  observed_direction: 分化
+  evidence_status: met
+  effect_on_path: 决定强弱
+  effect_on_claims:
+  - C-02
+  - C-03
+  - C-04
+- state_variable_id: SV-06
+  name: 上游依赖
+  linked_judgment_units:
+  - JU-03
+  - JU-04
+  coverage_refs:
+  - COV-06
+  observed_direction: 存在约束
+  evidence_status: partial
+  effect_on_path: 形成上限
+  effect_on_claims:
+  - C-03
+  - C-04
+- state_variable_id: SV-07
+  name: 类别商业化成熟度
+  linked_judgment_units:
+  - JU-03
+  - JU-04
+  coverage_refs:
+  - COV-07
+  observed_direction: 强中弱分化
+  evidence_status: met
+  effect_on_path: 支持分组
+  effect_on_claims:
+  - C-03
+  - C-04
+- state_variable_id: SV-08
+  name: 未来规则状态
+  linked_judgment_units:
+  - JU-01
+  - JU-04
+  coverage_refs:
+  - COV-08
+  observed_direction: 2026年11月存在政策变数
+  evidence_status: met
+  effect_on_path: 触发更新
+  effect_on_claims:
+  - C-01
+  - C-04
+data_logic:
+  metrics:
+  - 中国设备销售额
+  - 公司收入增速
+  - 海外厂商中国收入占比
+  - 复购和批量阶段
+  formulas:
+  - 设备销售额不换算国产份额
+  - 订单不换算收入
+  scope_notes:
+  - 公司业务范围不同
+  - 成熟和先进制程分开
+  time_lag_notes:
+  - 设备订单到验收收入存在滞后
+  - 预测会修订
+  known_limitations:
+  - 缺统一国产化率
+  - 缺客户级台数
+  - 缺全行业上游自主率
+brief_quality_check:
+  answer_first: true
+  length_within_2_4_page_proxy: true
+  required_decision_functions_present: true
+  no_formal_report_structure: true
+  claims_within_03_use_limits: true
+  claim_labels_match_evidence_strength: true
+  object_differentiation_clear: true
+  change_gates_observable: true
+  expression_permission_explicit: true
+  no_internal_ids_in_main_text: true
+  no_investment_advice: true
+  audit_brief_consistent: true
+  result: pass
+  return_required: false
+  return_stage: null
+  return_reasons: []
+compliance_check:
+  no_rating_target_price_return_forecast_or_position_advice: true
+  no_new_unfrozen_evidence: true
+  no_scope_drift: true
+  citations_or_evidence_refs_complete: true
+method_library_usage:
+  library_ref: methods/04_裁决/README.md
+  library_version: 1.0.0
+  methods_used:
+  - kb04:A04
+  - kb04:A06
+  - kb04:A07
+  - kb04:A08
+  claim_bindings:
+  - claim_id: C-01
+    method_ids:
+    - kb04:A04
+    reason: 规则是否形成可执行约束属于机制验证，并由 A00 约束确认范围
+  - claim_id: C-02
+    method_ids:
+    - kb04:A06
+    reason: 从供给缺口到验证复购与经营兑现属于传导路径判断
+  - claim_id: C-03
+    method_ids:
+    - kb04:A07
+    reason: 类别和公司强弱按统一口径进行对象分化
+  - claim_id: C-04
+    method_ids:
+    - kb04:A08
+    reason: 以影响兑现为主，并辅助检查市场预期和研究命题边界
+aggregation_results:
+- aggregation_result_ref: AGGR-ROOT
+  aggregation_contract_ref: AGG-EQUIPMENT-THESIS
+  parent_judgment_unit_ref: JU-04
+  child_claim_refs:
+  - C-01
+  - C-02
+  - C-03
+  child_state_codes:
+    C-01: targeted_constraint
+    C-02: conditional_realization
+    C-03: maturity_differentiation
+  insufficient_child_claim_refs: []
+  outcome: differentiated
+  parent_scope_ref: SCOPE-CN-SEMI-EQUIPMENT-THESIS
+judgment_update_register: []
+iteration_context:
+  evidence_wave_refs: []
+  evidence_wave_hashes: []
+  dependency_projection_ref: ontology_dependency_projection.yaml
+  dependency_projection_hash: sha256:241425e0015aa2e4ba2763b62c67ea6857e9379ba68b45b6d0e85a84cc8fbc0e
+  source_stage_attempts:
+    stage_02: 1
+    stage_03: 1
+  current_stage_attempt: 1
+  supersedes_stage_attempt: null
+  critical_stale_refs_at_start: []
+  critical_stale_refs_at_completion: []
+  structural_checkpoint_ref: null
+reasoning_revision_register: []
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  objects:
+  - id: HYP-RUN-01
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-01
+      source_slot_ref: H-01
+      statement: 设备层管制仍形成可执行约束；芯片层有条件许可不构成设备松绑，亦非全面禁运
+      state_variable_refs:
+      - SV-01
+      - SV-02
+      direction: conditional
+      time_horizon: 当前基线
+      falsification_conditions:
+      - 海外成熟与先进设备可得性未显著收缩
+      signal_refs:
+      - SIG-RUN-01
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 0
+  - id: HYP-RUN-02
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-02
+      source_slot_ref: H-02
+      statement: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
+      state_variable_refs:
+      - SV-03
+      - SV-04
+      - SV-05
+      - SV-07
+      direction: conditional
+      time_horizon: 未来十二个月
+      falsification_conditions:
+      - 复购停滞或收入利润未兑现
+      signal_refs:
+      - SIG-RUN-02
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 1
+  - id: HYP-RUN-03
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-03
+      source_slot_ref: H-03
+      statement: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
+      state_variable_refs:
+      - SV-06
+      direction: conditional
+      time_horizon: 未来十二个月
+      falsification_conditions:
+      - 替代部件完成认证且交付未受影响
+      signal_refs:
+      - SIG-RUN-03
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 2
+  - id: HYP-RUN-04
+    type: Hypothesis
+    properties:
+      hypothesis_id: HYP-RUN-04
+      source_slot_ref: H-01
+      statement: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+      state_variable_refs:
+      - SV-01
+      - SV-02
+      direction: conditional
+      time_horizon: 未来十二个月
+      falsification_conditions:
+      - 海外成熟与先进设备可得性未显著收缩
+      signal_refs:
+      - SIG-RUN-04
+      evaluation_status: evaluated
+    projection:
+      section: hypotheses
+      index: 3
+  - id: SIG-RUN-01
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-01
+      statement: 设备层管制仍形成可执行约束；芯片层有条件许可不构成设备松绑，亦非全面禁运
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15'
+      target_hypothesis_refs:
+      - HYP-RUN-01
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+    projection:
+      section: signals
+      index: 0
+  - id: SIG-RUN-02
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-02
+      statement: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15'
+      target_hypothesis_refs:
+      - HYP-RUN-02
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+    projection:
+      section: signals
+      index: 1
+  - id: SIG-RUN-03
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-03
+      statement: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15'
+      target_hypothesis_refs:
+      - HYP-RUN-03
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+    projection:
+      section: signals
+      index: 2
+  - id: SIG-RUN-04
+    type: Signal
+    properties:
+      signal_id: SIG-RUN-04
+      statement: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+      role: support
+      strength: moderate
+      observed_at: '2026-07-15'
+      target_hypothesis_refs:
+      - HYP-RUN-04
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+    projection:
+      section: signals
+      index: 3
+  - id: RE-RUN-01
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-01
+      rule_ref: variable_propagation_inference
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+      target_refs:
+      - HYP-RUN-01
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 设备层管制仍形成可执行约束；芯片层有条件许可不构成设备松绑，亦非全面禁运
+      output_refs:
+      - J-RUN-01
+    projection:
+      section: rule_evaluations
+      index: 0
+  - id: RE-RUN-02
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-02
+      rule_ref: time_alignment
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+      target_refs:
+      - HYP-RUN-02
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
+      output_refs:
+      - J-RUN-02
+    projection:
+      section: rule_evaluations
+      index: 1
+  - id: RE-RUN-03
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-03
+      rule_ref: blocking_signal_precedence
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+      target_refs:
+      - HYP-RUN-03
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
+      output_refs:
+      - J-RUN-03
+    projection:
+      section: rule_evaluations
+      index: 2
+  - id: RE-RUN-04
+    type: RuleEvaluation
+    properties:
+      rule_evaluation_id: RE-RUN-04
+      rule_ref: judgment_evidence_threshold
+      rule_version: 1.0.0
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      evidence_refs:
+      - EV-01
+      target_refs:
+      - HYP-RUN-04
+      condition_results:
+      - matched
+      status: matched
+      result_summary: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+      output_refs:
+      - J-RUN-04
+    projection:
+      section: rule_evaluations
+      index: 3
+  - id: J-RUN-01
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-01
+      claim_id: C-01
+      statement: 设备层管制仍形成可执行约束；芯片层有条件许可不构成设备松绑，亦非全面禁运
+      hypothesis_refs:
+      - HYP-RUN-01
+      rule_evaluation_refs:
+      - RE-RUN-01
+      target_claim_type: current_state
+      judgment_level: J4
+      conditions: []
+      scope: 截至2026年7月15日现行规则
+      time_horizon: 当前基线
+      confidence: high
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 0
+  - id: J-RUN-02
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-02
+      claim_id: C-02
+      statement: 政策窗口只有通过验证复购跨线复制和经营兑现才能转化为未来十二个月受益
+      hypothesis_refs:
+      - HYP-RUN-02
+      rule_evaluation_refs:
+      - RE-RUN-02
+      target_claim_type: directional_outlook
+      judgment_level: J2
+      conditions: []
+      scope: 中国半导体设备行业
+      time_horizon: 未来十二个月
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 1
+  - id: J-RUN-03
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-03
+      claim_id: C-03
+      statement: 刻蚀沉积热处理清洗CMP减薄先进封装强于量测检测离子注入涂胶显影而先进光刻近端兑现最弱
+      hypothesis_refs:
+      - HYP-RUN-03
+      rule_evaluation_refs:
+      - RE-RUN-03
+      target_claim_type: causal_inference
+      judgment_level: J2
+      conditions: []
+      scope: 设备类别与代表公司样本
+      time_horizon: 未来十二个月
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 2
+  - id: J-RUN-04
+    type: Judgment
+    properties:
+      judgment_id: J-RUN-04
+      claim_id: C-04
+      statement: 设备层管制不会整体推翻国产替代主逻辑，但兑现必须按类别分化；芯片层许可与整体国产化率均不得外推为同步受益。
+      hypothesis_refs:
+      - HYP-RUN-04
+      rule_evaluation_refs:
+      - RE-RUN-04
+      target_claim_type: forecast
+      judgment_level: J2
+      conditions: []
+      scope: 中国半导体设备行业整体
+      time_horizon: 未来十二个月
+      confidence: medium
+      uncertainty_refs: []
+    projection:
+      section: judgments
+      index: 3
+  - id: RT-RUN-01
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-01
+      judgment_ref: J-RUN-01
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-01
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - variable_propagation_inference
+      output_refs:
+      - C-01
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 0
+  - id: RT-RUN-02
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-02
+      judgment_ref: J-RUN-02
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-02
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - time_alignment
+      output_refs:
+      - C-02
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 1
+  - id: RT-RUN-03
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-03
+      judgment_ref: J-RUN-03
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-03
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - blocking_signal_precedence
+      output_refs:
+      - C-03
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 2
+  - id: RT-RUN-04
+    type: ReasoningTrace
+    properties:
+      trace_id: RT-RUN-04
+      judgment_ref: J-RUN-04
+      evaluated_at: '2026-07-15'
+      input_refs:
+      - RI-01
+      rule_evaluation_refs:
+      - RE-RUN-04
+      steps:
+      - 证据输入
+      - 假设评价
+      - 形成判断
+      rule_refs:
+      - judgment_evidence_threshold
+      output_refs:
+      - C-04
+      status: complete
+    projection:
+      section: reasoning_traces
+      index: 3
+  relations:
+  - id: REL-TRACE-RT-RUN-01
+    type: traceForJudgment
+    sourceId: RT-RUN-01
+    targetId: J-RUN-01
+    properties: {}
+  - id: REL-TRACE-RT-RUN-02
+    type: traceForJudgment
+    sourceId: RT-RUN-02
+    targetId: J-RUN-02
+    properties: {}
+  - id: REL-TRACE-RT-RUN-03
+    type: traceForJudgment
+    sourceId: RT-RUN-03
+    targetId: J-RUN-03
+    properties: {}
+  - id: REL-TRACE-RT-RUN-04
+    type: traceForJudgment
+    sourceId: RT-RUN-04
+    targetId: J-RUN-04
+    properties: {}

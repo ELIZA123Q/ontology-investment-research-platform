@@ -1,0 +1,6 @@
+case_id: ontology-v3-method-leak
+mutation: rename_rule
+target: models.judgment.rules.judgment_evidence_threshold
+value: kb04:A01
+expected_error: method ID leaked
+

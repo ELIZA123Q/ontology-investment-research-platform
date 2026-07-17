@@ -1,0 +1,38 @@
+schema_name: independent_semantic_review
+schema_version: 1.0.0
+review_id: ISR-EXEC-MEM-CYCLE-20260715-1
+reviewed_at: '2026-07-15T23:00:00+08:00'
+reviewer:
+  reviewer_id: fixture-reviewer-memory
+  reviewer_type: test_fixture
+  independent_from_producer: true
+  test_reviewer: true
+inputs:
+  public_contract_version: 1.2.1
+  stage_hashes:
+    stage_02: sha256:b32a0106f9ee071cd4fe6056be0da417f030419509a095430a1760ce643c86d5
+    stage_03: sha256:72eeecf351a6c8214269b74c2135894b7ebb2f5b4f9dac7ff0ca52b10e96e2be
+    stage_04: sha256:400979614268bd2b081fa7815675987da1e969f04d3dd253877b26a0618bffcb
+    stage_05: sha256:996ca9a587f6b77ef34d11301b1242524dbabda09ce7f605c354e2e44b6bc193
+checks:
+- check_id: local_evidence_not_globalized
+  result: pass
+  reason: 迁移后的正式回归夹具已由独立测试审阅记录确认
+  return_to_stage: null
+- check_id: parent_aggregation_complete
+  result: pass
+  reason: 迁移后的正式回归夹具已由独立测试审阅记录确认
+  return_to_stage: null
+- check_id: incremental_update_is_local_first
+  result: pass
+  reason: 本次为初始 run（parent_run 为空），无增量更新登记要求。
+  return_to_stage: null
+- check_id: title_represents_major_scopes
+  result: pass
+  reason: 迁移后的正式回归夹具已由独立测试审阅记录确认
+  return_to_stage: null
+- check_id: conditions_scope_and_prohibitions_preserved
+  result: pass
+  reason: 迁移后的正式回归夹具已由独立测试审阅记录确认
+  return_to_stage: null
+verdict: pass

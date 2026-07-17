@@ -1,0 +1,49 @@
+schema_name: layered_repository_layout
+schema_version: 1.0.0
+status: active
+
+authority_domains:
+  architecture: governance/01_架构
+  public_contracts: governance/02_合同
+  validation: governance/03_校验
+  ontology: ontology
+  methods: methods
+  workflow: workflow
+  runtime: runtime
+  run_instances: instances
+  delivery: delivery
+  evaluation: evaluation
+
+layers:
+  governance:
+    purpose: 项目架构、公共合同与治理规则
+    may_define: [asset_boundaries, public_contracts, status_protocols, validation_rules]
+    must_not_define: [ontology_meanings, method_content, run_facts]
+  ontology:
+    purpose: 稳定投研对象、关系、动作、变量和规则定义
+    may_define: [object_types, relation_types, action_types, rules]
+    must_not_define: [single_run_observations, single_run_judgments]
+  methods:
+    purpose: 可复用的判断结构、证据和裁决方法
+    may_define: [method_metadata, applicability, failure_conditions, candidate_routes]
+    must_not_define: [single_run_method_selection, single_run_judgments]
+  workflow:
+    purpose: 01—05阶段合同、输入输出、质量门槛与返工协议
+    may_define: [stage_inputs, stage_outputs, stage_actions, return_conditions]
+    must_not_define: [duplicated_method_content, single_run_results]
+  runtime:
+    purpose: 本次任务的编排、方法选择、规则应用、返工与回放
+    may_define: [execution_state, adapters, orchestration]
+    must_not_define: [parallel_public_contracts, parallel_ontology]
+  instances:
+    purpose: 实际运行产物、证据、方法应用、判断和历史
+    may_define: [run_records, rule_evaluations, judgments, reasoning_traces]
+    must_not_define: [reusable_method_truth]
+  delivery:
+    purpose: 可复用表达标准、模板和导出资产
+    may_define: [expression_standards, report_templates]
+    must_not_define: [new_facts, new_judgments]
+  evaluation:
+    purpose: 研究质量与相对价值评测
+    may_define: [test_cases, protocols, harnesses, reports]
+    must_not_define: [production_answers]

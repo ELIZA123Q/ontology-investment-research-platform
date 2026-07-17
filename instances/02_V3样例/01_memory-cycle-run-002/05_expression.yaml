@@ -1,0 +1,7 @@
+stage: '05'
+schema_version: 3.0.0
+expressions:
+  - {expression_id: EX-01, source_claim_id: C-01, source_method_application_refs: [MA-04], source_evidence_refs: [EV-01], section: 库存状态, text: 多个独立口径共同指向库存持续去化。, inherited_judgment_level: J3, conditions_preserved: true, scope_relation: same}
+  - {expression_id: EX-02, source_claim_id: C-02, source_method_application_refs: [MA-05], source_evidence_refs: [EV-01, EV-02, EV-03], section: 周期判断, text: 行业已进入去库后段，但价格与需求尚不足以确认全面上行。, inherited_judgment_level: J2, conditions_preserved: true, scope_relation: same}
+overall_check: {all_expressions_mapped_to_04_claims: true, all_methods_mapped_to_04_applications: true, no_expression_level_upgrade: true, no_condition_loss: true, no_scope_expansion: true, no_new_fact_created: true, no_new_judgment_created: true, no_method_status_changed: true, result: pass}
+

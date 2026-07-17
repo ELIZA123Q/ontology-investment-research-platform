@@ -1,0 +1,262 @@
+schema_name: controlled_research_chain_public_contract
+schema_version: 1.3.0
+status: active
+formal_ontology_version: 3.0.0
+ontology_meta_schema_version: 1.0.0
+legacy_readonly_contract_versions: [1.2.1]
+
+# 这里只维护跨阶段共享语义。阶段内部字段继续由 01—05 各自规范维护。
+ownership:
+  public_contract:
+    - trace_id_patterns
+    - stage_statuses
+    - validity_statuses
+    - publish_statuses
+    - scope_relations
+    - aggregation_outcomes
+    - update_actions
+    - evidence_wave_classifications
+    - stage_attempt_states
+    - object_validity_propagation
+    - scope_graph
+    - claim_scope
+    - cross_stage_references
+    - judgment_method_routes
+    - method_application_contract
+  formal_ontology:
+    - object_types
+    - relation_types
+    - state_variables
+    - evidence_profiles
+    - state_and_event_types
+    - research_scenario_types
+    - stable_domain_rules
+    - judgment_level_criterion_templates
+    - evidence_recipes
+    - source_profiles
+    - proxy_indicators
+  knowledge_bases:
+    - reusable_methods
+    - method_applicability
+    - method_specific_gates
+  stage_specs:
+    - stage_internal_fields
+    - researcher_readable_explanations
+  notes:
+    - 运行路由枚举（stage_status / task_disposition / quality_status）保持运行合同，不新建治理域本体。
+    - methods/00_登记 声明方法能力、适用条件和候选关系；本合同只约束跨阶段合法性与允许路由值域。
+    - 本次方法选择与应用由 runtime/engine 执行，选择理由和结果写入 instances；合同层不得预先写死本次选择。
+    - judgment_method_routes 为跨阶段方法路由合法性合同；judgment_type 值域仍由一级本体驱动。
+    - 参数归属清单见 parameter_authority_matrix.yaml；覆盖率指已登记参数权威唯一，不是一切皆本体。
+    - 二级 evidence_quality_dimensions / event_type_taxonomy 与 04 handoff 审计枚举见矩阵 not_promoted，本期不升格为 ontology_rule_param。
+
+# 跨阶段主链与标识：本块为唯一机器权威；阶段规范只解释本阶段如何使用。
+# 主链：01 核心问题 → 02 JU/候选方法 → 03 ER/EV/方法输入 → 04 MA/C → 05 EX
+cross_stage_references:
+  primary_chain: [Q, JU, ER, EV, MA, C, RC, EX]
+  objects:
+    Q:
+      field: question_id
+      created_in: stage_02
+      note: 问题树子问题
+    JU:
+      field: judgment_unit_id
+      created_in: stage_02
+      note: 全链主键，后续不得重编号
+    ER:
+      field: evidence_requirement_id
+      created_in: stage_02
+      inherited_by: stage_03
+      note: 规范主键仅 ER-nn；反证可另用 CER-nn；ER-JU-nn 只可作 03 计划汇总行
+    EV:
+      field: evidence_id
+      created_in: stage_03
+    MA:
+      field: application_id
+      candidates_created_in: stage_02
+      evidence_bound_in: stage_03
+      finalized_in: stage_04
+      note: 每个关键判断至少有一项 selected/executed、rejected、blocked 或 degraded 的显式方法记录
+    C:
+      field: claim_id
+      created_in: stage_04
+      note: 不用 CL-；CL- 仅用于 01 澄清问题
+    RC:
+      field: change_gate_register[].gate_id
+      created_in: stage_04
+      note: 新运行用 RC-nn；兼容历史 GATE- / G-
+    EX:
+      field: expression_id
+      created_in: stage_05
+  required_links:
+    - C_to_JU
+    - JU_to_ER_for_critical_or_important
+    - ER_to_EV_or_GAP
+    - JU_to_MA
+    - MA_to_EV_for_executed_methods
+    - C_to_MA
+    - EX_to_C
+    - EX_to_MA
+  researcher_body_rule: 主链编号不得大量进入 05 研究员交付正文；追溯留在表达审计 YAML。
+
+trace_id_patterns:
+  task_id: '^JTASK-[A-Z0-9][A-Z0-9_-]+$'
+  run_id: '^(?:RUN|EXEC)-[A-Z0-9][A-Z0-9_-]+$'
+  Q: '^Q-\d+$'
+  JU: '^JU-\d+$'
+  ER: '^ER-\d+$'
+  EV: '^EV-\d+$'
+  MA: '^MA-\d+$'
+  C: '^C-(?:\d+|[A-Z0-9][A-Z0-9_-]*)$'
+  RC: '^(?:RC|GATE|G)-\d+$'
+  EX: '^EX-\d+$'
+  CER: '^CER-\d+$'
+
+business_authority_refs:
+  judgment_types: ontology/01_通用/models/judgment.yaml#object_types.JudgmentUnit.attributes.judgment_type.allowed_values
+  judgment_levels: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.level.allowed_values
+  path_readiness_statuses: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps.@keys
+  path_result_statuses: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
+  source_authority_levels: ontology/01_通用/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.minimum_source_authority.allowed_values
+  source_tiers: ontology/01_通用/models/evidence.yaml#object_types.SourceDocument.attributes.source_tier.allowed_values
+  confidence_levels: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.confidence.allowed_values
+  basket_roles: ontology/01_通用/models/evidence.yaml#object_types.EvidenceBasket.attributes.role.allowed_values
+
+legacy_judgment_type_migration:
+  trend_or_phase: trend_direction
+  mechanism_transmission: null
+  object_comparison: object_differentiation
+  valuation_expectation: null
+  risk_reassessment: null
+  note: null 表示旧类型语义不唯一，必须返回 02 重新拆分，禁止自动迁移。
+
+stage_statuses: [not_started, in_progress, complete, blocked, returned]
+validity_statuses: [current, stale, revalidation_required, missing]
+publish_statuses: [PUBLISHABLE, RETURN_REQUIRED, STAGE_READY, INCOMPLETE_CHAIN]
+
+# 以下枚举由公共校验器计算或校验；阶段产物不得另行定义同名语义。
+scope_relations: [same, narrower, broader, overlap, incomparable]
+aggregation_outcomes: [synchronized, dominant, differentiated, insufficient]
+update_actions: [new, maintain, enhance, weaken, block, revise, retire]
+
+# 以下枚举只控制运行路由，不定义新的业务变量、证据强度或推理权重。
+evidence_wave_classifications:
+  - task_contract_revision
+  - reasoning_structure_revision
+  - evidence_update
+  - presentation_revision
+  - no_semantic_delta
+stage_attempt_states: [pending, committed, superseded]
+
+scope_graph:
+  schema_version: 1.0.0
+  dimensions: [object, geography, customer, metric, time]
+  node_contract:
+    required_fields: [scope_ref, label, dimensions, parent_scope_ref]
+    parent_rule: 除根节点外，每个范围节点必须引用同一图中的唯一父节点；图必须无环。
+    dimension_rule: dimensions 只能使用受控维度，值必须为非空字符串列表。
+  relation_rule: same/narrower/broader 由父子可达关系计算；无可达关系时，按维度交集派生 overlap 或 incomparable。
+
+claim_scope:
+  required_fields: [scope_ref, exclusions, time_basis]
+  rule: Claim 或表达的范围必须引用 02 冻结的 scope_graph 节点，排除项与时间口径属于范围合同的一部分。
+
+method_namespaces:
+  evidence: kb03
+  reasoning: kb04
+  rule: 跨阶段产物中的方法引用必须带命名空间；知识库内部文件名可继续使用 A01—A10。
+
+method_application_contract:
+  schema_version: 1.0.0
+  statuses: [candidate, selected, executed, rejected, blocked, degraded]
+  capability_types: [judgment_structure, evidence, adjudication]
+  required_fields:
+    - application_id
+    - method_id
+    - method_version
+    - capability_type
+    - target_question_refs
+    - target_judgment_unit_refs
+    - target_ontology_object_refs
+    - status
+    - precondition_checks
+    - input_evidence_refs
+    - output_signal_refs
+    - output_judgment_refs
+    - execution_summary
+    - applicability_boundary
+    - limitations
+    - counter_example_refs
+    - provenance
+    - alternatives
+  precondition_check_required_fields: [precondition_id, result, evidence_refs, reason]
+  alternative_required_fields: [method_id, decision, reason]
+  rules:
+    - candidate/selected/rejected/blocked/degraded 可由 02 创建；executed 只能由 04 最终确认。
+    - executed 必须至少绑定一项输入证据以及一项输出信号或判断。
+    - rejected/blocked/degraded 必须填写失败前置条件或明确原因，并记录可用替代方法。
+    - 方法应用属于运行合同，不得写入正式本体 rules、action_types、functions 或 logic_flows。
+    - 04 的每个关键 Judgment 必须反向引用至少一项 executed MethodApplication。
+    - 05 只能引用 04 已存在的 MethodApplication，禁止新增或改变状态。
+
+runtime_objects:
+  - Task
+  - Run
+  - StageArtifact
+  - StageAttempt
+  - ValidationIssue
+  - EvidenceWave
+  - OntologyDependencyProjection
+  - IterationPlan
+
+publish_semantics:
+  quality_pass: 研究过程与阶段合同是否合格
+  publishable: 当前产物是否可正式交付；只能由总校验器派生
+  judgment_level: 单条判断的证据与推理强度
+  directional_conclusion_available: 是否存在可表达的方向性结论
+  insufficient_can_publish: true
+
+stale_propagation:
+  stage_01: [stage_02, stage_03, stage_04, stage_05]
+  stage_02: [stage_03, stage_04, stage_05]
+  stage_03: [stage_04, stage_05]
+  stage_04: [stage_05]
+  stage_05: []
+
+# 对象级传播是阶段 stale 的依据；箭头表示“上游变化使下游需要重算”。
+# ReportClaim 是 04/05 发布投影，不扩展一级正式本体。
+object_validity_propagation:
+  formal_object_types:
+    - EvidenceClaim
+    - EvidenceFact
+    - Observation
+    - Event
+    - Signal
+    - MarketExpectation
+    - Hypothesis
+    - RuleEvaluation
+    - Judgment
+    - ExpectationGap
+    - AssetImpact
+  runtime_projection_types: [ReportClaim, MethodApplication]
+  dependency_order:
+    - [EvidenceClaim_or_EvidenceFact, Observation_or_Event_or_Signal_or_MarketExpectation]
+    - [Observation_or_Event_or_Signal, Hypothesis]
+    - [Hypothesis, RuleEvaluation]
+    - [RuleEvaluation, Judgment]
+    - [Judgment, ExpectationGap_or_AssetImpact]
+    - [MarketExpectation, ExpectationGap]
+    - [ExpectationGap_or_AssetImpact, ReportClaim]
+  authority_rule: 每条依赖必须引用正式本体 Relation；只有 ReportClaim 边允许 stageProjection。
+  invalidation_rule: 只传播到可达下游对象，不因同属一个阶段而使无关对象 stale。
+
+iteration_semantics:
+  evidence_unit: frozen_batch
+  existing_structure_route: stage_03_then_affected_stage_04
+  structural_discovery_route: full_stage_02_quality_gate_then_affected_stage_03_and_stage_04
+  task_contract_route: stage_01
+  presentation_only_route: stage_05
+  immutable_reasoning_revision_relation: supersedes_trace
+  immutable_reasoning_revision_action: runtime_revision_operation
+  convergence_rule: 无待处理结构触发、无关键 stale 对象、attempt 哈希为 current、冲突已 resolved/contested/blocked，且最新波次未改变关键判断或路径。
+  forbidden_rule: 禁止用固定最大循环次数替代语义收敛。

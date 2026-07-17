@@ -1,0 +1,8 @@
+stage: '01'
+task_id: JTASK-MEM-CYCLE-002
+research_scenario: IndustryResearch
+question: 截至2026年7月，全球存储芯片库存是否已进入去化后段并具备早期修复条件？
+scope_ref: SCOPE-MEM-GLOBAL-2026H2
+scope: {objects: [DRAM, NAND], geography: [global], metrics: [inventory_days, contract_price], time: [2026H1, 2026H2]}
+excluded_outputs: [target_price, rating, position_advice]
+

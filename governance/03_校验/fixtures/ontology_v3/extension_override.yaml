@@ -1,0 +1,6 @@
+case_id: ontology-v3-extension-override
+mutation: rename_extension_object
+target: extension.object_types.WaferFab
+value: Company
+expected_error: redefines core object
+

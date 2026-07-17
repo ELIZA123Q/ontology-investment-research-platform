@@ -1,0 +1,38 @@
+stage: '04'
+schema_version: 5.0.0
+signals:
+  - {signal_id: SIG-01, statement: 独立库存口径连续改善, role: support, evidence_refs: [EV-01], target_hypothesis_ref: H-01}
+  - {signal_id: SIG-02, statement: 价格跌幅收窄但未转正, role: support, evidence_refs: [EV-02], target_hypothesis_ref: H-01}
+  - {signal_id: SIG-03, statement: 供给纪律可能解释部分库存下降, role: weaken, evidence_refs: [EV-03], target_hypothesis_ref: H-01}
+hypotheses:
+  - {hypothesis_id: H-01, statement: 存储周期已进入去库后段但需求修复尚未充分确认, signal_refs: [SIG-01, SIG-02, SIG-03], falsification_conditions: [库存重新连续上升, 合约价格跌幅重新扩大], time_horizon: 2026H2}
+competing_explanations:
+  - {explanation_id: CE-01, statement: 库存下降主要来自供给收缩, signal_refs: [SIG-03], status: not_eliminated}
+rule_evaluations:
+  - rule_evaluation_id: RE-01
+    rule_ref: evidence_scope_time_alignment
+    input_refs: [EV-01, EV-02, EV-03, SCOPE-MEM-GLOBAL-2026H2]
+    condition_results:
+      - {condition_id: subject_alignment, expression: evidence.subject in scope.objects_or_industry, input_refs: [EV-01, EV-02, EV-03], outcome: pass, rationale: 均指向全球存储行业或DRAM}
+      - {condition_id: time_alignment, expression: evidence.time <= research_cutoff, input_refs: [EV-01, EV-02, EV-03], outcome: pass, rationale: 均早于2026-07-17截止日}
+      - {condition_id: proxy_disclosure, expression: indirect_evidence_has_limitations, input_refs: [EV-03], outcome: pass, rationale: 已披露无法精确分解贡献}
+    result: pass
+  - rule_evaluation_id: RE-02
+    rule_ref: judgment_evidence_threshold
+    input_refs: [EA-01, EA-02, EA-03, EB-JU02-S, EB-JU02-C]
+    condition_results:
+      - {condition_id: support_present, expression: support_basket.count >= 2, input_refs: [EV-01, EV-02], outcome: pass, rationale: 库存与价格两类证据存在}
+      - {condition_id: counter_checked, expression: counter_basket.assessed == true, input_refs: [EV-03], outcome: pass, rationale: 供给收缩解释保留}
+      - {condition_id: level_ceiling, expression: judgment.level <= J2, input_refs: [EA-02, EA-03], outcome: pass, rationale: 价格未转正且竞争解释未排除}
+    result: pass
+method_application_register:
+  - {application_id: MA-04, method_id: 'kb04:A01', method_version: 1.0.0, capability_type: adjudication, target_question_refs: [Q-01], target_judgment_unit_refs: [JU-01], target_ontology_object_refs: [SV-INV], status: executed, precondition_checks: [{precondition_id: comparable_state_observation, result: pass, evidence_refs: [EV-01], reason: 两个独立来源方向一致}], input_evidence_refs: [EV-01], output_signal_refs: [SIG-01], output_judgment_refs: [C-01], execution_summary: 对库存状态进行同口径方向裁决, applicability_boundary: 全球存储行业2026H1库存方向, limitations: [不输出绝对库存总量], counter_example_refs: [], provenance: {library_ref: methods/04_裁决/A01_状态判断.md, source_03_binding_ref: MA-01, executed_at: '2026-07-17T10:00:00+08:00'}, alternatives: [{method_id: 'kb04:A03', decision: not_selected, reason: JU-01仅判断状态}]}
+  - {application_id: MA-05, method_id: 'kb04:A03', method_version: 1.0.0, capability_type: adjudication, target_question_refs: [Q-02], target_judgment_unit_refs: [JU-02], target_ontology_object_refs: [SV-INV, CHIP-DRAM], status: executed, precondition_checks: [{precondition_id: state_and_trend_baseline, result: partial, evidence_refs: [EV-01, EV-02, EV-03], reason: 状态改善但价格和需求确认不足}], input_evidence_refs: [EV-01, EV-02, EV-03], output_signal_refs: [SIG-01, SIG-02, SIG-03], output_judgment_refs: [C-02], execution_summary: 对库存、价格和竞争解释进行阶段裁决并限制等级, applicability_boundary: 全球存储行业2026H2早期阶段判断, limitations: [需求修复未直接确认], counter_example_refs: [CE-01], provenance: {library_ref: methods/04_裁决/A03_阶段判断.md, source_03_binding_ref: MA-02, executed_at: '2026-07-17T10:05:00+08:00'}, alternatives: [{method_id: 'kb04:A02', decision: not_selected, reason: 仅趋势判断无法回答阶段切换}]}
+  - {application_id: MA-06, method_id: 'kb04:A09', method_version: 1.0.0, capability_type: adjudication, target_question_refs: [Q-02], target_judgment_unit_refs: [JU-02], target_ontology_object_refs: [], status: rejected, precondition_checks: [{precondition_id: pre_event_expectation_vintage, result: fail, evidence_refs: [], reason: 未冻结可比市场预期时点}], input_evidence_refs: [], output_signal_refs: [], output_judgment_refs: [], execution_summary: 未执行, applicability_boundary: 市场预期差, limitations: [缺少预期基线], counter_example_refs: [], provenance: {library_ref: methods/04_裁决/A09_预期差判断.md, executed_at: null}, alternatives: [{method_id: 'kb04:A03', decision: selected, reason: 当前仅形成行业阶段判断}]}
+judgments:
+  - {judgment_id: C-01, judgment_unit_ref: JU-01, statement: 全球存储芯片库存处于连续下降状态, level: J3, confidence: high, signal_refs: [SIG-01], hypothesis_refs: [H-01], rule_evaluation_refs: [RE-01], method_application_refs: [MA-04], evidence_refs: [EV-01], conditions: [两个独立库存口径方向继续一致], invalidation_conditions: [任一主要口径连续两个期间转升]}
+  - {judgment_id: C-02, judgment_unit_ref: JU-02, statement: 存储周期处于去库后段并具备早期修复条件，但尚不能确认全面上行, level: J2, confidence: medium, signal_refs: [SIG-01, SIG-02, SIG-03], hypothesis_refs: [H-01], rule_evaluation_refs: [RE-01, RE-02], method_application_refs: [MA-05], evidence_refs: [EV-01, EV-02, EV-03], conditions: [合约价格跌幅不再扩大, 库存继续下降], invalidation_conditions: [价格跌幅重新扩大, 库存重新累积]}
+reasoning_traces:
+  - {trace_id: RT-01, judgment_ref: C-01, node_refs: [EV-01, SIG-01, H-01, RE-01, MA-04, C-01], created_at: '2026-07-17T10:10:00+08:00'}
+  - {trace_id: RT-02, judgment_ref: C-02, node_refs: [EV-01, EV-02, EV-03, SIG-01, SIG-02, SIG-03, H-01, CE-01, RE-01, RE-02, MA-05, C-02], created_at: '2026-07-17T10:10:00+08:00'}
+

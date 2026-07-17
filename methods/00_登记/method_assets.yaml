@@ -1,0 +1,57 @@
+schema_name: research_method_asset_registry
+schema_version: 1.0.0
+status: active
+
+routing_authority:
+  method_capabilities: methods/00_登记/method_assets.yaml
+  legal_route_constraints: governance/02_合同/judgment_method_routes.yaml
+  runtime_selection: runtime/engine
+  run_selection_record: instances
+
+groups:
+  judgment_structure:
+    namespace: [BF, IF, JF, SCN]
+    version: 2.0.0
+    supported_domains: [core, semiconductor]
+    supported_judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path, object_differentiation, impact_realization, expectation_gap, valuation_impact]
+    registry_ref: methods/02_判断结构/00_framework_dependency_registry.yaml
+    asset_ids_authority: registry_ref
+    input: [judgment_task, object_scope, time_scope]
+    output: [candidate_frameworks, judgment_units, variables, paths]
+    applicability: 按任务类型、领域、目标输出门槛和前置框架选择
+    failure_condition: 无框架能够承接核心判断且缺口不能通过裁剪消除
+    ontology_dependencies: [JudgmentUnit, StateVariable, ResearchPath]
+  evidence:
+    namespace: kb03
+    version: 3.2.0
+    supported_domains: [core, semiconductor]
+    supported_judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path, object_differentiation, impact_realization, expectation_gap, valuation_impact]
+    registry_ref: methods/03_取证/03_registry.yaml
+    asset_ids_authority: registry_ref
+    input: [judgment_unit, evidence_requirement, source_scope]
+    output: [evidence_plan, evidence_instances, readiness_assessment]
+    applicability: 按判断类型、证据角色、来源可得性和最低证据组合选择
+    failure_condition: 关键证据不可获得或无法满足对象、时间、口径和权限约束
+    ontology_dependencies: [EvidenceRequirement, EvidenceClaim, EvidenceFact, EvidenceAssessment]
+  adjudication:
+    namespace: kb04
+    version: 1.0.0
+    supported_domains: [core, semiconductor]
+    supported_judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path, object_differentiation, impact_realization, expectation_gap, valuation_impact]
+    asset_version_inheritance: group.version
+    input: [judgment_unit, frozen_evidence, competing_explanations]
+    output: [rule_evaluation, judgment, reasoning_trace]
+    applicability: 按判断类型和公共路由合同选择一个主方法及必要辅助方法
+    failure_condition: 适用前提不满足、反证决定性命中或路径被阻断
+    ontology_dependencies: [Hypothesis, Signal, RuleEvaluation, Judgment, ReasoningTrace]
+    methods:
+      - {id: kb04:A01, file: methods/04_裁决/A01_状态判断.md}
+      - {id: kb04:A02, file: methods/04_裁决/A02_趋势判断.md}
+      - {id: kb04:A03, file: methods/04_裁决/A03_阶段判断.md}
+      - {id: kb04:A04, file: methods/04_裁决/A04_机制判断.md}
+      - {id: kb04:A05, file: methods/04_裁决/A05_归因判断.md}
+      - {id: kb04:A06, file: methods/04_裁决/A06_传导判断.md}
+      - {id: kb04:A07, file: methods/04_裁决/A07_分化判断.md}
+      - {id: kb04:A08, file: methods/04_裁决/A08_影响判断.md}
+      - {id: kb04:A09, file: methods/04_裁决/A09_预期差判断.md}
+      - {id: kb04:A10, file: methods/04_裁决/A10_投资命题裁决.md}

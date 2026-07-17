@@ -1,0 +1,5 @@
+case_id: ontology-v3-deprecated-without-replacement
+mutation: deprecate_without_replacement
+target: models.semantic.object_types.Company.metadata
+expected_error: deprecated without replaced_by
+

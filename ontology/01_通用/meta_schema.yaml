@@ -1,0 +1,54 @@
+schema_name: investment_research_ontology_meta_schema
+schema_version: 1.0.0
+status: active
+authority: formal_ontology
+description: 投研本体 3.0 的机器权威元模型；正式本体只描述对象、状态、证据、判断约束与研究场景，不描述执行动作、函数或工作流。
+
+namespaces:
+  core.semantic: ir.core.semantic
+  core.state_event: ir.core.state_event
+  core.evidence: ir.core.evidence
+  core.judgment: ir.core.judgment
+  core.scenario: ir.core.scenario
+  semiconductor: ir.domain.semiconductor
+
+common_metadata:
+  required: [id, namespace, label_zh, label_en, aliases, definition, model, version, status, valid_from, valid_to, replaced_by, source, examples, counter_examples]
+  status_values: [draft, active, deprecated]
+  model_values: [semantic, state_event, evidence, judgment, scenario]
+  rules:
+    - id 与 namespace 组合后必须全局唯一且版本内稳定。
+    - deprecated 元素必须填写非空 replaced_by；active 元素的 replaced_by 必须为空列表。
+    - valid_from 与 valid_to 使用 ISO 8601；valid_to 为空表示尚未失效。
+    - examples 与 counter_examples 必须至少各有一项，用于约束概念边界。
+
+object_type_contract:
+  required: [metadata, primary_key, title_property, attributes, constraints]
+  attribute_required: [type, required, cardinality, value_role, nullable_semantics, description]
+  attribute_optional: [allowed_values, reference_target, unit, time_basis, default]
+  scalar_types: [string, integer, number, boolean, date, datetime, uri]
+  compound_types: [array, object, enum, object_ref]
+  cardinalities: ['0..1', '1..1', '0..*', '1..*']
+  value_roles: [identity, fact, state, calculated, judgment, metadata]
+  constraints_required: [unique, mutually_exclusive, lifecycle]
+
+relation_type_contract:
+  required: [metadata, source_types, target_types, source_cardinality, target_cardinality, direction, inverse_of, symmetric, transitive, evidence_required, temporal, attributes, invalidation_policy]
+  directions: [directed, undirected]
+  invalidation_policies: [retain_history, invalidate_downstream, block_delete]
+
+rule_contract:
+  allowed_rule_classes: [semantic_constraint, evidence_constraint, state_consistency]
+  required: [metadata, rule_class, applies_to, input_types, output_types, preconditions, condition, counter_conditions, failure_result, priority, test_cases]
+  forbidden_method_ids_pattern: '^(?:A|kb0[234]:A)[0-9]{2}$'
+
+scenario_contract:
+  required: [metadata, scope_dimensions, required_object_types, required_relation_types, required_state_types, required_evidence_types, required_judgment_types, entry_conditions, completion_conditions, invalidation_conditions, update_triggers]
+
+forbidden_top_level_sections: [action_types, functions, logic_flows]
+extension_contract:
+  rules:
+    - 领域扩展不得重定义任何 core ID。
+    - 每个领域对象必须通过 extends 或 projects_to 指向核心对象。
+    - 每个领域关系必须通过 subproperty_of 指向核心关系，或显式声明 null 并说明独立语义。
+

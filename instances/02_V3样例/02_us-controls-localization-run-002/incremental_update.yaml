@@ -1,0 +1,12 @@
+schema_name: ontology_v3_incremental_update_exercise
+schema_version: 1.0.0
+update_id: IW-CTRL-01
+new_evidence: {evidence_id: EV-14, statement: 某样本客户的国产刻蚀设备关键验证失败, role: counter, source_ref: SRC-14}
+changed_roots: [EV-14]
+affected_graph:
+  stale: [SIG-12, H-12, RE-12, MA-15, C-12, RT-12, EX-12]
+  remains_current: [EV-11, SIG-11, H-11, RE-11, MA-14, C-11, RT-11, EX-11]
+recompute_stages: ['03', '04', '05']
+structural_checkpoint_required: false
+full_rerun_required: false
+expected_judgment_change: {judgment_ref: C-12, action: weaken, new_ceiling: J1, reason: 关键验证失败命中原失效条件}

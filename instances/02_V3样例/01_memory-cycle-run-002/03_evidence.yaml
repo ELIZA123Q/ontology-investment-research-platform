@@ -1,0 +1,26 @@
+stage: '03'
+schema_version: 3.0.0
+sources:
+  - {source_id: SRC-01, type: SourceDocument, title: 厂商季度库存披露汇总, uri: 'fixture://memory/vendor-inventory', published_at: '2026-07-10T08:00:00+08:00', source_tier: S1}
+  - {source_id: SRC-02, type: SourceDocument, title: 渠道库存调查, uri: 'fixture://memory/channel-inventory', published_at: '2026-07-12T08:00:00+08:00', source_tier: S3}
+  - {source_id: SRC-03, type: SourceDocument, title: 存储合约价格月报, uri: 'fixture://memory/contract-price', published_at: '2026-07-15T08:00:00+08:00', source_tier: S3}
+claims:
+  - {claim_id: EC-01, source_ref: SRC-01, statement: 样本厂商库存周转天数连续两个季度下降, locator: table-2}
+  - {claim_id: EC-02, source_ref: SRC-02, statement: 渠道库存覆盖月数较年初下降, locator: section-3}
+  - {claim_id: EC-03, source_ref: SRC-03, statement: DRAM合约价格环比跌幅收窄但尚未转正, locator: page-4}
+  - {claim_id: EC-04, source_ref: SRC-01, statement: 主要厂商仍维持资本开支纪律, locator: table-5}
+facts:
+  - {evidence_id: EV-01, type: EvidenceFact, statement: 两个独立口径均显示库存连续下降, claim_refs: [EC-01, EC-02], subject_ref: IND-MEM, scope_ref: SCOPE-MEM-GLOBAL-2026H2, time_basis: 2026H1, role: support}
+  - {evidence_id: EV-02, type: EvidenceFact, statement: DRAM合约价格跌幅收窄但未形成上涨, claim_refs: [EC-03], subject_ref: CHIP-DRAM, scope_ref: SCOPE-MEM-GLOBAL-2026H2, time_basis: 2026-06, role: support}
+  - {evidence_id: EV-03, type: EvidenceFact, statement: 供给纪律仍是库存下降的重要贡献因素, claim_refs: [EC-04], subject_ref: IND-MEM, scope_ref: SCOPE-MEM-GLOBAL-2026H2, time_basis: 2026H1, role: counter}
+assessments:
+  - {assessment_id: EA-01, evidence_ref: EV-01, target_judgment_unit_ref: JU-01, assessment: usable, directness: direct, limitations: [厂商与渠道口径不同但方向一致]}
+  - {assessment_id: EA-02, evidence_ref: EV-02, target_judgment_unit_ref: JU-02, assessment: usable_with_caveat, directness: direct, limitations: [尚未形成价格上涨]}
+  - {assessment_id: EA-03, evidence_ref: EV-03, target_judgment_unit_ref: JU-02, assessment: usable, directness: indirect, limitations: [无法精确分解供给与需求贡献]}
+baskets:
+  - {basket_id: EB-JU01-S, judgment_unit_ref: JU-01, role: support, evidence_refs: [EV-01]}
+  - {basket_id: EB-JU02-S, judgment_unit_ref: JU-02, role: support, evidence_refs: [EV-01, EV-02]}
+  - {basket_id: EB-JU02-C, judgment_unit_ref: JU-02, role: counter, evidence_refs: [EV-03]}
+method_input_bindings:
+  - {application_id: MA-01, method_id: 'kb03:A02', method_version: 3.2.0, target_judgment_unit_refs: [JU-01], status: selected, precondition_checks: [{precondition_id: comparable_inventory_series, result: pass, evidence_refs: [EV-01], reason: 两个独立口径方向一致}], input_evidence_refs: [EV-01], evidence_role_bindings: {support: [EV-01], counter: []}, unresolved_inputs: [], limitations: [绝对库存口径不可直接合并]}
+  - {application_id: MA-02, method_id: 'kb03:A03', method_version: 3.2.0, target_judgment_unit_refs: [JU-02], status: degraded, precondition_checks: [{precondition_id: state_and_price_baseline, result: partial, evidence_refs: [EV-01, EV-02, EV-03], reason: 库存改善明确但价格尚未转正且供给解释未排除}], input_evidence_refs: [EV-01, EV-02, EV-03], evidence_role_bindings: {support: [EV-01, EV-02], counter: [EV-03]}, unresolved_inputs: [需求恢复的直接终端证据], limitations: [阶段结论上限为J2]}

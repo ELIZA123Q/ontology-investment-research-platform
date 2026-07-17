@@ -1,3 +1,7 @@
 .DS_Store
 __pycache__/
 *.pyc
+instances/00_本机运行/*
+!instances/00_本机运行/.gitignore
+evaluation/04_报告/*
+!evaluation/04_报告/.gitkeep

@@ -1,0 +1,582 @@
+# 人读目录见同目录 *.md；本文件为机器权威定义。
+# 分区注释仅便于浏览，不改变 schema。
+schema_name: semiconductor_domain_semantic
+schema_version: 1.0.0
+status: active
+depends_on:
+  - common.yaml
+  - ../../01_通用/semantic.yaml
+description: 半导体领域的语义对象扩展、稳定关系和受控分类体系。
+
+# --- object_type_extensions（类型扩展）---
+object_type_extensions:
+  Industry:
+    description: 在平台产业对象上补充半导体产业层级和相邻产业边界。
+    properties:
+      semiconductorIndustryRole:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.industry_role
+        description: 半导体产业中的稳定角色。
+  Segment:
+    description: 使用产业链角色分类描述设计、供给、制造、封测和需求端位置。
+    properties:
+      semiconductorSegmentRole:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.semiconductor_value_chain_segment_role
+        description: 半导体产业链环节角色。
+  Company:
+    description: 公司实例由后续任务进入；领域本体只增加可多选的商业模式分类。
+    properties:
+      businessModelRoles:
+        type: array
+        required: false
+        item_vocabulary_ref: controlled_vocabularies.business_model_role
+        description: 公司在半导体价值链中长期承担的商业角色，可多选。
+  Product:
+    description: 产品按领域、器件、存储、设备、模组五轴分类。
+    properties:
+      productDomain:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.product_domain
+        description: 半导体产品所属领域总类。
+      semiconductorDeviceCategory:
+        type: array
+        required: false
+        item_vocabulary_ref: controlled_vocabularies.semiconductor_device_category
+        description: 半导体器件功能分类，可多选。
+      memoryProductCategory:
+        type: array
+        required: false
+        item_vocabulary_ref: controlled_vocabularies.memory_product_category
+        description: 存储产品细分类，可多选。
+      equipmentCategory:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.equipment_category
+        description: 当产品为半导体设备时使用的设备类别。
+      moduleSystemCategory:
+        type: array
+        required: false
+        item_vocabulary_ref: controlled_vocabularies.module_system_category
+        description: 电子模组与系统组件分类，可多选。
+  Material:
+    description: 材料按前道、后道、封装、设施和器件材料分类。
+    properties:
+      semiconductorMaterialCategory:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.semiconductor_material_category
+        description: 半导体材料类别。
+      materialCompositionAxis:
+        type: array
+        required: false
+        item_vocabulary_ref: controlled_vocabularies.material_composition_axis
+        description: 材料主要组成元素或化合物体系，可多选。
+  ProcessStep:
+    description: 工序覆盖设计、掩模、晶圆制造、封装测试、认证和可靠性环节。
+    properties:
+      semiconductorProcessCategory:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.semiconductor_process_category
+        description: 半导体工序类别。
+  Application:
+    description: 复用一级 Application 表达稳定终端行业、系统形态、应用场景和工作负载，并补充半导体需求分类。
+    properties:
+      semiconductorApplicationCategory:
+        type: enum
+        required: false
+        vocabulary_ref: controlled_vocabularies.semiconductor_application_category
+        description: 半导体需求对应的终端应用类别。
+      demandRole:
+        type: string
+        required: false
+        description: 该应用驱动半导体需求的稳定方式。
+  Region:
+    description: 复用一级 Region 表达公司、设施、政策、贸易、许可和市场准入的地理或监管范围。
+
+# --- object_types（对象类型）---
+object_types:
+  TechnologyRoute:
+    id: TechnologyRoute
+    name: 技术路线
+    description: >-
+      可被稳定识别并跨产品、工序和材料复用的制程、器件架构、互连、封装或系统集成路线。
+      路线的采用进度、成熟度和替代强度属于推理域，不作为本对象的静态属性。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 技术路线名称。}
+      aliases: {type: array, required: false, description: 技术路线别名。}
+      routeCategory:
+        type: enum
+        required: true
+        vocabulary_ref: controlled_vocabularies.technology_route_category
+        description: 技术路线类别。
+      definition: {type: string, required: true, description: 路线的稳定技术边界。}
+      applicableScope: {type: string, required: true, description: 路线适用的器件、工序或应用范围。}
+  ManufacturingFacility:
+    id: ManufacturingFacility
+    name: 制造设施
+    description: 具有独立位置、运营主体和工艺能力的半导体研发、制造、封装测试或关键投入品设施。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 设施名称。}
+      aliases: {type: array, required: false, description: 设施别名。}
+      facilityCategory:
+        type: enum
+        required: true
+        vocabulary_ref: controlled_vocabularies.facility_category
+        description: 设施类别。
+      capabilityScope: {type: string, required: true, description: 设施可稳定提供的工艺或产出范围。}
+
+# --- relation_type_extensions（关系扩展）---
+relation_type_extensions:
+  conceptMapsToObject:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  policyAppliesTo:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  requirementAppliesTo:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  identifierIdentifiesObject:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  upstreamOf:
+    add_source_types: [TechnologyRoute]
+    add_target_types: [TechnologyRoute]
+  dependsOn:
+    add_source_types: [TechnologyRoute, ManufacturingFacility]
+    add_target_types: [TechnologyRoute, Product, Material, ProcessStep]
+  assetExposedTo:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+  roleAppliesToObject:
+    add_target_types: [TechnologyRoute, ManufacturingFacility]
+
+# --- relation_types（关系类型）---
+relation_types:
+  technologyRouteAppliesTo:
+    id: technologyRouteAppliesTo
+    name: 技术路线适用于
+    description: 技术路线适用于特定产业链环节、产品或工序。
+    source_types: [TechnologyRoute]
+    target_types: [Segment, Product, ProcessStep]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      applicationRole: {type: string, required: true, description: 路线在目标对象中的稳定作用。}
+  technologyRouteDependsOn:
+    id: technologyRouteDependsOn
+    name: 技术路线依赖
+    description: 技术路线结构性依赖产品、材料、工序或另一技术路线。
+    source_types: [TechnologyRoute]
+    target_types: [Product, Material, ProcessStep, TechnologyRoute]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      dependencyKind: {type: string, required: true, description: 设计、设备、材料、工艺、互连或生态依赖。}
+      criticality: {type: enum, required: false, description: low、medium、high 或 critical。}
+  technologyRouteCanSubstituteFor:
+    id: technologyRouteCanSubstituteFor
+    name: 技术路线可替代
+    description: 起点路线在明确范围内可替代目标路线；仅表示可替代范围，实际替代进度进入推理域。
+    source_types: [TechnologyRoute]
+    target_types: [TechnologyRoute]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      substitutionScope: {type: string, required: true, description: 性能、成本、功耗、尺寸或供应范围。}
+  processUsesEquipment:
+    id: processUsesEquipment
+    name: 工序使用设备
+    description: 工序稳定使用某类设备产品。
+    source_types: [ProcessStep]
+    target_types: [Product]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      equipmentRole: {type: string, required: true, description: 设备在工序中的作用。}
+  processUsesMaterial:
+    id: processUsesMaterial
+    name: 工序使用材料
+    description: 工序稳定使用某类半导体材料。
+    source_types: [ProcessStep]
+    target_types: [Material]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      materialRole: {type: string, required: true, description: 材料在工序中的用途。}
+  facilityOperatedBy:
+    id: facilityOperatedBy
+    name: 设施由组织运营
+    description: 制造设施由组织拥有、运营或控制。
+    source_types: [ManufacturingFacility]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties:
+      operationRole: {type: string, required: false, description: 所有、运营、合资或受托管理。}
+  facilityLocatedIn:
+    id: facilityLocatedIn
+    name: 设施位于地区
+    description: 制造设施位于某一 Region。
+    source_types: [ManufacturingFacility]
+    target_types: [Region]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  facilitySupportsProcess:
+    id: facilitySupportsProcess
+    name: 设施支持工序
+    description: 制造设施具备支持某类工序的稳定能力。
+    source_types: [ManufacturingFacility]
+    target_types: [ProcessStep]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      capabilityRole: {type: string, required: true, description: 研发、试产、量产、封装、测试或验证能力。}
+  facilityProducesProduct:
+    id: facilityProducesProduct
+    name: 设施生产产品
+    description: 制造设施具备生产或加工某类产品的稳定能力。
+    source_types: [ManufacturingFacility]
+    target_types: [Product]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      productionRole: {type: string, required: false, description: 晶圆制造、封装、测试、材料或设备生产。}
+  facilityUsesTechnologyRoute:
+    id: facilityUsesTechnologyRoute
+    name: 设施采用技术路线
+    description: 制造设施具备采用某技术路线的稳定能力；当前利用率和量产进度进入推理域。
+    source_types: [ManufacturingFacility]
+    target_types: [TechnologyRoute]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      capabilityBoundary: {type: string, required: true, description: 路线适用的设施能力边界。}
+  facilityProducesMaterial:
+    id: facilityProducesMaterial
+    name: 设施生产材料
+    description: 制造设施具备生产或加工某类材料的稳定能力。
+    source_types: [ManufacturingFacility]
+    target_types: [Material]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      productionRole: {type: string, required: false, description: 晶圆、气体、化学品、基板或其他材料生产。}
+
+# --- controlled_vocabularies（受控词表）---
+controlled_vocabularies:
+  industry_role:
+    description: 半导体领域及其相邻产业的层级角色。
+    values:
+      semiconductor_core: {id: semiconductor_core, name: 核心半导体产业, description: 半导体器件及其直接设计制造体系。}
+      enabling_industry: {id: enabling_industry, name: 支撑产业, description: EDA、IP、设备、材料、设施与专业服务。}
+      downstream_industry: {id: downstream_industry, name: 下游产业, description: 采购并集成半导体的终端行业。}
+      adjacent_industry: {id: adjacent_industry, name: 相邻产业, description: 工艺或供应链相关但不属于核心半导体范围的产业。}
+
+  semiconductor_value_chain_segment_role:
+    description: 半导体价值链稳定环节。
+    values:
+      research_and_development: {id: research_and_development, name: 基础研发与工程开发, description: 材料、器件、工艺、架构和系统研究。}
+      eda_and_ip: {id: eda_and_ip, name: EDA与IP, description: 设计自动化软件、设计IP和验证工具。}
+      chip_design: {id: chip_design, name: 芯片设计, description: 产品定义、架构、逻辑电路、版图和设计验证。}
+      design_service: {id: design_service, name: 设计服务, description: 设计外包、流片服务和工程支持。}
+      mask_and_reticle: {id: mask_and_reticle, name: 掩模与光罩, description: 掩模版、光罩和相关数据准备。}
+      semiconductor_equipment: {id: semiconductor_equipment, name: 半导体设备, description: 制造、封装、测试和量测设备。}
+      equipment_subsystem: {id: equipment_subsystem, name: 设备子系统与零部件, description: 光源、真空、射频、电源、运动控制和气液输送等。}
+      semiconductor_material: {id: semiconductor_material, name: 半导体材料, description: 晶圆制造、器件和封装所需材料。}
+      wafer_and_substrate: {id: wafer_and_substrate, name: 晶圆与衬底, description: 硅片、绝缘体上硅及化合物半导体衬底。}
+      front_end_fabrication: {id: front_end_fabrication, name: 前道晶圆制造, description: 在晶圆上形成器件和互连的制造过程。}
+      specialty_fabrication: {id: specialty_fabrication, name: 特色与化合物半导体制造, description: 功率、模拟、射频、光电子、MEMS和特色工艺制造。}
+      assembly_and_packaging: {id: assembly_and_packaging, name: 组装与封装, description: 切割、贴装、互连、封装及异构集成。}
+      semiconductor_test: {id: semiconductor_test, name: 半导体测试, description: 晶圆测试、成品测试、可靠性和失效分析。}
+      distribution_and_service: {id: distribution_and_service, name: 分销与专业服务, description: 渠道、物流、维护、认证和工程服务。}
+      module_and_system: {id: module_and_system, name: 模组与系统集成, description: 将半导体集成为板卡、模组、子系统和整机。}
+      downstream_application: {id: downstream_application, name: 下游应用, description: 形成最终半导体需求的终端行业和应用。}
+
+  product_domain:
+    description: 半导体产品所属领域总类。
+    values:
+      semiconductor_device: {id: semiconductor_device, name: 半导体器件, description: 逻辑、存储、模拟、分立、光电子、传感器等芯片产品。}
+      semiconductor_equipment_product: {id: semiconductor_equipment_product, name: 半导体设备, description: 制造、封装、测试和量测设备。}
+      semiconductor_software_ip: {id: semiconductor_software_ip, name: 半导体软件与IP, description: EDA软件、设计IP、固件和开发工具。}
+      semiconductor_service: {id: semiconductor_service, name: 半导体制造与工程服务, description: 设计、代工、封装、测试、认证和工程服务。}
+      electronic_module_subsystem: {id: electronic_module_subsystem, name: 电子模组与子系统, description: 集成半导体器件的模组、板卡和功能子系统。}
+
+  semiconductor_device_category:
+    description: 以稳定功能为主的半导体器件分类，允许一个产品归入多个类别。
+    values:
+      logic: {id: logic, name: 逻辑器件, description: 执行计算、控制或数字信号处理。}
+      cpu: {id: cpu, name: 通用处理器, description: 通用指令处理器。, parent_id: logic}
+      accelerator: {id: accelerator, name: 加速处理器, description: 面向图形、AI、网络或专用工作负载的加速器。, parent_id: logic}
+      microcontroller: {id: microcontroller, name: 微控制器, description: 集成处理、存储和外设控制的控制器。, parent_id: logic}
+      programmable_logic: {id: programmable_logic, name: 可编程逻辑, description: 可由用户配置逻辑功能的器件。, parent_id: logic}
+      asic_soc: {id: asic_soc, name: ASIC与SoC, description: 面向专用功能或系统集成的逻辑器件。, parent_id: logic}
+      digital_signal_processor: {id: digital_signal_processor, name: 数字信号处理器, description: 面向数字信号处理的专用处理器。, parent_id: logic}
+      memory: {id: memory, name: 存储器件, description: 临时或持久保存数据与指令。}
+      volatile_memory: {id: volatile_memory, name: 易失性存储, description: 断电后数据消失的存储类别。, parent_id: memory}
+      nonvolatile_memory: {id: nonvolatile_memory, name: 非易失性存储, description: 断电后保留数据的存储类别。, parent_id: memory}
+      stacked_memory: {id: stacked_memory, name: 堆叠与高带宽存储, description: 通过堆叠和宽接口提高带宽的存储类别。, parent_id: memory}
+      emerging_memory: {id: emerging_memory, name: 新型存储, description: 基于新材料或新器件机制的存储类别。, parent_id: memory}
+      analog: {id: analog, name: 模拟器件, description: 处理连续信号、电源或真实世界接口。}
+      power_management: {id: power_management, name: 电源管理器件, description: 电压转换、稳压、充放电和电源控制。, parent_id: analog}
+      data_converter: {id: data_converter, name: 数据转换器, description: 在模拟与数字信号之间转换。, parent_id: analog}
+      amplifier: {id: amplifier, name: 放大器, description: 放大模拟、电源或射频信号。, parent_id: analog}
+      interface_and_timing: {id: interface_and_timing, name: 接口与时钟器件, description: 信号接口、时钟、同步和驱动。, parent_id: analog}
+      radio_frequency: {id: radio_frequency, name: 射频器件, description: 处理射频发射、接收、滤波和前端信号。, parent_id: analog}
+      discrete: {id: discrete, name: 分立器件, description: 独立完成开关、整流、保护或功率控制功能。}
+      diode: {id: diode, name: 二极管, description: 整流、稳压、保护或开关器件。, parent_id: discrete}
+      transistor: {id: transistor, name: 晶体管, description: 独立的放大或开关器件。, parent_id: discrete}
+      power_discrete: {id: power_discrete, name: 功率分立器件, description: 面向高电压、大电流和功率转换的器件。, parent_id: discrete}
+      protection_device: {id: protection_device, name: 保护器件, description: 过压、过流和静电防护器件。, parent_id: discrete}
+      optoelectronics: {id: optoelectronics, name: 光电子器件, description: 产生、调制、传输或探测光信号。}
+      light_emitter: {id: light_emitter, name: 发光器件, description: LED、激光器等光源器件。, parent_id: optoelectronics}
+      photodetector: {id: photodetector, name: 光探测器, description: 将光信号转换为电信号。, parent_id: optoelectronics}
+      photonic_integrated_circuit: {id: photonic_integrated_circuit, name: 光子集成器件, description: 在芯片上集成光学功能的器件。, parent_id: optoelectronics}
+      image_sensor: {id: image_sensor, name: 图像传感器, description: 将图像光信号转换为电子数据。, parent_id: optoelectronics}
+      sensor_and_actuator: {id: sensor_and_actuator, name: 传感器与执行器, description: 感知物理世界或将电信号转换为动作。}
+      mems_sensor: {id: mems_sensor, name: MEMS传感器, description: 基于微机电结构的惯性、压力、声学等传感器。, parent_id: sensor_and_actuator}
+      environmental_sensor: {id: environmental_sensor, name: 环境与生物传感器, description: 感知温度、气体、化学或生物信号。, parent_id: sensor_and_actuator}
+      mems_actuator: {id: mems_actuator, name: MEMS执行器, description: 基于微机电结构产生运动或调制作用。, parent_id: sensor_and_actuator}
+
+  memory_product_category:
+    description: 存储产品稳定细分类。
+    values:
+      dram: {id: dram, name: DRAM, description: 动态随机存取存储器。}
+      nand: {id: nand, name: NAND Flash, description: 非易失性 NAND 闪存。}
+      nor: {id: nor, name: NOR Flash, description: 非易失性 NOR 闪存。}
+      hbm: {id: hbm, name: HBM, description: 高带宽堆叠存储器。}
+      ddr: {id: ddr, name: DDR, description: 双倍数据速率同步 DRAM 系列。, parent_id: dram}
+      lpddr: {id: lpddr, name: LPDDR, description: 低功耗 DDR 系列。, parent_id: dram}
+      enterprise_ssd: {id: enterprise_ssd, name: 企业级SSD, description: 面向数据中心和企业存储的固态硬盘。}
+
+  module_system_category:
+    description: 电子模组与系统组件分类。
+    values:
+      optical_interconnect_module: {id: optical_interconnect_module, name: 光互连模组, description: 集成光源、调制、探测、驱动和接口功能的光互连产品。}
+      power_module: {id: power_module, name: 功率模组, description: 集成功率器件、互连、散热和驱动功能的功率模块。}
+      compute_module: {id: compute_module, name: 计算模组, description: 集成处理器、存储和互连的计算板卡或模组。}
+      sensor_module: {id: sensor_module, name: 传感模组, description: 集成传感、信号调理和处理功能的模组。}
+
+
+  semiconductor_process_category:
+    description: 半导体设计、制造、封测和认证的稳定工序分类。
+    values:
+      product_definition: {id: product_definition, name: 产品定义, description: 确定需求、规格、成本和目标市场。}
+      architecture_design: {id: architecture_design, name: 架构设计, description: 系统、芯片和模块架构设计。}
+      logic_circuit_design: {id: logic_circuit_design, name: 逻辑与电路设计, description: 数字、模拟、射频和存储电路设计。}
+      design_verification: {id: design_verification, name: 设计验证, description: 功能、时序、功耗和物理验证。}
+      physical_design: {id: physical_design, name: 物理设计与版图, description: 布局布线、版图和可制造性设计。}
+      tapeout_mask_data: {id: tapeout_mask_data, name: 流片与掩模数据, description: 设计签核、数据准备和掩模制作。}
+      crystal_growth_wafering: {id: crystal_growth_wafering, name: 晶体生长与晶圆制备, description: 晶体生长、切片、研磨、抛光和外延准备。}
+      epitaxy: {id: epitaxy, name: 外延生长, description: 在衬底上生长受控材料层。}
+      cleaning_surface_prep: {id: cleaning_surface_prep, name: 清洗与表面处理, description: 去除污染并准备晶圆表面。}
+      oxidation_diffusion: {id: oxidation_diffusion, name: 氧化与扩散, description: 形成氧化层或实现掺杂扩散。}
+      thin_film_deposition: {id: thin_film_deposition, name: 薄膜沉积, description: CVD、PVD、ALD、电镀等沉积过程。}
+      lithography: {id: lithography, name: 光刻, description: 涂胶、曝光、显影及图形转移准备。}
+      etch: {id: etch, name: 刻蚀, description: 干法或湿法去除材料形成结构。}
+      ion_implantation: {id: ion_implantation, name: 离子注入, description: 通过离子注入控制材料电学性质。}
+      thermal_processing: {id: thermal_processing, name: 热处理, description: 退火、氧化、扩散和快速热处理。}
+      cmp: {id: cmp, name: 化学机械抛光, description: 平坦化晶圆表面。}
+      interconnect_formation: {id: interconnect_formation, name: 互连形成, description: 接触、通孔、金属互连和钝化。}
+      metrology_inspection: {id: metrology_inspection, name: 量测与检测, description: 尺寸、材料、缺陷和过程控制。}
+      wafer_sort: {id: wafer_sort, name: 晶圆测试, description: 晶圆级电性测试和已知良品筛选。}
+      wafer_dicing: {id: wafer_dicing, name: 晶圆切割, description: 将晶圆分割为裸片。}
+      die_attach: {id: die_attach, name: 芯片贴装, description: 将裸片贴装到基板、引线框架或载体。}
+      interconnection_bonding: {id: interconnection_bonding, name: 封装互连与键合, description: 引线、倒装、凸点、混合键合和TSV互连。}
+      molding_encapsulation: {id: molding_encapsulation, name: 塑封与封装保护, description: 封装、填充、密封和机械保护。}
+      package_assembly: {id: package_assembly, name: 封装组装, description: 单芯片、多芯片、晶圆级和系统级封装组装。}
+      final_test: {id: final_test, name: 成品测试, description: 封装后功能、参数和系统级测试。}
+      reliability_qualification: {id: reliability_qualification, name: 可靠性与资格认证, description: 老化、环境应力、安全和行业认证。}
+      failure_analysis: {id: failure_analysis, name: 失效分析, description: 定位失效机制和制造根因。}
+      post_silicon_validation: {id: post_silicon_validation, name: 芯片后验证, description: 在真实芯片和系统条件下验证功能与性能。}
+
+  equipment_category:
+    description: 按主要工序和功能划分的半导体设备类别。
+    values:
+      wafer_manufacturing_equipment: {id: wafer_manufacturing_equipment, name: 晶圆制造设备, description: 晶体生长、切片、研磨、抛光和外延设备。}
+      mask_reticle_equipment: {id: mask_reticle_equipment, name: 掩模与光罩设备, description: 掩模写入、检测、清洗和修复设备。}
+      clean_surface_equipment: {id: clean_surface_equipment, name: 清洗与表面处理设备, description: 湿法、单片、等离子和干燥设备。}
+      resist_processing_equipment: {id: resist_processing_equipment, name: 涂胶显影设备, description: 光刻胶涂覆、烘烤和显影设备。}
+      lithography_equipment: {id: lithography_equipment, name: 曝光与图形化设备, description: 光学、电子束和其他曝光写入设备。}
+      etch_equipment: {id: etch_equipment, name: 刻蚀设备, description: 干法和湿法刻蚀设备。}
+      deposition_equipment: {id: deposition_equipment, name: 薄膜沉积设备, description: CVD、PVD、ALD、外延和电镀设备。}
+      ion_implant_equipment: {id: ion_implant_equipment, name: 离子注入设备, description: 高能、中低能和特殊注入设备。}
+      thermal_equipment: {id: thermal_equipment, name: 热处理设备, description: 炉管、退火和快速热处理设备。}
+      cmp_equipment: {id: cmp_equipment, name: CMP设备, description: 化学机械抛光和相关清洗设备。}
+      metrology_inspection_equipment: {id: metrology_inspection_equipment, name: 量测与检测设备, description: 缺陷、尺寸、膜厚、材料和电性量测设备。}
+      fab_facility_equipment: {id: fab_facility_equipment, name: 厂务与设施设备, description: 真空、气液输送、超纯水、洁净室和污染控制设备。}
+      automation_handling_equipment: {id: automation_handling_equipment, name: 自动化与搬运设备, description: 晶圆搬运、仓储、机器人和制造执行接口设备。}
+      assembly_packaging_equipment: {id: assembly_packaging_equipment, name: 组装与封装设备, description: 切割、贴片、键合、塑封、凸点和先进封装设备。}
+      wafer_probe_equipment: {id: wafer_probe_equipment, name: 晶圆测试设备, description: 探针台、探针卡和晶圆级测试系统。}
+      final_test_equipment: {id: final_test_equipment, name: 成品测试设备, description: 逻辑、存储、模拟、射频和功率测试系统。}
+      reliability_analysis_equipment: {id: reliability_analysis_equipment, name: 可靠性与分析设备, description: 老化、可靠性、材料分析和失效分析设备。}
+      equipment_subsystem_component: {id: equipment_subsystem_component, name: 设备子系统与核心零部件, description: 光源、镜头、真空、射频、电源、阀泵和精密运动部件。}
+
+  material_composition_axis:
+    description: 材料主要组成元素或化合物体系。
+    values:
+      si: {id: si, name: 硅, description: 元素硅基材料体系。}
+      soi: {id: soi, name: SOI, description: 绝缘体上硅工程衬底体系。}
+      sic: {id: sic, name: SiC, description: 碳化硅宽禁带材料体系。}
+      gan: {id: gan, name: GaN, description: 氮化镓宽禁带材料体系。}
+      gaas: {id: gaas, name: GaAs, description: 砷化镓 III-V 材料体系。}
+      inp: {id: inp, name: InP, description: 磷化铟 III-V 材料体系。}
+
+  semiconductor_material_category:
+    description: 半导体器件、前道制造、封装测试和厂务使用的材料类别。
+    values:
+      elemental_semiconductor_substrate: {id: elemental_semiconductor_substrate, name: 元素半导体衬底, description: 硅、锗等元素半导体晶圆与衬底。}
+      compound_semiconductor_substrate: {id: compound_semiconductor_substrate, name: 化合物半导体衬底, description: III-V族、宽禁带及其他化合物半导体衬底。}
+      soi_engineered_substrate: {id: soi_engineered_substrate, name: SOI与工程衬底, description: 绝缘体上硅及其他工程化衬底。}
+      epitaxial_material: {id: epitaxial_material, name: 外延材料, description: 硅基、化合物和异质外延层材料。}
+      mask_reticle_material: {id: mask_reticle_material, name: 掩模与光罩材料, description: 掩模基板、吸收层、保护膜和相关材料。}
+      photoresist_ancillary: {id: photoresist_ancillary, name: 光刻胶及配套材料, description: 光刻胶、抗反射层、显影液和剥离材料。}
+      electronic_gas: {id: electronic_gas, name: 电子气体, description: 沉积、刻蚀、清洗、掺杂和保护气体。}
+      wet_chemical: {id: wet_chemical, name: 湿电子化学品, description: 清洗、刻蚀、显影和表面处理化学品。}
+      deposition_precursor: {id: deposition_precursor, name: 沉积前驱体, description: CVD、ALD和外延所需前驱体。}
+      sputtering_target: {id: sputtering_target, name: 溅射靶材, description: 金属、合金和化合物薄膜沉积靶材。}
+      dopant_implant_material: {id: dopant_implant_material, name: 掺杂与注入材料, description: 扩散源、离子源和掺杂前驱体。}
+      dielectric_material: {id: dielectric_material, name: 介质与绝缘材料, description: 栅介质、层间介质和钝化材料。}
+      conductor_interconnect_material: {id: conductor_interconnect_material, name: 导体与互连材料, description: 金属、阻挡层、种子层和互连材料。}
+      cmp_slurry_pad: {id: cmp_slurry_pad, name: CMP浆料与抛光垫, description: 平坦化浆料、抛光垫和清洗材料。}
+      process_consumable: {id: process_consumable, name: 工艺耗材, description: 石英、陶瓷、过滤、密封和腔体耗材。}
+      packaging_substrate: {id: packaging_substrate, name: 封装基板与引线框架, description: 有机、陶瓷、玻璃基板和金属引线框架。}
+      abf_substrate: {id: abf_substrate, name: ABF封装基板, description: 味之素Build-up Film等积层绝缘基板材料，归入封装材料。, parent_id: packaging_substrate}
+      bonding_interconnect_material: {id: bonding_interconnect_material, name: 键合与封装互连材料, description: 键合线、焊料、凸点、铜柱和粘接材料。}
+      encapsulation_underfill: {id: encapsulation_underfill, name: 塑封与底填材料, description: 塑封料、底填胶、粘结剂和密封材料。}
+      thermal_management_material: {id: thermal_management_material, name: 热管理材料, description: 导热界面、散热和热扩散材料。}
+      specialty_utility_material: {id: specialty_utility_material, name: 厂务与污染控制材料, description: 超纯水、过滤、洁净和污染控制相关材料。}
+
+  technology_route_category:
+    description: 半导体技术路线的稳定分类；路线当前进度由推理变量表达。
+    values:
+      cmos_scaling: {id: cmos_scaling, name: CMOS微缩, description: 通过晶体管和互连尺度缩小提升密度和性能。}
+      transistor_architecture: {id: transistor_architecture, name: 晶体管架构, description: 平面、鳍式、全环绕栅及后续晶体管结构。}
+      memory_architecture: {id: memory_architecture, name: 存储架构, description: 易失、非易失、堆叠和新型存储路线。}
+      specialty_process: {id: specialty_process, name: 特色工艺, description: 模拟、射频、高压、嵌入式存储和传感工艺。}
+      power_semiconductor: {id: power_semiconductor, name: 功率半导体路线, description: 硅基和宽禁带功率器件及模块路线。}
+      compound_semiconductor: {id: compound_semiconductor, name: 化合物半导体路线, description: III-V族、宽禁带及其他化合物器件路线。}
+      photonics_optoelectronics: {id: photonics_optoelectronics, name: 光子与光电子路线, description: 发光、探测、调制和光子集成路线。}
+      mems_sensor: {id: mems_sensor, name: MEMS与传感路线, description: 微机电、图像、环境和生物传感路线。}
+      interconnect: {id: interconnect, name: 芯片互连路线, description: 片上、片间、封装级和系统级互连路线。}
+      conventional_packaging: {id: conventional_packaging, name: 传统封装, description: 引线、倒装、基板和单芯片封装路线。}
+      wafer_level_packaging: {id: wafer_level_packaging, name: 晶圆级封装, description: 晶圆级、扇入和扇出封装路线。}
+      fan_out_wlp: {id: fan_out_wlp, name: Fan-out封装, description: 扇出型晶圆级封装路线。, parent_id: wafer_level_packaging}
+      interposer_2_5d: {id: interposer_2_5d, name: 中介层2.5D集成, description: 基于硅或有机中介层的2.5D互连路线。}
+      hybrid_bonding: {id: hybrid_bonding, name: 混合键合, description: 铜-铜或介质混合键合互连路线。}
+      three_d_stack: {id: three_d_stack, name: 3D堆叠, description: TSV和垂直堆叠集成路线。}
+      chiplet_heterogeneous_integration: {id: chiplet_heterogeneous_integration, name: Chiplet与异构集成, description: 以小芯片、先进互连和多材料器件形成系统。}
+      three_dimensional_integration: {id: three_dimensional_integration, name: 2.5D与3D集成, description: 中介层、硅通孔、混合键合和垂直堆叠路线总类。}
+      advanced_test: {id: advanced_test, name: 先进测试, description: 晶圆级、系统级、已知良品和复杂封装测试路线。}
+      design_technology_cooptimization: {id: design_technology_cooptimization, name: 设计工艺协同优化, description: 联合优化设计、器件、工艺和封装。}
+      beyond_cmos: {id: beyond_cmos, name: Beyond CMOS, description: 新型器件、计算范式和非传统信息处理路线。}
+
+  business_model_role:
+    description: 公司在半导体价值链中的长期商业角色，可多选。
+    values:
+      fabless: {id: fabless, name: Fabless, description: 负责芯片设计和销售，不自营主要晶圆制造。}
+      idm: {id: idm, name: IDM, description: 设计、制造并销售半导体产品。}
+      foundry: {id: foundry, name: Foundry, description: 向外部客户提供晶圆制造服务。}
+      osat: {id: osat, name: OSAT, description: 向外部客户提供封装与测试服务。}
+      eda_provider: {id: eda_provider, name: EDA供应商, description: 提供电子设计自动化软件与平台。}
+      ip_provider: {id: ip_provider, name: IP供应商, description: 提供可复用设计IP和相关授权。}
+      design_service_provider: {id: design_service_provider, name: 设计服务商, description: 提供设计、验证、流片和工程服务。}
+      equipment_supplier: {id: equipment_supplier, name: 设备供应商, description: 提供制造、封装、测试或量测设备。}
+      subsystem_supplier: {id: subsystem_supplier, name: 设备子系统供应商, description: 提供设备核心子系统和零部件。}
+      material_supplier: {id: material_supplier, name: 材料供应商, description: 提供晶圆制造或封装材料。}
+      distributor: {id: distributor, name: 分销与渠道商, description: 提供产品分销、库存和技术支持。}
+      module_system_supplier: {id: module_system_supplier, name: 模组与系统供应商, description: 将芯片集成为模组、板卡或系统。}
+      end_customer: {id: end_customer, name: 终端客户, description: 将半导体用于最终产品、基础设施或服务。}
+
+  semiconductor_application_category:
+    description: 形成半导体需求的终端行业、系统、应用和工作负载。
+    values:
+      data_center_cloud: {id: data_center_cloud, name: 数据中心与云计算, description: 服务器、加速计算、存储和网络基础设施需求。}
+      ai_training: {id: ai_training, name: AI训练, description: 大模型训练集群和算力基础设施需求。, parent_id: data_center_cloud}
+      ai_inference: {id: ai_inference, name: AI推理, description: 在线推理、边缘推理和推理加速需求。, parent_id: data_center_cloud}
+      personal_computing: {id: personal_computing, name: 个人计算, description: 台式机、笔记本、平板和个人计算设备需求。}
+      communications: {id: communications, name: 通信与网络, description: 移动终端、无线接入、核心网和传输网络需求。}
+      network_switching: {id: network_switching, name: 网络交换, description: 数据中心、电信和园区网络交换设备需求。, parent_id: communications}
+      optical_interconnect: {id: optical_interconnect, name: 光互连, description: 数据中心和电信光模块、光引擎需求。, parent_id: communications}
+      consumer_electronics: {id: consumer_electronics, name: 消费电子, description: 家电、可穿戴、影音和个人智能设备需求。}
+      automotive: {id: automotive, name: 汽车电子, description: 动力、车身、座舱、连接和辅助驾驶需求。}
+      automotive_electrification: {id: automotive_electrification, name: 汽车电动化, description: 电驱、电控、充电和高压功率电子需求。, parent_id: automotive}
+      adas_autonomous: {id: adas_autonomous, name: ADAS与自动驾驶, description: 感知、计算、域控和自动驾驶芯片需求。, parent_id: automotive}
+      industrial_automation: {id: industrial_automation, name: 工业与自动化, description: 工控、机器人、仪器和智能制造需求。}
+      energy_power: {id: energy_power, name: 能源与电力电子, description: 发电、输配电、储能、充电和功率转换需求。}
+      medical_healthcare: {id: medical_healthcare, name: 医疗与健康, description: 医疗设备、诊断、监护和生命科学仪器需求。}
+      aerospace_defense: {id: aerospace_defense, name: 航空航天与国防, description: 高可靠、耐环境和安全敏感系统需求。}
+      iot_edge: {id: iot_edge, name: IoT与边缘计算, description: 低功耗连接、感知、控制和边缘智能需求。}
+      storage_system: {id: storage_system, name: 存储系统, description: 企业、云、消费和嵌入式存储系统需求。}
+      research_quantum: {id: research_quantum, name: 科研与量子系统, description: 科研仪器、量子控制和前沿实验系统需求。}
+
+  policy_instrument_category:
+    description: 半导体领域政策工具类别；具体有业务时间和证据的政策事实进入推理域 Event。
+    values:
+      industrial_incentive: {id: industrial_incentive, name: 产业激励, description: 补贴、税收、融资和研发支持政策。}
+      public_procurement: {id: public_procurement, name: 政府采购与需求支持, description: 政府采购、示范项目和需求侧支持。}
+      export_control: {id: export_control, name: 出口管制, description: 对产品、设备、材料、软件、技术或服务的出口限制。}
+      import_restriction: {id: import_restriction, name: 进口限制, description: 进口许可、禁令、配额或本地化要求。}
+      sanction_entity_restriction: {id: sanction_entity_restriction, name: 制裁与实体限制, description: 针对主体、交易或服务的限制。}
+      tariff_trade_remedy: {id: tariff_trade_remedy, name: 关税与贸易救济, description: 关税、反倾销、反补贴和保障措施。}
+      investment_review: {id: investment_review, name: 投资审查, description: 跨境投资、并购和资本准入审查。}
+      technology_license: {id: technology_license, name: 技术许可与知识产权, description: 技术许可、知识产权和跨境技术转移规则。}
+      environmental_safety_regulation: {id: environmental_safety_regulation, name: 环境健康安全监管, description: 化学品、排放、能耗、水耗和职业安全监管。}
+      cybersecurity_supply_chain_security: {id: cybersecurity_supply_chain_security, name: 网络与供应链安全, description: 设备安全、数据安全、可信供应和溯源要求。}
+      standard_certification_change: {id: standard_certification_change, name: 标准与认证变化, description: 技术标准、产品认证和合规要求变化。}
+      talent_immigration_policy: {id: talent_immigration_policy, name: 人才与移民政策, description: 专业人才、签证和劳动力政策。}
+
+  facility_category:
+    description: 半导体领域设施类别。
+    values:
+      research_pilot_line: {id: research_pilot_line, name: 研发与中试线, description: 研发、验证和小规模试产设施。}
+      wafer_material_facility: {id: wafer_material_facility, name: 晶圆与材料设施, description: 晶圆、气体、化学品和其他关键材料生产设施。}
+      equipment_facility: {id: equipment_facility, name: 设备与子系统设施, description: 半导体设备、子系统和零部件生产设施。}
+      mask_facility: {id: mask_facility, name: 掩模设施, description: 掩模制作、检测和修复设施。}
+      wafer_fab: {id: wafer_fab, name: 晶圆厂, description: 前道晶圆制造设施。}
+      specialty_compound_fab: {id: specialty_compound_fab, name: 特色与化合物半导体厂, description: 特色工艺、功率、射频、光电子或MEMS制造设施。}
+      assembly_packaging_plant: {id: assembly_packaging_plant, name: 组装与封装厂, description: 传统或先进封装设施。}
+      test_facility: {id: test_facility, name: 测试与可靠性设施, description: 晶圆测试、成品测试、可靠性和失效分析设施。}
+
+# --- semantic_constraints ---
+semantic_constraints:
+  - id: product_multi_axis_allowed
+    statement: 产品可同时使用 productDomain、semiconductorDeviceCategory、memoryProductCategory、equipmentCategory 和 moduleSystemCategory，不强制单一分类。
+  - id: equipment_is_product_with_equipment_category
+    statement: 半导体设备复用 Product，不另建 Equipment 对象；必须填写 equipmentCategory。
+  - id: application_not_customer_instance
+    statement: Application 表示稳定需求类型，不得写入具体客户名称或单次项目。
+  - id: facility_capability_not_capacity_observation
+    statement: ManufacturingFacility 只记录稳定能力；产能、利用率和投产进度进入推理域。
+  - id: technology_route_not_adoption_state
+    statement: TechnologyRoute 定义技术边界；成熟度、采用率和替代速度进入推理域。
+  - id: policy_instrument_not_event_instance
+    statement: policy_instrument_category 只提供政策工具分类；有时间和证据的政策事实才创建 Event。
+  - id: finest_grain_within_axis
+    statement: >-
+      同一分类轴内遵循最细粒度优先：能确认 HBM 时不再将 memory 作为并列分类；
+      父类仅用于层级归属或细类未知时的兜底。跨轴可多选，同轴父子项不作为并列判断依据。
+  - id: abf_is_packaging_material_not_route
+    statement: ABF 归入封装材料分类，不与技术路线混放。
+  - id: no_level_one_property_override
+    statement: 领域扩展不得覆盖一级 segmentRole、materialCategory、processRole、applicationCategory 属性名。
+  - id: facility_use_specialized_relations
+    statement: ManufacturingFacility 的稳定结构优先使用 facility* 专门关系，不使用 upstreamOf 泛化表达。

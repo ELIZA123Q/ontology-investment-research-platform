@@ -1,0 +1,66 @@
+document_type: delivery_expression_audit
+schema_version: 3.0.0
+
+metadata:
+  task_id: ""
+  execution_id: ""
+  delivery_ref: "05-<核心主题>主题深度研究-<YYYYMMDD>-<当日序号>.md"
+  delivery_content_hash: "sha256:<05正文文件哈希>"
+  source_04_brief_ref: "04-<核心主题>判断简报-<YYYYMMDD>-<当日序号>.md"
+  source_04_audit_ref: "04-<核心主题>推理审计-<YYYYMMDD>-<当日序号>.yaml"
+  source_04_audit_hash: "sha256:<04推理审计文件哈希>"
+  stage_status: in_progress
+  quality_status: draft
+  quality_gate_ref: "05_投研表达与交付规范.md#9-质量门槛与返工规则"
+  deterministic_check_status: not_checked
+  semantic_review_status: not_reviewed
+
+claim_expression_register:
+  - expression_id: EX-01
+    source_claim_id: C-01
+    source_rcs: [C-01]
+    source_method_application_refs: [MA-01]
+    source_evidence_refs: [EV-01]
+    expression_role: paraphrase  # direct | paraphrase | synthesis
+    location_kind: report_title
+    section: "标题"
+    # 登记改写后的研报句；标题/要点/概览不得使用「只能作为」「不是确定结束日」等审计登记腔
+    expression_text: ""
+    inherited_judgment_level: J2
+    permitted_role: core_thesis
+    conditions: []
+    conditions_preserved: true
+    expression_scope_ref: "SCOPE-ROOT"
+    preserved_caveat_refs: []
+    scope_relation: same
+    semantic_strength_review: pass
+
+research_edge_check:
+  reference_view_present: false
+  differentiated_claim_mapped_to_04: false
+  underappreciated_mechanism_supported: false
+  falsification_signal_observable: false
+  evidence_boundary_disclosed: false
+  no_fabricated_consensus: false
+  result: fail
+
+high_risk_section_coverage:
+  report_title: false
+  investment_points: false
+  conclusion_overview: false
+  section_headings: false
+  paragraph_leads: false
+  chart_and_table_titles: false
+  summary_conclusions: false
+
+overall_check:
+  all_expressions_mapped_to_04_claims: false
+  no_expression_level_upgrade: false
+  no_condition_loss: false
+  no_scope_expansion: false
+  no_status_washing: false
+  semantic_review_complete: false
+  no_new_fact_created: false
+  no_new_judgment_created: false
+  no_method_status_changed: false
+  result: fail

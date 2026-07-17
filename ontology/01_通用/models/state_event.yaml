@@ -1,0 +1,116 @@
+schema_name: investment_research_state_event_model
+schema_version: 3.0.0
+meta_schema_version: 1.0.0
+status: active
+namespace: core.state_event
+model: state_event
+description: 对象在特定业务时间和研究范围下的状态、观测与事件；不包含工作流动作。
+object_types:
+  StateVariable:
+    metadata: &sv_meta {id: StateVariable, namespace: core.state_event, label_zh: 状态变量, label_en: State Variable, aliases: [变量], definition: 锚定对象、指标和范围并可随时间变化的研究变量。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [行业库存水平], counter_examples: [库存指标定义]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 变量名称。}
+      metric_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: Metric, description: 指标引用。}
+      scope_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: ResearchScope, description: 范围引用。}
+    constraints: &standard_constraints {unique: [], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  Observation:
+    metadata: {id: Observation, namespace: core.state_event, label_zh: 观测, label_en: Observation, aliases: [状态观测], definition: 对状态变量在明确业务时间、公布时间和研究截止时间下的记录。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [季度库存周转天数为90天], counter_examples: [库存将下降]}
+    primary_key: id
+    title_property: label
+    attributes:
+      label: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 观测标签。}
+      value: {type: object, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, description: 数值、枚举或区间。}
+      observed_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: business_time, description: 业务时间。}
+      published_at: {type: datetime, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示未知或未公开。, time_basis: publication_time, description: 公布时间。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究截止时间。}
+    constraints: *standard_constraints
+  Event:
+    metadata: {id: Event, namespace: core.state_event, label_zh: 事件, label_en: Event, aliases: [业务事件], definition: 在明确时间发生且可能改变对象状态的事实性变化。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [工厂投产], counter_examples: [公司属于设备商]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 事件名称。}
+      event_type: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [commercial, operational, technology, policy, supply, demand, financial, other], description: 事件类型。}
+      occurred_at: {type: datetime, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, time_basis: business_time, description: 发生时间。}
+    constraints: *standard_constraints
+  StateSnapshot:
+    metadata: {id: StateSnapshot, namespace: core.state_event, label_zh: 状态快照, label_en: State Snapshot, aliases: [快照], definition: 同一范围与截止时间下多个观测的不可变集合。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [季度行业状态快照], counter_examples: [滚动任务]}
+    primary_key: id
+    title_property: label
+    attributes:
+      label: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 快照标签。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 截止时间。}
+    constraints: {unique: [label, cutoff_at], mutually_exclusive: [], lifecycle: immutable}
+relation_types:
+  observationOf:
+    metadata: &observation_rel_meta {id: observationOf, namespace: core.state_event, label_zh: 观测变量, label_en: observation of, aliases: [], definition: 观测对应的状态变量。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [库存观测对应库存变量], counter_examples: [证据支持判断]}
+    source_types: [Observation]
+    target_types: [StateVariable]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: hasObservation
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  hasObservation:
+    metadata: {id: hasObservation, namespace: core.state_event, label_zh: 具有观测, label_en: has observation, aliases: [], definition: observationOf 的逆关系。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [变量具有季度观测], counter_examples: [事件影响变量]}
+    source_types: [StateVariable]
+    target_types: [Observation]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: observationOf
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  eventAffectsState:
+    metadata: {id: eventAffectsState, namespace: core.state_event, label_zh: 事件影响状态, label_en: event affects state, aliases: [], definition: 已发生事件可能改变目标状态变量。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [投产影响产能], counter_examples: [报告提到事件]}
+    source_types: [Event]
+    target_types: [StateVariable]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: affectedByEvent
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  affectedByEvent:
+    metadata: {id: affectedByEvent, namespace: core.state_event, label_zh: 受事件影响, label_en: affected by event, aliases: [], definition: eventAffectsState 的逆关系。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [产能受投产影响], counter_examples: [变量具有观测]}
+    source_types: [StateVariable]
+    target_types: [Event]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: eventAffectsState
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+rules:
+  state_time_consistency:
+    metadata: {id: state_time_consistency, namespace: core.state_event, label_zh: 状态时间一致性, label_en: State time consistency, aliases: [], definition: 观测业务时间不得晚于研究截止时间，历史快照不得覆盖。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [截止日前观测], counter_examples: [使用未来数据]}
+    rule_class: state_consistency
+    applies_to: [Observation, StateSnapshot]
+    input_types: [Observation, StateSnapshot]
+    output_types: [validation_result]
+    preconditions: [timestamps_present]
+    condition: observed_at <= cutoff_at and snapshots_are_immutable
+    counter_conditions: [future_data, overwritten_snapshot]
+    failure_result: reject_and_invalidate_downstream
+    priority: blocking
+    test_cases: [{id: STATE-R-01-P, expected: pass}, {id: STATE-R-01-N, expected: reject}]
+

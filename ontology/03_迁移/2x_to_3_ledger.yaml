@@ -1,0 +1,477 @@
+schema_name: ontology_2x_to_3_migration_ledger
+schema_version: 1.0.0
+status: active
+source_status: legacy-readonly
+target_ontology_version: 3.0.0
+generated_from:
+- ontology/01_通用/semantic.yaml
+- ontology/01_通用/evidence.yaml
+- ontology/01_通用/reasoning.yaml
+expected_counts:
+  object_types: 69
+  relation_types: 121
+  action_types: 42
+  functions: 23
+  logic_flows: 26
+  rules: 48
+classification_values:
+- keep
+- merge
+- move-to-methods
+- move-to-runtime
+- deprecate
+default_classification:
+  object_types:
+    classification: deprecate
+    replaced_by:
+    - ontology/README.md#legacy-2x-compatibility
+  relation_types:
+    classification: deprecate
+    replaced_by:
+    - ontology/README.md#legacy-2x-compatibility
+  action_types:
+    classification: move-to-runtime
+    replaced_by:
+    - governance/02_合同/runtime_mapping_v3.yaml
+  functions:
+    classification: move-to-runtime
+    replaced_by:
+    - governance/02_合同/runtime_mapping_v3.yaml
+  logic_flows:
+    classification: move-to-methods
+    replaced_by:
+    - methods/00_登记/method_assets.yaml
+  rules:
+    classification: merge
+    replaced_by:
+    - ontology/01_通用/models/semantic.yaml#rules
+    - ontology/01_通用/models/state_event.yaml#rules
+    - ontology/01_通用/models/evidence.yaml#rules
+    - ontology/01_通用/models/judgment.yaml#rules
+overrides:
+  keep_objects:
+    ids:
+    - Industry
+    - Organization
+    - Company
+    - Product
+    - Region
+    - ResearchScope
+    - StateVariable
+    - Observation
+    - Event
+    - SourceDocument
+    - EvidenceClaim
+    - EvidenceFact
+    - EvidenceRequirement
+    - EvidenceBasket
+    - EvidenceAssessment
+    - ResearchQuestion
+    - JudgmentUnit
+    - Hypothesis
+    - Signal
+    - CompetingExplanation
+    - RuleEvaluation
+    - Judgment
+    - MarketExpectation
+    - ExpectationGap
+    - AssetImpact
+    - ReasoningTrace
+    classification: keep
+    replaced_by: []
+  merged_objects:
+    mapping:
+      Segment: ValueChainSegment
+      Material: Product
+      ProcessStep: ValueChainSegment
+      Application: Product
+      ResearchPlan: ResearchScenario
+      CandidateClaim: Hypothesis
+      ResearchPath: ResearchScenario
+      PathNode: ResearchQuestion
+      EvidenceReadinessAssessment: EvidenceAssessment
+      EvidenceProfile: EvidenceRequirement
+      EvidenceBasketRequirement: EvidenceRequirement
+      SourceProfile: SourceDocument
+      ProxyIndicator: EvidenceAssessment
+      Scenario: ResearchScenario
+      ScenarioTemplate: ResearchScenario
+      ValidationRecord: ReasoningTrace
+    classification: merge
+  keep_relations:
+    mapping:
+      competesWith: competesWith
+      dependsOn: dependsOn
+      productProducedBy: producedBy
+      companySuppliesCompany: supplies
+      observationOf: observationOf
+      eventAffectsVariable: eventAffectsState
+      signalEvaluates: signalEvaluatesHypothesis
+      judgmentBasedOn: judgmentBasedOnHypothesis
+      ruleEvaluationTargets: ruleEvaluationForJudgment
+      claimCitesSource: claimCitesSource
+      factSupportedByClaim: factDerivedFromClaim
+      conflictsWith: evidenceConflictsWith
+    classification: keep
+  governance_rules:
+    ids:
+    - reasoning_trace_required
+    - rule_evaluation_trace_required
+    - reasoning_revision_preserves_trace
+    - validation_outcome_required
+    - validation_time_order
+    classification: deprecate
+    replaced_by:
+    - governance/02_合同/public_contract.yaml
+inventory:
+  semantic.yaml:
+    object_types:
+    - Concept
+    - Industry
+    - Segment
+    - Organization
+    - Company
+    - Product
+    - Material
+    - ProcessStep
+    - Region
+    - Application
+    - PolicyInstrument
+    - PolicyRequirement
+    - TechnicalConstraint
+    - Asset
+    - FinancialInstrument
+    - Identifier
+    - IdentificationScheme
+    - TradingVenue
+    - Listing
+    - RoleAssignment
+    relation_types:
+    - conceptBroaderThan
+    - conceptOverlapsWith
+    - conceptExcludes
+    - conceptMapsToObject
+    - subIndustryOf
+    - subRegionOf
+    - segmentBelongsToIndustry
+    - companyBelongsToIndustry
+    - companyParticipatesInSegment
+    - companyOperatesInRegion
+    - organizationLocatedIn
+    - companyExposedToRegion
+    - companySuppliesCompany
+    - productProducedBy
+    - productBelongsToSegment
+    - subApplicationOf
+    - applicationBelongsToIndustry
+    - productUsedInApplication
+    - companyExposedToApplication
+    - policyIssuedBy
+    - policyAdministeredBy
+    - policyAppliesIn
+    - policyAppliesTo
+    - policyHasRequirement
+    - requirementAppliesTo
+    - requirementSpecifiesCharacteristic
+    - requirementImposesConstraint
+    - requirementSupersededBy
+    - materialUsedInProduct
+    - processBelongsToSegment
+    - processProducesProduct
+    - upstreamOf
+    - dependsOn
+    - substitutesFor
+    - competesWith
+    - assetExposedTo
+    - identifierIdentifiesObject
+    - identifierDefinedInScheme
+    - identifierIssuedBy
+    - schemeManagedBy
+    - assetIssuedBy
+    - assetRepresentsClaimOn
+    - assetHasUnderlier
+    - assetManagedBy
+    - assetGuaranteedBy
+    - financialInstrumentDenominatedIn
+    - assetListedVia
+    - listingListsAsset
+    - listingOnTradingVenue
+    - tradingVenueOperatedBy
+    - tradingVenueOperatesInRegion
+    - rolePlayedBy
+    - roleInContext
+    - roleAppliesToObject
+    action_types:
+    - DefineConcept
+    - ResolveConceptBoundary
+    - RegisterSemanticObject
+    - ReviseSemanticObject
+    - MergeSemanticObjects
+    - DeprecateSemanticObject
+    - CreateSemanticRelation
+    - ReviseSemanticRelation
+    - RemoveSemanticRelation
+    functions:
+    - NormalizeTerm
+    - ResolveEntityIdentity
+    - DetectDuplicateObject
+    - ValidateRelationEndpoints
+    logic_flows:
+    - ConceptAdmissionLogic
+    - ObjectIdentityResolutionLogic
+    - SemanticRelationAdmissionLogic
+    rules:
+    - concept_definition_required
+    - concept_object_separation
+    - stable_semantics_only
+    - unique_identity
+    - organization_kind_required
+    - relation_endpoint_compatibility
+    - complex_relation_reification
+  evidence.yaml:
+    object_types:
+    - EvidenceProfile
+    - EvidenceBasketRequirement
+    - SourceDocument
+    - EvidenceClaim
+    - EvidenceFact
+    - EvidenceRequirement
+    - EvidenceRecipe
+    - EvidenceBasket
+    - SourceProfile
+    - AcquisitionChannel
+    - ProxyIndicator
+    - EvidenceAssessment
+    - EvidenceReadinessAssessment
+    relation_types:
+    - claimCitesSource
+    - sourcePublishedBy
+    - claimAbout
+    - factSupportedByClaim
+    - factAbout
+    - conflictsWith
+    - supersedes
+    - invalidates
+    - requirementUsesRecipe
+    - recipeRequiresBasket
+    - requirementRequiresBasket
+    - requirementRequiresSourceProfile
+    - requirementAllowsAcquisitionChannel
+    - sourceDocumentUsesProfile
+    - sourceAcquiredThrough
+    - claimSatisfiesRequirement
+    - factSatisfiesRequirement
+    - claimFillsEvidenceBasket
+    - factFillsEvidenceBasket
+    - claimActsAsCounterEvidenceFor
+    - factActsAsCounterEvidenceFor
+    - proxySupportsRequirement
+    - readinessAssessesRequirement
+    - readinessEvaluatesBasket
+    - assessmentEvaluatesEvidence
+    action_types:
+    - RegisterSource
+    - ExtractClaim
+    - NormalizeClaim
+    - SynthesizeFact
+    - RecordEvidenceConflict
+    - SupersedeEvidence
+    - InvalidateEvidence
+    - CreateEvidenceRequirement
+    - MatchEvidenceRecipe
+    - CreateEvidenceBasket
+    - RegisterSourceProfile
+    - RegisterAcquisitionChannel
+    - RegisterProxyIndicator
+    - AssessBasketReadiness
+    - AssessEvidenceForUse
+    - AssessEvidenceReadiness
+    functions:
+    - ExtractClaims
+    - NormalizeClaimValue
+    - AssessSourceReliability
+    - AssessClaimConfidence
+    - DetectEvidenceConflict
+    - CalculateEvidenceFreshness
+    - DeriveEvidenceRequirements
+    - MatchEvidenceRecipeFunction
+    - EvaluateEvidenceBasketFunction
+    - MatchSourceProfileFunction
+    - ValidateProxyIndicatorFunction
+    - AssessEvidenceReadinessFunction
+    - AssessEvidenceUsabilityFunction
+    logic_flows:
+    - SourceToClaimLogic
+    - ClaimToFactLogic
+    - ConflictHandlingLogic
+    - FreshnessEvaluationLogic
+    - JudgmentToEvidenceRequirementLogic
+    - EvidenceRecipeMatchingLogic
+    - EvidenceBasketEvaluationLogic
+    - SourceProfileMatchingLogic
+    - ProxyIndicatorValidationLogic
+    - EvidenceReadinessAssessmentLogic
+    - EvidenceAssessmentLogic
+    rules:
+    - assessment_requires_evidence
+    - assessment_is_contextual
+    - source_traceability
+    - claim_atomicity
+    - source_claim_reliability_separation
+    - fact_requires_claim
+    - original_source_independence
+    - conflict_preservation
+    - business_time_required
+    - judgment_type_required
+    - evidence_requirement_required
+    - recipe_before_acquisition
+    - mandatory_basket_required
+    - counter_basket_required
+    - source_profile_required
+    - acquisition_channel_not_source_profile
+    - access_scope_required_for_formal_evidence
+    - artifact_type_drives_traceability
+    - content_domain_must_match_basket
+    - proxy_must_be_disclosed
+    - proxy_cannot_replace_direct_evidence
+    - source_tier_must_match_requirement
+    - acquisition_channel_must_be_allowed
+    - stop_condition_must_be_recorded
+    - readiness_limits_04_output
+  reasoning.yaml:
+    object_types:
+    - ResearchPlan
+    - ResearchScope
+    - ResearchQuestion
+    - JudgmentUnit
+    - CandidateClaim
+    - ResearchPath
+    - PathNode
+    - InstanceRequirement
+    - JudgmentLevelCriterion
+    - JudgmentLevelCriterionTemplate
+    - AggregationContract
+    - PropagationTemplate
+    - ScenarioTemplate
+    - BusinessScenarioTag
+    - PathCondition
+    - CompetingExplanation
+    - ResearchFrameworkSelection
+    - SemanticScopeSelection
+    - EvidenceContract
+    - ReasoningPlan
+    - OntologyBindingSet
+    - OntologyCandidateSet
+    - OntologyGapSet
+    - StateVariable
+    - Observation
+    - Event
+    - Hypothesis
+    - Signal
+    - Judgment
+    - MarketExpectation
+    - ExpectationGap
+    - AssetImpact
+    - Scenario
+    - RuleEvaluation
+    - ReasoningTrace
+    - ValidationRecord
+    relation_types:
+    - researchPlanContainsResource
+    - scopeNarrowerThan
+    - pathContainsNode
+    - judgmentUnitUsesScope
+    - judgmentUnitHasCandidateClaim
+    - judgmentUnitRequiresEvidence
+    - judgmentUnitUsesCriterion
+    - judgmentUnitUsesCriterionTemplate
+    - pathNodeRequiresInstance
+    - stateVariableUsesEvidenceProfile
+    - propagationTemplateUsesSourceVariable
+    - propagationTemplateProducesVariable
+    - propagationTemplateUsesEvidenceProfile
+    - scenarioTemplateConstrainsVariable
+    - variableAnchoredOn
+    - observationOf
+    - evidenceGroundsReasoning
+    - eventAnchoredOn
+    - eventAffectsVariable
+    - variableInfluencesVariable
+    - hypothesisAbout
+    - hypothesisBasedOn
+    - hypothesisCompetesWith
+    - hypothesisContradicts
+    - signalEvaluates
+    - judgmentBasedOn
+    - expectationAbout
+    - gapComparesJudgment
+    - gapComparesExpectation
+    - impactDerivedFrom
+    - impactOnAsset
+    - impactReferencesGap
+    - scenarioIncludesHypothesis
+    - judgmentUnderScenario
+    - impactUnderScenario
+    - reasoningSupersedes
+    - ruleEvaluationTargets
+    - traceIncludesRuleEvaluation
+    - traceForJudgment
+    - validationOf
+    - validationUsesOutcome
+    - validationReferencesTrace
+    action_types:
+    - DefineStateVariable
+    - LinkEvidenceToReasoning
+    - ComputeDerivedObservation
+    - RecordObservation
+    - RegisterEvent
+    - FormHypothesis
+    - RecordSignal
+    - EvaluateHypothesis
+    - ApplyInferenceRule
+    - FormJudgment
+    - RegisterExpectation
+    - CompareWithExpectation
+    - AssessAssetImpact
+    - ConstructScenario
+    - ReviseReasoningObject
+    - RecordReasoningTrace
+    - RecordValidation
+    functions:
+    - ComputeDerivedVariable
+    - PropagateVariableImpact
+    - EvaluateRuleCondition
+    - AggregateSignals
+    - CalculateConfidence
+    - CompareExpectation
+    logic_flows:
+    - EvidenceGroundingLogic
+    - EventToStateLogic
+    - HypothesisAdmissionLogic
+    - StatePropagationLogic
+    - HypothesisEvaluationLogic
+    - JudgmentFormationLogic
+    - ExpectationGapLogic
+    - AssetImpactLogic
+    - ScenarioReasoningLogic
+    - RuleEvaluationLogic
+    - ReasoningTraceLogic
+    - ExPostValidationLogic
+    rules:
+    - no_direct_evidence_to_judgment
+    - event_to_state_inference
+    - variable_propagation_inference
+    - semantic_anchor_required
+    - hypothesis_falsifiability_required
+    - evidence_grounding_required
+    - time_alignment
+    - signal_role_compatibility
+    - blocking_signal_precedence
+    - judgment_evidence_threshold
+    - expectation_required_for_asset_impact
+    - reasoning_trace_required
+    - rule_evaluation_trace_required
+    - reasoning_revision_preserves_trace
+    - validation_outcome_required
+    - validation_time_order
+resolution_rule: 每个 inventory 资源先匹配 overrides，未匹配时使用同 section 的 default_classification；因此不存在未分类项。merge/deprecate 必须有 replaced_by。

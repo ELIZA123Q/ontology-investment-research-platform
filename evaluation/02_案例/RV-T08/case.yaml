@@ -1,0 +1,30 @@
+document_type: research_value_eval_case
+schema_version: 2.0.0
+case_id: RV-T08
+title: 存储周期统一结束月份是否可判断
+split: calibration_pilot
+stratum: restraint
+task_input:
+  question: 截至2026年7月13日，能否给出HBM、非HBM DRAM与NAND本轮周期的统一结束月份？
+  object: 全球存储芯片统一周期结束时点
+  scope: 判断统一月份是否可得，并给出可执行的补证与改判条件。
+  information_cutoff: '2026-07-13'
+  terminal_artifact_type: judgment_brief
+system_artifact:
+  stage: '04'
+  path: evaluation/02_案例/RV-T08/system_artifact.md
+  allowed_terminal_status: 暂不可判断
+reasoning_materials:
+  - evaluation/02_案例/RV-T08/system_artifact.md
+evidence_pack_ref: evidence.yaml
+adjudication_ref: sealed/adjudication.yaml
+perturbation_ref: perturbations.yaml
+experiment:
+  axes: [R, U, delta, S, C]
+  contexts: [A, B, C, D, E]
+  downstream_tasks: [core_restatement, tracking_plan, information_update, research_questions]
+  target_length_policy: system_artifact_plus_or_minus_15_percent
+isolation:
+  producer_visible: [task_input, evidence.yaml]
+  producer_forbidden: [system_artifact, reasoning_materials, sealed/adjudication.yaml, ../../calibration/defects.yaml]
+  adjudication_open_after_artifact_freeze: true

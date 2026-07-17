@@ -1,0 +1,7 @@
+stage: '05'
+schema_version: 3.0.0
+expressions:
+  - {expression_id: EX-11, source_claim_id: C-11, source_method_application_refs: [MA-14], source_evidence_refs: [EV-11], section: 管制影响, text: 新规则提高部分先进设备的许可约束，设备可得性不确定性上升。, inherited_judgment_level: J3, conditions_preserved: true, scope_relation: same}
+  - {expression_id: EX-12, source_claim_id: C-12, source_method_application_refs: [MA-15], source_evidence_refs: [EV-12, EV-13], section: 国产替代, text: 国产刻蚀设备在样本客户的验证机会增加，但验证进展不能直接等同于规模采购和收入兑现。, inherited_judgment_level: J2, conditions_preserved: true, scope_relation: same}
+overall_check: {all_expressions_mapped_to_04_claims: true, all_methods_mapped_to_04_applications: true, no_expression_level_upgrade: true, no_condition_loss: true, no_scope_expansion: true, no_new_fact_created: true, no_new_judgment_created: true, no_method_status_changed: true, result: pass}
+

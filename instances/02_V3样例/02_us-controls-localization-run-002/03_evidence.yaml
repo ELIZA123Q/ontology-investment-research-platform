@@ -1,0 +1,25 @@
+stage: '03'
+schema_version: 3.0.0
+sources:
+  - {source_id: SRC-11, type: SourceDocument, title: 美国设备管制规则更新, uri: 'fixture://controls/rule', published_at: '2026-06-30T00:00:00+08:00', source_tier: S1}
+  - {source_id: SRC-12, type: SourceDocument, title: 国产设备商季度公告, uri: 'fixture://controls/vendor-filing', published_at: '2026-07-08T00:00:00+08:00', source_tier: S1}
+  - {source_id: SRC-13, type: SourceDocument, title: 晶圆厂招标与验收汇总, uri: 'fixture://controls/fab-qualification', published_at: '2026-07-12T00:00:00+08:00', source_tier: S3}
+claims:
+  - {claim_id: EC-11, source_ref: SRC-11, statement: 新规则扩大部分先进制程设备许可要求, locator: section-4}
+  - {claim_id: EC-12, source_ref: SRC-12, statement: 国产刻蚀设备在新增客户进入验证阶段, locator: page-12}
+  - {claim_id: EC-13, source_ref: SRC-13, statement: 部分国产设备完成验收但批量采购尚未确认, locator: table-3}
+facts:
+  - {evidence_id: EV-11, type: EvidenceFact, statement: 管制更新提高部分先进设备许可约束, claim_refs: [EC-11], subject_ref: EVT-CTRL-2026, scope_ref: SCOPE-CN-SEMI-EQP-2026, time_basis: 2026-06-30, role: support}
+  - {evidence_id: EV-12, type: EvidenceFact, statement: 国产刻蚀设备在新增样本客户进入验证, claim_refs: [EC-12], subject_ref: EQP-ETCH-CN, scope_ref: SCOPE-CN-SEMI-EQP-2026, time_basis: 2026Q2, role: support}
+  - {evidence_id: EV-13, type: EvidenceFact, statement: 验收进展尚未转化为可确认的规模采购, claim_refs: [EC-13], subject_ref: EQP-ETCH-CN, scope_ref: SCOPE-CN-SEMI-EQP-2026, time_basis: 2026Q2, role: counter}
+assessments:
+  - {assessment_id: EA-11, evidence_ref: EV-11, target_judgment_unit_ref: JU-01, assessment: usable, directness: direct, limitations: [实际许可执行仍需跟踪]}
+  - {assessment_id: EA-12, evidence_ref: EV-12, target_judgment_unit_ref: JU-02, assessment: usable_with_caveat, directness: direct, limitations: [公司未披露客户名称]}
+  - {assessment_id: EA-13, evidence_ref: EV-13, target_judgment_unit_ref: JU-02, assessment: usable, directness: indirect, limitations: [汇总样本不能代表全部晶圆厂]}
+baskets:
+  - {basket_id: EB-JU11-S, judgment_unit_ref: JU-01, role: support, evidence_refs: [EV-11]}
+  - {basket_id: EB-JU12-S, judgment_unit_ref: JU-02, role: support, evidence_refs: [EV-12]}
+  - {basket_id: EB-JU12-C, judgment_unit_ref: JU-02, role: counter, evidence_refs: [EV-13]}
+method_input_bindings:
+  - {application_id: MA-11, method_id: 'kb03:A04', method_version: 3.2.0, target_judgment_unit_refs: [JU-01], status: selected, precondition_checks: [{precondition_id: policy_start_fact_identified, result: pass, evidence_refs: [EV-11], reason: 规则原文与适用范围可定位}], input_evidence_refs: [EV-11], evidence_role_bindings: {support: [EV-11], counter: []}, unresolved_inputs: [许可执行个案], limitations: [只能确认规则约束增强]}
+  - {application_id: MA-12, method_id: 'kb03:A05', method_version: 3.2.0, target_judgment_unit_refs: [JU-02], status: degraded, precondition_checks: [{precondition_id: unified_qualification_scope, result: partial, evidence_refs: [EV-12, EV-13], reason: 可确认验证推进但无法确认规模采购}], input_evidence_refs: [EV-12, EV-13], evidence_role_bindings: {support: [EV-12], counter: [EV-13]}, unresolved_inputs: [批量采购量, 收入确认], limitations: [替代结论上限为验证阶段]}
