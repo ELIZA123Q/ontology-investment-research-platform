@@ -67,8 +67,9 @@ parameters:
   - id: judgment_evidence_threshold
     label: Q/反证/路径就绪 → 最大 J 矩阵
     stages: [03, 04]
-    authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold
+    authority_kind: runtime_contract
+    authority_ref: governance/02_合同/judgment_threshold_policy.yaml
+    note: 正式语义规则仍在 judgment.yaml；Q/反证/路径到运行输出的矩阵属于跨阶段合同。
 
   - id: judgment_types
     label: 判断单元类型
@@ -85,20 +86,20 @@ parameters:
   - id: path_readiness_statuses
     label: 路径就绪状态
     stages: [03]
-    authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps
+    authority_kind: runtime_contract
+    authority_ref: governance/02_合同/judgment_threshold_policy.yaml#path_readiness_caps
 
   - id: path_result_statuses
     label: 路径推理结果状态
     stages: [04]
-    authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
+    authority_kind: runtime_contract
+    authority_ref: governance/02_合同/judgment_threshold_policy.yaml#path_result_statuses
 
   - id: source_authority_levels
     label: 来源权威下限
     stages: [02, 03, 04]
-    authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.source_authority_levels
+    authority_kind: runtime_contract
+    authority_ref: governance/02_合同/judgment_threshold_policy.yaml#source_authority_levels
 
   - id: source_tiers
     label: 来源层级 S1–S8
@@ -115,22 +116,22 @@ parameters:
   - id: basket_roles
     label: 证据篮子角色（运行时六值）
     stages: [02, 03]
-    authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.operational_basket_roles
+    authority_kind: runtime_contract
+    authority_ref: governance/02_合同/judgment_threshold_policy.yaml#operational_basket_roles
 
   - id: kb03_method_roles
     label: 取证方法五角色（说明层）
     stages: [03]
     authority_kind: knowledge_base_ref
     authority_ref: methods/03_取证/03_registry.yaml#evidence_roles
-    must_point_to: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.evidence_method_role_to_basket_role
+    must_point_to: governance/02_合同/judgment_threshold_policy.yaml#evidence_method_role_to_basket_role
 
   - id: kb03_quality_language
     label: 完备度四档用语（说明层）
     stages: [03]
     authority_kind: knowledge_base_ref
     authority_ref: methods/03_取证/03_registry.yaml#quality_language
-    must_point_to: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades
+    must_point_to: governance/02_合同/judgment_threshold_policy.yaml#quality_language_to_evidence_grades
 
   - id: judgment_method_routes
     label: judgment_type → kb03/kb04 方法路由
@@ -168,13 +169,13 @@ parameters:
 not_promoted:
   - id: evidence_quality_dimensions
     reason: 二级证据质量维度为领域取证指南，与 L1 sourceTier/confidence/basketRole 语义相近但职责不同；不合并升格
-    stays_at: ontology/02_领域/semiconductor/evidence.yaml#evidence_quality_dimensions
+    stays_at: ontology/01_通用/models/semiconductor_extension.yaml#domain_guides.evidence_quality_dimensions
   - id: event_type_taxonomy
     reason: 领域事件分类法，介于 schema 扩展与实例之间；任务需要时经 02 映射，不进一级规则参数
-    stays_at: ontology/02_领域/semiconductor/reasoning.yaml#event_type_taxonomy
+    stays_at: ontology/01_通用/models/semiconductor_extension.yaml#event_taxonomy.event_type_taxonomy
   - id: commercialization_stages
     reason: 半导体商业化阶段词表，由实例 stage_vocabulary_ref 引用，不升格为 L1 枚举
-    stays_at: ontology/02_领域/semiconductor/evidence.yaml#commercialization_stages
+    stays_at: ontology/01_通用/models/semiconductor_extension.yaml#domain_guides.commercialization_stages
   - id: stage04_handoff_and_audit_enums
     reason: handoff_to_05 / permitted_role / delivery_archetype 等属 04→05 阶段审计与表达合同，非业务强度参数
     stays_at: workflow/stages/04_判断/模板/04_推理审计模板.yaml#handoff_to_05

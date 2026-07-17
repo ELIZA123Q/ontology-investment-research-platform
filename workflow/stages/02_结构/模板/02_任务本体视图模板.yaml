@@ -69,7 +69,7 @@ ontology_sources:
     files:
     - ontology/01_通用/models/semiconductor_extension.yaml
     - ontology/02_领域/semiconductor/business_instances.yaml
-method_application_candidates:
+method_applications:
   - application_id: MA-01
     method_id: kb03:A01
     method_version: 3.2.0
@@ -79,8 +79,18 @@ method_application_candidates:
     target_ontology_object_refs: []
     status: candidate
     precondition_checks: []
-    selection_reason: ""
-    rejection_or_block_reason: ""
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: "<本方法适用的对象、时间和范围>"
+    limitations: []
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: "<创建人或 agent>"
+      recorded_at: "<ISO 8601>"
     alternatives: []
 quality_control:
   quality_gate_ref: workflow/stages/02_结构/02_判断结构与本体视图规范.md#8-质量门槛与返工规则

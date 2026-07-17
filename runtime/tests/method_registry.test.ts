@@ -36,6 +36,9 @@ describe("method registry", () => {
     expect(registry.get("BF-SD-01")?.capability_type).toBe("judgment_structure");
     expect(registry.get("kb03:A03")?.method_version).toBe("3.2.0");
     expect(registry.get("kb04:A02")?.method_version).toBe("1.0.0");
+    expect(registry.get("kb04:A00")?.capability_type).toBe("adjudication");
+    expect(registry.get("kb03:A03")?.preconditions.length).toBeGreaterThan(0);
+    expect(registry.size).toBe(43);
   });
 
   it("rejects unknown methods and version drift", () => {
@@ -46,9 +49,19 @@ describe("method registry", () => {
 
   it("enforces judgment-type method routes", () => {
     const units = [{ id: "JU-01", judgment_type: "trend_direction" }];
-    expect(() => validateMethodRoutes([application()], units)).not.toThrow();
+    expect(() => validateMethodRoutes([application({ status: "executed" })], units)).not.toThrow();
     expect(() => validateMethodRoutes([
-      application({ method_id: "kb04:A03" }),
+      application({ method_id: "kb04:A03", status: "executed" }),
     ], units)).toThrow(/不允许用于/);
+  });
+
+  it("allows rejected candidates outside the execution route and global A00", () => {
+    const units = [{ id: "JU-01", judgment_type: "trend_direction" }];
+    expect(() => validateMethodRoutes([
+      application({ method_id: "kb04:A03", status: "rejected" }),
+    ], units)).not.toThrow();
+    expect(() => validateMethodRoutes([
+      application({ method_id: "kb04:A00", status: "executed" }),
+    ], units)).not.toThrow();
   });
 });

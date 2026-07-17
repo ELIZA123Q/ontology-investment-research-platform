@@ -28,6 +28,7 @@ import {
   validateRegisteredMethodApplications,
 } from "./method_registry";
 import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type StageKind } from "./types";
+import { validateReasoningTraceBindings } from "./reasoning_trace";
 
 function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;
@@ -91,6 +92,7 @@ export function validateApproval(artifact: Artifact) {
     validateRegisteredMethodApplications(data.method_applications as MethodApplication[]);
     validateMethodRoutes(data.method_applications as MethodApplication[], structure.judgment_units || []);
     validateJudgmentMethodBindings(data.judgments || [], data.method_applications || []);
+    validateReasoningTraceBindings(data, ids, data.method_applications || []);
     for (const j of data.judgments || []) {
       for (const id of [...j.supporting_evidence_draft_ids, ...j.counter_evidence_draft_ids]) {
         if (!ids.has(id)) throw new Error(`${j.id} 引用了不存在的证据草稿 ${id}`);

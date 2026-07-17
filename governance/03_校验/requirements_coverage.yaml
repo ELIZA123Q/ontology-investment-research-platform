@@ -7,37 +7,37 @@ rules:
     requirement: 证据波次、依赖投影与阶段产物必须绑定同一任务、运行和 02 视图哈希。
     execution_mode: automated
     validator_refs: [runtime/engine/research_loop.py, governance/03_校验/stages/stage_04/validate_04_outputs.py]
-    test_refs: [runtime/engine/tests/test_research_loop.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: LOOP-ROUTE-001
     source_ref: workflow/stages/03_证据/03_数据与证据准备规范.md#11-返工与回环
     requirement: 既有结构内证据回 03，新变量、路径、竞争假设或范围拆分回完整 02。
     execution_mode: automated
     validator_refs: [runtime/engine/research_loop.py]
-    test_refs: [runtime/engine/tests/test_research_loop.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: LOOP-STALE-001
     source_ref: governance/01_架构/00_项目定位与边界.md#5-运行骨架细则在阶段规范
     requirement: 对象 stale 只向依赖图可达下游传播，不得按阶段一刀切。
     execution_mode: automated
     validator_refs: [runtime/engine/research_loop.py]
-    test_refs: [runtime/engine/tests/test_research_loop.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: LOOP-ATTEMPT-001
     source_ref: governance/03_校验/README.md#7-本体驱动证据闭环
     requirement: 新 attempt 不覆盖旧 attempt，历史归档哈希必须可复核。
     execution_mode: automated
     validator_refs: [runtime/engine/research_loop.py, governance/03_校验/validate_run.py]
-    test_refs: [runtime/engine/tests/test_research_loop.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: LOOP-CONVERGENCE-001
     source_ref: governance/02_合同/public_contract.yaml#iteration_semantics
     requirement: 收敛由结构触发、关键 stale、attempt 哈希、冲突和关键判断变化派生，不使用循环次数上限。
     execution_mode: automated
     validator_refs: [runtime/engine/research_loop.py, governance/03_校验/validate_run.py]
-    test_refs: [runtime/engine/tests/test_research_loop.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: REASONING-REVISION-001
     source_ref: workflow/stages/04_判断/04_推理输出规范.md#7-判断简报与-05-交接
-    requirement: 推理对象修订必须使用 reasoningSupersedes 和 ReviseReasoningObject，保留旧留痕。
+    requirement: 推理对象修订必须使用 supersedes_trace 和 runtime_revision_operation，保留旧留痕。
     execution_mode: automated
     validator_refs: [governance/03_校验/stages/stage_04/validate_04_outputs.py, governance/03_校验/validate_run.py]
-    test_refs: [runtime/engine/tests/test_research_loop.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: EVIDENCE-TRUTH-001
     source_ref: workflow/stages/03_证据/03_数据与证据准备规范.md#12-质量门槛与返工规则
     requirement: 资料是否真实充分、比较口径是否合理。
@@ -51,4 +51,4 @@ rules:
     execution_mode: semantic_review
     rationale: 由独立语义审查评估，不由确定性字段校验代替。
     validator_refs: [governance/03_校验/semantic_review.py]
-    test_refs: [governance/03_校验/tests/test_controlled_chain.py]
+    test_refs: [governance/03_校验/tests/test_v3_samples.py]

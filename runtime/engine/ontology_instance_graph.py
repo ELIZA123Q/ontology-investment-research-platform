@@ -69,6 +69,10 @@ BUSINESS_PARAMETER_RELATION_TYPES = {
     "propagationTemplateUsesEvidenceProfile",
     "researchPlanContainsResource",
     "pathContainsNode",
+    "judgmentUnitHasCandidateClaim",
+    "judgmentUnitUsesCriterion",
+    "judgmentUnitRequiresEvidence",
+    "scopeNarrowerThan",
 }
 
 SECTION_TYPES = {

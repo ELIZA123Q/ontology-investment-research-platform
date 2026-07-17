@@ -18,6 +18,6 @@
 
 正式本体回答“有什么、如何关联、哪些稳定约束成立”。方法选择、方法执行、API、任务调度、权限、Saga 和性能均不属于正式本体。
 
-## Legacy 2.x compatibility
+领域业务参数实例（证据画像、状态变量、传导模板等）仍在 `02_领域/semiconductor/business_instances.yaml`。
 
-`01_通用/common.yaml`、`semantic.yaml`、`evidence.yaml`、`reasoning.yaml` 以及半导体原有分域文件是 `legacy-readonly` 历史快照，只用于解释 `run-001`。当前发布不得向这些文件新增资源。完整迁移去向见 `03_迁移/2x_to_3_ledger.yaml`。
+项目只维护 Ontology 3.0 / Public Contract 最新正式基线；新模板、新样例和新运行不得引用已退役的 2.x 文件路径或旧资源 ID。

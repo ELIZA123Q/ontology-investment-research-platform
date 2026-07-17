@@ -1,6 +1,6 @@
 fixture_id: RV-T01-SCOPE-GLOBALIZATION
 source_cases: [RV-T01, RV-T08]
-base_run: instances/01_正式样例/01_存储周期
+base_run: instances/02_V3样例/01_memory-cycle-run-002
 mutations:
   - target: 04.claim_register#C-05.scope_ref
     value: SCOPE-MEMORY-INDUSTRY

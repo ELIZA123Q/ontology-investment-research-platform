@@ -40,6 +40,7 @@ from validator_utils import (  # noqa: E402
 )
 from status_derivation import reject_manual_derived_fields  # noqa: E402
 from research_contract import derive_scope_relation, validate_scope_graph  # noqa: E402
+from validate_method_application_contract import validate_expression_projection  # noqa: E402
 
 KNOWN_DELIVERY_KINDS = {
     "事件点评",
@@ -317,6 +318,17 @@ def _validate_expression_audit(
     if not view_path.is_file():
         fail("05 无法解析 04.metadata.source_02_view_ref")
     source_view = load_yaml_file(view_path)
+    method_contract_required = (
+        str(source_view.get("schema_version")) == "3.0.0"
+        or str(source_audit.get("schema_version")) == "5.0.0"
+    )
+    method_projection_errors = validate_expression_projection(
+        audit,
+        source_audit,
+        required=method_contract_required,
+    )
+    if method_projection_errors:
+        fail("; ".join(method_projection_errors))
     try:
         scope_graph = validate_scope_graph(source_view)
     except ValueError as exc:

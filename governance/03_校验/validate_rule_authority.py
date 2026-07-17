@@ -13,10 +13,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "governance/02_合同/rule_authority_registry.yaml"
-LEDGER = ROOT / "ontology/03_迁移/2x_to_3_ledger.yaml"
 OPERATIONS = ROOT / "runtime/engine/runtime_operations.yaml"
 MODEL_FILES = tuple((ROOT / "ontology/01_通用/models").glob("*.yaml"))
-LEGACY_FILES = tuple(ROOT / "ontology/01_通用" / name for name in ("semantic.yaml", "evidence.yaml", "reasoning.yaml"))
 SAMPLE_FILES = tuple((ROOT / "instances/02_V3样例").glob("*/04_judgment.yaml"))
 CURRENT_TEMPLATES = (
     ROOT / "workflow/stages/02_结构/模板/02_任务本体视图模板.yaml",
@@ -47,13 +45,6 @@ def formal_rule_ids() -> set[str]:
     return output
 
 
-def legacy_rule_ids() -> set[str]:
-    output: set[str] = set()
-    for path in LEGACY_FILES:
-        output.update((load(path).get("rules") or {}).keys())
-    return output
-
-
 def sample_rule_refs() -> list[tuple[str, str]]:
     refs: list[tuple[str, str]] = []
     for path in SAMPLE_FILES:
@@ -78,7 +69,6 @@ def nested_keys(value: object) -> set[str]:
 
 def validate_rule_authority(
     registry: dict[str, Any],
-    ledger: dict[str, Any],
     operations: dict[str, Any],
     judgment_rule_refs: list[tuple[str, str]] | None = None,
 ) -> list[str]:
@@ -139,32 +129,6 @@ def validate_rule_authority(
     if missing_governance:
         errors.append(f"requirements_coverage rules missing governance ownership: {missing_governance}")
 
-    legacy_ids = legacy_rule_ids()
-    explicit_migrations: dict[str, list[tuple[str, str, str | None]]] = defaultdict(list)
-    for override_name, override in (ledger.get("overrides") or {}).items():
-        if not isinstance(override, dict):
-            continue
-        classification = override.get("classification")
-        for resource_id, replacement in (override.get("mapping") or {}).items():
-            if resource_id in legacy_ids:
-                explicit_migrations[resource_id].append((override_name, str(replacement), classification))
-        for resource_id in override.get("ids") or []:
-            if resource_id in legacy_ids:
-                replacements = override.get("replaced_by") or []
-                explicit_migrations[resource_id].append((override_name, str(replacements[0]) if replacements else "", classification))
-
-    allowed_classifications = set(ledger.get("classification_values") or [])
-    for rule_id in sorted(legacy_ids):
-        migrations = explicit_migrations.get(rule_id, [])
-        if len(migrations) != 1:
-            errors.append(f"legacy rule {rule_id} requires exactly one explicit migration, found {len(migrations)}")
-            continue
-        _, replacement, classification = migrations[0]
-        if classification not in allowed_classifications:
-            errors.append(f"legacy rule {rule_id} invalid classification {classification}")
-        if classification != "keep" and not replacement:
-            errors.append(f"legacy rule {rule_id} missing replaced_by")
-
     if operations.get("schema_name") != "runtime_operation_registry" or operations.get("authority") != "runtime":
         errors.append("runtime operation registry authority mismatch")
     ref_contract = {
@@ -198,7 +162,7 @@ def validate_rule_authority(
 
 
 def main() -> int:
-    errors = validate_rule_authority(load(REGISTRY), load(LEDGER), load(OPERATIONS))
+    errors = validate_rule_authority(load(REGISTRY), load(OPERATIONS))
     if errors:
         for error in errors:
             print(f"ERROR: {error}")
@@ -206,7 +170,7 @@ def main() -> int:
         return 1
     print(
         "RULE_AUTHORITY_PASS: "
-        f"formal={len(formal_rule_ids())}, legacy_migrated={len(legacy_rule_ids())}, "
+        f"formal={len(formal_rule_ids())}, "
         f"samples={len(SAMPLE_FILES)}; methods/governance/runtime uniquely separated."
     )
     return 0

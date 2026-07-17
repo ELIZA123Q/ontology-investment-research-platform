@@ -54,6 +54,7 @@ from validator_utils import (  # noqa: E402
     split_refs,
 )
 from research_loop import validate_dependency_projection, validate_evidence_wave
+from validate_method_application_contract import application_index, assert_valid_stage_applications
 from research_contract import (
     derive_aggregation_outcome,
     derive_scope_relation,
@@ -393,9 +394,9 @@ def _validate_iteration_audit(audit: dict[str, object], audit_path: Path) -> Non
             fail(f"{revision_id} 新旧对象引用不得相同")
         if str(item.get("object_type_ref")) not in allowed_types:
             fail(f"{revision_id}.object_type_ref 非法")
-        if item.get("relation_type_ref") not in {"supersedes_trace", "reasoningSupersedes"}:
+        if item.get("relation_type_ref") != "supersedes_trace":
             fail(f"{revision_id} 必须使用 supersedes_trace")
-        if item.get("action_ref") not in {"runtime_revision_operation", "ReviseReasoningObject"}:
+        if item.get("action_ref") != "runtime_revision_operation":
             fail(f"{revision_id} 必须使用 runtime_revision_operation")
         if str(item.get("revision_type")) not in {
             "evidence_update", "structural_revision", "scope_revision", "correction", "retirement"
@@ -1321,6 +1322,72 @@ def validate(report_path: str | Path, audit_path: str | Path, snapshot_dir: str 
         validate_reasoning_routes(source_view_data, audit)
     except ValueError as exc:
         fail(str(exc))
+
+    def collect_refs(value: object, keys: set[str]) -> set[str]:
+        found: set[str] = set()
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key in keys and child not in (None, ""):
+                    found.add(str(child))
+                found.update(collect_refs(child, keys))
+        elif isinstance(value, list):
+            for child in value:
+                found.update(collect_refs(child, keys))
+        return found
+
+    method_contract_required = str(source_view_data.get("schema_version")) == "3.0.0"
+    topic, date, seq = report_triplet
+    stage_03_manifest_path = audit_path.parent / f"03-{topic}语义域与证据域实例清单-{date}-{seq}.yaml"
+    prior_applications: object | None = None
+    if stage_03_manifest_path.is_file():
+        stage_03_manifest = load_yaml_file(stage_03_manifest_path)
+        prior_applications = stage_03_manifest.get("method_applications")
+    elif method_contract_required:
+        fail("Public Contract 1.3 的 04 无法解析配对 03 MethodApplication 清单")
+    evidence_fact_ids = {
+        str(row.get("fact_id"))
+        for row in read_csv(snapshot_csv_path(snapshot_dir, "evidence_facts.csv"))
+        if row.get("fact_id")
+    }
+    judgment_refs = collect_refs(audit.get("judgments", []), {"judgment_id", "claim_id"})
+    judgment_refs.update(collect_refs(audit.get("claim_register", []), {"claim_id"}))
+    try:
+        assert_valid_stage_applications(
+            audit,
+            "stage_04",
+            required=method_contract_required,
+            prior_items=prior_applications,
+            known_questions=collect_refs(source_view_data, {"question_id"}),
+            known_judgment_units=collect_refs(source_view_data, {"judgment_unit_id"}),
+            known_objects=collect_refs(source_view_data.get("business_instance_graph", {}), {"id"}),
+            known_evidence=evidence_fact_ids,
+            known_signals=collect_refs(audit.get("signals", []), {"signal_id"}),
+            known_judgments=judgment_refs,
+        )
+    except ValueError as exc:
+        fail(str(exc))
+    if method_contract_required:
+        application_by_id, application_errors = application_index(
+            audit.get("method_applications"), "stage_04.method_applications"
+        )
+        if application_errors:
+            fail("; ".join(application_errors))
+        for claim in audit.get("claim_register", []) or []:
+            if not isinstance(claim, dict) or not claim.get("claim_id"):
+                continue
+            claim_id = str(claim["claim_id"])
+            method_refs = split_refs(claim.get("method_application_refs"))
+            if not method_refs:
+                fail(f"claim_register#{claim_id} 未绑定 executed MethodApplication")
+            for method_ref in method_refs:
+                application = application_by_id.get(method_ref)
+                if application is None:
+                    fail(f"claim_register#{claim_id} 引用未定义 MethodApplication: {method_ref}")
+                if application.get("status") != "executed":
+                    fail(f"claim_register#{claim_id} 不得由非 executed MethodApplication 支撑: {method_ref}")
+            evidence_refs = set(split_refs(claim.get("evidence_refs") or claim.get("source_evidence_refs")))
+            if not evidence_refs or not evidence_refs <= evidence_fact_ids:
+                fail(f"claim_register#{claim_id} 必须绑定可解析的具体 EvidenceFact")
     _validate_scope_aggregation_and_permissions(audit, source_view_data, snapshot_dir)
     reasoning_instance_fields = {
         "hypotheses",

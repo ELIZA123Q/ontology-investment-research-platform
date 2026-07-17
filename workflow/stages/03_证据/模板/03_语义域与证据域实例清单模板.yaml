@@ -64,11 +64,15 @@ cross_domain_constraints:
 
 candidate_feedback_ref: null
 
-method_input_bindings:
+method_applications:
+  # 必须完整复制 02 的全部 MA；裁决候选尚未进入执行时保持 candidate，不能省略。
   - application_id: MA-01
     method_id: kb03:A01
     method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs: [Q-01]
     target_judgment_unit_refs: [JU-01]
+    target_ontology_object_refs: []
     status: selected
     precondition_checks:
       - precondition_id: source_scope_available
@@ -76,11 +80,18 @@ method_input_bindings:
         evidence_refs: [EV-01]
         reason: ""
     input_evidence_refs: [EV-01]
-    evidence_role_bindings:
-      support: [EV-01]
-      counter: []
-    unresolved_inputs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: "<继承 02，不得改写>"
     limitations: []
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-01
+      actor: "<取证执行人或 agent>"
+      recorded_at: "<ISO 8601>"
+    alternatives: []
 
 validation:
   result: "<pass | fail>"

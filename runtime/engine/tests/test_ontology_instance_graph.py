@@ -16,8 +16,6 @@ ensure_all_validator_paths()
 
 from ontology_instance_graph import (  # noqa: E402
     InstanceGraphError,
-    compact_task_view,
-    project_task_view,
     validate_instance_graph,
 )
 
@@ -34,10 +32,6 @@ class InstanceGraphTests(unittest.TestCase):
         validate_instance_graph(self.compact["business_instance_graph"])
         validate_instance_graph(self.domain["business_instance_graph"])
 
-    def test_projection_round_trip_is_lossless(self) -> None:
-        projected = project_task_view(self.compact)
-        self.assertEqual(compact_task_view(projected), self.compact)
-
     def test_unknown_object_type_fails(self) -> None:
         graph = copy.deepcopy(self.compact["business_instance_graph"])
         graph["objects"][0]["type"] = "UnknownBusinessParameter"
@@ -50,11 +44,11 @@ class InstanceGraphTests(unittest.TestCase):
         with self.assertRaises(InstanceGraphError):
             validate_instance_graph(graph)
 
-    def test_legacy_disk_shape_is_compacted(self) -> None:
-        projected = project_task_view(self.compact)
-        converted = compact_task_view(projected)
-        self.assertNotIn("judgment_units", converted)
-        self.assertIn("business_instance_graph", converted)
+    def test_graph_requires_business_parameters_authority(self) -> None:
+        graph = copy.deepcopy(self.compact["business_instance_graph"])
+        graph["authority"] = "formal_ontology"
+        with self.assertRaises(InstanceGraphError):
+            validate_instance_graph(graph)
 
 
 if __name__ == "__main__":

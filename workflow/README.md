@@ -29,4 +29,4 @@
 - **方法应用**：02 建 `MA-nn` 候选 → 03 绑定证据 → 04 确认 `executed` / `rejected` / `blocked` / `degraded`
 - **规则评价**：04 的 `RuleEvaluation` 记录本次规则执行结果，与设计态 methods/本体规则分开
 
-带完整 `MethodApplication` 的 V3 样例见 [`instances/02_V3样例`](../instances/02_V3样例)；[`instances/01_正式样例`](../instances/01_正式样例) 为历史 fixture，回放以 `business_instance_graph` 中的 `RuleEvaluation` 为主。
+带完整 `MethodApplication` 的正式样例见 [`instances/02_V3样例`](../instances/02_V3样例)。

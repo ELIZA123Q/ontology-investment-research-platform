@@ -66,8 +66,8 @@ def as_mapping(value: Any, label: str, errors: list[str]) -> dict[str, Any]:
 def validate_registry(registry: dict[str, Any], errors: list[str]) -> None:
     if registry.get("registry_type") != "evidence_method_registry":
         errors.append("03_registry.yaml.registry_type 必须为 evidence_method_registry")
-    if str(registry.get("schema_version")) not in {"3.1.0", "3.2.0"}:
-        errors.append("03_registry.yaml.schema_version 必须为 3.1.0 或 3.2.0")
+    if str(registry.get("schema_version")) != "3.2.0":
+        errors.append("03_registry.yaml.schema_version 必须精确为 3.2.0")
     if "ontology_authority_refs" not in registry:
         errors.append("03_registry.yaml 缺少 ontology_authority_refs")
 
@@ -96,6 +96,17 @@ def validate_registry(registry: dict[str, Any], errors: list[str]) -> None:
         if not isinstance(item, dict):
             errors.append(f"methods.{method_id} 必须是 mapping")
             continue
+        contract = item.get("contract")
+        required_contract_fields = {
+            "applicability", "preconditions", "inputs", "outputs",
+            "not_applicable_when", "degrade_policy", "alternatives", "counter_examples",
+        }
+        if not isinstance(contract, dict):
+            errors.append(f"methods.{method_id}.contract 必须是 mapping")
+        else:
+            missing = sorted(required_contract_fields - set(contract))
+            if missing:
+                errors.append(f"methods.{method_id}.contract 缺少字段: {missing}")
         file_ref = str(item.get("file", "")).strip()
         path = ROOT / file_ref
         if not file_ref or not path.is_file():

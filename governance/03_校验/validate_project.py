@@ -15,8 +15,17 @@ CHECKS = (
     ("规范覆盖矩阵", [sys.executable, "governance/03_校验/validate_requirements_coverage.py"]),
     ("Ontology 3.0 冻结门", [sys.executable, "ontology/01_通用/validate_v3.py"]),
     ("Ontology 3.0 负向回归", [sys.executable, "governance/03_校验/tests/test_ontology_v3.py"]),
+    ("直接迁移台账负向回归", [sys.executable, "governance/03_校验/tests/test_migration_ledger.py"]),
     ("规则唯一权威", [sys.executable, "governance/03_校验/validate_rule_authority.py"]),
     ("规则归属负向回归", [sys.executable, "governance/03_校验/tests/test_rule_authority.py"]),
+    ("统一方法资产", [sys.executable, "governance/03_校验/validate_method_assets.py"]),
+    ("方法资产负向回归", [sys.executable, "governance/03_校验/tests/test_method_assets.py"]),
+    ("方法应用跨阶段合同", [sys.executable, "governance/03_校验/validate_method_application_contract.py"]),
+    ("方法应用合同负向回归", [sys.executable, "governance/03_校验/tests/test_method_application_contract.py"]),
+    ("推理追溯合同", [sys.executable, "governance/03_校验/validate_reasoning_trace_contract.py"]),
+    ("推理追溯负向回归", [sys.executable, "governance/03_校验/tests/test_reasoning_trace_contract.py"]),
+    ("增量更新合同", [sys.executable, "governance/03_校验/validate_incremental_update_contract.py"]),
+    ("增量更新合同负向回归", [sys.executable, "governance/03_校验/tests/test_incremental_update_contract.py"]),
     ("业务参数单一权威", [sys.executable, "governance/03_校验/validate_parameter_authority.py"]),
     ("业务实例图回归", [sys.executable, "runtime/engine/tests/test_ontology_instance_graph.py"]),
     ("投研框架库", [sys.executable, "methods/02_判断结构/validate_frameworks.py"]),
@@ -27,6 +36,8 @@ CHECKS = (
     ("研究价值评测端到端", [sys.executable, "evaluation/03_执行/tests/test_eval_runtime.py"]),
     ("Ontology 3.0 双样例", [sys.executable, "governance/03_校验/validate_v3_samples.py"]),
     ("Ontology 3.0 样例负向回归", [sys.executable, "governance/03_校验/tests/test_v3_samples.py"]),
+    ("Runtime TypeScript 类型检查", ["npm", "--prefix", "runtime", "run", "typecheck"]),
+    ("Runtime TypeScript 回归", ["npm", "--prefix", "runtime", "test"]),
 )
 
 

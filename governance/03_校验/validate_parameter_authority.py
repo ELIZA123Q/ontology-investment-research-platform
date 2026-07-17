@@ -30,6 +30,108 @@ import status_derivation as status
 
 ROOT = Path(__file__).resolve().parents[2]
 
+
+def _validate_domain_semantics(domain_doc: dict, graph: dict, errors: list[str]) -> None:
+    """把领域业务参数绑定到正式 Ontology 3.0，避免数量通过但语义悬空。"""
+    domain_path = ROOT / "ontology/02_领域/semiconductor/business_instances.yaml"
+    depends_on = domain_doc.get("depends_on") or []
+    required_models = {
+        "semantic.yaml", "state_event.yaml", "evidence.yaml", "judgment.yaml",
+        "scenario.yaml", "semiconductor_extension.yaml",
+    }
+    dependency_names = {Path(str(item)).name for item in depends_on}
+    missing_dependencies = sorted(required_models - dependency_names)
+    if missing_dependencies:
+        errors.append(f"二级业务实例 depends_on 缺少正式模型: {missing_dependencies}")
+
+    formal_types: set[str] = set()
+    for raw_ref in depends_on:
+        path = (domain_path.parent / str(raw_ref)).resolve()
+        if not path.is_file():
+            errors.append(f"二级业务实例 depends_on 无法解析: {raw_ref}")
+            continue
+        document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        formal_types.update(str(item) for item in (document.get("object_types") or {}))
+
+    objects = graph.get("objects") or []
+    object_by_id = {str(item.get("id")): item for item in objects if isinstance(item, dict)}
+    if len(object_by_id) != len(objects):
+        errors.append("二级业务实例对象 ID 不得重复或为空")
+    evidence_profiles = {
+        object_id for object_id, item in object_by_id.items() if item.get("type") == "EvidenceProfile"
+    }
+    state_variables = {
+        object_id for object_id, item in object_by_id.items() if item.get("type") == "StateVariable"
+    }
+
+    state_required = {
+        "id", "name", "category", "definition", "decision_use", "variable_kind",
+        "anchors", "observation_guidance", "evidence_profile_ref",
+        "counter_evidence_guidance", "variable_role",
+    }
+    for object_id in state_variables:
+        props = object_by_id[object_id].get("properties") or {}
+        missing = sorted(state_required - set(props))
+        if missing:
+            errors.append(f"StateVariable {object_id} 缺少稳定定义字段: {missing}")
+        if str(props.get("id")) != object_id:
+            errors.append(f"StateVariable {object_id}.properties.id 不一致")
+        anchors = props.get("anchors") or []
+        if not isinstance(anchors, list) or not anchors:
+            errors.append(f"StateVariable {object_id}.anchors 不得为空")
+        else:
+            unresolved = sorted({str(item) for item in anchors} - formal_types)
+            if unresolved:
+                errors.append(f"StateVariable {object_id}.anchors 引用未定义正式类型: {unresolved}")
+        profile_ref = str(props.get("evidence_profile_ref") or "")
+        if profile_ref not in evidence_profiles:
+            errors.append(f"StateVariable {object_id}.evidence_profile_ref 无法解析: {profile_ref}")
+
+    registry = yaml.safe_load((ROOT / "methods/03_取证/03_registry.yaml").read_text(encoding="utf-8")) or {}
+    method_version = str(registry.get("schema_version") or "")
+    for item in objects:
+        if not isinstance(item, dict):
+            continue
+        object_id = str(item.get("id") or "")
+        props = item.get("properties") or {}
+        object_type = item.get("type")
+        if object_type == "PropagationTemplate":
+            for field in ("source_variables", "target_variables"):
+                refs = {str(ref) for ref in props.get(field) or []}
+                unresolved = sorted(refs - state_variables)
+                if not refs or unresolved:
+                    errors.append(f"PropagationTemplate {object_id}.{field} 为空或悬空: {unresolved}")
+            if not str(props.get("time_lag") or "").strip():
+                errors.append(f"PropagationTemplate {object_id}.time_lag 不得为空")
+            alignment = str(props.get("anchor_alignment") or "")
+            alignment_types = {part.strip() for part in alignment.split("/") if part.strip()}
+            unresolved = sorted(alignment_types - formal_types)
+            if unresolved:
+                errors.append(f"PropagationTemplate {object_id}.anchor_alignment 未定义: {unresolved}")
+            profile_ref = str(props.get("evidence_profile_ref") or "")
+            if profile_ref not in evidence_profiles:
+                errors.append(f"PropagationTemplate {object_id}.evidence_profile_ref 无法解析: {profile_ref}")
+        elif object_type == "EvidenceRecipe":
+            if str(props.get("strategyVersion")) != method_version:
+                errors.append(
+                    f"EvidenceRecipe {object_id}.strategyVersion 必须与 kb03={method_version} 一致"
+                )
+            source_ref = ROOT / str(props.get("strategyLibraryRef") or "")
+            if not source_ref.is_file():
+                errors.append(f"EvidenceRecipe {object_id}.strategyLibraryRef 无法解析")
+        elif object_type == "ProxyIndicator":
+            required = {
+                "id", "proxyIndicatorName", "proxyFor", "targetStateVariableId", "proxyLogic",
+                "expectedTimeLag", "validConditions", "invalidConditions", "confidenceDiscount",
+                "cannotReplace", "requiredDisclosure",
+            }
+            missing = sorted(required - set(props))
+            if missing:
+                errors.append(f"ProxyIndicator {object_id} 缺少字段: {missing}")
+            target = str(props.get("targetStateVariableId") or "")
+            if target not in state_variables or str(props.get("proxyFor") or "") != target:
+                errors.append(f"ProxyIndicator {object_id} 目标变量不一致或无法解析: {target}")
+
 # 禁止在模板/校验代码中重新声明已由本体权威承载的业务枚举或门槛矩阵。
 _FORBIDDEN_AUTHORITY_PATTERNS: list[tuple[str, str]] = [
     (r"(?<![A-Z_])JUDGMENT_LEVELS\s*=\s*\{", "不得硬编码 JUDGMENT_LEVELS 集合"),
@@ -155,6 +257,7 @@ def main() -> int:
     except Exception as exc:
         errors.append(f"二级业务实例图: {exc}")
         graph = {"objects": []}
+    _validate_domain_semantics(domain_doc, graph, errors)
     counts: dict[str, int] = {}
     for item in graph.get("objects", []):
         section = str(item.get("projection", {}).get("section", ""))
@@ -168,25 +271,13 @@ def main() -> int:
         "judgment_level_criterion_templates": 5,
         "source_profiles": 3,
         "evidence_recipes": 3,
-        "proxy_indicators": 1,
+        "proxy_indicators": 5,
     }
     if counts != expected:
         errors.append(f"二级业务实例数量不一致: {counts} != {expected}")
-    for filename, forbidden in {
-        "evidence.yaml": {"evidence_profiles", "evidence_recipes", "source_profiles", "proxy_indicators"},
-        "reasoning.yaml": {
-            "state_variables",
-            "propagation_templates",
-            "scenario_templates",
-            "business_scenario_tags",
-            "judgment_level_criterion_templates",
-        },
-    }.items():
-        schema = yaml.safe_load((domain_dir / filename).read_text(encoding="utf-8"))
-        duplicated = sorted(forbidden & set(schema))
-        if duplicated or schema.get("business_instance_graph_ref") != "business_instances.yaml":
-            errors.append(f"{filename} registry 未完全迁出: {duplicated}")
-
+    # 领域实例已全部迁入 business_instances.yaml；旧二级 evidence/reasoning schema 已退役。
+    if not (domain_dir / "business_instances.yaml").is_file():
+        errors.append("缺少 ontology/02_领域/semiconductor/business_instances.yaml")
     # 正式样例已迁至 02_V3样例；阶段 03/04 的 business_instance_graph 形态由 validate_v3_samples 覆盖。
     v3_runs = sorted((ROOT / "instances" / "02_V3样例").glob("*/run_manifest.yaml"))
     coverage["stage03_manifests"] = len(v3_runs)
@@ -354,7 +445,7 @@ def main() -> int:
         return 1
     print(
         "PARAMETER_AUTHORITY_PASS: 02 任务参数、03/04 运行实例、12 个证据画像、46 个状态变量、"
-        "28 个传导模板、4 个情景模板、9 个情景标签、5 个 J 门槛模板、取证配方/来源画像/代理指标"
+        "28 个传导模板、4 个情景模板、9 个情景标签、5 个 J 门槛模板、取证配方/来源画像/5 个代理指标"
         "及判断门槛均由本体单一驱动。"
     )
     print(f"PARAMETER_OWNERSHIP_COVERAGE: {coverage_rate:.2%} ({owned}/{required})")

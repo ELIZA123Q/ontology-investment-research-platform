@@ -12,6 +12,7 @@ mapping:
   runtime_operations: runtime/engine/runtime_operations.yaml
   evidence_wave: runtime/engine/templates/evidence_wave.template.yaml
   invalidation_projection: runtime/engine/templates/dependency_projection.template.yaml
+  incremental_update_validator: governance/03_校验/incremental_update.py
 
 moved_legacy_resources:
   action_types:
@@ -33,3 +34,8 @@ implemented_types:
   InvalidationProjection:
     source_contract: governance/02_合同/public_contract.yaml#object_validity_propagation
     requirement: 仅传播到关系图中可达的下游对象。
+  IncrementalUpdate:
+    source_contract: governance/02_合同/public_contract.yaml#incremental_update_contract
+    identity: update_id
+    algorithm: changed_roots -> direct_impacts -> reachable stale closure -> affected stage subsets
+    full_rerun_rule: 仅结构检查点命中时允许；普通证据更新局部优先

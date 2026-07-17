@@ -171,6 +171,25 @@ export function loadGraphFromPackage(packageRelPath: string): BusinessInstanceGr
     const graph = loadGraphFromYamlFile(path.join(root, file));
     if (graph?.objects.length) return graph;
   }
+
+  // Ontology 3.0 的正式样例按 02/03/04 分层保存，不再附带旧式“本体视图”文件。
+  // 这里仅做只读、确定性的包投影；正式写入仍须生成 instance_graph artifact。
+  const compactStages: Array<[string, string]> = [
+    ["02_structure.yaml", "stage_02"],
+    ["03_evidence.yaml", "stage_03"],
+    ["04_judgment.yaml", "stage_04"],
+  ];
+  let projected = emptyGraph();
+  projected.authority = "package_projection";
+  for (const [file, stageKind] of compactStages) {
+    const absolutePath = path.join(root, file);
+    if (!existsSync(absolutePath)) continue;
+    const document = YAML.parse(readFileSync(absolutePath, "utf8"));
+    if (!document || typeof document !== "object") continue;
+    projected = materializeStageIntoGraph(projected, stageKind, document as Record<string, unknown>);
+    projected.authority = "package_projection";
+  }
+  if (projected.objects.length) return projected;
   return null;
 }
 
@@ -332,6 +351,27 @@ export function materializeStageIntoGraph(
 
   const slice = emptyGraph();
   slice.authority = "business_parameters";
+  const addObjects = (
+    values: unknown,
+    type: string,
+    idKeys: string[],
+    section: string,
+    typeFromItem = false,
+  ) => {
+    if (!Array.isArray(values)) return;
+    for (const [index, raw] of values.entries()) {
+      if (!raw || typeof raw !== "object") continue;
+      const item = raw as Record<string, unknown>;
+      const id = idKeys.map((key) => item[key]).find((value) => value !== undefined && String(value).length);
+      if (!id) continue;
+      slice.objects.push({
+        id: String(id),
+        type: typeFromItem && item.type ? String(item.type) : type,
+        properties: { ...item },
+        projection: { section, index },
+      });
+    }
+  };
   for (const [index, application] of ((stageJson.method_applications as any[]) || []).entries()) {
     const applicationId = String(application.application_id || `MA-${index + 1}`);
     slice.objects.push({
@@ -351,16 +391,24 @@ export function materializeStageIntoGraph(
     }
   }
   if (stageKind === "stage_02") {
+    addObjects(stageJson.ontology_instances, "SemanticObject", ["id"], "ontology_instances", true);
+    addObjects(stageJson.questions, "ResearchQuestion", ["question_id", "id"], "questions");
     for (const [index, unit] of ((stageJson.judgment_units as any[]) || []).entries()) {
       slice.objects.push({
-        id: String(unit.id || `JU-${index + 1}`),
+        id: String(unit.judgment_unit_id || unit.id || `JU-${index + 1}`),
         type: "JudgmentUnit",
         properties: { ...unit },
         projection: { section: "judgment_units", index },
       });
     }
+    addObjects(stageJson.competing_explanations, "CompetingExplanation", ["explanation_id", "id"], "competing_explanations");
+    addObjects(stageJson.evidence_requirements, "EvidenceRequirement", ["evidence_requirement_id", "id"], "evidence_requirements");
   }
   if (stageKind === "stage_03") {
+    addObjects(stageJson.claims, "EvidenceClaim", ["claim_id", "id"], "claims");
+    addObjects(stageJson.facts, "EvidenceFact", ["evidence_id", "id"], "facts", true);
+    addObjects(stageJson.assessments, "EvidenceAssessment", ["assessment_id", "id"], "assessments");
+    addObjects(stageJson.baskets, "EvidenceBasket", ["basket_id", "id"], "baskets");
     for (const [index, draft] of ((stageJson.evidence_drafts as any[]) || []).entries()) {
       slice.objects.push({
         id: String(draft.id || `EV-${index + 1}`),
@@ -370,7 +418,7 @@ export function materializeStageIntoGraph(
       });
     }
     for (const [index, source] of ((stageJson.sources as any[]) || []).entries()) {
-      const id = String(source.source_key || source.id || `SD-${index + 1}`);
+      const id = String(source.source_id || source.source_key || source.id || `SD-${index + 1}`);
       slice.objects.push({
         id,
         type: "SourceDocument",
@@ -381,14 +429,14 @@ export function materializeStageIntoGraph(
   }
   if (stageKind === "stage_04") {
     for (const [index, signal] of ((stageJson.signals as any[]) || []).entries()) {
-      const id = String(signal.id || `SIG-${index + 1}`);
+      const id = String(signal.signal_id || signal.id || `SIG-${index + 1}`);
       slice.objects.push({
         id,
         type: "Signal",
         properties: { ...signal },
         projection: { section: "signals", index },
       });
-      for (const evidenceId of signal.evidence_draft_ids || []) {
+      for (const evidenceId of signal.evidence_refs || signal.evidence_draft_ids || []) {
         slice.relations.push({
           id: `REL-${id}-EVIDENCE-${evidenceId}`,
           type: "signalDerivedFromEvidence",
@@ -398,15 +446,19 @@ export function materializeStageIntoGraph(
         });
       }
     }
+    addObjects(stageJson.hypotheses, "Hypothesis", ["hypothesis_id", "id"], "hypotheses");
+    addObjects(stageJson.competing_explanations, "CompetingExplanation", ["explanation_id", "id"], "competing_explanations");
+    addObjects(stageJson.rule_evaluations, "RuleEvaluation", ["rule_evaluation_id", "id"], "rule_evaluations");
+    addObjects(stageJson.reasoning_traces, "ReasoningTrace", ["trace_id", "id"], "reasoning_traces");
     for (const [index, judgment] of ((stageJson.judgments as any[]) || []).entries()) {
-      const id = String(judgment.id || `J-${index + 1}`);
+      const id = String(judgment.judgment_id || judgment.id || `J-${index + 1}`);
       slice.objects.push({
         id,
         type: "Judgment",
         properties: { ...judgment },
         projection: { section: "judgments", index },
       });
-      for (const evidenceId of judgment.supporting_evidence_draft_ids || []) {
+      for (const evidenceId of judgment.evidence_refs || judgment.supporting_evidence_draft_ids || []) {
         slice.relations.push({
           id: `REL-${id}-${evidenceId}`,
           type: "judgmentBasedOn",
@@ -415,7 +467,7 @@ export function materializeStageIntoGraph(
           properties: {},
         });
       }
-      for (const applicationId of judgment.method_application_ids || []) {
+      for (const applicationId of judgment.method_application_refs || judgment.method_application_ids || []) {
         slice.relations.push({
           id: `RUNTIME-${id}-METHOD-${applicationId}`,
           type: "runtimeJudgmentUsesMethodApplication",

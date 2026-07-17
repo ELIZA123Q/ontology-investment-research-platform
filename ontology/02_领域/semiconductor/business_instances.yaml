@@ -3,8 +3,12 @@
 schema_name: semiconductor_domain_business_instances
 schema_version: 1.1.0
 depends_on:
+- ../../01_通用/models/semantic.yaml
+- ../../01_通用/models/state_event.yaml
 - ../../01_通用/models/evidence.yaml
 - ../../01_通用/models/judgment.yaml
+- ../../01_通用/models/scenario.yaml
+- ../../01_通用/models/semiconductor_extension.yaml
 business_instance_graph:
   schema_name: ontology_business_instance_graph
   schema_version: 1.0.0
@@ -518,7 +522,7 @@ business_instance_graph:
       anchors:
       - Company
       - Product
-      - Segment
+      - ValueChainSegment
       observation_guidance: 同时检查订单覆盖期、取消条款、重复下单和交付排期。
       evidence_profile_ref: demand_orders
       counter_evidence_guidance: 订单取消、重复下单、渠道囤货或客户延迟拉货。
@@ -578,7 +582,7 @@ business_instance_graph:
       anchors:
       - Product
       - Material
-      - Segment
+      - ValueChainSegment
       - ManufacturingFacility
       - Region
       observation_guidance: 联合观察产能、良率、交期、分配、许可、物流和替代供应。
@@ -599,7 +603,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - ManufacturingFacility
-      - Segment
+      - ValueChainSegment
       - Product
       observation_guidance: 使用有效产能而非名义产能，并考虑良率、产品切换和维护停机。
       evidence_profile_ref: capacity_supply
@@ -620,7 +624,7 @@ business_instance_graph:
       anchors:
       - ManufacturingFacility
       - Company
-      - Segment
+      - ValueChainSegment
       observation_guidance: 分阶段记录建设、设备安装、试产、良率爬坡和客户认证。
       evidence_profile_ref: capacity_supply
       counter_evidence_guidance: 项目延期、设备或人才短缺、良率不足、客户认证失败或资本约束。
@@ -638,7 +642,7 @@ business_instance_graph:
       decision_use: 判断供需缺口的持续时间和价格压力是否可延续。
       variable_kind: qualitative_or_derived
       anchors:
-      - Segment
+      - ValueChainSegment
       - Product
       - Material
       - TechnologyRoute
@@ -663,7 +667,7 @@ business_instance_graph:
       - Product
       - Material
       - ManufacturingFacility
-      - Segment
+      - ValueChainSegment
       observation_guidance: 穿透关键设备、材料、封装基板、测试产能和地域单点依赖。
       evidence_profile_ref: capacity_supply
       counter_evidence_guidance: 表面多供但共享同一上游、替代路线已认证或库存可缓冲。
@@ -724,7 +728,7 @@ business_instance_graph:
       - ProcessStep
       - ManufacturingFacility
       - Product
-      - Segment
+      - ValueChainSegment
       observation_guidance: 区分制造周期、排队时间、返工、物流和客户验收造成的延迟。
       evidence_profile_ref: manufacturing_yield
       counter_evidence_guidance: 周期恢复、加急能力充足、在制品下降或瓶颈工序解除。
@@ -764,7 +768,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - Product
       observation_guidance: 对齐供应商、渠道、客户和终端多层库存及业务时间。
@@ -787,7 +791,7 @@ business_instance_graph:
       - Company
       - Product
       - Material
-      - Segment
+      - ValueChainSegment
       observation_guidance: 结合可用库存、保质期、规格兼容性、在途库存和安全库存政策。
       evidence_profile_ref: inventory_cycle
       counter_evidence_guidance: 库存不可替换、规格不匹配、质量受限、消耗加快或数据仅为账面库存。
@@ -807,7 +811,7 @@ business_instance_graph:
       anchors:
       - Company
       - Product
-      - Segment
+      - ValueChainSegment
       observation_guidance: 检查订单质量、覆盖期、取消权、客户集中度和历史转化率。
       evidence_profile_ref: demand_orders
       counter_evidence_guidance: 大量可取消订单、重复预订、客户延迟验收或历史转化率偏低。
@@ -826,7 +830,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Product
-      - Segment
+      - ValueChainSegment
       - Company
       observation_guidance: 区分挂牌价、合同价、成交价、产品组合和一次性调整。
       evidence_profile_ref: pricing_economics
@@ -868,7 +872,7 @@ business_instance_graph:
       anchors:
       - Company
       - Product
-      - Segment
+      - ValueChainSegment
       observation_guidance: 观察合同、替代难度、客户集中度、涨价兑现和份额变化。
       evidence_profile_ref: pricing_economics
       counter_evidence_guidance: 客户议价强、替代品充足、涨价后丢失份额或合同限制调价。
@@ -887,7 +891,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       observation_guidance: 综合价格、成本、利用率、份额、资本强度和议价关系。
       evidence_profile_ref: pricing_economics
@@ -1051,7 +1055,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Product
       - Company
       observation_guidance: 观察价格行为、产能进入、客户切换、份额和差异化。
@@ -1093,7 +1097,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - TechnologyRoute
       observation_guidance: 区分技术可得性、资金投入、学习曲线、生态和监管限制。
       evidence_profile_ref: competition_structure
@@ -1113,7 +1117,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - ManufacturingFacility
       - Region
@@ -1182,7 +1186,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - Product
       - Material
@@ -1226,7 +1230,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Company
-      - Segment
+      - ValueChainSegment
       - Product
       observation_guidance: 综合业务结构、产能、客户、供应商和利润贡献，而非只看公司标签。
       evidence_profile_ref: company_exposure_execution
@@ -1288,7 +1292,7 @@ business_instance_graph:
       anchors:
       - Company
       - Product
-      - Segment
+      - ValueChainSegment
       observation_guidance: 拆分量、价、结构、利用率、成本、费用、资本开支和营运资金渠道。
       evidence_profile_ref: company_exposure_execution
       counter_evidence_guidance: 固定合同、业务对冲、费用投入、折旧上升、营运资金占用或会计确认滞后。
@@ -1307,7 +1311,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - Product
       - Asset
@@ -1332,7 +1336,7 @@ business_instance_graph:
       variable_kind: derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - Product
       - TechnologyRoute
@@ -1358,7 +1362,7 @@ business_instance_graph:
       variable_kind: qualitative_or_derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - Product
       - TechnologyRoute
@@ -1384,7 +1388,7 @@ business_instance_graph:
       variable_kind: derived
       anchors:
       - Industry
-      - Segment
+      - ValueChainSegment
       - Company
       - Product
       - TechnologyRoute
@@ -1432,7 +1436,7 @@ business_instance_graph:
       anchors:
       - Company
       - Product
-      - Segment
+      - ValueChainSegment
       observation_guidance: 拆分收入、毛利和增长贡献，区分结构性产品与周期性或一次性产品。
       evidence_profile_ref: company_exposure_execution
       counter_evidence_guidance: 增长来自低毛利产品、老旧产品或不可持续的一次性项目。
@@ -1607,7 +1611,7 @@ business_instance_graph:
       blocking_conditions:
       - 扩产取消
       - 设备许可或供应中断
-      anchor_alignment: Industry/Segment
+      anchor_alignment: Industry/ValueChainSegment
       direction_logic: (end_market_demand_strength上升 OR semiconductor_content_intensity上升) AND capacity_expansion_progress推进
         → 上游order_visibility上升
       evidence_profile_ref: capacity_supply
@@ -2279,7 +2283,7 @@ business_instance_graph:
       - pricing_power
       direction_mapping: 供给弹性低且产能紧张时，价格压力更可能持续。
       direction_logic: supply_elasticity低 AND capacity_tightness高 → product_price_pressure持续
-      anchor_alignment: Segment/Product/Material
+      anchor_alignment: ValueChainSegment/Product/Material
       evidence_profile_ref: capacity_supply
       default_competing_explanation: 价格上涨可能来自短期事故而非结构性缺口
       time_lag: 即期至数个季度。
@@ -2961,8 +2965,8 @@ business_instance_graph:
       id: recipe_cycle_phase
       recipeName: 周期阶段判断取证配方
       judgmentType: cycle_phase
-      strategyLibraryRef: methods/03_取证/A_取证方法/A03_趋势与阶段取证.md
-      strategyVersion: 3.1.0
+      strategyLibraryRef: methods/03_取证/A03_趋势与阶段判断.md
+      strategyVersion: 3.2.0
       requiredBasketTypes:
       - primary_support
       - cross_validation
@@ -2984,8 +2988,8 @@ business_instance_graph:
       id: recipe_transmission_path
       recipeName: 传导路径判断取证配方
       judgmentType: transmission_path
-      strategyLibraryRef: methods/03_取证/A_取证方法/A04_机制与传导取证.md
-      strategyVersion: 3.1.0
+      strategyLibraryRef: methods/03_取证/A04_机制传导验证.md
+      strategyVersion: 3.2.0
       requiredBasketTypes:
       - primary_support
       - cross_validation
@@ -3007,8 +3011,8 @@ business_instance_graph:
       id: recipe_state_measurement
       recipeName: 状态度量判断取证配方
       judgmentType: state_measurement
-      strategyLibraryRef: methods/03_取证/A_取证方法/A02_状态度量取证.md
-      strategyVersion: 3.1.0
+      strategyLibraryRef: methods/03_取证/A02_状态变量测量.md
+      strategyVersion: 3.2.0
       requiredBasketTypes:
       - primary_support
       - background_evidence
@@ -3032,6 +3036,7 @@ business_instance_graph:
       proxyFor: inventory_cycle_position
       targetStateVariableId: inventory_cycle_position
       proxyLogic: 在直接库存天数不可得时，用现货价与合约价相对强弱间接观察去库存/补库方向
+      expectedTimeLag: 价格通常领先库存确认零至一个季度，但会受到供给停产和渠道投机干扰。
       validConditions:
       - 价格口径连续可比
       - 无重大规格切换
@@ -3047,6 +3052,66 @@ business_instance_graph:
     projection:
       section: proxy_indicators
       index: 0
+  - id: proxy_lead_time_for_capacity_tightness
+    type: ProxyIndicator
+    properties:
+      id: proxy_lead_time_for_capacity_tightness
+      proxyIndicatorName: 设备与关键产品交期代理产能紧张度
+      proxyFor: capacity_tightness
+      targetStateVariableId: capacity_tightness
+      proxyLogic: 在有效产能不可直接获得时，以同规格、同地域的交期变化观察供给约束方向。
+      expectedTimeLag: 领先实际产出约一至两个季度，依设备搬入和客户验收节奏调整。
+      validConditions: [规格与地域可比, 报价与实际交付记录可交叉验证, 排除物流中断]
+      invalidConditions: [交期受单次运输事件主导, 供应商主动延长报价有效期, 产品发生代际切换]
+      confidenceDiscount: 相对有效产能和利用率直接证据至少下调一档。
+      cannotReplace: [产线有效产能, 稼动率, 良率和产品组合]
+      requiredDisclosure: 必须披露交期到产能的预计滞后，不得将长交期直接写成需求确认。
+    projection: {section: proxy_indicators, index: 1}
+  - id: proxy_tender_for_localization
+    type: ProxyIndicator
+    properties:
+      id: proxy_tender_for_localization
+      proxyIndicatorName: 招标与中标代理国产替代进展
+      proxyFor: localization_substitution_progress
+      targetStateVariableId: localization_substitution_progress
+      proxyLogic: 用同品类招标、中标和复购进度观察本地供应进入客户采购体系的阶段。
+      expectedTimeLag: 中标通常领先验收、量产和收入确认一至四个季度。
+      validConditions: [可定位招标主体与品类, 中标结果可核验, 后续验收节点可跟踪]
+      invalidConditions: [框架入围未形成采购, 非约束性意向, 低端规格替代外推到全品类]
+      confidenceDiscount: 未取得验收或复购证据时最高支持验证阶段判断。
+      cannotReplace: [客户认证记录, 验收记录, 批量采购与收入确认]
+      requiredDisclosure: 必须区分入围、中标、验收、复购和规模量产。
+    projection: {section: proxy_indicators, index: 2}
+  - id: proxy_trade_for_supply_availability
+    type: ProxyIndicator
+    properties:
+      id: proxy_trade_for_supply_availability
+      proxyIndicatorName: 贸易流量代理区域供给可得性
+      proxyFor: supply_availability
+      targetStateVariableId: supply_availability
+      proxyLogic: 用同海关编码、同地域的进口数量和单价变化观察受限产品的区域可得性。
+      expectedTimeLag: 通常滞后订单并领先终端消耗零至一个季度，受库存缓冲影响。
+      validConditions: [海关编码稳定, 数量与金额口径一致, 排除转口和提前备货]
+      invalidConditions: [编码覆盖多种不可比产品, 单价由产品组合驱动, 贸易路径发生迁移]
+      confidenceDiscount: 不能穿透最终用途和库存时至少下调一档。
+      cannotReplace: [许可数据, 客户库存, 实际交付和最终用途记录]
+      requiredDisclosure: 必须披露编码范围、转口风险和库存缓冲。
+    projection: {section: proxy_indicators, index: 3}
+  - id: proxy_utilization_for_demand
+    type: ProxyIndicator
+    properties:
+      id: proxy_utilization_for_demand
+      proxyIndicatorName: 晶圆厂稼动率代理需求强度
+      proxyFor: end_market_demand_strength
+      targetStateVariableId: end_market_demand_strength
+      proxyLogic: 用同工艺平台稼动率的持续变化观察订单消耗，但必须与库存和终端数据共同解释。
+      expectedTimeLag: 稼动率对订单变化通常滞后一个排产周期，对终端需求可能滞后一至两个季度。
+      validConditions: [工艺平台和产品组合稳定, 稼动率口径连续, 具有库存或出货旁证]
+      invalidConditions: [检修或良率异常主导, 新产线爬坡, 客户提前备货]
+      confidenceDiscount: 缺终端旁证时不得单独支持需求反转。
+      cannotReplace: [终端销量, 实际部署, 客户消耗和渠道库存]
+      requiredDisclosure: 必须披露稼动率与终端需求之间的排产和库存滞后。
+    projection: {section: proxy_indicators, index: 4}
   relations:
   - id: REL-end_market_demand_strength-PROFILE
     type: stateVariableUsesEvidenceProfile

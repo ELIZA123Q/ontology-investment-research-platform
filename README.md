@@ -14,7 +14,7 @@
 |--------|----------|
 | 供需/趋势会不会变、事件有没有影响、冲击怎么传导、某个假设还成不成立 | 查数、买卖建议、必须给出确定价格或涨跌 |
 
-对照样例：[`01_存储周期`](instances/01_正式样例/01_存储周期) · [`02_管制与国产替代`](instances/01_正式样例/02_管制与国产替代)。
+对照样例：[`memory-cycle-run-002`](instances/02_V3样例/01_memory-cycle-run-002) · [`us-controls-localization-run-002`](instances/02_V3样例/02_us-controls-localization-run-002)。
 
 ## 最终结果怎么读
 
@@ -82,8 +82,7 @@
 
 ```bash
 python3 governance/03_校验/validate_project.py
-python3 governance/03_校验/validate_run.py instances/01_正式样例/01_存储周期
-python3 governance/03_校验/validate_run.py instances/01_正式样例/02_管制与国产替代
+python3 governance/03_校验/validate_v3_samples.py
 ```
 
 校验通过只说明写法与引用合规，**不代替**你对数据真伪和研究价值的判断。

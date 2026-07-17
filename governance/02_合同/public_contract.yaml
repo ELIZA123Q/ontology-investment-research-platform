@@ -3,7 +3,13 @@ schema_version: 1.3.0
 status: active
 formal_ontology_version: 3.0.0
 ontology_meta_schema_version: 1.0.0
-legacy_readonly_contract_versions: [1.2.1]
+legacy_readonly_contract_versions: []
+legacy_migration_policy:
+  mode: direct-to-latest
+  current_contract: 1.3.0
+  legacy_samples_retained: false
+  legacy_publish_compatibility: false
+  rule: 所有新运行必须使用 Ontology 3.0 与 Public Contract 1.3；旧字段只能在迁移映射中出现，不得进入正式产物。
 
 # 这里只维护跨阶段共享语义。阶段内部字段继续由 01—05 各自规范维护。
 ownership:
@@ -23,6 +29,8 @@ ownership:
     - cross_stage_references
     - judgment_method_routes
     - method_application_contract
+    - reasoning_trace_contract
+    - incremental_update_contract
     - rule_usage_contract
     - replay_contract
   formal_ontology:
@@ -117,12 +125,12 @@ trace_id_patterns:
 business_authority_refs:
   judgment_types: ontology/01_通用/models/judgment.yaml#object_types.JudgmentUnit.attributes.judgment_type.allowed_values
   judgment_levels: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.level.allowed_values
-  path_readiness_statuses: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps.@keys
-  path_result_statuses: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
-  source_authority_levels: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.source_authority_levels
+  path_readiness_statuses: governance/02_合同/judgment_threshold_policy.yaml#path_readiness_caps.@keys
+  path_result_statuses: governance/02_合同/judgment_threshold_policy.yaml#path_result_statuses
+  source_authority_levels: governance/02_合同/judgment_threshold_policy.yaml#source_authority_levels
   source_tiers: ontology/01_通用/models/evidence.yaml#object_types.SourceDocument.attributes.source_tier.allowed_values
   confidence_levels: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.confidence.allowed_values
-  basket_roles: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.operational_basket_roles
+  basket_roles: governance/02_合同/judgment_threshold_policy.yaml#operational_basket_roles
 
 legacy_judgment_type_migration:
   trend_or_phase: trend_direction
@@ -169,7 +177,12 @@ method_namespaces:
   rule: 跨阶段产物中的方法引用必须带命名空间；知识库内部文件名可继续使用 A01—A10。
 
 method_application_contract:
-  schema_version: 1.0.0
+  schema_version: 1.1.0
+  canonical_stage_field: method_applications
+  deprecated_stage_fields:
+    method_application_candidates: replaced_by_method_applications
+    method_input_bindings: replaced_by_method_applications
+    method_application_register: replaced_by_method_applications
   statuses: [candidate, selected, executed, rejected, blocked, degraded]
   capability_types: [judgment_structure, evidence, adjudication]
   required_fields:
@@ -193,13 +206,73 @@ method_application_contract:
     - alternatives
   precondition_check_required_fields: [precondition_id, result, evidence_refs, reason]
   alternative_required_fields: [method_id, decision, reason]
+  provenance_required_fields: [stage, source_application_id, actor, recorded_at]
+  immutable_fields:
+    - application_id
+    - method_id
+    - method_version
+    - capability_type
+    - target_question_refs
+    - target_judgment_unit_refs
+  additive_only_fields: [target_ontology_object_refs]
+  stage_field_ownership:
+    stage_02:
+      creates: [application_id, method_id, method_version, capability_type, target_question_refs, target_judgment_unit_refs, target_ontology_object_refs, applicability_boundary, alternatives]
+      allowed_statuses: [candidate]
+      forbidden_nonempty: [input_evidence_refs, output_signal_refs, output_judgment_refs, execution_summary]
+    stage_03:
+      updates: [status, precondition_checks, input_evidence_refs, limitations, counter_example_refs, alternatives, provenance]
+      allowed_statuses: [candidate, selected, rejected, blocked, degraded]
+      forbidden_statuses: [executed]
+      note: 必须完整继承 02 的全部 MA；未进入取证的裁决候选保持 candidate，禁止省略。
+    stage_04:
+      updates: [status, precondition_checks, input_evidence_refs, output_signal_refs, output_judgment_refs, execution_summary, limitations, counter_example_refs, alternatives, provenance]
+      allowed_statuses: [executed, rejected, blocked, degraded]
+      note: 必须完整继承 03 的全部 MA 并收敛为终态；只有 executed 可以支撑 Judgment。
+    stage_05:
+      creates: []
+      updates: []
+      projection_fields: [source_method_application_refs]
+      note: 只能引用 04 中 executed 的 MA，不得复制、创建或改写 MA。
+  allowed_transitions:
+    candidate: [candidate, selected, executed, rejected, blocked, degraded]
+    selected: [selected, executed, rejected, blocked, degraded]
+    executed: [executed]
+    rejected: [rejected]
+    blocked: [blocked]
+    degraded: [degraded, executed, rejected, blocked]
   rules:
-    - candidate/selected/rejected/blocked/degraded 可由 02 创建；executed 只能由 04 最终确认。
+    - 02 只能创建 candidate；03 不得确认 executed；04 必须把全部方法收敛为终态。
+    - 03 和 04 必须完整继承上一阶段全部 application_id，禁止静默删除或临时新增。
+    - immutable_fields 不得跨阶段变化；target_ontology_object_refs 只允许追加，不允许删除。
+    - provenance.source_application_id 在 02 必须为空，在 03/04 必须等于当前 application_id，以声明继承来源。
     - executed 必须至少绑定一项输入证据以及一项输出信号或判断。
     - rejected/blocked/degraded 必须填写失败前置条件或明确原因，并记录可用替代方法。
     - 方法应用属于运行合同，不得写入正式本体 rules、action_types、functions 或 logic_flows。
     - 04 的每个关键 Judgment 必须反向引用至少一项 executed MethodApplication。
-    - 05 只能引用 04 已存在的 MethodApplication，禁止新增或改变状态。
+    - 05 只能引用 04 已存在且状态为 executed 的 MethodApplication，禁止新增或改变状态。
+
+reasoning_trace_contract:
+  schema_version: 1.0.0
+  minimum_chain: [EvidenceFact, Signal, Hypothesis, RuleEvaluation, MethodApplication, Judgment, ReasoningTrace, Expression]
+  rule_evaluation_required_fields: [rule_evaluation_id, rule_ref, input_refs, condition_results, result]
+  condition_result_required_fields: [condition_id, expression, input_refs, outcome, rationale]
+  judgment_required_refs: [evidence_refs, signal_refs, hypothesis_refs, rule_evaluation_refs, method_application_refs]
+  reasoning_trace_required_fields: [trace_id, judgment_ref, node_refs, created_at]
+  field_ownership:
+    stage_03: [EvidenceClaim, EvidenceFact, EvidenceAssessment, EvidenceBasket]
+    stage_04: [Signal, Hypothesis, RuleEvaluation, Judgment, ReasoningTrace]
+    stage_05: [Expression]
+  rules:
+    - 每个 Signal 必须绑定具体 EvidenceFact，并指向至少一个 Hypothesis；EvidenceBasket 不能替代事实级绑定。
+    - 每个 Hypothesis 必须具有至少一个 Signal 和可观测证伪条件。
+    - RuleEvaluation 只能引用正式本体规则；治理检查、运行控制和方法规则不得支撑商业判断。
+    - 每个 condition_result 必须包含具体输入引用；其 input_refs 必须包含于 RuleEvaluation.input_refs，且不得仅引用 EvidenceBasket。
+    - 仅写 matched 或只写汇总 result 的 RuleEvaluation 无效。
+    - 每个 Judgment 必须同时引用 EvidenceFact、Signal、Hypothesis、RuleEvaluation 和至少一个 executed MethodApplication。
+    - Judgment.evidence_refs 必须被其 Signal 或 RuleEvaluation 的事实级输入覆盖，禁止证据绕过中间推理步骤。
+    - ReasoningTrace.node_refs 必须覆盖 Judgment 的全部直接引用和 Judgment 自身。
+    - 05 Expression 只能引用其来源 Judgment 已使用的具体 EvidenceFact 和 executed MethodApplication，不得引用整个 EvidenceBasket 或产生新语义对象。
 
 rule_usage_contract:
   schema_version: 1.0.0
@@ -220,7 +293,6 @@ replay_contract:
   replay_without_markdown: 仅凭 run_manifest + 各阶段结构化产物，应能回答本次对象、所用方法版本、绑定证据、裁决边界与结论强度，无需阅读 05 研报正文。
   reference_samples:
     v3_with_method_application: instances/02_V3样例
-    legacy_fixture: instances/01_正式样例
 
 runtime_objects:
   - Task
@@ -253,6 +325,8 @@ object_validity_propagation:
   formal_object_types:
     - EvidenceClaim
     - EvidenceFact
+    - EvidenceAssessment
+    - EvidenceBasket
     - Observation
     - Event
     - Signal
@@ -260,19 +334,49 @@ object_validity_propagation:
     - Hypothesis
     - RuleEvaluation
     - Judgment
+    - ReasoningTrace
     - ExpectationGap
     - AssetImpact
-  runtime_projection_types: [ReportClaim, MethodApplication]
+  runtime_projection_types: [ReportClaim, Expression, MethodApplication]
   dependency_order:
-    - [EvidenceClaim_or_EvidenceFact, Observation_or_Event_or_Signal_or_MarketExpectation]
+    - [EvidenceClaim_or_EvidenceFact, EvidenceAssessment_or_EvidenceBasket_or_MethodApplication_or_Observation_or_Event_or_Signal_or_MarketExpectation]
     - [Observation_or_Event_or_Signal, Hypothesis]
     - [Hypothesis, RuleEvaluation]
     - [RuleEvaluation, Judgment]
+    - [MethodApplication, Judgment]
+    - [Judgment, ReasoningTrace_or_Expression]
     - [Judgment, ExpectationGap_or_AssetImpact]
     - [MarketExpectation, ExpectationGap]
     - [ExpectationGap_or_AssetImpact, ReportClaim]
   authority_rule: 每条依赖必须引用正式本体 Relation；只有 ReportClaim 边允许 stageProjection。
   invalidation_rule: 只传播到可达下游对象，不因同属一个阶段而使无关对象 stale。
+
+incremental_update_contract:
+  schema_version: 1.1.0
+  required_fields: [update_id, new_evidence, changed_roots, direct_impacts, propagation_edges, affected_graph, recompute_stages, structural_checkpoint_required, full_rerun_required, expected_judgment_change]
+  propagation_edge_required_fields: [source_ref, target_ref, dependency_type]
+  dependency_types: [basket_membership, method_input, signal_input, hypothesis_input, rule_input, method_support, judgment_dependency, trace_projection, expression_projection]
+  object_actions: [maintain, stale, revalidate, recompute, supersede]
+  stage_by_object:
+    EvidenceAssessment: '03'
+    EvidenceBasket: '03'
+    evidence_MethodApplication: '03'
+    Signal: '04'
+    Hypothesis: '04'
+    RuleEvaluation: '04'
+    adjudication_MethodApplication: '04'
+    Judgment: '04'
+    ReasoningTrace: '04'
+    Expression: '05'
+  rules:
+    - changed_roots 记录新增、修订或失效的事实根；新增事实本身是 current，不自动列入 stale。
+    - direct_impacts 必须列出新根通过语义匹配直接影响的既有对象；不得只写阶段号。
+    - affected_graph.stale 必须等于 direct_impacts 在实际依赖图上的可达闭包，既不能漏传播，也不能把不可达对象标为 stale。
+    - propagation_edges 必须解释 stale 闭包中实际使用的依赖边，并引用已存在对象。
+    - remains_current 不得与 stale 相交，且其中对象不得从 direct_impacts 可达。
+    - recompute_stages 只能由 stale 对象所属阶段派生；局部证据更新默认按 03→04→05 的受影响子集重算。
+    - full_rerun_required 只有在结构边界、判断单元或本体依赖发生变化且 structural_checkpoint_required 为 true 时才允许为 true。
+    - 共享上游对象会使全部可达判断失效；若希望局部更新，必须先把语义不同的 Hypothesis、Signal 或 EvidenceBasket 拆开。
 
 iteration_semantics:
   evidence_unit: frozen_batch

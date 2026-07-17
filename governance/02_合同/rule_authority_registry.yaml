@@ -24,7 +24,10 @@ formal_ontology_rules:
   evidence_scope_time_alignment: {source_ref: ontology/01_通用/models/evidence.yaml#rules, rule_class: evidence_constraint}
   no_direct_evidence_to_judgment: {source_ref: ontology/01_通用/models/evidence.yaml#rules, rule_class: evidence_constraint}
   judgment_evidence_threshold: {source_ref: ontology/01_通用/models/judgment.yaml#rules, rule_class: evidence_constraint}
+  judgment_status_consistency: {source_ref: ontology/01_通用/models/judgment.yaml#rules, rule_class: state_consistency}
   semiconductor_proxy_disclosure: {source_ref: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints, rule_class: evidence_constraint}
+  semiconductor_qualification_stage_alignment: {source_ref: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints, rule_class: evidence_constraint}
+  semiconductor_capacity_yield_scope_alignment: {source_ref: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints, rule_class: evidence_constraint}
 
 method_assets:
   kb04:A00: {source_ref: methods/04_裁决/A00_裁决总则.md, capability: adjudication}

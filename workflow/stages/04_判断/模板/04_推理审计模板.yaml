@@ -93,7 +93,8 @@ overall_judgment:
     objects: []
   downgrade_reasons: []
 
-method_application_register:
+method_applications:
+  # 必须完整复制 03 的全部 MA，并将每项收敛为 executed/rejected/blocked/degraded。
   - application_id: MA-01
     method_id: kb04:A01
     method_version: 1.0.0
@@ -115,9 +116,10 @@ method_application_register:
     limitations: []
     counter_example_refs: []
     provenance:
-      library_ref: methods/04_裁决/README.md
-      source_03_binding_ref: "03 method_input_bindings#MA-01"
-      executed_at: "<ISO 8601>"
+      stage: stage_04
+      source_application_id: MA-01
+      actor: "<裁决执行人或 agent>"
+      recorded_at: "<ISO 8601>"
     alternatives:
       - method_id: kb04:A02
         decision: rejected
@@ -306,6 +308,10 @@ business_instance_graph:
   schema_name: ontology_business_instance_graph
   schema_version: 1.0.0
   authority: business_parameters
+  reasoning_trace_contract_ref: governance/02_合同/public_contract.yaml#reasoning_trace_contract
+  required_projection_chain: [EvidenceFact, Signal, Hypothesis, RuleEvaluation, MethodApplication, Judgment, ReasoningTrace]
+  fact_level_rule_inputs_required: true
+  basket_only_rule_inputs_forbidden: true
   objects: []
   relations: []
 

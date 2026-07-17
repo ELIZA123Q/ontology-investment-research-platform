@@ -47,6 +47,7 @@ from research_contract import (
     validate_evidence_routes,
 )
 from validate_delivery_readiness import validate_delivery_readiness
+from validate_method_application_contract import assert_valid_stage_applications
 from validator_utils import (
     assert_subset,
     assert_values,
@@ -425,6 +426,7 @@ def _validate_instance_manifest(
     prep_triplet: tuple[str, str, str],
     prep_meta: dict[str, object],
     rows: dict[str, list[dict[str, str]]],
+    view: dict[str, object],
 ) -> None:
     topic, date, seq = prep_triplet
     path = prep_path.parent / f"03-{topic}语义域与证据域实例清单-{date}-{seq}.yaml"
@@ -454,6 +456,40 @@ def _validate_instance_manifest(
             str(path),
         )
         require_schema_version(manifest["schema_version"], str(path), expected="3.0.0")
+
+        def collect_refs(value: object, keys: set[str]) -> set[str]:
+            found: set[str] = set()
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    if key in keys and child not in (None, ""):
+                        found.add(str(child))
+                    found.update(collect_refs(child, keys))
+            elif isinstance(value, list):
+                for child in value:
+                    found.update(collect_refs(child, keys))
+            return found
+
+        # 只有 2.x 视图可以走 legacy 兼容；3.0 不得通过删字段绕过 MA 门禁。
+        method_contract_required = str(view.get("schema_version")) == "3.0.0"
+        try:
+            assert_valid_stage_applications(
+                manifest,
+                "stage_03",
+                required=method_contract_required,
+                prior_items=view.get("method_applications"),
+                known_questions=collect_refs(view, {"question_id"}),
+                known_judgment_units=collect_refs(view, {"judgment_unit_id"}),
+                known_objects=collect_refs(view.get("business_instance_graph", {}), {"id"}),
+                known_evidence={
+                    str(row.get("fact_id"))
+                    for row in rows.get("evidence_facts.csv", [])
+                    if row.get("fact_id")
+                },
+                known_signals=set(),
+                known_judgments=set(),
+            )
+        except ValueError as exc:
+            fail(str(exc))
         try:
             from runtime_instance_graph import assert_stage03_projections
 
@@ -535,7 +571,7 @@ def _validate_ontology_instances(view: dict[str, object], rows: dict[str, list[d
     allowed_object_types = set(split_refs(semantic_scope.get("object_type_refs")))
     allowed_relation_types = set(split_refs(semantic_scope.get("relation_type_refs")))
     allowed_profiles = set(split_refs(evidence_contract.get("evidence_profile_refs")))
-    # 阶段 CSV 运营枚举（历史 2.x evidence.yaml 字段）；权威不再回指 L1 本体文件。
+    # 阶段 CSV 运营枚举（阶段合同字段，非 L1 本体文件）。
     operational_enums = {
         ("SourceDocument", "sourceType"): {
             "filing", "report", "news", "transcript", "dataset", "policy", "manual",
@@ -1359,7 +1395,7 @@ def validate(prep_path: str | Path, snapshot_dir: str | Path) -> dict[str, objec
         fail("delivery_readiness.csv 必须且只能有一行")
     if delivery_rows[0].get("target_report_type") != prep_meta["target_05_archetype"]:
         fail("delivery_readiness.target_report_type 必须继承 preparation.target_05_archetype")
-    _validate_instance_manifest(prep_path, snapshot_dir, prep_triplet, prep_meta, rows)
+    _validate_instance_manifest(prep_path, snapshot_dir, prep_triplet, prep_meta, rows, view)
     _validate_ontology_instances(view, rows)
     _validate_normalized_evidence_graph(rows)
     _validate_counts_v13(prep_meta, summary_meta, rows)

@@ -18,13 +18,11 @@ spec.loader.exec_module(validator)
 class RuleAuthorityTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registry = validator.load(validator.REGISTRY)
-        self.ledger = validator.load(validator.LEDGER)
         self.operations = validator.load(validator.OPERATIONS)
 
-    def errors(self, registry=None, ledger=None, operations=None, refs=None):
+    def errors(self, registry=None, operations=None, refs=None):
         return validator.validate_rule_authority(
             registry or self.registry,
-            ledger or self.ledger,
             operations or self.operations,
             judgment_rule_refs=refs,
         )
@@ -41,12 +39,6 @@ class RuleAuthorityTests(unittest.TestCase):
         operations["actions"]["FormJudgment"]["rule_refs"] = ["judgment_evidence_threshold"]
         errors = self.errors(operations=operations, refs=[])
         self.assertTrue(any("ambiguous rule_refs" in error for error in errors), errors)
-
-    def test_every_legacy_rule_needs_explicit_migration(self) -> None:
-        ledger = copy.deepcopy(self.ledger)
-        del ledger["overrides"]["formal_rule_merges"]["mapping"]["unique_identity"]
-        errors = self.errors(ledger=ledger, refs=[])
-        self.assertTrue(any("unique_identity requires exactly one explicit migration" in error for error in errors), errors)
 
     def test_formal_registry_must_match_formal_models(self) -> None:
         registry = copy.deepcopy(self.registry)

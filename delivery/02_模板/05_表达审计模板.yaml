@@ -55,6 +55,8 @@ high_risk_section_coverage:
 
 overall_check:
   all_expressions_mapped_to_04_claims: false
+  all_evidence_mapped_to_04_judgments: false
+  all_methods_mapped_to_executed_04_applications: false
   no_expression_level_upgrade: false
   no_condition_loss: false
   no_scope_expansion: false

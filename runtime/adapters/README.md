@@ -1,11 +1,5 @@
-# Runtime · 适配器
+# Runtime adapters
 
-外部接口、模型输出、来源与持久化的转换层。不改变字段语义，也不静默补齐失败字段。
+源材料快照布局与结构化证据包适配。
 
-旧版运行包路径迁移：
-
-```bash
-python3 runtime/adapters/legacy_run_manifest.py <旧清单> --output <新清单>
-```
-
-映射表：[`governance/01_架构/asset_migration.yaml`](../../governance/01_架构/asset_migration.yaml)。
+历史路径迁移适配器已随 Ontology 2.x 退役移除；新运行请直接使用当前仓库路径与 `run_manifest` 1.3.0。

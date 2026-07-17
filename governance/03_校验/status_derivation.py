@@ -31,9 +31,10 @@ import yaml
 _ROOT = Path(__file__).resolve().parents[2]
 _JUDGMENT_MODEL_PATH = _ROOT / "ontology" / "01_通用" / "models" / "judgment.yaml"
 _EVIDENCE_MODEL_PATH = _ROOT / "ontology" / "01_通用" / "models" / "evidence.yaml"
+_THRESHOLD_POLICY_PATH = _ROOT / "governance" / "02_合同" / "judgment_threshold_policy.yaml"
 _JUDGMENT_MODEL = yaml.safe_load(_JUDGMENT_MODEL_PATH.read_text(encoding="utf-8"))
 _EVIDENCE_MODEL = yaml.safe_load(_EVIDENCE_MODEL_PATH.read_text(encoding="utf-8"))
-_THRESHOLD_POLICY = _JUDGMENT_MODEL["rules"]["judgment_evidence_threshold"]["parameters"]
+_THRESHOLD_POLICY = yaml.safe_load(_THRESHOLD_POLICY_PATH.read_text(encoding="utf-8"))
 
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
 TASK_DISPOSITIONS = {

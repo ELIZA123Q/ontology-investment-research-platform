@@ -136,7 +136,7 @@ describe("v1.3 operational spine", () => {
   });
 
   it("exports package and invokes validate_run bridge", () => {
-    const run = db.createRun("发布桥测试", "semiconductor", "instances/01_正式样例/01_存储周期");
+    const run = db.createRun("发布桥测试", "semiconductor", "instances/02_V3样例/01_memory-cycle-run-002");
     const exported = publish.exportRunPackage(run.id);
     expect(exported.exportRel).toContain("exports");
     const result = publish.publishAndValidate(run.id);
@@ -147,7 +147,7 @@ describe("v1.3 operational spine", () => {
   });
 
   it("queries package-bound object set", () => {
-    const run = db.createRun("对象集测试", "semiconductor", "instances/01_正式样例/01_存储周期");
+    const run = db.createRun("对象集测试", "semiconductor", "instances/02_V3样例/01_memory-cycle-run-002");
     const set = ontologyTools.runOntologyTool(run.id, "query_object_set", { type: "JudgmentUnit", limit: 5 });
     expect((set as any).objects.length).toBeGreaterThan(0);
   });

@@ -51,6 +51,7 @@ from validator_utils import (
 from status_derivation import reject_manual_derived_fields
 from research_contract import public_contract, task_view_hash, validate_judgment_units
 from ontology_instance_graph import validate_instance_graph
+from validate_method_application_contract import assert_valid_stage_applications
 
 
 REQUIRED_LOGIC_META = [
@@ -899,6 +900,35 @@ def validate(logic_path: str | Path, view_path: str | Path) -> dict[str, object]
         fail("logic.ontology_gap_scan_status 记录缺口时 view.ontology_gaps.has_gap 必须为 true")
     if logic_meta["can_enter_03"] is not True:
         fail("stage_status=complete 的 02 交付到 03 时 can_enter_03 必须为 true")
+
+    def collect_refs(value: object, keys: set[str]) -> set[str]:
+        found: set[str] = set()
+        if isinstance(value, dict):
+            for key, child in value.items():
+                if key in keys and child not in (None, ""):
+                    found.add(str(child))
+                found.update(collect_refs(child, keys))
+        elif isinstance(value, list):
+            for child in value:
+                found.update(collect_refs(child, keys))
+        return found
+
+    # 3.0 任务视图属于 Public Contract 1.3 正式产物；2.x 视图仅作显式兼容。
+    method_contract_required = str(view.get("schema_version")) == "3.0.0"
+    try:
+        assert_valid_stage_applications(
+            view,
+            "stage_02",
+            required=method_contract_required,
+            known_questions=collect_refs(view, {"question_id"}),
+            known_judgment_units=collect_refs(view, {"judgment_unit_id"}),
+            known_objects=collect_refs(view.get("business_instance_graph", {}), {"id"}),
+            known_evidence=set(),
+            known_signals=set(),
+            known_judgments=set(),
+        )
+    except ValueError as exc:
+        fail(str(exc))
 
     return {
         "schema_version": str(view["schema_version"]),

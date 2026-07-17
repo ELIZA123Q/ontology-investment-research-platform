@@ -28,13 +28,24 @@ function validateTransition(prior: MethodApplication, current: MethodApplication
   if (prior.capability_type !== current.capability_type) {
     throw new Error(`${current.application_id} 的能力类型不得跨阶段漂移`);
   }
+  for (const field of ["target_question_refs", "target_judgment_unit_refs"] as const) {
+    if (JSON.stringify(prior[field]) !== JSON.stringify(current[field])) {
+      throw new Error(`${current.application_id}.${field} 不得跨阶段漂移`);
+    }
+  }
+  const removedObjects = prior.target_ontology_object_refs.filter(
+    (ref) => !current.target_ontology_object_refs.includes(ref),
+  );
+  if (removedObjects.length) {
+    throw new Error(`${current.application_id}.target_ontology_object_refs 只允许追加: ${removedObjects.join(", ")}`);
+  }
   const allowed: Record<MethodApplicationStatus, Set<MethodApplicationStatus>> = {
-    candidate: new Set(["candidate", "selected", "rejected", "blocked", "degraded"]),
+    candidate: new Set(["candidate", "selected", "executed", "rejected", "blocked", "degraded"]),
     selected: new Set(["selected", "executed", "rejected", "blocked", "degraded"]),
     executed: new Set(["executed"]),
     rejected: new Set(["rejected"]),
     blocked: new Set(["blocked"]),
-    degraded: new Set(["degraded", "executed", "blocked"]),
+    degraded: new Set(["degraded", "executed", "rejected", "blocked"]),
   };
   if (!allowed[prior.status].has(current.status)) {
     throw new Error(`${current.application_id} 非法状态迁移: ${prior.status} -> ${current.status} (${stage})`);
@@ -66,6 +77,24 @@ export function validateMethodApplications(
   for (const application of applications) {
     if (application.provenance.stage !== stage) {
       throw new Error(`${application.application_id}.provenance.stage 必须为 ${stage}`);
+    }
+    if (stage === "stage_02") {
+      if (application.status !== "candidate") {
+        throw new Error(`${application.application_id} 在 stage_02 只能是 candidate`);
+      }
+      if (application.provenance.source_application_id !== null) {
+        throw new Error(`${application.application_id} 在 stage_02 不得声明来源方法应用`);
+      }
+      if (
+        application.input_evidence_refs.length
+        || application.output_signal_refs.length
+        || application.output_judgment_refs.length
+        || application.execution_summary.length
+      ) {
+        throw new Error(`${application.application_id} 在 stage_02 不得预填执行输入或输出`);
+      }
+    } else if (application.provenance.source_application_id !== application.application_id) {
+      throw new Error(`${application.application_id}.provenance.source_application_id 必须沿用自身 MA ID`);
     }
     if (!application.target_judgment_unit_refs.length) {
       throw new Error(`${application.application_id} 必须绑定至少一个判断单元`);
