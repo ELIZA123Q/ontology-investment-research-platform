@@ -295,7 +295,9 @@ ontology_context:
   relation_type_refs: []
   event_refs: []
   propagation_template_refs: []
-  rule_refs: []
+  formal_rule_refs: []
+  method_application_refs: []
+  governance_check_refs: []
   candidate_structure_used: false
   missing_ontology_items: []
 

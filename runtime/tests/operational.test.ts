@@ -7,6 +7,7 @@ let db: typeof import("@/adapters/db");
 let instanceGraph: typeof import("@/engine/instance_graph");
 let actionExecutor: typeof import("@/engine/action_executor");
 let ontologyTools: typeof import("@/engine/ontology_tools");
+let ontologyAdapter: typeof import("@/adapters/ontology");
 let publish: typeof import("@/adapters/publish_package");
 
 beforeAll(async () => {
@@ -14,16 +15,49 @@ beforeAll(async () => {
   instanceGraph = await import("@/engine/instance_graph");
   actionExecutor = await import("@/engine/action_executor");
   ontologyTools = await import("@/engine/ontology_tools");
+  ontologyAdapter = await import("@/adapters/ontology");
   publish = await import("@/adapters/publish_package");
 });
 
 describe("v1.3 operational spine", () => {
+  it("separates formal ontology nodes from runtime operations", () => {
+    const nodes = ontologyAdapter.loadOntology();
+    expect(nodes.some((node) => node.category === "Action" || node.category === "Function" || node.category === "Logic")).toBe(false);
+    expect(nodes.some((node) => node.id === "MarketExpectation" && node.category === "Object")).toBe(true);
+    const actions = actionExecutor.listActionTypes();
+    expect(actions.every((action) => action.source_file === "runtime/engine/runtime_operations.yaml")).toBe(true);
+    expect(actions.every((action) => !("rule_refs" in action))).toBe(true);
+    expect(actions.every((action) => Array.isArray(action.formal_rule_refs))).toBe(true);
+    expect(actions.every((action) => Array.isArray(action.method_refs))).toBe(true);
+    expect(actions.every((action) => Array.isArray(action.governance_rule_refs))).toBe(true);
+    expect(actions.every((action) => Array.isArray(action.runtime_rule_refs))).toBe(true);
+  });
+
   it("does not silently treat draft projection as formal authority", () => {
     const run = db.createRun("双轨测试", "semiconductor");
     db.createArtifact(run.id, "stage_02", {
       status: "needs_review",
       json_content: JSON.stringify({
-        method_selections: [{ method_id: "m", method_version: "1", purpose: "p", selection_reason: "r", rejected_candidate_ids: [] }],
+        method_applications: [{
+          application_id: "MA-X",
+          method_id: "kb02:framework-test",
+          method_version: "1.0.0",
+          capability_type: "judgment_structure",
+          target_question_refs: ["Q-X"],
+          target_judgment_unit_refs: ["JU-X"],
+          target_ontology_object_refs: [],
+          status: "candidate",
+          precondition_checks: [],
+          input_evidence_refs: [],
+          output_signal_refs: [],
+          output_judgment_refs: [],
+          execution_summary: "",
+          applicability_boundary: "测试判断结构",
+          limitations: [],
+          counter_example_refs: [],
+          provenance: { stage: "stage_02", source_application_id: null, actor: "test", recorded_at: null },
+          alternatives: [],
+        }],
         judgment_units: [{ id: "JU-X", title: "t", question: "q", ontology_node_ids: [], evidence_requirements: [] }],
         variables: [],
         paths: [],
@@ -47,6 +81,12 @@ describe("v1.3 operational spine", () => {
       graph,
     );
     expect(source.status).toBe("executed");
+    expect(source.audit).toMatchObject({
+      formal_rule_refs: [],
+      method_refs: ["kb03:acquisition"],
+      governance_rule_refs: ["GOV-SOURCE-TRACE-001", "GOV-SOURCE-ACCESS-001"],
+      runtime_rule_refs: ["RT-OPERATION-REGISTRY-001"],
+    });
     graph = source.graph;
     const claim = actionExecutor.executeAction(
       "ExtractClaim",
@@ -74,9 +114,14 @@ describe("v1.3 operational spine", () => {
     );
     expect(hyp.status).toBe("executed");
     graph = hyp.graph;
+    graph.objects.push({
+      id: "MA-TEST",
+      type: "MethodApplication",
+      properties: { status: "executed", method_id: "kb04:A02", method_version: "1.0.0" },
+    });
     const judgment = actionExecutor.executeAction(
       "FormJudgment",
-      { statement: "有条件看多", hypothesisRefs: hyp.written_object_ids, judgmentLevel: "J2" },
+      { statement: "有条件看多", hypothesisRefs: hyp.written_object_ids, methodApplicationRefs: ["MA-TEST"], judgmentLevel: "J2" },
       graph,
     );
     expect(judgment.status).toBe("executed");

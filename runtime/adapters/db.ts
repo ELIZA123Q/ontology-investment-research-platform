@@ -87,6 +87,17 @@ export function getRun(id: string): ResearchRun | undefined {
   const row = db.prepare("SELECT * FROM research_runs WHERE id=?").get(id) as any;
   return row ? mapRun(row) : undefined;
 }
+export function previousComparableRun(runId: string): ResearchRun | undefined {
+  const current = getRun(runId);
+  if (!current) return undefined;
+  return listRuns().find(
+    (candidate) =>
+      candidate.id !== current.id
+      && candidate.domain === current.domain
+      && candidate.question.trim() === current.question.trim()
+      && candidate.created_at < current.created_at,
+  );
+}
 export function createRun(question: string, domain: string, packagePath?: string | null): ResearchRun {
   const now = new Date().toISOString();
   const id = crypto.randomUUID();

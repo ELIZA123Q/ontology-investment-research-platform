@@ -274,6 +274,19 @@ export function buildProvisionalProjection(runId: string): BusinessInstanceGraph
     }
   }
 
+  const methodSource = stage04 || stage03 || stage02;
+  if (methodSource) {
+    const data: any = parseJson(methodSource.json_content, {});
+    for (const [index, application] of (data.method_applications || []).entries()) {
+      graph.objects.push({
+        id: String(application.application_id || `MA-${index + 1}`),
+        type: "MethodApplication",
+        properties: { ...application, runtime_contract: "1.3.0", provisional: true },
+        projection: { section: "method_applications", index, provisional: true },
+      });
+    }
+  }
+
   return graph;
 }
 
@@ -319,6 +332,24 @@ export function materializeStageIntoGraph(
 
   const slice = emptyGraph();
   slice.authority = "business_parameters";
+  for (const [index, application] of ((stageJson.method_applications as any[]) || []).entries()) {
+    const applicationId = String(application.application_id || `MA-${index + 1}`);
+    slice.objects.push({
+      id: applicationId,
+      type: "MethodApplication",
+      properties: { ...application, runtime_contract: "1.3.0" },
+      projection: { section: "method_applications", index },
+    });
+    for (const judgmentUnitId of application.target_judgment_unit_refs || []) {
+      slice.relations.push({
+        id: `RUNTIME-${applicationId}-TARGET-${judgmentUnitId}`,
+        type: "runtimeMethodApplicationTargets",
+        sourceId: applicationId,
+        targetId: String(judgmentUnitId),
+        properties: { authority: "public_contract_1.3" },
+      });
+    }
+  }
   if (stageKind === "stage_02") {
     for (const [index, unit] of ((stageJson.judgment_units as any[]) || []).entries()) {
       slice.objects.push({
@@ -349,6 +380,24 @@ export function materializeStageIntoGraph(
     }
   }
   if (stageKind === "stage_04") {
+    for (const [index, signal] of ((stageJson.signals as any[]) || []).entries()) {
+      const id = String(signal.id || `SIG-${index + 1}`);
+      slice.objects.push({
+        id,
+        type: "Signal",
+        properties: { ...signal },
+        projection: { section: "signals", index },
+      });
+      for (const evidenceId of signal.evidence_draft_ids || []) {
+        slice.relations.push({
+          id: `REL-${id}-EVIDENCE-${evidenceId}`,
+          type: "signalDerivedFromEvidence",
+          sourceId: id,
+          targetId: String(evidenceId),
+          properties: {},
+        });
+      }
+    }
     for (const [index, judgment] of ((stageJson.judgments as any[]) || []).entries()) {
       const id = String(judgment.id || `J-${index + 1}`);
       slice.objects.push({
@@ -366,6 +415,15 @@ export function materializeStageIntoGraph(
           properties: {},
         });
       }
+      for (const applicationId of judgment.method_application_ids || []) {
+        slice.relations.push({
+          id: `RUNTIME-${id}-METHOD-${applicationId}`,
+          type: "runtimeJudgmentUsesMethodApplication",
+          sourceId: id,
+          targetId: String(applicationId),
+          properties: { authority: "public_contract_1.3" },
+        });
+      }
     }
   }
   return mergeGraphs({ ...current, authority: "business_parameters" }, slice);
@@ -381,9 +439,9 @@ export function summarizeGraph(graph: BusinessInstanceGraph, limit = 40): string
 
 /** Resolve a formal example package relative path for binding. */
 export function defaultExamplePackages(): string[] {
-  const root = repositoryPath("instances", "01_正式样例");
+  const root = repositoryPath("instances", "02_V3样例");
   if (!existsSync(root)) return [];
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join("instances", "01_正式样例", entry.name));
+    .map((entry) => path.join("instances", "02_V3样例", entry.name));
 }

@@ -19,7 +19,10 @@ export type ActionTypeDef = {
   preconditions: string[];
   effects: string[];
   outputs: string[];
-  rule_refs: string[];
+  formal_rule_refs: string[];
+  method_refs: string[];
+  governance_rule_refs: string[];
+  runtime_rule_refs: string[];
   function_ref?: string;
   logic_refs: string[];
   write_scope: string[];
@@ -64,14 +67,7 @@ export type ActionExecution = {
   audit: Record<string, unknown>;
 };
 
-const ontologyFiles = [
-  "ontology/01_通用/semantic.yaml",
-  "ontology/01_通用/evidence.yaml",
-  "ontology/01_通用/reasoning.yaml",
-  "ontology/02_领域/semiconductor/semantic.yaml",
-  "ontology/02_领域/semiconductor/evidence.yaml",
-  "ontology/02_领域/semiconductor/reasoning.yaml",
-];
+const operationRegistryFile = "runtime/engine/runtime_operations.yaml";
 
 let cachedActions: Map<string, ActionTypeDef> | null = null;
 let cachedFunctions: Map<string, FunctionDef> | null = null;
@@ -80,39 +76,43 @@ function loadCatalogs() {
   if (cachedActions && cachedFunctions) return;
   cachedActions = new Map();
   cachedFunctions = new Map();
-  for (const file of ontologyFiles) {
-    const doc = YAML.parse(readFileSync(repositoryPath(file), "utf8")) || {};
-    for (const [id, raw] of Object.entries<any>(doc.action_types || {})) {
-      cachedActions.set(id, {
-        id,
-        name: raw.name || id,
-        description: raw.description || "",
-        target_types: raw.target_types || [],
-        parameters: raw.parameters || [],
-        preconditions: raw.preconditions || [],
-        effects: raw.effects || [],
-        outputs: raw.outputs || [],
-        rule_refs: raw.rule_refs || [],
-        function_ref: raw.function_ref,
-        logic_refs: raw.logic_refs || [],
-        write_scope: raw.write_scope || [],
-        source_file: file,
-      });
-    }
-    for (const [id, raw] of Object.entries<any>(doc.functions || {})) {
-      cachedFunctions.set(id, {
-        id,
-        name: raw.name || id,
-        description: raw.description || "",
-        inputs: raw.inputs || [],
-        outputs: raw.outputs || [],
-        reads: raw.reads || [],
-        writes: raw.writes || [],
-        deterministic: Boolean(raw.deterministic),
-        side_effects: Boolean(raw.side_effects),
-        source_file: file,
-      });
-    }
+  const doc = YAML.parse(readFileSync(repositoryPath(operationRegistryFile), "utf8")) || {};
+  if (doc.schema_name !== "runtime_operation_registry" || doc.authority !== "runtime") {
+    throw new Error("Runtime 操作注册表缺少正确的 schema_name/authority");
+  }
+  for (const [id, raw] of Object.entries<any>(doc.actions || {})) {
+    cachedActions.set(id, {
+      id,
+      name: raw.name || id,
+      description: raw.description || "",
+      target_types: raw.target_types || [],
+      parameters: raw.parameters || [],
+      preconditions: raw.preconditions || [],
+      effects: raw.effects || [],
+      outputs: raw.outputs || [],
+      formal_rule_refs: raw.formal_rule_refs || [],
+      method_refs: raw.method_refs || [],
+      governance_rule_refs: raw.governance_rule_refs || [],
+      runtime_rule_refs: raw.runtime_rule_refs || [],
+      function_ref: raw.function_ref,
+      logic_refs: raw.logic_refs || [],
+      write_scope: raw.write_scope || [],
+      source_file: operationRegistryFile,
+    });
+  }
+  for (const [id, raw] of Object.entries<any>(doc.functions || {})) {
+    cachedFunctions.set(id, {
+      id,
+      name: raw.name || id,
+      description: raw.description || "",
+      inputs: raw.inputs || [],
+      outputs: raw.outputs || [],
+      reads: raw.reads || [],
+      writes: raw.writes || [],
+      deterministic: Boolean(raw.deterministic),
+      side_effects: Boolean(raw.side_effects),
+      source_file: operationRegistryFile,
+    });
   }
 }
 
@@ -307,7 +307,10 @@ export function executeAction(
         action_id: actionId,
         function_ref: action.function_ref || null,
         write_scope: action.write_scope,
-        rule_refs: action.rule_refs,
+        formal_rule_refs: action.formal_rule_refs,
+        method_refs: action.method_refs,
+        governance_rule_refs: action.governance_rule_refs,
+        runtime_rule_refs: action.runtime_rule_refs,
         logic_refs: action.logic_refs,
         executed_at: new Date().toISOString(),
         proposal_id: proposal.proposal_id,
@@ -386,6 +389,14 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
   if (action.id === "FormJudgment") {
     const statement = String(parameters.statement || "").trim();
     if (!statement) throw new Error("FormJudgment 需要 statement");
+    const methodApplicationRefs = asStringArray(parameters.methodApplicationRefs);
+    if (!methodApplicationRefs.length) throw new Error("FormJudgment 需要 executed MethodApplication");
+    for (const ref of methodApplicationRefs) {
+      const application = graph.objects.find((object) => object.id === ref && object.type === "MethodApplication");
+      if (!application || application.properties?.status !== "executed") {
+        throw new Error(`方法应用 ${ref} 不存在或尚未 executed`);
+      }
+    }
   }
   if (action.id === "RecordReasoningTrace") {
     const judgmentRef = String(parameters.judgmentRef || "").trim();
@@ -547,6 +558,7 @@ function planWrites(
     const hypothesisRefs = asStringArray(parameters.hypothesisRefs);
     const signalRefs = asStringArray(parameters.signalRefs);
     const evidenceRefs = asStringArray(parameters.evidenceRefs);
+    const methodApplicationRefs = asStringArray(parameters.methodApplicationRefs);
     const scenarioRef = parameters.scenarioRef ? String(parameters.scenarioRef) : "";
     const object: GraphObject = {
       id: judgmentId,
@@ -560,6 +572,7 @@ function planWrites(
         hypothesis_refs: hypothesisRefs,
         signal_refs: signalRefs,
         evidence_refs: evidenceRefs,
+        method_application_refs: methodApplicationRefs,
         time_horizon: String(parameters.timeHorizon || ""),
         uncertainty: String(parameters.uncertainty || ""),
         investment_interpretation: String(parameters.investmentInterpretation || ""),
@@ -572,6 +585,15 @@ function planWrites(
     for (const ref of [...hypothesisRefs, ...signalRefs, ...evidenceRefs]) {
       if (!graph.objects.some((object) => object.id === ref)) continue;
       relations.push({ id: `REL-${judgmentId}-${ref}`, type: "judgmentBasedOn", sourceId: judgmentId, targetId: ref, properties: {} });
+    }
+    for (const ref of methodApplicationRefs) {
+      relations.push({
+        id: `RUNTIME-${judgmentId}-${ref}`,
+        type: "runtimeJudgmentUsesMethodApplication",
+        sourceId: judgmentId,
+        targetId: ref,
+        properties: { authority: "public_contract_1.3" },
+      });
     }
     if (scenarioRef && graph.objects.some((object) => object.id === scenarioRef)) {
       relations.push({ id: `REL-${judgmentId}-${scenarioRef}`, type: "judgmentUnderScenario", sourceId: judgmentId, targetId: scenarioRef, properties: {} });
@@ -594,7 +616,8 @@ function planWrites(
           input_refs: asStringArray(parameters.inputRefs),
           rule_evaluation_refs: asStringArray(parameters.ruleEvaluationRefs),
           steps: parameters.steps || [],
-          rule_refs: asStringArray(parameters.ruleRefs),
+          formal_rule_refs: asStringArray(parameters.formalRuleRefs),
+          governance_check_refs: asStringArray(parameters.governanceCheckRefs),
           function_refs: asStringArray(parameters.functionRefs),
           logic_refs: asStringArray(parameters.logicRefs),
           output_refs: asStringArray(parameters.outputRefs),

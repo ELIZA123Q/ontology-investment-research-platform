@@ -56,7 +56,17 @@ export function validateMethodApplications(
   const current = methodApplicationIndex(applications);
   const prior = methodApplicationIndex(context.prior || []);
 
+  if (stage !== "stage_02") {
+    const silentlyDropped = [...prior.keys()].filter((applicationId) => !current.has(applicationId));
+    if (silentlyDropped.length) {
+      throw new Error(`${stage} 不得静默删除方法应用: ${silentlyDropped.join(", ")}`);
+    }
+  }
+
   for (const application of applications) {
+    if (application.provenance.stage !== stage) {
+      throw new Error(`${application.application_id}.provenance.stage 必须为 ${stage}`);
+    }
     if (!application.target_judgment_unit_refs.length) {
       throw new Error(`${application.application_id} 必须绑定至少一个判断单元`);
     }

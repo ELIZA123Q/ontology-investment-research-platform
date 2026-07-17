@@ -535,11 +535,36 @@ def _validate_ontology_instances(view: dict[str, object], rows: dict[str, list[d
     allowed_object_types = set(split_refs(semantic_scope.get("object_type_refs")))
     allowed_relation_types = set(split_refs(semantic_scope.get("relation_type_refs")))
     allowed_profiles = set(split_refs(evidence_contract.get("evidence_profile_refs")))
-    formal_evidence = load_yaml_file(WORKSPACE / "ontology" / "01_通用" / "evidence.yaml")
+    # 阶段 CSV 运营枚举（历史 2.x evidence.yaml 字段）；权威不再回指 L1 本体文件。
+    operational_enums = {
+        ("SourceDocument", "sourceType"): {
+            "filing", "report", "news", "transcript", "dataset", "policy", "manual",
+            "regulatory_record", "market_data", "api_response", "other",
+        },
+        ("SourceDocument", "accessScope"): {
+            "public", "licensed", "internal", "confidential", "restricted", "unknown",
+        },
+        ("SourceDocument", "sourceReliability"): {"low", "medium", "high", "unknown"},
+        ("SourceDocument", "status"): {"candidate", "active", "invalidated", "superseded"},
+        ("EvidenceClaim", "claimType"): {
+            "reported_fact", "data_point", "estimate", "forecast", "guidance",
+            "author_judgment", "assumption", "unverified", "correction",
+        },
+        ("EvidenceClaim", "claimConfidence"): {"low", "medium", "high", "unknown"},
+        ("EvidenceClaim", "status"): {
+            "candidate", "active", "conflicted", "invalidated", "superseded",
+        },
+        ("EvidenceFact", "factType"): {"occurrence", "measurement", "attribute", "relationship"},
+        ("EvidenceFact", "factConfidence"): {"low", "medium", "high"},
+        ("EvidenceFact", "status"): {
+            "candidate", "active", "conflicted", "invalidated", "superseded",
+        },
+        ("EvidenceAssessment", "usability"): {"usable", "restricted", "insufficient", "blocked"},
+        ("EvidenceAssessment", "qualityLevel"): {"low", "medium", "high", "unknown"},
+    }
 
     def enum_values(object_type: str, property_name: str) -> set[str]:
-        values = formal_evidence["object_types"][object_type]["properties"][property_name].get("allowed_values", [])
-        return {str(item) for item in values}
+        return set(operational_enums[(object_type, property_name)])
 
     assert_values([row.get("source_type", "") for row in rows["source_documents.csv"]], enum_values("SourceDocument", "sourceType"), "source_documents.source_type")
     assert_values([row.get("access_scope", "") for row in rows["source_documents.csv"]], enum_values("SourceDocument", "accessScope"), "source_documents.access_scope")

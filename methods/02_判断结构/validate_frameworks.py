@@ -222,13 +222,22 @@ def ontology_identifiers(workspace: Path) -> Set[str]:
     identifiers: Set[str] = set()
     key_re = re.compile(r"^\s{2,}([A-Za-z][A-Za-z0-9_]*):(?:\s|$)")
     id_re = re.compile(r"\bid:\s*([A-Za-z][A-Za-z0-9_]*)")
-    for directory in (workspace / "ontology/01_通用", workspace / "ontology/02_领域/semiconductor"):
-        for path in directory.glob("*.yaml"):
-            for line in path.read_text(encoding="utf-8").splitlines():
-                match = key_re.match(line)
-                if match:
-                    identifiers.add(match.group(1))
-                identifiers.update(id_re.findall(line))
+    paths: List[Path] = []
+    models = workspace / "ontology/01_通用/models"
+    if models.is_dir():
+        paths.extend(sorted(models.glob("*.yaml")))
+    domain = workspace / "ontology/02_领域/semiconductor"
+    if domain.is_dir():
+        for name in ("business_instances.yaml",):
+            candidate = domain / name
+            if candidate.is_file():
+                paths.append(candidate)
+    for path in paths:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = key_re.match(line)
+            if match:
+                identifiers.add(match.group(1))
+            identifiers.update(id_re.findall(line))
     return identifiers
 
 

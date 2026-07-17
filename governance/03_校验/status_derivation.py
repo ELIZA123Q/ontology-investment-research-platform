@@ -29,11 +29,11 @@ import yaml
 
 
 _ROOT = Path(__file__).resolve().parents[2]
-_REASONING_SCHEMA_PATH = _ROOT / "ontology" / "01_通用" / "reasoning.yaml"
-_EVIDENCE_SCHEMA_PATH = _ROOT / "ontology" / "01_通用" / "evidence.yaml"
-_REASONING_SCHEMA = yaml.safe_load(_REASONING_SCHEMA_PATH.read_text(encoding="utf-8"))
-_EVIDENCE_SCHEMA = yaml.safe_load(_EVIDENCE_SCHEMA_PATH.read_text(encoding="utf-8"))
-_THRESHOLD_POLICY = _REASONING_SCHEMA["rules"]["judgment_evidence_threshold"]["parameters"]
+_JUDGMENT_MODEL_PATH = _ROOT / "ontology" / "01_通用" / "models" / "judgment.yaml"
+_EVIDENCE_MODEL_PATH = _ROOT / "ontology" / "01_通用" / "models" / "evidence.yaml"
+_JUDGMENT_MODEL = yaml.safe_load(_JUDGMENT_MODEL_PATH.read_text(encoding="utf-8"))
+_EVIDENCE_MODEL = yaml.safe_load(_EVIDENCE_MODEL_PATH.read_text(encoding="utf-8"))
+_THRESHOLD_POLICY = _JUDGMENT_MODEL["rules"]["judgment_evidence_threshold"]["parameters"]
 
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
 TASK_DISPOSITIONS = {
@@ -54,22 +54,16 @@ QUALITY_LANGUAGE_TO_EVIDENCE_GRADES = {
 EVIDENCE_METHOD_ROLE_TO_BASKET_ROLE = dict(
     _THRESHOLD_POLICY.get("evidence_method_role_to_basket_role") or {}
 )
-SOURCE_AUTHORITY_LEVELS = set(
-    _REASONING_SCHEMA["object_types"]["JudgmentLevelCriterion"]["properties"][
-        "minimum_source_authority"
-    ]["allowed_values"]
-)
+SOURCE_AUTHORITY_LEVELS = set(_THRESHOLD_POLICY["source_authority_levels"])
 SOURCE_TIERS = set(
-    _EVIDENCE_SCHEMA["object_types"]["SourceProfile"]["properties"]["sourceTier"]["allowed_values"]
+    _EVIDENCE_MODEL["object_types"]["SourceDocument"]["attributes"]["source_tier"][
+        "allowed_values"
+    ]
 )
 CONFIDENCE_LEVELS = set(
-    _EVIDENCE_SCHEMA["object_types"]["EvidenceReadinessAssessment"]["properties"][
-        "confidenceCeiling"
-    ]["allowed_values"]
+    _JUDGMENT_MODEL["object_types"]["Judgment"]["attributes"]["confidence"]["allowed_values"]
 )
-BASKET_ROLES = set(
-    _EVIDENCE_SCHEMA["object_types"]["EvidenceBasket"]["properties"]["basketRole"]["allowed_values"]
-)
+BASKET_ROLES = set(_THRESHOLD_POLICY["operational_basket_roles"])
 DERIVED_LIMIT_FIELDS = {
     "evidence_permission",
     "allowed_04_output",

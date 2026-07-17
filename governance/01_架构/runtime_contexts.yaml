@@ -13,7 +13,7 @@ stages:
       - methods/00_登记/method_assets.yaml
       - methods/02_判断结构/README.md
       - methods/02_判断结构/00_framework_dependency_registry.yaml
-      - ontology/02_领域/semiconductor/reasoning.yaml
+      - ontology/01_通用/models/semiconductor_extension.yaml
   stage_03:
     assets:
       - workflow/stages/03_证据/03_数据与证据准备规范.md

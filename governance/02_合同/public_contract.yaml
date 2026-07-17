@@ -23,6 +23,8 @@ ownership:
     - cross_stage_references
     - judgment_method_routes
     - method_application_contract
+    - rule_usage_contract
+    - replay_contract
   formal_ontology:
     - object_types
     - relation_types
@@ -115,12 +117,12 @@ trace_id_patterns:
 business_authority_refs:
   judgment_types: ontology/01_通用/models/judgment.yaml#object_types.JudgmentUnit.attributes.judgment_type.allowed_values
   judgment_levels: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.level.allowed_values
-  path_readiness_statuses: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps.@keys
-  path_result_statuses: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
-  source_authority_levels: ontology/01_通用/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.minimum_source_authority.allowed_values
+  path_readiness_statuses: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps.@keys
+  path_result_statuses: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
+  source_authority_levels: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.source_authority_levels
   source_tiers: ontology/01_通用/models/evidence.yaml#object_types.SourceDocument.attributes.source_tier.allowed_values
   confidence_levels: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.confidence.allowed_values
-  basket_roles: ontology/01_通用/models/evidence.yaml#object_types.EvidenceBasket.attributes.role.allowed_values
+  basket_roles: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.operational_basket_roles
 
 legacy_judgment_type_migration:
   trend_or_phase: trend_direction
@@ -199,9 +201,31 @@ method_application_contract:
     - 04 的每个关键 Judgment 必须反向引用至少一项 executed MethodApplication。
     - 05 只能引用 04 已存在的 MethodApplication，禁止新增或改变状态。
 
+rule_usage_contract:
+  schema_version: 1.0.0
+  authority_registry: governance/02_合同/rule_authority_registry.yaml
+  design_time:
+    ontology_rules: 本体中的语义约束、证据约束与状态一致性约束；声明适用边界，不预置本次结论。
+    method_rules: methods/02–04 中的判断结构、取证策略与裁决原则；可复用、可版本化。
+  runtime:
+    method_application: 本次实际选用与应用的方法记录（MA-nn）；02 建 candidate，03 绑定证据，04 确认 executed/rejected/blocked/degraded。
+    rule_evaluation: 本次规则执行结果（RE-nn）；记录规则引用、版本、输入、逐项条件结果与证据引用。
+  distinction: 设计态回答「何时可以这样判断、何时不能」；运行态回答「本次实际怎样判断、前提是否满足、结论停在哪里」。禁止把设计态方法正文当作本次已执行结论。
+
+replay_contract:
+  schema_version: 1.0.0
+  authority_rule: 结构化 YAML/CSV 与 run_manifest 是运行真相；Markdown 是可编辑展示层，不得作为唯一追溯来源。
+  minimum_trace_chain: [Q, JU, ER, EV, MA, C, EX]
+  version_tracking: run_manifest.versions 记录 contract、ontology、kb02、kb03、kb04 与各阶段 schema 版本；阶段产物 hash 与 attempt 支持波次回放。
+  replay_without_markdown: 仅凭 run_manifest + 各阶段结构化产物，应能回答本次对象、所用方法版本、绑定证据、裁决边界与结论强度，无需阅读 05 研报正文。
+  reference_samples:
+    v3_with_method_application: instances/02_V3样例
+    legacy_fixture: instances/01_正式样例
+
 runtime_objects:
   - Task
   - Run
+  - MethodApplication
   - StageArtifact
   - StageAttempt
   - ValidationIssue

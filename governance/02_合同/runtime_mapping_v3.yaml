@@ -1,14 +1,15 @@
 schema_name: ontology_v3_runtime_mapping
 schema_version: 1.0.0
-status: specification-only
+status: implemented
 formal_ontology_version: 3.0.0
 public_contract_version: 1.3.0
-runtime_implementation_status: deferred
-description: 下一轮 Runtime TypeScript 实现的映射规格；本轮不修改执行引擎。
+runtime_implementation_status: implemented
+description: Ontology 3.0 与 Public Contract 1.3 的 Runtime 映射；MethodApplication、正式本体读取和运行操作注册表已实现。
 
 mapping:
   ontology_objects: runtime/adapters/ontology.ts
-  method_application: future:runtime/engine/method-application.ts
+  method_application: runtime/engine/method_application.ts
+  runtime_operations: runtime/engine/runtime_operations.yaml
   evidence_wave: runtime/engine/templates/evidence_wave.template.yaml
   invalidation_projection: runtime/engine/templates/dependency_projection.template.yaml
 
@@ -23,7 +24,7 @@ moved_legacy_resources:
     target: method_or_workflow_orchestrator
     rule: 研究方法进入 methods，阶段路由进入 runtime/workflow。
 
-future_types:
+implemented_types:
   MethodApplication:
     source_contract: governance/02_合同/public_contract.yaml#method_application_contract
     persistence: append-only per run

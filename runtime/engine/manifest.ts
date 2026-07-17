@@ -7,10 +7,10 @@ import type { Artifact, ResearchRun } from "./types";
 
 export type RunManifest = {
   schema_name: "controlled_research_run_manifest";
-  schema_version: "1.2.0";
+  schema_version: "1.2.0" | "1.3.0";
   task_id: string;
   run_id: string;
-  parent_run: null;
+  parent_run: null | { run_id: string; manifest_ref: string; manifest_hash: string };
   run_mode: "workbench";
   producer_id: string;
   versions: Record<string, string>;
@@ -62,7 +62,7 @@ export function createEmptyManifest(run: ResearchRun): RunManifest {
   return {
     ...template,
     schema_name: "controlled_research_run_manifest",
-    schema_version: "1.2.0",
+    schema_version: "1.3.0",
     task_id: `JTASK-WB-${run.id.slice(0, 8)}`,
     run_id: run.id,
     parent_run: null,
@@ -96,6 +96,7 @@ export function parseManifest(raw: string | null | undefined, run: ResearchRun):
   try {
     const parsed = JSON.parse(raw) as RunManifest;
     if (parsed.schema_name !== "controlled_research_run_manifest") return createEmptyManifest(run);
+    if (!["1.2.0", "1.3.0"].includes(String(parsed.schema_version))) return createEmptyManifest(run);
     return parsed;
   } catch {
     return createEmptyManifest(run);

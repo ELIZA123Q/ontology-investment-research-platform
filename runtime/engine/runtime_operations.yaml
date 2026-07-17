@@ -1,0 +1,159 @@
+schema_name: runtime_operation_registry
+schema_version: 1.0.0
+status: active
+authority: runtime
+description: Runtime 可执行 Action 与只读 Function 注册表；这些操作不属于 Ontology 3.0 正式本体。
+
+actions:
+  RegisterSource:
+    name: 登记来源
+    description: 登记本次实际取得的 SourceDocument，并评估来源可靠性与留痕要求。
+    target_types: [SourceDocument]
+    parameters: [title, sourceProfileId, sourceName, sourceTier, contentDomain, acquisitionChannel, accessScope, artifactType, publisher, publisherRef, publishedAt, capturedAt, businessTime, location, locator]
+    preconditions: [来源可定位, 权限边界已判断, 材料形态已识别]
+    effects: [create_SourceDocument, set_sourceReliability, create_sourceDocumentUsesProfile_if_provided, create_sourcePublishedBy_if_provided]
+    outputs: [SourceDocument]
+    formal_rule_refs: []
+    method_refs: [kb03:acquisition]
+    governance_rule_refs: [GOV-SOURCE-TRACE-001, GOV-SOURCE-ACCESS-001]
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: AssessSourceReliability
+    logic_refs: []
+    write_scope: [SourceDocument, sourceDocumentUsesProfile, sourcePublishedBy]
+  ExtractClaim:
+    name: 抽取主张
+    description: 从来源指定位置形成最小主张候选。
+    target_types: [EvidenceClaim]
+    parameters: [sourceRef, locator, contentRange, statement]
+    preconditions: [来源已登记]
+    effects: [create_EvidenceClaim, create_claimCitesSource]
+    outputs: [EvidenceClaim]
+    formal_rule_refs: []
+    method_refs: [kb03:acquisition]
+    governance_rule_refs: [GOV-CLAIM-STRUCTURE-001, GOV-SOURCE-TRACE-001]
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: ExtractClaims
+    logic_refs: []
+    write_scope: [EvidenceClaim, claimCitesSource]
+  NormalizeClaim:
+    name: 归一主张
+    description: 对齐主张中的对象、时间、数值和单位，不改变原始陈述。
+    target_types: [EvidenceClaim]
+    parameters: [claimRef, semanticRefs, unit, businessTime]
+    preconditions: [主张可追溯]
+    effects: [update_claim_normalization, create_claimAbout]
+    outputs: [EvidenceClaim]
+    formal_rule_refs: [evidence_scope_time_alignment, state_time_consistency]
+    method_refs: [kb03:assessment]
+    governance_rule_refs: []
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: NormalizeClaimValue
+    logic_refs: []
+    write_scope: [EvidenceClaim, claimAbout]
+  AssessEvidenceForUse:
+    name: 评估证据可用性
+    description: 按任务范围、质量规则和判断单元形成可用性评估。
+    target_types: [SourceDocument, EvidenceClaim, EvidenceFact]
+    parameters: [executionId, profileRef, assessmentScope, evidenceRefs, judgmentUnitRefs]
+    preconditions: [证据已登记且可追溯, 任务范围已冻结]
+    effects: [create_EvidenceAssessment, create_assessmentEvaluatesEvidence]
+    outputs: [EvidenceAssessment]
+    formal_rule_refs: [evidence_scope_time_alignment]
+    method_refs: [kb03:assessment]
+    governance_rule_refs: []
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: AssessEvidenceUsabilityFunction
+    logic_refs: []
+    write_scope: [EvidenceAssessment, assessmentEvaluatesEvidence]
+  FormHypothesis:
+    name: 形成假设
+    description: 围绕有语义锚点的状态变量形成可证伪假设。
+    target_types: [Hypothesis]
+    parameters: [statement, variableRef, direction, timeHorizon, conditions, falsificationConditions, basisRefs, premiseStatements]
+    preconditions: [状态变量及其语义锚点存在，方向、时间尺度和证伪条件完整]
+    effects: [create_Hypothesis, create_hypothesisAbout, create_hypothesisBasedOn_if_provided]
+    outputs: [Hypothesis]
+    formal_rule_refs: [evidence_scope_time_alignment]
+    method_refs: [kb04:A00]
+    governance_rule_refs: []
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: null
+    logic_refs: []
+    write_scope: [Hypothesis, hypothesisAbout, hypothesisBasedOn]
+  FormJudgment:
+    name: 形成判断
+    description: 基于假设、信号、证据和方法应用形成分级判断。
+    target_types: [Judgment]
+    parameters: [statement, hypothesisRefs, signalRefs, evidenceRefs, methodApplicationRefs, timeHorizon, uncertainty, investmentInterpretation, interpretationBasis, scenarioRef, judgmentLevel]
+    preconditions: [假设已评价且证据门槛明确, 至少一个 MethodApplication 已执行]
+    effects: [create_Judgment, create_judgmentBasedOn, create_runtimeJudgmentUsesMethodApplication]
+    outputs: [Judgment]
+    formal_rule_refs: [judgment_evidence_threshold]
+    method_refs: []
+    governance_rule_refs: []
+    runtime_rule_refs: [RT-METHOD-STATUS-001, RT-OPERATION-REGISTRY-001]
+    function_ref: CalculateConfidence
+    logic_refs: []
+    write_scope: [Judgment, judgmentBasedOn, runtimeJudgmentUsesMethodApplication]
+  RecordReasoningTrace:
+    name: 记录推理留痕
+    description: 保存一次判断从输入、方法应用到输出的公开可复核路径。
+    target_types: [ReasoningTrace]
+    parameters: [judgmentRef, evaluatedAt, inputRefs, methodApplicationRefs, ruleEvaluationRefs, steps, formalRuleRefs, governanceCheckRefs, functionRefs, outputRefs, status]
+    preconditions: [所有资源引用存在，步骤顺序明确]
+    effects: [create_ReasoningTrace, create_traceForJudgment, create_traceIncludesRuleEvaluation]
+    outputs: [ReasoningTrace]
+    formal_rule_refs: []
+    method_refs: []
+    governance_rule_refs: [GOV-REASONING-TRACE-001, GOV-RULE-EVALUATION-TRACE-001]
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: null
+    logic_refs: []
+    write_scope: [ReasoningTrace, traceForJudgment, traceIncludesRuleEvaluation]
+
+functions:
+  ExtractClaims:
+    name: 主张抽取
+    description: 从来源指定范围识别最小主张候选。
+    inputs: [SourceDocument, contentRange]
+    outputs: [claimCandidates]
+    reads: [SourceDocument]
+    writes: []
+    deterministic: false
+    side_effects: false
+  NormalizeClaimValue:
+    name: 主张口径归一
+    description: 对齐对象、时间、数值和单位。
+    inputs: [EvidenceClaim, semanticRefs, targetUnit]
+    outputs: [normalizedClaim]
+    reads: [EvidenceClaim, semantic_object]
+    writes: []
+    deterministic: true
+    side_effects: false
+  AssessSourceReliability:
+    name: 来源可靠性评价
+    description: 评价来源本身的可靠程度。
+    inputs: [sourceType, publisher, traceability]
+    outputs: [sourceReliability]
+    reads: [SourceDocument]
+    writes: []
+    deterministic: true
+    side_effects: false
+  AssessEvidenceUsabilityFunction:
+    name: 证据可用性计算
+    description: 生成任务口径下的证据评估。
+    inputs: [SourceDocument, EvidenceClaim, EvidenceFact, profileRef, assessmentScope]
+    outputs: [usability, qualityLevel, rationale, gapRefs]
+    reads: [SourceDocument, EvidenceClaim, EvidenceFact]
+    writes: []
+    deterministic: false
+    side_effects: false
+  CalculateConfidence:
+    name: 置信度计算
+    description: 根据证据、信号、反证和规则结果计算可解释置信度。
+    inputs: [evidenceRefs, signalRefs, ruleEvaluations]
+    outputs: [confidence, confidenceBasis]
+    reads: [reasoning_object, evidence_object]
+    writes: []
+    deterministic: true
+    side_effects: false

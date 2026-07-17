@@ -37,7 +37,8 @@ from research_contract import task_view_hash
 EVIDENCE_WAVE_SCHEMA_VERSION = "1.0.0"
 DEPENDENCY_PROJECTION_SCHEMA_VERSION = "1.0.0"
 LOOP_PLAN_SCHEMA_VERSION = "1.0.0"
-MANIFEST_SCHEMA_VERSION = "1.2.0"
+MANIFEST_SCHEMA_VERSION = "1.3.0"
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"1.2.0", MANIFEST_SCHEMA_VERSION}
 
 STAGES = ("stage_01", "stage_02", "stage_03", "stage_04", "stage_05")
 IMMEDIATE_UPSTREAM = {
@@ -261,21 +262,32 @@ def evidence_wave_hash(wave: Mapping[str, Any]) -> str:
     return canonical_sha256(payload)
 
 
+_MODEL_FILES = (
+    "semantic.yaml",
+    "state_event.yaml",
+    "evidence.yaml",
+    "judgment.yaml",
+    "scenario.yaml",
+    "semiconductor_extension.yaml",
+)
+
+
 def _ontology_catalog() -> tuple[set[str], set[str]]:
     object_types: set[str] = set()
     relation_types: set[str] = set()
-    for filename in ("common.yaml", "semantic.yaml", "evidence.yaml", "reasoning.yaml"):
-        path = ROOT / "ontology/01_通用" / filename
+    for filename in _MODEL_FILES:
+        path = ROOT / "ontology/01_通用/models" / filename
         schema = load_yaml(path)
         object_types.update(str(item) for item in schema.get("object_types", {}))
         relation_types.update(str(item) for item in schema.get("relation_types", {}))
+        object_types.update(str(item) for item in schema.get("scenario_types", {}))
     return object_types, relation_types
 
 
 def _ontology_relation_definitions() -> dict[str, dict[str, Any]]:
     relations: dict[str, dict[str, Any]] = {}
-    for filename in ("common.yaml", "semantic.yaml", "evidence.yaml", "reasoning.yaml"):
-        schema = load_yaml(ROOT / "ontology/01_通用" / filename)
+    for filename in _MODEL_FILES:
+        schema = load_yaml(ROOT / "ontology/01_通用/models" / filename)
         for relation_id, definition in schema.get("relation_types", {}).items():
             if isinstance(definition, dict):
                 relations[str(relation_id)] = dict(definition)
@@ -851,7 +863,7 @@ def build_iteration_plan(
             else "not_required"
         ),
         "ontology_authority": {
-            "source": "ontology/01_通用 + 02 task_ontology_view",
+            "source": "ontology/01_通用/models + 02 task_ontology_view",
             "business_parameters_defined_here": False,
             "projection_only": True,
         },
@@ -967,8 +979,10 @@ def begin_manifest_attempts(
     result = copy.deepcopy(_mapping(manifest, "run_manifest"))
     if result.get("schema_name") != "controlled_research_run_manifest":
         raise ResearchLoopError("run_manifest.schema_name 非法")
-    if str(result.get("schema_version")) != MANIFEST_SCHEMA_VERSION:
-        raise ResearchLoopError(f"仅支持 run_manifest {MANIFEST_SCHEMA_VERSION}；旧格式 1.1.0 已删除")
+    if str(result.get("schema_version")) not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        raise ResearchLoopError(
+            "仅支持 run_manifest " + "/".join(sorted(SUPPORTED_MANIFEST_SCHEMA_VERSIONS))
+        )
     if str(result.get("task_id")) != str(plan.get("task_id")):
         raise ResearchLoopError("iteration_plan.task_id 与 run_manifest 不一致")
     if str(result.get("run_id")) != str(plan.get("run_id")):
@@ -1030,7 +1044,7 @@ def begin_manifest_attempts(
         entry["validity_status"] = "revalidation_required"
         stages[stage] = entry
     result["stages"] = stages
-    result["schema_version"] = MANIFEST_SCHEMA_VERSION
+    result["schema_version"] = str(result.get("schema_version") or MANIFEST_SCHEMA_VERSION)
     result["reasoning_loop"] = {
         "mode": "ontology_evidence_wave",
         "latest_wave_ref": str(plan.get("wave_id")),
@@ -1100,8 +1114,8 @@ def commit_manifest_attempts(
 ) -> dict[str, Any]:
     """把已完成的 pending attempt 提交为 current，并把旧 attempt 标为 superseded。"""
     result = copy.deepcopy(_mapping(manifest, "run_manifest"))
-    if str(result.get("schema_version")) != MANIFEST_SCHEMA_VERSION:
-        raise ResearchLoopError("提交 pending attempt 需要 run_manifest 1.2.0")
+    if str(result.get("schema_version")) not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        raise ResearchLoopError("提交 pending attempt 需要受支持的 run_manifest 1.2.0/1.3.0")
     stages = _mapping(result.get("stages"), "run_manifest.stages")
     loop = _mapping(result.get("reasoning_loop"), "run_manifest.reasoning_loop")
     pending_stages = [str(item) for item in loop.get("pending_stage_attempts", [])]

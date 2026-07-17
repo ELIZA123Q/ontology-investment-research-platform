@@ -68,69 +68,69 @@ parameters:
     label: Q/反证/路径就绪 → 最大 J 矩阵
     stages: [03, 04]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold
+    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold
 
   - id: judgment_types
     label: 判断单元类型
     stages: [02, 03, 04]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/reasoning.yaml#object_types.JudgmentUnit.properties.judgment_type.allowed_values
+    authority_ref: ontology/01_通用/models/judgment.yaml#object_types.JudgmentUnit.attributes.judgment_type.allowed_values
 
   - id: judgment_levels
     label: 判断等级 J0–J4
     stages: [02, 03, 04, 05]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.judgment_level.allowed_values
+    authority_ref: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.level.allowed_values
 
   - id: path_readiness_statuses
     label: 路径就绪状态
     stages: [03]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps
+    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_readiness_caps
 
   - id: path_result_statuses
     label: 路径推理结果状态
     stages: [04]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
+    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.path_result_statuses
 
   - id: source_authority_levels
     label: 来源权威下限
     stages: [02, 03, 04]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/reasoning.yaml#object_types.JudgmentLevelCriterion.properties.minimum_source_authority.allowed_values
+    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.source_authority_levels
 
   - id: source_tiers
     label: 来源层级 S1–S8
     stages: [02, 03]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/evidence.yaml#object_types.SourceProfile.properties.sourceTier
+    authority_ref: ontology/01_通用/models/evidence.yaml#object_types.SourceDocument.attributes.source_tier.allowed_values
 
   - id: confidence_levels
     label: 置信上限 high/medium/low
     stages: [03, 04]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/evidence.yaml#object_types.EvidenceReadinessAssessment.properties.confidenceCeiling
+    authority_ref: ontology/01_通用/models/judgment.yaml#object_types.Judgment.attributes.confidence.allowed_values
 
   - id: basket_roles
-    label: 证据篮子角色
+    label: 证据篮子角色（运行时六值）
     stages: [02, 03]
     authority_kind: ontology_rule_param
-    authority_ref: ontology/01_通用/evidence.yaml#object_types.EvidenceBasket.properties.basketRole
+    authority_ref: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.operational_basket_roles
 
   - id: kb03_method_roles
     label: 取证方法五角色（说明层）
     stages: [03]
     authority_kind: knowledge_base_ref
     authority_ref: methods/03_取证/03_registry.yaml#evidence_roles
-    must_point_to: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.evidence_method_role_to_basket_role
+    must_point_to: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.evidence_method_role_to_basket_role
 
   - id: kb03_quality_language
     label: 完备度四档用语（说明层）
     stages: [03]
     authority_kind: knowledge_base_ref
     authority_ref: methods/03_取证/03_registry.yaml#quality_language
-    must_point_to: ontology/01_通用/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades
+    must_point_to: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades
 
   - id: judgment_method_routes
     label: judgment_type → kb03/kb04 方法路由

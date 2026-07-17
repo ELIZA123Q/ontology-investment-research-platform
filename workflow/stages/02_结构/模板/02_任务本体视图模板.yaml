@@ -49,28 +49,26 @@ validation:
 ontology_sources:
   platform_ontology:
     name: ontology_platform
-    version: 2.0.0
+    version: 3.0.0
     schema_versions:
-      common: 2.0.0
-      semantic: 1.0.0
-      evidence: 2.0.0
-      reasoning: 2.0.0
+      semantic: 3.0.0
+      state_event: 3.0.0
+      evidence: 3.0.0
+      judgment: 3.0.0
+      scenario: 3.0.0
     files:
-    - ontology/01_通用/common.yaml
-    - ontology/01_通用/semantic.yaml
-    - ontology/01_通用/evidence.yaml
-    - ontology/01_通用/reasoning.yaml
+    - ontology/01_通用/models/semantic.yaml
+    - ontology/01_通用/models/state_event.yaml
+    - ontology/01_通用/models/evidence.yaml
+    - ontology/01_通用/models/judgment.yaml
+    - ontology/01_通用/models/scenario.yaml
   domain_ontology:
     name: semiconductor_domain
-    version: 1.0.0
+    version: 3.0.0
     depends_on: ontology_platform
-    optimization_report: ../ontology/02_领域/semiconductor/optimization_report.yaml
-    optimization_status: completed
     files:
-    - ontology/02_领域/semiconductor/common.yaml
-    - ontology/02_领域/semiconductor/semantic.yaml
-    - ontology/02_领域/semiconductor/evidence.yaml
-    - ontology/02_领域/semiconductor/reasoning.yaml
+    - ontology/01_通用/models/semiconductor_extension.yaml
+    - ontology/02_领域/semiconductor/business_instances.yaml
 method_application_candidates:
   - application_id: MA-01
     method_id: kb03:A01
@@ -256,7 +254,8 @@ business_instance_graph:
         falsification_conditions: []
       path_refs: []
       propagation_template_refs: []
-      inference_rule_refs: []
+      candidate_method_refs: []
+      formal_constraint_refs: []
       relation_type_refs:
       - observationOf
       - evidenceGroundsReasoning

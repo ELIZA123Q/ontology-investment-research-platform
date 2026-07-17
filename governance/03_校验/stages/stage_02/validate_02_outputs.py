@@ -246,6 +246,11 @@ def _ontology_catalog(view: dict[str, object]) -> tuple[dict[str, set[str]], set
                 values = data.get(section, {})
                 if isinstance(values, dict):
                     catalog[target].update(str(key) for key in values)
+            event_taxonomy = data.get("event_taxonomy")
+            if isinstance(event_taxonomy, dict):
+                extensions = event_taxonomy.get("allowed_extensions") or []
+                if isinstance(extensions, list):
+                    catalog["events"].update(str(item) for item in extensions)
             graph_ref = data.get("business_instance_graph_ref")
             if graph_ref:
                 graph_relative = (Path(relative).parent / str(graph_ref)).as_posix()
@@ -259,6 +264,19 @@ def _ontology_catalog(view: dict[str, object]) -> tuple[dict[str, set[str]], set
                     "propagation_templates": "templates",
                 }
                 for instance in require_list(graph.get("objects"), f"{graph_relative}.objects"):
+                    projection = require_mapping(instance.get("projection"), "business instance projection")
+                    target = section_targets.get(str(projection.get("section", "")))
+                    if target:
+                        catalog[target].add(str(instance.get("id", "")))
+            # business_instances.yaml 直接携带 business_instance_graph
+            if "business_instance_graph" in data:
+                graph = require_mapping(data.get("business_instance_graph"), f"{relative}.business_instance_graph")
+                section_targets = {
+                    "evidence_profiles": "profiles",
+                    "state_variables": "variables",
+                    "propagation_templates": "templates",
+                }
+                for instance in require_list(graph.get("objects"), f"{relative}.objects"):
                     projection = require_mapping(instance.get("projection"), "business instance projection")
                     target = section_targets.get(str(projection.get("section", "")))
                     if target:
@@ -357,8 +375,8 @@ def _validate_iteration_contract(view: dict[str, object]) -> None:
         "evidence_wave_unit": "frozen_batch",
         "ontology_authority": "formal_ontology",
         "stage_attempt_policy": "immutable_superseding",
-        "structural_revision_relation_ref": "reasoningSupersedes",
-        "structural_revision_action_ref": "ReviseReasoningObject",
+        "structural_revision_relation_ref": "supersedes_trace",
+        "structural_revision_action_ref": "runtime_revision_operation",
     }
     for field, expected_value in expected.items():
         if str(contract.get(field)) != expected_value:
@@ -379,11 +397,12 @@ def _validate_iteration_contract(view: dict[str, object]) -> None:
         fail("iteration_contract.routes 必须与公共闭环路由完全一致")
     if str(contract.get("convergence_contract_ref")) != "governance/02_合同/public_contract.yaml#iteration_semantics":
         fail("iteration_contract.convergence_contract_ref 必须引用公共合同 iteration_semantics")
-    reasoning_schema = load_yaml_file(WORKSPACE / "ontology/01_通用" / "reasoning.yaml")
-    if contract["structural_revision_relation_ref"] not in reasoning_schema.get("relation_types", {}):
-        fail("iteration_contract 引用的推理修订关系未在一级正式本体定义")
-    if contract["structural_revision_action_ref"] not in reasoning_schema.get("action_types", {}):
-        fail("iteration_contract 引用的推理修订动作未在一级正式本体定义")
+    public = load_yaml_file(WORKSPACE / "governance/02_合同/public_contract.yaml")
+    iteration = require_mapping(public.get("iteration_semantics"), "public_contract.iteration_semantics")
+    if str(iteration.get("immutable_reasoning_revision_relation")) != contract["structural_revision_relation_ref"]:
+        fail("iteration_contract.structural_revision_relation_ref 必须与 public_contract.iteration_semantics 一致")
+    if str(iteration.get("immutable_reasoning_revision_action")) != contract["structural_revision_action_ref"]:
+        fail("iteration_contract.structural_revision_action_ref 必须与 public_contract.iteration_semantics 一致")
 
 
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:

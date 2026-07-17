@@ -3,8 +3,8 @@
 schema_name: semiconductor_domain_business_instances
 schema_version: 1.1.0
 depends_on:
-- ../../01_通用/evidence.yaml
-- ../../01_通用/reasoning.yaml
+- ../../01_通用/models/evidence.yaml
+- ../../01_通用/models/judgment.yaml
 business_instance_graph:
   schema_name: ontology_business_instance_graph
   schema_version: 1.0.0

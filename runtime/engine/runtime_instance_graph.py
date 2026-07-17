@@ -92,14 +92,30 @@ def _catalog() -> tuple[set[str], set[str]]:
     if _FORMAL_OBJECT_TYPES is None or _FORMAL_RELATION_TYPES is None:
         objects: set[str] = set()
         relations: set[str] = set()
-        for root_name in ("ontology/01_通用", "ontology/02_领域/semiconductor"):
-            for filename in ("semantic.yaml", "evidence.yaml", "reasoning.yaml"):
-                path = ROOT / root_name / filename
-                if not path.is_file():
-                    continue
-                schema = yaml.safe_load(path.read_text(encoding="utf-8"))
-                objects.update(schema.get("object_types", {}) or {})
-                relations.update(schema.get("relation_types", {}) or {})
+        model_root = ROOT / "ontology/01_通用/models"
+        for filename in (
+            "semantic.yaml",
+            "state_event.yaml",
+            "evidence.yaml",
+            "judgment.yaml",
+            "scenario.yaml",
+            "semiconductor_extension.yaml",
+        ):
+            path = model_root / filename
+            if not path.is_file():
+                continue
+            schema = yaml.safe_load(path.read_text(encoding="utf-8"))
+            objects.update(schema.get("object_types", {}) or {})
+            objects.update(schema.get("scenario_types", {}) or {})
+            relations.update(schema.get("relation_types", {}) or {})
+        from ontology_instance_graph import (  # local import avoids cycle at module load
+            BUSINESS_PARAMETER_OBJECT_TYPES,
+            BUSINESS_PARAMETER_RELATION_TYPES,
+            TASK_VIEW_OBJECT_TYPES,
+        )
+        objects.update(BUSINESS_PARAMETER_OBJECT_TYPES)
+        objects.update(TASK_VIEW_OBJECT_TYPES)
+        relations.update(BUSINESS_PARAMETER_RELATION_TYPES)
         _FORMAL_OBJECT_TYPES = objects
         _FORMAL_RELATION_TYPES = relations
     return _FORMAL_OBJECT_TYPES, _FORMAL_RELATION_TYPES

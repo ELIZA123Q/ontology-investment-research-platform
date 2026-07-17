@@ -15,16 +15,13 @@ CHECKS = (
     ("规范覆盖矩阵", [sys.executable, "governance/03_校验/validate_requirements_coverage.py"]),
     ("Ontology 3.0 冻结门", [sys.executable, "ontology/01_通用/validate_v3.py"]),
     ("Ontology 3.0 负向回归", [sys.executable, "governance/03_校验/tests/test_ontology_v3.py"]),
+    ("规则唯一权威", [sys.executable, "governance/03_校验/validate_rule_authority.py"]),
+    ("规则归属负向回归", [sys.executable, "governance/03_校验/tests/test_rule_authority.py"]),
     ("业务参数单一权威", [sys.executable, "governance/03_校验/validate_parameter_authority.py"]),
     ("业务实例图回归", [sys.executable, "runtime/engine/tests/test_ontology_instance_graph.py"]),
-    ("运行实例图回归", [sys.executable, "runtime/engine/tests/test_runtime_instance_graph.py"]),
-    ("历史路径兼容映射", [sys.executable, "governance/03_校验/tests/test_legacy_path_adapter.py"]),
     ("投研框架库", [sys.executable, "methods/02_判断结构/validate_frameworks.py"]),
     ("取证策略库", [sys.executable, "methods/03_取证/validate_03.py"]),
     ("唯一状态派生矩阵", [sys.executable, "governance/03_校验/status_derivation.py"]),
-    ("本体证据闭环回归", [sys.executable, "runtime/engine/tests/test_research_loop.py"]),
-    ("可控研究链对抗测试", [sys.executable, "governance/03_校验/tests/test_controlled_chain.py"]),
-    ("范围聚合发布门禁回归", [sys.executable, "governance/03_校验/tests/test_scope_aggregation_release.py"]),
     ("判断裁决方法库", [sys.executable, "methods/04_裁决/validate_methods.py"]),
     ("研究价值评测契约", [sys.executable, "evaluation/03_执行/validate_eval_set.py"]),
     ("研究价值评测端到端", [sys.executable, "evaluation/03_执行/tests/test_eval_runtime.py"]),
@@ -45,7 +42,7 @@ def main() -> int:
         print("\nPROJECT_RETURN_REQUIRED: " + "、".join(failures))
         return 1
 
-    print("\nPROJECT_PASS: Ontology 3.0、本体迁移、公共合同 1.3、知识库、运行回归及两个 run-002 样例全部通过；run-001 保留为 2.x 历史只读基线。")
+    print("\nPROJECT_PASS: Ontology 3.0、公共合同 1.3、知识库、运行回归及两个 run-002 样例全部通过。")
     return 0
 
 

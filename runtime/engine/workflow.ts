@@ -17,7 +17,17 @@ import { promptFor, PROMPT_VERSION } from "./prompts";
 import { schemas, type SchemaKind } from "./schemas";
 import { ontologyContextForPrompt } from "./ontology_tools";
 import { emptyGraph, loadGraphForRun, materializeStageIntoGraph } from "./instance_graph";
-import { parseJson, STAGES, type Artifact, type ArtifactKind, type StageKind } from "./types";
+import {
+  validateExpressionMethodBindings,
+  validateJudgmentMethodBindings,
+  validateMethodApplications,
+} from "./method_application";
+import {
+  registeredMethodCandidates,
+  validateMethodRoutes,
+  validateRegisteredMethodApplications,
+} from "./method_registry";
+import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type StageKind } from "./types";
 
 function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;
@@ -27,17 +37,60 @@ export function validateApproval(artifact: Artifact) {
   const schema = schemas[artifact.kind as SchemaKind];
   if (schema) schema.parse(parseJson(artifact.json_content, {}));
   const data: any = parseJson(artifact.json_content, {});
+  if (artifact.kind === "stage_02") {
+    validateMethodApplications("stage_02", data.method_applications as MethodApplication[]);
+    validateRegisteredMethodApplications(data.method_applications as MethodApplication[]);
+    validateMethodRoutes(data.method_applications as MethodApplication[], data.judgment_units || []);
+  }
   if (artifact.kind === "stage_03") {
+    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    const evidenceIds = new Set<string>((data.evidence_drafts || []).map((item: any) => String(item.id)));
+    const judgmentUnitIds = new Set<string>((structure.judgment_units || []).map((item: any) => String(item.id)));
+    validateMethodApplications("stage_03", data.method_applications as MethodApplication[], {
+      prior: structure.method_applications || [],
+      evidenceIds,
+    });
+    validateRegisteredMethodApplications(data.method_applications as MethodApplication[]);
+    validateMethodRoutes(data.method_applications as MethodApplication[], structure.judgment_units || []);
+    const referencedEvidenceIds = new Set<string>(
+      (data.method_applications || []).flatMap((item: MethodApplication) => item.input_evidence_refs),
+    );
+    for (const application of data.method_applications as MethodApplication[]) {
+      for (const ref of application.target_judgment_unit_refs) {
+        if (!judgmentUnitIds.has(ref)) throw new Error(`${application.application_id} 引用了不存在的判断单元 ${ref}`);
+      }
+      if (application.capability_type === "evidence" && application.status === "selected" && !application.input_evidence_refs.length) {
+        throw new Error(`${application.application_id} selected 取证方法必须绑定至少一项证据草稿`);
+      }
+    }
     const known = new Set(listSources(artifact.run_id).map((s) => s.id));
     for (const evidence of data.evidence_drafts || []) {
+      for (const ref of evidence.judgment_unit_ids || []) {
+        if (!judgmentUnitIds.has(ref)) throw new Error(`${evidence.id} 引用了不存在的判断单元 ${ref}`);
+      }
       if (evidence.kind !== "gap" && (!evidence.source_ids?.length || evidence.source_ids.some((id: string) => !known.has(id)))) {
         throw new Error(`${evidence.id} 缺少有效来源，不能确认`);
+      }
+      if (evidence.kind !== "gap" && !referencedEvidenceIds.has(evidence.id)) {
+        throw new Error(`${evidence.id} 未绑定任何 MethodApplication，不能确认`);
       }
     }
   }
   if (artifact.kind === "stage_04") {
     const upstream: any = parseJson(latestArtifact(artifact.run_id, "stage_03", ["approved"])?.json_content || "{}", {});
-    const ids = new Set((upstream.evidence_drafts || []).map((x: any) => x.id));
+    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    const ids = new Set<string>((upstream.evidence_drafts || []).map((x: any) => String(x.id)));
+    const judgmentIds = new Set<string>((data.judgments || []).map((item: any) => String(item.id)));
+    const signalIds = new Set<string>((data.signals || []).map((item: any) => String(item.id)));
+    validateMethodApplications("stage_04", data.method_applications as MethodApplication[], {
+      prior: upstream.method_applications || [],
+      evidenceIds: ids,
+      judgmentIds,
+      signalIds,
+    });
+    validateRegisteredMethodApplications(data.method_applications as MethodApplication[]);
+    validateMethodRoutes(data.method_applications as MethodApplication[], structure.judgment_units || []);
+    validateJudgmentMethodBindings(data.judgments || [], data.method_applications || []);
     for (const j of data.judgments || []) {
       for (const id of [...j.supporting_evidence_draft_ids, ...j.counter_evidence_draft_ids]) {
         if (!ids.has(id)) throw new Error(`${j.id} 引用了不存在的证据草稿 ${id}`);
@@ -48,6 +101,7 @@ export function validateApproval(artifact: Artifact) {
     const upstream: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
     const ids = new Set((upstream.judgments || []).map((x: any) => x.id));
     const sourceIds = new Set(listSources(artifact.run_id).map((s) => s.id));
+    validateExpressionMethodBindings(data.report_claims || [], upstream.method_applications || []);
     for (const c of data.report_claims || []) {
       for (const id of c.judgment_ids) if (!ids.has(id)) throw new Error(`${c.id} 引用了不存在的判断 ${id}`);
       for (const id of c.source_ids) if (!sourceIds.has(id)) throw new Error(`${c.id} 引用了不存在的来源 ${id}`);
@@ -95,6 +149,9 @@ function materializeAuthorityGraph(runId: string, stageKind: string, stageJson: 
 export async function generateArtifact(runId: string, kind: ArtifactKind) {
   const run = getRun(runId);
   if (!run) throw new Error("研究任务不存在");
+  if (kind === "independent_review" && !latestArtifact(runId, "stage_04", ["approved"])) {
+    throw new Error("请先确认阶段 04，再运行独立审阅");
+  }
   if (kind.startsWith("stage_")) {
     const n = stageNumber(kind);
     if (n > 1 && !latestArtifact(runId, STAGES[n - 2], ["approved"])) {
@@ -102,10 +159,13 @@ export async function generateArtifact(runId: string, kind: ArtifactKind) {
     }
   }
   const knowledge = kind.startsWith("stage_") ? loadKnowledge(kind as StageKind) : { version: "none", context: "", files: [] };
-  const upstream = STAGES.filter((s) => stageNumber(s) < stageNumber(kind))
+  const upstreamStages = kind === "independent_review"
+    ? STAGES.filter((s) => ["stage_02", "stage_03", "stage_04"].includes(s))
+    : STAGES.filter((s) => stageNumber(s) < stageNumber(kind));
+  const upstream = upstreamStages
     .map((s) => latestArtifact(runId, s, ["approved"]))
     .filter(Boolean)
-    .map((a) => ({ kind: a!.kind, json: parseJson(a!.json_content, {}) }));
+    .map((a) => ({ artifact_id: a!.id, kind: a!.kind, json: parseJson(a!.json_content, {}) }));
   const sources = listSources(runId);
   const ontologyContext = ontologyContextForPrompt(runId);
   const inputContext = JSON.stringify(
@@ -116,6 +176,9 @@ export async function generateArtifact(runId: string, kind: ArtifactKind) {
       upstream,
       sources,
       ontology_object_set: ontologyContext,
+      method_candidates: ["stage_02", "stage_03", "stage_04"].includes(kind)
+        ? registeredMethodCandidates()
+        : [],
       knowledge_files: knowledge.files,
       knowledge_context: knowledge.context,
     },
@@ -137,6 +200,9 @@ export async function generateArtifact(runId: string, kind: ArtifactKind) {
       runId,
     });
     const data: any = result.data;
+    if (kind === "independent_review") {
+      data.reviewed_stage04_artifact_id = latestArtifact(runId, "stage_04", ["approved"])!.id;
+    }
     if (kind === "stage_03" || kind === "baseline") {
       const keyMap = new Map<string, string>();
       for (const s of data.sources || []) {

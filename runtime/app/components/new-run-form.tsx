@@ -37,13 +37,13 @@ export function NewRunForm() {
   }
 
   return (
-    <form className="card" onSubmit={submit}>
+    <form className="card form-card" onSubmit={submit}>
       <div className="field">
-        <label>你真正想判断什么？</label>
+        <label>研究问题</label>
         <textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
-          placeholder="例如：未来 6—12 个月，存储芯片供需是否会改善？"
+          placeholder="例如：未来 6—12 个月，存储芯片供需是否会由过剩转向平衡？"
           required
         />
       </div>
@@ -68,7 +68,7 @@ export function NewRunForm() {
       {domain !== "semiconductor" && <div className="notice">当前只有半导体领域本体，系统会明确标注覆盖不足。</div>}
       {error && <div className="notice error">{error}</div>}
       <button className="button" disabled={busy}>
-        {busy ? "正在创建…" : "创建研究运行"}
+        {busy ? "正在创建…" : "创建运行并进入工作台 →"}
       </button>
     </form>
   );

@@ -25,8 +25,14 @@ from ontology_instance_graph import (  # noqa: E402
 class InstanceGraphTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        path = ROOT / "instances/01_正式样例/01_存储周期" / "02-存储芯片周期本体视图-20260715-1.yaml"
+        path = ROOT / "workflow/stages/02_结构/模板/02_任务本体视图模板.yaml"
         cls.compact = yaml.safe_load(path.read_text(encoding="utf-8"))
+        domain = ROOT / "ontology/02_领域/semiconductor/business_instances.yaml"
+        cls.domain = yaml.safe_load(domain.read_text(encoding="utf-8"))
+
+    def test_template_and_domain_graphs_validate(self) -> None:
+        validate_instance_graph(self.compact["business_instance_graph"])
+        validate_instance_graph(self.domain["business_instance_graph"])
 
     def test_projection_round_trip_is_lossless(self) -> None:
         projected = project_task_view(self.compact)

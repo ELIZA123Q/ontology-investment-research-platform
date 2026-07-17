@@ -393,10 +393,10 @@ def _validate_iteration_audit(audit: dict[str, object], audit_path: Path) -> Non
             fail(f"{revision_id} 新旧对象引用不得相同")
         if str(item.get("object_type_ref")) not in allowed_types:
             fail(f"{revision_id}.object_type_ref 非法")
-        if item.get("relation_type_ref") != "reasoningSupersedes":
-            fail(f"{revision_id} 必须使用 reasoningSupersedes")
-        if item.get("action_ref") != "ReviseReasoningObject":
-            fail(f"{revision_id} 必须使用 ReviseReasoningObject")
+        if item.get("relation_type_ref") not in {"supersedes_trace", "reasoningSupersedes"}:
+            fail(f"{revision_id} 必须使用 supersedes_trace")
+        if item.get("action_ref") not in {"runtime_revision_operation", "ReviseReasoningObject"}:
+            fail(f"{revision_id} 必须使用 runtime_revision_operation")
         if str(item.get("revision_type")) not in {
             "evidence_update", "structural_revision", "scope_revision", "correction", "retirement"
         }:

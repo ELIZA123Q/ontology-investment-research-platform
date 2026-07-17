@@ -1,6 +1,6 @@
 export const STAGES = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"] as const;
 export type StageKind = (typeof STAGES)[number];
-export type ArtifactKind = StageKind | "baseline" | "evaluation" | "instance_graph" | "action_audit";
+export type ArtifactKind = StageKind | "baseline" | "evaluation" | "independent_review" | "instance_graph" | "action_audit";
 export type ArtifactStatus = "running" | "needs_review" | "approved" | "failed" | "superseded";
 
 export type MethodApplicationStatus = "candidate" | "selected" | "executed" | "rejected" | "blocked" | "degraded";

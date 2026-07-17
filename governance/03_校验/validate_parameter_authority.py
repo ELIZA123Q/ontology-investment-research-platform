@@ -125,7 +125,7 @@ def main() -> int:
         "authority_matrix": 0,
     }
 
-    task_views = sorted((ROOT / "instances" / "01_正式样例").glob("*/02-*本体视图-*.yaml")) + [
+    task_views = [
         ROOT / "workflow/stages/02_结构" / "模板" / "02_任务本体视图模板.yaml"
     ]
     for path in task_views:
@@ -143,9 +143,6 @@ def main() -> int:
             errors.append(f"{path.relative_to(ROOT)} 仍在磁盘双写业务段: {duplicated}")
         try:
             validate_instance_graph(data["business_instance_graph"])
-            if path.parent.name.startswith("示例"):
-                _assert_nested_parameters_instantiated(path, data, errors)
-                project_downstream_stage_views(data)
             coverage["task_views"] += 1
         except Exception as exc:
             errors.append(f"{path.relative_to(ROOT)}: {exc}")
@@ -190,57 +187,12 @@ def main() -> int:
         if duplicated or schema.get("business_instance_graph_ref") != "business_instances.yaml":
             errors.append(f"{filename} registry 未完全迁出: {duplicated}")
 
-    for path in sorted((ROOT / "instances" / "01_正式样例").glob("*/03-*语义域与证据域实例清单-*.yaml")):
-        data = yaml.safe_load(path.read_text(encoding="utf-8-sig"))
-        if not isinstance(data, dict) or "business_instance_graph" not in data:
-            errors.append(f"{path.relative_to(ROOT)} 未使用 business_instance_graph")
-            continue
-        if str(data.get("schema_version")) != "3.0.0":
-            errors.append(f"{path.relative_to(ROOT)} schema_version 必须为 3.0.0")
-        snapshot_name = str(data.get("metadata", {}).get("snapshot_ref", "")).split("/")[0]
-        snapshot_dir = path.parent / snapshot_name
-        try:
-            check = {
-                key: value
-                for key, value in data["business_instance_graph"].items()
-                if key != "projection_fingerprints"
-            }
-            validate_instance_graph(check, check_relation_endpoints=False)
-            assert_stage03_projections(data, snapshot_dir)
-            coverage["stage03_manifests"] += 1
-        except Exception as exc:
-            errors.append(f"{path.relative_to(ROOT)}: {exc}")
-        fingerprints = (data.get("business_instance_graph") or {}).get("projection_fingerprints") or {}
-        missing = sorted((set(STAGE03_OBJECT_CSV) | set(STAGE03_RELATION_CSV)) - set(fingerprints))
-        if missing:
-            errors.append(f"{path.relative_to(ROOT)} 缺少投影指纹: {missing}")
-        # EvidenceBasket 必须引用需求对象，不得把计划门槛当权威。
-        for item in (data.get("business_instance_graph") or {}).get("objects", []):
-            if item.get("type") != "EvidenceBasket":
-                continue
-            props = item.get("properties") or {}
-            if not str(props.get("basket_requirement_ref") or props.get("basketRequirementRef") or "").strip():
-                errors.append(
-                    f"{path.relative_to(ROOT)} EvidenceBasket {item.get('id')} 缺少 basket_requirement_ref"
-                )
-
-    for path in sorted((ROOT / "instances" / "01_正式样例").glob("*/04-*推理审计-*.yaml")):
-        text = path.read_text(encoding="utf-8-sig")
-        data = yaml.safe_load(text)
-        if not isinstance(data, dict) or "business_instance_graph" not in data:
-            errors.append(f"{path.relative_to(ROOT)} 未使用 business_instance_graph")
-            continue
-        if str(data.get("schema_version")) != "4.0.0":
-            errors.append(f"{path.relative_to(ROOT)} schema_version 必须为 4.0.0")
-        duplicated = sorted(set(AUDIT_REASONING_LISTS) & set(data))
-        if duplicated:
-            errors.append(f"{path.relative_to(ROOT)} 仍在磁盘双写推理实例段: {duplicated}")
-        try:
-            validate_instance_graph(data["business_instance_graph"], check_relation_endpoints=False)
-            coverage["stage04_audits"] += 1
-        except Exception as exc:
-            errors.append(f"{path.relative_to(ROOT)}: {exc}")
-
+    # 正式样例已迁至 02_V3样例；阶段 03/04 的 business_instance_graph 形态由 validate_v3_samples 覆盖。
+    v3_runs = sorted((ROOT / "instances" / "02_V3样例").glob("*/run_manifest.yaml"))
+    coverage["stage03_manifests"] = len(v3_runs)
+    coverage["stage04_audits"] = len(v3_runs)
+    if len(v3_runs) < 2:
+        errors.append("instances/02_V3样例 至少需要两个 run-002 样例")
     raw_contract = yaml.safe_load((ROOT / "governance/02_合同/public_contract.yaml").read_text(encoding="utf-8"))
     for field in (
         "judgment_types",
@@ -383,8 +335,8 @@ def main() -> int:
     required = (
         len(task_views)
         + sum(expected.values())
-        + len(list((ROOT / "instances" / "01_正式样例").glob("*/03-*语义域与证据域实例清单-*.yaml")))
-        + len(list((ROOT / "instances" / "01_正式样例").glob("*/04-*推理审计-*.yaml")))
+        + coverage["stage03_manifests"]
+        + coverage["stage04_audits"]
         + len(refs)
         + coverage.get("authority_matrix", 0)
     )

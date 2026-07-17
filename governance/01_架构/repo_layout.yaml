@@ -20,9 +20,9 @@ layers:
     may_define: [asset_boundaries, public_contracts, status_protocols, validation_rules]
     must_not_define: [ontology_meanings, method_content, run_facts]
   ontology:
-    purpose: 稳定投研对象、关系、动作、变量和规则定义
-    may_define: [object_types, relation_types, action_types, rules]
-    must_not_define: [single_run_observations, single_run_judgments]
+    purpose: 稳定投研对象、关系、动作、变量与语义/约束型规则
+    may_define: [object_types, relation_types, action_types, semantic_constraint_rules]
+    must_not_define: [single_run_observations, single_run_judgments, method_procedures, stage_contracts, run_evaluations]
   methods:
     purpose: 可复用的判断结构、证据和裁决方法
     may_define: [method_metadata, applicability, failure_conditions, candidate_routes]
@@ -32,8 +32,8 @@ layers:
     may_define: [stage_inputs, stage_outputs, stage_actions, return_conditions]
     must_not_define: [duplicated_method_content, single_run_results]
   runtime:
-    purpose: 本次任务的编排、方法选择、规则应用、返工与回放
-    may_define: [execution_state, adapters, orchestration]
+    purpose: 本次任务的编排、方法选择、规则应用、返工与回放；规则应用结果写入 instances
+    may_define: [execution_state, adapters, orchestration, method_selection]
     must_not_define: [parallel_public_contracts, parallel_ontology]
   instances:
     purpose: 实际运行产物、证据、方法应用、判断和历史

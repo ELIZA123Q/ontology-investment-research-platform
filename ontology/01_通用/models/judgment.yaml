@@ -146,15 +146,29 @@ rules:
     failure_result: downgrade_or_block
     priority: blocking
     test_cases: [{id: JUD-R-01-P, expected: pass}, {id: JUD-R-01-N, expected: reject}]
-  rule_evaluation_is_explicit:
-    metadata: {id: rule_evaluation_is_explicit, namespace: core.judgment, label_zh: 规则评估必须显式, label_en: Rule evaluation must be explicit, aliases: [], definition: 规则评估必须逐条件保存输入、表达式、结果和理由，禁止仅写 matched。, model: judgment, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [三项条件逐项记录], counter_examples: [condition_results matched]}
-    rule_class: semantic_constraint
-    applies_to: [RuleEvaluation]
-    input_types: [RuleEvaluation]
-    output_types: [validation_result]
-    preconditions: [rule_ref_resolves]
-    condition: every condition_result has condition_id, expression, input_refs, outcome, rationale
-    counter_conditions: [aggregate_matched_only, missing_input_binding]
-    failure_result: reject
-    priority: blocking
-    test_cases: [{id: JUD-R-02-P, expected: pass}, {id: JUD-R-02-N, expected: reject}]
+    # 运行门槛矩阵与方法映射的机器权威（自 2.x reasoning.yaml 迁入）。
+    parameters:
+      evidence_grade_caps: {Q0: J0, Q1: J1, Q2: J2, Q3: J3, Q4: J4}
+      counterevidence_caps: {cleared: J4, weakened: J2, contested: J1, decisive: J0, not_checked: J1, not_applicable: J4}
+      path_readiness_caps: {ready: J4, restricted: J2, blocked: J0, not_applicable: J4}
+      path_result_statuses: [established, partially_established, weakened, blocked, insufficient_evidence, contested, not_applicable]
+      source_authority_levels: [unknown, indirect, informed_secondary, authoritative_secondary, primary]
+      # 运行时/KB03/阶段 CSV 使用的篮子角色（六值）；EvidenceBasket.role 四值为 V3 语义模型字段。
+      operational_basket_roles: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence]
+      quality_language_to_evidence_grades:
+        sufficient: [Q3, Q4]
+        limited: [Q2]
+        observation: [Q1]
+        unusable: [Q0]
+      evidence_method_role_to_basket_role:
+        primary: primary_support
+        baseline: background_evidence
+        mechanism: cross_validation
+        cross_check: cross_validation
+        counter: counter_evidence
+      level_outputs:
+        J0: {evidence_permission: prohibited, allowed_04_output: insufficient, allowed_expression: 只说明缺口，不形成方向}
+        J1: {evidence_permission: background_only, allowed_04_output: observation_only, allowed_expression: 只作事实观察或线索}
+        J2: {evidence_permission: conditional_judgment, allowed_04_output: conditional_only, allowed_expression: 保留条件的方向判断}
+        J3: {evidence_permission: directional_judgment, allowed_04_output: directional_only, allowed_expression: 方向判断或高概率判断}
+        J4: {evidence_permission: core_judgment, allowed_04_output: full_reasoning_ready, allowed_expression: 在明确范围内形成确认判断}

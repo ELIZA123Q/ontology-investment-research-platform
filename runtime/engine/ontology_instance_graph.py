@@ -27,6 +27,50 @@ STRICT_TASK_TYPES = {
     "InstanceRequirement", "AggregationContract", "PathCondition", "CompetingExplanation",
 }
 
+# 业务参数图与任务视图使用的运行时/领域登记类型（已从 L1 正式本体迁出，仍可出现在 business_instance_graph）。
+BUSINESS_PARAMETER_OBJECT_TYPES = {
+    "EvidenceProfile",
+    "EvidenceRecipe",
+    "SourceProfile",
+    "ProxyIndicator",
+    "PropagationTemplate",
+    "ScenarioTemplate",
+    "BusinessScenarioTag",
+    "JudgmentLevelCriterionTemplate",
+}
+TASK_VIEW_OBJECT_TYPES = {
+    "ResearchPlan",
+    "ResearchFrameworkSelection",
+    "SemanticScopeSelection",
+    "EvidenceContract",
+    "ReasoningPlan",
+    "OntologyBindingSet",
+    "OntologyCandidateSet",
+    "OntologyGapSet",
+    "JudgmentUnit",
+    "InstanceRequirement",
+    "EvidenceRequirement",
+    "ResearchScope",
+    "ResearchPath",
+    "PathNode",
+    "PathCondition",
+    "CompetingExplanation",
+    "AggregationContract",
+    "JudgmentLevelCriterion",
+    "EvidenceBasketRequirement",
+    "CandidateClaim",
+    "EvidenceBasket",
+}
+BUSINESS_PARAMETER_RELATION_TYPES = {
+    "propagationTemplateUsesSourceVariable",
+    "propagationTemplateProducesVariable",
+    "stateVariableUsesEvidenceProfile",
+    "scenarioTemplateConstrainsVariable",
+    "propagationTemplateUsesEvidenceProfile",
+    "researchPlanContainsResource",
+    "pathContainsNode",
+}
+
 SECTION_TYPES = {
     "task_context": "ResearchPlan",
     "research_framework": "ResearchFrameworkSelection",
@@ -694,24 +738,39 @@ def compact_task_view(view: Mapping[str, Any]) -> dict[str, Any]:
     return result
 
 
+_MODEL_FILES = (
+    "semantic.yaml",
+    "state_event.yaml",
+    "evidence.yaml",
+    "judgment.yaml",
+    "scenario.yaml",
+    "semiconductor_extension.yaml",
+)
+
+
+def _schema_fields(definition: Mapping[str, Any]) -> dict[str, Any]:
+    fields = definition.get("attributes") or definition.get("properties") or {}
+    return fields if isinstance(fields, dict) else {}
+
+
 def _load_ontology_catalog(*, include_domain: bool = True) -> tuple[set[str], set[str], dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+    del include_domain  # 领域扩展已并入 models/semiconductor_extension.yaml
     object_types: set[str] = set()
     relation_types: set[str] = set()
     object_definitions: dict[str, dict[str, Any]] = {}
     relation_definitions: dict[str, dict[str, Any]] = {}
-    roots = [ROOT / "ontology/01_通用"]
-    if include_domain:
-        roots.append(ROOT / "ontology/02_领域/semiconductor")
-    for root in roots:
-        for filename in ("semantic.yaml", "evidence.yaml", "reasoning.yaml"):
-            path = root / filename
-            if not path.is_file():
-                continue
-            schema = yaml.safe_load(path.read_text(encoding="utf-8"))
-            object_definitions.update(schema.get("object_types", {}) or {})
-            relation_definitions.update(schema.get("relation_types", {}) or {})
-            object_types.update(str(item) for item in (schema.get("object_types", {}) or {}))
-            relation_types.update(str(item) for item in (schema.get("relation_types", {}) or {}))
+    model_root = ROOT / "ontology/01_通用/models"
+    for filename in _MODEL_FILES:
+        path = model_root / filename
+        if not path.is_file():
+            continue
+        schema = yaml.safe_load(path.read_text(encoding="utf-8"))
+        object_definitions.update(schema.get("object_types", {}) or {})
+        object_definitions.update(schema.get("scenario_types", {}) or {})
+        relation_definitions.update(schema.get("relation_types", {}) or {})
+        object_types.update(str(item) for item in (schema.get("object_types", {}) or {}))
+        object_types.update(str(item) for item in (schema.get("scenario_types", {}) or {}))
+        relation_types.update(str(item) for item in (schema.get("relation_types", {}) or {}))
     return object_types, relation_types, object_definitions, relation_definitions
 
 
@@ -733,6 +792,8 @@ def validate_instance_graph(
     object_types, relation_types, object_definitions, relation_definitions = _load_ontology_catalog(
         include_domain=include_domain
     )
+    allowed_object_types = object_types | BUSINESS_PARAMETER_OBJECT_TYPES | TASK_VIEW_OBJECT_TYPES
+    allowed_relation_types = relation_types | BUSINESS_PARAMETER_RELATION_TYPES
     # Company 可满足以 Organization 为值域的关系。
     type_aliases = {"Company": {"Organization", "Company"}}
     ids: set[str] = set()
@@ -743,13 +804,17 @@ def validate_instance_graph(
         object_type = str(item.get("type", "")).strip()
         if not instance_id or not object_type or instance_id in ids:
             raise InstanceGraphError(f"objects[{index}] id/type 为空或 id 重复")
-        if object_type not in object_types:
-            raise InstanceGraphError(f"{instance_id}.type 不是正式本体对象: {object_type}")
+        if object_type not in allowed_object_types:
+            raise InstanceGraphError(f"{instance_id}.type 不是正式本体或已登记业务参数对象: {object_type}")
         ids.add(instance_id)
         instance_types[instance_id] = object_type
         properties = _mapping(item.get("properties"), f"{instance_id}.properties")
-        if object_type in STRICT_TASK_TYPES:
-            for property_name, definition in object_definitions[object_type].get("properties", {}).items():
+        if (
+            object_type in STRICT_TASK_TYPES
+            and object_type in object_definitions
+            and "properties" in object_definitions[object_type]
+        ):
+            for property_name, definition in _schema_fields(object_definitions[object_type]).items():
                 if definition.get("required") and property_name not in properties:
                     raise InstanceGraphError(f"{instance_id}.properties 缺少必填属性 {property_name}")
                 if property_name not in properties:
@@ -785,12 +850,13 @@ def validate_instance_graph(
         if not relation_id or relation_id in relation_ids:
             raise InstanceGraphError(f"relations[{index}].id 为空或重复")
         relation_ids.add(relation_id)
-        if str(item.get("type", "")) not in relation_types:
-            raise InstanceGraphError(f"{relation_id}.type 不是正式本体关系")
+        relation_type = str(item.get("type", ""))
+        if relation_type not in allowed_relation_types:
+            raise InstanceGraphError(f"{relation_id}.type 不是正式本体或已登记业务参数关系")
         if str(item.get("sourceId", "")) not in ids or str(item.get("targetId", "")) not in ids:
             raise InstanceGraphError(f"{relation_id} 存在悬空端点")
-        definition = relation_definitions[str(item.get("type"))]
-        if check_relation_endpoints:
+        if relation_type in relation_definitions and check_relation_endpoints:
+            definition = relation_definitions[relation_type]
             source_type = instance_types[str(item["sourceId"])]
             target_type = instance_types[str(item["targetId"])]
             allowed_source = set(definition.get("source_types", []))

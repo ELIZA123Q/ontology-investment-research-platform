@@ -31,8 +31,8 @@ from research_loop import (  # noqa: E402
 
 
 MANIFEST_NAME = "run_manifest.yaml"
-MANIFEST_SCHEMA_VERSION = "1.2.0"
-SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {MANIFEST_SCHEMA_VERSION}
+MANIFEST_SCHEMA_VERSION = "1.3.0"
+SUPPORTED_MANIFEST_SCHEMA_VERSIONS = {"1.2.0", MANIFEST_SCHEMA_VERSION}
 STAGES = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]
 IMMEDIATE_UPSTREAM = {
     "stage_01": None,
@@ -77,7 +77,7 @@ def manifest_binding_hash(manifest: dict[str, Any]) -> str:
             "attempt": entry.get("attempt"),
             "supersedes_attempt": entry.get("supersedes_attempt"),
         }
-        if manifest_version == MANIFEST_SCHEMA_VERSION:
+        if manifest_version in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
             stage_binding.update({
                 "attempt_history": entry.get("attempt_history"),
                 "pending_attempt": entry.get("pending_attempt"),
@@ -91,7 +91,7 @@ def manifest_binding_hash(manifest: dict[str, Any]) -> str:
         "versions": manifest.get("versions"),
         "stages": stages,
     }
-    if manifest_version == MANIFEST_SCHEMA_VERSION:
+    if manifest_version in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
         payload["reasoning_loop"] = manifest.get("reasoning_loop")
     return canonical_sha256(payload)
 
@@ -307,10 +307,10 @@ def _manifest_validation(
     if not isinstance(stages, dict) or set(stages) != set(STAGES):
         raise ValueError("run_manifest.stages 必须完整包含 stage_01—stage_05")
 
-    if manifest_version == MANIFEST_SCHEMA_VERSION:
+    if manifest_version in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
         loop = manifest.get("reasoning_loop")
         if not isinstance(loop, dict):
-            raise ValueError("run_manifest 1.2.0 必须包含 reasoning_loop")
+            raise ValueError("run_manifest 1.2.0/1.3.0 必须包含 reasoning_loop")
         if loop.get("mode") != "ontology_evidence_wave":
             raise ValueError("run_manifest.reasoning_loop.mode 必须为 ontology_evidence_wave")
         if str(loop.get("classification", "")) not in CLASSIFICATIONS:
@@ -420,7 +420,7 @@ def _manifest_validation(
             "severity": "blocking",
         })
 
-    if manifest_version == MANIFEST_SCHEMA_VERSION:
+    if manifest_version in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
         for stage in STAGES:
             if stages[stage].get("pending_attempt") is None:
                 continue
@@ -596,8 +596,8 @@ def _validate_iteration_manifest_binding(
     """4.0 迭代审计必须绑定真实 manifest attempt 与历史对象。"""
     if str(audit.get("schema_version")) != "4.0.0":
         return
-    if str(manifest.get("schema_version")) != MANIFEST_SCHEMA_VERSION:
-        raise ValueError("04 审计 4.0.0 必须配对 run_manifest 1.2.0")
+    if str(manifest.get("schema_version")) not in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
+        raise ValueError("04 审计 4.0.0 必须配对 run_manifest 1.2.0/1.3.0")
     context = audit.get("iteration_context")
     if not isinstance(context, dict):
         raise ValueError("04 审计 4.0.0 缺少 iteration_context")

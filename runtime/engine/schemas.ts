@@ -2,6 +2,18 @@ import { z } from "zod";
 
 const markdown = z.string().min(40);
 const nonEmptyString = z.string().min(1);
+const judgmentType = z.enum([
+  "state_measurement",
+  "trend_direction",
+  "cycle_phase",
+  "mechanism_validation",
+  "causal_attribution",
+  "transmission_path",
+  "object_differentiation",
+  "impact_realization",
+  "expectation_gap",
+  "valuation_impact",
+]);
 
 export const methodApplicationSchema = z.object({
   application_id: z.string().regex(/^MA-[A-Z0-9_-]+$/),
@@ -56,6 +68,7 @@ export const judgmentStructureSchema = z.object({
     id: nonEmptyString,
     title: nonEmptyString,
     question: nonEmptyString,
+    judgment_type: judgmentType,
     ontology_node_ids: z.array(z.string()),
     evidence_requirements: z.array(z.string()),
   })).min(1),
@@ -153,6 +166,22 @@ export const evaluationSchema = z.object({
   side_a: z.enum(["baseline", "runtime"]),
 });
 
+export const independentReviewSchema = z.object({
+  reviewed_stage04_artifact_id: nonEmptyString,
+  verdict: z.enum(["pass", "rework"]),
+  issues: z.array(z.object({
+    issue_type: z.enum(["reasoning_jump", "evidence_mismatch", "overclaim", "missing_competing_explanation", "traceability_gap"]),
+    judgment_id: z.string().nullable(),
+    description: nonEmptyString,
+    evidence_refs: z.array(z.string()),
+    required_action: nonEmptyString,
+    return_stage: z.enum(["stage_02", "stage_03", "stage_04"]),
+  })),
+  strengths: z.array(z.string()),
+  overall_assessment: nonEmptyString,
+  document_markdown: markdown,
+});
+
 export const schemas = {
   stage_01: taskDefinitionSchema,
   stage_02: judgmentStructureSchema,
@@ -160,5 +189,6 @@ export const schemas = {
   stage_04: judgmentDecisionSchema,
   stage_05: researchExpressionSchema,
   baseline: baselineSchema,
+  independent_review: independentReviewSchema,
 };
 export type SchemaKind = keyof typeof schemas;

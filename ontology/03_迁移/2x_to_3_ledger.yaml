@@ -42,12 +42,9 @@ default_classification:
     replaced_by:
     - methods/00_登记/method_assets.yaml
   rules:
-    classification: merge
+    classification: deprecate
     replaced_by:
-    - ontology/01_通用/models/semantic.yaml#rules
-    - ontology/01_通用/models/state_event.yaml#rules
-    - ontology/01_通用/models/evidence.yaml#rules
-    - ontology/01_通用/models/judgment.yaml#rules
+    - governance/02_合同/rule_authority_registry.yaml
 overrides:
   keep_objects:
     ids:
@@ -113,16 +110,63 @@ overrides:
       factSupportedByClaim: factDerivedFromClaim
       conflictsWith: evidenceConflictsWith
     classification: keep
-  governance_rules:
-    ids:
-    - reasoning_trace_required
-    - rule_evaluation_trace_required
-    - reasoning_revision_preserves_trace
-    - validation_outcome_required
-    - validation_time_order
+  formal_rule_merges:
+    mapping:
+      stable_semantics_only: ontology/01_通用/models/semantic.yaml#object_types
+      unique_identity: ontology/01_通用/models/semantic.yaml#object_types
+      organization_kind_required: ontology/01_通用/models/semantic.yaml#object_types.Organization
+      relation_endpoint_compatibility: ontology/01_通用/models/semantic.yaml#rules.semantic_endpoint_compatibility
+      complex_relation_reification: ontology/01_通用/meta_schema.yaml#relation_type_contract
+      assessment_requires_evidence: ontology/01_通用/models/evidence.yaml#object_types.EvidenceAssessment
+      assessment_is_contextual: ontology/01_通用/models/evidence.yaml#rules.evidence_scope_time_alignment
+      source_traceability: ontology/01_通用/models/evidence.yaml#relation_types.claimCitesSource
+      claim_atomicity: ontology/01_通用/models/evidence.yaml#object_types.EvidenceClaim
+      source_claim_reliability_separation: ontology/01_通用/models/evidence.yaml#object_types.EvidenceAssessment
+      fact_requires_claim: ontology/01_通用/models/evidence.yaml#relation_types.factDerivedFromClaim
+      original_source_independence: ontology/01_通用/models/evidence.yaml#object_types.EvidenceRequirement
+      conflict_preservation: ontology/01_通用/models/evidence.yaml#relation_types.evidenceConflictsWith
+      business_time_required: ontology/01_通用/models/state_event.yaml#rules.state_time_consistency
+      proxy_must_be_disclosed: ontology/01_通用/models/evidence.yaml#rules.evidence_scope_time_alignment
+      proxy_cannot_replace_direct_evidence: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints.semiconductor_proxy_disclosure
+      no_direct_evidence_to_judgment: ontology/01_通用/models/evidence.yaml#rules.no_direct_evidence_to_judgment
+      semantic_anchor_required: ontology/01_通用/models/judgment.yaml#object_types.Hypothesis
+      hypothesis_falsifiability_required: ontology/01_通用/models/judgment.yaml#object_types.Hypothesis
+      evidence_grounding_required: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold
+      time_alignment: ontology/01_通用/models/evidence.yaml#rules.evidence_scope_time_alignment
+      signal_role_compatibility: ontology/01_通用/models/judgment.yaml#object_types.Signal
+      judgment_evidence_threshold: ontology/01_通用/models/judgment.yaml#rules.judgment_evidence_threshold
+      expectation_required_for_asset_impact: ontology/01_通用/models/judgment.yaml#relation_types.assetImpactBasedOnJudgment
+    classification: merge
+  method_rule_migrations:
+    mapping:
+      recipe_before_acquisition: methods/03_取证/03_registry.yaml
+      mandatory_basket_required: methods/03_取证/03_registry.yaml
+      counter_basket_required: methods/03_取证/03_registry.yaml
+      source_profile_required: methods/03_取证/03_registry.yaml
+      artifact_type_drives_traceability: methods/03_取证/03_registry.yaml
+      content_domain_must_match_basket: methods/03_取证/03_registry.yaml
+      source_tier_must_match_requirement: methods/03_取证/03_registry.yaml
+      stop_condition_must_be_recorded: methods/03_取证/03_registry.yaml
+      event_to_state_inference: methods/04_裁决/A04_机制判断.md
+      variable_propagation_inference: methods/04_裁决/A06_传导判断.md
+      blocking_signal_precedence: methods/04_裁决/A00_裁决总则.md
+    classification: move-to-methods
+  governance_rule_deprecations:
+    mapping:
+      concept_definition_required: governance/02_合同/rule_authority_registry.yaml
+      concept_object_separation: governance/02_合同/rule_authority_registry.yaml
+      judgment_type_required: governance/02_合同/public_contract.yaml#node_contract
+      evidence_requirement_required: governance/02_合同/public_contract.yaml#cross_stage_objects
+      acquisition_channel_not_source_profile: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-SOURCE-ACCESS-001
+      access_scope_required_for_formal_evidence: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-SOURCE-ACCESS-001
+      acquisition_channel_must_be_allowed: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-SOURCE-ACCESS-001
+      readiness_limits_04_output: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-STAGE-04-READINESS-001
+      reasoning_trace_required: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-REASONING-TRACE-001
+      rule_evaluation_trace_required: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-RULE-EVALUATION-TRACE-001
+      reasoning_revision_preserves_trace: governance/02_合同/rule_authority_registry.yaml#governance_rules.REASONING-REVISION-001
+      validation_outcome_required: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-VALIDATION-OUTCOME-001
+      validation_time_order: governance/02_合同/rule_authority_registry.yaml#governance_rules.GOV-VALIDATION-TIME-001
     classification: deprecate
-    replaced_by:
-    - governance/02_合同/public_contract.yaml
 inventory:
   semantic.yaml:
     object_types:

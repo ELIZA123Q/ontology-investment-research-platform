@@ -23,12 +23,12 @@ export type OntologyNode = {
 };
 
 const ontologyFiles = [
-  "ontology/01_通用/semantic.yaml",
-  "ontology/01_通用/evidence.yaml",
-  "ontology/01_通用/reasoning.yaml",
-  "ontology/02_领域/semiconductor/semantic.yaml",
-  "ontology/02_领域/semiconductor/evidence.yaml",
-  "ontology/02_领域/semiconductor/reasoning.yaml",
+  "ontology/01_通用/models/semantic.yaml",
+  "ontology/01_通用/models/state_event.yaml",
+  "ontology/01_通用/models/evidence.yaml",
+  "ontology/01_通用/models/judgment.yaml",
+  "ontology/01_通用/models/scenario.yaml",
+  "ontology/01_通用/models/semiconductor_extension.yaml",
 ];
 
 export function loadOntology() {
@@ -38,19 +38,18 @@ export function loadOntology() {
     for (const [group, category] of [
       ["object_types", "Object"],
       ["relation_types", "Relation"],
-      ["action_types", "Action"],
-      ["functions", "Function"],
       ["rules", "Rule"],
-      ["logic_flows", "Logic"],
+      ["scenario_types", "Scenario"],
+      ["evidence_constraints", "Rule"],
     ] as const) {
       for (const [id, raw] of Object.entries<any>(doc[group] || {})) {
         const prior = nodes.get(id);
         nodes.set(id, {
           id,
-          name: raw.name || raw.label_zh || id,
+          name: raw.name || raw.metadata?.label_zh || raw.label_zh || id,
           category,
-          description: raw.description || prior?.description || "",
-          properties: Object.keys(raw.properties || {}),
+          description: raw.description || raw.metadata?.definition || prior?.description || "",
+          properties: Object.keys(raw.attributes || raw.properties || {}),
           source_file: file,
           source_types: raw.source_types || prior?.source_types || [],
           target_types: raw.target_types || prior?.target_types || [],

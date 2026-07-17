@@ -145,9 +145,11 @@ export function ontologyContextForPrompt(runId: string): string {
     const ju = queryObjectSet(loaded.graph, { type: "JudgmentUnit", limit: 20 });
     const claims = queryObjectSet(loaded.graph, { type: ["EvidenceClaim", "EvidenceFact", "SourceDocument"], limit: 20 });
     const judgments = queryObjectSet(loaded.graph, { type: "Judgment", limit: 20 });
+    const methodApplications = queryObjectSet(loaded.graph, { type: "MethodApplication", limit: 40 });
     lines.push(`JudgmentUnit: ${ju.objects.map((o) => o.id).join(", ") || "(无)"}`);
     lines.push(`证据对象: ${claims.objects.map((o) => o.id).join(", ") || "(无)"}`);
     lines.push(`Judgment: ${judgments.objects.map((o) => o.id).join(", ") || "(无)"}`);
+    lines.push(`MethodApplication: ${methodApplications.objects.map((o) => `${o.id}:${o.properties?.status || "unknown"}`).join(", ") || "(无)"}`);
   }
   lines.push(`可用工具: query_object_set / call_function / propose_action；可执行 Action: ${supportedActions().join(", ")}`);
   return lines.join("\n");
