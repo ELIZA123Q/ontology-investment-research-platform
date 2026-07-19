@@ -61,7 +61,7 @@
 | 1 | [`workflow/`](workflow) | 做研究：01—05 每一步写什么、交什么 |
 | 2 | [`methods/`](methods) | 选用框架、取证方法、裁决方法 |
 | 3 | [`ontology/`](ontology) | 查对象/关系/变量的稳定定义（少翻） |
-| 4 | [`instances/`](instances) | 看正式样例；本机运行数据也在这里 |
+| 4 | [`instances/`](instances) | 看语义黄金样例（`semantic_fixture`）；本机运行数据也在这里 |
 | 5 | [`delivery/`](delivery) | 研报模板与表达标准（写 05 时用） |
 | 6 | [`evaluation/`](evaluation) | 评测这套流程有没有用（可选） |
 | — | [`runtime/`](runtime) | 本机工作台（产品界面） |
@@ -79,6 +79,14 @@
 - 高质量自检五条：[`governance/03_校验/00A_高质量产出判别标准.md`](governance/03_校验/00A_高质量产出判别标准.md) 文首
 
 ## 校验（可选）
+
+三类运行包不要混用入口（定义见 [`governance/02_合同/package_kinds.yaml`](governance/02_合同/package_kinds.yaml)）：
+
+| 包类型 | 是什么 | 校验 |
+|--------|--------|------|
+| `formal_pack` | 正式发布包（中文命名 MD/YAML） | `validate_run.py` |
+| `semantic_fixture` | V3 黄金样例 | `validate_v3_samples.py` |
+| `workbench_export` | 工作台导出（紧凑文件名） | `validate_workbench_package.py` |
 
 ```bash
 python3 governance/03_校验/validate_project.py

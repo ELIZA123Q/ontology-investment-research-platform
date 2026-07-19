@@ -49,9 +49,102 @@ export type ResearchRun = {
   current_stage: number;
   status: string;
   package_path: string | null;
+  parent_run_id: string | null;
+  trigger_event_id: string | null;
+  trigger_classification: ImpactClassification | null;
   manifest_json: string;
   created_at: string;
   updated_at: string;
+};
+
+export type MarketEventStatus = "new" | "reviewed" | "applied" | "dismissed";
+export type ImpactDirection = "support" | "weaken" | "invalidate" | "review" | "context";
+export type ImpactClassification = "evidence_update" | "structure_revision" | "scope_revision";
+export type WorkItemStatus = "pending" | "approved" | "rework" | "dismissed" | "superseded";
+
+export type MarketEvent = {
+  id: string;
+  dedupe_key: string;
+  title: string;
+  summary: string;
+  url: string;
+  publisher: string;
+  occurred_at: string | null;
+  published_at: string | null;
+  event_type: string;
+  /** 候选文本标签，不是 ontology object ID；持久化列名仍为 object_labels_json */
+  candidate_labels: string[];
+  confidence: "high" | "medium" | "low";
+  status: MarketEventStatus;
+  refresh_batch_id: string;
+  discovered_at: string;
+};
+
+export type EventImpact = {
+  id: string;
+  event_id: string;
+  run_id: string;
+  judgment_unit_id: string | null;
+  judgment_id: string | null;
+  matched_condition: string | null;
+  direction: ImpactDirection;
+  impact_classification: ImpactClassification;
+  relevance: number;
+  rationale: string;
+  status: "suggested" | "accepted" | "dismissed";
+  created_at: string;
+};
+
+export type ResearchWorkItem = {
+  id: string;
+  run_id: string;
+  kind: "event_review" | "evidence_review" | "judgment_review" | "supplement_evidence" | "resolve_conflict" | "publish_blocker" | "action_review";
+  stage: string;
+  target_type: string;
+  target_id: string;
+  title: string;
+  status: WorkItemStatus;
+  priority: "high" | "medium" | "low";
+  reason: string;
+  note: string;
+  source_event_id: string | null;
+  artifact_id: string;
+  attempt: number;
+  payload_json: string;
+  resolution: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  superseded_at: string | null;
+};
+
+export type ActionProposalStatus = "pending" | "approved" | "rejected" | "executed" | "superseded";
+
+export type StoredActionProposal = {
+  id: string;
+  run_id: string;
+  action_id: string;
+  parameters_json: string;
+  expected_graph_version: number;
+  proposal_json: string;
+  status: ActionProposalStatus;
+  work_item_id: string;
+  created_at: string;
+  approved_at: string | null;
+  executed_at: string | null;
+  execution_id: string | null;
+};
+
+export type StoredActionExecution = {
+  execution_id: string;
+  proposal_id: string;
+  run_id: string;
+  action_id: string;
+  graph_version_before: number;
+  graph_version_after: number;
+  status: "executed" | "rejected";
+  result_json: string;
+  created_at: string;
 };
 
 export type Artifact = {
@@ -85,7 +178,22 @@ export type SourceRecord = {
   published_at: string | null;
   accessed_at: string;
   source_type: string;
+  source_tier?: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8";
+  source_group?: string;
   search_excerpt: string;
+  locator?: string;
+  captured_at?: string | null;
+  content_hash?: string;
+  usability_status?: "candidate" | "usable" | "limited" | "rejected";
+  failure_category?: "" | "model_output_error" | "source_acquisition_failure" | "method_not_applicable" | "evidence_insufficient" | "contract_implementation_error";
+  failure_detail?: string;
+  final_url?: string;
+  content_mime?: string;
+  http_status?: number | null;
+  retrieval_status?: "not_attempted" | "captured" | "limited" | "failed";
+  snapshot_text?: string;
+  source_quote?: string;
+  quote_verified?: number | boolean;
 };
 
 export function parseJson<T = unknown>(value: string, fallback: T): T {

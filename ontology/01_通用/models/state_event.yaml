@@ -149,4 +149,5 @@ rules:
     counter_conditions: [future_data, overwritten_snapshot]
     failure_result: reject_and_invalidate_downstream
     priority: blocking
+    test_case_role: design_intent
     test_cases: [{id: STATE-R-01-P, input: {observed_at: '2026-06-30T00:00:00Z', valid_from: '2026-06-30T00:00:00Z', valid_to: null, published_at: '2026-07-10T00:00:00Z', cutoff_at: '2026-07-17T00:00:00Z', snapshot_mutation: false}, expected: pass}, {id: STATE-R-01-N, input: {observed_at: '2026-07-20T00:00:00Z', valid_from: '2026-07-20T00:00:00Z', valid_to: '2026-07-19T00:00:00Z', published_at: '2026-07-20T00:00:00Z', cutoff_at: '2026-07-17T00:00:00Z', snapshot_mutation: true}, expected: reject}]

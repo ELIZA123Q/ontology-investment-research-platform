@@ -126,7 +126,7 @@ LOCATION_KINDS = {
     "summary_conclusion",
 }
 
-EXPRESSION_AUDIT_SCHEMA_VERSION = "2.6.0"
+EXPRESSION_AUDIT_SCHEMA_VERSION = "3.0.0"
 EXPRESSION_REQUIRED_FIELDS = [
     "expression_id",
     "source_rcs",

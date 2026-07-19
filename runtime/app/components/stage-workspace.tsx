@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -12,6 +12,12 @@ export function StageWorkspace({ runId, stage, artifact, unlocked }: { runId: st
   const [error, setError] = useState(artifact?.error_message || "");
   const [json, setJson] = useState(artifact?.json_content || "{}");
   const [md, setMd] = useState(artifact?.markdown_content || "");
+
+  useEffect(() => {
+    setJson(artifact?.json_content || "{}");
+    setMd(artifact?.markdown_content || "");
+    setError(artifact?.error_message || "");
+  }, [artifact?.id, artifact?.json_content, artifact?.markdown_content, artifact?.error_message]);
 
   async function call(url: string, options: RequestInit = {}) {
     setBusy(true); setError("");

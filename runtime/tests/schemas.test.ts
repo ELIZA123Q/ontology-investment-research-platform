@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import {
   evidencePreparationSchema,
   independentReviewSchema,
@@ -13,6 +14,9 @@ import {
 } from "@/engine/method_application";
 import type { MethodApplication } from "@/engine/types";
 import { validateReasoningTraceBindings } from "@/engine/reasoning_trace";
+import { applyDeterministicRuleEvaluations } from "@/engine/semantic_execution";
+import { emptyGraph, materializeStageIntoGraph } from "@/engine/instance_graph";
+import { validateRuntimeGraph } from "@/engine/graph_contract";
 
 function application(status: MethodApplication["status"], stage: MethodApplication["provenance"]["stage"]): MethodApplication {
   return {
@@ -32,7 +36,7 @@ function application(status: MethodApplication["status"], stage: MethodApplicati
     applicability_boundary: "趋势方向裁决",
     limitations: [],
     counter_example_refs: [],
-    provenance: { stage, source_application_id: stage === "stage_02" ? null : "MA-01", actor: "runtime-test", recorded_at: null },
+    provenance: { stage, source_application_id: stage === "stage_02" ? null : "MA-01", actor: "runtime-test", recorded_at: status === "executed" ? "2026-07-18T08:00:00Z" : null },
     alternatives: [],
   };
 }
@@ -52,14 +56,38 @@ describe("stage contracts", () => {
     })).toBeTruthy();
   });
 
-  it("rejects evidence without sources", () => {
+  it("allows a source-free explicit gap but rejects source-free facts", () => {
+    const gapApplication = {
+      ...application("selected", "stage_03"),
+      status: "blocked" as const,
+      precondition_checks: [{ precondition_id: "source_available", result: "fail" as const, evidence_refs: ["GAP-1"], reason: "正式来源取得失败" }],
+      input_evidence_refs: ["GAP-1"],
+      limitations: ["当前无可核验来源"],
+      alternatives: [{ method_id: "kb03:B01", decision: "retry", reason: "等待正式披露" }],
+    };
+    expect(evidencePreparationSchema.parse({
+      method_applications: [gapApplication],
+      sources: [],
+      evidence_drafts: [{
+        id: "GAP-1", statement: "缺少可核验库存披露", kind: "gap", direction: "unknown", source_keys: [], source_ids: [],
+        judgment_unit_ids: ["JU-1"], ontology_node_ids: ["SV-1"], requirement: "取得可定位库存披露",
+        evidence_role: "boundary", minimum_independent_sources: 1, limitations: ["来源取得失败"],
+      }],
+      unresolved_gaps: ["缺少可核验库存披露"],
+      document_markdown: "# 证据准备\n\n正式来源取得失败，未形成任何事实草稿；仅登记阻断性缺口和下一步回退路线，不使用搜索摘要替代证据。",
+    })).toBeTruthy();
     expect(() => evidencePreparationSchema.parse({
       method_applications: [application("selected", "stage_03")],
       sources: [],
-      evidence_drafts: [],
-      unresolved_gaps: [],
-      document_markdown: "# 证据准备\n\n没有来源不能形成可确认的证据草稿。",
-    })).toThrow();
+      evidence_drafts: [{
+        id: "EV-1", statement: "无来源事实", kind: "fact_draft", direction: "support", source_keys: ["SRC-X"], source_ids: [],
+        judgment_unit_ids: ["JU-1"], ontology_node_ids: ["SV-1"], subject_ref: "SV-1", time_basis: "observation_time",
+        scope_ref: "SCOPE-1", observed_at: "2026-07-18T00:00:00Z", valid_from: "2026-07-18T00:00:00Z", valid_to: null,
+        published_at: "2026-07-18T00:00:00Z", cutoff_at: "2026-07-18T08:00:00Z", directness: "direct", limitations: [],
+      }],
+      unresolved_gaps: ["来源缺失"],
+      document_markdown: "# 证据准备\n\n没有来源时不得生成事实草稿；该负向样例必须由合同拒绝，以防为了填满结构而制造证据。",
+    })).toThrow(/无来源时只能登记显式 gap/);
   });
 
   it("accepts J0 with an executed method application", () => {
@@ -81,6 +109,14 @@ describe("stage contracts", () => {
         falsification_conditions: ["库存重新上升"],
         time_horizon: "未来一个季度",
       }],
+      competing_explanations: [{
+        id: "CE-1",
+        statement: "库存下降来自季节性备货而非趋势改善",
+        signal_ids: ["S-1"],
+        discriminating_evidence: ["跨周期库存与终端需求对照"],
+        status: "active",
+        elimination_rationale: "尚无足够跨周期证据排除",
+      }],
       rule_evaluations: [{
         id: "RE-1",
         rule_ref: "evidence_scope_time_alignment",
@@ -93,6 +129,7 @@ describe("stage contracts", () => {
           rationale: "证据与判断范围一致",
         }],
         result: "pass",
+        deterministic_result: null,
       }],
       judgments: [{
         id: "J-1",
@@ -101,6 +138,13 @@ describe("stage contracts", () => {
         conclusion: "关键证据不足",
         rationale: "缺少足够的交叉验证，方法执行结果只能停在 J0",
         strength: "J0",
+        confidence: "low",
+        decision_status: "indeterminate",
+        conflict_status: "unresolved",
+        not_judgeable_reason: "交叉验证不足",
+        scope_ref: "SCOPE-1",
+        cutoff_at: "2026-07-18T08:00:00Z",
+        conditions: [],
         supporting_evidence_draft_ids: ["EV-1"],
         counter_evidence_draft_ids: [],
         hypothesis_ids: ["H-1"],
@@ -127,6 +171,69 @@ describe("stage contracts", () => {
       signalIds: new Set(),
     })).not.toThrow();
     expect(() => validateJudgmentMethodBindings([{ id: "J-1", method_application_ids: ["MA-01"] }], [executed])).not.toThrow();
+  });
+
+  it("runs a genuine no-source J0 path without fabricating facts or signals", () => {
+    const candidate = application("candidate", "stage_02");
+    const blocked03: MethodApplication = {
+      ...candidate,
+      status: "blocked",
+      precondition_checks: [{ precondition_id: "source_available", result: "fail", evidence_refs: ["GAP-1"], reason: "正式来源取得失败" }],
+      input_evidence_refs: ["GAP-1"],
+      limitations: ["当前没有可核验来源"],
+      provenance: { stage: "stage_03", source_application_id: "MA-01", actor: "runtime-test", recorded_at: null },
+      alternatives: [{ method_id: "kb03:B01", decision: "retry", reason: "等待正式披露后重试" }],
+    };
+    const blocked04: MethodApplication = {
+      ...blocked03,
+      provenance: { ...blocked03.provenance, stage: "stage_04" },
+    };
+    const gap = {
+      id: "GAP-1", statement: "缺少可核验库存披露", kind: "gap" as const, direction: "unknown" as const,
+      source_keys: [], source_ids: [], judgment_unit_ids: ["JU-1"], ontology_node_ids: ["SV-1"],
+      requirement: "取得可定位的库存披露", evidence_role: "boundary" as const, minimum_independent_sources: 1,
+      limitations: ["来源取得失败"],
+    };
+    const decision: any = {
+      method_applications: [blocked04],
+      signals: [],
+      hypotheses: [{ id: "H-EMPTY", statement: "库存改善假设尚未获得可评价输入", signal_ids: [], falsification_conditions: ["取得的正式数据否定库存改善"], time_horizon: "下一次正式披露前" }],
+      competing_explanations: [{ id: "CE-EMPTY", statement: "现有线索可能来自口径或时点差异", signal_ids: [], discriminating_evidence: ["同口径正式库存披露"], status: "unknown", elimination_rationale: "无事实输入，不能排除" }],
+      rule_evaluations: [],
+      judgments: [{
+        id: "J-EMPTY", judgment_unit_id: "JU-1", title: "暂不可判断", conclusion: "当前不能判断库存是否改善",
+        rationale: "正式来源取得失败，未形成任何 EvidenceFact", strength: "J0", confidence: "low",
+        decision_status: "indeterminate", conflict_status: "none", not_judgeable_reason: "缺少可核验事实来源",
+        scope_ref: "SCOPE-1", cutoff_at: "2026-07-18T08:00:00Z", conditions: [], supporting_evidence_draft_ids: [],
+        counter_evidence_draft_ids: [], hypothesis_ids: ["H-EMPTY"], rule_evaluation_ids: [], method_application_ids: ["MA-01"],
+        ontology_node_ids: ["SV-1"], uncertainties: ["库存真实状态未知"], invalidation_conditions: ["取得正式库存披露"], tracking_signals: ["正式库存披露"],
+      }],
+      reasoning_traces: [{ id: "RT-EMPTY", judgment_id: "J-EMPTY", node_ids: ["SCOPE-1", "JU-1", "H-EMPTY", "MA-01", "J-EMPTY"], created_at: "2026-07-18T08:00:00Z" }],
+      overall_boundary: "无事实输入，不输出方向判断",
+      document_markdown: "# 暂不可判断\n\n截至信息截止时点没有取得可核验来源，因此不生成事实或信号，不输出方向结论；仅保留待检验假设、阻断原因和后续跟踪条件。",
+    };
+    applyDeterministicRuleEvaluations(decision, [gap], [], { judgment_units: [{ id: "JU-1" }] });
+    const parsed = judgmentDecisionSchema.parse(decision);
+    expect(parsed.signals).toHaveLength(0);
+    expect(parsed.judgments[0].supporting_evidence_draft_ids).toHaveLength(0);
+    expect(() => validateMethodApplications("stage_03", [blocked03], { prior: [candidate], evidenceIds: new Set(["GAP-1"]) })).not.toThrow();
+    expect(() => validateMethodApplications("stage_04", [blocked04], {
+      prior: [blocked03], evidenceIds: new Set(["GAP-1"]), judgmentIds: new Set(["J-EMPTY"]), signalIds: new Set(),
+      evidenceDrafts: [gap], sourceGroupById: new Map(),
+    })).not.toThrow();
+    expect(() => validateJudgmentMethodBindings(parsed.judgments, [blocked04])).not.toThrow();
+    expect(() => validateReasoningTraceBindings(parsed, new Set(["GAP-1"]), [blocked04])).not.toThrow();
+
+    const structure = {
+      method_applications: [candidate], research_scope: { id: "SCOPE-1", label: "库存范围", dimensions: { domain: "semiconductor" } },
+      judgment_units: [{ id: "JU-1", question: "库存是否改善", judgment_type: "state_measurement", scope_ref: "SCOPE-1" }],
+      variables: [{ id: "SV-1", name: "inventory", category: "operations", definition: "可比口径库存", variable_kind: "observed", anchors: ["inventory"] }],
+    };
+    const evidence = { method_applications: [blocked03], sources: [], evidence_drafts: [gap] };
+    let graph = materializeStageIntoGraph(emptyGraph(), "stage_02", structure);
+    graph = materializeStageIntoGraph(graph, "stage_03", evidence);
+    graph = materializeStageIntoGraph(graph, "stage_04", parsed);
+    expect(() => validateRuntimeGraph(graph)).not.toThrow();
   });
 
   it("rejects executed method without evidence", () => {
@@ -171,11 +278,15 @@ describe("stage contracts", () => {
     expect(researchExpressionSchema.parse({
       title: "报告",
       executive_points: ["当前只能形成受限判断"],
-      report_claims: [{ id: "RC-1", statement: "结论", judgment_ids: ["J-1"], method_application_ids: ["MA-01"], source_ids: [] }],
+      report_claims: [{ id: "RC-1", statement: "结论", judgment_ids: ["J-1"], method_application_ids: ["MA-01"], evidence_draft_ids: ["EV-1"], source_ids: [] }],
       limitations: ["证据范围有限"],
       document_markdown: "# 报告\n\n当前结论严格继承判断与方法应用，不新增事实、方法调用或方向性判断；证据不足部分继续保留限制并等待后续更新。",
     })).toBeTruthy();
-    expect(() => validateExpressionMethodBindings([{ id: "RC-1", method_application_ids: ["MA-01"] }], [executed])).not.toThrow();
+    expect(() => validateExpressionMethodBindings(
+      [{ id: "RC-1", judgment_ids: ["J-1"], method_application_ids: ["MA-01"], evidence_draft_ids: ["EV-1"] }],
+      [executed],
+      [{ id: "J-1", strength: "J1", decision_status: "supported", method_application_ids: ["MA-01"] }],
+    )).not.toThrow();
   });
 
   it("rejects evidence that bypasses signals and non-formal support rules", () => {
@@ -210,9 +321,43 @@ describe("stage contracts", () => {
     }, new Set(["EV-1"]), [executed])).toThrow(/非正式本体规则/);
   });
 
+  it("computes formal rule outcomes instead of trusting model declarations", () => {
+    const source = {
+      id: "SRC-DB-1", run_id: "RUN-1", normalized_url: "https://example.com/source", url: "https://example.com/source",
+      title: "source", publisher: "publisher", published_at: "2026-07-18", accessed_at: "2026-07-18T00:00:00Z",
+      source_type: "disclosure", search_excerpt: "inventory declined", content_hash: "a".repeat(64),
+      source_tier: "S2" as const, source_group: "publisher",
+      usability_status: "usable" as const, retrieval_status: "captured" as const, quote_verified: true,
+    };
+    const base = {
+      signals: [{ id: "S-1", evidence_draft_ids: ["EV-1"], target_hypothesis_ids: ["H-1"] }],
+      hypotheses: [{ id: "H-1", signal_ids: ["S-1"] }],
+      competing_explanations: [{ id: "CE-1", signal_ids: ["S-1"], status: "eliminated" }],
+      rule_evaluations: [],
+      judgments: [{
+        id: "J-1", strength: "J1", supporting_evidence_draft_ids: ["EV-1"], counter_evidence_draft_ids: [],
+        hypothesis_ids: ["H-1"], rule_evaluation_ids: [], judgment_unit_id: "JU-1",
+        scope_ref: "SCOPE-1", cutoff_at: "2026-07-18T08:00:00Z", decision_status: "supported", conflict_status: "none",
+      }],
+      reasoning_traces: [{ id: "RT-1", judgment_id: "J-1", node_ids: ["EV-1", "S-1", "H-1", "J-1"] }],
+    };
+    const evidence = [{
+      id: "EV-1", source_ids: [source.id], limitations: [], scope_ref: "SCOPE-1", directness: "direct" as const,
+      observed_at: "2026-07-17T00:00:00Z", valid_from: "2026-07-17T00:00:00Z",
+      published_at: "2026-07-18T00:00:00Z", cutoff_at: "2026-07-18T08:00:00Z",
+    }];
+    const structure = { judgment_units: [{ id: "JU-1" }] };
+    expect(() => applyDeterministicRuleEvaluations(structuredClone(base), evidence, [source], structure)).not.toThrow();
+    const overclaim = structuredClone(base);
+    overclaim.judgments[0].strength = "J3";
+    overclaim.competing_explanations[0].status = "active";
+    expect(() => applyDeterministicRuleEvaluations(overclaim, evidence, [source], structure)).toThrow(/确定性本体规则未通过/);
+  });
+
   it("accepts an independent review with an explicit return stage", () => {
     expect(independentReviewSchema.parse({
       reviewed_stage04_artifact_id: "artifact-04",
+      reviewed_stage04_artifact_hash: null,
       verdict: "rework",
       issues: [{
         issue_type: "overclaim",
@@ -225,6 +370,9 @@ describe("stage contracts", () => {
       strengths: ["保留了反证"],
       overall_assessment: "需要在 04 降低结论强度后重新审阅。",
       document_markdown: "# 独立审阅\n\n当前判断保留了反证，但结论强度超过现有证据边界，需要退回阶段 04 调整。",
+      reviewer_model: null,
+      producer_model: null,
+      independence_level: null,
     })).toBeTruthy();
   });
 });

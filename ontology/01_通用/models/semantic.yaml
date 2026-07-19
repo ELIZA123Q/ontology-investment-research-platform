@@ -93,7 +93,7 @@ object_types:
       instrument_type: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [restriction, subsidy, tax, standard, licensing, disclosure, other], description: 政策工具类型。}
     constraints: *standard_constraints
   Asset:
-    metadata: {id: Asset, namespace: core.semantic, label_zh: 资产, label_en: Asset, aliases: [经济资产], definition: 可识别、可归属且能够承载经济利益或风险的资产类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [公司股权], counter_examples: [看多观点]}
+    metadata: {id: Asset, namespace: core.semantic, label_zh: 资产, label_en: Asset, aliases: [经济资产], definition: 可识别、可归属且能够承载经济利益或风险的资产类别。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [公司股权], counter_examples: [看多观点]}
     primary_key: id
     title_property: name
     attributes:
@@ -102,7 +102,7 @@ object_types:
     constraints: *standard_constraints
   FinancialInstrument:
     extends: Asset
-    metadata: {id: FinancialInstrument, namespace: core.semantic, label_zh: 金融工具, label_en: Financial Instrument, aliases: [证券], definition: 体现一方金融资产与另一方权益或负债关系、可被稳定识别的资产。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [上市公司普通股], counter_examples: [公司利润]}
+    metadata: {id: FinancialInstrument, namespace: core.semantic, label_zh: 金融工具, label_en: Financial Instrument, aliases: [证券], definition: 体现一方金融资产与另一方权益或负债关系、可被稳定识别的资产。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [上市公司普通股], counter_examples: [公司利润]}
     primary_key: id
     title_property: name
     attributes:
@@ -112,13 +112,13 @@ object_types:
     constraints: {unique: [identifier], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   TradingVenue:
     extends: Organization
-    metadata: {id: TradingVenue, namespace: core.semantic, label_zh: 交易场所, label_en: Trading Venue, aliases: [交易所], definition: 提供金融工具挂牌或交易制度并可稳定识别的组织。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [证券交易所], counter_examples: [证券代码]}
+    metadata: {id: TradingVenue, namespace: core.semantic, label_zh: 交易场所, label_en: Trading Venue, aliases: [交易所], definition: 提供金融工具挂牌或交易制度并可稳定识别的组织。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [证券交易所], counter_examples: [证券代码]}
     primary_key: id
     title_property: name
     attributes: *named_attributes
     constraints: *standard_constraints
   Listing:
-    metadata: {id: Listing, namespace: core.semantic, label_zh: 上市挂牌, label_en: Listing, aliases: [挂牌关系], definition: 金融工具由发行主体在交易场所挂牌的一项具有有效期的可识别安排。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [某公司普通股在交易所挂牌], counter_examples: [股价上涨]}
+    metadata: {id: Listing, namespace: core.semantic, label_zh: 上市挂牌, label_en: Listing, aliases: [挂牌关系], definition: 金融工具由发行主体在交易场所挂牌的一项具有有效期的可识别安排。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [某公司普通股在交易所挂牌], counter_examples: [股价上涨]}
     primary_key: id
     title_property: ticker
     attributes:
@@ -375,7 +375,7 @@ relation_types:
     attributes: {}
     invalidation_policy: invalidate_downstream
   listingOfCompany:
-    metadata: {id: listingOfCompany, namespace: core.semantic, label_zh: 挂牌对应公司, label_en: listing of company, aliases: [], definition: 上市挂牌安排对应其发行或上市公司。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [挂牌安排对应发行公司], counter_examples: [公司属于行业]}
+    metadata: {id: listingOfCompany, namespace: core.semantic, label_zh: 挂牌对应公司, label_en: listing of company, aliases: [], definition: 上市挂牌安排对应其发行或上市公司。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [挂牌安排对应发行公司], counter_examples: [公司属于行业]}
     source_types: [Listing]
     target_types: [Company]
     source_cardinality: '1..1'
@@ -389,7 +389,7 @@ relation_types:
     attributes: {}
     invalidation_policy: retain_history
   companyHasListing:
-    metadata: {id: companyHasListing, namespace: core.semantic, label_zh: 公司具有挂牌, label_en: company has listing, aliases: [], definition: listingOfCompany 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [发行公司具有挂牌安排], counter_examples: [公司具有行业]}
+    metadata: {id: companyHasListing, namespace: core.semantic, label_zh: 公司具有挂牌, label_en: company has listing, aliases: [], definition: listingOfCompany 的逆关系。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [发行公司具有挂牌安排], counter_examples: [公司具有行业]}
     source_types: [Company]
     target_types: [Listing]
     source_cardinality: '0..*'
@@ -403,7 +403,7 @@ relation_types:
     attributes: {}
     invalidation_policy: retain_history
   listingForInstrument:
-    metadata: {id: listingForInstrument, namespace: core.semantic, label_zh: 挂牌对应金融工具, label_en: listing for instrument, aliases: [], definition: 上市挂牌安排对应被挂牌的金融工具。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [挂牌安排对应普通股], counter_examples: [股价属于挂牌]}
+    metadata: {id: listingForInstrument, namespace: core.semantic, label_zh: 挂牌对应金融工具, label_en: listing for instrument, aliases: [], definition: 上市挂牌安排对应被挂牌的金融工具。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [挂牌安排对应普通股], counter_examples: [股价属于挂牌]}
     source_types: [Listing]
     target_types: [FinancialInstrument]
     source_cardinality: '1..1'
@@ -417,7 +417,7 @@ relation_types:
     attributes: {}
     invalidation_policy: retain_history
   instrumentHasListing:
-    metadata: {id: instrumentHasListing, namespace: core.semantic, label_zh: 金融工具具有挂牌, label_en: instrument has listing, aliases: [], definition: listingForInstrument 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [普通股具有挂牌安排], counter_examples: [金融工具由公司生产]}
+    metadata: {id: instrumentHasListing, namespace: core.semantic, label_zh: 金融工具具有挂牌, label_en: instrument has listing, aliases: [], definition: listingForInstrument 的逆关系。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [普通股具有挂牌安排], counter_examples: [金融工具由公司生产]}
     source_types: [FinancialInstrument]
     target_types: [Listing]
     source_cardinality: '0..*'
@@ -431,7 +431,7 @@ relation_types:
     attributes: {}
     invalidation_policy: retain_history
   listingAtVenue:
-    metadata: {id: listingAtVenue, namespace: core.semantic, label_zh: 挂牌位于交易场所, label_en: listing at venue, aliases: [], definition: 上市挂牌安排发生于指定交易场所。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [普通股挂牌位于证券交易所], counter_examples: [交易场所供应公司]}
+    metadata: {id: listingAtVenue, namespace: core.semantic, label_zh: 挂牌位于交易场所, label_en: listing at venue, aliases: [], definition: 上市挂牌安排发生于指定交易场所。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [普通股挂牌位于证券交易所], counter_examples: [交易场所供应公司]}
     source_types: [Listing]
     target_types: [TradingVenue]
     source_cardinality: '1..1'
@@ -445,7 +445,7 @@ relation_types:
     attributes: {}
     invalidation_policy: retain_history
   venueHostsListing:
-    metadata: {id: venueHostsListing, namespace: core.semantic, label_zh: 交易场所承载挂牌, label_en: venue hosts listing, aliases: [], definition: listingAtVenue 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [交易所承载普通股挂牌], counter_examples: [交易所生产金融工具]}
+    metadata: {id: venueHostsListing, namespace: core.semantic, label_zh: 交易场所承载挂牌, label_en: venue hosts listing, aliases: [], definition: listingAtVenue 的逆关系。, model: semantic, version: 3.0.0, status: draft, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [交易所承载普通股挂牌], counter_examples: [交易所生产金融工具]}
     source_types: [TradingVenue]
     target_types: [Listing]
     source_cardinality: '0..*'
@@ -461,7 +461,7 @@ relation_types:
 
 rules:
   semantic_endpoint_compatibility:
-    metadata: {id: semantic_endpoint_compatibility, namespace: core.semantic, label_zh: 关系端点兼容, label_en: Relation endpoint compatibility, aliases: [], definition: 关系实例的端点类型必须落在关系定义允许范围内。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [Company produces Product], counter_examples: [Event produces Region]}
+    metadata: {id: semantic_endpoint_compatibility, namespace: core.semantic, label_zh: 关系端点兼容, label_en: Relation endpoint compatibility, aliases: [], definition: 关系实例的端点类型必须落在关系定义允许范围内。执行面是 Runtime 实例图物化（validateRuntimeGraph），不是 stage_04 判断链引用检查；后者见 judgment_reference_integrity。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [Company produces Product], counter_examples: [Event produces Region]}
     rule_class: semantic_constraint
     applies_to: [relation_instance]
     input_types: [relation_instance]
@@ -471,4 +471,5 @@ rules:
     counter_conditions: [dangling_endpoint, incompatible_endpoint]
     failure_result: reject
     priority: blocking
+    test_case_role: design_intent
     test_cases: [{id: SEM-R-01-P, input: {relation_type: produces, source_type: Company, target_type: Product, endpoints_exist: true}, expected: pass}, {id: SEM-R-01-N, input: {relation_type: produces, source_type: Event, target_type: Region, endpoints_exist: true}, expected: reject}]

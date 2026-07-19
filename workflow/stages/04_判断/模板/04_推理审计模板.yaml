@@ -312,8 +312,27 @@ business_instance_graph:
   required_projection_chain: [EvidenceFact, Signal, Hypothesis, RuleEvaluation, MethodApplication, Judgment, ReasoningTrace]
   fact_level_rule_inputs_required: true
   basket_only_rule_inputs_forbidden: true
-  objects: []
-  relations: []
+  objects:
+    - {id: EV-01, type: EvidenceFact, properties: {statement: "<原子证据事实>"}}
+    - {id: SIG-01, type: Signal, properties: {statement: "<由事实形成的中间信号>", role: support}}
+    - {id: H-01, type: Hypothesis, properties: {statement: "<可证伪假设>", falsification_conditions: ["<反证条件>"]}}
+    - id: RE-01
+      type: RuleEvaluation
+      properties:
+        rule_ref: evidence_scope_time_alignment
+        input_refs: [EV-01]
+        condition_results:
+          - {condition_id: scope_alignment, expression: evidence.scope == judgment.scope, input_refs: [EV-01], outcome: pass, rationale: "<主体、范围和时间如何对齐>"}
+        result: pass
+    - {id: MA-01, type: MethodApplication, properties: {application_id: MA-01, status: executed}}
+    - {id: J-01, type: Judgment, properties: {statement: "<受条件约束的判断>", level: J1, status: supported}}
+    - {id: RT-01, type: ReasoningTrace, properties: {node_refs: [EV-01, SIG-01, H-01, RE-01, MA-01, J-01]}}
+  relations:
+    - {id: REL-EV-SIG, type: factSupportsSignal, sourceId: EV-01, targetId: SIG-01, properties: {role: support}}
+    - {id: REL-SIG-H, type: signalEvaluatesHypothesis, sourceId: SIG-01, targetId: H-01, properties: {}}
+    - {id: REL-J-H, type: judgmentBasedOnHypothesis, sourceId: J-01, targetId: H-01, properties: {}}
+    - {id: REL-J-RE, type: judgmentHasRuleEvaluation, sourceId: J-01, targetId: RE-01, properties: {}}
+    - {id: REL-J-RT, type: judgmentHasReasoningTrace, sourceId: J-01, targetId: RT-01, properties: {}}
 
 path_results:
   - path_id: ""

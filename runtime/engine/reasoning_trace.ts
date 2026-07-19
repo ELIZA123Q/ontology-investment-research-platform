@@ -14,6 +14,9 @@ type ReasoningData = {
   }>;
   judgments: Array<{
     id: string;
+    strength?: string;
+    decision_status?: string;
+    not_judgeable_reason?: string | null;
     supporting_evidence_draft_ids: string[];
     counter_evidence_draft_ids: string[];
     hypothesis_ids: string[];
@@ -82,7 +85,10 @@ export function validateReasoningTraceBindings(
   }
   for (const judgment of judgments.values()) {
     const evidence = [...judgment.supporting_evidence_draft_ids, ...judgment.counter_evidence_draft_ids];
-    if (!evidence.length) throw new Error(`${judgment.id} 缺少具体 EvidenceFact`);
+    const indeterminate = judgment.strength === "J0"
+      && ["blocked", "indeterminate", "contested"].includes(String(judgment.decision_status))
+      && Boolean(String(judgment.not_judgeable_reason || "").trim());
+    if (!evidence.length && !indeterminate) throw new Error(`${judgment.id} 缺少具体 EvidenceFact`);
     const linkedSignals = [...signals.values()].filter((signal) => signal.target_hypothesis_ids.some((id) => judgment.hypothesis_ids.includes(id)));
     const signalEvidence = new Set(linkedSignals.flatMap((signal) => signal.evidence_draft_ids));
     for (const ref of evidence) {
@@ -90,7 +96,7 @@ export function validateReasoningTraceBindings(
     }
     for (const ref of judgment.hypothesis_ids) if (!hypotheses.has(ref)) throw new Error(`${judgment.id} 引用了不存在的假设 ${ref}`);
     for (const ref of judgment.rule_evaluation_ids) if (!evaluations.has(ref)) throw new Error(`${judgment.id} 引用了不存在的规则评估 ${ref}`);
-    if (!judgment.method_application_ids.some((ref) => executed.has(ref))) {
+    if (!indeterminate && !judgment.method_application_ids.some((ref) => executed.has(ref))) {
       throw new Error(`${judgment.id} 缺少 executed MethodApplication`);
     }
   }

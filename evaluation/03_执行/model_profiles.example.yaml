@@ -5,25 +5,24 @@ profiles:
   producer:
     model_id: replace-with-producer-model
     provider_family: replace-with-producer-family
-    command: [replace-with-adapter-command, --profile, producer]
+    command: [python3, evaluation/03_执行/http_model_adapter.py, --profile, producer]
   judge_a:
     model_id: replace-with-first-judge-model
     provider_family: replace-with-first-judge-family
-    command: [replace-with-adapter-command, --profile, judge_a]
+    command: [python3, evaluation/03_执行/http_model_adapter.py, --profile, judge_a]
   judge_b:
     model_id: replace-with-second-judge-model
     provider_family: replace-with-second-judge-family
-    command: [replace-with-adapter-command, --profile, judge_b]
+    command: [python3, evaluation/03_执行/http_model_adapter.py, --profile, judge_b]
   downstream_a:
     model_id: replace-with-first-downstream-model
     provider_family: replace-with-first-downstream-family
-    command: [replace-with-adapter-command, --profile, downstream_a]
+    command: [python3, evaluation/03_执行/http_model_adapter.py, --profile, downstream_a]
   downstream_b:
     model_id: replace-with-second-downstream-model
     provider_family: replace-with-second-downstream-family
-    command: [replace-with-adapter-command, --profile, downstream_b]
+    command: [python3, evaluation/03_执行/http_model_adapter.py, --profile, downstream_b]
 role_bindings:
   producer: producer
   judges: [judge_a, judge_b]
   downstream_models: [downstream_a, downstream_b]
-

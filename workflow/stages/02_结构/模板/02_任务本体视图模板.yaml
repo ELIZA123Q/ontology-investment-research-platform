@@ -340,6 +340,7 @@ business_instance_graph:
       content_hash: sha256:<由校验工具按完整 JU 内容计算>
       stable_claim_key: <跨运行稳定命题键>
       claim_scope_ref: SCOPE-ROOT
+      scope_ref: SCOPE-ROOT
       aggregation_role: leaf
       aggregation_contract_ref: null
       research_question_ref: task_context.normalized_question
@@ -395,7 +396,7 @@ business_instance_graph:
       target: <对象/关系/事件/状态观测等>
       purpose: <支持/削弱/阻断/区分竞争解释>
       linked_path_nodes: []
-      linked_judgment_units: []
+      linked_judgment_units: [JU-01]
       minimum_fields: []
       scope_constraints: []
     projection:
@@ -406,9 +407,12 @@ business_instance_graph:
     properties:
       evidence_requirement_id: ER-01
       question: <要验证的问题>
+      requirement: <可由 03 执行并验收的最低证据要求>
+      evidence_role: support
+      minimum_independent_sources: 1
       linked_instance_requirement: IR-01
       linked_state_variables: []
-      linked_judgment_units: []
+      linked_judgment_units: [JU-01]
       evidence_profile: <profile 名称>
       required_sources: []
       required_counter_evidence: []
@@ -496,6 +500,8 @@ business_instance_graph:
     properties:
       explanation_id: CE-01
       statement: <竞争解释>
+      discriminating_evidence:
+      - <可区分主路径与该解释的具体证据>
       distinguish_from_main_path: <如何区分>
       required_evidence: []
       effect_on_04: <保留竞争解释/降级/改判>
@@ -510,6 +516,21 @@ business_instance_graph:
     targetId: N-01
     properties:
       sequence: 1
+  - id: REL-JU-01-SCOPE-ROOT
+    type: unitUsesScope
+    sourceId: JU-01
+    targetId: SCOPE-ROOT
+    properties: {}
+  - id: REL-ER-01-JU-01
+    type: requirementForJudgmentUnit
+    sourceId: ER-01
+    targetId: JU-01
+    properties: {}
+  - id: REL-CE-01-JU-01
+    type: competingExplanationForUnit
+    sourceId: CE-01
+    targetId: JU-01
+    properties: {}
   - id: REL-PLAN-CONTAINS-SECTION-RESEARCH_FRAMEWORK
     type: researchPlanContainsResource
     sourceId: SECTION-TASK_CONTEXT

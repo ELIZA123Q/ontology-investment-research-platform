@@ -203,9 +203,30 @@ def command_prepare(args: argparse.Namespace) -> int:
 
 
 class RunOrchestrator:
-    def __init__(self, run_dir: Path, profiles_path: Path, suite_path: Path):
+    def __init__(self, run_dir: Path, profiles_path: Path, suite_path: Path, intensity: str = "formal_full"):
         self.run_dir = run_dir
         self.registry = validate_profiles(profiles_path)
+        if intensity not in {"pilot_light", "formal_full"}:
+            raise EvalError(f"未知评测强度: {intensity}")
+        self.intensity = intensity
+        self.seeds = [11] if intensity == "pilot_light" else list(SEEDS)
+        self.context_ids = ["B", "C", "D"] if intensity == "pilot_light" else ["A", "B", "C", "D", "E"]
+        execution_lock = {
+            "document_type": "evaluation_execution_lock",
+            "intensity": intensity,
+            "profiles_hash": sha256_text(profiles_path.resolve().read_text(encoding="utf-8-sig")),
+            "suite_hash": sha256_text(suite_path.resolve().read_text(encoding="utf-8-sig")),
+            "prompts_hash": sha256_text((Path(__file__).resolve().parent / "prompts" / "prompts.yaml").read_text(encoding="utf-8-sig")),
+            "models": {
+                name: {"model_id": profile["model_id"], "provider_family": profile["provider_family"]}
+                for name, profile in self.registry["profiles"].items()
+            },
+        }
+        lock_path = run_dir / "execution_lock.yaml"
+        if lock_path.exists() and load_yaml(lock_path) != execution_lock:
+            raise EvalError("运行目录已冻结为不同的模型、Prompt、suite 或 intensity；请创建新的运行目录")
+        if not lock_path.exists():
+            dump_yaml(lock_path, execution_lock)
         self.cases = validate_suite(suite_path)
         self.case_map = {item["case"]["case_id"]: item for item in self.cases}
         self.manifest = load_yaml(run_dir / "manifest.yaml")
@@ -218,7 +239,7 @@ class RunOrchestrator:
             self.sessions[name] = AdapterSession(
                 command=[str(part) for part in profile["command"]],
                 model_id=str(profile["model_id"]),
-                timeout_seconds=30.0,
+                timeout_seconds=180.0 if self.registry["run_mode"] == "official" else 30.0,
                 max_retries=2,
             )
         self.errors = 0
@@ -280,7 +301,7 @@ class RunOrchestrator:
             system_text = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
             for perturbation in info["perturbations"]["items"]:
                 for judge in judges:
-                    for seed in SEEDS:
+                    for seed in self.seeds:
                         self.call(
                             "perturbation",
                             judge,
@@ -310,7 +331,7 @@ class RunOrchestrator:
                 encoding="utf-8"
             )
             for judge in judges:
-                for seed in SEEDS:
+                for seed in self.seeds:
                     order = ["normal", "variant"] if seed != 22 else ["variant", "normal"]
                     candidates = {
                         "candidate_1": normal if order[0] == "normal" else variant,
@@ -340,7 +361,7 @@ class RunOrchestrator:
             case_id = info["case"]["case_id"]
             normal = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
             for judge in judges:
-                for seed in SEEDS:
+                for seed in self.seeds:
                     self.call(
                         "calibration_clean",
                         judge,
@@ -372,14 +393,16 @@ class RunOrchestrator:
             system_text = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
             target_length = len(system_text)
 
-            question_only = self.call(
-                "question_only_generator",
-                producer,
-                case_id,
-                {"question": question, "target_length": target_length},
-                seed=11,
-                suffix="question-only",
-            ).get("result", {}).get("artifact_text", "")
+            question_only = ""
+            if self.intensity == "formal_full":
+                question_only = self.call(
+                    "question_only_generator",
+                    producer,
+                    case_id,
+                    {"question": question, "target_length": target_length},
+                    seed=11,
+                    suffix="question-only",
+                ).get("result", {}).get("artifact_text", "")
             same_evidence_direct = self.call(
                 "same_evidence_direct_generator",
                 producer,
@@ -400,11 +423,13 @@ class RunOrchestrator:
             same_evidence_blind = blind_candidate(same_evidence_direct)
             summary_blind = blind_candidate(summary)
             lower, upper = target_length * 0.85, target_length * 1.15
-            for baseline_name, baseline_text in {
-                "question_only": question_only_blind,
+            baselines_to_check = {
                 "same_evidence_direct": same_evidence_blind,
                 "evidence_summary": summary_blind,
-            }.items():
+            }
+            if self.intensity == "formal_full":
+                baselines_to_check["question_only"] = question_only_blind
+            for baseline_name, baseline_text in baselines_to_check.items():
                 if not lower <= len(baseline_text) <= upper:
                     raise EvalError(
                         f"{case_id} {baseline_name} 长度{len(baseline_text)}不在系统稿±15%区间"
@@ -450,7 +475,7 @@ class RunOrchestrator:
                 claim_id = str(claim.get("claim_id") or f"{case_id}-CLAIM-{claim_index}")
                 criticality = str(claim.get("criticality") or "primary")
                 for judge in judges:
-                    for seed in SEEDS:
+                    for seed in self.seeds:
                         common_meta = {"claim_id": claim_id, "criticality": criticality}
                         evidence_review = self.call(
                             "evidence_reviewer",
@@ -497,10 +522,10 @@ class RunOrchestrator:
 
             case_contexts = {
                 context: (self.run_dir / "contexts" / case_id / f"{context}.md").read_text(encoding="utf-8")
-                for context in ["A", "B", "C", "D", "E"]
+                for context in self.context_ids
             }
             for downstream in downstream_models:
-                for seed in SEEDS:
+                for seed in self.seeds:
                     for context_id, context_text in case_contexts.items():
                         for task_id in DOWNSTREAM_TASKS:
                             task_payload = {
@@ -558,7 +583,7 @@ class RunOrchestrator:
             for baseline_name, baseline_text in comparisons.items():
                 index = 0
                 for judge in judges:
-                    for seed in SEEDS:
+                    for seed in self.seeds:
                         order = order_schedule[index]
                         candidates = {
                             "candidate_1": system_text if order[0] == "D" else baseline_text,
@@ -588,6 +613,8 @@ class RunOrchestrator:
                 "error_responses": self.errors,
                 "unique_requests": len(self.existing),
                 "run_mode": self.registry["run_mode"],
+                "intensity": self.intensity,
+                "repetitions_per_judge": len(self.seeds),
                 "profiles": {
                     name: {"model_id": value["model_id"], "provider_family": value["provider_family"]}
                     for name, value in self.registry["profiles"].items()
@@ -600,7 +627,7 @@ def command_run(args: argparse.Namespace) -> int:
     run_dir = Path(args.run_dir).resolve()
     if not (run_dir / "manifest.yaml").is_file():
         raise EvalError("run前必须先prepare")
-    orchestrator = RunOrchestrator(run_dir, Path(args.profiles), Path(args.suite))
+    orchestrator = RunOrchestrator(run_dir, Path(args.profiles), Path(args.suite), intensity=args.intensity)
     try:
         orchestrator.run(stage=args.stage)
     finally:
@@ -748,8 +775,9 @@ def compute_case_summary(case_id: str, info: dict[str, Any], rows: list[dict[str
         )
         arbiter_notes.append(result)
     case_levels = [min(values) for values in per_run_claims.values() if values]
-    if len(case_levels) != 6:
-        raise EvalError(f"{case_id} 有效案例裁决应为6次，实际{len(case_levels)}")
+    expected_runs = 2 if len({seed for _, seed in per_run_claims}) == 1 else 6
+    if len(case_levels) != expected_runs:
+        raise EvalError(f"{case_id} 有效案例裁决应为{expected_runs}次，实际{len(case_levels)}")
     r_value = conservative_median(case_levels)
     successes = sum(level >= 2 for level in case_levels)
     support_rate = {
@@ -757,7 +785,7 @@ def compute_case_summary(case_id: str, info: dict[str, Any], rows: list[dict[str
         "successes": successes,
         "trials": len(case_levels),
         "label": "裁决支持频率/R通过频率，不是可靠概率",
-        "note": "六次裁决针对同一产物与同一证据包，主要反映评测器一致支持程度，与稳定性S存在重叠。",
+        "note": f"{len(case_levels)}次裁决针对同一产物与同一证据包，主要反映评测器一致支持程度，与稳定性S存在重叠。",
     }
     if C_ORDER[calibration["grade"]] < C_ORDER["C2"] or not calibration["all_judges_eligible"]:
         support_rate = None
@@ -803,10 +831,15 @@ def compute_case_summary(case_id: str, info: dict[str, Any], rows: list[dict[str
         context: round(safe_mean(list(task_map.values())), 4)
         for context, task_map in context_task_means.items()
     }
+    def context_delta(context_id: str) -> float | None:
+        if "D" not in context_means or context_id not in context_means:
+            return None
+        return round((context_means["D"] - context_means[context_id]) * 100, 2)
+
     task_delta_pp = {
-        "A_question_only": round((context_means.get("D", 0.0) - context_means.get("A", 0.0)) * 100, 2),
-        "B_raw_evidence": round((context_means.get("D", 0.0) - context_means.get("B", 0.0)) * 100, 2),
-        "C_same_evidence_direct": round((context_means.get("D", 0.0) - context_means.get("C", 0.0)) * 100, 2),
+        "A_question_only": context_delta("A"),
+        "B_raw_evidence": context_delta("B"),
+        "C_same_evidence_direct": context_delta("C"),
     }
     error_means = {context: safe_mean(values) for context, values in errors.items()}
     error_reduction: dict[str, dict[str, float]] = {}
@@ -880,7 +913,7 @@ def compute_case_summary(case_id: str, info: dict[str, Any], rows: list[dict[str
     delta_gates = {
         "same_evidence_direct_win_rate_at_least_55pct": pairwise["same_evidence_direct"]["D_win_rate"] >= 0.55,
         "evidence_summary_win_rate_at_least_55pct": pairwise["evidence_summary"]["D_win_rate"] >= 0.55,
-        "task_gain_vs_same_evidence_direct_positive": task_delta_pp["C_same_evidence_direct"] > 0,
+        "task_gain_vs_same_evidence_direct_positive": (task_delta_pp["C_same_evidence_direct"] or 0) > 0,
         "errors_not_increased_vs_primary_baselines": error_reduction["same_evidence_direct"]["total"] >= 0,
         "threshold_status": U_THRESHOLD_STATUS,
     }
@@ -1136,11 +1169,15 @@ def command_report(args: argparse.Namespace) -> int:
         direct_low, direct_high = direct_pair["wilson_90"]
         summary_low, summary_high = summary_pair["wilson_90"]
         direct_errors = item["delta"]["error_reduction_rate"]["same_evidence_direct"]["total"]
+        direct_task_delta = item["delta"]["task_score_pp"]["C_same_evidence_direct"]
+        question_task_delta = item["delta"]["task_score_pp"]["A_question_only"]
+        direct_task_text = "未运行" if direct_task_delta is None else f"{direct_task_delta:+.1f} 个百分点"
+        question_task_text = "pilot_light 未运行" if question_task_delta is None else f"{question_task_delta:+.1f} 个百分点"
         lines.extend(
             [
                 (
                     f"- 相对同证据直接生成完整报告：下游任务增益 "
-                    f"{item['delta']['task_score_pp']['C_same_evidence_direct']:+.1f} 个百分点；"
+                    f"{direct_task_text}；"
                     f"错误降低 {percent(direct_errors)}；盲评胜率 {percent(direct_pair['D_win_rate'])} "
                     f"（90% Wilson 区间 {percent(direct_low)}—{percent(direct_high)}）。"
                     "这是流程价值的主对比。"
@@ -1151,7 +1188,7 @@ def command_report(args: argparse.Namespace) -> int:
                 ),
                 (
                     f"- 相对「只看问题直答」：任务增益 "
-                    f"{item['delta']['task_score_pp']['A_question_only']:+.1f} 个百分点"
+                    f"{question_task_text}"
                     "（弱基线，只能说明有证据比没证据好，不能证明流程有价值）。"
                 ),
                 "",
@@ -1220,6 +1257,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--run-dir", required=True)
     run.add_argument("--profiles", required=True)
     run.add_argument("--stage", choices=["all", "calibration", "formal"], default="all")
+    run.add_argument("--intensity", choices=["pilot_light", "formal_full"], default="formal_full")
     run.set_defaults(func=command_run)
 
     aggregate = sub.add_parser("aggregate")

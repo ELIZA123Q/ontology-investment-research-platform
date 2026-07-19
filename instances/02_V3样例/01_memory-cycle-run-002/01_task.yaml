@@ -1,8 +1,16 @@
 stage: '01'
 task_id: JTASK-MEM-CYCLE-002
 research_scenario: IndustryResearch
-question: 截至2026年7月，全球存储芯片库存是否已进入去化后段并具备早期修复条件？
+question: 截至2026年7月，全球存储芯片库存是否已进入去化后段并具备早期修复条件？需求修复贡献是否可确认？
 scope_ref: SCOPE-MEM-GLOBAL-2026H2
-scope: {objects: [DRAM, NAND], geography: [global], metrics: [inventory_days, contract_price], time: [2026H1, 2026H2]}
+scope:
+  objects: [DRAM, NAND]
+  geography: [global]
+  metrics: [inventory_days, contract_price, spot_price, oem_sell_in]
+  time: [2026H1, 2026H2]
 excluded_outputs: [target_price, rating, position_advice]
-
+research_cutoff: '2026-07-17T00:00:00+08:00'
+success_criteria:
+  - 区分库存状态测量与周期阶段判断
+  - 显式处理供给收缩竞争解释
+  - 对无法分解的需求贡献输出 indeterminate，而不是强行升级

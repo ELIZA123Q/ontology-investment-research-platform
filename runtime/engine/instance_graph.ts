@@ -3,7 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { latestArtifact } from "../adapters/db";
-import { repositoryPath } from "../adapters/repo-paths";
+import { instancesPath, repositoryPath } from "../adapters/repo-paths";
 import { parseJson } from "./types";
 
 export type GraphObject = {
@@ -163,16 +163,27 @@ export function loadGraphFromYamlFile(absolutePath: string): BusinessInstanceGra
   return extractGraph(doc);
 }
 
+let cachedDomainGraph: BusinessInstanceGraph | null | undefined;
+export function loadDomainBusinessGraph(): BusinessInstanceGraph | null {
+  if (cachedDomainGraph !== undefined) return cachedDomainGraph ? structuredClone(cachedDomainGraph) : null;
+  cachedDomainGraph = loadGraphFromYamlFile(repositoryPath("ontology", "02_领域", "semiconductor", "business_instances.yaml"));
+  return cachedDomainGraph ? structuredClone(cachedDomainGraph) : null;
+}
+
 export function loadGraphFromPackage(packageRelPath: string): BusinessInstanceGraph | null {
-  const root = repositoryPath(packageRelPath);
+  const normalized = packageRelPath.replaceAll("\\", "/").replace(/^\.\//, "");
+  if (!normalized.startsWith("instances/") || normalized.includes("../")) {
+    throw new Error("样例包路径必须位于 instances/ 内");
+  }
+  const root = instancesPath(normalized.slice("instances/".length));
   if (!existsSync(root)) return null;
   const files = readdirSync(root).filter((name) => name.includes("本体视图") && name.endsWith(".yaml"));
   for (const file of files) {
-    const graph = loadGraphFromYamlFile(path.join(root, file));
+    const graph = loadGraphFromYamlFile(path.join(/* turbopackIgnore: true */ root, file));
     if (graph?.objects.length) return graph;
   }
 
-  // Ontology 3.0 的正式样例按 02/03/04 分层保存，不再附带旧式“本体视图”文件。
+  // Ontology 3.0 的 semantic_fixture 样例按 02/03/04 分层保存，不再附带旧式“本体视图”文件。
   // 这里仅做只读、确定性的包投影；正式写入仍须生成 instance_graph artifact。
   const compactStages: Array<[string, string]> = [
     ["02_structure.yaml", "stage_02"],
@@ -182,7 +193,7 @@ export function loadGraphFromPackage(packageRelPath: string): BusinessInstanceGr
   let projected = emptyGraph();
   projected.authority = "package_projection";
   for (const [file, stageKind] of compactStages) {
-    const absolutePath = path.join(root, file);
+    const absolutePath = path.join(/* turbopackIgnore: true */ root, file);
     if (!existsSync(absolutePath)) continue;
     const document = YAML.parse(readFileSync(absolutePath, "utf8"));
     if (!document || typeof document !== "object") continue;
@@ -263,7 +274,7 @@ export function buildProvisionalProjection(runId: string): BusinessInstanceGraph
       const id = String(draft.id || `EV-${index + 1}`);
       graph.objects.push({
         id,
-        type: "EvidenceClaim",
+        type: draft.kind === "gap" ? "EvidenceRequirement" : "EvidenceFact",
         properties: { ...draft, provisional: true },
         projection: { section: "evidence_drafts", index, provisional: true },
       });
@@ -274,19 +285,19 @@ export function buildProvisionalProjection(runId: string): BusinessInstanceGraph
   if (stage04) {
     const data: any = parseJson(stage04.json_content, {});
     for (const [index, judgment] of (data.judgments || []).entries()) {
-      const id = String(judgment.id || `J-${index + 1}`);
+      const id = String(judgment.judgment_id || judgment.id || `J-${index + 1}`);
       graph.objects.push({
         id,
         type: "Judgment",
         properties: { ...judgment, provisional: true },
         projection: { section: "judgments", index, provisional: true },
       });
-      for (const evidenceId of judgment.supporting_evidence_draft_ids || []) {
+      for (const hypothesisId of judgment.hypothesis_ids || []) {
         graph.relations.push({
-          id: `REL-${id}-${evidenceId}`,
-          type: "judgmentBasedOn",
+          id: `REL-${id}-${hypothesisId}`,
+          type: "judgmentBasedOnHypothesis",
           sourceId: id,
-          targetId: String(evidenceId),
+          targetId: String(hypothesisId),
           properties: { provisional: true },
         });
       }
@@ -391,15 +402,40 @@ export function materializeStageIntoGraph(
     }
   }
   if (stageKind === "stage_02") {
+    const scope = stageJson.research_scope as any;
+    if (scope?.id) {
+      slice.objects.push({
+        id: String(scope.id),
+        type: "ResearchScope",
+        properties: { label: scope.label, dimensions: scope.dimensions },
+        projection: { section: "research_scope", index: 0 },
+      });
+    }
     addObjects(stageJson.ontology_instances, "SemanticObject", ["id"], "ontology_instances", true);
+    addObjects(stageJson.variables, "StateVariable", ["id"], "variables");
+    addObjects(stageJson.paths, "ResearchPath", ["id"], "paths");
     addObjects(stageJson.questions, "ResearchQuestion", ["question_id", "id"], "questions");
     for (const [index, unit] of ((stageJson.judgment_units as any[]) || []).entries()) {
+      const unitId = String(unit.judgment_unit_id || unit.id || `JU-${index + 1}`);
       slice.objects.push({
-        id: String(unit.judgment_unit_id || unit.id || `JU-${index + 1}`),
+        id: unitId,
         type: "JudgmentUnit",
-        properties: { ...unit },
+        properties: {
+          ...unit,
+          statement: unit.statement || unit.question,
+          scope_ref: unit.scope_ref || scope?.id,
+        },
         projection: { section: "judgment_units", index },
       });
+      if (unit.scope_ref || scope?.id) {
+        slice.relations.push({
+          id: `REL-${unitId}-SCOPE-${unit.scope_ref || scope.id}`,
+          type: "unitUsesScope",
+          sourceId: unitId,
+          targetId: String(unit.scope_ref || scope.id),
+          properties: {},
+        });
+      }
     }
     addObjects(stageJson.competing_explanations, "CompetingExplanation", ["explanation_id", "id"], "competing_explanations");
     addObjects(stageJson.evidence_requirements, "EvidenceRequirement", ["evidence_requirement_id", "id"], "evidence_requirements");
@@ -409,22 +445,85 @@ export function materializeStageIntoGraph(
     addObjects(stageJson.facts, "EvidenceFact", ["evidence_id", "id"], "facts", true);
     addObjects(stageJson.assessments, "EvidenceAssessment", ["assessment_id", "id"], "assessments");
     addObjects(stageJson.baskets, "EvidenceBasket", ["basket_id", "id"], "baskets");
-    for (const [index, draft] of ((stageJson.evidence_drafts as any[]) || []).entries()) {
-      slice.objects.push({
-        id: String(draft.id || `EV-${index + 1}`),
-        type: "EvidenceClaim",
-        properties: { ...draft },
-        projection: { section: "evidence_drafts", index },
-      });
-    }
+    const sourceByKey = new Map<string, any>();
     for (const [index, source] of ((stageJson.sources as any[]) || []).entries()) {
       const id = String(source.source_id || source.source_key || source.id || `SD-${index + 1}`);
+      sourceByKey.set(String(source.source_key || id), { ...source, id });
       slice.objects.push({
         id,
         type: "SourceDocument",
-        properties: { ...source },
+        properties: {
+          ...source,
+          title: source.title,
+          uri: source.final_url || source.url,
+          published_at: source.published_at,
+          source_tier: source.source_tier,
+        },
         projection: { section: "sources", index },
       });
+    }
+    for (const [index, draft] of ((stageJson.evidence_drafts as any[]) || []).entries()) {
+      const evidenceId = String(draft.id || `EV-${index + 1}`);
+      if (draft.kind === "gap") {
+        slice.objects.push({
+          id: evidenceId,
+          type: "EvidenceRequirement",
+          properties: {
+            ...draft,
+            requirement: draft.requirement || draft.statement,
+            evidence_role: draft.evidence_role,
+            minimum_independent_sources: draft.minimum_independent_sources,
+          },
+          projection: { section: "evidence_drafts", index },
+        });
+        for (const unitId of draft.judgment_unit_ids || []) {
+          slice.relations.push({
+            id: `REL-${evidenceId}-UNIT-${unitId}`,
+            type: "requirementForJudgmentUnit",
+            sourceId: evidenceId,
+            targetId: String(unitId),
+            properties: {},
+          });
+        }
+        continue;
+      }
+      slice.objects.push({
+        id: evidenceId,
+        type: "EvidenceFact",
+        properties: {
+          ...draft,
+          statement: draft.statement,
+          subject_ref: draft.subject_ref,
+          time_basis: draft.time_basis,
+          scope_ref: draft.scope_ref,
+          observed_at: draft.observed_at,
+          valid_from: draft.valid_from,
+          valid_to: draft.valid_to ?? null,
+          published_at: draft.published_at,
+          cutoff_at: draft.cutoff_at,
+        },
+        projection: { section: "evidence_drafts", index },
+      });
+      for (const [sourceIndex, sourceKey] of (draft.source_keys || []).entries()) {
+        const source = sourceByKey.get(String(sourceKey));
+        if (!source) continue;
+        const claimId = `CL-${evidenceId}-${sourceIndex + 1}`;
+        slice.objects.push({
+          id: claimId,
+          type: "EvidenceClaim",
+          properties: {
+            statement: source.source_quote,
+            locator: source.locator,
+            extracted_at: source.captured_at,
+            cutoff_at: draft.cutoff_at,
+          },
+          projection: { section: "derived_claims", index: slice.objects.filter((o) => o.type === "EvidenceClaim").length },
+        });
+        slice.relations.push(
+          { id: `REL-${claimId}-SOURCE`, type: "claimCitesSource", sourceId: claimId, targetId: source.id, properties: {} },
+          { id: `REL-${evidenceId}-${claimId}`, type: "factDerivedFromClaim", sourceId: evidenceId, targetId: claimId, properties: {} },
+        );
+      }
     }
   }
   if (stageKind === "stage_04") {
@@ -439,31 +538,102 @@ export function materializeStageIntoGraph(
       for (const evidenceId of signal.evidence_refs || signal.evidence_draft_ids || []) {
         slice.relations.push({
           id: `REL-${id}-EVIDENCE-${evidenceId}`,
-          type: "signalDerivedFromEvidence",
+          type: "signalGroundedByFact",
           sourceId: id,
           targetId: String(evidenceId),
+          properties: { role: signal.role },
+        });
+      }
+      for (const hypothesisId of signal.target_hypothesis_ids || []) {
+        slice.relations.push({
+          id: `REL-${id}-HYPOTHESIS-${hypothesisId}`,
+          type: "signalEvaluatesHypothesis",
+          sourceId: id,
+          targetId: String(hypothesisId),
           properties: {},
         });
       }
     }
     addObjects(stageJson.hypotheses, "Hypothesis", ["hypothesis_id", "id"], "hypotheses");
-    addObjects(stageJson.competing_explanations, "CompetingExplanation", ["explanation_id", "id"], "competing_explanations");
+    for (const [index, explanation] of ((stageJson.competing_explanations as any[]) || []).entries()) {
+      slice.objects.push({
+        id: String(explanation.explanation_id || explanation.id || `CE-${index + 1}`),
+        type: "CompetingExplanation",
+        properties: {
+          ...explanation,
+          statement: explanation.statement,
+          discriminating_evidence: explanation.discriminating_evidence,
+        },
+        projection: { section: "competing_explanations", index },
+      });
+    }
     addObjects(stageJson.rule_evaluations, "RuleEvaluation", ["rule_evaluation_id", "id"], "rule_evaluations");
-    addObjects(stageJson.reasoning_traces, "ReasoningTrace", ["trace_id", "id"], "reasoning_traces");
+    for (const [index, trace] of ((stageJson.reasoning_traces as any[]) || []).entries()) {
+      slice.objects.push({
+        id: String(trace.trace_id || trace.id || `RT-${index + 1}`),
+        type: "ReasoningTrace",
+        properties: {
+          ...trace,
+          judgment_ref: trace.judgment_ref || trace.judgment_id,
+          node_refs: trace.node_refs || trace.node_ids,
+          created_at: trace.created_at,
+        },
+        projection: { section: "reasoning_traces", index },
+      });
+    }
     for (const [index, judgment] of ((stageJson.judgments as any[]) || []).entries()) {
       const id = String(judgment.judgment_id || judgment.id || `J-${index + 1}`);
       slice.objects.push({
         id,
         type: "Judgment",
-        properties: { ...judgment },
+        properties: {
+          ...judgment,
+          statement: judgment.statement || judgment.conclusion,
+          level: judgment.level || judgment.strength,
+          confidence: judgment.confidence,
+          decision_status: judgment.decision_status,
+          conflict_status: judgment.conflict_status,
+          not_judgeable_reason: judgment.not_judgeable_reason,
+          scope_ref: judgment.scope_ref,
+          cutoff_at: judgment.cutoff_at,
+          conditions: judgment.conditions || [],
+          invalidation_conditions: judgment.invalidation_conditions,
+        },
         projection: { section: "judgments", index },
       });
-      for (const evidenceId of judgment.evidence_refs || judgment.supporting_evidence_draft_ids || []) {
+      for (const hypothesisId of judgment.hypothesis_ids || []) {
         slice.relations.push({
-          id: `REL-${id}-${evidenceId}`,
-          type: "judgmentBasedOn",
+          id: `REL-${id}-${hypothesisId}`,
+          type: "judgmentBasedOnHypothesis",
           sourceId: id,
-          targetId: String(evidenceId),
+          targetId: String(hypothesisId),
+          properties: {},
+        });
+        if (judgment.judgment_unit_id) {
+          slice.relations.push({
+            id: `REL-${judgment.judgment_unit_id}-HYPOTHESIS-${hypothesisId}`,
+            type: "unitHasHypothesis",
+            sourceId: String(judgment.judgment_unit_id),
+            targetId: String(hypothesisId),
+            properties: { role: "primary" },
+          });
+        }
+      }
+      for (const ruleId of judgment.rule_evaluation_ids || []) {
+        slice.relations.push({
+          id: `REL-${id}-RULE-${ruleId}`,
+          type: "judgmentHasRuleEvaluation",
+          sourceId: id,
+          targetId: String(ruleId),
+          properties: {},
+        });
+      }
+      if (judgment.judgment_unit_id) {
+        slice.relations.push({
+          id: `REL-${id}-UNIT-${judgment.judgment_unit_id}`,
+          type: "judgmentResolvesUnit",
+          sourceId: id,
+          targetId: String(judgment.judgment_unit_id),
           properties: {},
         });
       }
@@ -474,6 +644,33 @@ export function materializeStageIntoGraph(
           sourceId: id,
           targetId: String(applicationId),
           properties: { authority: "public_contract_1.3" },
+        });
+      }
+    }
+    const traceNodeTargetTypes = new Set([
+      "ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event",
+      "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
+      "CompetingExplanation", "BlockingFactor", "RuleEvaluation",
+    ]);
+    for (const trace of (stageJson.reasoning_traces as any[]) || []) {
+      const traceId = String(trace.trace_id || trace.id);
+      const judgmentId = String(trace.judgment_ref || trace.judgment_id);
+      slice.relations.push({
+        id: `REL-${traceId}-JUDGMENT-${judgmentId}`,
+        type: "reasoningTraceForJudgment",
+        sourceId: traceId,
+        targetId: judgmentId,
+        properties: {},
+      });
+      for (const [sequence, nodeId] of ((trace.node_refs || trace.node_ids || []) as string[]).entries()) {
+        const target = [...current.objects, ...slice.objects].find((object) => object.id === String(nodeId));
+        if (!target || !traceNodeTargetTypes.has(target.type)) continue;
+        slice.relations.push({
+          id: `REL-${traceId}-NODE-${sequence + 1}-${nodeId}`,
+          type: "traceIncludesNode",
+          sourceId: traceId,
+          targetId: String(nodeId),
+          properties: { sequence: sequence + 1 },
         });
       }
     }
@@ -489,9 +686,58 @@ export function summarizeGraph(graph: BusinessInstanceGraph, limit = 40): string
   return `objects=${graph.objects.length}; relations=${graph.relations.length}; types=[${typeLines.join(", ")}]; sample=[${sample}]`;
 }
 
+const DOWNSTREAM_DIRECTIONS: Record<string, "forward" | "reverse"> = {
+  claimCitesSource: "reverse",
+  factDerivedFromClaim: "reverse",
+  assessmentEvaluatesEvidence: "reverse",
+  basketIncludesAssessment: "reverse",
+  basketFulfillsRequirement: "reverse",
+  requirementForJudgmentUnit: "reverse",
+  factSupportsSignal: "forward",
+  signalGroundedByFact: "reverse",
+  signalEvaluatesHypothesis: "forward",
+  hypothesisEvaluatedBySignal: "reverse",
+  hypothesisSupportsJudgment: "forward",
+  judgmentBasedOnHypothesis: "reverse",
+  judgmentHasRuleEvaluation: "reverse",
+  ruleEvaluationForJudgment: "forward",
+  unitHasHypothesis: "forward",
+  hypothesisForUnit: "reverse",
+  competingExplanationForUnit: "reverse",
+  judgmentResolvesUnit: "reverse",
+  judgmentHasReasoningTrace: "forward",
+  reasoningTraceForJudgment: "reverse",
+  traceIncludesNode: "reverse",
+  runtimeMethodApplicationTargets: "reverse",
+  runtimeJudgmentUsesMethodApplication: "reverse",
+};
+
+export function markReachableDownstreamStale(graph: BusinessInstanceGraph, affectedObjectRefs: string[]) {
+  const next = structuredClone(graph);
+  const stale = new Set(affectedObjectRefs.filter((id) => next.objects.some((object) => object.id === id)));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const relation of next.relations) {
+      const direction = DOWNSTREAM_DIRECTIONS[relation.type];
+      if (!direction) continue;
+      const upstream = direction === "forward" ? relation.sourceId : relation.targetId;
+      const downstream = direction === "forward" ? relation.targetId : relation.sourceId;
+      if (stale.has(upstream) && !stale.has(downstream)) {
+        stale.add(downstream);
+        changed = true;
+      }
+    }
+  }
+  next.objects = next.objects.map((object) => stale.has(object.id)
+    ? { ...object, properties: { ...(object.properties || {}), validity_status: "stale" } }
+    : object);
+  return { graph: next, stale_object_ids: [...stale] };
+}
+
 /** Resolve a formal example package relative path for binding. */
 export function defaultExamplePackages(): string[] {
-  const root = repositoryPath("instances", "02_V3样例");
+  const root = instancesPath("02_V3样例");
   if (!existsSync(root)) return [];
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

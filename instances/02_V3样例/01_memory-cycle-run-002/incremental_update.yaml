@@ -1,10 +1,11 @@
 schema_name: ontology_v3_incremental_update_exercise
 schema_version: 1.1.0
 update_id: IW-MEM-01
-new_evidence: {evidence_id: EV-04, statement: 2026年7月合约价格跌幅重新扩大, role: counter, source_ref: SRC-04}
+new_evidence: {evidence_id: EV-04, statement: 2026年7月合约价格跌幅重新扩大, role: counter, source_ref: SRC-06}
 changed_roots: [EV-04]
-direct_impacts: [EB-JU02-C, MA-02, SIG-02, MA-05]
+direct_impacts: [EA-02, EB-JU02-C, MA-02, SIG-02, MA-05]
 propagation_edges:
+  - {source_ref: EA-02, target_ref: RE-02, dependency_type: rule_input}
   - {source_ref: EB-JU02-C, target_ref: RE-02, dependency_type: rule_input}
   - {source_ref: SIG-02, target_ref: H-02, dependency_type: hypothesis_input}
   - {source_ref: H-02, target_ref: RE-02, dependency_type: rule_input}
@@ -13,9 +14,9 @@ propagation_edges:
   - {source_ref: C-02, target_ref: RT-02, dependency_type: trace_projection}
   - {source_ref: C-02, target_ref: EX-02, dependency_type: expression_projection}
 affected_graph:
-  stale: [EB-JU02-C, MA-02, SIG-02, H-02, RE-02, MA-05, C-02, RT-02, EX-02]
-  remains_current: [EV-01, SIG-01, H-01, RE-01, MA-04, C-01, RT-01, EX-01]
+  stale: [EA-02, EB-JU02-C, MA-02, SIG-02, H-02, RE-02, MA-05, C-02, RT-02, EX-02]
+  remains_current: [EV-01, EV-03, EV-05, SIG-01, SIG-03, SIG-04, SIG-06, H-01, H-03, RE-01, RE-03, MA-04, MA-08, C-01, C-03, RT-01, RT-03, EX-01, EX-03]
 recompute_stages: ['03', '04', '05']
 structural_checkpoint_required: false
 full_rerun_required: false
-expected_judgment_change: {judgment_ref: C-02, action: weaken, new_ceiling: J1, reason: 价格确认条件失效}
+expected_judgment_change: {judgment_ref: C-02, action: weaken, new_ceiling: J1, reason: 合约价格确认条件失效，周期阶段判断需降级}

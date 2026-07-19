@@ -78,38 +78,19 @@ def route_registry() -> dict[str, Any]:
     return registry
 
 
-LEGACY_VERSION_SETS: dict[str, dict[str, str]] = {
-    "1.2.1": {
-        "contract": "1.2.1",
-        "ontology": "2.1.0",
-        "ontology_reasoning": "2.1.0",
-        "kb02": "2.0.0",
-        "kb03": "3.2.0",
-        "kb04": "1.0.0",
-        "stage_01_schema": "1.5.0",
-        "stage_02_logic_schema": "1.2.0",
-        "stage_02_view_schema": "2.2.0",
-        "stage_03_schema": "1.4.0",
-        "stage_04_brief_schema": "3.0.0",
-        "stage_04_audit_schema": "4.0.0",
-        "stage_05_audit_schema": "2.6.0",
-        "semantic_review_schema": "1.0.0",
-    }
-}
+RETIRED_CONTRACT_VERSIONS = {"1.1.0", "1.2.1"}
 
 
 def current_versions(contract_version: str | None = None) -> dict[str, str]:
     """返回当前公共合同版本集合。
 
-    不再提供 1.1.0 等 legacy 版本集作为 fallback；若调用方显式请求已删除的
-    legacy 合同版本，直接报错。其他未知/过期 contract_version 仍返回当前
+    不再提供任何 legacy 版本集作为 fallback；若调用方显式请求已退役的
+    合同版本，直接报错。其他未知 contract_version 仍返回当前
     版本集，由 validate_run 通过 recorded vs current 对比触发 revalidation。
     """
     requested = str(contract_version or "").strip()
-    if requested == "1.1.0":
-        raise ContractError("已删除 legacy 版本集；run_manifest 不得再声明 contract=1.1.0")
-    if requested in LEGACY_VERSION_SETS:
-        return dict(LEGACY_VERSION_SETS[requested])
+    if requested in RETIRED_CONTRACT_VERSIONS:
+        raise ContractError(f"已删除 legacy 版本集；run_manifest 不得再声明 contract={requested}")
     contract = public_contract()
     routes = route_registry()
     ontology = _mapping(load_yaml_file(ONTOLOGY_CONTRACT_PATH), "ontology_meta_schema")

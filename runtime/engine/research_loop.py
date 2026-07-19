@@ -280,7 +280,7 @@ def _ontology_catalog() -> tuple[set[str], set[str]]:
         schema = load_yaml(path)
         object_types.update(str(item) for item in schema.get("object_types", {}))
         relation_types.update(str(item) for item in schema.get("relation_types", {}))
-        object_types.update(str(item) for item in schema.get("scenario_types", {}))
+        # scenario_types 是 catalog_only，不进入可写对象目录
     return object_types, relation_types
 
 

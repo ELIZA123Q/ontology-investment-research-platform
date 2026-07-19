@@ -107,7 +107,7 @@ export default async function OntologyPage({
               </div>
             ))
           ) : (
-            <p className="muted">当前运行尚无关联实例。可在创建运行时绑定正式样例包。</p>
+            <p className="muted">当前运行尚无关联实例。可在创建运行时绑定 V3 语义样例包（semantic_fixture）。</p>
           )}
           {linked.sources.length > 0 && (
             <>

@@ -69,6 +69,156 @@ def method_catalog_and_routes() -> tuple[dict[str, dict[str, str]], dict[str, An
     return catalog, routes
 
 
+@lru_cache(maxsize=1)
+def ontology_catalog() -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], set[str], set[str]]:
+    objects: dict[str, dict[str, Any]] = {}
+    relations: dict[str, dict[str, Any]] = {}
+    domain_objects: set[str] = set()
+    event_extensions: set[str] = set()
+    for name in ("semantic", "state_event", "evidence", "judgment", "scenario", "semiconductor_extension"):
+        document = load(ROOT / f"ontology/01_通用/models/{name}.yaml")
+        objects.update(document.get("object_types") or {})
+        relations.update(document.get("relation_types") or {})
+        if name == "semiconductor_extension":
+            domain_objects.update((document.get("object_types") or {}).keys())
+            event_extensions.update((document.get("event_taxonomy") or {}).get("allowed_extensions") or [])
+    return objects, relations, domain_objects, event_extensions
+
+
+def validate_ontology_instances(structure: dict[str, Any], label: str) -> list[str]:
+    errors: list[str] = []
+    objects, relations, domain_objects, event_extensions = ontology_catalog()
+    expected_refs = {
+        f"ontology/01_通用/models/{name}.yaml"
+        for name in ("semantic", "state_event", "evidence", "judgment", "scenario", "semiconductor_extension")
+    }
+    declared_refs = set(structure.get("ontology_refs") or [])
+    if declared_refs != expected_refs:
+        errors.append(f"{label}: ontology_refs must declare the complete frozen six-model bundle")
+    for ref in declared_refs:
+        if not (ROOT / ref).is_file():
+            errors.append(f"{label}: unresolved ontology_ref {ref}")
+
+    instances = structure.get("ontology_instances") or []
+    instance_by_id: dict[str, dict[str, Any]] = {}
+    for item in instances:
+        instance_id = str(item.get("id", "")) if isinstance(item, dict) else ""
+        if not instance_id:
+            errors.append(f"{label}: ontology instance missing id")
+        elif instance_id in instance_by_id:
+            errors.append(f"{label}: duplicate ontology instance id {instance_id}")
+        else:
+            instance_by_id[instance_id] = item
+
+    def ancestors(type_id: str) -> set[str]:
+        found: set[str] = set()
+        pending = [type_id]
+        while pending:
+            current = pending.pop()
+            if current in found:
+                continue
+            found.add(current)
+            contract = objects.get(current) or {}
+            for field in ("extends", "projects_to"):
+                parent = contract.get(field)
+                if isinstance(parent, str):
+                    pending.append(parent)
+        return found
+
+    def effective_attributes(type_id: str) -> dict[str, dict[str, Any]]:
+        output: dict[str, dict[str, Any]] = {}
+        lineage: list[str] = []
+        current: str | None = type_id
+        seen: set[str] = set()
+        while current and current not in seen:
+            seen.add(current)
+            lineage.append(current)
+            parent = (objects.get(current) or {}).get("extends")
+            current = parent if isinstance(parent, str) else None
+        for ancestor in reversed(lineage):
+            output.update((objects.get(ancestor) or {}).get("attributes") or {})
+        return output
+
+    core_seen = False
+    domain_seen = False
+    proxy_required = {
+        "name", "target_ref", "proxyLogic", "expectedTimeLag", "validConditions",
+        "invalidConditions", "confidenceDiscount", "cannotReplace", "requiredDisclosure",
+    }
+    for instance_id, item in instance_by_id.items():
+        type_id = str(item.get("type", ""))
+        if type_id == "ProxyIndicator":
+            missing = sorted(proxy_required - set(item))
+            if missing:
+                errors.append(f"{label}: ProxyIndicator {instance_id} missing {missing}")
+            if item.get("target_ref") not in instance_by_id:
+                errors.append(f"{label}: ProxyIndicator {instance_id} unresolved target_ref")
+            continue
+        contract = objects.get(type_id)
+        if not contract:
+            errors.append(f"{label}: ontology instance {instance_id} uses unknown formal type {type_id}")
+            continue
+        domain_seen = domain_seen or type_id in domain_objects
+        core_seen = core_seen or type_id not in domain_objects
+        attributes = effective_attributes(type_id)
+        for attribute_id, attribute in attributes.items():
+            if attribute.get("required") is True and attribute_id not in item:
+                errors.append(f"{label}: ontology instance {instance_id} missing required attribute {attribute_id}")
+            if attribute_id not in item:
+                continue
+            value = item.get(attribute_id)
+            if attribute.get("type") == "enum":
+                allowed = set(attribute.get("allowed_values") or [])
+                if type_id == "Event" and attribute_id == "event_type":
+                    allowed |= event_extensions
+                if value not in allowed:
+                    errors.append(f"{label}: ontology instance {instance_id}.{attribute_id} invalid enum {value}")
+            if attribute.get("type") == "object_ref":
+                target = instance_by_id.get(str(value))
+                target_type = str((target or {}).get("type", ""))
+                expected_type = str(attribute.get("reference_target", ""))
+                if not target or expected_type not in ancestors(target_type):
+                    errors.append(f"{label}: ontology instance {instance_id}.{attribute_id} unresolved/incompatible ref {value}")
+        unknown = sorted(set(item) - {"id", "type"} - set(attributes))
+        if unknown:
+            errors.append(f"{label}: ontology instance {instance_id} has undeclared attributes {unknown}")
+    if not core_seen or not domain_seen:
+        errors.append(f"{label}: sample must instantiate both core and semiconductor formal object types")
+
+    relation_ids: set[str] = set()
+    for relation in structure.get("ontology_relations") or []:
+        relation_id = str(relation.get("id", ""))
+        relation_type = str(relation.get("type", ""))
+        if not relation_id or relation_id in relation_ids:
+            errors.append(f"{label}: ontology relation id missing or duplicate: {relation_id}")
+        relation_ids.add(relation_id)
+        contract = relations.get(relation_type)
+        if not contract:
+            errors.append(f"{label}: ontology relation {relation_id} uses unknown formal type {relation_type}")
+            continue
+        source = instance_by_id.get(str(relation.get("source_ref", "")))
+        target = instance_by_id.get(str(relation.get("target_ref", "")))
+        if not source or not target:
+            errors.append(f"{label}: ontology relation {relation_id} has dangling endpoint")
+            continue
+        source_type = str(source.get("type"))
+        target_type = str(target.get("type"))
+        if not set(contract.get("source_types") or []) & ancestors(source_type):
+            errors.append(f"{label}: ontology relation {relation_id} source endpoint incompatible")
+        if not set(contract.get("target_types") or []) & ancestors(target_type):
+            errors.append(f"{label}: ontology relation {relation_id} target endpoint incompatible")
+        attributes = contract.get("attributes") or {}
+        for attribute_id, attribute in attributes.items():
+            if attribute.get("required") is True and attribute_id not in relation:
+                errors.append(f"{label}: ontology relation {relation_id} missing required attribute {attribute_id}")
+            if attribute_id in relation and attribute.get("type") == "enum" and relation[attribute_id] not in set(attribute.get("allowed_values") or []):
+                errors.append(f"{label}: ontology relation {relation_id}.{attribute_id} invalid enum")
+        unknown = sorted(set(relation) - {"id", "type", "source_ref", "target_ref"} - set(attributes))
+        if unknown:
+            errors.append(f"{label}: ontology relation {relation_id} has undeclared attributes {unknown}")
+    return errors
+
+
 def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], known_rules: set[str]) -> list[str]:
     errors: list[str] = []
     manifest = run["manifest"]
@@ -79,11 +229,21 @@ def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], 
     update = run["update"]
     label = str(manifest.get("run_id", "<unknown-run>"))
     method_catalog, method_routes = method_catalog_and_routes()
+    errors.extend(validate_ontology_instances(structure, label))
 
     questions = _ids(structure.get("questions") or [], "question_id")
     units = _ids(structure.get("judgment_units") or [], "judgment_unit_id")
     ontology_objects = _ids(structure.get("ontology_instances") or [], "id")
     facts = _ids(evidence.get("facts") or [], "evidence_id")
+    requirement_ids = _ids(structure.get("evidence_requirements") or [], "evidence_requirement_id")
+    gaps = evidence.get("evidence_gaps") or []
+    if not gaps:
+        errors.append(f"{label}: sample must demonstrate at least one explicit evidence gap")
+    for gap in gaps:
+        if gap.get("requirement_ref") not in requirement_ids or gap.get("target_judgment_unit_ref") not in units:
+            errors.append(f"{label}: evidence gap {gap.get('gap_id')} has unresolved requirement/judgment unit")
+        if gap.get("status") not in {"unmet", "partially_met"} or not str(gap.get("reason", "")).strip():
+            errors.append(f"{label}: evidence gap {gap.get('gap_id')} lacks status/reason")
     signals_for_methods = _ids(judgment.get("signals") or [], "signal_id")
     judgments_for_methods = _ids(judgment.get("judgments") or [], "judgment_id")
     for message in validate_stage_applications(
@@ -132,6 +292,18 @@ def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], 
             errors.append(f"{label}: version {key} must be {expected}")
     if manifest.get("legacy_compatibility", {}).get("legacy_run") is not False:
         errors.append(f"{label}: V3 sample must not be marked legacy")
+    if str(manifest.get("schema_name")) != "controlled_research_run_manifest_v3":
+        errors.append(f"{label}: schema_name must be controlled_research_run_manifest_v3")
+    if str(manifest.get("schema_version")) != "1.0.0":
+        errors.append(f"{label}: fixture schema_version must be 1.0.0")
+    if str(manifest.get("package_kind", "semantic_fixture")) != "semantic_fixture":
+        errors.append(f"{label}: package_kind must be semantic_fixture")
+    contract_ref = manifest.get("contract_ref") or {}
+    if contract_ref:
+        if str(contract_ref.get("schema_name")) != "controlled_research_run_manifest":
+            errors.append(f"{label}: contract_ref.schema_name must point to formal manifest")
+        if str(contract_ref.get("schema_version")) != "1.3.0":
+            errors.append(f"{label}: contract_ref.schema_version must be 1.3.0")
 
     required_fields = set(contract["method_application_contract"]["required_fields"])
     status_values = set(contract["method_application_contract"]["statuses"])
@@ -373,15 +545,21 @@ def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], 
         if not set(item.get("source_method_application_refs") or []) <= set(source_judgment.get("method_application_refs") or []):
             errors.append(f"{label}: expression method trace exceeds source judgment")
     checks = expression.get("overall_check") or {}
+    deprecated_self_checks = {
+        "no_new_fact_created", "no_new_judgment_created", "no_method_status_changed",
+    }
+    found_self_checks = sorted(deprecated_self_checks & set(checks))
+    if found_self_checks:
+        errors.append(f"{label}: 05 deprecated self-certification checks {found_self_checks}; structural projection is authoritative")
     for key in (
-        "all_evidence_mapped_to_04_judgments",
-        "all_methods_mapped_to_executed_04_applications",
-        "no_new_fact_created",
-        "no_new_judgment_created",
-        "no_method_status_changed",
+        "all_expressions_mapped_to_04_claims", "all_evidence_mapped_to_04_judgments",
+        "all_methods_mapped_to_executed_04_applications", "no_expression_level_upgrade",
+        "no_condition_loss", "no_scope_expansion",
     ):
         if checks.get(key) is not True:
             errors.append(f"{label}: 05 check {key} must be true")
+    if checks.get("result") != "pass":
+        errors.append(f"{label}: 05 overall_check.result must be pass")
 
     stale = set(update.get("affected_graph", {}).get("stale", []))
     current = set(update.get("affected_graph", {}).get("remains_current", []))

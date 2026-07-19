@@ -75,6 +75,17 @@ BUSINESS_PARAMETER_RELATION_TYPES = {
     "scopeNarrowerThan",
 }
 
+# Public Contract 1.3 允许进入操作实例图的最小运行投影；它们不是 Ontology 3.0 正式类型。
+RUNTIME_CONTRACT_OBJECT_TYPES = {"MethodApplication"}
+RUNTIME_CONTRACT_RELATION_TYPES = {
+    "runtimeMethodApplicationTargets",
+    "runtimeJudgmentUsesMethodApplication",
+    "sourceDocumentUsesProfile",
+    "sourcePublishedBy",
+    "claimAbout",
+    "assessmentEvaluatesEvidence",
+}
+
 SECTION_TYPES = {
     "task_context": "ResearchPlan",
     "research_framework": "ResearchFrameworkSelection",
@@ -769,12 +780,29 @@ def _load_ontology_catalog(*, include_domain: bool = True) -> tuple[set[str], se
         if not path.is_file():
             continue
         schema = yaml.safe_load(path.read_text(encoding="utf-8"))
-        object_definitions.update(schema.get("object_types", {}) or {})
-        object_definitions.update(schema.get("scenario_types", {}) or {})
-        relation_definitions.update(schema.get("relation_types", {}) or {})
-        object_types.update(str(item) for item in (schema.get("object_types", {}) or {}))
-        object_types.update(str(item) for item in (schema.get("scenario_types", {}) or {}))
-        relation_types.update(str(item) for item in (schema.get("relation_types", {}) or {}))
+        # scenario_types 是 catalog_only 任务枚举，不得进入可写实例图对象目录
+        for section_name, bucket_objects, bucket_relations in (
+            ("object_types", object_types, None),
+            ("relation_types", None, relation_types),
+        ):
+            section = schema.get(section_name) or {}
+            if not isinstance(section, dict):
+                continue
+            for item_id, definition in section.items():
+                status = "active"
+                if isinstance(definition, dict):
+                    metadata = definition.get("metadata") or {}
+                    if isinstance(metadata, dict) and metadata.get("status"):
+                        status = str(metadata.get("status"))
+                if status != "active":
+                    continue
+                key = str(item_id)
+                if bucket_objects is not None:
+                    bucket_objects.add(key)
+                    object_definitions[key] = definition if isinstance(definition, dict) else {}
+                if bucket_relations is not None:
+                    bucket_relations.add(key)
+                    relation_definitions[key] = definition if isinstance(definition, dict) else {}
     return object_types, relation_types, object_definitions, relation_definitions
 
 
@@ -796,8 +824,8 @@ def validate_instance_graph(
     object_types, relation_types, object_definitions, relation_definitions = _load_ontology_catalog(
         include_domain=include_domain
     )
-    allowed_object_types = object_types | BUSINESS_PARAMETER_OBJECT_TYPES | TASK_VIEW_OBJECT_TYPES
-    allowed_relation_types = relation_types | BUSINESS_PARAMETER_RELATION_TYPES
+    allowed_object_types = object_types | BUSINESS_PARAMETER_OBJECT_TYPES | TASK_VIEW_OBJECT_TYPES | RUNTIME_CONTRACT_OBJECT_TYPES
+    allowed_relation_types = relation_types | BUSINESS_PARAMETER_RELATION_TYPES | RUNTIME_CONTRACT_RELATION_TYPES
     # Company 可满足以 Organization 为值域的关系。
     type_aliases = {"Company": {"Organization", "Company"}}
     ids: set[str] = set()
@@ -813,11 +841,10 @@ def validate_instance_graph(
         ids.add(instance_id)
         instance_types[instance_id] = object_type
         properties = _mapping(item.get("properties"), f"{instance_id}.properties")
-        if (
-            object_type in STRICT_TASK_TYPES
-            and object_type in object_definitions
-            and "properties" in object_definitions[object_type]
-        ):
+        # Ontology 3.0 declares object fields under ``attributes``.  Validate every
+        # formal object definition instead of only a small task-view allowlist;
+        # otherwise an empty object can masquerade as Judgment/EvidenceFact.
+        if object_type in object_definitions and _schema_fields(object_definitions[object_type]):
             for property_name, definition in _schema_fields(object_definitions[object_type]).items():
                 if definition.get("required") and property_name not in properties:
                     raise InstanceGraphError(f"{instance_id}.properties 缺少必填属性 {property_name}")
@@ -848,6 +875,7 @@ def validate_instance_graph(
         if "validTo" in item and item["validTo"] in (None, ""):
             raise InstanceGraphError(f"{instance_id}.validTo 不得为空字符串")
     relation_ids: set[str] = set()
+    outgoing: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for index, raw in enumerate(relations):
         item = _mapping(raw, f"relations[{index}]")
         relation_id = str(item.get("id", "")).strip()
@@ -859,6 +887,12 @@ def validate_instance_graph(
             raise InstanceGraphError(f"{relation_id}.type 不是正式本体或已登记业务参数关系")
         if str(item.get("sourceId", "")) not in ids or str(item.get("targetId", "")) not in ids:
             raise InstanceGraphError(f"{relation_id} 存在悬空端点")
+        if relation_type == "runtimeMethodApplicationTargets":
+            if instance_types[str(item["sourceId"])] != "MethodApplication" or instance_types[str(item["targetId"])] != "JudgmentUnit":
+                raise InstanceGraphError(f"{relation_id} 运行方法目标关系端点不合法")
+        if relation_type == "runtimeJudgmentUsesMethodApplication":
+            if instance_types[str(item["sourceId"])] != "Judgment" or instance_types[str(item["targetId"])] != "MethodApplication":
+                raise InstanceGraphError(f"{relation_id} 判断方法应用关系端点不合法")
         if relation_type in relation_definitions and check_relation_endpoints:
             definition = relation_definitions[relation_type]
             source_type = instance_types[str(item["sourceId"])]
@@ -871,7 +905,49 @@ def validate_instance_graph(
                 raise InstanceGraphError(f"{relation_id}.sourceId 类型不符合关系定义域")
             if not target_ok:
                 raise InstanceGraphError(f"{relation_id}.targetId 类型不符合关系值域")
-        _mapping(item.get("properties"), f"{relation_id}.properties")
+        relation_properties = _mapping(item.get("properties"), f"{relation_id}.properties")
+        outgoing[(str(item["sourceId"]), relation_type)].append(item)
+        if relation_type in relation_definitions:
+            for property_name, definition in _schema_fields(relation_definitions[relation_type]).items():
+                if definition.get("required") and property_name not in relation_properties:
+                    raise InstanceGraphError(
+                        f"{relation_id}.properties 缺少必填属性 {property_name}"
+                    )
+                if property_name not in relation_properties:
+                    continue
+                raw_value = relation_properties[property_name]
+                property_type = definition.get("type")
+                valid = {
+                    "string": isinstance(raw_value, str),
+                    "integer": isinstance(raw_value, int) and not isinstance(raw_value, bool),
+                    "number": isinstance(raw_value, (int, float)) and not isinstance(raw_value, bool),
+                    "boolean": isinstance(raw_value, bool),
+                    "array": isinstance(raw_value, list),
+                    "object": isinstance(raw_value, dict),
+                    "enum": isinstance(raw_value, str) and raw_value in definition.get("allowed_values", []),
+                }.get(str(property_type), True)
+                if not valid:
+                    raise InstanceGraphError(
+                        f"{relation_id}.{property_name} 不符合 {property_type}"
+                    )
+    semantic_requirements = {
+        "JudgmentUnit": ("unitUsesScope",),
+        "EvidenceClaim": ("claimCitesSource",),
+        "EvidenceFact": ("factDerivedFromClaim",),
+        "Signal": ("signalGroundedByFact", "signalEvaluatesHypothesis"),
+        "Judgment": (
+            "judgmentBasedOnHypothesis", "judgmentHasRuleEvaluation",
+            "judgmentResolvesUnit", "runtimeJudgmentUsesMethodApplication",
+        ),
+        "ReasoningTrace": ("reasoningTraceForJudgment", "traceIncludesNode"),
+        "MethodApplication": ("runtimeMethodApplicationTargets",),
+    }
+    for instance_id, object_type in instance_types.items():
+        for relation_type in semantic_requirements.get(object_type, ()):
+            if not outgoing.get((instance_id, relation_type)):
+                raise InstanceGraphError(
+                    f"{instance_id} 缺少语义闭环关系 {relation_type}"
+                )
     return value
 
 

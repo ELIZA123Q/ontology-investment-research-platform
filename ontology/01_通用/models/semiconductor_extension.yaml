@@ -190,6 +190,7 @@ evidence_constraints:
     counter_conditions: [proxy_treated_as_direct_evidence]
     failure_result: downgrade_or_reject
     priority: blocking
+    test_case_role: design_intent
     test_cases:
       - {id: SEMI-PROXY-P, input: {proxy_used: true, lag_disclosed: true, scope_disclosed: true, direct_evidence_limit_disclosed: true}, expected: pass}
       - {id: SEMI-PROXY-N, input: {proxy_used: true, lag_disclosed: false, proxy_treated_as_direct: true}, expected: reject}
@@ -204,6 +205,7 @@ evidence_constraints:
     counter_conditions: [intent_treated_as_order, sample_treated_as_mass_production, qualification_scope_mismatch]
     failure_result: downgrade_or_block
     priority: blocking
+    test_case_role: design_intent
     test_cases:
       - {id: SEMI-STAGE-P, input: {evidence_stage: mass_production, claimed_stage: qualification, scope_aligned: true}, expected: pass}
       - {id: SEMI-STAGE-N, input: {evidence_stage: sample, claimed_stage: mass_production, scope_aligned: false}, expected: reject}
@@ -218,6 +220,7 @@ evidence_constraints:
     counter_conditions: [nameplate_as_effective_capacity, sample_yield_as_mass_production_yield, scope_or_unit_mismatch]
     failure_result: downgrade_or_reject
     priority: blocking
+    test_case_role: design_intent
     test_cases:
       - {id: SEMI-CAP-YIELD-P, input: {facility_match: true, product_match: true, batch_match: true, unit_match: true, time_match: true}, expected: pass}
       - {id: SEMI-CAP-YIELD-N, input: {facility_match: false, sample_yield_used_for_mass_production: true}, expected: reject}

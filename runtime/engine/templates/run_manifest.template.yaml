@@ -15,11 +15,11 @@ versions:
   kb04: 1.0.0
   stage_01_schema: 1.5.0
   stage_02_logic_schema: 1.2.0
-  stage_02_view_schema: 2.2.0
-  stage_03_schema: 1.4.0
+  stage_02_view_schema: 3.0.0
+  stage_03_schema: 3.0.0
   stage_04_brief_schema: 3.0.0
-  stage_04_audit_schema: 4.0.0
-  stage_05_audit_schema: 2.6.0
+  stage_04_audit_schema: 5.0.0
+  stage_05_audit_schema: 3.0.0
   semantic_review_schema: 1.0.0
 stages:
   stage_01: &stage_attempt

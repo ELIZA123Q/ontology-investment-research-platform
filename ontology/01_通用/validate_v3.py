@@ -483,6 +483,10 @@ def validate_bundle(
                     errors.append(f"{name}:{resource_id} rule test_cases missing positive expected result")
                 if cases and not seen_negative:
                     errors.append(f"{name}:{resource_id} rule test_cases missing negative expected result")
+                role = resource.get("test_case_role")
+                allowed_roles = set(rule_contract.get("test_case_role_values") or ["design_intent", "executable"])
+                if role not in allowed_roles:
+                    errors.append(f"{name}:{resource_id} rule test_case_role must be one of {sorted(allowed_roles)}")
 
         for scenario_id, scenario in (schema.get("scenario_types") or {}).items():
             missing_scenario = sorted(set(scenario_contract.get("required") or []) - set(scenario))
@@ -491,6 +495,9 @@ def validate_bundle(
             for key in set(scenario_contract.get("required") or []) - {"metadata"}:
                 if not _list_of_nonempty_strings(scenario.get(key), allow_empty=False):
                     errors.append(f"{name}:{scenario_id} scenario {key} must be non-empty string list")
+            allowed_enforcement = set(scenario_contract.get("enforcement_values") or ["catalog_only"])
+            if scenario.get("enforcement") not in allowed_enforcement:
+                errors.append(f"{name}:{scenario_id} scenario enforcement must be one of {sorted(allowed_enforcement)}")
             for ref in scenario.get("required_object_types", []):
                 if ref not in all_objects:
                     errors.append(f"{name}:{scenario_id} unresolved scenario object {ref}")

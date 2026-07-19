@@ -55,7 +55,7 @@ export function NewRunForm() {
         </select>
       </div>
       <div className="field">
-        <label>绑定正式样例实例图（可选）</label>
+        <label>绑定语义样例实例图（可选，semantic_fixture）</label>
         <select value={packagePath} onChange={(e) => setPackagePath(e.target.value)}>
           <option value="">不绑定（由阶段产物合成）</option>
           {packages.map((item) => (

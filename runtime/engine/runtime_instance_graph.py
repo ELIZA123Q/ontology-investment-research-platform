@@ -106,7 +106,7 @@ def _catalog() -> tuple[set[str], set[str]]:
                 continue
             schema = yaml.safe_load(path.read_text(encoding="utf-8"))
             objects.update(schema.get("object_types", {}) or {})
-            objects.update(schema.get("scenario_types", {}) or {})
+            # scenario_types 是 catalog_only，不进入可写对象目录
             relations.update(schema.get("relation_types", {}) or {})
         from ontology_instance_graph import (  # local import avoids cycle at module load
             BUSINESS_PARAMETER_OBJECT_TYPES,
@@ -181,10 +181,10 @@ def compact_reasoning_audit(audit: Mapping[str, Any]) -> dict[str, Any]:
         if item["type"] != "ReasoningTrace":
             continue
         judgment_ref = str(item["properties"].get("judgment_ref", "")).strip()
-        if judgment_ref in judgments and "traceForJudgment" in relation_types:
+        if judgment_ref in judgments and "reasoningTraceForJudgment" in relation_types:
             relations.append({
                 "id": f"REL-TRACE-{item['id']}",
-                "type": "traceForJudgment",
+                "type": "reasoningTraceForJudgment",
                 "sourceId": item["id"],
                 "targetId": judgment_ref,
                 "properties": {},

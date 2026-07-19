@@ -18,6 +18,10 @@
 
 正式本体回答“有什么、如何关联、哪些稳定约束成立”。方法选择、方法执行、API、任务调度、权限、Saga 和性能均不属于正式本体。
 
+`metadata.status=draft` 的类型已定义但未纳入当前 Runtime 实例图投影（含资本市场对象、`ResearchScenario` 实例化路径）。任务里的 `research_scenario` 只引用 `scenario_types` 枚举。
+
+正式规则的执行面见 [`governance/02_合同/rule_authority_registry.yaml`](../governance/02_合同/rule_authority_registry.yaml)：`judgment_reference_integrity` 由 Runtime 重算；`semantic_endpoint_compatibility` 只在实例图物化时由 `validateRuntimeGraph` 执行；标为 `unimplemented` 的规则不得宣称为已挡门。
+
 领域业务参数实例（证据画像、状态变量、传导模板等）仍在 `02_领域/semiconductor/business_instances.yaml`。
 
 项目只维护 Ontology 3.0 / Public Contract 最新正式基线；新模板、新样例和新运行不得引用已退役的 2.x 文件路径或旧资源 ID。

@@ -27,6 +27,11 @@ AUTHORITY_SECTIONS = (
     "governance_rules",
     "runtime_rules",
 )
+EXECUTION_SURFACES = {
+    "runtime_semantic_execution",
+    "runtime_graph_contract",
+    "unimplemented",
+}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -107,6 +112,17 @@ def validate_rule_authority(
     leaked_methods = sorted(rule_id for rule_id in actual_formal if METHOD_ID.match(rule_id))
     if leaked_methods:
         errors.append(f"method IDs leaked into formal ontology: {leaked_methods}")
+
+    for rule_id, resource in (registry.get("formal_ontology_rules") or {}).items():
+        if not isinstance(resource, dict):
+            continue
+        surface = resource.get("execution_surface")
+        if surface not in EXECUTION_SURFACES:
+            errors.append(f"formal_ontology_rules.{rule_id} missing or invalid execution_surface")
+        if not isinstance(resource.get("blocking"), bool):
+            errors.append(f"formal_ontology_rules.{rule_id} missing boolean blocking")
+        if surface == "runtime_semantic_execution" and resource.get("blocking") is not True:
+            errors.append(f"formal_ontology_rules.{rule_id} runtime_semantic_execution must be blocking")
 
     for section in ("governance_rules", "runtime_rules"):
         for resource_id, resource in (registry.get(section) or {}).items():

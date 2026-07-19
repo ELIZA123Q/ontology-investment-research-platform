@@ -9,6 +9,7 @@ import {
   type GraphObject,
   type GraphRelation,
 } from "./instance_graph";
+import { validateRuntimeGraph } from "./graph_contract";
 
 export type ActionTypeDef = {
   id: string;
@@ -16,7 +17,8 @@ export type ActionTypeDef = {
   description: string;
   target_types: string[];
   parameters: string[];
-  preconditions: string[];
+  /** 审计元数据，不由执行器解释；可执行检查见 assertPreconditions */
+  audit_preconditions: string[];
   effects: string[];
   outputs: string[];
   formal_rule_refs: string[];
@@ -39,6 +41,7 @@ export type FunctionDef = {
   writes: string[];
   deterministic: boolean;
   side_effects: boolean;
+  implementation: "real" | "stub";
   source_file: string;
 };
 
@@ -87,7 +90,7 @@ function loadCatalogs() {
       description: raw.description || "",
       target_types: raw.target_types || [],
       parameters: raw.parameters || [],
-      preconditions: raw.preconditions || [],
+      audit_preconditions: raw.audit_preconditions || raw.preconditions || [],
       effects: raw.effects || [],
       outputs: raw.outputs || [],
       formal_rule_refs: raw.formal_rule_refs || [],
@@ -101,6 +104,7 @@ function loadCatalogs() {
     });
   }
   for (const [id, raw] of Object.entries<any>(doc.functions || {})) {
+    const implementation = raw.implementation === "stub" ? "stub" : "real";
     cachedFunctions.set(id, {
       id,
       name: raw.name || id,
@@ -111,6 +115,7 @@ function loadCatalogs() {
       writes: raw.writes || [],
       deterministic: Boolean(raw.deterministic),
       side_effects: Boolean(raw.side_effects),
+      implementation,
       source_file: operationRegistryFile,
     });
   }
@@ -144,6 +149,15 @@ export function callFunction(
   if (fn.writes.length) {
     throw new Error(`Function ${functionId} 声明了 writes，工作台执行器禁止 Function 直接写图`);
   }
+  if (fn.implementation === "stub") {
+    return {
+      status: "unsupported_stub",
+      function_id: functionId,
+      message: `Function ${functionId} 标记为 stub，不提供可执行实现`,
+      available_object_types: [...new Set(graph.objects.map((object) => object.type))],
+      inputs,
+    };
+  }
 
   if (functionId === "AssessEvidenceUsabilityFunction") {
     return assessEvidenceUsability(inputs, graph);
@@ -152,9 +166,19 @@ export function callFunction(
     return calculateConfidence(inputs, graph);
   }
   if (functionId === "AssessSourceReliability") {
-    const tier = String(inputs.sourceTier || inputs.artifactType || "unknown");
-    const reliability = /official|disclosure|监管|披露|primary/i.test(tier) ? "high" : /news|web/i.test(tier) ? "low" : "medium";
-    return { reliability, reliabilityBasis: { sourceTier: tier } };
+    const tier = String(inputs.sourceTier || "");
+    const tierNumber = Number(/^S([1-8])$/.exec(tier)?.[1] || 8);
+    const reliability = tierNumber <= 3 ? "high" : tierNumber <= 6 ? "medium" : "low";
+    return {
+      reliability,
+      reliabilityBasis: {
+        sourceTier: tier,
+        rule: "S1-S3=high; S4-S6=medium; S7-S8=low",
+        traceabilityVerified: inputs.retrievalStatus === "captured"
+          && inputs.usabilityStatus === "usable"
+          && inputs.quoteVerified === true,
+      },
+    };
   }
   if (functionId === "ExtractClaims") {
     const statement = String(inputs.statement || inputs.contentRange || "").trim();
@@ -186,24 +210,65 @@ function assessEvidenceUsability(inputs: Record<string, unknown>, graph: Busines
     .map((id) => graph.objects.find((object) => object.id === id))
     .filter(Boolean) as GraphObject[];
   const missing = evidenceRefs.filter((id) => !found.some((object) => object.id === id));
-  const qualityHits = found.filter((object) => {
-    const props = object.properties || {};
-    const text = JSON.stringify(props);
-    return /usable|high|primary|official|disclosure|监管|披露|一手/i.test(text);
+  const claims = found.flatMap((object) => {
+    if (object.type === "EvidenceClaim") return [object];
+    return graph.relations
+      .filter((relation) => relation.type === "factDerivedFromClaim" && relation.sourceId === object.id)
+      .map((relation) => graph.objects.find((item) => item.id === relation.targetId && item.type === "EvidenceClaim"))
+      .filter(Boolean) as GraphObject[];
   });
-  const usable = found.length > 0 && missing.length === 0;
-  const qualityLevel = !usable ? "insufficient" : qualityHits.length >= Math.ceil(found.length / 2) ? "high" : "medium";
+  const untracedEvidence = found
+    .filter((object) => object.type === "EvidenceFact"
+      && !graph.relations.some((relation) => relation.type === "factDerivedFromClaim" && relation.sourceId === object.id))
+    .map((object) => object.id);
+  const sources = claims.flatMap((claim) => graph.relations
+    .filter((relation) => relation.type === "claimCitesSource" && relation.sourceId === claim.id)
+    .map((relation) => graph.objects.find((item) => item.id === relation.targetId && item.type === "SourceDocument"))
+    .filter(Boolean) as GraphObject[]);
+  const untracedClaims = claims
+    .filter((claim) => !graph.relations.some((relation) => relation.type === "claimCitesSource" && relation.sourceId === claim.id))
+    .map((claim) => claim.id);
+  const verifiedSources = sources.filter((source) => {
+    const props = source.properties || {};
+    return props.retrieval_status === "captured"
+      && props.usability_status === "usable"
+      && props.quote_verified === true
+      && /^[a-f0-9]{64}$/.test(String(props.content_hash || ""))
+      && Boolean(String(props.locator || "").trim())
+      && Boolean(String(props.published_at || "").trim());
+  });
+  const unverifiedSources = sources.filter((source) => !verifiedSources.includes(source)).map((source) => source.id);
+  const requestedScope = String(inputs.assessmentScope || "");
+  const scopeIsGraphObject = graph.objects.some((object) => object.id === requestedScope && object.type === "ResearchScope");
+  const scopeMismatches = scopeIsGraphObject
+    ? found.filter((object) => object.type === "EvidenceFact" && object.properties?.scope_ref !== requestedScope).map((object) => object.id)
+    : [];
+  const sourceGroups = new Set(verifiedSources.map((source) => String(
+    source.properties?.source_group || source.properties?.publisher || source.properties?.uri || source.id,
+  ).toLowerCase()));
+  const highTierGroups = new Set(verifiedSources
+    .filter((source) => Number(/^S([1-8])$/.exec(String(source.properties?.source_tier || "S8"))?.[1] || 8) <= 3)
+    .map((source) => String(source.properties?.source_group || source.id).toLowerCase()));
+  const traceGaps = [...missing, ...untracedEvidence, ...untracedClaims, ...unverifiedSources, ...scopeMismatches];
+  const usable = found.length > 0 && claims.length > 0 && sources.length > 0 && traceGaps.length === 0;
+  const qualityLevel = !usable ? "insufficient"
+    : sourceGroups.size >= 2 && highTierGroups.size >= 1 ? "high"
+      : "medium";
   return {
     usability: usable ? "usable" : missing.length ? "partial" : "unusable",
     qualityLevel,
     rationale: usable
-      ? `已定位 ${found.length} 条证据对象，可形成任务口径评估`
-      : `证据不完整：缺失 ${missing.join(", ") || "无引用"}`,
-    gapRefs: missing,
+      ? `已验证 ${found.length} 条证据对象、${claims.length} 条原始主张和 ${verifiedSources.length} 个来源快照；独立来源组 ${sourceGroups.size} 个`
+      : `证据链不完整或来源快照不可复核：${traceGaps.join(", ") || "无有效来源"}`,
+    gapRefs: [...new Set(traceGaps)],
     scores: {
       coverage: found.length,
       missing: missing.length,
-      quality_hits: qualityHits.length,
+      claims: claims.length,
+      verified_sources: verifiedSources.length,
+      independent_source_groups: sourceGroups.size,
+      high_tier_source_groups: highTierGroups.size,
+      scope_mismatches: scopeMismatches.length,
     },
   };
 }
@@ -211,19 +276,35 @@ function assessEvidenceUsability(inputs: Record<string, unknown>, graph: Busines
 function calculateConfidence(inputs: Record<string, unknown>, graph: BusinessInstanceGraph) {
   const evidenceRefs = asStringArray(inputs.evidenceRefs);
   const signalRefs = asStringArray(inputs.signalRefs);
-  const ruleEvaluations = asStringArray(inputs.ruleEvaluations);
-  const present = [...evidenceRefs, ...signalRefs, ...ruleEvaluations].filter((id) =>
-    graph.objects.some((object) => object.id === id),
-  );
-  const total = evidenceRefs.length + signalRefs.length + ruleEvaluations.length;
-  const ratio = total ? present.length / total : 0;
-  const confidence = ratio >= 0.8 ? "high" : ratio >= 0.5 ? "medium" : ratio > 0 ? "low" : "insufficient";
+  const ruleEvaluations = asStringArray(inputs.ruleEvaluationRefs || inputs.ruleEvaluations);
+  const facts = evidenceRefs.map((id) => graph.objects.find((object) => object.id === id && object.type === "EvidenceFact")).filter(Boolean) as GraphObject[];
+  const sources = facts.flatMap((fact) => {
+    const claimIds = graph.relations.filter((relation) => relation.type === "factDerivedFromClaim" && relation.sourceId === fact.id).map((relation) => relation.targetId);
+    const sourceIds = graph.relations.filter((relation) => relation.type === "claimCitesSource" && claimIds.includes(relation.sourceId)).map((relation) => relation.targetId);
+    return sourceIds.map((id) => graph.objects.find((object) => object.id === id && object.type === "SourceDocument")).filter(Boolean) as GraphObject[];
+  });
+  const sourceGroups = new Set(sources.map((source) => String(source.properties?.source_group || source.properties?.publisher || source.properties?.uri || source.id).toLowerCase()));
+  const directFacts = facts.filter((fact) => fact.properties?.directness === "direct"
+    || graph.relations.some((relation) => relation.type === "assessmentEvaluatesEvidence" && relation.targetId === fact.id
+      && graph.objects.find((object) => object.id === relation.sourceId)?.properties?.directness === "direct")).length;
+  const rules = ruleEvaluations.map((id) => graph.objects.find((object) => object.id === id && object.type === "RuleEvaluation")).filter(Boolean) as GraphObject[];
+  const failedRules = rules.filter((rule) => ["fail", "blocked"].includes(String(rule.properties?.result))).map((rule) => rule.id);
+  const contestedRules = rules.filter((rule) => rule.properties?.result === "contested").map((rule) => rule.id);
+  const mediatedSignals = signalRefs.filter((signalId) => facts.some((fact) => graph.relations.some((relation) => relation.type === "signalGroundedByFact"
+    && relation.sourceId === signalId && relation.targetId === fact.id)));
+  let confidence: "low" | "medium" | "high" = "low";
+  if (!failedRules.length && !contestedRules.length && sourceGroups.size >= 3 && directFacts >= 2 && mediatedSignals.length === signalRefs.length) confidence = "high";
+  else if (!failedRules.length && sourceGroups.size >= 2 && directFacts >= 1 && mediatedSignals.length === signalRefs.length) confidence = "medium";
   return {
     confidence,
     confidenceBasis: {
-      present_refs: present,
-      total_refs: total,
-      coverage_ratio: Number(ratio.toFixed(2)),
+      evidence_fact_count: facts.length,
+      independent_source_groups: [...sourceGroups],
+      direct_fact_count: directFacts,
+      mediated_signal_count: mediatedSignals.length,
+      requested_signal_count: signalRefs.length,
+      failed_rule_refs: failedRules,
+      contested_rule_refs: contestedRules,
     },
   };
 }
@@ -235,11 +316,13 @@ export function proposeAction(
 ): ActionProposal {
   const action = getActionType(actionId);
   assertSupportedAction(actionId);
+  assertPreconditions(action, parameters, graph);
   const functionResult = action.function_ref
     ? callFunction(action.function_ref, parameters, graph)
     : {};
   const planned = planWrites(action, parameters, functionResult, graph);
   assertWriteScope(action, planned.objects, planned.relations);
+  validateRuntimeGraph(applyPlannedWrites(graph, planned.objects, planned.relations));
 
   return {
     proposal_id: `AP-${hashShort(`${actionId}:${JSON.stringify(parameters)}:${Date.now()}`)}`,
@@ -252,6 +335,21 @@ export function proposeAction(
     rationale: String((functionResult as any).rationale || (functionResult as any).confidenceBasis || action.description),
     created_at: new Date().toISOString(),
   };
+}
+
+function applyPlannedWrites(graph: BusinessInstanceGraph, objects: GraphObject[], relations: GraphRelation[]) {
+  const next = cloneGraph(graph);
+  for (const object of objects) {
+    const index = next.objects.findIndex((item) => item.id === object.id);
+    if (index >= 0) next.objects[index] = object;
+    else next.objects.push(object);
+  }
+  for (const relation of relations) {
+    const index = next.relations.findIndex((item) => item.id === relation.id);
+    if (index >= 0) next.relations[index] = relation;
+    else next.relations.push(relation);
+  }
+  return next;
 }
 
 export function executeAction(
@@ -293,6 +391,7 @@ export function executeAction(
       }
     }
 
+    validateRuntimeGraph(next);
     const executionId = `AX-${hashShort(`${actionId}:${Date.now()}`)}`;
     return {
       execution_id: executionId,
@@ -307,6 +406,7 @@ export function executeAction(
         action_id: actionId,
         function_ref: action.function_ref || null,
         write_scope: action.write_scope,
+        audit_preconditions: action.audit_preconditions,
         formal_rule_refs: action.formal_rule_refs,
         method_refs: action.method_refs,
         governance_rule_refs: action.governance_rule_refs,
@@ -355,6 +455,13 @@ function assertSupportedAction(actionId: string) {
 function assertPreconditions(action: ActionTypeDef, parameters: Record<string, unknown>, graph: BusinessInstanceGraph) {
   if (action.id === "RegisterSource") {
     if (!String(parameters.title || "").trim()) throw new Error("RegisterSource 需要 title");
+    if (!String(parameters.url || parameters.locator || "").trim()) throw new Error("RegisterSource 需要可定位 URL");
+    if (!String(parameters.publishedAt || "").trim()) throw new Error("RegisterSource 需要 publishedAt");
+    if (!/^S[1-8]$/.test(String(parameters.sourceTier || ""))) throw new Error("RegisterSource 需要 S1-S8 sourceTier");
+    if (parameters.retrievalStatus !== "captured" || parameters.usabilityStatus !== "usable"
+      || parameters.quoteVerified !== true || !/^[a-f0-9]{64}$/.test(String(parameters.contentHash || ""))) {
+      throw new Error("RegisterSource 仅允许写入已抓取且原文定位验证通过的来源");
+    }
   }
   if (action.id === "ExtractClaim") {
     const sourceRef = String(parameters.sourceRef || "").trim();
@@ -362,6 +469,9 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
     if (!graph.objects.some((object) => object.id === sourceRef && object.type === "SourceDocument")) {
       throw new Error(`来源 ${sourceRef} 未登记为 SourceDocument`);
     }
+    if (!String(parameters.locator || "").trim()) throw new Error("ExtractClaim 需要可复核 locator");
+    if (!String(parameters.statement || "").trim()) throw new Error("ExtractClaim 需要原文 statement");
+    if (!String(parameters.cutoffAt || "").trim()) throw new Error("ExtractClaim 需要 cutoffAt");
   }
   if (action.id === "NormalizeClaim") {
     const claimRef = String(parameters.claimRef || "").trim();
@@ -374,29 +484,87 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
     const evidenceRefs = asStringArray(parameters.evidenceRefs);
     if (!evidenceRefs.length) throw new Error("AssessEvidenceForUse 需要 evidenceRefs");
     if (!graph.objects.length) throw new Error("实例图为空，无法评估证据");
+    requireObjects(graph, evidenceRefs, ["EvidenceClaim", "EvidenceFact"], "证据");
+    const directness = String(parameters.directness || "");
+    if (!["direct", "indirect", "proxy"].includes(directness)) throw new Error("AssessEvidenceForUse 需要 direct/indirect/proxy directness");
   }
   if (action.id === "FormHypothesis") {
     if (!String(parameters.statement || "").trim()) throw new Error("FormHypothesis 需要 statement");
     const variableRef = String(parameters.variableRef || "").trim();
     if (!variableRef) throw new Error("FormHypothesis 需要 variableRef");
-    if (!graph.objects.some((object) => object.id === variableRef)) {
-      throw new Error(`状态变量 ${variableRef} 不在实例图中；请先物化 stage_02 或绑定样例包`);
+    if (!graph.objects.some((object) => object.id === variableRef && object.type === "StateVariable")) {
+      throw new Error(`状态变量 ${variableRef} 不在实例图中；请先物化 stage_02 或绑定 semantic_fixture 样例包`);
     }
     if (!String(parameters.falsificationConditions || "").trim() && !asStringArray(parameters.falsificationConditions).length) {
       throw new Error("FormHypothesis 需要 falsificationConditions");
     }
+    if (!String(parameters.timeHorizon || "").trim()) throw new Error("FormHypothesis 需要 timeHorizon");
+    const unitRef = String(parameters.judgmentUnitRef || "");
+    requireObjects(graph, [unitRef], ["JudgmentUnit"], "判断单元");
   }
   if (action.id === "FormJudgment") {
     const statement = String(parameters.statement || "").trim();
     if (!statement) throw new Error("FormJudgment 需要 statement");
+    const level = String(parameters.judgmentLevel || "");
+    if (!["J0", "J1", "J2", "J3", "J4"].includes(level)) throw new Error("FormJudgment 需要合法 judgmentLevel");
+    const indeterminate = level === "J0" && ["blocked", "indeterminate", "contested"].includes(String(parameters.decisionStatus));
+    if (level === "J0" && (!indeterminate || !String(parameters.notJudgeableReason || "").trim())) {
+      throw new Error("J0 必须标记 blocked/indeterminate/contested 并给出 notJudgeableReason");
+    }
     const methodApplicationRefs = asStringArray(parameters.methodApplicationRefs);
-    if (!methodApplicationRefs.length) throw new Error("FormJudgment 需要 executed MethodApplication");
+    if (!methodApplicationRefs.length) throw new Error("FormJudgment 需要 MethodApplication");
     for (const ref of methodApplicationRefs) {
       const application = graph.objects.find((object) => object.id === ref && object.type === "MethodApplication");
-      if (!application || application.properties?.status !== "executed") {
-        throw new Error(`方法应用 ${ref} 不存在或尚未 executed`);
+      const status = String(application?.properties?.status || "");
+      if (!application || (status !== "executed" && !(indeterminate && ["blocked", "degraded", "rejected"].includes(status)))) {
+        throw new Error(`方法应用 ${ref} 不存在或状态不允许形成 ${level}`);
       }
     }
+    const hypothesisRefs = asStringArray(parameters.hypothesisRefs);
+    const signalRefs = asStringArray(parameters.signalRefs);
+    const evidenceRefs = asStringArray(parameters.evidenceRefs);
+    const ruleEvaluationRefs = asStringArray(parameters.ruleEvaluationRefs);
+    const judgmentUnitRef = String(parameters.judgmentUnitRef || "");
+    const scopeRef = String(parameters.scopeRef || "");
+    requireObjects(graph, hypothesisRefs, ["Hypothesis"], "假设");
+    if (signalRefs.length) requireObjects(graph, signalRefs, ["Signal"], "信号");
+    if (evidenceRefs.length) requireObjects(graph, evidenceRefs, ["EvidenceFact"], "归一事实");
+    requireObjects(graph, ruleEvaluationRefs, ["RuleEvaluation"], "规则评估");
+    requireObjects(graph, [judgmentUnitRef], ["JudgmentUnit"], "判断单元");
+    requireObjects(graph, [scopeRef], ["ResearchScope"], "研究范围");
+    if (!hypothesisRefs.length || !ruleEvaluationRefs.length || (!indeterminate && (!signalRefs.length || !evidenceRefs.length))) {
+      throw new Error("FormJudgment 必须绑定假设和确定性规则；非 J0 还必须绑定事实与信号");
+    }
+    for (const evidenceRef of evidenceRefs) {
+      const linkedSignals = graph.relations.filter((relation) => relation.type === "signalGroundedByFact"
+        && relation.targetId === evidenceRef && signalRefs.includes(relation.sourceId));
+      if (!linkedSignals.length) throw new Error(`事实 ${evidenceRef} 未通过 signalGroundedByFact 进入所选信号`);
+    }
+    for (const signalRef of signalRefs) {
+      if (!graph.relations.some((relation) => relation.type === "signalEvaluatesHypothesis"
+        && relation.sourceId === signalRef && hypothesisRefs.includes(relation.targetId))) {
+        throw new Error(`信号 ${signalRef} 未评估所选假设`);
+      }
+    }
+    const requiredRules = ["evidence_scope_time_alignment", "no_direct_evidence_to_judgment", "judgment_reference_integrity", "judgment_evidence_threshold", "judgment_status_consistency"];
+    const evaluations = ruleEvaluationRefs.map((ref) => graph.objects.find((object) => object.id === ref)!);
+    for (const rule of requiredRules) {
+      const evaluation = evaluations.find((item) => item.properties?.rule_ref === rule);
+      if (!evaluation) throw new Error(`FormJudgment 缺少确定性规则 ${rule}`);
+      const result = String(evaluation.properties?.result || "");
+      const deterministic = evaluation.properties?.deterministic_result as Record<string, unknown> | undefined;
+      if (!deterministic || deterministic.engine_version !== "runtime-semantic-rules-2.0.0" || deterministic.result !== result) {
+        throw new Error(`规则 ${rule} 缺少可验证的 Runtime 确定性执行留痕`);
+      }
+      if (result !== "pass" && !(level === "J0" && result === "contested")) {
+        throw new Error(`规则 ${rule} 结果为 ${result}，不允许形成 ${level} 判断`);
+      }
+    }
+    const requestedLevel = Number(level.slice(1));
+    const evidenceCeiling = actionEvidenceCeiling(graph, evidenceRefs);
+    if (requestedLevel > evidenceCeiling) throw new Error(`证据链只能支持 J${evidenceCeiling}，不得形成 ${level}`);
+    if (!String(parameters.cutoffAt || "").trim()) throw new Error("FormJudgment 需要 cutoffAt");
+    if (!asStringArray(parameters.invalidationConditions).length) throw new Error("FormJudgment 需要 invalidationConditions");
   }
   if (action.id === "RecordReasoningTrace") {
     const judgmentRef = String(parameters.judgmentRef || "").trim();
@@ -404,6 +572,75 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
     if (!graph.objects.some((object) => object.id === judgmentRef && object.type === "Judgment")) {
       throw new Error(`判断 ${judgmentRef} 不存在`);
     }
+    const nodeRefs = asStringArray(parameters.inputRefs);
+    requireObjects(graph, nodeRefs, ["ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event", "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis", "CompetingExplanation", "BlockingFactor", "RuleEvaluation"], "推理节点");
+    if (!nodeRefs.some((id) => graph.objects.find((object) => object.id === id)?.type === "RuleEvaluation")) {
+      throw new Error("RecordReasoningTrace 至少包含一个 RuleEvaluation 节点");
+    }
+    const methodRefs = asStringArray(parameters.methodApplicationRefs);
+    requireObjects(graph, methodRefs, ["MethodApplication"], "方法应用");
+    for (const ref of methodRefs) {
+      if (!graph.relations.some((relation) => relation.type === "runtimeJudgmentUsesMethodApplication"
+        && relation.sourceId === judgmentRef && relation.targetId === ref)) {
+        throw new Error(`方法应用 ${ref} 未与判断 ${judgmentRef} 绑定`);
+      }
+    }
+    const judgment = graph.objects.find((object) => object.id === judgmentRef)!;
+    const requiredHypotheses = graph.relations
+      .filter((relation) => relation.type === "judgmentBasedOnHypothesis" && relation.sourceId === judgmentRef)
+      .map((relation) => relation.targetId);
+    const requiredRules = graph.relations
+      .filter((relation) => relation.type === "judgmentHasRuleEvaluation" && relation.sourceId === judgmentRef)
+      .map((relation) => relation.targetId);
+    const requiredMethods = graph.relations
+      .filter((relation) => relation.type === "runtimeJudgmentUsesMethodApplication" && relation.sourceId === judgmentRef)
+      .map((relation) => relation.targetId);
+    const linkedSignals = graph.relations
+      .filter((relation) => relation.type === "signalEvaluatesHypothesis" && requiredHypotheses.includes(relation.targetId))
+      .map((relation) => relation.sourceId);
+    const linkedFacts = graph.relations
+      .filter((relation) => relation.type === "signalGroundedByFact" && linkedSignals.includes(relation.sourceId))
+      .map((relation) => relation.targetId);
+    const required = new Set([...requiredHypotheses, ...requiredRules, ...requiredMethods]);
+    if (judgment.properties?.level !== "J0") {
+      linkedSignals.forEach((ref) => required.add(ref));
+      linkedFacts.forEach((ref) => required.add(ref));
+    }
+    const declared = new Set([...nodeRefs, ...methodRefs, judgmentRef]);
+    const absent = [...required].filter((ref) => !declared.has(ref));
+    if (absent.length) throw new Error(`ReasoningTrace 缺少判断依赖节点: ${absent.join(", ")}`);
+    if ([...requiredMethods].some((ref) => !methodRefs.includes(ref))) {
+      throw new Error("ReasoningTrace 的 methodApplicationRefs 未覆盖判断使用的方法应用");
+    }
+  }
+}
+
+function actionEvidenceCeiling(graph: BusinessInstanceGraph, evidenceRefs: string[]) {
+  if (!evidenceRefs.length) return 0;
+  const sources = evidenceRefs.flatMap((factId) => {
+    const claimIds = graph.relations.filter((relation) => relation.type === "factDerivedFromClaim" && relation.sourceId === factId).map((relation) => relation.targetId);
+    return graph.relations.filter((relation) => relation.type === "claimCitesSource" && claimIds.includes(relation.sourceId))
+      .map((relation) => graph.objects.find((object) => object.id === relation.targetId && object.type === "SourceDocument"))
+      .filter(Boolean) as GraphObject[];
+  });
+  const group = (source: GraphObject) => String(source.properties?.source_group || source.properties?.publisher || source.properties?.uri || source.id).toLowerCase();
+  const tier = (source: GraphObject) => Number(/^S([1-8])$/.exec(String(source.properties?.source_tier || "S8"))?.[1] || 8);
+  const groups = new Set(sources.map(group));
+  const qualified = new Set(sources.filter((source) => tier(source) <= 6).map(group));
+  const high = new Set(sources.filter((source) => tier(source) <= 3).map(group));
+  const direct = evidenceRefs.filter((id) => graph.objects.find((object) => object.id === id)?.properties?.directness === "direct").length;
+  let ceiling = groups.size ? 1 : 0;
+  if (evidenceRefs.length >= 2 && qualified.size >= 2 && direct >= 1) ceiling = 2;
+  if (evidenceRefs.length >= 3 && qualified.size >= 3 && high.size >= 1 && direct >= 2) ceiling = 3;
+  if (evidenceRefs.length >= 4 && qualified.size >= 4 && high.size >= 2 && direct >= 3) ceiling = 4;
+  return ceiling;
+}
+
+function requireObjects(graph: BusinessInstanceGraph, refs: string[], types: string[], label: string) {
+  if (!refs.length || refs.some((ref) => !ref)) throw new Error(`${label}引用不得为空`);
+  for (const ref of refs) {
+    const object = graph.objects.find((item) => item.id === ref);
+    if (!object || !types.includes(object.type)) throw new Error(`${label} ${ref} 不存在或类型不符`);
   }
 }
 
@@ -419,17 +656,19 @@ function planWrites(
       id: sourceId,
       type: "SourceDocument",
       properties: {
-        source_id: sourceId,
         title: String(parameters.title),
-        source_name: String(parameters.sourceName || parameters.publisher || ""),
         source_tier: String(parameters.sourceTier || "unknown"),
+        uri: String(parameters.url || parameters.locator || ""),
         publisher: String(parameters.publisher || ""),
-        published_at: parameters.publishedAt || null,
+        published_at: String(parameters.publishedAt),
         captured_at: parameters.capturedAt || new Date().toISOString(),
         locator: String(parameters.locator || parameters.url || ""),
-        acquisition_channel: String(parameters.acquisitionChannel || "web"),
-        access_scope: String(parameters.accessScope || "public"),
-        artifact_type: String(parameters.artifactType || "web_page"),
+        content_hash: String(parameters.contentHash),
+        source_group: String(parameters.sourceGroup || parameters.publisher || ""),
+        retrieval_status: String(parameters.retrievalStatus),
+        usability_status: String(parameters.usabilityStatus),
+        source_quote: String(parameters.sourceQuote || ""),
+        quote_verified: parameters.quoteVerified === true,
         reliability: functionResult.reliability || "unassessed",
         reliability_basis: functionResult.reliabilityBasis || {},
       },
@@ -459,9 +698,8 @@ function planWrites(
           claim_id: claimId,
           statement,
           locator: String(parameters.locator || ""),
-          content_range: String(parameters.contentRange || ""),
-          source_ref: sourceRef,
-          extracted_by: "ExtractClaim",
+          extracted_at: String(parameters.extractedAt || new Date().toISOString()),
+          cutoff_at: String(parameters.cutoffAt || parameters.extractedAt || new Date().toISOString()),
         },
         projection: { section: "evidence_claims", index: graph.objects.filter((o) => o.type === "EvidenceClaim").length },
       }],
@@ -497,17 +735,10 @@ function planWrites(
       id: assessmentId,
       type: "EvidenceAssessment",
       properties: {
-        assessment_id: assessmentId,
-        execution_id: String(parameters.executionId || "EXEC-WORKBENCH"),
-        profile_ref: String(parameters.profileRef || ""),
-        assessment_scope: String(parameters.assessmentScope || ""),
-        usability: functionResult.usability,
-        quality_level: functionResult.qualityLevel,
-        rationale: functionResult.rationale,
-        gap_refs: functionResult.gapRefs || [],
-        evidence_refs: evidenceRefs,
-        linked_judgment_unit_ids: judgmentUnitRefs,
-        scores: functionResult.scores || {},
+        assessment: functionResult.usability === "usable" ? "usable"
+          : functionResult.usability === "partial" ? "usable_with_caveat" : "unusable",
+        directness: String(parameters.directness),
+        limitations: asStringArray(parameters.limitations),
       },
       projection: { section: "evidence_assessments", index: graph.objects.filter((o) => o.type === "EvidenceAssessment").length },
     };
@@ -518,7 +749,7 @@ function planWrites(
         type: "assessmentEvaluatesEvidence",
         sourceId: assessmentId,
         targetId: evidenceId,
-        properties: { index },
+          properties: { index },
       })),
     };
   }
@@ -526,31 +757,26 @@ function planWrites(
   if (action.id === "FormHypothesis") {
     const hypothesisId = String(parameters.hypothesisId || `HYP-${hashShort(String(parameters.statement))}`);
     const variableRef = String(parameters.variableRef || "");
+    const judgmentUnitRef = String(parameters.judgmentUnitRef || "");
     const object: GraphObject = {
       id: hypothesisId,
       type: "Hypothesis",
       properties: {
-        hypothesis_id: hypothesisId,
         statement: String(parameters.statement),
-        variable_ref: variableRef || null,
-        direction: String(parameters.direction || "unknown"),
         time_horizon: String(parameters.timeHorizon || ""),
-        conditions: String(parameters.conditions || ""),
-        falsification_conditions: String(parameters.falsificationConditions || asStringArray(parameters.falsificationConditions).join("; ")),
-        basis_refs: asStringArray(parameters.basisRefs),
-        premise_statements: asStringArray(parameters.premiseStatements),
+        falsification_conditions: asStringArray(parameters.falsificationConditions),
+        variable_ref: variableRef,
+        direction: String(parameters.direction || "unknown"),
       },
       projection: { section: "hypotheses", index: graph.objects.filter((o) => o.type === "Hypothesis").length },
     };
-    const relations: GraphRelation[] = [
-      { id: `REL-${hypothesisId}-${variableRef}`, type: "hypothesisAbout", sourceId: hypothesisId, targetId: variableRef, properties: {} },
-    ];
-    for (const ref of asStringArray(parameters.basisRefs)) {
-      if (graph.objects.some((o) => o.id === ref)) {
-        relations.push({ id: `REL-${hypothesisId}-${ref}`, type: "hypothesisBasedOn", sourceId: hypothesisId, targetId: ref, properties: {} });
-      }
-    }
-    return { objects: [object], relations };
+    return { objects: [object], relations: [{
+      id: `REL-${judgmentUnitRef}-${hypothesisId}`,
+      type: "unitHasHypothesis",
+      sourceId: judgmentUnitRef,
+      targetId: hypothesisId,
+      properties: { role: String(parameters.hypothesisRole || "primary") },
+    }] };
   }
 
   if (action.id === "FormJudgment") {
@@ -559,32 +785,30 @@ function planWrites(
     const signalRefs = asStringArray(parameters.signalRefs);
     const evidenceRefs = asStringArray(parameters.evidenceRefs);
     const methodApplicationRefs = asStringArray(parameters.methodApplicationRefs);
-    const scenarioRef = parameters.scenarioRef ? String(parameters.scenarioRef) : "";
+    const ruleEvaluationRefs = asStringArray(parameters.ruleEvaluationRefs);
+    const judgmentUnitRef = String(parameters.judgmentUnitRef || "");
     const object: GraphObject = {
       id: judgmentId,
       type: "Judgment",
       properties: {
-        judgment_id: judgmentId,
         statement: String(parameters.statement),
-        judgment_level: String(parameters.judgmentLevel || "J1"),
+        level: String(parameters.judgmentLevel),
         confidence: functionResult.confidence || "low",
+        decision_status: String(parameters.decisionStatus || "supported"),
+        conflict_status: String(parameters.conflictStatus || "none"),
+        not_judgeable_reason: parameters.notJudgeableReason ? String(parameters.notJudgeableReason) : null,
+        scope_ref: String(parameters.scopeRef),
+        cutoff_at: String(parameters.cutoffAt),
+        conditions: asStringArray(parameters.conditions),
+        invalidation_conditions: asStringArray(parameters.invalidationConditions),
         confidence_basis: functionResult.confidenceBasis || {},
-        hypothesis_refs: hypothesisRefs,
-        signal_refs: signalRefs,
-        evidence_refs: evidenceRefs,
-        method_application_refs: methodApplicationRefs,
-        time_horizon: String(parameters.timeHorizon || ""),
-        uncertainty: String(parameters.uncertainty || ""),
-        investment_interpretation: String(parameters.investmentInterpretation || ""),
-        interpretation_basis: String(parameters.interpretationBasis || ""),
-        scenario_ref: scenarioRef || null,
       },
       projection: { section: "judgments", index: graph.objects.filter((o) => o.type === "Judgment").length },
     };
     const relations: GraphRelation[] = [];
-    for (const ref of [...hypothesisRefs, ...signalRefs, ...evidenceRefs]) {
+    for (const ref of hypothesisRefs) {
       if (!graph.objects.some((object) => object.id === ref)) continue;
-      relations.push({ id: `REL-${judgmentId}-${ref}`, type: "judgmentBasedOn", sourceId: judgmentId, targetId: ref, properties: {} });
+      relations.push({ id: `REL-${judgmentId}-${ref}`, type: "judgmentBasedOnHypothesis", sourceId: judgmentId, targetId: ref, properties: {} });
     }
     for (const ref of methodApplicationRefs) {
       relations.push({
@@ -595,44 +819,50 @@ function planWrites(
         properties: { authority: "public_contract_1.3" },
       });
     }
-    if (scenarioRef && graph.objects.some((object) => object.id === scenarioRef)) {
-      relations.push({ id: `REL-${judgmentId}-${scenarioRef}`, type: "judgmentUnderScenario", sourceId: judgmentId, targetId: scenarioRef, properties: {} });
+    for (const ref of ruleEvaluationRefs) {
+      relations.push({ id: `REL-${judgmentId}-${ref}`, type: "judgmentHasRuleEvaluation", sourceId: judgmentId, targetId: ref, properties: {} });
     }
+    relations.push({ id: `REL-${judgmentId}-${judgmentUnitRef}`, type: "judgmentResolvesUnit", sourceId: judgmentId, targetId: judgmentUnitRef, properties: {} });
     return { objects: [object], relations };
   }
 
   if (action.id === "RecordReasoningTrace") {
     const judgmentRef = String(parameters.judgmentRef);
     const traceId = String(parameters.traceId || `RT-${hashShort(`${judgmentRef}:${Date.now()}`)}`);
-    const ruleEvaluationRefs = asStringArray(parameters.ruleEvaluationRefs).filter((ref) => graph.objects.some((o) => o.id === ref));
+    const nodeRefs = [...new Set([
+      ...asStringArray(parameters.inputRefs),
+      ...asStringArray(parameters.methodApplicationRefs),
+      judgmentRef,
+    ])];
+    const traceRelationTargetTypes = new Set([
+      "ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event",
+      "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
+      "CompetingExplanation", "BlockingFactor", "RuleEvaluation",
+    ]);
+    const relationNodeRefs = nodeRefs.filter((ref) => {
+      const target = graph.objects.find((object) => object.id === ref);
+      return target && traceRelationTargetTypes.has(target.type);
+    });
     return {
       objects: [{
         id: traceId,
         type: "ReasoningTrace",
         properties: {
-          trace_id: traceId,
           judgment_ref: judgmentRef,
-          evaluated_at: String(parameters.evaluatedAt || new Date().toISOString()),
-          input_refs: asStringArray(parameters.inputRefs),
-          rule_evaluation_refs: asStringArray(parameters.ruleEvaluationRefs),
-          steps: parameters.steps || [],
-          formal_rule_refs: asStringArray(parameters.formalRuleRefs),
-          governance_check_refs: asStringArray(parameters.governanceCheckRefs),
-          function_refs: asStringArray(parameters.functionRefs),
-          logic_refs: asStringArray(parameters.logicRefs),
-          output_refs: asStringArray(parameters.outputRefs),
-          status: String(parameters.status || "recorded"),
+          node_refs: nodeRefs,
+          method_application_refs: asStringArray(parameters.methodApplicationRefs),
+          created_at: String(parameters.evaluatedAt || new Date().toISOString()),
         },
         projection: { section: "reasoning_traces", index: graph.objects.filter((o) => o.type === "ReasoningTrace").length },
       }],
       relations: [
-        { id: `REL-${traceId}-${judgmentRef}`, type: "traceForJudgment", sourceId: traceId, targetId: judgmentRef, properties: {} },
-        ...ruleEvaluationRefs.map((ref) => ({
+        { id: `REL-${traceId}-${judgmentRef}`, type: "reasoningTraceForJudgment", sourceId: traceId, targetId: judgmentRef, properties: {} },
+        ...relationNodeRefs.map((ref, index) => ({
           id: `REL-${traceId}-${ref}`,
-          type: "traceIncludesRuleEvaluation",
+          type: "traceIncludesNode",
           sourceId: traceId,
           targetId: ref,
-          properties: {},
+          properties: { sequence: index + 1 },
         })),
       ],
     };

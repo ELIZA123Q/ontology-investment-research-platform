@@ -136,10 +136,8 @@ class V3SampleTests(unittest.TestCase):
     def test_expression_cannot_create_new_judgment(self) -> None:
         run = copy.deepcopy(self.run)
         run["expression"]["expressions"][0]["source_claim_id"] = "C-999"
-        run["expression"]["overall_check"]["no_new_judgment_created"] = False
         errors = self.errors(run)
         self.assertTrue(any("unresolved judgment" in error for error in errors))
-        self.assertTrue(any("no_new_judgment_created" in error for error in errors))
 
     def test_expression_requires_executed_method_trace(self) -> None:
         run = copy.deepcopy(self.run)
@@ -149,8 +147,34 @@ class V3SampleTests(unittest.TestCase):
     def test_stage05_cannot_hide_new_facts_behind_self_check(self) -> None:
         run = copy.deepcopy(self.run)
         run["expression"]["facts"] = [{"evidence_id": "EV-NEW"}]
-        run["expression"]["overall_check"]["no_new_fact_created"] = True
         self.assertTrue(any("forbidden semantic collections" in error for error in self.errors(run)))
+
+    def test_stage05_deprecated_self_certification_is_rejected(self) -> None:
+        run = copy.deepcopy(self.run)
+        run["expression"]["overall_check"]["no_new_fact_created"] = True
+        self.assertTrue(any("deprecated self-certification" in error for error in self.errors(run)))
+
+    def test_ontology_instance_type_must_resolve(self) -> None:
+        run = copy.deepcopy(self.run)
+        run["structure"]["ontology_instances"][0]["type"] = "MissingType"
+        self.assertTrue(any("unknown formal type" in error for error in self.errors(run)))
+
+    def test_ontology_instance_required_attribute_is_enforced(self) -> None:
+        run = copy.deepcopy(self.run)
+        chip = next(item for item in run["structure"]["ontology_instances"] if item["type"] == "Chip")
+        chip.pop("chip_category")
+        self.assertTrue(any("missing required attribute chip_category" in error for error in self.errors(run)))
+
+    def test_ontology_relation_endpoint_must_match_formal_contract(self) -> None:
+        run = copy.deepcopy(self.run)
+        relation = run["structure"]["ontology_relations"][0]
+        relation["target_ref"] = "SV-INV"
+        self.assertTrue(any("target endpoint incompatible" in error for error in self.errors(run)))
+
+    def test_sample_must_disclose_evidence_gap(self) -> None:
+        run = copy.deepcopy(self.run)
+        run["evidence"]["evidence_gaps"] = []
+        self.assertTrue(any("explicit evidence gap" in error for error in self.errors(run)))
 
     def test_full_rerun_for_local_evidence_is_rejected(self) -> None:
         run = copy.deepcopy(self.run)

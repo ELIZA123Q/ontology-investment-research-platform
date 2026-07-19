@@ -67,10 +67,10 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
         : actionId === "RecordReasoningTrace"
           ? { judgmentRef: selected.id, status: "draft_proposal", steps: ["object-set-panel"] }
           : { statement: String(selected.properties?.statement || selected.properties?.conclusion || selected.id), evidenceRefs: [selected.id], judgmentLevel: "J1" };
-    const r = await fetch(`/api/runs/${runId}/actions`, {
+    const r = await fetch(`/api/runs/${runId}/actions/proposals`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ mode: "propose", action_id: actionId, parameters }),
+      body: JSON.stringify({ action_id: actionId, parameters }),
     });
     const json = await r.json();
     setBusy(false);
@@ -78,17 +78,49 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
       setError(json.error || "提案失败");
       return;
     }
-    setProposal(json.proposal || json);
+    setProposal(json);
+  }
+
+  async function approveProposal() {
+    const workItemId = proposal?.approval_work_item?.id;
+    if (!workItemId) return;
+    setBusy(true); setError("");
+    const response = await fetch(`/api/runs/${runId}/work-items/${workItemId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: "approved", note: "由对象集合面板人工批准 Action 提案" }),
+    });
+    const workItem = await response.json();
+    setBusy(false);
+    if (!response.ok) { setError(workItem.error || "批准失败"); return; }
+    setProposal((current: any) => ({ ...current, proposal: { ...current.proposal, status: "approved" }, approval_work_item: workItem }));
+  }
+
+  async function executeProposal() {
+    const stored = proposal?.proposal;
+    if (!stored?.id) return;
+    setBusy(true); setError("");
+    const response = await fetch(`/api/runs/${runId}/actions/${stored.id}/execute`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ expected_graph_version: stored.expected_graph_version }),
+    });
+    const execution = await response.json();
+    setBusy(false);
+    if (!response.ok) { setError(execution.error || "执行失败"); return; }
+    setProposal((current: any) => ({ ...current, proposal: { ...current.proposal, status: "executed" }, execution }));
+    await load();
   }
 
   return (
     <div className="object-set">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">Object Set</div>
+          <div className="eyebrow">实例图 · Object Set</div>
           <h1>运行实例集合</h1>
           <p className="muted">
-            {data?.summary || "查询 business_instance_graph"}
+            可查询与执行 Action 的 business_instance_graph（不是阶段产物视图）
+            {data?.summary ? ` · ${data.summary}` : ""}
             {data?.authority ? ` · 权威=${data.authority}` : ""}
             {data?.graph_source ? ` · ${data.graph_source}` : ""}
           </p>
@@ -183,6 +215,10 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           {proposal ? (
             <>
               <h3>Action 提案</h3>
+              <div className="actions">
+                <button className="button-secondary" disabled={busy || proposal.approval_work_item?.status === "approved" || proposal.proposal?.status === "executed"} onClick={approveProposal}>人工批准</button>
+                <button className="button" disabled={busy || proposal.approval_work_item?.status !== "approved" || proposal.proposal?.status === "executed"} onClick={executeProposal}>按图版本执行</button>
+              </div>
               <pre className="json-editor" style={{ minHeight: 240, overflow: "auto" }}>
                 {JSON.stringify(proposal, null, 2)}
               </pre>

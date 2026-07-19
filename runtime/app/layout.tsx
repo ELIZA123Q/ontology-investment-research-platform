@@ -25,10 +25,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span className="brand-copy"><strong>本体投研工作台</strong><small>Ontology Research Runtime</small></span>
           </Link>
           <nav aria-label="主导航">
-            <Link href="/"><RunsIcon />研究运行</Link>
-            <Link href="/ontology"><GraphIcon />本体资产</Link>
+            <Link href="/"><RunsIcon />研究雷达</Link>
+            <Link href="/runs/new">＋ 新建研究</Link>
+            <Link href="/ontology"><GraphIcon />高级资产</Link>
           </nav>
-          <span className="system-state">LOCAL RUNTIME</span>
+          <span className="system-state">DEEPSEEK V4 PRO</span>
         </header>
         <main>{children}</main>
       </body>

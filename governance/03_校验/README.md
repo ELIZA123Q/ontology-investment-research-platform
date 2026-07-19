@@ -7,8 +7,13 @@
 | 想确认 | 打开或运行 |
 |--------|------------|
 | 高质量原则与发布规则 | [`00A_高质量产出判别标准.md`](00A_高质量产出判别标准.md) |
-| 一次运行是否结构合规 | `python3 governance/03_校验/validate_run.py <运行目录>` |
+| 正式发布包（中文命名 MD/YAML） | `python3 governance/03_校验/validate_run.py <运行目录>` |
+| V3 黄金样例（紧凑 YAML） | `python3 governance/03_校验/validate_v3_samples.py <运行目录>` |
+| 工作台导出包 | `python3 governance/03_校验/validate_workbench_package.py <导出目录>` |
+| 包类型定义 | [`../02_合同/package_kinds.yaml`](../02_合同/package_kinds.yaml) |
 | 全库自检 | `python3 governance/03_校验/validate_project.py` |
+
+三类包不要混用校验入口：`validate_run` 会拒绝 V3/工作台包并提示正确命令。
 
 ## 各阶段产出（人看什么）
 

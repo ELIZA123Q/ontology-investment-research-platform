@@ -62,7 +62,4 @@ overall_check:
   no_scope_expansion: false
   no_status_washing: false
   semantic_review_complete: false
-  no_new_fact_created: false
-  no_new_judgment_created: false
-  no_method_status_changed: false
   result: fail

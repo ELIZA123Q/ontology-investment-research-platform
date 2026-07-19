@@ -91,6 +91,32 @@ export function createEmptyManifest(run: ResearchRun): RunManifest {
   };
 }
 
+export function createChildManifest(
+  run: ResearchRun,
+  parent: ResearchRun,
+  parentHash: string,
+): RunManifest {
+  const manifest = createEmptyManifest(run);
+  return {
+    ...manifest,
+    parent_run: {
+      run_id: parent.id,
+      manifest_ref: `research_runs/${parent.id}/manifest`,
+      manifest_hash: parentHash,
+    },
+    reasoning_loop: {
+      ...manifest.reasoning_loop,
+      classification: "external_event_update",
+      notes: [
+        ...manifest.reasoning_loop.notes,
+        `parent_run:${parent.id}`,
+        run.trigger_event_id ? `trigger_event:${run.trigger_event_id}` : "trigger_event:manual",
+        `impact_classification:${run.trigger_classification || "evidence_update"}`,
+      ],
+    },
+  };
+}
+
 export function parseManifest(raw: string | null | undefined, run: ResearchRun): RunManifest {
   if (!raw || raw === "{}" || raw === "") return createEmptyManifest(run);
   try {

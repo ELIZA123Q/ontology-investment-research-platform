@@ -7,7 +7,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { id } = await params;
     const body = await req.json().catch(() => ({}));
     if (body.mode === "export_only") {
-      return Response.json(exportRunPackage(id));
+      return Response.json(exportRunPackage(id, { approvedOnly: true }));
     }
     return Response.json(publishAndValidate(id));
   } catch (error) {
