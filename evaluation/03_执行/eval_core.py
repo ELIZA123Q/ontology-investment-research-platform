@@ -155,6 +155,10 @@ def validate_profiles(path: Path, require_official: bool = False) -> dict[str, A
         raise EvalError("生产模型不得兼任评测模型")
     if len(set(judge_ids)) != 2:
         raise EvalError("两个评测档案必须使用不同 model_id")
+    if len(set(downstream_ids)) != 2:
+        raise EvalError("两个下游执行档案必须使用不同 model_id")
+    if producer_id in downstream_ids:
+        raise EvalError("生产模型不得兼任下游任务执行模型")
     if set(judge_ids) & set(downstream_ids):
         raise EvalError("下游任务执行模型不得给自己的任务产出评分")
     official = registry["run_mode"] == "official" or require_official

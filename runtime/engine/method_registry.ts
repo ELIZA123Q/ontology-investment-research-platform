@@ -130,6 +130,83 @@ export function registeredMethodCandidates() {
   return [...loadMethodRegistry().values()].sort((a, b) => a.method_id.localeCompare(b.method_id));
 }
 
+export function defaultMethodIdsForJudgmentType(judgmentType: string) {
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
+  const route = routeRegistry.routes?.[judgmentType];
+  if (!route?.default_kb03_method || !route?.default_kb04_method) {
+    throw new Error(`判断类型 ${judgmentType} 没有登记默认取证/裁决方法`);
+  }
+  const structureByType: Record<string, string> = {
+    state_measurement: "BF-SD-01",
+    trend_direction: "BF-SD-01",
+    cycle_phase: "BF-SD-01",
+    mechanism_validation: "BF-VT-01",
+    causal_attribution: "BF-VT-01",
+    transmission_path: "BF-VT-01",
+    object_differentiation: "BF-IC-01",
+    impact_realization: "BF-EE-01",
+    expectation_gap: "BF-EG-01",
+    valuation_impact: "BF-VA-01",
+  };
+  const structure = structureByType[judgmentType];
+  if (!structure) throw new Error(`判断类型 ${judgmentType} 没有登记默认结构方法`);
+  return {
+    judgment_structure: structure,
+    evidence: String(route.default_kb03_method),
+    adjudication: String(route.default_kb04_method),
+  };
+}
+
+export function recallRegisteredMethodCandidates(taskText: string) {
+  const text = taskText.toLowerCase();
+  const types = new Set<string>();
+  const matches = (pattern: RegExp) => pattern.test(text);
+  if (matches(/同比|环比|增长|增速|趋势|上升|下降|改善|恶化|trend|growth|yoy|mom/)) types.add("trend_direction");
+  if (matches(/周期|阶段|去库|补库|cycle|phase/)) types.add("cycle_phase");
+  if (matches(/机制|为何|原因|归因|驱动|cause|attribut|driver/)) types.add("causal_attribution");
+  if (matches(/传导|路径|影响到|pass.through|transmission/)) types.add("transmission_path");
+  if (matches(/(?:对象|产品|公司|地区).*(?:对比|比较|分化|不同)|(?:对比|比较|分化|不同).*(?:对象|产品|公司|地区)|object differentiation/)) types.add("object_differentiation");
+  if (matches(/实现影响|业绩影响|利润影响|impact|earnings effect/)) types.add("impact_realization");
+  if (matches(/预期差|一致预期|priced.in|expectation gap|consensus/)) types.add("expectation_gap");
+  if (matches(/估值|valuation|multiple|pe\b|pb\b/)) types.add("valuation_impact");
+  if (matches(/机制是否|mechanism validation/)) types.add("mechanism_validation");
+  if (!types.size || matches(/是否|状态|数值|事实|营收|收入|利润|毛利|state|revenue|financial/)) types.add("state_measurement");
+
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
+  const methodIds = new Set<string>(routeRegistry.global_optional_reasoning_methods || []);
+  for (const type of types) {
+    const route = routeRegistry.routes?.[type] || {};
+    for (const id of [
+      ...(route.allowed_kb03_methods || []),
+      ...(route.allowed_kb04_methods || []),
+      ...(route.optional_auxiliary_methods || []),
+    ]) methodIds.add(String(id));
+  }
+
+  const financial = matches(/营收|收入|利润|毛利|财务|报表|revenue|income|margin|financial/);
+  const structureByType: Record<string, string[]> = {
+    state_measurement: financial ? ["BF-FQ-01"] : ["BF-SD-01"],
+    trend_direction: financial ? ["BF-FQ-01"] : ["BF-SD-01"],
+    cycle_phase: ["BF-SD-01"],
+    mechanism_validation: ["BF-VT-01"],
+    causal_attribution: ["BF-VT-01"],
+    transmission_path: ["BF-VT-01"],
+    object_differentiation: financial ? ["BF-FQ-01"] : ["BF-IC-01"],
+    impact_realization: ["BF-EE-01"],
+    expectation_gap: ["BF-EG-01"],
+    valuation_impact: ["BF-VA-01"],
+  };
+  for (const type of types) for (const id of structureByType[type] || []) methodIds.add(id);
+
+  const registry = loadMethodRegistry();
+  const recalled = [...methodIds].map((id) => registry.get(id)).filter(Boolean) as RegisteredMethod[];
+  const capabilities = new Set(recalled.map((item) => item.capability_type));
+  if (!["judgment_structure", "evidence", "adjudication"].every((capability) => capabilities.has(capability as MethodCapabilityType))) {
+    return registeredMethodCandidates();
+  }
+  return recalled.sort((a, b) => a.method_id.localeCompare(b.method_id));
+}
+
 export function validateRegisteredMethodApplications(applications: MethodApplication[]) {
   const registry = loadMethodRegistry();
   for (const application of applications) {
@@ -158,7 +235,6 @@ export function validateMethodRoutes(
   const globalOptional = routeRegistry.global_optional_reasoning_methods || [];
   const units = new Map(judgmentUnits.map((unit) => [unit.id, unit]));
   for (const application of applications) {
-    if (!["selected", "executed", "degraded"].includes(application.status)) continue;
     if (application.capability_type === "judgment_structure") continue;
     for (const unitRef of application.target_judgment_unit_refs) {
       const unit = units.get(unitRef);

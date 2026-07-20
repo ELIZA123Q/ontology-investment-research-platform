@@ -17,7 +17,11 @@ export type MethodApplicationValidationContext = {
   sourceGroupById?: Map<string, string>;
 };
 
-type ExecutableMethodProfile = Record<string, { minimumEvidence: number; requiredPreconditions: string[] }>;
+type ExecutableMethodProfile = Record<string, {
+  minimumEvidenceFacts: number;
+  minimumIndependentSourceGroups: number;
+  requiredPreconditions: string[];
+}>;
 
 let cachedExecutableMethods: ExecutableMethodProfile | null = null;
 
@@ -25,11 +29,17 @@ function loadExecutableMethodProfile(): ExecutableMethodProfile {
   if (cachedExecutableMethods) return cachedExecutableMethods;
   const profile = YAML.parse(
     readFileSync(repositoryPath("governance", "02_合同", "runtime_supported_profile.yaml"), "utf8"),
-  ) as { executable_method_profile?: Record<string, { minimum_evidence?: number; required_preconditions?: string[] }> };
+  ) as { executable_method_profile?: Record<string, {
+    minimum_evidence?: number;
+    minimum_evidence_facts?: number;
+    minimum_independent_source_groups?: number;
+    required_preconditions?: string[];
+  }> };
   const loaded: ExecutableMethodProfile = {};
   for (const [methodId, definition] of Object.entries(profile.executable_method_profile || {})) {
     loaded[methodId] = {
-      minimumEvidence: Number(definition.minimum_evidence || 0),
+      minimumEvidenceFacts: Number(definition.minimum_evidence_facts ?? definition.minimum_evidence ?? 0),
+      minimumIndependentSourceGroups: Number(definition.minimum_independent_source_groups ?? definition.minimum_evidence ?? 0),
       requiredPreconditions: [...(definition.required_preconditions || [])],
     };
   }
@@ -169,21 +179,21 @@ export function validateMethodApplications(
       }
       const executable = executableMethods[application.method_id];
       if (executable && context.evidenceDrafts) {
-        const checks = new Map(application.precondition_checks.map((item) => [item.precondition_id, item]));
         for (const precondition of executable.requiredPreconditions) {
-          const check = checks.get(precondition);
+          const check = application.precondition_checks.find((item) =>
+            item.precondition_id === precondition || item.precondition_id.endsWith(`-${precondition}`));
           if (!check || check.result !== "pass" || !check.evidence_refs.length) {
             throw new Error(`${application.application_id} 未以具体证据通过可执行前置条件 ${precondition}`);
           }
         }
-        if (application.input_evidence_refs.length < executable.minimumEvidence) {
-          throw new Error(`${application.application_id} 执行 ${application.method_id} 至少需要 ${executable.minimumEvidence} 条证据`);
+        if (application.input_evidence_refs.length < executable.minimumEvidenceFacts) {
+          throw new Error(`${application.application_id} 执行 ${application.method_id} 至少需要 ${executable.minimumEvidenceFacts} 条事实级证据`);
         }
         const byId = new Map(context.evidenceDrafts.map((item) => [item.id, item]));
         const sourceIds = application.input_evidence_refs.flatMap((id) => byId.get(id)?.source_ids || byId.get(id)?.source_keys || []);
         const independentGroups = new Set(sourceIds.map((id) => context.sourceGroupById?.get(id) || id));
-        if (independentGroups.size < executable.minimumEvidence) {
-          throw new Error(`${application.application_id} 执行 ${application.method_id} 缺少 ${executable.minimumEvidence} 个独立来源组`);
+        if (independentGroups.size < executable.minimumIndependentSourceGroups) {
+          throw new Error(`${application.application_id} 执行 ${application.method_id} 缺少 ${executable.minimumIndependentSourceGroups} 个独立来源组`);
         }
       }
     }
@@ -217,11 +227,29 @@ export function validateJudgmentMethodBindings(
     if (missing.length) throw new Error(`${judgment.id} 引用了不存在的方法应用 ${missing.join(", ")}`);
     const allowedWithoutExecution = judgment.strength === "J0"
       && ["blocked", "indeterminate", "contested"].includes(String(judgment.decision_status));
-    if (!allowedWithoutExecution && !bound.some((application) => application?.status === "executed")) {
-      throw new Error(`${judgment.id} 至少需要一项 executed MethodApplication`);
+    const adjudication = bound.filter((application) => application?.capability_type === "adjudication");
+    if (!adjudication.length) {
+      throw new Error(`${judgment.id} 必须绑定实际裁决能力的 MethodApplication，结构或取证 MA 不能代替裁决`);
     }
-    if (allowedWithoutExecution && !bound.some((application) => application && FINAL_STATUSES.has(application.status))) {
-      throw new Error(`${judgment.id} 暂不可判断也必须绑定已收敛状态的 MethodApplication`);
+    if (!allowedWithoutExecution && !adjudication.some((application) => application?.status === "executed")) {
+      throw new Error(`${judgment.id} 至少需要一项 executed adjudication MethodApplication`);
+    }
+    if (allowedWithoutExecution && !adjudication.some((application) => application && FINAL_STATUSES.has(application.status))) {
+      throw new Error(`${judgment.id} 暂不可判断也必须绑定已收敛状态的 adjudication MethodApplication`);
+    }
+  }
+}
+
+export function validateJudgmentCapabilityCoverage(
+  applications: MethodApplication[],
+  judgmentUnits: Array<{ id: string }>,
+) {
+  const capabilities = ["judgment_structure", "evidence", "adjudication"] as const;
+  for (const unit of judgmentUnits) {
+    const bound = applications.filter((application) => application.target_judgment_unit_refs.includes(unit.id));
+    const missing = capabilities.filter((capability) => !bound.some((application) => application.capability_type === capability));
+    if (missing.length) {
+      throw new Error(`${unit.id} 缺少跨阶段方法覆盖: ${missing.join(", ")}；必须在 stage_02 同时登记结构、取证和裁决 MA`);
     }
   }
 }
@@ -238,6 +266,7 @@ export function validateExpressionMethodBindings(
     const boundJudgments = claim.judgment_ids.map((id) => judgmentById.get(id)).filter(Boolean);
     if (boundJudgments.length !== claim.judgment_ids.length) throw new Error(`${claim.id} 引用了不存在的 Judgment`);
     const allowedMethods = new Set(boundJudgments.flatMap((judgment) => judgment?.method_application_ids || []));
+    const referencedApplications: MethodApplication[] = [];
     for (const ref of claim.method_application_ids) {
       const application = byId.get(ref);
       if (!application) throw new Error(`${claim.id} 引用了不存在的方法应用 ${ref}`);
@@ -247,6 +276,10 @@ export function validateExpressionMethodBindings(
       if (application.status !== "executed" && !(onlyIndeterminate && FINAL_STATUSES.has(application.status))) {
         throw new Error(`${claim.id} 只能引用 executed MethodApplication；J0 不可判断可引用已收敛的失败/降级方法: ${ref}`);
       }
+      referencedApplications.push(application);
+    }
+    if (!referencedApplications.some((application) => application.capability_type === "adjudication")) {
+      throw new Error(`${claim.id} 必须追溯到来源 Judgment 的 adjudication MethodApplication`);
     }
   }
 }

@@ -6,6 +6,7 @@
 |------|------|------|
 | 00 | [`00_本机运行`](00_本机运行) | 本机数据库、工作台导出；**不进 Git**。导出为 `workbench_export`，不是正式发布包 |
 | 02 | [`02_V3样例`](02_V3样例) | Ontology 3.0 / Public Contract 1.3 **语义黄金样例**（`semantic_fixture`） |
+| 03 | [`03_回归`](03_回归) | 从真实工作台链冻结的最小回归夹具；验证运行/导出能力，不作为研究增益结论 |
 
 包类型见 [`governance/02_合同/package_kinds.yaml`](../governance/02_合同/package_kinds.yaml)：`formal_pack` / `semantic_fixture` / `workbench_export`。
 
@@ -18,4 +19,4 @@
 
 建议阅读顺序：05 研报 → 04 判断 → 需要时再翻 02/03 底稿。
 
-旧样例已直接迁移并由上述两个 run-002 取代；仓库不保留 legacy 副本。run-002 是唯一 **semantic_fixture** 验收基线；仓库当前不附带 in-repo `formal_pack` 黄金包。
+旧样例已直接迁移并由上述两个 run-002 取代；仓库不保留 legacy 副本。run-002 是唯一 **semantic_fixture** 验收基线；`03_回归` 只冻结 `workbench_export` 的真实运行能力。仓库当前仍不附带 in-repo `formal_pack` 黄金包。

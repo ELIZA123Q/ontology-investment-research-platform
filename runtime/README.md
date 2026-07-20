@@ -1,6 +1,6 @@
 # 本机工作台（Runtime）
 
-本机单用户的投研实验界面：由生产模型按 01—05 编排研究，与同一冻结证据的直接生成基线对照，并由不同模型完成独立审阅。
+本机单用户的投研实验界面：按 01—05 编排研究，与同一冻结证据的直接生成基线对照，并由不同模型或未参与生产、留下可审计声明的人类审阅者完成独立审阅。
 
 ## 启动
 
@@ -13,6 +13,8 @@ npm run dev
 ```
 
 打开 http://localhost:3000 。SQLite 默认写在 `instances/00_本机运行/workbench.sqlite`（不进 Git）。
+
+> 安全边界：当前 API 无多用户鉴权，只允许绑定本机回环地址。不要把开发服务器绑定到 `0.0.0.0` 或直接暴露到公网；远程使用前必须先增加鉴权、限流和受控出口策略。
 
 ## 验证
 
@@ -35,17 +37,23 @@ npm run build
 
 ## 操作语义能力（V1.3）
 
-- MethodApplication：02 建候选，03 绑定证据与前置条件，04 收敛为 executed/rejected/blocked/degraded，05 只引用
-- 方法注册校验：运行时解析 `method_assets.yaml`、02/03 注册表和 `judgment_method_routes.yaml`；方法 ID、版本、能力类型及判断类型路由不合法时不能确认阶段产物
+- MethodApplication：02 必须为每个 JudgmentUnit 同时登记结构、取证、裁决三类候选；03 绑定证据并收敛取证方法，04 收敛全部方法为 executed/rejected/blocked/degraded，05 只引用
+- 方法注册校验：运行时解析 `method_assets.yaml`、02/03 注册表和 `judgment_method_routes.yaml`；候选阶段即校验方法 ID、版本、能力类型及判断类型路由，不合法时模型提交与人工确认都会被拒绝
 - 证据三角绑定：03 确认前校验证据草稿、判断单元与 MethodApplication 相互可解析；未绑定方法的非缺口证据不能进入 04
 - Object Set：`GET /api/runs/:id/object-set`，页面 `/runs/:id/object-set`
 - Action：`RegisterSource` → `ExtractClaim` → `NormalizeClaim` → `AssessEvidenceForUse` → `FormHypothesis` → `FormJudgment` → `RecordReasoningTrace`
 - 确认 stage_02/03/04 时物化唯一 `instance_graph`；草稿投影不再 silent 冒充权威图
-- 独立审阅：确认 04 后使用 `DEEPSEEK_REVIEW_MODEL` 指定的不同模型审阅；同模型的分离调用可用于返工提示，但不能通过交付门。
+- 独立审阅：确认 04 后可使用 `DEEPSEEK_REVIEW_MODEL` 指定的不同模型审阅；也可由未参与 Stage04 生产的人类登记结构化审阅。人类路径强制冻结 Stage04 artifact/hash、审阅者标识和至少 20 字独立性/利益冲突声明，自审不能通过。相同模型的分离调用只能用于返工提示，不能通过交付门。
 - 同证据基线：确认 03 后冻结证据哈希，基线不联网、不得引用证据包外来源，在 A/B 页面盲评。盲评必须记录评价人和依据，揭示 A/B 身份后不可重评。
 - 模型上下文：每阶段只携带必要上游结构化产物及 hash，不重复传输 Markdown 投影，避免“上下文越大就越可靠”的假安全感。
 - 重复运行归因：相同问题与领域的后续运行自动对照上一运行，区分来源变化、方法变化、模型/Prompt/知识上下文变化和无法由这些因素解释的模型波动
 - 导出校验：`POST /api/runs/:id/publish` 默认写入 `instances/00_本机运行/exports/<runId>`，也可用 `WORKBENCH_EXPORT_ROOT` 指向仓库外；导出同时经 `validate_workbench_package.py` 检查证据血缘、方法、判断、审阅、基线与盲评绑定。
+- 研究者来源取得：`POST /api/runs/:id/sources/acquire` 会实际抓取公开 URL、核对逐字引用并冻结发布日期、定位、抓取时间、正文 hash 与可用性。成功结果只进入 Source Registry 候选池，不会直接成为 EvidenceFact 或修改 Judgment。
+- 受控事实投影：证据页或 `POST /api/runs/:id/stages/03/generate` 的 `controlled_evidence_projection` 模式可把研究者明确选择的、已满足 `usable/captured/quote_verified` 的来源逐字登记为事实草稿。请求必须给出 `source_id`、`judgment_unit_ids`、`subject_ref`、`observed_at`；同一来源只能登记一次，多个判断单元合并在同一绑定中。系统重查截止时间、hash 和引用，随后仍要求对象级人工批准。
+- 受控判断投影：判断页或同一阶段接口的 `controlled_judgment_projection` 模式允许研究者为每个 JudgmentUnit 填写结论、已批准事实、不确定性、竞争解释、区分性证据和改判条件，并逐项确认真正满足的方法前置条件。未显式确认的语义前置条件会使方法降级，来源抓取成功不会冒充方法适用；Runtime 再计算 Signal/Hypothesis/CompetingExplanation、J0—J4 上限和五项语义规则。
+- 受控表达投影：Stage04 确认后，Stage05 的 `deterministic_projection` 可直接从当前 Judgment、MethodApplication、EvidenceFact 和 Source 血缘生成可审阅报告，不需要先让模型写一份“种子报告”；表达只能重述获准判断，不能新增事实或抬高强度。
+- `task_local:<variable_id>` 表示只在当前研究任务内成立的观测变量，不会伪装为正式本体 `StateVariable`；只有稳定重复出现并通过真实案例暴露的语义缺口才进入本体变更。
+- 确定性指标修复不允许改写已揭示的 A/B 评分。`POST /api/runs/:id/evaluation/recompute-metrics` 只在基线、03、04、05 的冻结 artifact/hash 完全一致时创建新评价版本，保留原评分、评价人、备注与 A/B 身份，并记录被替代评价。
 - 创建运行时可绑定 V3 `semantic_fixture` 样例包，直接查询其 `business_instance_graph`（不是正式发布包）
 
 技术子目录：`app/` 界面与接口，`engine/` 编排，`adapters/` 外部适配。研究员日常只需启动工作台或对照样例即可。

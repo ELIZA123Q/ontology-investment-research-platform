@@ -15,6 +15,16 @@ describe("database migrations", () => {
       "source_tier", "source_group", "locator", "captured_at", "content_hash", "usability_status", "snapshot_text", "source_quote", "quote_verified", "retrieval_status",
     ]));
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='action_proposals'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_artifacts_one_running'").get()).toBeTruthy();
+    const now = "2026-07-20T00:00:00Z";
+    connection.prepare(
+      "INSERT INTO research_runs(id,question,domain,current_stage,status,manifest_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+    ).run("run-lock", "lock", "semiconductor", 0, "draft", "{}", now, now);
+    const insertRunning = connection.prepare(
+      "INSERT INTO artifacts(id,run_id,kind,version,status,created_at) VALUES(?,?,?,?,?,?)",
+    );
+    insertRunning.run("artifact-1", "run-lock", "stage_03", 1, "running", now);
+    expect(() => insertRunning.run("artifact-2", "run-lock", "stage_03", 2, "running", now)).toThrow();
     connection.close();
   });
 

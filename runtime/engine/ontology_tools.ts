@@ -14,6 +14,7 @@ import {
   saveInstanceGraph,
   updateWorkItem,
   upsertWorkItem,
+  withImmediateTransaction,
 } from "../adapters/db";
 import {
   callFunction,
@@ -203,6 +204,10 @@ export function getStoredActionProposals(runId: string) {
 }
 
 export function executeApprovedAction(runId: string, proposalId: string, expectedGraphVersion: number): StoredActionExecution {
+  return withImmediateTransaction(() => executeApprovedActionTransaction(runId, proposalId, expectedGraphVersion));
+}
+
+function executeApprovedActionTransaction(runId: string, proposalId: string, expectedGraphVersion: number): StoredActionExecution {
   const run = getRun(runId);
   if (!run) throw new Error("研究任务不存在");
   const stored = getActionProposal(proposalId);

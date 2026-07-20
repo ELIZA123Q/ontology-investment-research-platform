@@ -151,6 +151,16 @@ class ContractTests(unittest.TestCase):
             path.write_text(yaml.safe_dump(single, sort_keys=False), encoding="utf-8")
             with self.assertRaises(EvalError):
                 validate_profiles(path)
+            duplicate_downstream = copy.deepcopy(source)
+            duplicate_downstream["profiles"]["downstream_b"]["model_id"] = duplicate_downstream["profiles"]["downstream_a"]["model_id"]
+            path.write_text(yaml.safe_dump(duplicate_downstream, sort_keys=False), encoding="utf-8")
+            with self.assertRaises(EvalError):
+                validate_profiles(path)
+            producer_as_downstream = copy.deepcopy(source)
+            producer_as_downstream["profiles"]["downstream_a"]["model_id"] = producer_as_downstream["profiles"]["producer"]["model_id"]
+            path.write_text(yaml.safe_dump(producer_as_downstream, sort_keys=False), encoding="utf-8")
+            with self.assertRaises(EvalError):
+                validate_profiles(path)
 
 
 class MetricTests(unittest.TestCase):

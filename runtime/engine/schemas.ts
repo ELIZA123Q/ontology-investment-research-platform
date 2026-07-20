@@ -311,6 +311,9 @@ export const evaluationSchema = z.object({
   runtime_report_artifact_id: nonEmptyString,
   frozen_stage03_artifact_id: nonEmptyString,
   frozen_stage03_artifact_hash: z.string().regex(/^[a-f0-9]{64}$/),
+  metrics_version: z.string().optional(),
+  metrics_recomputed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/).optional(),
+  supersedes_evaluation_artifact_id: z.string().optional(),
 });
 
 export const EVALUATION_CRITERIA = ["事实与来源可核验性", "无来源主张控制", "反证与竞争解释", "结论边界", "可复盘性", "研究决策帮助"] as const;
@@ -338,7 +341,19 @@ export const independentReviewSchema = z.object({
   document_markdown: markdown,
   reviewer_model: z.string().nullable(),
   producer_model: z.string().nullable(),
-  independence_level: z.enum(["independent_model", "same_model_separate_call"]).nullable(),
+  reviewer_type: z.enum(["model", "human"]).default("model"),
+  reviewer_attestation: z.string().nullable().default(null),
+  independence_level: z.enum(["independent_model", "independent_human", "same_model_separate_call"]).nullable(),
+}).superRefine((value, context) => {
+  if (value.independence_level === "independent_human") {
+    if (value.reviewer_type !== "human") context.addIssue({ code: "custom", path: ["reviewer_type"], message: "人类独立审阅必须标记 reviewer_type=human" });
+    if (!value.reviewer_attestation || value.reviewer_attestation.trim().length < 20) {
+      context.addIssue({ code: "custom", path: ["reviewer_attestation"], message: "人类独立审阅必须留下至少 20 字的独立性声明" });
+    }
+  }
+  if (value.independence_level === "independent_model" && value.reviewer_type !== "model") {
+    context.addIssue({ code: "custom", path: ["reviewer_type"], message: "模型独立审阅必须标记 reviewer_type=model" });
+  }
 });
 
 export const schemas = {

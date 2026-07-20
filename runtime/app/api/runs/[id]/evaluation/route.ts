@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAttempts } from "@/adapters/db";
-import { comparisonMetrics } from "@/engine/metrics";
+import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/engine/metrics";
 import { EVALUATION_CRITERIA, evaluationSchema, evaluationSubmissionSchema } from "@/engine/schemas";
 import { parseJson } from "@/engine/types";
 
@@ -37,6 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const value = evaluationSchema.parse({
       ...submission,
       metrics: comparisonMetrics(baseline, report, stage03, stage04, listSources(runId)),
+      metrics_version: COMPARISON_METRICS_VERSION,
       revealed: true,
       side_a: blindedSideA(runId),
       evaluated_at: new Date().toISOString(),

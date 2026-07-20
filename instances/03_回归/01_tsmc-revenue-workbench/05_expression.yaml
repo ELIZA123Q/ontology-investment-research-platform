@@ -1,0 +1,47 @@
+stage: "05"
+package_projection: workbench_zod
+schema_version: 3.0.0
+title: 本体约束的投研判断报告
+executive_points:
+  - 2024年全年营收同比是否增长：台积电披露的2024年全年合并营收较2023年同比增长33.9%；截至2025年1月16日可形成全年营收增长的方向观察。（J1/supported）
+  - 2024年Q4营收同比增速是否高于全年同比增速：台积电披露的2024年第四季度营收同比增速38.8%高于全年同比增速33.9%，差值为4.9个百分点；仅形成两项名义同比的比较观察。（J1/supported）
+report_claims:
+  - id: EX-01
+    statement: 2024年全年营收同比是否增长：台积电披露的2024年全年合并营收较2023年同比增长33.9%；截至2025年1月16日可形成全年营收增长的方向观察。（J1/supported）
+    judgment_ids:
+      - J-CONTROLLED-01
+    method_application_ids: &a1
+      - MA-TSMC-REV-STRUCT-01
+      - MA-TSMC-REV-EVID-01
+      - MA-TSMC-REV-ADJ-01
+    evidence_draft_ids:
+      - EV-CONTROLLED-01
+    source_ids:
+      - 2d5e70da-cd5b-46d9-8891-509e1f5948bb
+    expression_id: EX-01
+    source_claim_id: J-CONTROLLED-01
+    source_method_application_refs: *a1
+  - id: EX-02
+    statement: 2024年Q4营收同比增速是否高于全年同比增速：台积电披露的2024年第四季度营收同比增速38.8%高于全年同比增速33.9%，差值为4.9个百分点；仅形成两项名义同比的比较观察。（J1/supported）
+    judgment_ids:
+      - J-CONTROLLED-02
+    method_application_ids: &a2
+      - MA-TSMC-REV-STRUCT-02
+      - MA-TSMC-REV-EVID-02
+      - MA-TSMC-REV-ADJ-02
+    evidence_draft_ids:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    source_ids:
+      - 2d5e70da-cd5b-46d9-8891-509e1f5948bb
+      - 93d383ac-5023-471a-bd41-29c3833c8667
+    expression_id: EX-02
+    source_claim_id: J-CONTROLLED-02
+    source_method_application_refs: *a2
+limitations:
+  - 本次仅形成两个历史营收同比方向的 J1 观察；同源证据不支持增长质量、下半年加速、原因归因、持续性或预测。
+  - 该观察只反映发行人披露的名义同比，不说明增长质量或驱动
+  - 全部事实来自同一 TSMC source_group，缺少独立来源组交叉验证
+  - 改判条件：台积电更正2024年全年营收同比数据，或确认当前披露口径与2023年不可比
+  - Q4增速高于全年增速不等于已经证明下半年持续加速
+  - 改判条件：台积电更正任一同比数据，或确认季度与全年披露口径不可比

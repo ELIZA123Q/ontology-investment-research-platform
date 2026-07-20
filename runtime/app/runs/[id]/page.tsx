@@ -41,7 +41,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     <RunNav runId={id} active="overview" />
     <section className="run-summary">
       <div><div className="eyebrow">{bundle.run.parent_run_id ? "Incremental research update" : "Research run"} · {bundle.run.domain === "semiconductor" ? "Semiconductor" : "General"}</div><h1>{bundle.run.question}</h1><div className="run-meta"><span>阶段合同 {completedStages}/5</span><span>状态 {bundle.run.status}</span><span>待处理 {pending.length}</span>{bundle.run.parent_run_id ? <span>继承自父运行</span> : null}{bundle.manifest.validation_summary?.publish_status ? <span>{bundle.manifest.validation_summary.publish_status}</span> : null}</div></div>
-      <div className="actions run-actions"><PublishButton runId={id} disabled={!deliveryReady} /><BaselineButton runId={id} /></div>
+      <div className="actions run-actions"><PublishButton runId={id} disabled={!deliveryReady} /><BaselineButton runId={id} completed={Boolean(baseline)} /></div>
     </section>
     {triggerEvent ? <section className="trigger-banner"><div><span>本轮由市场事件触发</span><strong>{triggerEvent.title}</strong><p>{triggerEvent.summary}</p></div><a href={triggerEvent.url} target="_blank" rel="noreferrer">查看来源 ↗</a></section> : null}
 

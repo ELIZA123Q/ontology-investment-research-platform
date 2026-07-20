@@ -1,0 +1,153 @@
+schema_name: controlled_research_run_manifest_workbench
+schema_version: 1.0.0
+package_kind: workbench_export
+task_id: JTASK-WB-536a5f6f
+run_id: 536a5f6f-84ed-423a-9a52-be3bd0b25291
+parent_run: null
+run_mode: workbench
+producer_id: runtime-workbench-export
+contract_ref:
+  schema_name: controlled_research_run_manifest
+  schema_version: 1.3.0
+versions:
+  contract: 1.3.0
+  ontology_meta_schema: 1.0.0
+  ontology: 3.0.0
+  ontology_reasoning: 3.0.0
+  kb02: 2.0.0
+  kb03: 3.2.0
+  kb04: 1.0.0
+  stage_01_schema: 1.5.0
+  stage_02_logic_schema: 1.2.0
+  stage_02_view_schema: 3.0.0
+  stage_03_schema: 3.0.0
+  stage_04_brief_schema: 3.0.0
+  stage_04_audit_schema: 5.0.0
+  stage_05_audit_schema: 3.0.0
+  semantic_review_schema: 1.0.0
+stages:
+  stage_01:
+    artifact:
+      - 01_task.yaml
+    hash: sha256:bf433014a4de910799b108ca9598d2c9f455e37727d5f140afc5ac77b600d644
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+    attempt_history:
+      - attempt: 1
+        artifact_id: 850f4b4d-159f-49f8-bd64-118425170b9d
+        hash: sha256:bf433014a4de910799b108ca9598d2c9f455e37727d5f140afc5ac77b600d644
+        approved_at: 2026-07-20T03:36:54.581Z
+        status: approved
+    pending_attempt: null
+  stage_02:
+    artifact:
+      - 02_structure.yaml
+    hash: sha256:15b56dff3e39ebd32f5f91949a5d8b29f58c7b7094fb6f240ead53c1ef234f6f
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+    attempt_history:
+      - attempt: 1
+        artifact_id: a392ed12-e804-48a9-b9ea-e18a8665cd67
+        hash: sha256:15b56dff3e39ebd32f5f91949a5d8b29f58c7b7094fb6f240ead53c1ef234f6f
+        approved_at: 2026-07-20T04:06:57.433Z
+        status: approved
+    pending_attempt: null
+  stage_03:
+    artifact:
+      - 03_evidence.yaml
+    hash: sha256:0ab26637dc3d550e1fe421a20e04e46271a1b381f2f608696ba34da3b5ab2db6
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+    attempt_history:
+      - attempt: 1
+        artifact_id: 38575882-c10a-480c-93ca-161031821f4e
+        hash: sha256:0ab26637dc3d550e1fe421a20e04e46271a1b381f2f608696ba34da3b5ab2db6
+        approved_at: 2026-07-20T04:20:22.397Z
+        status: approved
+    pending_attempt: null
+  stage_04:
+    artifact:
+      - 04_judgment.yaml
+    hash: sha256:a2b0e220ee49da923006dbcf1659026da6aa6267e234607af388f9382f9ab55d
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+    attempt_history:
+      - attempt: 1
+        artifact_id: 330b38e2-80d1-4e72-9792-de02925df3a5
+        hash: sha256:a2b0e220ee49da923006dbcf1659026da6aa6267e234607af388f9382f9ab55d
+        approved_at: 2026-07-20T04:41:42.930Z
+        status: approved
+    pending_attempt: null
+  stage_05:
+    artifact:
+      - 05_expression.yaml
+      - 05_report.md
+    hash: sha256:dd657571a2dbe2c65924fdf490e866fefdd8ed6aa077c3beb5f7010281cfce8c
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+    attempt_history:
+      - attempt: 1
+        artifact_id: 2356cb40-3534-449d-84b7-dd2b06c208ee
+        hash: sha256:dd657571a2dbe2c65924fdf490e866fefdd8ed6aa077c3beb5f7010281cfce8c
+        approved_at: 2026-07-20T04:45:29.201Z
+        status: approved
+    pending_attempt: null
+reasoning_loop:
+  mode: ontology_evidence_wave
+  latest_wave_ref: null
+  classification: null
+  pending_stage_attempts: []
+  converged: true
+  notes:
+    - workbench local run; not a publishable formal package
+    - last_approved:stage_05:2356cb40-3534-449d-84b7-dd2b06c208ee
+validation_summary:
+  quality_pass: false
+  publishable: false
+  publish_status: exported_pending_validate
+validation_target: governance/03_校验/validate_workbench_package.py
+artifacts:
+  - package_kind.yaml
+  - 01_task.yaml
+  - 02_structure.yaml
+  - 03_evidence.yaml
+  - 04_judgment.yaml
+  - 05_expression.yaml
+  - 05_report.md
+export_meta:
+  exported_at: 2026-07-20T05:10:11.778Z
+  artifact_count: 19
+  source_count: 2
+  graph_objects: 41
+  graph_authority: formal
+  artifact_bindings:
+    stage_01:
+      artifact_id: 850f4b4d-159f-49f8-bd64-118425170b9d
+      content_hash: bf433014a4de910799b108ca9598d2c9f455e37727d5f140afc5ac77b600d644
+    stage_02:
+      artifact_id: a392ed12-e804-48a9-b9ea-e18a8665cd67
+      content_hash: 15b56dff3e39ebd32f5f91949a5d8b29f58c7b7094fb6f240ead53c1ef234f6f
+    stage_03:
+      artifact_id: 38575882-c10a-480c-93ca-161031821f4e
+      content_hash: 0ab26637dc3d550e1fe421a20e04e46271a1b381f2f608696ba34da3b5ab2db6
+    stage_04:
+      artifact_id: 330b38e2-80d1-4e72-9792-de02925df3a5
+      content_hash: a2b0e220ee49da923006dbcf1659026da6aa6267e234607af388f9382f9ab55d
+    stage_05:
+      artifact_id: 2356cb40-3534-449d-84b7-dd2b06c208ee
+      content_hash: dd657571a2dbe2c65924fdf490e866fefdd8ed6aa077c3beb5f7010281cfce8c

@@ -49,6 +49,19 @@ const db = new Proxy({} as DatabaseSync, {
   },
 });
 
+export function withImmediateTransaction<T>(operation: () => T): T {
+  const connection = getDb();
+  connection.exec("BEGIN IMMEDIATE");
+  try {
+    const result = operation();
+    connection.exec("COMMIT");
+    return result;
+  } catch (error) {
+    connection.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 function mapRun(row: any): ResearchRun {
   return {
     id: row.id,
@@ -261,8 +274,15 @@ export function getArtifact(id: string): Artifact | undefined {
   return db.prepare("SELECT * FROM artifacts WHERE id=?").get(id) as Artifact | undefined;
 }
 export function latestArtifact(runId: string, kind: ArtifactKind, statuses?: ArtifactStatus[]): Artifact | undefined {
-  const rows = listArtifacts(runId).filter((x) => x.kind === kind && (!statuses || statuses.includes(x.status)));
-  return rows.sort((a, b) => b.version - a.version)[0];
+  if (!statuses?.length) {
+    return db.prepare(
+      "SELECT * FROM artifacts WHERE run_id=? AND kind=? ORDER BY version DESC LIMIT 1",
+    ).get(runId, kind) as Artifact | undefined;
+  }
+  const placeholders = statuses.map(() => "?").join(",");
+  return db.prepare(
+    `SELECT * FROM artifacts WHERE run_id=? AND kind=? AND status IN (${placeholders}) ORDER BY version DESC LIMIT 1`,
+  ).get(runId, kind, ...statuses) as Artifact | undefined;
 }
 export function createArtifact(runId: string, kind: ArtifactKind, data: Partial<Artifact> = {}): Artifact {
   const version = Number((db.prepare("SELECT COALESCE(MAX(version),0)+1 v FROM artifacts WHERE run_id=? AND kind=?").get(runId, kind) as { v: number }).v);
@@ -313,6 +333,18 @@ export function updateArtifact(
   const entries = Object.entries(fields).filter(([, v]) => v !== undefined);
   if (entries.length) db.prepare(`UPDATE artifacts SET ${entries.map(([k]) => `${k}=?`).join(",")} WHERE id=?`).run(...entries.map(([, v]) => v as string | null), id);
   return db.prepare("SELECT * FROM artifacts WHERE id=?").get(id) as Artifact;
+}
+export function updateArtifactIfStatus(
+  id: string,
+  expectedStatus: ArtifactStatus,
+  fields: Parameters<typeof updateArtifact>[1],
+): Artifact | undefined {
+  const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
+  if (!entries.length) return getArtifact(id)?.status === expectedStatus ? getArtifact(id) : undefined;
+  const result = db.prepare(
+    `UPDATE artifacts SET ${entries.map(([key]) => `${key}=?`).join(",")} WHERE id=? AND status=?`,
+  ).run(...entries.map(([, value]) => value as string | null), id, expectedStatus);
+  return Number(result.changes) === 1 ? getArtifact(id) : undefined;
 }
 export function supersedeDownstream(runId: string, afterStage: number) {
   const kinds = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"].slice(afterStage) as ArtifactKind[];

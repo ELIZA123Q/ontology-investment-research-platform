@@ -45,6 +45,7 @@ export function validateReasoningTraceBindings(
   const evaluations = uniqueIndex(data.rule_evaluations || [], "RuleEvaluation");
   const judgments = uniqueIndex(data.judgments || [], "Judgment");
   const executed = new Set(applications.filter((item) => item.status === "executed").map((item) => item.application_id));
+  const adjudication = new Set(applications.filter((item) => item.capability_type === "adjudication").map((item) => item.application_id));
   const authority = YAML.parse(readFileSync(repositoryPath("governance/02_合同/rule_authority_registry.yaml"), "utf8"));
   const formalRules = new Set(Object.keys(authority.formal_ontology_rules || {}));
 
@@ -98,6 +99,9 @@ export function validateReasoningTraceBindings(
     for (const ref of judgment.rule_evaluation_ids) if (!evaluations.has(ref)) throw new Error(`${judgment.id} 引用了不存在的规则评估 ${ref}`);
     if (!indeterminate && !judgment.method_application_ids.some((ref) => executed.has(ref))) {
       throw new Error(`${judgment.id} 缺少 executed MethodApplication`);
+    }
+    if (!judgment.method_application_ids.some((ref) => adjudication.has(ref))) {
+      throw new Error(`${judgment.id} 缺少 adjudication MethodApplication，结构或取证 MA 不能代替裁决`);
     }
   }
   const tracesByJudgment = new Map<string, Array<{ id: string; node_ids: string[] }>>();

@@ -1,0 +1,222 @@
+artifact_id: 7eb0302d-3ed0-4410-a3f0-63e8fd7b4e92
+artifact_version: 2
+model_name: deepseek-v4-pro
+content_hash: e3ad1125309d0dec34b07073175b2299cc181235f7ace984a3fb5d7069196849
+json_content: >-
+  {
+    "frozen_stage03_artifact_id": "38575882-c10a-480c-93ca-161031821f4e",
+    "frozen_stage03_artifact_hash": "0ab26637dc3d550e1fe421a20e04e46271a1b381f2f608696ba34da3b5ab2db6",
+    "title": "台积电2024年全年营收同比增长33.9%，Q4同比增速38.8%高于全年增速——基于SEC EDGAR两份6-K申报的方向判断",
+    "core_claims": [
+      {
+        "id": "C-01",
+        "statement": "台积电2024年1月至12月全年营收为新台币28,943.1亿元，较2023年同期增长33.9%，确认全年营收同比增长。",
+        "source_keys": [
+          "SRC-CONTROLLED-01"
+        ]
+      },
+      {
+        "id": "C-02",
+        "statement": "台积电2024年第四季度营收同比增长38.8%。",
+        "source_keys": [
+          "SRC-CONTROLLED-02"
+        ]
+      },
+      {
+        "id": "C-03",
+        "statement": "第四季度同比增速38.8%高于全年同比增速33.9%，Q4增速快于全年均值，表明下半年营收加速。",
+        "source_keys": [
+          "SRC-CONTROLLED-01",
+          "SRC-CONTROLLED-02"
+        ]
+      }
+    ],
+    "counterpoints": [
+      "两份证据均来自TSMC自行向SEC提交的6-K申报，未经独立第三方审计核对，存在发行人自我报告偏差的固有风险。",
+      "营收数据以新台币计价，未考虑汇率波动对美元等外币计价营收的影响；若美元兑新台币升值，以美元计的增速可能与新台币增速存在差异。",
+      "两份申报发布时间间隔6天（2025-01-10与2025-01-16），12月营收报告不含季度拆分，Q4增速仅见于1月16日的完整财报新闻稿，无法用12月报告独立交叉验证Q4数据。"
+    ],
+    "limitations": [
+      "证据仅限于两份SEC EDGAR 6-K申报文件，未纳入台积电法人说明会逐字稿、分析师一致性预期或其他外部数据源，不能形成完整的投资判断。",
+      "全年增速33.9%与Q4增速38.8%均来自TSMC自行公告的合并营收数字，未经审计师就单季/全年增速发表独立意见；完整年报（20-F）通常于次年4月提交，届时可能存在追溯调整。",
+      "该证据无法说明营收增长的质量——例如是否来自出货量增长、ASP提升、产品组合优化（如3nm/5nm占比变化）或一次性项目。",
+      "证据截止日期为2025-01-16（Q4财报发布日），未覆盖后续可能发生的重述、更正或市场环境变化。"
+    ],
+    "sources": [
+      {
+        "source_id": null,
+        "source_key": "SRC-CONTROLLED-01",
+        "url": "https://www.sec.gov/Archives/edgar/data/1046179/000104617925000002/tsm-revenue20250110.htm",
+        "title": "TSMC December 2024 Revenue Report, Form 6-K",
+        "publisher": "TSMC / U.S. SEC EDGAR",
+        "published_at": "2025-01-10T00:00:00.000Z",
+        "source_tier": "S1",
+        "source_type": "user_supplied_public_evidence",
+        "search_excerpt": "研究者明确提供；仍须由 Stage03 形成事实草稿并逐项审阅",
+        "locator": "December 2024 Revenue Report paragraph",
+        "source_quote": "Revenue for January through December 2024 totaled NT$2,894.31 billion, an increase of 33.9 percent compared to the same period in 2023.",
+        "captured_at": null,
+        "content_hash": null,
+        "final_url": null,
+        "retrieval_status": null,
+        "quote_verified": null
+      },
+      {
+        "source_id": null,
+        "source_key": "SRC-CONTROLLED-02",
+        "url": "https://www.sec.gov/Archives/edgar/data/1046179/000104617925000004/a4q24e_withguidancexfinal.htm",
+        "title": "TSMC 2024 Fourth Quarter Earnings Release, Form 6-K exhibit",
+        "publisher": "TSMC / U.S. SEC EDGAR",
+        "published_at": "2025-01-16T00:00:00.000Z",
+        "source_tier": "S1",
+        "source_type": "user_supplied_public_evidence",
+        "search_excerpt": "研究者明确提供；仍须由 Stage03 形成事实草稿并逐项审阅",
+        "locator": "Earnings release, second paragraph",
+        "source_quote": "Year-over-year, fourth quarter revenue increased 38.8% while net income and diluted EPS both increased 57.0%.",
+        "captured_at": null,
+        "content_hash": null,
+        "final_url": null,
+        "retrieval_status": null,
+        "quote_verified": null
+      }
+    ],
+    "document_markdown": "# 台积电2024年营收同比增速分析报告\n\n**分析日期**：截至2025年1月16日\n**证据来源**：TSMC向美国SEC提交的两份6-K申报文件（EDGAR系统）\n**分析问题**：台积电2024年全年营收是否同比增长？Q4营收同比增速是否高于全年增速？\n\n---\n\n## 一、核心结论\n\n| 判断维度 | 结论 | 证据 |\n|----------|------|------|\n| 2024年全年营收是否同比增长？ | **是**，同比增长33.9% | SRC-CONTROLLED-01 |\n| Q4同比增速是否高于全年增速？ | **是**，38.8% > 33.9%，高出4.9个百分点 | SRC-CONTROLLED-01 + SRC-CONTROLLED-02 |\n\n---\n\n## 二、证据详述\n\n### 2.1 全年营收（SRC-CONTROLLED-01）\n\n- **来源**：TSMC 2024年12月营收报告（Form 6-K），2025年1月10日提交SEC\n- **原文引用**：\n  > \"Revenue for January through December 2024 totaled NT$2,894.31 billion, an increase of 33.9 percent compared to the same period in 2023.\"\n- **数据**：全年营收 NT$28,943.1亿，同比增长33.9%\n- **来源层级**：S1（TSMC官方SEC申报，属最高可信度层级）\n\n### 2.2 第四季度营收（SRC-CONTROLLED-02）\n\n- **来源**：TSMC 2024年第四季度财报新闻稿（Form 6-K exhibit），2025年1月16日提交SEC\n- **原文引用**：\n  > \"Year-over-year, fourth quarter revenue increased 38.8% while net income and diluted EPS both increased 57.0%.\"\n- **数据**：Q4营收同比增长38.8%\n- **来源层级**：S1\n\n### 2.3 增速比较（C-03，由C-01与C-02推导）\n\n- Q4同比增速 38.8% 显著高于全年同比增速 33.9%\n- 差值：+4.9个百分点\n- 含义：2024年下半年营收增速快于上半年，呈加速态势\n\n---\n\n## 三、反证与注意事项\n\n1. **发行人自我报告风险**：两份证据均为TSMC自行向SEC提交的6-K申报，未经独立第三方审计核对。2024年完整年报（20-F）预计于2025年4月提交，届时可能存在追溯调整。\n\n2. **汇率因素未剥离**：营收以新台币（NT$）计价。2024年间新台币兑美元存在波动，若以美元或其他币种衡量，增速可能与本报告数字存在差异。\n\n3. **数据交叉验证受限**：12月营收报告（2025-01-10发布）不含季度拆分，Q4增速38.8%仅见于1月16日的完整财报新闻稿。两份文件发布时间间隔6天，无法用前者独立验证后者。但两份文件均由同一发行人（TSMC）在同一报告周期内发布，数据应具有内部一致性。\n\n---\n\n## 四、证据局限与边界\n\n| 局限类型 | 说明 |\n|----------|------|\n| 来源数量 | 仅2份SEC申报，未纳入法人说明会、分析师报告、行业数据等外部验证 |\n| 审计状态 | 6-K为未经审计的临时报告，20-F年度审计报告尚未发布 |\n| 增速构成 | 无法分解为量（出货晶圆数）×价（ASP）贡献，亦无制程节点（3nm/5nm/7nm等）拆分 |\n| 时间边界 | 截止2025-01-16（Q4财报日），不覆盖后续重述、更正或新信息 |\n| 比较基准 | 增速为名义YoY对比，未做日历效应（如闰年、工作日数）调整 |\n\n---\n\n## 五、方向判断总结\n\n**问**：台积电2024年全年营收是否同比增长？\n**答**：是，增长33.9%。证据来源：TSMC 12月营收6-K（SRC-CONTROLLED-01），S1层级，可直接复核。\n\n**问**：Q4营收同比增速是否高于全年增速？\n**答**：是，Q4增速38.8%高于全年33.9%，高出4.9个百分点。证据来源：Q4财报6-K（SRC-CONTROLLED-02）与12月营收6-K（SRC-CONTROLLED-01）的比较，两项均为S1层级。\n\n**证据上限**：判断严格限于两份SEC 6-K申报文件提供的合并营收名义同比增速。超出此范围——包括但不仅限于：各季度绝对金额、分业务/分地区营收、毛利率/净利率趋势、2025年业绩指引——均不在本分析证据覆盖范围内。"
+  }
+content:
+  frozen_stage03_artifact_id: 38575882-c10a-480c-93ca-161031821f4e
+  frozen_stage03_artifact_hash: 0ab26637dc3d550e1fe421a20e04e46271a1b381f2f608696ba34da3b5ab2db6
+  title: 台积电2024年全年营收同比增长33.9%，Q4同比增速38.8%高于全年增速——基于SEC EDGAR两份6-K申报的方向判断
+  core_claims:
+    - id: C-01
+      statement: 台积电2024年1月至12月全年营收为新台币28,943.1亿元，较2023年同期增长33.9%，确认全年营收同比增长。
+      source_keys:
+        - SRC-CONTROLLED-01
+    - id: C-02
+      statement: 台积电2024年第四季度营收同比增长38.8%。
+      source_keys:
+        - SRC-CONTROLLED-02
+    - id: C-03
+      statement: 第四季度同比增速38.8%高于全年同比增速33.9%，Q4增速快于全年均值，表明下半年营收加速。
+      source_keys:
+        - SRC-CONTROLLED-01
+        - SRC-CONTROLLED-02
+  counterpoints:
+    - 两份证据均来自TSMC自行向SEC提交的6-K申报，未经独立第三方审计核对，存在发行人自我报告偏差的固有风险。
+    - 营收数据以新台币计价，未考虑汇率波动对美元等外币计价营收的影响；若美元兑新台币升值，以美元计的增速可能与新台币增速存在差异。
+    - 两份申报发布时间间隔6天（2025-01-10与2025-01-16），12月营收报告不含季度拆分，Q4增速仅见于1月16日的完整财报新闻稿，无法用12月报告独立交叉验证Q4数据。
+  limitations:
+    - 证据仅限于两份SEC EDGAR 6-K申报文件，未纳入台积电法人说明会逐字稿、分析师一致性预期或其他外部数据源，不能形成完整的投资判断。
+    - 全年增速33.9%与Q4增速38.8%均来自TSMC自行公告的合并营收数字，未经审计师就单季/全年增速发表独立意见；完整年报（20-F）通常于次年4月提交，届时可能存在追溯调整。
+    - 该证据无法说明营收增长的质量——例如是否来自出货量增长、ASP提升、产品组合优化（如3nm/5nm占比变化）或一次性项目。
+    - 证据截止日期为2025-01-16（Q4财报发布日），未覆盖后续可能发生的重述、更正或市场环境变化。
+  sources:
+    - source_id: null
+      source_key: SRC-CONTROLLED-01
+      url: https://www.sec.gov/Archives/edgar/data/1046179/000104617925000002/tsm-revenue20250110.htm
+      title: TSMC December 2024 Revenue Report, Form 6-K
+      publisher: TSMC / U.S. SEC EDGAR
+      published_at: 2025-01-10T00:00:00.000Z
+      source_tier: S1
+      source_type: user_supplied_public_evidence
+      search_excerpt: 研究者明确提供；仍须由 Stage03 形成事实草稿并逐项审阅
+      locator: December 2024 Revenue Report paragraph
+      source_quote: Revenue for January through December 2024 totaled NT$2,894.31
+        billion, an increase of 33.9 percent compared to the same period in
+        2023.
+      captured_at: null
+      content_hash: null
+      final_url: null
+      retrieval_status: null
+      quote_verified: null
+    - source_id: null
+      source_key: SRC-CONTROLLED-02
+      url: https://www.sec.gov/Archives/edgar/data/1046179/000104617925000004/a4q24e_withguidancexfinal.htm
+      title: TSMC 2024 Fourth Quarter Earnings Release, Form 6-K exhibit
+      publisher: TSMC / U.S. SEC EDGAR
+      published_at: 2025-01-16T00:00:00.000Z
+      source_tier: S1
+      source_type: user_supplied_public_evidence
+      search_excerpt: 研究者明确提供；仍须由 Stage03 形成事实草稿并逐项审阅
+      locator: Earnings release, second paragraph
+      source_quote: Year-over-year, fourth quarter revenue increased 38.8% while net
+        income and diluted EPS both increased 57.0%.
+      captured_at: null
+      content_hash: null
+      final_url: null
+      retrieval_status: null
+      quote_verified: null
+  document_markdown: |-
+    # 台积电2024年营收同比增速分析报告
+
+    **分析日期**：截至2025年1月16日
+    **证据来源**：TSMC向美国SEC提交的两份6-K申报文件（EDGAR系统）
+    **分析问题**：台积电2024年全年营收是否同比增长？Q4营收同比增速是否高于全年增速？
+
+    ---
+
+    ## 一、核心结论
+
+    | 判断维度 | 结论 | 证据 |
+    |----------|------|------|
+    | 2024年全年营收是否同比增长？ | **是**，同比增长33.9% | SRC-CONTROLLED-01 |
+    | Q4同比增速是否高于全年增速？ | **是**，38.8% > 33.9%，高出4.9个百分点 | SRC-CONTROLLED-01 + SRC-CONTROLLED-02 |
+
+    ---
+
+    ## 二、证据详述
+
+    ### 2.1 全年营收（SRC-CONTROLLED-01）
+
+    - **来源**：TSMC 2024年12月营收报告（Form 6-K），2025年1月10日提交SEC
+    - **原文引用**：
+      > "Revenue for January through December 2024 totaled NT$2,894.31 billion, an increase of 33.9 percent compared to the same period in 2023."
+    - **数据**：全年营收 NT$28,943.1亿，同比增长33.9%
+    - **来源层级**：S1（TSMC官方SEC申报，属最高可信度层级）
+
+    ### 2.2 第四季度营收（SRC-CONTROLLED-02）
+
+    - **来源**：TSMC 2024年第四季度财报新闻稿（Form 6-K exhibit），2025年1月16日提交SEC
+    - **原文引用**：
+      > "Year-over-year, fourth quarter revenue increased 38.8% while net income and diluted EPS both increased 57.0%."
+    - **数据**：Q4营收同比增长38.8%
+    - **来源层级**：S1
+
+    ### 2.3 增速比较（C-03，由C-01与C-02推导）
+
+    - Q4同比增速 38.8% 显著高于全年同比增速 33.9%
+    - 差值：+4.9个百分点
+    - 含义：2024年下半年营收增速快于上半年，呈加速态势
+
+    ---
+
+    ## 三、反证与注意事项
+
+    1. **发行人自我报告风险**：两份证据均为TSMC自行向SEC提交的6-K申报，未经独立第三方审计核对。2024年完整年报（20-F）预计于2025年4月提交，届时可能存在追溯调整。
+
+    2. **汇率因素未剥离**：营收以新台币（NT$）计价。2024年间新台币兑美元存在波动，若以美元或其他币种衡量，增速可能与本报告数字存在差异。
+
+    3. **数据交叉验证受限**：12月营收报告（2025-01-10发布）不含季度拆分，Q4增速38.8%仅见于1月16日的完整财报新闻稿。两份文件发布时间间隔6天，无法用前者独立验证后者。但两份文件均由同一发行人（TSMC）在同一报告周期内发布，数据应具有内部一致性。
+
+    ---
+
+    ## 四、证据局限与边界
+
+    | 局限类型 | 说明 |
+    |----------|------|
+    | 来源数量 | 仅2份SEC申报，未纳入法人说明会、分析师报告、行业数据等外部验证 |
+    | 审计状态 | 6-K为未经审计的临时报告，20-F年度审计报告尚未发布 |
+    | 增速构成 | 无法分解为量（出货晶圆数）×价（ASP）贡献，亦无制程节点（3nm/5nm/7nm等）拆分 |
+    | 时间边界 | 截止2025-01-16（Q4财报日），不覆盖后续重述、更正或新信息 |
+    | 比较基准 | 增速为名义YoY对比，未做日历效应（如闰年、工作日数）调整 |
+
+    ---
+
+    ## 五、方向判断总结
+
+    **问**：台积电2024年全年营收是否同比增长？
+    **答**：是，增长33.9%。证据来源：TSMC 12月营收6-K（SRC-CONTROLLED-01），S1层级，可直接复核。
+
+    **问**：Q4营收同比增速是否高于全年增速？
+    **答**：是，Q4增速38.8%高于全年33.9%，高出4.9个百分点。证据来源：Q4财报6-K（SRC-CONTROLLED-02）与12月营收6-K（SRC-CONTROLLED-01）的比较，两项均为S1层级。
+
+    **证据上限**：判断严格限于两份SEC 6-K申报文件提供的合并营收名义同比增速。超出此范围——包括但不仅限于：各季度绝对金额、分业务/分地区营收、毛利率/净利率趋势、2025年业绩指引——均不在本分析证据覆盖范围内。

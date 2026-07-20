@@ -1,0 +1,367 @@
+stage: "03"
+package_projection: workbench_zod
+schema_version: 3.0.0
+method_applications:
+  - application_id: MA-TSMC-REV-STRUCT-01
+    method_id: BF-FQ-01
+    method_version: 2.0.0
+    capability_type: judgment_structure
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs:
+      - company_exposure_execution
+    status: candidate
+    precondition_checks:
+      - precondition_id: BF-FQ-01-PC01-judgment_unit
+        result: not_checked
+        evidence_refs: []
+        reason: 02阶段仅登记候选，前置条件将在03阶段执行时验证
+      - precondition_id: BF-FQ-01-PC02-company_scope
+        result: not_checked
+        evidence_refs: []
+        reason: 台积电公司范围已在01阶段定义，需03阶段确认实例匹配
+      - precondition_id: BF-FQ-01-PC03-reporting_period
+        result: not_checked
+        evidence_refs: []
+        reason: 2024自然年期间已在01阶段定义，需03阶段确认数据覆盖
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 适用于台积电合并报表口径的营收数据验证；仅涉及已公告的历史财务数据；两个判断单元均为二元方向判断（是/否），不涉及幅度或归因
+    limitations:
+      - 不涉及利润表其他科目
+      - 不涉及制程或应用拆分
+      - 营收观测值使用task_local变量，非正式本体StateVariable
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-TSMC-REV-STRUCT-01
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: BF-EE-01
+        decision: not_selected
+        reason: 面向盈利弹性判断，本任务仅涉及营收方向
+      - method_id: BF-CA-01
+        decision: not_selected
+        reason: 面向归因判断，本任务不涉及因果归因
+      - method_id: BF-FS-01
+        decision: not_selected
+        reason: 面向财务报表结构分析，本任务仅需营收单一指标
+  - application_id: MA-TSMC-REV-STRUCT-02
+    method_id: BF-FQ-01
+    method_version: 2.0.0
+    capability_type: judgment_structure
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs:
+      - company_exposure_execution
+    status: candidate
+    precondition_checks:
+      - precondition_id: BF-FQ-01-PC01-judgment_unit
+        result: not_checked
+        evidence_refs: []
+        reason: 02阶段仅登记候选
+      - precondition_id: BF-FQ-01-PC02-company_scope
+        result: not_checked
+        evidence_refs: []
+        reason: 需03确认实例匹配
+      - precondition_id: BF-FQ-01-PC03-reporting_period
+        result: not_checked
+        evidence_refs: []
+        reason: 2024 Q4与2024全年双期间需03确认数据覆盖
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 适用于台积电Q4与全年两个期间的营收增速比较；仅涉及已公告历史数据的方向比较；两个增速必须基于同币种、同口径
+    limitations:
+      - 增速比较对基数敏感——2023 Q4基数与2023全年基数不同
+      - 不涉及增速差异的幅度显著性判断
+      - 不涉及季节性调整
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-TSMC-REV-STRUCT-02
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: BF-EE-01
+        decision: not_selected
+        reason: 不涉及盈利弹性
+      - method_id: BF-CA-01
+        decision: not_selected
+        reason: 不涉及归因
+      - method_id: BF-FS-01
+        decision: not_selected
+        reason: 无需财务报表结构分析
+  - application_id: MA-TSMC-REV-EVID-01
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs:
+      - company_exposure_execution
+      - counter_evidence
+    status: selected
+    precondition_checks:
+      - precondition_id: kb03:A02-PC01-state_variable_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 人工选择的公开来源已完成抓取、逐字引文、发布时间和内容 hash 核验
+      - precondition_id: kb03:A02-PC02-observation_basis_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 人工选择的公开来源已完成抓取、逐字引文、发布时间和内容 hash 核验
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 用于获取台积电2023全年和2024全年合并营收的同口径观测值，并建立同比基准比较；仅限台积电官方公告数据，新台币口径
+    limitations:
+      - 营收观测值非正式本体StateVariable，使用task_local变量承接
+      - 若官方数据存在后续修订，需以最新公告为准
+      - 美元口径数据为辅助核对，不作为主判断依据
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-TSMC-REV-EVID-01
+      actor: human-controlled-evidence-projection
+      recorded_at: 2026-07-20T04:19:41.160Z
+    alternatives:
+      - method_id: kb03:A01
+        decision: not_selected
+        reason: A01面向关键事实确认，营收数据需要同口径基准比较，A02的状态变量测量框架更匹配
+      - method_id: kb03:A09
+        decision: not_selected
+        reason: A09面向代理指标，本任务使用直接观测营收数据
+  - application_id: MA-TSMC-REV-EVID-02
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs:
+      - company_exposure_execution
+      - counter_evidence
+    status: selected
+    precondition_checks:
+      - precondition_id: kb03:A02-PC01-state_variable_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 人工选择的公开来源已完成抓取、逐字引文、发布时间和内容 hash 核验
+      - precondition_id: kb03:A02-PC02-observation_basis_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 人工选择的公开来源已完成抓取、逐字引文、发布时间和内容 hash 核验
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 用于获取2023 Q4、2024 Q4、2023全年和2024全年的营收观测值，计算两个同比增速并进行方向比较；仅限台积电官方公告数据
+    limitations:
+      - Q4增速与全年增速的分母不同（2023 Q4 vs 2023全年），基数差异不影响方向判断但影响幅度解读
+      - 不涉及增速差异的统计显著性检验
+      - 若2023 Q4基数异常低/高，需额外上下文
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-TSMC-REV-EVID-02
+      actor: human-controlled-evidence-projection
+      recorded_at: 2026-07-20T04:19:41.161Z
+    alternatives:
+      - method_id: kb03:A01
+        decision: not_selected
+        reason: 增速比较涉及同口径基准，A02更适合
+      - method_id: kb03:A03
+        decision: not_selected
+        reason: A03面向多期趋势判断，本任务仅比较两个增速点
+  - application_id: MA-TSMC-REV-ADJ-01
+    method_id: kb04:A02
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs: []
+    status: candidate
+    precondition_checks:
+      - precondition_id: kb04:A02-PC01-state_measurement_or_equivalent_baseline
+        result: not_checked
+        evidence_refs: []
+        reason: 需03阶段完成营收观测值获取和同比基准建立后，才能满足此前置条件
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 在03阶段取得2023全年和2024全年同口径营收数据后，裁决2024年全年营收是否同比增长；输出二元方向及置信度等级
+    limitations:
+      - 仅输出方向判断，不输出增长幅度或归因
+      - 证据不足时降为暂不可判断
+      - 不跨币种比较——若TWD与USD口径矛盾，以TWD为准并记录差异
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-TSMC-REV-ADJ-01
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: kb04:A00
+        decision: not_selected
+        reason: A00为通用裁决总则，A02为趋势判断专用方法
+      - method_id: kb04:A01
+        decision: not_selected
+        reason: A01面向单时点状态判断，本判断涉及两期比较
+      - method_id: kb04:A03
+        decision: not_selected
+        reason: A03面向周期阶段判断，本任务不涉及周期定位
+  - application_id: MA-TSMC-REV-ADJ-02
+    method_id: kb04:A02
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs: []
+    status: candidate
+    precondition_checks:
+      - precondition_id: kb04:A02-PC01-state_measurement_or_equivalent_baseline
+        result: not_checked
+        evidence_refs: []
+        reason: 需03阶段完成Q4和全年两个同比增速的计算后，才能满足此前置条件
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 在03阶段取得两个同比增速后，裁决2024 Q4同比增速是否高于2024全年同比增速；输出二元方向及置信度等级
+    limitations:
+      - 高于为严格大于，等于不属于高于
+      - 增速差异小于0.5个百分点时需检查精度
+      - 证据不足时降为暂不可判断
+    counter_example_refs: []
+    provenance:
+      stage: stage_03
+      source_application_id: MA-TSMC-REV-ADJ-02
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: kb04:A00
+        decision: not_selected
+        reason: A00为通用裁决总则，A02更精确匹配趋势方向比较
+      - method_id: kb04:A01
+        decision: not_selected
+        reason: 增速比较涉及两个时点的方向差异
+      - method_id: kb04:A05
+        decision: not_selected
+        reason: 不涉及增速差异的归因判断
+sources:
+  - source_id: 2d5e70da-cd5b-46d9-8891-509e1f5948bb
+    source_key: SRC-CONTROLLED-01
+    url: https://www.sec.gov/Archives/edgar/data/1046179/000104617925000002/tsm-revenue20250110.htm
+    title: TSMC December 2024 Revenue Report, Form 6-K
+    publisher: TSMC / U.S. SEC EDGAR
+    published_at: 2025-01-10T00:00:00.000Z
+    source_tier: S1
+    source_type: user_supplied_public_evidence
+    search_excerpt: 研究者明确提供；仍须由 Stage03 形成事实草稿并逐项审阅
+    locator: December 2024 Revenue Report paragraph
+    source_quote: Revenue for January through December 2024 totaled NT$2,894.31
+      billion, an increase of 33.9 percent compared to the same period in 2023.
+    captured_at: 2026-07-20T03:31:24.660Z
+    content_hash: 0cf6a2408c5ce940daa20760f8036a45442e5854267da1fedaac6583f63be798
+    final_url: https://www.sec.gov/Archives/edgar/data/1046179/000104617925000002/tsm-revenue20250110.htm
+    retrieval_status: captured
+    quote_verified: true
+  - source_id: 93d383ac-5023-471a-bd41-29c3833c8667
+    source_key: SRC-CONTROLLED-02
+    url: https://www.sec.gov/Archives/edgar/data/1046179/000104617925000004/a4q24e_withguidancexfinal.htm
+    title: TSMC 2024 Fourth Quarter Earnings Release, Form 6-K exhibit
+    publisher: TSMC / U.S. SEC EDGAR
+    published_at: 2025-01-16T00:00:00.000Z
+    source_tier: S1
+    source_type: user_supplied_public_evidence
+    search_excerpt: 研究者明确提供；仍须由 Stage03 形成事实草稿并逐项审阅
+    locator: Earnings release, second paragraph
+    source_quote: Year-over-year, fourth quarter revenue increased 38.8% while net
+      income and diluted EPS both increased 57.0%.
+    captured_at: 2026-07-20T03:27:24.706Z
+    content_hash: e53bd0898138cc1f73f8e4f88f5ac9fdf21c7dd2d24446c0bafdef756015e1f1
+    final_url: https://www.sec.gov/Archives/edgar/data/1046179/000104617925000004/a4q24e_withguidancexfinal.htm
+    retrieval_status: captured
+    quote_verified: true
+evidence_drafts:
+  - id: EV-CONTROLLED-01
+    statement: Revenue for January through December 2024 totaled NT$2,894.31
+      billion, an increase of 33.9 percent compared to the same period in 2023.
+    kind: fact_draft
+    direction: support
+    source_keys:
+      - SRC-CONTROLLED-01
+    source_ids:
+      - 2d5e70da-cd5b-46d9-8891-509e1f5948bb
+    judgment_unit_ids:
+      - JU-01
+      - JU-02
+    ontology_node_ids:
+      - task_local:tsmc_revenue
+      - task_local:yoy_growth_fy2024
+    subject_ref: tsmc_revenue
+    time_basis: reporting_period
+    scope_ref: RS-TSMC-REVENUE-2024
+    observed_at: 2024-12-31T23:59:59.000+08:00
+    valid_from: 2024-12-31T23:59:59.000+08:00
+    valid_to: null
+    published_at: 2025-01-10T00:00:00.000Z
+    cutoff_at: 2025-01-16T23:59:59.999+08:00
+    directness: direct
+    limitations:
+      - 受控人工登记；事实陈述逐字采用已核验来源引文，未由模型改写
+  - id: EV-CONTROLLED-02
+    statement: Year-over-year, fourth quarter revenue increased 38.8% while net
+      income and diluted EPS both increased 57.0%.
+    kind: fact_draft
+    direction: support
+    source_keys:
+      - SRC-CONTROLLED-02
+    source_ids:
+      - 93d383ac-5023-471a-bd41-29c3833c8667
+    judgment_unit_ids:
+      - JU-02
+    ontology_node_ids:
+      - task_local:tsmc_revenue
+      - task_local:yoy_growth_q4_2024
+      - task_local:q4_vs_fy_growth_spread
+    subject_ref: tsmc_revenue
+    time_basis: reporting_period
+    scope_ref: RS-TSMC-REVENUE-2024
+    observed_at: 2024-12-31T23:59:59.000+08:00
+    valid_from: 2024-12-31T23:59:59.000+08:00
+    valid_to: null
+    published_at: 2025-01-16T00:00:00.000Z
+    cutoff_at: 2025-01-16T23:59:59.999+08:00
+    directness: direct
+    limitations:
+      - 受控人工登记；事实陈述逐字采用已核验来源引文，未由模型改写
+unresolved_gaps:
+  - 来源独立性不足：已登记事实均来自同一 source_group，后续判断强度不得因文档数量而升级

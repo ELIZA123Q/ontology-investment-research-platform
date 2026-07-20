@@ -3,6 +3,7 @@ import { latestArtifact, listWorkItems } from "@/adapters/db";
 import { IndependentReviewButton } from "@/app/components/independent-review-button";
 import { ResearchGraph, type ResearchGraphEdge, type ResearchGraphNode } from "@/app/components/research-graph";
 import { RunNav } from "@/app/components/run-nav";
+import { ControlledJudgmentProjectionForm } from "@/app/components/controlled-projection-forms";
 import { parseJson } from "@/engine/types";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const artifact = latestArtifact(id, "stage_04", ["approved", "needs_review"]);
   const evidenceData: any = parseJson(latestArtifact(id, "stage_03", ["approved", "needs_review"])?.json_content || "{}", {});
+  const structureData: any = parseJson(latestArtifact(id, "stage_02", ["approved"])?.json_content || "{}", {});
   const reviewArtifact = latestArtifact(id, "independent_review", ["needs_review", "approved"]);
   const review: any = parseJson(reviewArtifact?.json_content || "{}", {});
   const data: any = parseJson(artifact?.json_content || "{}", {});
@@ -63,7 +65,8 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
 
   return <>
     <RunNav runId={id} active="judgment" />
-    <div className="pagehead scene-head"><div><div className="eyebrow">阶段产物视图 · 04</div><h1>现有证据，允许说到多强？</h1><p className="muted">本页展示阶段 04 产物投影，不是实例图。从证据、信号和竞争解释逐层检查判断；图操作见 <Link href={`/runs/${id}/object-set`}>实例图</Link>。</p></div><div className="actions">{artifact?.status === "approved" ? <IndependentReviewButton runId={id} /> : null}<Link className="button-secondary" href={`/runs/${id}/stages/4`}>高级编辑</Link></div></div>
+    <div className="pagehead scene-head"><div><div className="eyebrow">阶段产物视图 · 04</div><h1>现有证据，允许说到多强？</h1><p className="muted">本页展示阶段 04 产物投影，不是实例图。从证据、信号和竞争解释逐层检查判断；图操作见 <Link href={`/runs/${id}/object-set`}>实例图</Link>。</p></div><div className="actions">{artifact?.status === "approved" ? <IndependentReviewButton runId={id} completed={Boolean(reviewArtifact)} /> : null}<Link className="button-secondary" href={`/runs/${id}/stages/4`}>高级编辑</Link></div></div>
+    <ControlledJudgmentProjectionForm runId={id} units={(structureData.judgment_units || []).map((unit: any, index: number) => ({ id: String(unit.id || unit.judgment_unit_id || `JU-${index + 1}`), title: String(unit.title || unit.statement || unit.question), ontology_node_ids: Array.isArray(unit.ontology_node_ids) ? unit.ontology_node_ids.map(String) : [] }))} evidence={evidence.filter((item: any) => item.kind !== "gap").map((item: any) => ({ id: item._id, statement: String(item.statement || ""), judgment_unit_ids: Array.isArray(item.judgment_unit_ids) ? item.judgment_unit_ids.map(String) : [], direction: String(item.direction || "") }))} methodApplications={(evidenceData.method_applications || []).map((application: any) => ({ application_id: String(application.application_id || ""), method_id: String(application.method_id || ""), capability_type: String(application.capability_type || ""), target_judgment_unit_refs: Array.isArray(application.target_judgment_unit_refs) ? application.target_judgment_unit_refs.map(String) : [], precondition_checks: Array.isArray(application.precondition_checks) ? application.precondition_checks.map((check: any) => ({ precondition_id: String(check.precondition_id || ""), reason: String(check.reason || "") })) : [] }))} />
     {artifact ? <ResearchGraph nodes={nodes} edges={edges} runId={id} workItems={workItems} emptyMessage="阶段 04 尚未形成可视化判断。" /> : <div className="card empty-state"><h2>判断尚未形成</h2><p>先完成证据准备，再运行判断裁决。</p><Link className="button" href={`/runs/${id}/stages/4`}>进入判断生成</Link></div>}
     {reviewArtifact ? <section className={`review-strip ${review.verdict === "rework" ? "review-rework" : "review-pass"}`}><div><span>独立审阅 · {review.verdict}</span><strong>{review.overall_assessment}</strong></div><small>{(review.issues || []).length ? `${review.issues.length} 项问题已标记到推理图` : "未发现需要返工的实质问题"}</small></section> : null}
   </>;

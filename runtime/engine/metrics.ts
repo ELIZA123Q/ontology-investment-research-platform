@@ -1,6 +1,8 @@
 import type { Artifact, SourceRecord } from "./types";
 import { parseJson } from "./types";
 
+export const COMPARISON_METRICS_VERSION = "comparison-metrics-v4";
+
 const usage = (artifact: Artifact) => parseJson<any>(artifact.token_usage, {});
 
 type ComparableRun = {
@@ -132,9 +134,13 @@ export function comparisonMetrics(
   const evidenceDrafts = evidenceData.evidence_drafts || [];
   const evidenceById = new Map<string, any>(evidenceDrafts.map((item: any) => [String(item.id), item]));
   const judgmentById = new Map<string, any>(judgments.map((item: any) => [String(item.id), item]));
+  const evidenceBoundSourceIds = new Set<string>(evidenceDrafts
+    .filter((item: any) => item.kind !== "gap")
+    .flatMap((item: any) => (item.source_ids || []).map(String)));
   const usableSourceIds = new Set(
     sources
-      .filter((source) => source.usability_status === "usable"
+      .filter((source) => evidenceBoundSourceIds.has(source.id)
+        && source.usability_status === "usable"
         && source.retrieval_status === "captured"
         && Boolean(source.content_hash)
         && Boolean(source.locator)
@@ -145,15 +151,24 @@ export function comparisonMetrics(
   const executedIds = new Set(
     applications.filter((item: any) => item.status === "executed").map((item: any) => item.application_id),
   );
+  const applicationById = new Map<string, any>(applications.map((item: any) => [String(item.application_id), item]));
+  const finalStatuses = new Set(["executed", "rejected", "blocked", "degraded"]);
   const tokens = (artifact: Artifact) => {
     const value = usage(artifact);
-    return (value.input_tokens || 0) + (value.output_tokens || 0);
+    return (value.input_tokens || value.prompt_tokens || 0) + (value.output_tokens || value.completion_tokens || 0);
+  };
+  const claimJ0Stop = (claim: any) => {
+    const claimJudgments = (claim.judgment_ids || []).map((id: unknown) => judgmentById.get(String(id))).filter(Boolean);
+    return claimJudgments.length > 0 && claimJudgments.every((item: any) => item.strength === "J0"
+      && ["blocked", "indeterminate", "contested"].includes(String(item.decision_status))
+      && Boolean(String(item.not_judgeable_reason || "").trim()));
   };
   const claimHasClosedTrace = (claim: any) => {
     const claimEvidenceIds = new Set<string>((claim.evidence_draft_ids || []).map(String));
     const claimSourceIds = new Set<string>((claim.source_ids || []).map(String));
     const claimJudgments = (claim.judgment_ids || []).map((id: unknown) => judgmentById.get(String(id))).filter(Boolean);
-    if (!claimJudgments.length || !claimEvidenceIds.size || !claimSourceIds.size) return false;
+    if (!claimJudgments.length) return false;
+    if (!claimEvidenceIds.size || !claimSourceIds.size) return false;
     const judgmentEvidenceIds = new Set<string>(claimJudgments.flatMap((item: any) => [
       ...(item.supporting_evidence_draft_ids || []),
       ...(item.counter_evidence_draft_ids || []),
@@ -167,12 +182,22 @@ export function comparisonMetrics(
       && [...claimSourceIds].every((id) => derivedSourceIds.has(id) && usableSourceIds.has(id))
       && [...derivedSourceIds].every((id) => claimSourceIds.has(id));
   };
+  const claimHasSemanticTrace = (claim: any) => claimHasClosedTrace(claim)
+    || (claimJ0Stop(claim) && !(claim.evidence_draft_ids || []).length && !(claim.source_ids || []).length);
   const claimHasMethodTrace = (claim: any) => {
     const claimMethods = new Set<string>((claim.method_application_ids || []).map(String));
     const boundJudgments = (claim.judgment_ids || []).map((id: unknown) => judgmentById.get(String(id))).filter(Boolean);
     if (!claimMethods.size || !boundJudgments.length) return false;
     const judgmentMethods = new Set<string>(boundJudgments.flatMap((item: any) => (item.method_application_ids || []).map(String)));
-    return [...claimMethods].every((id) => judgmentMethods.has(id) && executedIds.has(id));
+    const onlyJ0Stops = boundJudgments.every((item: any) => item.strength === "J0"
+      && ["blocked", "indeterminate", "contested"].includes(String(item.decision_status)));
+    const resolved = [...claimMethods].map((id) => ({ id, application: applicationById.get(id) }));
+    const allBoundAndFinal = resolved.every(({ id, application }) => judgmentMethods.has(id)
+      && Boolean(application)
+      && (onlyJ0Stops ? finalStatuses.has(application.status) : application.status === "executed"));
+    const hasAdjudication = resolved.some(({ application }) => application?.capability_type === "adjudication"
+      && (onlyJ0Stops ? finalStatuses.has(application.status) : application.status === "executed"));
+    return allBoundAndFinal && hasAdjudication;
   };
   return {
     baseline: {
@@ -180,7 +205,7 @@ export function comparisonMetrics(
       supported_claim_ratio: baselineClaims.length
         ? baselineClaims.filter((item: any) => item.source_keys?.length).length / baselineClaims.length
         : 0,
-      counterevidence_count: (baselineData.counterpoints || []).length,
+      counterpoints_count: (baselineData.counterpoints || []).length,
       limitations_count: (baselineData.limitations || []).length,
       tokens: tokens(baseline),
       web_search_calls: parseJson<any>(baseline.tool_usage, {}).web_search_calls || 0,
@@ -190,14 +215,23 @@ export function comparisonMetrics(
       supported_claim_ratio: reportClaims.length
         ? reportClaims.filter(claimHasClosedTrace).length / reportClaims.length
         : 0,
-      counterevidence_count: judgments.reduce((total: number, item: any) => total + (item.counter_evidence_draft_ids?.length || 0), 0),
+      counterevidence_fact_count: judgments.reduce((total: number, item: any) => total + (item.counter_evidence_draft_ids?.length || 0), 0),
+      active_competing_explanation_count: (judgmentData.competing_explanations || [])
+        .filter((item: any) => !["eliminated", "rejected"].includes(String(item.status))).length,
       limitations_count: (reportData.limitations || []).length
         + judgments.reduce((total: number, item: any) => total + (item.invalidation_conditions?.length || 0), 0),
       traceable_claim_ratio: reportClaims.length
-        ? reportClaims.filter((item: any) => claimHasClosedTrace(item) && claimHasMethodTrace(item)).length / reportClaims.length
+        ? reportClaims.filter((item: any) => claimHasSemanticTrace(item) && claimHasMethodTrace(item)).length / reportClaims.length
         : 0,
       judgment_method_trace_ratio: judgments.length
-        ? judgments.filter((item: any) => (item.method_application_ids || []).some((id: string) => executedIds.has(id))).length / judgments.length
+        ? judgments.filter((item: any) => {
+          const j0Stop = item.strength === "J0" && ["blocked", "indeterminate", "contested"].includes(String(item.decision_status));
+          return (item.method_application_ids || []).some((id: string) => {
+            const application = applicationById.get(id);
+            return application?.capability_type === "adjudication"
+              && (j0Stop ? finalStatuses.has(application.status) : application.status === "executed");
+          });
+        }).length / judgments.length
         : 0,
       method_application_count: applications.length,
       executed_method_application_count: executedIds.size,

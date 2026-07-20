@@ -65,13 +65,18 @@ runtime_relation_types:
 
 executable_method_profile:
   kb04:A01:
-    minimum_evidence: 1
+    minimum_evidence_facts: 1
+    minimum_independent_source_groups: 1
     required_preconditions: [state_variable_defined, observation_scope_aligned]
   kb04:A02:
-    minimum_evidence: 2
+    # 一条直接披露可已经包含同口径基准与同比方向；跨指标比较任务仍由
+    # Judgment 的显式 evidence refs 和证据上限规则约束，不以文档条数冒充独立性。
+    minimum_evidence_facts: 1
+    minimum_independent_source_groups: 1
     required_preconditions: [state_measurement_or_equivalent_baseline]
   kb04:A03:
-    minimum_evidence: 2
+    minimum_evidence_facts: 2
+    minimum_independent_source_groups: 1
     required_preconditions: [state_and_trend_baseline]
 
 prohibitions:

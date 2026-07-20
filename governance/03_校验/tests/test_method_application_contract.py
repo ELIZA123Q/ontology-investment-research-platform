@@ -90,6 +90,21 @@ class MethodApplicationContractTests(unittest.TestCase):
         errors = validator.validate_expression_projection(expression, {}, required=False)
         self.assertTrue(any("forbidden semantic collections" in error for error in errors))
 
+    def test_each_judgment_unit_requires_all_three_capabilities(self) -> None:
+        errors = validator.validate_stage_applications(
+            {"method_applications": [self.application()]}, "stage_02", required=True,
+            known_judgment_units={"JU-01"},
+        )
+        self.assertTrue(any("missing capabilities" in error for error in errors))
+
+    def test_stage03_evidence_candidate_must_converge(self) -> None:
+        item = self.application()
+        item["provenance"] = {**item["provenance"], "stage": "stage_03", "source_application_id": "MA-01"}
+        errors = validator.validate_stage_applications(
+            {"method_applications": [item]}, "stage_03", required=True, prior_items=[self.application()]
+        )
+        self.assertTrue(any("evidence application must converge" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()

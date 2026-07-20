@@ -16,6 +16,10 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from package_kind import KIND_WORKBENCH, detect_package_kind, redirect_message  # noqa: E402
+from runtime_deterministic_rules import (  # noqa: E402
+    REQUIRED_RULES,
+    assert_required_deterministic_rules,
+)
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "runtime" / "engine"))
 from ontology_instance_graph import InstanceGraphError, validate_instance_graph  # noqa: E402
 
@@ -36,13 +40,6 @@ REQUIRED_FILES = (
 )
 MA_ID = re.compile(r"^MA-[A-Z0-9_-]+$")
 STAGE_KEYS = ("stage_01", "stage_02", "stage_03", "stage_04", "stage_05")
-REQUIRED_RULES = {
-    "evidence_scope_time_alignment",
-    "no_direct_evidence_to_judgment",
-    "judgment_reference_integrity",
-    "judgment_evidence_threshold",
-    "judgment_status_consistency",
-}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -91,6 +88,35 @@ def _required(item: dict[str, Any], fields: tuple[str, ...], label: str, errors:
         value = item.get(field)
         if value is None or value == "" or (isinstance(value, list) and not value):
             errors.append(f"{label} 缺少实质字段 {field}")
+
+
+def _terminal_adjudication_refs(
+    judgment: dict[str, Any],
+    final_applications: dict[str, dict[str, Any]],
+) -> set[str]:
+    """Return final adjudication applications that make a J0 stop auditable."""
+    terminal_statuses = {"executed", "rejected", "blocked", "degraded"}
+    refs = judgment.get("method_application_ids") or judgment.get("method_application_refs") or []
+    return {
+        str(ref)
+        for ref in refs
+        if (application := final_applications.get(str(ref)))
+        and application.get("capability_type") == "adjudication"
+        and application.get("status") in terminal_statuses
+    }
+
+
+def _is_strict_j0_stop(
+    judgment: dict[str, Any],
+    final_applications: dict[str, dict[str, Any]],
+) -> bool:
+    """J0 is an explicit, reasoned stop state—not a generic empty-output escape."""
+    return (
+        judgment.get("strength") == "J0"
+        and judgment.get("decision_status") in {"blocked", "indeterminate", "contested"}
+        and bool(str(judgment.get("not_judgeable_reason") or "").strip())
+        and bool(_terminal_adjudication_refs(judgment, final_applications))
+    )
 
 
 def validate_workbench_package(run_dir: str | Path) -> list[str]:
@@ -295,16 +321,16 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
             if str(ref) not in hypotheses:
                 errors.append(f"signal {signal_id} 引用未知假设 {ref}")
     for hypothesis_id, hypothesis in hypotheses.items():
-        _required(hypothesis, ("statement", "signal_ids", "falsification_conditions", "time_horizon"), f"hypothesis {hypothesis_id}", errors)
+        # signal_ids is conditionally checked after the linked Judgment and its
+        # terminal adjudication trace are known. It stays mandatory otherwise.
+        _required(hypothesis, ("statement", "falsification_conditions", "time_horizon"), f"hypothesis {hypothesis_id}", errors)
         for ref in hypothesis.get("signal_ids") or []:
             signal = signals.get(str(ref))
             if not signal or hypothesis_id not in [str(value) for value in signal.get("target_hypothesis_ids") or []]:
                 errors.append(f"hypothesis {hypothesis_id} 与 signal {ref} 未双向绑定")
     for rule_id, evaluation_item in rule_evaluations.items():
         _required(evaluation_item, ("rule_ref", "input_refs", "condition_results", "result", "deterministic_result"), f"rule evaluation {rule_id}", errors)
-        deterministic = evaluation_item.get("deterministic_result") or {}
-        if deterministic.get("engine_version") != "runtime-semantic-rules-2.0.0" or deterministic.get("result") != evaluation_item.get("result"):
-            errors.append(f"rule evaluation {rule_id} 缺少可验证 Runtime 确定性结果")
+    errors.extend(assert_required_deterministic_rules(judgment, require_deterministic_on_all=True))
     judgment_ids = _ids(judgments, "judgment_id", "id")
     if not judgments:
         errors.append("04_judgment 缺少 judgments")
@@ -328,7 +354,7 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
         if unit and unit not in units:
             errors.append(f"judgment {jid} 引用未知 judgment unit {unit}")
         ma_refs = item.get("method_application_ids") or item.get("method_application_refs") or []
-        indeterminate = item.get("strength") == "J0" and item.get("decision_status") in {"blocked", "indeterminate", "contested"} and bool(str(item.get("not_judgeable_reason") or "").strip())
+        indeterminate = _is_strict_j0_stop(item, app_maps[2])
         if not ma_refs:
             errors.append(f"judgment {jid} 缺少 MethodApplication 引用")
         elif not indeterminate and not any(str(ref) in executed for ref in ma_refs):
@@ -350,19 +376,23 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
         bypass = [ref for ref in evidence_refs if ref not in signal_evidence]
         if bypass:
             errors.append(f"judgment {jid} 证据绕过 Signal/Hypothesis: {', '.join(bypass)}")
-        bound_rules = [rule_evaluations.get(str(ref)) for ref in item.get("rule_evaluation_ids") or []]
-        rule_names = {str(rule.get("rule_ref")) for rule in bound_rules if rule}
-        if not REQUIRED_RULES.issubset(rule_names):
-            errors.append(f"judgment {jid} 缺少 Runtime 确定性规则: {', '.join(sorted(REQUIRED_RULES - rule_names))}")
-        bad_rules = [str(rule.get("rule_ref")) for rule in bound_rules if rule and rule.get("result") in {"fail", "blocked"}]
-        if bad_rules:
-            errors.append(f"judgment {jid} 存在阻断规则: {', '.join(bad_rules)}")
         required_trace_refs = {jid, *hypothesis_refs, *evidence_refs, *[str(ref) for ref in item.get("rule_evaluation_ids") or []], *[str(ref) for ref in ma_refs]}
         for hypothesis_ref in hypothesis_refs:
             required_trace_refs.update(str(ref) for ref in (hypotheses.get(hypothesis_ref) or {}).get("signal_ids") or [])
         matching_traces = [trace for trace in traces if str(trace.get("judgment_id") or trace.get("judgment_ref")) == jid]
         if not any(required_trace_refs.issubset({str(ref) for ref in trace.get("node_ids") or trace.get("node_refs") or []}) for trace in matching_traces):
             errors.append(f"judgment {jid} 缺少完整 ReasoningTrace")
+
+    for hypothesis_id, hypothesis in hypotheses.items():
+        if hypothesis.get("signal_ids"):
+            continue
+        linked_judgments = [
+            item for item in judgments
+            if isinstance(item, dict)
+            and hypothesis_id in {str(ref) for ref in item.get("hypothesis_ids") or []}
+        ]
+        if not linked_judgments or not all(_is_strict_j0_stop(item, app_maps[2]) for item in linked_judgments):
+            errors.append(f"hypothesis {hypothesis_id} 缺少实质字段 signal_ids")
 
     claims = expression.get("report_claims") or expression.get("expressions") or []
     if not claims:
@@ -371,7 +401,9 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
         if not isinstance(item, dict):
             continue
         cid = str(item.get("id") or item.get("expression_id") or "")
-        _required(item, ("statement", "evidence_draft_ids", "source_ids"), f"expression {cid}", errors)
+        # Empty evidence/source lineage is legal only for the strict J0 stop
+        # checked below. Keeping this conditional avoids globally weakening 05.
+        _required(item, ("statement",), f"expression {cid}", errors)
         j_refs = item.get("judgment_ids") or ([item["source_claim_id"]] if item.get("source_claim_id") else [])
         if not j_refs:
             errors.append(f"expression {cid} 缺少 judgment 追溯")
@@ -385,9 +417,7 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
                     if str(value.get("judgment_id") or value.get("id")) == str(ref)
                 ))
         only_indeterminate = bool(referenced_judgments) and all(
-            value.get("strength") == "J0"
-            and value.get("decision_status") in {"blocked", "indeterminate", "contested"}
-            for value in referenced_judgments
+            _is_strict_j0_stop(value, app_maps[2]) for value in referenced_judgments
         )
         allowed_evidence = {
             str(ref)
@@ -399,7 +429,10 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
         }
         expression_evidence = [str(ref) for ref in item.get("evidence_draft_ids") or []]
         if not expression_evidence and not only_indeterminate:
-            errors.append(f"expression {cid} 缺少事实级 evidence_draft_ids 追溯")
+            errors.append(f"expression {cid} 缺少实质字段 evidence_draft_ids")
+        expression_sources = [str(ref) for ref in item.get("source_ids") or []]
+        if not expression_sources and not only_indeterminate:
+            errors.append(f"expression {cid} 缺少实质字段 source_ids")
         for ref in expression_evidence:
             if ref not in allowed_evidence or ref not in draft_ids:
                 errors.append(f"expression {cid} 引用来源 Judgment 未使用的证据 {ref}")
@@ -427,6 +460,12 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
                     errors.append(f"expression {cid} 引用了不可表达的 MethodApplication {ref}")
                 elif str(ref) not in allowed_methods:
                     errors.append(f"expression {cid} 引用了来源 Judgment 未使用的 MethodApplication {ref}")
+            if only_indeterminate:
+                expression_ma_refs = {str(ref) for ref in ma_refs}
+                for value in referenced_judgments:
+                    jid = str(value.get("judgment_id") or value.get("id") or "")
+                    if not (_terminal_adjudication_refs(value, app_maps[2]) & expression_ma_refs):
+                        errors.append(f"expression {cid} 未保留 J0 Judgment {jid} 的终态 adjudication MethodApplication")
 
     stages = manifest.get("stages") or {}
     for stage in STAGE_KEYS:
@@ -447,8 +486,21 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
         errors.append("independent_review 不对应导出的当前 stage_04")
     if review.get("verdict") != "pass" or review.get("issues"):
         errors.append("independent_review 未形成无阻断项的 pass")
-    if review.get("independence_level") != "independent_model" or not review.get("reviewer_model") or review.get("reviewer_model") == review.get("producer_model"):
-        errors.append("independent_review 的模型独立性不可验证")
+    independent_model = (
+        review.get("independence_level") == "independent_model"
+        and review.get("reviewer_type", "model") == "model"
+        and review.get("reviewer_model")
+        and review.get("reviewer_model") != review.get("producer_model")
+    )
+    independent_human = (
+        review.get("independence_level") == "independent_human"
+        and review.get("reviewer_type") == "human"
+        and str(review.get("reviewer_model") or "").startswith("human:")
+        and review.get("reviewer_model") != review.get("producer_model")
+        and len(str(review.get("reviewer_attestation") or "").strip()) >= 20
+    )
+    if not independent_model and not independent_human:
+        errors.append("independent_review 的审阅者身份或独立性声明不可验证")
     if review_wrapper.get("model_name") != review.get("reviewer_model"):
         errors.append("independent_review 的 reviewer_model 与产物元数据不一致")
     if evaluation.get("baseline_artifact_id") != baseline_wrapper.get("artifact_id") or evaluation.get("runtime_report_artifact_id") != stage05_binding.get("artifact_id"):

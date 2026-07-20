@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Artifact } from "@/engine/types";
+import { ControlledScopeProjectionForm } from "@/app/components/controlled-projection-forms";
 
-export function StageWorkspace({ runId, stage, artifact, unlocked }: { runId: string; stage: number; artifact?: Artifact; unlocked: boolean }) {
+export function StageWorkspace({ runId, question, stage, artifact, unlocked }: { runId: string; question: string; stage: number; artifact?: Artifact; unlocked: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(artifact?.error_message || "");
@@ -37,7 +38,10 @@ export function StageWorkspace({ runId, stage, artifact, unlocked }: { runId: st
   return <>
     <div className="workspace-toolbar">
       <div className="actions">
-        <button className="button" disabled={busy || !unlocked} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{busy ? "模型正在工作…" : artifact ? "生成新版本" : "生成本阶段 →"}</button>
+        <button className="button" disabled={busy || !unlocked || artifact?.status === "running"} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{busy || artifact?.status === "running" ? "模型正在工作…" : artifact ? "生成新版本" : "生成本阶段 →"}</button>
+        {artifact?.status === "running" && <button className="button-secondary" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button>}
+        {stage === 3 && artifact?.status === "failed" && <button className="button-secondary" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/03/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_gap_fallback", reason: "公开来源取得或模型结构化提交失败，人工选择登记显式证据缺口" }) })}>登记为显式证据缺口</button>}
+        {stage === 4 && artifact?.status === "failed" && <button className="button-secondary" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成" }) })}>生成受控 J0 判断</button>}
         {artifact && artifact.status !== "failed" && <>
           <button className="button-secondary" disabled={busy} onClick={save}>保存编辑</button>
           <button className="button-secondary" disabled={busy || artifact.status !== "needs_review"} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
@@ -47,6 +51,7 @@ export function StageWorkspace({ runId, stage, artifact, unlocked }: { runId: st
     </div>
     {!unlocked && <div className="notice">当前阶段已锁定。请先完成并确认上一阶段。</div>}
     {error && <div className="notice error">{error}</div>}
+    {stage === 1 && artifact?.status !== "running" ? <ControlledScopeProjectionForm runId={runId} question={question} existingJson={artifact?.json_content} enabled={unlocked && !busy} /> : null}
     {artifact && <div className="two-col">
       <section className="card editor-panel">
         <div className="panel-head"><h2>结构化真相</h2><span>JSON · Authority</span></div>

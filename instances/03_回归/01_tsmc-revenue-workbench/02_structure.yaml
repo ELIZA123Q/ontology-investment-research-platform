@@ -1,0 +1,376 @@
+stage: "02"
+package_projection: workbench_zod
+schema_version: 3.0.0
+method_applications:
+  - application_id: MA-TSMC-REV-STRUCT-01
+    method_id: BF-FQ-01
+    method_version: 2.0.0
+    capability_type: judgment_structure
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs:
+      - company_exposure_execution
+    status: candidate
+    precondition_checks:
+      - precondition_id: BF-FQ-01-PC01-judgment_unit
+        result: not_checked
+        evidence_refs: []
+        reason: 02阶段仅登记候选，前置条件将在03阶段执行时验证
+      - precondition_id: BF-FQ-01-PC02-company_scope
+        result: not_checked
+        evidence_refs: []
+        reason: 台积电公司范围已在01阶段定义，需03阶段确认实例匹配
+      - precondition_id: BF-FQ-01-PC03-reporting_period
+        result: not_checked
+        evidence_refs: []
+        reason: 2024自然年期间已在01阶段定义，需03阶段确认数据覆盖
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 适用于台积电合并报表口径的营收数据验证；仅涉及已公告的历史财务数据；两个判断单元均为二元方向判断（是/否），不涉及幅度或归因
+    limitations:
+      - 不涉及利润表其他科目
+      - 不涉及制程或应用拆分
+      - 营收观测值使用task_local变量，非正式本体StateVariable
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: BF-EE-01
+        decision: not_selected
+        reason: 面向盈利弹性判断，本任务仅涉及营收方向
+      - method_id: BF-CA-01
+        decision: not_selected
+        reason: 面向归因判断，本任务不涉及因果归因
+      - method_id: BF-FS-01
+        decision: not_selected
+        reason: 面向财务报表结构分析，本任务仅需营收单一指标
+  - application_id: MA-TSMC-REV-STRUCT-02
+    method_id: BF-FQ-01
+    method_version: 2.0.0
+    capability_type: judgment_structure
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs:
+      - company_exposure_execution
+    status: candidate
+    precondition_checks:
+      - precondition_id: BF-FQ-01-PC01-judgment_unit
+        result: not_checked
+        evidence_refs: []
+        reason: 02阶段仅登记候选
+      - precondition_id: BF-FQ-01-PC02-company_scope
+        result: not_checked
+        evidence_refs: []
+        reason: 需03确认实例匹配
+      - precondition_id: BF-FQ-01-PC03-reporting_period
+        result: not_checked
+        evidence_refs: []
+        reason: 2024 Q4与2024全年双期间需03确认数据覆盖
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 适用于台积电Q4与全年两个期间的营收增速比较；仅涉及已公告历史数据的方向比较；两个增速必须基于同币种、同口径
+    limitations:
+      - 增速比较对基数敏感——2023 Q4基数与2023全年基数不同
+      - 不涉及增速差异的幅度显著性判断
+      - 不涉及季节性调整
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: BF-EE-01
+        decision: not_selected
+        reason: 不涉及盈利弹性
+      - method_id: BF-CA-01
+        decision: not_selected
+        reason: 不涉及归因
+      - method_id: BF-FS-01
+        decision: not_selected
+        reason: 无需财务报表结构分析
+  - application_id: MA-TSMC-REV-EVID-01
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs:
+      - company_exposure_execution
+      - counter_evidence
+    status: candidate
+    precondition_checks:
+      - precondition_id: kb03:A02-PC01-state_variable_defined
+        result: not_checked
+        evidence_refs: []
+        reason: 营收观测变量tsmc_revenue已在02阶段定义为task_local变量，需03阶段确认观测基础可用
+      - precondition_id: kb03:A02-PC02-observation_basis_defined
+        result: not_checked
+        evidence_refs: []
+        reason: 观测基础（台积电官方月度/季度营收公告）已在01阶段指定，需03阶段确认来源可获取
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 用于获取台积电2023全年和2024全年合并营收的同口径观测值，并建立同比基准比较；仅限台积电官方公告数据，新台币口径
+    limitations:
+      - 营收观测值非正式本体StateVariable，使用task_local变量承接
+      - 若官方数据存在后续修订，需以最新公告为准
+      - 美元口径数据为辅助核对，不作为主判断依据
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: kb03:A01
+        decision: not_selected
+        reason: A01面向关键事实确认，营收数据需要同口径基准比较，A02的状态变量测量框架更匹配
+      - method_id: kb03:A09
+        decision: not_selected
+        reason: A09面向代理指标，本任务使用直接观测营收数据
+  - application_id: MA-TSMC-REV-EVID-02
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs:
+      - company_exposure_execution
+      - counter_evidence
+    status: candidate
+    precondition_checks:
+      - precondition_id: kb03:A02-PC01-state_variable_defined
+        result: not_checked
+        evidence_refs: []
+        reason: Q4同比增速和全年同比增速均为task_local衍生变量，已在02阶段定义
+      - precondition_id: kb03:A02-PC02-observation_basis_defined
+        result: not_checked
+        evidence_refs: []
+        reason: 依赖台积电官方月度营收公告汇总Q4和全年数据，需03阶段确认
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 用于获取2023 Q4、2024 Q4、2023全年和2024全年的营收观测值，计算两个同比增速并进行方向比较；仅限台积电官方公告数据
+    limitations:
+      - Q4增速与全年增速的分母不同（2023 Q4 vs 2023全年），基数差异不影响方向判断但影响幅度解读
+      - 不涉及增速差异的统计显著性检验
+      - 若2023 Q4基数异常低/高，需额外上下文
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: kb03:A01
+        decision: not_selected
+        reason: 增速比较涉及同口径基准，A02更适合
+      - method_id: kb03:A03
+        decision: not_selected
+        reason: A03面向多期趋势判断，本任务仅比较两个增速点
+  - application_id: MA-TSMC-REV-ADJ-01
+    method_id: kb04:A02
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs: []
+    status: candidate
+    precondition_checks:
+      - precondition_id: kb04:A02-PC01-state_measurement_or_equivalent_baseline
+        result: not_checked
+        evidence_refs: []
+        reason: 需03阶段完成营收观测值获取和同比基准建立后，才能满足此前置条件
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 在03阶段取得2023全年和2024全年同口径营收数据后，裁决2024年全年营收是否同比增长；输出二元方向及置信度等级
+    limitations:
+      - 仅输出方向判断，不输出增长幅度或归因
+      - 证据不足时降为暂不可判断
+      - 不跨币种比较——若TWD与USD口径矛盾，以TWD为准并记录差异
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: kb04:A00
+        decision: not_selected
+        reason: A00为通用裁决总则，A02为趋势判断专用方法
+      - method_id: kb04:A01
+        decision: not_selected
+        reason: A01面向单时点状态判断，本判断涉及两期比较
+      - method_id: kb04:A03
+        decision: not_selected
+        reason: A03面向周期阶段判断，本任务不涉及周期定位
+  - application_id: MA-TSMC-REV-ADJ-02
+    method_id: kb04:A02
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs: []
+    status: candidate
+    precondition_checks:
+      - precondition_id: kb04:A02-PC01-state_measurement_or_equivalent_baseline
+        result: not_checked
+        evidence_refs: []
+        reason: 需03阶段完成Q4和全年两个同比增速的计算后，才能满足此前置条件
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ""
+    applicability_boundary: 在03阶段取得两个同比增速后，裁决2024 Q4同比增速是否高于2024全年同比增速；输出二元方向及置信度等级
+    limitations:
+      - 高于为严格大于，等于不属于高于
+      - 增速差异小于0.5个百分点时需检查精度
+      - 证据不足时降为暂不可判断
+    counter_example_refs: []
+    provenance:
+      stage: stage_02
+      source_application_id: null
+      actor: deepseek-v4-pro
+      recorded_at: null
+    alternatives:
+      - method_id: kb04:A00
+        decision: not_selected
+        reason: A00为通用裁决总则，A02更精确匹配趋势方向比较
+      - method_id: kb04:A01
+        decision: not_selected
+        reason: 增速比较涉及两个时点的方向差异
+      - method_id: kb04:A05
+        decision: not_selected
+        reason: 不涉及增速差异的归因判断
+judgment_units:
+  - judgment_unit_id: JU-01
+    title: 2024年全年营收同比是否增长
+    question: 2024年台积电全年合并营收是否高于2023年全年合并营收？即(2024全年营收 - 2023全年营收) / 2023全年营收 > 0？
+    statement: 2024年台积电全年合并营收是否高于2023年全年合并营收？即(2024全年营收 - 2023全年营收) / 2023全年营收 > 0？
+    judgment_type: trend_direction
+    ontology_node_ids:
+      - task_local:tsmc_revenue
+      - task_local:yoy_growth_fy2024
+    evidence_requirements: &a1
+      - 台积电官方2023年1-12月各月营收公告（或2023年Q4法人说明会中的全年营收汇总）
+      - 台积电官方2024年1-12月各月营收公告（或2025年1月法人说明会中的2024全年营收汇总）
+      - 两期营收数据必须同币种（新台币）、同口径（合并报表）、涵盖完全对应的12个月
+      - 如使用月度营收加总，需确认加总结果与官方季度/年度汇总一致
+      - 如存在官方数据修订，以截至2025-01-16的最新公告为准
+      - 至少一个独立交叉验证来源（如台积电官网投资者关系页面、台湾证券交易所MOPS）
+    evidence_requirement_refs: *a1
+  - judgment_unit_id: JU-02
+    title: 2024年Q4营收同比增速是否高于全年同比增速
+    question: 2024年Q4营收同比增速是否高于2024年全年营收同比增速？即[(2024Q4营收 - 2023Q4营收) / 2023Q4营收] >
+      [(2024全年营收 - 2023全年营收) / 2023全年营收]？
+    statement: 2024年Q4营收同比增速是否高于2024年全年营收同比增速？即[(2024Q4营收 - 2023Q4营收) / 2023Q4营收] >
+      [(2024全年营收 - 2023全年营收) / 2023全年营收]？
+    judgment_type: trend_direction
+    ontology_node_ids:
+      - task_local:tsmc_revenue
+      - task_local:yoy_growth_fy2024
+      - task_local:yoy_growth_q4_2024
+    evidence_requirements: &a2
+      - JU-01所需全部数据
+      - 台积电官方2023年10-12月各月营收公告（或2023年Q4季度营收数据）
+      - 台积电官方2024年10-12月各月营收公告（或2024年Q4季度营收数据/2025年1月法人说明会数据）
+      - Q4季度营收与全年营收必须使用同一数据源和同一币种
+      - 增速计算需保留足够精度（至少小数点后一位），避免四舍五入导致方向误判
+      - 若增速差异小于0.5个百分点，需额外标注精度限制
+    evidence_requirement_refs: *a2
+variables:
+  - id: tsmc_revenue
+    name: 台积电合并营收观测
+    category: 财务观测
+    definition: 台积电官方公告的月度或季度合并营收金额，单位为新台币（可辅以美元口径核对）。涵盖2023年1月至2024年12月的完整月度序列，以及据此汇总的季度和年度总额。
+    variable_kind: observable
+    anchors:
+      - 台积电月度营收公告（每月10日前公布上月营收）
+      - 台积电季度合并财务报表
+      - 台积电法人说明会简报及新闻稿
+    ontology_node_id: task_local:tsmc_revenue
+    role: 主观测变量——所有期间营收的原始数据来源
+  - id: yoy_growth_fy2024
+    name: 2024全年营收同比增速
+    category: 财务比率
+    definition: (2024年1-12月台积电合并营收合计 - 2023年1-12月台积电合并营收合计) /
+      2023年1-12月台积电合并营收合计。以百分比表示，保留至少一位小数。
+    variable_kind: derived
+    anchors:
+      - tsmc_revenue
+    ontology_node_id: task_local:yoy_growth_fy2024
+    role: JU-01目标变量——判断全年营收同比是否增长的直接依据
+  - id: yoy_growth_q4_2024
+    name: 2024 Q4营收同比增速
+    category: 财务比率
+    definition: (2024年10-12月台积电合并营收合计 - 2023年10-12月台积电合并营收合计) /
+      2023年10-12月台积电合并营收合计。以百分比表示，保留至少一位小数。
+    variable_kind: derived
+    anchors:
+      - tsmc_revenue
+    ontology_node_id: task_local:yoy_growth_q4_2024
+    role: JU-02比较变量之一——Q4同比增速
+  - id: q4_vs_fy_growth_spread
+    name: Q4增速与全年增速之差
+    category: 财务比率
+    definition: yoy_growth_q4_2024 -
+      yoy_growth_fy2024。正数表示Q4增速高于全年增速，负数表示Q4增速低于全年增速。以百分点表示。
+    variable_kind: derived
+    anchors:
+      - yoy_growth_fy2024
+      - yoy_growth_q4_2024
+    ontology_node_id: task_local:q4_vs_fy_growth_spread
+    role: JU-02判断变量——增速差的符号决定方向判断
+paths:
+  - id: P-01
+    statement: "台积电官方月度营收公告 → 按期间汇总（2023全年、2024全年、2023Q4、2024Q4） → 计算同比增速 →
+      方向判断（JU-01: 全年增速>0?；JU-02: Q4增速>全年增速?）"
+    variable_ids:
+      - tsmc_revenue
+      - yoy_growth_fy2024
+      - yoy_growth_q4_2024
+      - q4_vs_fy_growth_spread
+  - id: P-02
+    statement: 反证与削弱路径：若官方数据存在口径变更（如合并范围变化、收入确认政策调整）、重大一次性收入影响可比性、或截至2025-01-16的数据为初步数据且后续发生修订，则判断确定性降级或标记为暂不可判断
+    variable_ids:
+      - tsmc_revenue
+      - yoy_growth_fy2024
+      - yoy_growth_q4_2024
+counter_evidence_directions:
+  - 数据来源非台积电官方公告（如第三方汇总、分析师估算、新闻媒体二手引用），不得作为主判断依据
+  - 货币换算导致方向矛盾：新台币口径显示增长但美元口径显示下降，或反之——以新台币口径为准但需明确记录差异
+  - 口径不一致：2023年与2024年数据存在合并范围变化、会计政策变更或收入确认方式调整
+  - 存在重大非经常性收入扭曲某一期营收，但台积电通常单独披露此类项目
+  - 数据修订：截至2025-01-16的公告数据为初步数据，后续可能被修订；若修订幅度超过1%则需重新判断
+  - 月度营收加总与官方季度/年度汇总存在差异（月度营收为简易合并，季度财报为完整合并，可能存在调整）
+competing_explanations:
+  - explanation_id: CE-WB-1
+    statement: Q4增速高于全年增速可能因为2023 Q4基数异常低（而非2024 Q4表现特别强），这不改变方向判断本身但限制对加速增长的解读
+  - explanation_id: CE-WB-2
+    statement: 汇率波动导致新台币口径增速与美元口径增速方向或幅度不同——台积电以新台币为记账本位币
+  - explanation_id: CE-WB-3
+    statement: 半导体行业季节性：Q4通常为台积电全年营收最高季度，同比增速比较不受季节性直接影响，但基数效应需注意

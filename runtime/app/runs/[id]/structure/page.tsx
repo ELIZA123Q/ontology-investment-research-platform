@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getRun, latestArtifact } from "@/adapters/db";
 import { RunNav } from "@/app/components/run-nav";
 import { ResearchGraph, type ResearchGraphEdge, type ResearchGraphNode } from "@/app/components/research-graph";
+import { ControlledStructureProjectionForm } from "@/app/components/controlled-projection-forms";
 import { parseJson } from "@/engine/types";
 import Link from "next/link";
 
@@ -12,6 +13,7 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
   const run = getRun(id);
   if (!run) notFound();
   const artifact = latestArtifact(id, "stage_02", ["approved", "needs_review"]);
+  const scopeArtifact = latestArtifact(id, "stage_01", ["approved"]);
   const data: any = parseJson(artifact?.json_content || "{}", {});
   const units = data.judgment_units || [];
   const nodes: ResearchGraphNode[] = [{ id: "research-question", label: run.question, meta: "研究问题", tone: run.parent_run_id ? "inherited" : "neutral", x: 0, y: Math.max(40, units.length * 85), details: { 范围状态: run.parent_run_id ? "从父运行继承" : "本轮定义", 运行状态: run.status } }];
@@ -35,6 +37,7 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
   return <>
     <RunNav runId={id} active="structure" />
     <div className="pagehead scene-head"><div><div className="eyebrow">阶段产物视图 · 02</div><h1>这个问题，真正需要判断什么？</h1><p className="muted">本页展示阶段 02 产物投影，不是实例图。判断单元、必要证据与竞争解释以研究员语言呈现；可执行对象与 Action 见 <Link href={`/runs/${id}/object-set`}>实例图</Link>。</p></div><div className="actions"><span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>{artifact?.status || "not started"}</span><Link className="button-secondary" href={`/runs/${id}/stages/2`}>{artifact ? "高级编辑" : "生成研究结构"}</Link></div></div>
+    <ControlledStructureProjectionForm runId={id} enabled={Boolean(scopeArtifact)} />
     <ResearchGraph nodes={nodes} edges={edges} emptyMessage="完成阶段 02 后，问题树会在这里生成。" />
   </>;
 }

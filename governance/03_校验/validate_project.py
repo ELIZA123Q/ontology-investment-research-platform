@@ -26,6 +26,14 @@ CHECKS = (
     ("02—05 规范模板负向回归", [sys.executable, "governance/03_校验/tests/test_stage_assets.py"]),
     ("包类型识别负向回归", [sys.executable, "governance/03_校验/tests/test_package_kind.py"]),
     ("工作台导出包负向回归", [sys.executable, "governance/03_校验/tests/test_workbench_package.py"]),
+    (
+        "真实工作台链冻结回归",
+        [
+            sys.executable,
+            "governance/03_校验/validate_workbench_package.py",
+            "instances/03_回归/01_tsmc-revenue-workbench",
+        ],
+    ),
     ("推理追溯合同", [sys.executable, "governance/03_校验/validate_reasoning_trace_contract.py"]),
     ("推理追溯负向回归", [sys.executable, "governance/03_校验/tests/test_reasoning_trace_contract.py"]),
     ("增量更新合同", [sys.executable, "governance/03_校验/validate_incremental_update_contract.py"]),
@@ -37,7 +45,7 @@ CHECKS = (
     ("唯一状态派生矩阵", [sys.executable, "governance/03_校验/status_derivation.py"]),
     ("判断裁决方法库", [sys.executable, "methods/04_裁决/validate_methods.py"]),
     ("研究价值评测契约", [sys.executable, "evaluation/03_执行/validate_eval_set.py"]),
-    ("研究价值评测端到端", [sys.executable, "evaluation/03_执行/tests/test_eval_runtime.py"]),
+    ("研究价值评测协议烟测（mock，不代表研究质量）", [sys.executable, "evaluation/03_执行/tests/test_eval_runtime.py"]),
     ("Ontology 3.0 双样例", [sys.executable, "governance/03_校验/validate_v3_samples.py"]),
     ("Ontology 3.0 样例负向回归", [sys.executable, "governance/03_校验/tests/test_v3_samples.py"]),
     ("Runtime TypeScript 类型检查", ["npm", "--prefix", "runtime", "run", "typecheck"]),
@@ -57,7 +65,14 @@ def main() -> int:
         print("\nPROJECT_RETURN_REQUIRED: " + "、".join(failures))
         return 1
 
-    print("\nPROJECT_PASS: Ontology 3.0、公共合同 1.3、知识库、运行回归及两个 run-002 样例全部通过。")
+    print(
+        "\nPROJECT_ENGINEERING_PASS: Ontology 3.0、公共合同 1.3、知识库、运行回归、"
+        "两个 run-002 样例、真实工作台链冻结回归及 mock 评测协议烟测全部通过。"
+    )
+    print(
+        "FORMAL_RESEARCH_VALUE_NOT_ASSERTED: 本结果不代表真实模型的 R/U/delta/S/C、"
+        "研究可靠率或正式研究增益已经通过。"
+    )
     return 0
 
 

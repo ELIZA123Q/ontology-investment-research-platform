@@ -9,6 +9,7 @@ import {
 } from "@/engine/schemas";
 import {
   validateExpressionMethodBindings,
+  validateJudgmentCapabilityCoverage,
   validateJudgmentMethodBindings,
   validateMethodApplications,
 } from "@/engine/method_application";
@@ -42,6 +43,15 @@ function application(status: MethodApplication["status"], stage: MethodApplicati
 }
 
 describe("stage contracts", () => {
+  it("requires every judgment unit to register structure, evidence and adjudication capabilities", () => {
+    const adjudication = application("candidate", "stage_02");
+    expect(() => validateJudgmentCapabilityCoverage([adjudication], [{ id: "JU-1" }]))
+      .toThrow(/judgment_structure, evidence/);
+    const structure = { ...adjudication, application_id: "MA-STRUCTURE", method_id: "BF-SD-01", method_version: "2.0.0", capability_type: "judgment_structure" as const };
+    const evidence = { ...adjudication, application_id: "MA-EVIDENCE", method_id: "kb03:A02", method_version: "3.2.0", capability_type: "evidence" as const };
+    expect(() => validateJudgmentCapabilityCoverage([structure, evidence, adjudication], [{ id: "JU-1" }])).not.toThrow();
+  });
+
   it("accepts a valid task definition", () => {
     expect(taskDefinitionSchema.parse({
       normalized_question: "未来六个月供需是否改善？",
@@ -287,6 +297,16 @@ describe("stage contracts", () => {
       [executed],
       [{ id: "J-1", strength: "J1", decision_status: "supported", method_application_ids: ["MA-01"] }],
     )).not.toThrow();
+  });
+
+  it("does not let structure or evidence applications impersonate adjudication", () => {
+    const evidenceOnly = { ...application("executed", "stage_04"), capability_type: "evidence" as const };
+    const judgment = { id: "J-1", strength: "J1", decision_status: "supported", method_application_ids: ["MA-01"] };
+    expect(() => validateJudgmentMethodBindings([judgment], [evidenceOnly])).toThrow(/不能代替裁决/);
+    expect(() => validateExpressionMethodBindings(
+      [{ id: "EX-1", judgment_ids: ["J-1"], method_application_ids: ["MA-01"] }],
+      [evidenceOnly], [judgment],
+    )).toThrow(/adjudication/);
   });
 
   it("rejects evidence that bypasses signals and non-formal support rules", () => {

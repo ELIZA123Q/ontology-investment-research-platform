@@ -177,7 +177,7 @@ method_namespaces:
   rule: 跨阶段产物中的方法引用必须带命名空间；知识库内部文件名可继续使用 A01—A10。
 
 method_application_contract:
-  schema_version: 1.1.0
+  schema_version: 1.2.0
   canonical_stage_field: method_applications
   deprecated_stage_fields:
     method_application_candidates: replaced_by_method_applications
@@ -185,6 +185,7 @@ method_application_contract:
     method_application_register: replaced_by_method_applications
   statuses: [candidate, selected, executed, rejected, blocked, degraded]
   capability_types: [judgment_structure, evidence, adjudication]
+  per_judgment_unit_required_capabilities: [judgment_structure, evidence, adjudication]
   required_fields:
     - application_id
     - method_id
@@ -242,15 +243,18 @@ method_application_contract:
     blocked: [blocked]
     degraded: [degraded, executed, rejected, blocked]
   rules:
+    - 02 必须为每个 JudgmentUnit 同时登记 judgment_structure、evidence、adjudication 三类 MA；不得到 03/04 临时补建。
     - 02 只能创建 candidate；03 不得确认 executed；04 必须把全部方法收敛为终态。
+    - 03 的 evidence MA 必须收敛为 selected/rejected/blocked/degraded，不得以 candidate 掩盖未执行取证。
     - 03 和 04 必须完整继承上一阶段全部 application_id，禁止静默删除或临时新增。
     - immutable_fields 不得跨阶段变化；target_ontology_object_refs 只允许追加，不允许删除。
     - provenance.source_application_id 在 02 必须为空，在 03/04 必须等于当前 application_id，以声明继承来源。
     - executed 必须至少绑定一项输入证据以及一项输出信号或判断。
     - rejected/blocked/degraded 必须填写失败前置条件或明确原因，并记录可用替代方法。
     - 方法应用属于运行合同，不得写入正式本体 rules、action_types、functions 或 logic_flows。
-    - 04 的每个关键 Judgment 必须反向引用至少一项 executed MethodApplication。
-    - 05 只能引用 04 已存在且状态为 executed 的 MethodApplication，禁止新增或改变状态。
+    - 04 的每个关键 Judgment 必须反向引用至少一项 adjudication MA；正常判断至少一项为 executed，J0 必须引用已收敛裁决 MA。
+    - 05 只能引用 04 已存在且被来源 Judgment 使用的 MethodApplication，并必须保留 adjudication MA 追溯；禁止新增或改变状态。
+    - 05 的 Markdown 是结构化 report_claims、来源 Judgment、边界与来源的确定性投影；模型自由正文不得直接进入发布包。
 
 reasoning_trace_contract:
   schema_version: 1.0.0
@@ -269,7 +273,7 @@ reasoning_trace_contract:
     - RuleEvaluation 只能引用正式本体规则；治理检查、运行控制和方法规则不得支撑商业判断。
     - 每个 condition_result 必须包含具体输入引用；其 input_refs 必须包含于 RuleEvaluation.input_refs，且不得仅引用 EvidenceBasket。
     - 仅写 matched 或只写汇总 result 的 RuleEvaluation 无效。
-    - 每个 Judgment 必须同时引用 EvidenceFact、Signal、Hypothesis、RuleEvaluation 和至少一个 executed MethodApplication。
+    - 每个 Judgment 必须同时引用 EvidenceFact、Signal、Hypothesis、RuleEvaluation 和至少一个 executed adjudication MethodApplication；J0 按不可判断路径引用已收敛裁决 MA。
     - Judgment.evidence_refs 必须被其 Signal 或 RuleEvaluation 的事实级输入覆盖，禁止证据绕过中间推理步骤。
     - ReasoningTrace.node_refs 必须覆盖 Judgment 的全部直接引用和 Judgment 自身。
     - 05 Expression 只能引用其来源 Judgment 已使用的具体 EvidenceFact 和 executed MethodApplication，不得引用整个 EvidenceBasket 或产生新语义对象。

@@ -42,6 +42,7 @@ evidence_requirements:
   - {evidence_requirement_id: ER-05, target_judgment_unit_refs: [JU-02], role: counter, requirement: 检查现货/渠道价格是否与合约价格同向}
   - {evidence_requirement_id: ER-06, target_judgment_unit_refs: [JU-03], role: support, requirement: 终端OEM出货或补库的直接序列，口径需与库存主体对齐}
 method_applications:
+  - {application_id: MA-00, method_id: BF-SD-01, method_version: 2.0.0, capability_type: judgment_structure, target_question_refs: [Q-01, Q-02, Q-03], target_judgment_unit_refs: [JU-01, JU-02, JU-03], target_ontology_object_refs: [], status: candidate, precondition_checks: [], input_evidence_refs: [], output_signal_refs: [], output_judgment_refs: [], execution_summary: '', applicability_boundary: 存储周期原子判断结构与跨单元边界, limitations: [], counter_example_refs: [], provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}, alternatives: []}
   - application_id: MA-01
     method_id: kb03:A02
     method_version: 3.2.0
@@ -132,24 +133,6 @@ method_applications:
     counter_example_refs: [CE-01, CE-02]
     provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
     alternatives: [{method_id: kb04:A02, decision: not_selected, reason: 单一趋势方法不足以回答阶段}]
-  - application_id: MA-06
-    method_id: kb04:A09
-    method_version: 1.0.0
-    capability_type: adjudication
-    target_question_refs: [Q-02]
-    target_judgment_unit_refs: [JU-02]
-    target_ontology_object_refs: []
-    status: candidate
-    precondition_checks: []
-    input_evidence_refs: []
-    output_signal_refs: []
-    output_judgment_refs: []
-    execution_summary: ''
-    applicability_boundary: 市场预期差
-    limitations: [需要冻结预期时点]
-    counter_example_refs: []
-    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
-    alternatives: [{method_id: kb04:A03, decision: candidate, reason: 可先形成业务阶段判断}]
   - application_id: MA-08
     method_id: kb04:A05
     method_version: 1.0.0

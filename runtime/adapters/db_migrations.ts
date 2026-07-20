@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const LATEST_DATABASE_SCHEMA_VERSION = 6;
+export const LATEST_DATABASE_SCHEMA_VERSION = 7;
 
 type Migration = {
   version: number;
@@ -192,6 +192,21 @@ const migrations: Migration[] = [
             attempt = CAST(payload_json AS INTEGER),
             payload_json = artifact_id
         WHERE json_valid(artifact_id) = 1;
+      `);
+    },
+  },
+  {
+    version: 7,
+    description: "enforce one running generation per run and artifact kind",
+    apply(connection) {
+      connection.exec(`
+        UPDATE artifacts
+        SET status='failed',
+            error_message=COALESCE(error_message, '数据库升级时终止遗留生成租约')
+        WHERE status='running';
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_artifacts_one_running
+        ON artifacts(run_id, kind)
+        WHERE status='running';
       `);
     },
   },

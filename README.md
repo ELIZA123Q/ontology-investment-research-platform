@@ -80,6 +80,8 @@
 
 ## 校验（可选）
 
+开发环境与提交前检查见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
 三类运行包不要混用入口（定义见 [`governance/02_合同/package_kinds.yaml`](governance/02_合同/package_kinds.yaml)）：
 
 | 包类型 | 是什么 | 校验 |

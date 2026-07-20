@@ -180,12 +180,16 @@ export function publishAndValidate(runId: string): PublishResult {
     throw new Error("独立审阅已过期，不对应当前 stage_04");
   }
   if (reviewData.verdict !== "pass") throw new Error("独立审阅要求返工，不能进入交付校验");
-  if (reviewData.independence_level !== "independent_model") {
-    throw new Error("独立审阅使用了与生产阶段相同的模型，不能进入交付校验");
-  }
+  const independentModel = reviewData.independence_level === "independent_model"
+    && reviewData.reviewer_type !== "human";
+  const independentHuman = reviewData.independence_level === "independent_human"
+    && reviewData.reviewer_type === "human"
+    && String(reviewData.reviewer_model || "").startsWith("human:")
+    && String(reviewData.reviewer_attestation || "").trim().length >= 20;
+  if (!independentModel && !independentHuman) throw new Error("独立审阅身份或独立性声明不可验证，不能进入交付校验");
   if (!review.model_name || reviewData.reviewer_model !== review.model_name
     || reviewData.producer_model !== judgment.model_name || reviewData.reviewer_model === reviewData.producer_model) {
-    throw new Error("独立审阅模型身份无法从产物元数据验证");
+    throw new Error("独立审阅者身份无法从产物元数据验证");
   }
   const baseline = latestArtifact(runId, "baseline", ["approved"]);
   const evaluation = latestArtifact(runId, "evaluation", ["approved"]);

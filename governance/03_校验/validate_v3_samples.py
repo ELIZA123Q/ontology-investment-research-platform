@@ -13,6 +13,7 @@ from typing import Any
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from runtime_deterministic_rules import assert_required_deterministic_rules
 from validate_method_application_contract import validate_stage_applications
 
 
@@ -434,7 +435,7 @@ def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], 
             errors.append(f"{label}: application {app_id} method version drift")
         elif item.get("capability_type") != registered["capability"]:
             errors.append(f"{label}: application {app_id} capability mismatch")
-        if item.get("status") in {"executed", "degraded"}:
+        if item.get("capability_type") != "judgment_structure":
             units = {unit.get("judgment_unit_id"): unit for unit in structure.get("judgment_units") or []}
             for unit_ref in item.get("target_judgment_unit_refs") or []:
                 unit = units.get(unit_ref)
@@ -474,6 +475,8 @@ def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], 
         executed_refs = [ref for ref in item.get("method_application_refs", []) if app_by_id.get(ref, {}).get("status") == "executed"]
         if not executed_refs:
             errors.append(f"{label}: judgment {judgment_id} lacks executed MethodApplication")
+        if not any(app_by_id.get(ref, {}).get("capability_type") == "adjudication" for ref in item.get("method_application_refs", [])):
+            errors.append(f"{label}: judgment {judgment_id} lacks adjudication MethodApplication")
         if not item.get("signal_refs") or not item.get("hypothesis_refs"):
             errors.append(f"{label}: judgment {judgment_id} bypasses signal/hypothesis")
         judgment_evidence = set(item.get("evidence_refs") or [])
@@ -493,6 +496,13 @@ def validate_run_data(run: dict[str, dict[str, Any]], contract: dict[str, Any], 
         for ref in item.get("rule_evaluation_refs", []):
             if ref not in rule_eval_ids:
                 errors.append(f"{label}: judgment {judgment_id} unresolved RuleEvaluation {ref}")
+    errors.extend(
+        assert_required_deterministic_rules(
+            judgment,
+            error_prefix=label,
+            require_deterministic_on_all=False,
+        )
+    )
 
     traces = judgment.get("reasoning_traces") or []
     traces_by_judgment: dict[str, list[dict[str, Any]]] = {}

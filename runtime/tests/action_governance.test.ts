@@ -12,6 +12,15 @@ beforeAll(async () => {
 });
 
 describe("approved and idempotent Action execution", () => {
+  it("rolls back multi-write operations when a transaction fails", () => {
+    const question = `事务回滚测试-${crypto.randomUUID()}`;
+    expect(() => db.withImmediateTransaction(() => {
+      db.createRun(question, "semiconductor");
+      throw new Error("forced rollback");
+    })).toThrow(/forced rollback/);
+    expect(db.listRuns().some((run) => run.question === question)).toBe(false);
+  });
+
   it("rejects unapproved and stale proposals, then executes exactly once", () => {
     const run = db.createRun("Action 审计测试", "semiconductor");
     db.saveInstanceGraph(run.id, {

@@ -193,11 +193,68 @@ def _write_minimal_package(run_dir: Path) -> None:
         (run_dir / name).write_text(yaml.safe_dump({"artifact_id": artifact_id, "model_name": model_name, "content_hash": __import__("hashlib").sha256(raw.encode()).hexdigest(), "json_content": raw, "content": content}, allow_unicode=True), encoding="utf-8")
 
 
+def _convert_to_strict_j0_package(run_dir: Path) -> None:
+    structure = yaml.safe_load((run_dir / "02_structure.yaml").read_text(encoding="utf-8"))
+    evidence = yaml.safe_load((run_dir / "03_evidence.yaml").read_text(encoding="utf-8"))
+    judgment = yaml.safe_load((run_dir / "04_judgment.yaml").read_text(encoding="utf-8"))
+    expression = yaml.safe_load((run_dir / "05_expression.yaml").read_text(encoding="utf-8"))
+
+    for application in structure["method_applications"]:
+        application["capability_type"] = "adjudication"
+    for application in evidence["method_applications"]:
+        application["capability_type"] = "adjudication"
+    for application in judgment["method_applications"]:
+        application["capability_type"] = "adjudication"
+        application["status"] = "blocked"
+
+    hypothesis = judgment["hypotheses"][0]
+    hypothesis["signal_ids"] = []
+    result = judgment["judgments"][0]
+    result.update({
+        "strength": "J0",
+        "decision_status": "indeterminate",
+        "not_judgeable_reason": "缺少第二个独立来源，不能形成方向判断",
+        "supporting_evidence_draft_ids": [],
+        "counter_evidence_draft_ids": [],
+    })
+    expression["report_claims"][0]["statement"] = "现有证据不足，暂不可判断"
+    expression["report_claims"][0]["evidence_draft_ids"] = []
+    expression["report_claims"][0]["source_ids"] = []
+
+    (run_dir / "02_structure.yaml").write_text(yaml.safe_dump(structure, allow_unicode=True), encoding="utf-8")
+    (run_dir / "03_evidence.yaml").write_text(yaml.safe_dump(evidence, allow_unicode=True), encoding="utf-8")
+    (run_dir / "04_judgment.yaml").write_text(yaml.safe_dump(judgment, allow_unicode=True), encoding="utf-8")
+    (run_dir / "05_expression.yaml").write_text(yaml.safe_dump(expression, allow_unicode=True), encoding="utf-8")
+
+
 class WorkbenchPackageTests(unittest.TestCase):
     def test_minimal_package_passes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
             _write_minimal_package(run_dir)
+            self.assertEqual(validator.validate_workbench_package(run_dir), [])
+
+    def test_attested_human_independent_review_passes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            _write_minimal_package(run_dir)
+            path = run_dir / "independent_review.yaml"
+            wrapper = yaml.safe_load(path.read_text(encoding="utf-8"))
+            review = dict(wrapper["content"])
+            review.update({
+                "reviewer_model": "human:reviewer-zhang",
+                "reviewer_type": "human",
+                "reviewer_attestation": "本人未参与该判断生产，并确认不存在影响独立判断的利益冲突。",
+                "independence_level": "independent_human",
+            })
+            raw = json.dumps(review, ensure_ascii=False, sort_keys=True)
+            wrapper.update({
+                "model_name": "human:reviewer-zhang",
+                "json_content": raw,
+                "content": review,
+                "content_hash": __import__("hashlib").sha256(raw.encode()).hexdigest(),
+            })
+            path.write_text(yaml.safe_dump(wrapper, allow_unicode=True), encoding="utf-8")
             self.assertEqual(validator.validate_workbench_package(run_dir), [])
 
     def test_rejects_v3_sample_directory(self) -> None:
@@ -215,6 +272,39 @@ class WorkbenchPackageTests(unittest.TestCase):
             (run_dir / "run_manifest.yaml").write_text(yaml.safe_dump(manifest), encoding="utf-8")
             errors = validator.validate_workbench_package(run_dir)
             self.assertTrue(any("publishable" in error for error in errors))
+
+    def test_strict_j0_allows_empty_signal_evidence_and_source_lineage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            _write_minimal_package(run_dir)
+            _convert_to_strict_j0_package(run_dir)
+            self.assertEqual(validator.validate_workbench_package(run_dir), [])
+
+    def test_j0_without_reason_cannot_use_empty_lineage_exception(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            _write_minimal_package(run_dir)
+            _convert_to_strict_j0_package(run_dir)
+            judgment = yaml.safe_load((run_dir / "04_judgment.yaml").read_text(encoding="utf-8"))
+            judgment["judgments"][0]["not_judgeable_reason"] = ""
+            (run_dir / "04_judgment.yaml").write_text(yaml.safe_dump(judgment, allow_unicode=True), encoding="utf-8")
+            errors = validator.validate_workbench_package(run_dir)
+            self.assertTrue(any("hypothesis H-01 缺少实质字段 signal_ids" in error for error in errors))
+            self.assertTrue(any("expression EX-01 缺少实质字段 evidence_draft_ids" in error for error in errors))
+            self.assertTrue(any("expression EX-01 缺少实质字段 source_ids" in error for error in errors))
+
+    def test_j0_cannot_impersonate_adjudication_with_other_capability(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            _write_minimal_package(run_dir)
+            _convert_to_strict_j0_package(run_dir)
+            for name in ("02_structure.yaml", "03_evidence.yaml", "04_judgment.yaml"):
+                document = yaml.safe_load((run_dir / name).read_text(encoding="utf-8"))
+                document["method_applications"][0]["capability_type"] = "evidence"
+                (run_dir / name).write_text(yaml.safe_dump(document, allow_unicode=True), encoding="utf-8")
+            errors = validator.validate_workbench_package(run_dir)
+            self.assertTrue(any("hypothesis H-01 缺少实质字段 signal_ids" in error for error in errors))
+            self.assertTrue(any("expression EX-01 缺少实质字段 evidence_draft_ids" in error for error in errors))
 
 
 if __name__ == "__main__":

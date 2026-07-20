@@ -89,7 +89,8 @@ describe("comparison metrics", () => {
     const stage03 = artifact({ evidence_drafts: [{ id: "EV-1", role: "support", source_ids: ["SRC-1"] }] }, { kind: "stage_03" });
     const stage04 = artifact({
       judgments: [{ id: "J-1", supporting_evidence_draft_ids: ["EV-1"], counter_evidence_draft_ids: [], method_application_ids: ["MA-1"] }],
-      method_applications: [{ application_id: "MA-1", status: "executed" }],
+      method_applications: [{ application_id: "MA-1", status: "executed", capability_type: "adjudication" }],
+      competing_explanations: [{ id: "CE-1", status: "active" }],
     });
     const report = artifact({
       report_claims: [
@@ -103,10 +104,49 @@ describe("comparison metrics", () => {
       retrieval_status: "captured" as const, content_hash: "a".repeat(64), locator: "第1段",
       source_quote: "原文", quote_verified: true,
     };
-    const metrics = comparisonMetrics(baseline, report, stage03, stage04, [captured]);
+    const unbound = { ...captured, id: "SRC-UNBOUND", normalized_url: "https://example.com/unbound", url: "https://example.com/unbound" };
+    const metrics = comparisonMetrics(baseline, report, stage03, stage04, [captured, unbound]);
     expect(metrics.runtime.clickable_sources).toBe(1);
     expect(metrics.runtime.supported_claim_ratio).toBe(0.5);
     expect(metrics.runtime.traceable_claim_ratio).toBe(0.5);
+    expect(metrics.runtime.counterevidence_fact_count).toBe(0);
+    expect(metrics.runtime.active_competing_explanation_count).toBe(1);
+  });
+
+  it("accepts the full judgment method chain when it includes one executed adjudication", () => {
+    const baseline = artifact({ core_claims: [], sources: [] }, { kind: "baseline" });
+    const stage03 = artifact({ evidence_drafts: [{ id: "EV-1", kind: "fact_draft", source_ids: ["SRC-1"] }] }, { kind: "stage_03" });
+    const stage04 = artifact({
+      judgments: [{
+        id: "J-1",
+        supporting_evidence_draft_ids: ["EV-1"],
+        counter_evidence_draft_ids: [],
+        method_application_ids: ["MA-STRUCT", "MA-EVID", "MA-ADJ"],
+      }],
+      method_applications: [
+        { application_id: "MA-STRUCT", status: "executed", capability_type: "judgment_structure" },
+        { application_id: "MA-EVID", status: "executed", capability_type: "evidence" },
+        { application_id: "MA-ADJ", status: "executed", capability_type: "adjudication" },
+      ],
+    });
+    const report = artifact({
+      report_claims: [{
+        judgment_ids: ["J-1"],
+        evidence_draft_ids: ["EV-1"],
+        source_ids: ["SRC-1"],
+        method_application_ids: ["MA-STRUCT", "MA-EVID", "MA-ADJ"],
+      }],
+      limitations: [],
+    }, { kind: "stage_05" });
+    const captured = {
+      ...source("https://example.com/a"), id: "SRC-1", usability_status: "usable" as const,
+      retrieval_status: "captured" as const, content_hash: "a".repeat(64), locator: "第1段",
+      source_quote: "原文", quote_verified: true,
+    };
+
+    const metrics = comparisonMetrics(baseline, report, stage03, stage04, [captured]);
+
+    expect(metrics.runtime.traceable_claim_ratio).toBe(1);
   });
 
   it("does not count candidate URLs as captured or supported evidence", () => {
@@ -118,5 +158,24 @@ describe("comparison metrics", () => {
     const metrics = comparisonMetrics(baseline, report, stage03, stage04, [candidate]);
     expect(metrics.runtime.clickable_sources).toBe(0);
     expect(metrics.runtime.supported_claim_ratio).toBe(0);
+  });
+
+  it("counts an honest J0 path as traceable without pretending it is source-supported", () => {
+    const baseline = artifact({ core_claims: [], sources: [] }, { kind: "baseline", token_usage: JSON.stringify({ prompt_tokens: 10, completion_tokens: 5 }) });
+    const stage03 = artifact({ evidence_drafts: [{ id: "GAP-1", kind: "gap", source_ids: [] }] }, { kind: "stage_03" });
+    const stage04 = artifact({
+      judgments: [{ id: "J-1", strength: "J0", decision_status: "indeterminate", not_judgeable_reason: "缺少事实", supporting_evidence_draft_ids: [], counter_evidence_draft_ids: [], method_application_ids: ["MA-1"] }],
+      method_applications: [{ application_id: "MA-1", status: "blocked", capability_type: "adjudication" }],
+    });
+    const report = artifact({
+      report_claims: [{ judgment_ids: ["J-1"], evidence_draft_ids: [], source_ids: [], method_application_ids: ["MA-1"] }],
+      limitations: [],
+    }, { kind: "stage_05", token_usage: JSON.stringify({ prompt_tokens: 20, completion_tokens: 7 }) });
+    const metrics = comparisonMetrics(baseline, report, stage03, stage04, []);
+    expect(metrics.runtime.supported_claim_ratio).toBe(0);
+    expect(metrics.runtime.traceable_claim_ratio).toBe(1);
+    expect(metrics.runtime.judgment_method_trace_ratio).toBe(1);
+    expect(metrics.runtime.tokens).toBe(27);
+    expect(metrics.baseline.tokens).toBe(15);
   });
 });

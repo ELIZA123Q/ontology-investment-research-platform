@@ -51,15 +51,15 @@ describe("method registry", () => {
     const units = [{ id: "JU-01", judgment_type: "trend_direction" }];
     expect(() => validateMethodRoutes([application({ status: "executed" })], units)).not.toThrow();
     expect(() => validateMethodRoutes([
-      application({ method_id: "kb04:A03", status: "executed" }),
+      application({ method_id: "kb04:A03", status: "candidate" }),
     ], units)).toThrow(/不允许用于/);
   });
 
-  it("allows rejected candidates outside the execution route and global A00", () => {
+  it("keeps rejected methods route-valid and allows global A00", () => {
     const units = [{ id: "JU-01", judgment_type: "trend_direction" }];
     expect(() => validateMethodRoutes([
       application({ method_id: "kb04:A03", status: "rejected" }),
-    ], units)).not.toThrow();
+    ], units)).toThrow(/不允许用于/);
     expect(() => validateMethodRoutes([
       application({ method_id: "kb04:A00", status: "executed" }),
     ], units)).not.toThrow();

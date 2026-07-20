@@ -1,0 +1,710 @@
+stage: "04"
+package_projection: workbench_zod
+schema_version: 5.0.0
+method_applications:
+  - application_id: MA-TSMC-REV-STRUCT-01
+    method_id: BF-FQ-01
+    method_version: 2.0.0
+    capability_type: judgment_structure
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs:
+      - company_exposure_execution
+    status: executed
+    precondition_checks:
+      - precondition_id: BF-FQ-01-PC01-judgment_unit
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+      - precondition_id: BF-FQ-01-PC02-company_scope
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+      - precondition_id: BF-FQ-01-PC03-reporting_period
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+    output_signal_refs: []
+    output_judgment_refs:
+      - J-CONTROLLED-01
+    execution_summary: 基于 EV-CONTROLLED-01 完成受控 judgment_structure 执行；方向与证据上限由 Runtime 再校验
+    applicability_boundary: 适用于台积电合并报表口径的营收数据验证；仅涉及已公告的历史财务数据；两个判断单元均为二元方向判断（是/否），不涉及幅度或归因
+    limitations:
+      - 不涉及利润表其他科目
+      - 不涉及制程或应用拆分
+      - 营收观测值使用task_local变量，非正式本体StateVariable
+    counter_example_refs: []
+    provenance:
+      stage: stage_04
+      source_application_id: MA-TSMC-REV-STRUCT-01
+      actor: human-controlled-judgment-projection
+      recorded_at: 2026-07-20T04:38:39.430Z
+    alternatives:
+      - method_id: BF-EE-01
+        decision: not_selected
+        reason: 面向盈利弹性判断，本任务仅涉及营收方向
+      - method_id: BF-CA-01
+        decision: not_selected
+        reason: 面向归因判断，本任务不涉及因果归因
+      - method_id: BF-FS-01
+        decision: not_selected
+        reason: 面向财务报表结构分析，本任务仅需营收单一指标
+  - application_id: MA-TSMC-REV-STRUCT-02
+    method_id: BF-FQ-01
+    method_version: 2.0.0
+    capability_type: judgment_structure
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs:
+      - company_exposure_execution
+    status: executed
+    precondition_checks:
+      - precondition_id: BF-FQ-01-PC01-judgment_unit
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+      - precondition_id: BF-FQ-01-PC02-company_scope
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+      - precondition_id: BF-FQ-01-PC03-reporting_period
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    output_signal_refs: []
+    output_judgment_refs:
+      - J-CONTROLLED-02
+    execution_summary: 基于 EV-CONTROLLED-01、EV-CONTROLLED-02 完成受控 judgment_structure
+      执行；方向与证据上限由 Runtime 再校验
+    applicability_boundary: 适用于台积电Q4与全年两个期间的营收增速比较；仅涉及已公告历史数据的方向比较；两个增速必须基于同币种、同口径
+    limitations:
+      - 增速比较对基数敏感——2023 Q4基数与2023全年基数不同
+      - 不涉及增速差异的幅度显著性判断
+      - 不涉及季节性调整
+    counter_example_refs: []
+    provenance:
+      stage: stage_04
+      source_application_id: MA-TSMC-REV-STRUCT-02
+      actor: human-controlled-judgment-projection
+      recorded_at: 2026-07-20T04:38:39.430Z
+    alternatives:
+      - method_id: BF-EE-01
+        decision: not_selected
+        reason: 不涉及盈利弹性
+      - method_id: BF-CA-01
+        decision: not_selected
+        reason: 不涉及归因
+      - method_id: BF-FS-01
+        decision: not_selected
+        reason: 无需财务报表结构分析
+  - application_id: MA-TSMC-REV-EVID-01
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs:
+      - company_exposure_execution
+      - counter_evidence
+    status: executed
+    precondition_checks:
+      - precondition_id: kb03:A02-PC01-state_variable_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+      - precondition_id: kb03:A02-PC02-observation_basis_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+    output_signal_refs:
+      - SIG-CONTROLLED-01
+    output_judgment_refs: []
+    execution_summary: 基于 EV-CONTROLLED-01 完成受控 evidence 执行；方向与证据上限由 Runtime 再校验
+    applicability_boundary: 用于获取台积电2023全年和2024全年合并营收的同口径观测值，并建立同比基准比较；仅限台积电官方公告数据，新台币口径
+    limitations:
+      - 营收观测值非正式本体StateVariable，使用task_local变量承接
+      - 若官方数据存在后续修订，需以最新公告为准
+      - 美元口径数据为辅助核对，不作为主判断依据
+    counter_example_refs: []
+    provenance:
+      stage: stage_04
+      source_application_id: MA-TSMC-REV-EVID-01
+      actor: human-controlled-judgment-projection
+      recorded_at: 2026-07-20T04:38:39.430Z
+    alternatives:
+      - method_id: kb03:A01
+        decision: not_selected
+        reason: A01面向关键事实确认，营收数据需要同口径基准比较，A02的状态变量测量框架更匹配
+      - method_id: kb03:A09
+        decision: not_selected
+        reason: A09面向代理指标，本任务使用直接观测营收数据
+  - application_id: MA-TSMC-REV-EVID-02
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs:
+      - company_exposure_execution
+      - counter_evidence
+    status: executed
+    precondition_checks:
+      - precondition_id: kb03:A02-PC01-state_variable_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+      - precondition_id: kb03:A02-PC02-observation_basis_defined
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    output_signal_refs:
+      - SIG-CONTROLLED-02
+    output_judgment_refs: []
+    execution_summary: 基于 EV-CONTROLLED-01、EV-CONTROLLED-02 完成受控 evidence 执行；方向与证据上限由 Runtime 再校验
+    applicability_boundary: 用于获取2023 Q4、2024 Q4、2023全年和2024全年的营收观测值，计算两个同比增速并进行方向比较；仅限台积电官方公告数据
+    limitations:
+      - Q4增速与全年增速的分母不同（2023 Q4 vs 2023全年），基数差异不影响方向判断但影响幅度解读
+      - 不涉及增速差异的统计显著性检验
+      - 若2023 Q4基数异常低/高，需额外上下文
+    counter_example_refs: []
+    provenance:
+      stage: stage_04
+      source_application_id: MA-TSMC-REV-EVID-02
+      actor: human-controlled-judgment-projection
+      recorded_at: 2026-07-20T04:38:39.430Z
+    alternatives:
+      - method_id: kb03:A01
+        decision: not_selected
+        reason: 增速比较涉及同口径基准，A02更适合
+      - method_id: kb03:A03
+        decision: not_selected
+        reason: A03面向多期趋势判断，本任务仅比较两个增速点
+  - application_id: MA-TSMC-REV-ADJ-01
+    method_id: kb04:A02
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs:
+      - Q-01
+    target_judgment_unit_refs:
+      - JU-01
+    target_ontology_object_refs: []
+    status: executed
+    precondition_checks:
+      - precondition_id: kb04:A02-PC01-state_measurement_or_equivalent_baseline
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+    output_signal_refs: []
+    output_judgment_refs:
+      - J-CONTROLLED-01
+    execution_summary: 基于 EV-CONTROLLED-01 完成受控 adjudication 执行；方向与证据上限由 Runtime 再校验
+    applicability_boundary: 在03阶段取得2023全年和2024全年同口径营收数据后，裁决2024年全年营收是否同比增长；输出二元方向及置信度等级
+    limitations:
+      - 仅输出方向判断，不输出增长幅度或归因
+      - 证据不足时降为暂不可判断
+      - 不跨币种比较——若TWD与USD口径矛盾，以TWD为准并记录差异
+    counter_example_refs: []
+    provenance:
+      stage: stage_04
+      source_application_id: MA-TSMC-REV-ADJ-01
+      actor: human-controlled-judgment-projection
+      recorded_at: 2026-07-20T04:38:39.430Z
+    alternatives:
+      - method_id: kb04:A00
+        decision: not_selected
+        reason: A00为通用裁决总则，A02为趋势判断专用方法
+      - method_id: kb04:A01
+        decision: not_selected
+        reason: A01面向单时点状态判断，本判断涉及两期比较
+      - method_id: kb04:A03
+        decision: not_selected
+        reason: A03面向周期阶段判断，本任务不涉及周期定位
+  - application_id: MA-TSMC-REV-ADJ-02
+    method_id: kb04:A02
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs:
+      - Q-02
+    target_judgment_unit_refs:
+      - JU-02
+    target_ontology_object_refs: []
+    status: executed
+    precondition_checks:
+      - precondition_id: kb04:A02-PC01-state_measurement_or_equivalent_baseline
+        result: pass
+        evidence_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        reason: 受控裁决仅使用已批准事实，范围、截止时间和来源可用性已由 Runtime 规则复核
+    input_evidence_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    output_signal_refs: []
+    output_judgment_refs:
+      - J-CONTROLLED-02
+    execution_summary: 基于 EV-CONTROLLED-01、EV-CONTROLLED-02 完成受控 adjudication
+      执行；方向与证据上限由 Runtime 再校验
+    applicability_boundary: 在03阶段取得两个同比增速后，裁决2024 Q4同比增速是否高于2024全年同比增速；输出二元方向及置信度等级
+    limitations:
+      - 高于为严格大于，等于不属于高于
+      - 增速差异小于0.5个百分点时需检查精度
+      - 证据不足时降为暂不可判断
+    counter_example_refs: []
+    provenance:
+      stage: stage_04
+      source_application_id: MA-TSMC-REV-ADJ-02
+      actor: human-controlled-judgment-projection
+      recorded_at: 2026-07-20T04:38:39.430Z
+    alternatives:
+      - method_id: kb04:A00
+        decision: not_selected
+        reason: A00为通用裁决总则，A02更精确匹配趋势方向比较
+      - method_id: kb04:A01
+        decision: not_selected
+        reason: 增速比较涉及两个时点的方向差异
+      - method_id: kb04:A05
+        decision: not_selected
+        reason: 不涉及增速差异的归因判断
+signals:
+  - id: SIG-CONTROLLED-01
+    statement: 已批准事实支持：台积电披露的2024年全年合并营收较2023年同比增长33.9%；截至2025年1月16日可形成全年营收增长的方向观察。
+    role: support
+    evidence_draft_ids:
+      - EV-CONTROLLED-01
+    judgment_unit_ids:
+      - JU-01
+    target_hypothesis_ids:
+      - H-CONTROLLED-01
+  - id: SIG-CONTROLLED-02
+    statement: 已批准事实支持：台积电披露的2024年第四季度营收同比增速38.8%高于全年同比增速33.9%，差值为4.9个百分点；仅形成两项名义同比的比较观察。
+    role: support
+    evidence_draft_ids:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    judgment_unit_ids:
+      - JU-02
+    target_hypothesis_ids:
+      - H-CONTROLLED-02
+hypotheses:
+  - id: H-CONTROLLED-01
+    statement: 台积电披露的2024年全年合并营收较2023年同比增长33.9%；截至2025年1月16日可形成全年营收增长的方向观察。
+    signal_ids:
+      - SIG-CONTROLLED-01
+    falsification_conditions:
+      - 台积电更正2024年全年营收同比数据，或确认当前披露口径与2023年不可比
+    time_horizon: 截至研究截止时点的历史方向观察
+  - id: H-CONTROLLED-02
+    statement: 台积电披露的2024年第四季度营收同比增速38.8%高于全年同比增速33.9%，差值为4.9个百分点；仅形成两项名义同比的比较观察。
+    signal_ids:
+      - SIG-CONTROLLED-02
+    falsification_conditions:
+      - 台积电更正任一同比数据，或确认季度与全年披露口径不可比
+    time_horizon: 截至研究截止时点的历史方向观察
+competing_explanations:
+  - id: CE-CONTROLLED-01
+    statement: 同源披露的后续重述、口径差异或取整误差可能改变当前观察
+    signal_ids:
+      - SIG-CONTROLLED-01
+    discriminating_evidence:
+      - 取得独立来源组的同口径复核，或取得后续经审计且不晚于新研究截止日的更正/确认
+    status: active
+    elimination_rationale: 当前只有一个 TSMC source_group，不能排除该竞争解释
+  - id: CE-CONTROLLED-02
+    statement: 同源披露的后续重述、口径差异或取整误差可能改变当前观察
+    signal_ids:
+      - SIG-CONTROLLED-02
+    discriminating_evidence:
+      - 取得独立来源组的同口径复核，或取得后续经审计且不晚于新研究截止日的更正/确认
+    status: active
+    elimination_rationale: 当前只有一个 TSMC source_group，不能排除该竞争解释
+rule_evaluations:
+  - id: RE-SYS-J-CONTROLLED-01-EVIDENCE-SCOPE-TIME-ALIGNMENT
+    rule_ref: evidence_scope_time_alignment
+    judgment_id: J-CONTROLLED-01
+    input_refs:
+      - EV-CONTROLLED-01
+    condition_results:
+      - condition_id: scope_alignment
+        expression: evidence.scope_ref == judgment.scope_ref
+        input_refs:
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 范围一致
+      - condition_id: time_alignment
+        expression: fact/source times <= judgment.cutoff_at
+        input_refs:
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 全部 1 条事实与 1 个来源均匹配 RS-TSMC-REVENUE-2024 且不晚于
+          2025-01-16T23:59:59.999+08:00
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 全部 1 条事实与 1 个来源均匹配 RS-TSMC-REVENUE-2024 且不晚于
+        2025-01-16T23:59:59.999+08:00
+      evaluated_at: 2026-07-20T04:38:39.584Z
+  - id: RE-SYS-J-CONTROLLED-01-NO-DIRECT-EVIDENCE-TO-JUDGMENT
+    rule_ref: no_direct_evidence_to_judgment
+    judgment_id: J-CONTROLLED-01
+    input_refs:
+      - EV-CONTROLLED-01
+    condition_results:
+      - condition_id: mediated_reasoning
+        expression: evidence -> signal -> hypothesis -> judgment
+        input_refs:
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 链路完整
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 全部证据经 Signal/Hypothesis 到达 Judgment
+      evaluated_at: 2026-07-20T04:38:39.584Z
+  - id: RE-SYS-J-CONTROLLED-01-JUDGMENT-REFERENCE-INTEGRITY
+    rule_ref: judgment_reference_integrity
+    judgment_id: J-CONTROLLED-01
+    input_refs:
+      - J-CONTROLLED-01
+      - EV-CONTROLLED-01
+    condition_results:
+      - condition_id: judgment_references
+        expression: judgment unit/hypothesis/signal/rule evaluations resolve with
+          bidirectional signal links
+        input_refs:
+          - J-CONTROLLED-01
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 引用完整
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 判断引用的单元、假设、信号与规则评估均可解析且信号双向绑定
+      evaluated_at: 2026-07-20T04:38:39.584Z
+  - id: RE-SYS-J-CONTROLLED-01-JUDGMENT-EVIDENCE-THRESHOLD
+    rule_ref: judgment_evidence_threshold
+    judgment_id: J-CONTROLLED-01
+    input_refs:
+      - EV-CONTROLLED-01
+    condition_results:
+      - condition_id: independent_sources
+        expression: independent_source_groups determine ceiling
+        input_refs:
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 独立来源组 1
+      - condition_id: level_ceiling
+        expression: judgment.level <= evidence_ceiling
+        input_refs:
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 请求 J1；上限 J1；事实 1、独立来源组 1、S1-S6 来源组 1、S1-S3 来源组 1、直接事实 1、反证 0、未决解释 是
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 请求 J1；上限 J1；事实 1、独立来源组 1、S1-S6 来源组 1、S1-S3 来源组 1、直接事实 1、反证 0、未决解释 是
+      evaluated_at: 2026-07-20T04:38:39.585Z
+  - id: RE-SYS-J-CONTROLLED-01-JUDGMENT-STATUS-CONSISTENCY
+    rule_ref: judgment_status_consistency
+    judgment_id: J-CONTROLLED-01
+    input_refs:
+      - J-CONTROLLED-01
+      - EV-CONTROLLED-01
+    condition_results:
+      - condition_id: status_consistency
+        expression: conflict and decision status are coherent
+        input_refs:
+          - J-CONTROLLED-01
+          - EV-CONTROLLED-01
+        outcome: pass
+        rationale: 状态一致
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 判断等级、冲突和不可判断状态一致
+      evaluated_at: 2026-07-20T04:38:39.585Z
+  - id: RE-SYS-J-CONTROLLED-02-EVIDENCE-SCOPE-TIME-ALIGNMENT
+    rule_ref: evidence_scope_time_alignment
+    judgment_id: J-CONTROLLED-02
+    input_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    condition_results:
+      - condition_id: scope_alignment
+        expression: evidence.scope_ref == judgment.scope_ref
+        input_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 范围一致
+      - condition_id: time_alignment
+        expression: fact/source times <= judgment.cutoff_at
+        input_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 全部 2 条事实与 2 个来源均匹配 RS-TSMC-REVENUE-2024 且不晚于
+          2025-01-16T23:59:59.999+08:00
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 全部 2 条事实与 2 个来源均匹配 RS-TSMC-REVENUE-2024 且不晚于
+        2025-01-16T23:59:59.999+08:00
+      evaluated_at: 2026-07-20T04:38:39.585Z
+  - id: RE-SYS-J-CONTROLLED-02-NO-DIRECT-EVIDENCE-TO-JUDGMENT
+    rule_ref: no_direct_evidence_to_judgment
+    judgment_id: J-CONTROLLED-02
+    input_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    condition_results:
+      - condition_id: mediated_reasoning
+        expression: evidence -> signal -> hypothesis -> judgment
+        input_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 链路完整
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 全部证据经 Signal/Hypothesis 到达 Judgment
+      evaluated_at: 2026-07-20T04:38:39.585Z
+  - id: RE-SYS-J-CONTROLLED-02-JUDGMENT-REFERENCE-INTEGRITY
+    rule_ref: judgment_reference_integrity
+    judgment_id: J-CONTROLLED-02
+    input_refs:
+      - J-CONTROLLED-02
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    condition_results:
+      - condition_id: judgment_references
+        expression: judgment unit/hypothesis/signal/rule evaluations resolve with
+          bidirectional signal links
+        input_refs:
+          - J-CONTROLLED-02
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 引用完整
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 判断引用的单元、假设、信号与规则评估均可解析且信号双向绑定
+      evaluated_at: 2026-07-20T04:38:39.585Z
+  - id: RE-SYS-J-CONTROLLED-02-JUDGMENT-EVIDENCE-THRESHOLD
+    rule_ref: judgment_evidence_threshold
+    judgment_id: J-CONTROLLED-02
+    input_refs:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    condition_results:
+      - condition_id: independent_sources
+        expression: independent_source_groups determine ceiling
+        input_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 独立来源组 1
+      - condition_id: level_ceiling
+        expression: judgment.level <= evidence_ceiling
+        input_refs:
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 请求 J1；上限 J1；事实 2、独立来源组 1、S1-S6 来源组 1、S1-S3 来源组 1、直接事实 2、反证 0、未决解释 是
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 请求 J1；上限 J1；事实 2、独立来源组 1、S1-S6 来源组 1、S1-S3 来源组 1、直接事实 2、反证 0、未决解释 是
+      evaluated_at: 2026-07-20T04:38:39.585Z
+  - id: RE-SYS-J-CONTROLLED-02-JUDGMENT-STATUS-CONSISTENCY
+    rule_ref: judgment_status_consistency
+    judgment_id: J-CONTROLLED-02
+    input_refs:
+      - J-CONTROLLED-02
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    condition_results:
+      - condition_id: status_consistency
+        expression: conflict and decision status are coherent
+        input_refs:
+          - J-CONTROLLED-02
+          - EV-CONTROLLED-01
+          - EV-CONTROLLED-02
+        outcome: pass
+        rationale: 状态一致
+    result: pass
+    deterministic_result:
+      engine_version: runtime-semantic-rules-2.0.0
+      result: pass
+      rationale: 判断等级、冲突和不可判断状态一致
+      evaluated_at: 2026-07-20T04:38:39.585Z
+judgments:
+  - id: J-CONTROLLED-01
+    judgment_unit_id: JU-01
+    title: 2024年全年营收同比是否增长
+    conclusion: 台积电披露的2024年全年合并营收较2023年同比增长33.9%；截至2025年1月16日可形成全年营收增长的方向观察。
+    rationale: 仅依据 EV-CONTROLLED-01 的直接披露形成方向观察；全部事实属于同一来源组，因此保持 J1
+    strength: J1
+    confidence: low
+    decision_status: supported
+    conflict_status: none
+    not_judgeable_reason: null
+    scope_ref: RS-TSMC-REVENUE-2024
+    cutoff_at: 2025-01-16T23:59:59.999+08:00
+    conditions:
+      - 只解释已披露的名义同比方向，不外推增长质量、原因、持续性或未来趋势
+    supporting_evidence_draft_ids:
+      - EV-CONTROLLED-01
+    counter_evidence_draft_ids: []
+    hypothesis_ids:
+      - H-CONTROLLED-01
+    rule_evaluation_ids:
+      - RE-SYS-J-CONTROLLED-01-EVIDENCE-SCOPE-TIME-ALIGNMENT
+      - RE-SYS-J-CONTROLLED-01-NO-DIRECT-EVIDENCE-TO-JUDGMENT
+      - RE-SYS-J-CONTROLLED-01-JUDGMENT-REFERENCE-INTEGRITY
+      - RE-SYS-J-CONTROLLED-01-JUDGMENT-EVIDENCE-THRESHOLD
+      - RE-SYS-J-CONTROLLED-01-JUDGMENT-STATUS-CONSISTENCY
+    method_application_ids: &a1
+      - MA-TSMC-REV-STRUCT-01
+      - MA-TSMC-REV-EVID-01
+      - MA-TSMC-REV-ADJ-01
+    ontology_node_ids:
+      - task_local:tsmc_revenue
+      - task_local:yoy_growth_fy2024
+    uncertainties:
+      - 该观察只反映发行人披露的名义同比，不说明增长质量或驱动
+      - 全部事实来自同一 TSMC source_group，缺少独立来源组交叉验证
+    invalidation_conditions:
+      - 台积电更正2024年全年营收同比数据，或确认当前披露口径与2023年不可比
+    tracking_signals:
+      - 后续更正、经审计披露与独立同口径复核
+    judgment_id: J-CONTROLLED-01
+    method_application_refs: *a1
+  - id: J-CONTROLLED-02
+    judgment_unit_id: JU-02
+    title: 2024年Q4营收同比增速是否高于全年同比增速
+    conclusion: 台积电披露的2024年第四季度营收同比增速38.8%高于全年同比增速33.9%，差值为4.9个百分点；仅形成两项名义同比的比较观察。
+    rationale: 仅依据 EV-CONTROLLED-01、EV-CONTROLLED-02 的直接披露形成方向观察；全部事实属于同一来源组，因此保持 J1
+    strength: J1
+    confidence: low
+    decision_status: supported
+    conflict_status: none
+    not_judgeable_reason: null
+    scope_ref: RS-TSMC-REVENUE-2024
+    cutoff_at: 2025-01-16T23:59:59.999+08:00
+    conditions:
+      - 只解释已披露的名义同比方向，不外推增长质量、原因、持续性或未来趋势
+    supporting_evidence_draft_ids:
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+    counter_evidence_draft_ids: []
+    hypothesis_ids:
+      - H-CONTROLLED-02
+    rule_evaluation_ids:
+      - RE-SYS-J-CONTROLLED-02-EVIDENCE-SCOPE-TIME-ALIGNMENT
+      - RE-SYS-J-CONTROLLED-02-NO-DIRECT-EVIDENCE-TO-JUDGMENT
+      - RE-SYS-J-CONTROLLED-02-JUDGMENT-REFERENCE-INTEGRITY
+      - RE-SYS-J-CONTROLLED-02-JUDGMENT-EVIDENCE-THRESHOLD
+      - RE-SYS-J-CONTROLLED-02-JUDGMENT-STATUS-CONSISTENCY
+    method_application_ids: &a2
+      - MA-TSMC-REV-STRUCT-02
+      - MA-TSMC-REV-EVID-02
+      - MA-TSMC-REV-ADJ-02
+    ontology_node_ids:
+      - task_local:tsmc_revenue
+      - task_local:yoy_growth_fy2024
+      - task_local:yoy_growth_q4_2024
+    uncertainties:
+      - Q4增速高于全年增速不等于已经证明下半年持续加速
+      - 全部事实来自同一 TSMC source_group，缺少独立来源组交叉验证
+    invalidation_conditions:
+      - 台积电更正任一同比数据，或确认季度与全年披露口径不可比
+    tracking_signals:
+      - 后续更正、经审计披露与独立同口径复核
+    judgment_id: J-CONTROLLED-02
+    method_application_refs: *a2
+reasoning_traces:
+  - id: RT-CONTROLLED-01
+    judgment_id: J-CONTROLLED-01
+    node_ids:
+      - RS-TSMC-REVENUE-2024
+      - JU-01
+      - EV-CONTROLLED-01
+      - H-CONTROLLED-01
+      - SIG-CONTROLLED-01
+      - MA-TSMC-REV-STRUCT-01
+      - MA-TSMC-REV-EVID-01
+      - MA-TSMC-REV-ADJ-01
+      - J-CONTROLLED-01
+      - RE-SYS-J-CONTROLLED-01-EVIDENCE-SCOPE-TIME-ALIGNMENT
+      - RE-SYS-J-CONTROLLED-01-NO-DIRECT-EVIDENCE-TO-JUDGMENT
+      - RE-SYS-J-CONTROLLED-01-JUDGMENT-REFERENCE-INTEGRITY
+      - RE-SYS-J-CONTROLLED-01-JUDGMENT-EVIDENCE-THRESHOLD
+      - RE-SYS-J-CONTROLLED-01-JUDGMENT-STATUS-CONSISTENCY
+    created_at: 2026-07-20T04:38:39.430Z
+  - id: RT-CONTROLLED-02
+    judgment_id: J-CONTROLLED-02
+    node_ids:
+      - RS-TSMC-REVENUE-2024
+      - JU-02
+      - EV-CONTROLLED-01
+      - EV-CONTROLLED-02
+      - H-CONTROLLED-02
+      - SIG-CONTROLLED-02
+      - MA-TSMC-REV-STRUCT-02
+      - MA-TSMC-REV-EVID-02
+      - MA-TSMC-REV-ADJ-02
+      - J-CONTROLLED-02
+      - RE-SYS-J-CONTROLLED-02-EVIDENCE-SCOPE-TIME-ALIGNMENT
+      - RE-SYS-J-CONTROLLED-02-NO-DIRECT-EVIDENCE-TO-JUDGMENT
+      - RE-SYS-J-CONTROLLED-02-JUDGMENT-REFERENCE-INTEGRITY
+      - RE-SYS-J-CONTROLLED-02-JUDGMENT-EVIDENCE-THRESHOLD
+      - RE-SYS-J-CONTROLLED-02-JUDGMENT-STATUS-CONSISTENCY
+    created_at: 2026-07-20T04:38:39.430Z
+overall_boundary: 本次仅形成两个历史营收同比方向的 J1 观察；同源证据不支持增长质量、下半年加速、原因归因、持续性或预测。

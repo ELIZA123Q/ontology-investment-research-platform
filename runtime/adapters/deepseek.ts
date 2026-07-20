@@ -2,7 +2,7 @@ import "server-only";
 
 import OpenAI from "openai";
 import { zodFunction } from "openai/helpers/zod";
-import type { z } from "zod";
+import { z } from "zod";
 import { schemas, type SchemaKind } from "../engine/schemas";
 import { ontologyToolDefinitions, runOntologyTool, type OntologyToolName } from "../engine/ontology_tools";
 import { captureSourceSnapshot } from "../engine/source_snapshot";
@@ -17,7 +17,12 @@ export type ModelResult<T> = {
   citations: Citation[];
 };
 
-type GenerateOptions = { webSearch?: boolean; ontologyTools?: boolean; runId?: string };
+type GenerateOptions = {
+  webSearch?: boolean;
+  ontologyTools?: boolean;
+  runId?: string;
+  validateOutput?: (data: unknown) => void;
+};
 
 function boundedTimeout(name: string, fallback: number, min: number, max: number) {
   const value = Number(process.env[name] || fallback);
@@ -123,28 +128,51 @@ export class DeepSeekClient {
     let raw = "";
     let lastResponseId = "";
     let lastUsage: unknown = {};
+    let lastSubmitError = "";
     const generationTimeoutMs = boundedTimeout("DEEPSEEK_GENERATION_TIMEOUT_MS", 480_000, 30_000, 1_200_000);
     const deadline = Date.now() + generationTimeoutMs;
+    // Reserve part of the total lease for a schema-validated direct JSON retry.
+    // Some model endpoints occasionally stall while deciding between many tools;
+    // a fresh no-tool request is materially more reliable for already-frozen input.
+    const toolPhaseDeadline = Date.now() + Math.max(15_000, Math.floor(generationTimeoutMs * 0.7));
 
-    for (let round = 0; round < 8; round++) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) throw new Error(`MODEL_TIMEOUT: DeepSeek 结构化生成超过 ${generationTimeoutMs}ms`);
+    const maxRounds = options.webSearch ? 16 : 10;
+    for (let round = 0; round < maxRounds; round++) {
+      const remaining = toolPhaseDeadline - Date.now();
+      if (remaining <= 0) {
+        lastSubmitError = `工具模式超过预留时限 ${Math.floor(generationTimeoutMs * 0.7)}ms`;
+        break;
+      }
       let response: any;
+      const requestBudgetMs = Math.min(remaining, boundedTimeout("DEEPSEEK_REQUEST_TIMEOUT_MS", 180_000, 10_000, 600_000));
+      const controller = new AbortController();
+      let hardTimer: ReturnType<typeof setTimeout> | undefined;
       try {
-        response = await this.client.chat.completions.create({
-          model: this.model,
-          messages,
-          tools,
-          tool_choice: "auto",
-          reasoning_effort: this.reasoning,
-          max_tokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 32768),
-          extra_body: { thinking: { type: "enabled" } },
-        } as any, { timeout: Math.min(remaining, boundedTimeout("DEEPSEEK_REQUEST_TIMEOUT_MS", 180_000, 10_000, 600_000)) });
+        response = await Promise.race([
+          this.client.chat.completions.create({
+            model: this.model,
+            messages,
+            tools,
+            tool_choice: "auto",
+            reasoning_effort: this.reasoning,
+            max_tokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 32768),
+            extra_body: { thinking: { type: "enabled" } },
+          } as any, { timeout: requestBudgetMs, signal: controller.signal }),
+          new Promise<never>((_, reject) => {
+            hardTimer = setTimeout(() => {
+              controller.abort();
+              reject(new Error(`MODEL_TIMEOUT: DeepSeek 第 ${round + 1} 轮超过硬时限 ${requestBudgetMs}ms`));
+            }, requestBudgetMs);
+          }),
+        ]);
       } catch (error) {
-        if (Date.now() >= deadline || /timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
-          throw new Error(`MODEL_TIMEOUT: DeepSeek 第 ${round + 1} 轮未在时限内返回`, { cause: error });
+        if (/timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
+          lastSubmitError = `工具模式第 ${round + 1} 轮超时`;
+          break;
         }
         throw error;
+      } finally {
+        if (hardTimer) clearTimeout(hardTimer);
       }
       lastResponseId = response.id || "";
       lastUsage = response.usage || {};
@@ -165,8 +193,10 @@ export class DeepSeekClient {
 
         if (toolName === submitName) {
           try {
+            const parsed = schema.parse(args);
+            options.validateOutput?.(parsed);
             return {
-              data: schema.parse(args),
+              data: parsed,
               raw,
               responseId: lastResponseId,
               usage: lastUsage,
@@ -174,10 +204,11 @@ export class DeepSeekClient {
               citations: dedupeCitations(citations),
             };
           } catch (error) {
+            lastSubmitError = error instanceof Error ? error.message : String(error);
             messages.push({
               role: "tool",
               tool_call_id: call.id,
-              content: JSON.stringify({ error: "提交内容未通过 schema", details: error instanceof Error ? error.message : String(error) }).slice(0, 12000),
+              content: JSON.stringify({ error: "提交内容未通过结构或语义校验", details: error instanceof Error ? error.message : String(error) }).slice(0, 12000),
             });
             continue;
           }
@@ -200,9 +231,112 @@ export class DeepSeekClient {
         toolTrace.push({ name: toolName, arguments: args, result });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, 24000) });
       }
+      if (round >= maxRounds - 4) {
+        messages.push({
+          role: "user",
+          content: `工具调用仅剩 ${maxRounds - round - 1} 轮。停止扩展检索；对未取得可核验正文的要求明确形成 gap，并尽快调用 ${submitName} 提交。`,
+        });
+      }
     }
-    throw new Error("DeepSeek 未在工具调用上限内提交合法结构化结果");
+    const directRemaining = deadline - Date.now();
+    if (directRemaining > 5_000) {
+      try {
+        const direct = await this.generateDirectJson(
+          name,
+          schema,
+          instructions,
+          input,
+          toolTrace,
+          options.validateOutput,
+          directRemaining,
+        );
+        return {
+          ...direct,
+          raw: `${raw}${direct.raw}`,
+          citations: dedupeCitations(citations),
+          toolUsage: { ...summarizeToolTrace(toolTrace), structured_submission_mode: "direct_json_fallback" },
+        };
+      } catch (error) {
+        lastSubmitError = `${lastSubmitError ? `${lastSubmitError}；` : ""}直接 JSON 降级失败: ${error instanceof Error ? error.message : String(error)}`;
+      }
+    }
+    const toolSummary = toolTrace.map((item) => String(item.name)).join(", ");
+    throw new Error(
+      `${Date.now() >= deadline ? "MODEL_TIMEOUT: " : ""}DeepSeek 未提交合法结构化结果`
+      + `${toolSummary ? `；已调用: ${toolSummary.slice(0, 1000)}` : "；未调用任何可执行工具"}`
+      + `${lastSubmitError ? `；最后一次校验错误: ${lastSubmitError.slice(0, 4000)}` : "；未调用最终提交工具"}`,
+    );
   }
+
+  private async generateDirectJson<T>(
+    name: string,
+    schema: z.ZodType<T>,
+    instructions: string,
+    input: string,
+    toolTrace: Array<Record<string, unknown>>,
+    validateOutput: GenerateOptions["validateOutput"],
+    timeoutMs: number,
+  ): Promise<ModelResult<T>> {
+    const schemaJson = JSON.stringify(z.toJSONSchema(schema));
+    const toolContext = toolTrace.length
+      ? JSON.stringify(toolTrace.map((item) => ({ name: item.name, result: item.result })).slice(-20)).slice(0, 60_000)
+      : "没有已完成的工具结果；不得因此编造来源或事实，证据不够时应输出 gap/J0。";
+    const controller = new AbortController();
+    let hardTimer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const response: any = await Promise.race([
+        this.client.chat.completions.create({
+          model: this.model,
+          messages: [
+            {
+              role: "system",
+              content: `${instructions}\n\n请直接返回一个 JSON 对象，不要使用 Markdown 代码块或附加说明。返回值必须符合以下 JSON Schema，且仍须遵守所有事实、方法、本体和时间边界：\n${schemaJson}`,
+            },
+            { role: "user", content: `${input}\n\n已完成工具结果（只可作为候选上下文，仍不得越过来源约束）：\n${toolContext}` },
+          ],
+          response_format: { type: "json_object" },
+          max_tokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 32768),
+        } as any, { timeout: timeoutMs, signal: controller.signal }),
+        new Promise<never>((_, reject) => {
+          hardTimer = setTimeout(() => {
+            controller.abort();
+            reject(new Error(`MODEL_TIMEOUT: DeepSeek 直接 JSON 降级超过 ${timeoutMs}ms`));
+          }, timeoutMs);
+        }),
+      ]);
+      const message = response.choices?.[0]?.message;
+      const raw = String(message?.content || "").trim();
+      if (!raw) throw new Error("直接 JSON 降级未返回正文");
+      const parsed = parseDirectJson(raw, schema);
+      validateOutput?.(parsed);
+      return {
+        data: parsed,
+        raw,
+        responseId: response.id || "",
+        usage: response.usage || {},
+        toolUsage: { structured_submission_mode: "direct_json_fallback" },
+        citations: [],
+      };
+    } catch (error) {
+      if (/timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
+        throw new Error("MODEL_TIMEOUT: DeepSeek 直接 JSON 降级未在保留时限内返回", { cause: error });
+      }
+      throw error;
+    } finally {
+      if (hardTimer) clearTimeout(hardTimer);
+    }
+  }
+}
+
+export function parseDirectJson<T>(raw: string, schema: z.ZodType<T>): T {
+  const normalized = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  let value: unknown;
+  try {
+    value = JSON.parse(normalized);
+  } catch (error) {
+    throw new Error(`直接 JSON 降级返回无法解析: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return schema.parse(value);
 }
 
 export class ResearchModelClient extends DeepSeekClient {

@@ -2,21 +2,29 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("node:dns/promises", () => ({
+  lookup: vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]),
+}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-radar-${process.pid}.sqlite`;
 
 let db: typeof import("@/adapters/db");
 let radar: typeof import("@/engine/market_radar");
 let workflow: typeof import("@/engine/workflow");
 let instanceGraph: typeof import("@/engine/instance_graph");
+let sourceSnapshot: typeof import("@/engine/source_snapshot");
 
 beforeAll(async () => {
   db = await import("@/adapters/db");
   radar = await import("@/engine/market_radar");
   workflow = await import("@/engine/workflow");
   instanceGraph = await import("@/engine/instance_graph");
+  sourceSnapshot = await import("@/engine/source_snapshot");
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sourceSnapshot.setSourceSnapshotDependenciesForTests(null);
+});
 
 describe("event-driven research radar", () => {
   it("deduplicates provider results and ignores invalid object mappings", async () => {
@@ -225,7 +233,10 @@ describe("event-driven research radar", () => {
 
     const quote = "库存同比进一步下降";
     const body = `<html><article>${quote.repeat(30)}</article></html>`;
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status: 200, headers: { "content-type": "text/html" } })));
+    sourceSnapshot.setSourceSnapshotDependenciesForTests({
+      resolveHost: async () => [{ address: "93.184.216.34", family: 4 }],
+      requestResolved: async () => new Response(body, { status: 200, headers: { "content-type": "text/html" } }),
+    });
     const newSource = { ...sourceDraft, source_id: childSource.id, source_quote: quote, locator: `quote:${quote}`, content_hash: "f".repeat(64), quote_verified: false };
     const artifact = await workflow.applyIncrementalChangeSet(child.id, {
       target_stage: "stage_03", trigger_event_id: event.id, base_artifact_id: baseArtifact.id,

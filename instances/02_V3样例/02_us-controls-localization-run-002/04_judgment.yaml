@@ -1,41 +1,612 @@
 stage: '04'
 schema_version: 5.0.0
 signals:
-  - {signal_id: SIG-11, statement: 管制适用设备范围扩大, role: support, evidence_refs: [EV-11], target_hypothesis_ref: H-11}
-  - {signal_id: SIG-12, statement: 国产刻蚀设备进入新增客户验证, role: support, evidence_refs: [EV-12], target_hypothesis_ref: H-12}
-  - {signal_id: SIG-13, statement: 规模采购尚未确认, role: weaken, evidence_refs: [EV-13], target_hypothesis_ref: H-12}
+- signal_id: SIG-11
+  statement: 管制适用设备范围扩大
+  role: support
+  evidence_refs:
+  - EV-11
+  target_hypothesis_ref: H-11
+- signal_id: SIG-12
+  statement: 国产刻蚀设备进入新增客户验证
+  role: support
+  evidence_refs:
+  - EV-12
+  target_hypothesis_ref: H-12
+- signal_id: SIG-13
+  statement: 规模采购尚未确认
+  role: weaken
+  evidence_refs:
+  - EV-13
+  target_hypothesis_ref: H-12
 hypotheses:
-  - {hypothesis_id: H-11, statement: 管制通过许可约束提高先进设备可得性成本, signal_refs: [SIG-11], falsification_conditions: [许可普遍获得且交付周期未变化], time_horizon: 2026}
-  - {hypothesis_id: H-12, statement: 国产刻蚀设备导入概率提高但商业化仍处验证阶段, signal_refs: [SIG-12, SIG-13], falsification_conditions: [关键验证失败, 客户终止采购], time_horizon: 2026-2027}
+- hypothesis_id: H-11
+  statement: 管制通过许可约束提高先进设备可得性成本
+  signal_refs:
+  - SIG-11
+  falsification_conditions:
+  - 许可普遍获得且交付周期未变化
+  time_horizon: 2026
+- hypothesis_id: H-12
+  statement: 国产刻蚀设备导入概率提高但商业化仍处验证阶段
+  signal_refs:
+  - SIG-12
+  - SIG-13
+  falsification_conditions:
+  - 关键验证失败
+  - 客户终止采购
+  time_horizon: 2026-2027
 competing_explanations:
-  - {explanation_id: CE-11, statement: 认证推进源于原有采购周期, signal_refs: [SIG-12], status: unresolved}
-  - {explanation_id: CE-12, statement: 验证通过不形成规模收入, signal_refs: [SIG-13], status: retained}
+- explanation_id: CE-11
+  statement: 认证推进源于原有采购周期
+  signal_refs:
+  - SIG-12
+  status: unresolved
+- explanation_id: CE-12
+  statement: 验证通过不形成规模收入
+  signal_refs:
+  - SIG-13
+  status: retained
 rule_evaluations:
-  - rule_evaluation_id: RE-11
-    rule_ref: evidence_scope_time_alignment
-    input_refs: [EV-11, SCOPE-CN-SEMI-EQP-2026]
-    condition_results:
-      - {condition_id: policy_scope, expression: policy_scope overlaps research_scope, input_refs: [EV-11], outcome: pass, rationale: 适用范围包含目标先进设备}
-      - {condition_id: time_alignment, expression: evidence.time <= research_cutoff, input_refs: [EV-11], outcome: pass, rationale: 规则发布早于研究截止日}
+- rule_evaluation_id: RE-11
+  rule_ref: evidence_scope_time_alignment
+  input_refs:
+  - EV-11
+  - SCOPE-CN-SEMI-EQP-2026
+  condition_results:
+  - condition_id: policy_scope
+    expression: policy_scope overlaps research_scope
+    input_refs:
+    - EV-11
+    outcome: pass
+    rationale: 适用范围包含目标先进设备
+  - condition_id: time_alignment
+    expression: evidence.time <= research_cutoff
+    input_refs:
+    - EV-11
+    outcome: pass
+    rationale: 规则发布早于研究截止日
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
     result: pass
-  - rule_evaluation_id: RE-12
-    rule_ref: semiconductor_qualification_stage_alignment
-    input_refs: [EV-12, EV-13, EA-12, EA-13, EG-11, EB-JU12-C, H-12]
-    condition_results:
-      - {condition_id: stage_not_revenue, expression: qualification_stage != mass_purchase, input_refs: [EV-12, EV-13], outcome: pass, rationale: 明确限制为验证阶段}
-      - {condition_id: lag_disclosed, expression: commercialization_lag disclosed, input_refs: [EV-13, EA-13], outcome: pass, rationale: 规模采购和收入仍待验证}
-      - {condition_id: sample_limit_disclosed, expression: sample_limitations not empty, input_refs: [EA-12, EA-13], outcome: pass, rationale: 已披露匿名客户和样本限制}
-      - {condition_id: gap_not_hidden, expression: partially_met_gap recorded, input_refs: [EV-13, EG-11], outcome: pass, rationale: 批量采购证据缺口已结构化记录}
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-12
+  rule_ref: semiconductor_qualification_stage_alignment
+  input_refs:
+  - EV-12
+  - EV-13
+  - EA-12
+  - EA-13
+  - EG-11
+  - EB-JU12-C
+  - H-12
+  condition_results:
+  - condition_id: stage_not_revenue
+    expression: qualification_stage != mass_purchase
+    input_refs:
+    - EV-12
+    - EV-13
+    outcome: pass
+    rationale: 明确限制为验证阶段
+  - condition_id: lag_disclosed
+    expression: commercialization_lag disclosed
+    input_refs:
+    - EV-13
+    - EA-13
+    outcome: pass
+    rationale: 规模采购和收入仍待验证
+  - condition_id: sample_limit_disclosed
+    expression: sample_limitations not empty
+    input_refs:
+    - EA-12
+    - EA-13
+    outcome: pass
+    rationale: 已披露匿名客户和样本限制
+  - condition_id: gap_not_hidden
+    expression: partially_met_gap recorded
+    input_refs:
+    - EV-13
+    - EG-11
+    outcome: pass
+    rationale: 批量采购证据缺口已结构化记录
+  result: pass
+- rule_evaluation_id: RE-SYS-C-11-NDE
+  rule_ref: no_direct_evidence_to_judgment
+  input_refs:
+  - EV-11
+  - SIG-11
+  - H-11
+  condition_results:
+  - condition_id: mediated
+    expression: judgment.evidence via signal/hypothesis
+    input_refs: &id001
+    - EV-11
+    outcome: pass
+    rationale: 证据经 Signal/Hypothesis 中介
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
     result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-11-JRI
+  rule_ref: judgment_reference_integrity
+  input_refs:
+  - EV-11
+  - SIG-11
+  - H-11
+  condition_results:
+  - condition_id: refs_resolvable
+    expression: all judgment refs resolve
+    input_refs:
+    - EV-11
+    - SIG-11
+    - H-11
+    outcome: pass
+    rationale: 判断引用可解析
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-11-JET
+  rule_ref: judgment_evidence_threshold
+  input_refs:
+  - EV-11
+  - SIG-11
+  - H-11
+  condition_results:
+  - condition_id: support_present
+    expression: support evidence present or J0 stop
+    input_refs: *id001
+    outcome: pass
+    rationale: 支持证据或诚实停判成立
+  - condition_id: counter_checked
+    expression: counter evidence assessed
+    input_refs: *id001
+    outcome: pass
+    rationale: 反证已检查或披露缺口
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-11-JSC
+  rule_ref: judgment_status_consistency
+  input_refs:
+  - C-11
+  - EV-11
+  - SIG-11
+  - H-11
+  condition_results:
+  - condition_id: status_aligned
+    expression: level/decision_status/conflict consistent
+    input_refs:
+    - C-11
+    - EV-11
+    outcome: pass
+    rationale: 等级与决策/冲突状态一致
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-12-ESA
+  rule_ref: evidence_scope_time_alignment
+  input_refs:
+  - EV-12
+  - EV-13
+  - SIG-12
+  - SIG-13
+  - H-12
+  condition_results:
+  - condition_id: subject_alignment
+    expression: evidence.subject in scope
+    input_refs: &id002
+    - EV-12
+    - EV-13
+    outcome: pass
+    rationale: 主体落在研究范围内
+  - condition_id: time_alignment
+    expression: evidence.time <= research_cutoff
+    input_refs: *id002
+    outcome: pass
+    rationale: 观测时间不晚于截止日
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-12-NDE
+  rule_ref: no_direct_evidence_to_judgment
+  input_refs:
+  - EV-12
+  - EV-13
+  - SIG-12
+  - SIG-13
+  - H-12
+  condition_results:
+  - condition_id: mediated
+    expression: judgment.evidence via signal/hypothesis
+    input_refs: *id002
+    outcome: pass
+    rationale: 证据经 Signal/Hypothesis 中介
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-12-JRI
+  rule_ref: judgment_reference_integrity
+  input_refs:
+  - EV-12
+  - EV-13
+  - SIG-12
+  - SIG-13
+  - H-12
+  condition_results:
+  - condition_id: refs_resolvable
+    expression: all judgment refs resolve
+    input_refs:
+    - EV-12
+    - EV-13
+    - SIG-12
+    - SIG-13
+    - H-12
+    outcome: pass
+    rationale: 判断引用可解析
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-12-JET
+  rule_ref: judgment_evidence_threshold
+  input_refs:
+  - EV-12
+  - EV-13
+  - SIG-12
+  - SIG-13
+  - H-12
+  condition_results:
+  - condition_id: support_present
+    expression: support evidence present or J0 stop
+    input_refs: *id002
+    outcome: pass
+    rationale: 支持证据或诚实停判成立
+  - condition_id: counter_checked
+    expression: counter evidence assessed
+    input_refs: *id002
+    outcome: pass
+    rationale: 反证已检查或披露缺口
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
+- rule_evaluation_id: RE-SYS-C-12-JSC
+  rule_ref: judgment_status_consistency
+  input_refs:
+  - C-12
+  - EV-12
+  - EV-13
+  - SIG-12
+  - SIG-13
+  - H-12
+  condition_results:
+  - condition_id: status_aligned
+    expression: level/decision_status/conflict consistent
+    input_refs:
+    - C-12
+    - EV-12
+    outcome: pass
+    rationale: 等级与决策/冲突状态一致
+  result: pass
+  deterministic_result:
+    engine_version: runtime-semantic-rules-2.0.0
+    result: pass
+    rationale: fixture aligned with runtime-semantic-rules-2.0.0
+    evaluated_at: '2026-07-17T11:10:00+08:00'
 method_applications:
-  - {application_id: MA-11, method_id: 'kb03:A04', method_version: 3.2.0, capability_type: evidence, target_question_refs: [Q-01], target_judgment_unit_refs: [JU-01], target_ontology_object_refs: [EVT-CTRL-2026, FAB-CN], status: executed, precondition_checks: [{precondition_id: policy_start_fact_identified, result: pass, evidence_refs: [EV-11], reason: 规则原文与适用范围可定位}], input_evidence_refs: [EV-11], output_signal_refs: [SIG-11], output_judgment_refs: [], execution_summary: 路径取证已形成政策约束信号, applicability_boundary: 政策到设备可得性的传导, limitations: [许可执行个案缺失], counter_example_refs: [], provenance: {stage: stage_04, source_application_id: MA-11, actor: sample_adjudicator, recorded_at: '2026-07-17T11:00:00+08:00'}, alternatives: [{method_id: 'kb03:A01', decision: prerequisite, reason: 先确认政策事实}]}
-  - {application_id: MA-12, method_id: 'kb03:A05', method_version: 3.2.0, capability_type: evidence, target_question_refs: [Q-02], target_judgment_unit_refs: [JU-02], target_ontology_object_refs: [EQP-ETCH-CN, FAB-CN, YM-QUAL], status: degraded, precondition_checks: [{precondition_id: unified_qualification_scope, result: partial, evidence_refs: [EV-12, EV-13], reason: 可确认验证推进但无法确认规模采购}], input_evidence_refs: [EV-12, EV-13], output_signal_refs: [], output_judgment_refs: [], execution_summary: 比较取证保留但受商业化证据缺口限制, applicability_boundary: 同口径认证阶段分化, limitations: [替代结论上限为验证阶段, 批量采购量与收入确认缺失], counter_example_refs: [CE-01, CE-02], provenance: {stage: stage_04, source_application_id: MA-12, actor: sample_adjudicator, recorded_at: '2026-07-17T11:00:00+08:00'}, alternatives: [{method_id: 'kb03:A04', decision: retained, reason: 保留已验证的政策传导证据}]}
-  - {application_id: MA-14, method_id: 'kb04:A06', method_version: 1.0.0, capability_type: adjudication, target_question_refs: [Q-01], target_judgment_unit_refs: [JU-01], target_ontology_object_refs: [EVT-CTRL-2026, FAB-CN], status: executed, precondition_checks: [{precondition_id: start_fact_and_path_nodes, result: pass, evidence_refs: [EV-11], reason: 政策事实与设备可得性路径均已定义}], input_evidence_refs: [EV-11], output_signal_refs: [SIG-11], output_judgment_refs: [C-11], execution_summary: 验证政策到设备可得性约束的传导路径, applicability_boundary: 规则适用设备与中国晶圆厂2026年, limitations: [许可执行个案未覆盖], counter_example_refs: [], provenance: {stage: stage_04, source_application_id: MA-14, actor: sample_adjudicator, recorded_at: '2026-07-17T11:00:00+08:00'}, alternatives: [{method_id: 'kb04:A04', decision: not_selected, reason: 本问题需要路径而非单点机制}]}
-  - {application_id: MA-15, method_id: 'kb04:A07', method_version: 1.0.0, capability_type: adjudication, target_question_refs: [Q-02], target_judgment_unit_refs: [JU-02], target_ontology_object_refs: [EQP-ETCH-CN, FAB-CN, YM-QUAL], status: executed, precondition_checks: [{precondition_id: unified_comparison_scope, result: partial, evidence_refs: [EV-12, EV-13], reason: 认证阶段可比但批量采购不可比}], input_evidence_refs: [EV-12, EV-13], output_signal_refs: [SIG-12, SIG-13], output_judgment_refs: [C-12], execution_summary: 区分认证推进与商业化兑现并限制结论范围, applicability_boundary: 国产刻蚀设备样本客户认证阶段, limitations: [不可外推全部设备品类], counter_example_refs: [CE-11, CE-12], provenance: {stage: stage_04, source_application_id: MA-15, actor: sample_adjudicator, recorded_at: '2026-07-17T11:05:00+08:00'}, alternatives: [{method_id: 'kb04:A08', decision: not_selected, reason: 缺少财务兑现桥}]}
-  - {application_id: MA-16, method_id: 'kb04:A10', method_version: 1.0.0, capability_type: adjudication, target_question_refs: [Q-02], target_judgment_unit_refs: [JU-02], target_ontology_object_refs: [], status: blocked, precondition_checks: [{precondition_id: pricing_and_payoff_inputs, result: fail, evidence_refs: [], reason: 没有估值、预期与收益风险输入}], input_evidence_refs: [], output_signal_refs: [], output_judgment_refs: [], execution_summary: 未执行投资命题裁决, applicability_boundary: 投资命题, limitations: [缺少定价输入], counter_example_refs: [], provenance: {stage: stage_04, source_application_id: MA-16, actor: sample_adjudicator, recorded_at: '2026-07-17T11:05:00+08:00'}, alternatives: [{method_id: 'kb04:A07', decision: selected, reason: 当前只形成业务分化判断}]}
+- application_id: MA-10
+  method_id: BF-SD-01
+  method_version: 2.0.0
+  capability_type: judgment_structure
+  target_question_refs:
+  - Q-01
+  - Q-02
+  target_judgment_unit_refs:
+  - JU-01
+  - JU-02
+  target_ontology_object_refs: []
+  status: executed
+  precondition_checks:
+  - precondition_id: judgment_units_frozen
+    result: pass
+    evidence_refs:
+    - EV-11
+    - EV-12
+    - EV-13
+    reason: 两个判断单元保持独立并分别形成受限结论
+  input_evidence_refs:
+  - EV-11
+  - EV-12
+  - EV-13
+  output_signal_refs: []
+  output_judgment_refs:
+  - C-11
+  - C-12
+  execution_summary: 完成政策传导与设备认证分化的结构边界校验
+  applicability_boundary: 管制传导与国产替代两个原子判断的边界
+  limitations: []
+  counter_example_refs: []
+  provenance:
+    stage: stage_04
+    source_application_id: MA-10
+    actor: sample_adjudicator
+    recorded_at: '2026-07-17T11:00:00+08:00'
+  alternatives: []
+- application_id: MA-11
+  method_id: kb03:A04
+  method_version: 3.2.0
+  capability_type: evidence
+  target_question_refs:
+  - Q-01
+  target_judgment_unit_refs:
+  - JU-01
+  target_ontology_object_refs:
+  - EVT-CTRL-2026
+  - FAB-CN
+  status: executed
+  precondition_checks:
+  - precondition_id: policy_start_fact_identified
+    result: pass
+    evidence_refs:
+    - EV-11
+    reason: 规则原文与适用范围可定位
+  input_evidence_refs:
+  - EV-11
+  output_signal_refs:
+  - SIG-11
+  output_judgment_refs: []
+  execution_summary: 路径取证已形成政策约束信号
+  applicability_boundary: 政策到设备可得性的传导
+  limitations:
+  - 许可执行个案缺失
+  counter_example_refs: []
+  provenance:
+    stage: stage_04
+    source_application_id: MA-11
+    actor: sample_adjudicator
+    recorded_at: '2026-07-17T11:00:00+08:00'
+  alternatives:
+  - method_id: kb03:A01
+    decision: prerequisite
+    reason: 先确认政策事实
+- application_id: MA-12
+  method_id: kb03:A05
+  method_version: 3.2.0
+  capability_type: evidence
+  target_question_refs:
+  - Q-02
+  target_judgment_unit_refs:
+  - JU-02
+  target_ontology_object_refs:
+  - EQP-ETCH-CN
+  - FAB-CN
+  - YM-QUAL
+  status: degraded
+  precondition_checks:
+  - precondition_id: unified_qualification_scope
+    result: partial
+    evidence_refs:
+    - EV-12
+    - EV-13
+    reason: 可确认验证推进但无法确认规模采购
+  input_evidence_refs:
+  - EV-12
+  - EV-13
+  output_signal_refs: []
+  output_judgment_refs: []
+  execution_summary: 比较取证保留但受商业化证据缺口限制
+  applicability_boundary: 同口径认证阶段分化
+  limitations:
+  - 替代结论上限为验证阶段
+  - 批量采购量与收入确认缺失
+  counter_example_refs:
+  - CE-01
+  - CE-02
+  provenance:
+    stage: stage_04
+    source_application_id: MA-12
+    actor: sample_adjudicator
+    recorded_at: '2026-07-17T11:00:00+08:00'
+  alternatives:
+  - method_id: kb03:A04
+    decision: retained
+    reason: 保留已验证的政策传导证据
+- application_id: MA-14
+  method_id: kb04:A06
+  method_version: 1.0.0
+  capability_type: adjudication
+  target_question_refs:
+  - Q-01
+  target_judgment_unit_refs:
+  - JU-01
+  target_ontology_object_refs:
+  - EVT-CTRL-2026
+  - FAB-CN
+  status: executed
+  precondition_checks:
+  - precondition_id: start_fact_and_path_nodes
+    result: pass
+    evidence_refs:
+    - EV-11
+    reason: 政策事实与设备可得性路径均已定义
+  input_evidence_refs:
+  - EV-11
+  output_signal_refs:
+  - SIG-11
+  output_judgment_refs:
+  - C-11
+  execution_summary: 验证政策到设备可得性约束的传导路径
+  applicability_boundary: 规则适用设备与中国晶圆厂2026年
+  limitations:
+  - 许可执行个案未覆盖
+  counter_example_refs: []
+  provenance:
+    stage: stage_04
+    source_application_id: MA-14
+    actor: sample_adjudicator
+    recorded_at: '2026-07-17T11:00:00+08:00'
+  alternatives:
+  - method_id: kb04:A04
+    decision: not_selected
+    reason: 本问题需要路径而非单点机制
+- application_id: MA-15
+  method_id: kb04:A07
+  method_version: 1.0.0
+  capability_type: adjudication
+  target_question_refs:
+  - Q-02
+  target_judgment_unit_refs:
+  - JU-02
+  target_ontology_object_refs:
+  - EQP-ETCH-CN
+  - FAB-CN
+  - YM-QUAL
+  status: executed
+  precondition_checks:
+  - precondition_id: unified_comparison_scope
+    result: partial
+    evidence_refs:
+    - EV-12
+    - EV-13
+    reason: 认证阶段可比但批量采购不可比
+  input_evidence_refs:
+  - EV-12
+  - EV-13
+  output_signal_refs:
+  - SIG-12
+  - SIG-13
+  output_judgment_refs:
+  - C-12
+  execution_summary: 区分认证推进与商业化兑现并限制结论范围
+  applicability_boundary: 国产刻蚀设备样本客户认证阶段
+  limitations:
+  - 不可外推全部设备品类
+  counter_example_refs:
+  - CE-11
+  - CE-12
+  provenance:
+    stage: stage_04
+    source_application_id: MA-15
+    actor: sample_adjudicator
+    recorded_at: '2026-07-17T11:05:00+08:00'
+  alternatives:
+  - method_id: kb04:A08
+    decision: not_selected
+    reason: 缺少财务兑现桥
 judgments:
-  - {judgment_id: C-11, judgment_unit_ref: JU-01, statement: 新规则提高部分先进设备的许可约束并强化可得性不确定性, level: J3, confidence: high, decision_status: supported, conflict_status: none, scope_ref: SCOPE-CN-SEMI-EQP-2026, cutoff_at: '2026-07-17T00:00:00+08:00', signal_refs: [SIG-11], hypothesis_refs: [H-11], rule_evaluation_refs: [RE-11], method_application_refs: [MA-14], evidence_refs: [EV-11], conditions: [规则按公布范围执行], invalidation_conditions: [许可执行普遍豁免且交付不受影响]}
-  - {judgment_id: C-12, judgment_unit_ref: JU-02, statement: 国产刻蚀设备在样本客户的验证机会提高，但尚不能上升为规模采购或收入兑现判断, level: J2, confidence: medium, decision_status: supported, conflict_status: none, scope_ref: SCOPE-CN-SEMI-EQP-2026, cutoff_at: '2026-07-17T00:00:00+08:00', signal_refs: [SIG-12, SIG-13], hypothesis_refs: [H-12], rule_evaluation_refs: [RE-12], method_application_refs: [MA-15], evidence_refs: [EV-12, EV-13], conditions: [认证继续推进且未出现关键失败], invalidation_conditions: [关键验证失败, 客户终止采购]}
+- judgment_id: C-11
+  judgment_unit_ref: JU-01
+  statement: 新规则提高部分先进设备的许可约束并强化可得性不确定性
+  level: J3
+  confidence: high
+  decision_status: supported
+  conflict_status: none
+  scope_ref: SCOPE-CN-SEMI-EQP-2026
+  cutoff_at: '2026-07-17T00:00:00+08:00'
+  signal_refs:
+  - SIG-11
+  hypothesis_refs:
+  - H-11
+  rule_evaluation_refs:
+  - RE-11
+  - RE-SYS-C-11-NDE
+  - RE-SYS-C-11-JRI
+  - RE-SYS-C-11-JET
+  - RE-SYS-C-11-JSC
+  method_application_refs:
+  - MA-14
+  evidence_refs:
+  - EV-11
+  conditions:
+  - 规则按公布范围执行
+  invalidation_conditions:
+  - 许可执行普遍豁免且交付不受影响
+- judgment_id: C-12
+  judgment_unit_ref: JU-02
+  statement: 国产刻蚀设备在样本客户的验证机会提高，但尚不能上升为规模采购或收入兑现判断
+  level: J2
+  confidence: medium
+  decision_status: supported
+  conflict_status: none
+  scope_ref: SCOPE-CN-SEMI-EQP-2026
+  cutoff_at: '2026-07-17T00:00:00+08:00'
+  signal_refs:
+  - SIG-12
+  - SIG-13
+  hypothesis_refs:
+  - H-12
+  rule_evaluation_refs:
+  - RE-12
+  - RE-SYS-C-12-ESA
+  - RE-SYS-C-12-NDE
+  - RE-SYS-C-12-JRI
+  - RE-SYS-C-12-JET
+  - RE-SYS-C-12-JSC
+  method_application_refs:
+  - MA-15
+  evidence_refs:
+  - EV-12
+  - EV-13
+  conditions:
+  - 认证继续推进且未出现关键失败
+  invalidation_conditions:
+  - 关键验证失败
+  - 客户终止采购
 reasoning_traces:
-  - {trace_id: RT-11, judgment_ref: C-11, node_refs: [EV-11, SIG-11, H-11, RE-11, MA-14, C-11], created_at: '2026-07-17T11:10:00+08:00'}
-  - {trace_id: RT-12, judgment_ref: C-12, node_refs: [EV-12, EV-13, EG-11, SIG-12, SIG-13, H-12, CE-11, CE-12, RE-12, MA-15, C-12], created_at: '2026-07-17T11:10:00+08:00'}
+- trace_id: RT-11
+  judgment_ref: C-11
+  node_refs:
+  - EV-11
+  - SIG-11
+  - H-11
+  - RE-11
+  - MA-14
+  - C-11
+  - RE-SYS-C-11-NDE
+  - RE-SYS-C-11-JRI
+  - RE-SYS-C-11-JET
+  - RE-SYS-C-11-JSC
+  created_at: '2026-07-17T11:10:00+08:00'
+- trace_id: RT-12
+  judgment_ref: C-12
+  node_refs:
+  - EV-12
+  - EV-13
+  - EG-11
+  - SIG-12
+  - SIG-13
+  - H-12
+  - CE-11
+  - CE-12
+  - RE-12
+  - MA-15
+  - C-12
+  - RE-SYS-C-12-ESA
+  - RE-SYS-C-12-NDE
+  - RE-SYS-C-12-JRI
+  - RE-SYS-C-12-JET
+  - RE-SYS-C-12-JSC
+  created_at: '2026-07-17T11:10:00+08:00'

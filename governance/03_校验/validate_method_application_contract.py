@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MethodApplication 1.1 / Public Contract 1.3 validation helpers.
+"""MethodApplication 1.2 / Public Contract 1.3 validation helpers.
 
 The functions in this module are intentionally independent from the compact V3
 examples.  Stage validators use them for normal 02--05 artifacts as well.
@@ -54,8 +54,8 @@ def validate_contract_data(public_contract: dict[str, Any]) -> list[str]:
     if str(public_contract.get("schema_version")) != "1.3.0":
         errors.append("Public Contract version must be 1.3.0")
     contract = public_contract.get("method_application_contract") or {}
-    if str(contract.get("schema_version")) != "1.1.0":
-        errors.append("MethodApplication contract version must be 1.1.0")
+    if str(contract.get("schema_version")) != "1.2.0":
+        errors.append("MethodApplication contract version must be 1.2.0")
     if contract.get("canonical_stage_field") != CANONICAL_FIELD:
         errors.append("canonical MethodApplication stage field must be method_applications")
     if set((contract.get("deprecated_stage_fields") or {}).keys()) != DEPRECATED_FIELDS:
@@ -66,6 +66,8 @@ def validate_contract_data(public_contract: dict[str, Any]) -> list[str]:
             errors.append(f"MethodApplication required_fields is missing {field}")
     if not REQUIRED_IMMUTABLE <= set(contract.get("immutable_fields") or []):
         errors.append("immutable MethodApplication identity fields are incomplete")
+    if set(contract.get("per_judgment_unit_required_capabilities") or []) != {"judgment_structure", "evidence", "adjudication"}:
+        errors.append("every JudgmentUnit must require structure, evidence and adjudication capabilities")
     ownership = contract.get("stage_field_ownership") or {}
     if set(ownership) != {"stage_02", "stage_03", "stage_04", "stage_05"}:
         errors.append("stage ownership must cover stage_02 through stage_05")
@@ -170,6 +172,9 @@ def validate_stage_applications(
         ((contract.get("stage_field_ownership") or {}).get(stage) or {}).get("forbidden_nonempty") or []
     )
     capabilities = set(contract.get("capability_types") or [])
+    required_capabilities = set(contract.get("per_judgment_unit_required_capabilities") or [])
+    if required_capabilities != {"judgment_structure", "evidence", "adjudication"}:
+        errors.append("every JudgmentUnit must require structure, evidence and adjudication capabilities")
 
     for app_id, item in current.items():
         missing = sorted(required_fields - set(item))
@@ -287,6 +292,21 @@ def validate_stage_applications(
             if not alternatives:
                 errors.append(f"{label}#{app_id} {status} application has no alternative method")
 
+        if stage == "stage_03" and item.get("capability_type") == "evidence" and status == "candidate":
+            errors.append(f"{label}#{app_id} evidence application must converge in stage_03")
+
+    if known_judgment_units is not None:
+        required_capabilities = set(contract.get("per_judgment_unit_required_capabilities") or [])
+        for unit_id in sorted(known_judgment_units):
+            covered = {
+                str(item.get("capability_type"))
+                for item in current.values()
+                if unit_id in (item.get("target_judgment_unit_refs") or [])
+            }
+            missing = sorted(required_capabilities - covered)
+            if missing:
+                errors.append(f"{label} JudgmentUnit {unit_id} missing capabilities: {', '.join(missing)}")
+
     if prior_items is not None:
         prior, prior_errors = application_index(prior_items, f"prior-to-{stage}.{CANONICAL_FIELD}")
         errors.extend(prior_errors)
@@ -378,6 +398,8 @@ def validate_expression_projection(
                 errors.append(f"{label} references unknown MethodApplication {ref}")
             elif apps[ref].get("status") != "executed":
                 errors.append(f"{label} references non-executed MethodApplication {ref}")
+        if required and not any(apps.get(ref, {}).get("capability_type") == "adjudication" for ref in method_refs):
+            errors.append(f"{label} must retain adjudication MethodApplication trace")
         source_ids = item.get("source_rcs") or [item.get("source_claim_id")]
         if not isinstance(source_ids, list):
             source_ids = [source_ids]
@@ -427,7 +449,7 @@ def main() -> int:
             print(f"ERROR: {error}")
         print(f"METHOD_APPLICATION_CONTRACT_RETURN_REQUIRED: {len(errors)} error(s)")
         return 1
-    print("METHOD_APPLICATION_CONTRACT_PASS: Public Contract 1.3; MethodApplication 1.1; formal stage helpers active")
+    print("METHOD_APPLICATION_CONTRACT_PASS: Public Contract 1.3; MethodApplication 1.2; formal stage helpers active")
     return 0
 
 
