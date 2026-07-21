@@ -438,6 +438,20 @@ export function materializeStageIntoGraph(
       }
     }
     addObjects(stageJson.competing_explanations, "CompetingExplanation", ["explanation_id", "id"], "competing_explanations");
+    for (const [index, explanation] of ((stageJson.competing_explanations as any[]) || []).entries()) {
+      if (!explanation || typeof explanation !== "object") continue;
+      const explanationId = String(explanation.explanation_id || explanation.id || `CE-${index + 1}`);
+      for (const unitId of explanation.judgment_unit_ids || []) {
+        if (!unitId) continue;
+        slice.relations.push({
+          id: `REL-${explanationId}-UNIT-${unitId}`,
+          type: "competingExplanationForUnit",
+          sourceId: explanationId,
+          targetId: String(unitId),
+          properties: {},
+        });
+      }
+    }
     addObjects(stageJson.evidence_requirements, "EvidenceRequirement", ["evidence_requirement_id", "id"], "evidence_requirements");
   }
   if (stageKind === "stage_03") {
@@ -556,8 +570,9 @@ export function materializeStageIntoGraph(
     }
     addObjects(stageJson.hypotheses, "Hypothesis", ["hypothesis_id", "id"], "hypotheses");
     for (const [index, explanation] of ((stageJson.competing_explanations as any[]) || []).entries()) {
+      const explanationId = String(explanation.explanation_id || explanation.id || `CE-${index + 1}`);
       slice.objects.push({
-        id: String(explanation.explanation_id || explanation.id || `CE-${index + 1}`),
+        id: explanationId,
         type: "CompetingExplanation",
         properties: {
           ...explanation,
@@ -566,6 +581,16 @@ export function materializeStageIntoGraph(
         },
         projection: { section: "competing_explanations", index },
       });
+      for (const unitId of explanation.judgment_unit_ids || []) {
+        if (!unitId) continue;
+        slice.relations.push({
+          id: `REL-${explanationId}-UNIT-${unitId}`,
+          type: "competingExplanationForUnit",
+          sourceId: explanationId,
+          targetId: String(unitId),
+          properties: { stage: "stage_04" },
+        });
+      }
     }
     addObjects(stageJson.rule_evaluations, "RuleEvaluation", ["rule_evaluation_id", "id"], "rule_evaluations");
     for (const [index, trace] of ((stageJson.reasoning_traces as any[]) || []).entries()) {
@@ -689,7 +714,7 @@ export function summarizeGraph(graph: BusinessInstanceGraph, limit = 40): string
 const DOWNSTREAM_DIRECTIONS: Record<string, "forward" | "reverse"> = {
   claimCitesSource: "reverse",
   factDerivedFromClaim: "reverse",
-  assessmentEvaluatesEvidence: "reverse",
+  assessmentEvaluatesFact: "reverse",
   basketIncludesAssessment: "reverse",
   basketFulfillsRequirement: "reverse",
   requirementForJudgmentUnit: "reverse",

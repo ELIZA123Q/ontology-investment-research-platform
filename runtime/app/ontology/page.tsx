@@ -23,9 +23,9 @@ export default async function OntologyPage({
     <>
       <div className="pagehead">
         <div>
-          <div className="eyebrow">Ontology browser</div>
-          <h1>知识资产与运行实例</h1>
-          <p className="muted">只读浏览正式 YAML；实例来自 business_instance_graph Object Set。</p>
+          <div className="eyebrow">知识浏览</div>
+          <h1>知识定义与研究实例</h1>
+          <p className="muted">只读浏览知识定义；右侧显示本轮研究中的相关实例。</p>
         </div>
         <form>
           <input type="hidden" name="node" value={selected?.id} />
@@ -36,7 +36,7 @@ export default async function OntologyPage({
               </option>
             ))}
           </select>
-          <button className="button-secondary">切换运行</button>
+          <button className="button-secondary">切换研究</button>
         </form>
       </div>
       <div className="three-col">
@@ -68,13 +68,13 @@ export default async function OntologyPage({
               <p>{selected.properties.join("、") || "无"}</p>
               {selected.write_scope?.length ? (
                 <>
-                  <h3>write_scope</h3>
+                  <h3>可写范围</h3>
                   <p>{selected.write_scope.join("、")}</p>
                 </>
               ) : null}
               {selected.function_ref ? (
                 <>
-                  <h3>function_ref</h3>
+                  <h3>关联函数</h3>
                   <p>{selected.function_ref}</p>
                 </>
               ) : null}
@@ -89,12 +89,12 @@ export default async function OntologyPage({
           )}
         </section>
         <section className="card">
-          <h2>当前运行实例</h2>
+          <h2>当前研究实例</h2>
           {"graph_source" in linked && linked.graph_source ? (
-            <p className="muted">图来源：{String((linked as any).graph_source)}</p>
+            <p className="muted">关系图来源：{String((linked as any).graph_source)}</p>
           ) : null}
           {"executable_actions" in linked && (linked as any).executable_actions?.length ? (
-            <p className="muted">相关 Action：{(linked as any).executable_actions.join("、")}</p>
+            <p className="muted">相关可执行操作：{(linked as any).executable_actions.join("、")}</p>
           ) : null}
           {linked.instances.length ? (
             linked.instances.map((x: any, i: number) => (
@@ -107,7 +107,7 @@ export default async function OntologyPage({
               </div>
             ))
           ) : (
-            <p className="muted">当前运行尚无关联实例。可在创建运行时绑定 V3 语义样例包（semantic_fixture）。</p>
+            <p className="muted">当前研究尚无关联实例。可在新建时选择「预置样例研究对象」（可选）。</p>
           )}
           {linked.sources.length > 0 && (
             <>

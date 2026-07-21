@@ -140,7 +140,7 @@ function computeRule(
         .some((value) => !parseTime(value) || parseTime(value)! > cutoff));
     const badSource = boundSources.filter((source) => source.usability_status !== "usable"
       || source.retrieval_status !== "captured"
-      || !Boolean(source.quote_verified)
+      || !source.quote_verified
       || !source.content_hash
       || !parseTime(source.published_at)
       || !cutoff

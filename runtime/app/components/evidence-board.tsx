@@ -76,7 +76,7 @@ export function EvidenceBoard({ runId, units, evidence, sources, workItems }: { 
             {evidence.filter((item) => item.judgment_unit_ids.includes(unit.id) && laneFor(item) === lane.id).map((item) => {
               const itemWork = workItems.find((work) => work.target_id === item.id);
               return <button className={`evidence-card lane-${lane.id} ${selectedId === item.id ? "selected" : ""}`} onClick={() => setSelectedId(item.id)} key={item.id}>
-                <span>{item.kind}</span><strong>{item.statement}</strong><small>{itemWork?.status || "待审阅"} · 来源 {item.source_ids.length}</small>
+                <span>{({ fact_draft: "事实草稿", counter: "反证", gap: "缺口", conflict: "冲突", background: "背景" } as Record<string, string>)[item.kind] || item.kind}</span><strong>{item.statement}</strong><small>{itemWork?.status || "待审阅"} · 来源 {item.source_ids.length}</small>
               </button>;
             })}
           </div>)}
@@ -84,16 +84,16 @@ export function EvidenceBoard({ runId, units, evidence, sources, workItems }: { 
       </div>
     </div>
     <aside className="evidence-inspector">
-      <div className="eyebrow">Evidence inspector</div>
+      <div className="eyebrow">证据详情</div>
       <h2>{selected?.statement || "选择一项证据"}</h2>
       {selected ? <>
         <div className="inspector-tags"><span className={`semantic-key lane-${laneFor(selected)}`}>{laneFor(selected)}</span><span className="semantic-key">{workItem?.status || "待审阅"}</span></div>
         <h3>来源</h3>
-        {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => { const source = sourceMap.get(id); return <li key={id}>{source ? <><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a><small>等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"} · 可用性 {source.usability_status || "未评估"} · 正文 {source.retrieval_status || "未抓取"} · 引用定位 {source.quote_verified ? "已验证" : "未验证"} · 定位 {source.locator || source.url} · 抓取 {source.captured_at || source.accessed_at} · hash {(source.content_hash || "未记录").slice(0, 12)}</small>{source.source_quote ? <blockquote>{source.source_quote}</blockquote> : null}{source.failure_detail ? <small className="error-text">{source.failure_detail}</small> : null}</> : id}</li>; })}</ul> : <p className="muted">未绑定来源；只能作为明确的证据缺口，不能确认事实。</p>}
+        {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => { const source = sourceMap.get(id); return <li key={id}>{source ? <><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a><small>等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"} · 可用性 {({ usable: "可用", candidate: "候选", rejected: "已退回", blocked: "不可用" } as Record<string, string>)[source.usability_status || ""] || source.usability_status || "未评估"} · 正文 {({ captured: "已抓取", not_attempted: "尚未抓取", failed: "抓取失败", pending: "抓取中" } as Record<string, string>)[source.retrieval_status || ""] || source.retrieval_status || "未抓取"} · 引用定位 {source.quote_verified ? "已验证" : "未验证"} · 定位 {source.locator || source.url} · 抓取 {source.captured_at || source.accessed_at} · 内容指纹 {(source.content_hash || "未记录").slice(0, 12)}</small>{source.source_quote ? <blockquote>{source.source_quote}</blockquote> : null}{source.failure_detail ? <small className="error-text">{source.failure_detail}</small> : null}</> : id}</li>; })}</ul> : <p className="muted">尚未挂到来源；只能作为明确的证据缺口，不能确认事实。</p>}
         <h3>局限</h3><p>{selected.limitations.join("；") || "暂无已登记局限"}</p>
         <div className="field"><label>人工核验记录</label><textarea value={reviewNote} disabled={Boolean(terminalReview)} onChange={(event) => setReviewNote(event.target.value)} placeholder={selected.kind === "gap" ? "说明为何接受当前缺口，以及结论必须停在什么边界" : "说明已核对的原文、口径、时间和局限"} /></div>
         <div className="review-actions"><button className="button" disabled={busy || Boolean(terminalReview)} onClick={() => decide("approved")}>{selected.kind === "gap" ? "接受缺口（维持 J0）" : "确认可用"}</button><button className="button-secondary" disabled={busy || Boolean(terminalReview)} onClick={() => decide("rework")}>退回补证</button><button className="button-quiet" disabled={busy || Boolean(terminalReview)} onClick={() => decide("dismissed")}>驳回并重生成</button></div>
-        {terminalReview ? <p className="muted">该审阅已收敛；如需改变结论，请重新生成产物，让旧工作项自动 supersede。</p> : null}
+        {terminalReview ? <p className="muted">该审阅已结束；如需改变结论，请重新生成稿件，旧审阅任务会自动作废并由新版本取代。</p> : null}
         {error ? <div className="notice error">{error}</div> : null}
         <details className="advanced-audit"><summary>高级审计字段</summary><pre>{JSON.stringify(selected, null, 2)}</pre></details>
       </> : null}

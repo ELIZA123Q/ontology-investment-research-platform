@@ -1,4 +1,27 @@
 import { getArtifact } from "@/adapters/db";
-import { approve } from "@/engine/workflow";
-export const runtime="nodejs";
-export async function POST(_:Request,{params}:{params:Promise<{id:string;artifactId:string}>}){try{const {id,artifactId}=await params;const artifact=getArtifact(artifactId);if(!artifact||artifact.run_id!==id)return Response.json({error:"产物不存在"},{status:404});return Response.json(approve(artifactId));}catch(e){return Response.json({error:e instanceof Error?e.message:String(e)},{status:400});}}
+import { approve, validateStage02ForApproval } from "@/engine/workflow";
+
+export const runtime = "nodejs";
+export const maxDuration = 800;
+
+export async function POST(_: Request, { params }: { params: Promise<{ id: string; artifactId: string }> }) {
+  try {
+    const { id, artifactId } = await params;
+    const artifact = getArtifact(artifactId);
+    if (!artifact || artifact.run_id !== id) {
+      return Response.json({ error: "产物不存在" }, { status: 404 });
+    }
+    if (artifact.kind === "stage_02") {
+      const validation = await validateStage02ForApproval(id);
+      if (!validation.ok) {
+        return Response.json({
+          error: "确认前校验未通过，请先采纳建议或返回修改",
+          validation,
+        }, { status: 400 });
+      }
+    }
+    return Response.json(approve(artifactId));
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 });
+  }
+}

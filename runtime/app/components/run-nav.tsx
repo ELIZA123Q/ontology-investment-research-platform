@@ -8,7 +8,7 @@ const items = [
   { id: "judgment", label: "判断", path: "/judgments" },
   { id: "delivery", label: "交付", path: "/report" },
   { id: "history", label: "历史", path: "/history" },
-  { id: "object-set", label: "实例图", path: "/object-set" },
+  { id: "object-set", label: "关系图", path: "/object-set" },
 ];
 
 export function RunNav({ runId, active }: { runId: string; active: string }) {

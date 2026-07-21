@@ -1,5 +1,7 @@
 document_type: model_profile_registry
 schema_version: 1.0.0
+# formal_full 用：五个互异 model_id + 评测/下游 model_id 不重合。
+# 仅 DeepSeek 两模型时请用 model_profiles.yaml（run_mode: single_vendor）。
 run_mode: official
 profiles:
   producer:

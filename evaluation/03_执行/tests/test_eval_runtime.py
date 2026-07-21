@@ -134,6 +134,7 @@ class ContractTests(unittest.TestCase):
 
     def test_official_profile_separation_fails(self) -> None:
         source = load_yaml(RUNTIME_ROOT / "mock_profiles.yaml")
+        source["run_mode"] = "official"
         with tempfile.TemporaryDirectory() as raw:
             path = Path(raw) / "profiles.yaml"
             duplicate = copy.deepcopy(source)
@@ -161,6 +162,13 @@ class ContractTests(unittest.TestCase):
             path.write_text(yaml.safe_dump(producer_as_downstream, sort_keys=False), encoding="utf-8")
             with self.assertRaises(EvalError):
                 validate_profiles(path)
+
+    def test_single_vendor_accepts_flash_only(self) -> None:
+        path = RUNTIME_ROOT / "model_profiles.yaml"
+        registry = validate_profiles(path)
+        self.assertEqual(registry["run_mode"], "single_vendor")
+        ids = {profile["model_id"] for profile in registry["profiles"].values()}
+        self.assertEqual(ids, {"deepseek-v4-flash"})
 
 
 class MetricTests(unittest.TestCase):

@@ -39,7 +39,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         ? {
             summary: summarizeGraph(provisional),
             objects: provisional.objects.slice(0, 50),
-            note: "草稿投影，非写图权威",
+            note: "草稿预览，尚未写入正式关系图",
           }
         : null,
     });

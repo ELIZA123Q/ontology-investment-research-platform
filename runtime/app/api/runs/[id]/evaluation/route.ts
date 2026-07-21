@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const report = latestArtifact(runId, "stage_05", ["approved"]);
     const stage03 = latestArtifact(runId, "stage_03", ["approved"]);
     const stage04 = latestArtifact(runId, "stage_04", ["approved"]);
-    if (!baseline || !report || !stage03 || !stage04) throw new Error("基线、stage_03、stage_04 和 stage_05 必须先确认");
+    if (!baseline || !report || !stage03 || !stage04) throw new Error("基线、证据、判断与报告都必须先确认");
     if (latestArtifact(runId, "evaluation", ["approved"])) {
       throw new Error("盲评身份已揭示，当前输入组合不得重评；若产物改变，请重新生成并确认上游阶段");
     }

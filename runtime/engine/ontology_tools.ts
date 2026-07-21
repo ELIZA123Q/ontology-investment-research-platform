@@ -170,7 +170,7 @@ function canonicalRegisteredSourceParameters(runId: string, parameters: Record<s
     || item.url === requestedUrl || item.normalized_url === requestedUrl);
   if (!source) throw new Error("RegisterSource 只能提案登记已在本运行 Source Registry 取得的来源");
   if (source.retrieval_status !== "captured" || source.usability_status !== "usable"
-    || !Boolean(source.quote_verified) || !/^[a-f0-9]{64}$/.test(source.content_hash || "")) {
+    || !source.quote_verified || !/^[a-f0-9]{64}$/.test(source.content_hash || "")) {
     throw new Error(`来源 ${source.id} 未完成正文抓取、原文定位和 hash 核验，不得写入权威图`);
   }
   if (!source.published_at) throw new Error(`来源 ${source.id} 缺少 published_at`);

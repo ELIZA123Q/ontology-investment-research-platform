@@ -32,6 +32,7 @@ from eval_core import (
     blind_candidate,
     blind_data,
     blind_text,
+    calibration_run_minimum,
     close_sessions,
     conservative_median,
     dump_json,
@@ -40,12 +41,16 @@ from eval_core import (
     grade_c,
     grade_s,
     grade_u,
+    judges_share_model_id,
     load_yaml,
     make_request,
+    normalize_role_result,
+    purge_error_responses,
     read_jsonl,
     resolve_repo_path,
     sha256_text,
     stable_hash,
+    uses_http_model_adapter,
     validate_profiles,
     validate_suite,
     wilson_interval,
@@ -234,16 +239,22 @@ class RunOrchestrator:
         self.request_log = run_dir / "requests.jsonl"
         self.response_log = run_dir / "responses.jsonl"
         self.existing = {item["request_id"]: item for item in read_jsonl(self.response_log)}
+        shared_judge_model = judges_share_model_id(self.registry)
+        uses_http_adapter = all(
+            uses_http_model_adapter([str(part) for part in profile["command"]])
+            for profile in self.registry["profiles"].values()
+        )
         self.sessions: dict[str, AdapterSession] = {}
         for name, profile in self.registry["profiles"].items():
             self.sessions[name] = AdapterSession(
                 command=[str(part) for part in profile["command"]],
                 model_id=str(profile["model_id"]),
-                timeout_seconds=180.0 if self.registry["run_mode"] == "official" else 30.0,
-                max_retries=2,
+                timeout_seconds=180.0 if self.registry["run_mode"] in {"official", "single_vendor"} else 30.0,
+                max_retries=1 if (shared_judge_model and uses_http_adapter) else 2,
             )
         self.errors = 0
         self.calibration_blocked = False
+        self.calibration_minimum = calibration_run_minimum(self.registry, self.intensity)
 
     def call(
         self,
@@ -294,12 +305,24 @@ class RunOrchestrator:
         defects = load_yaml(DEFECTS_PATH)["items"]
 
         # Calibration is a release gate and therefore always runs before formal R/U/delta work.
+        pilot_single_vendor = self.intensity == "pilot_light" and self.registry["run_mode"] == "single_vendor"
+        selected_defects = (
+            [item for item in defects if item.get("severity") == "critical"] if pilot_single_vendor else defects
+        )
+
         for info in self.cases:
             case = info["case"]
             case_id = case["case_id"]
             question = case["task_input"]["question"]
             system_text = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
-            for perturbation in info["perturbations"]["items"]:
+            perturbations = info["perturbations"]["items"]
+            if pilot_single_vendor:
+                perturbations = [
+                    item
+                    for item in perturbations
+                    if item.get("type") in {"delete_critical_evidence", "inject_counterevidence"}
+                ]
+            for perturbation in perturbations:
                 for judge in judges:
                     for seed in self.seeds:
                         self.call(
@@ -324,7 +347,7 @@ class RunOrchestrator:
                             },
                         )
 
-        for defect in defects:
+        for defect in selected_defects:
             case_id = defect["base_case"]
             normal = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
             variant = (self.run_dir / "defect_variants" / case_id / f"{defect['defect_id']}.md").read_text(
@@ -342,8 +365,8 @@ class RunOrchestrator:
                         judge,
                         case_id,
                         {
-                            "possible_categories": [item["defect_type"] for item in defects],
-                            "possible_locations": sorted({item["expected_location"] for item in defects}),
+                            "possible_categories": [item["defect_type"] for item in selected_defects],
+                            "possible_locations": sorted({item["expected_location"] for item in selected_defects}),
                             "possible_severities": ["critical", "major"],
                             **candidates,
                         },
@@ -372,10 +395,14 @@ class RunOrchestrator:
                     )
 
         calibration = compute_calibration(
-            [row for row in self.existing.values() if row.get("status") == "ok"]
+            [row for row in self.existing.values() if row.get("status") == "ok"],
+            minimum_grade=self.calibration_minimum,
         )
         dump_yaml(self.run_dir / "calibration_summary.yaml", calibration)
-        if C_ORDER[calibration["grade"]] < C_ORDER["C2"] or not calibration["all_judges_eligible"]:
+        if (
+            C_ORDER[calibration["grade"]] < C_ORDER[self.calibration_minimum]
+            or not calibration["all_judges_eligible"]
+        ):
             self.calibration_blocked = True
             close_sessions(self.sessions)
             self._write_status("calibration_failed", stage)
@@ -614,6 +641,7 @@ class RunOrchestrator:
                 "unique_requests": len(self.existing),
                 "run_mode": self.registry["run_mode"],
                 "intensity": self.intensity,
+                "calibration_minimum": self.calibration_minimum,
                 "repetitions_per_judge": len(self.seeds),
                 "profiles": {
                     name: {"model_id": value["model_id"], "provider_family": value["provider_family"]}
@@ -628,6 +656,13 @@ def command_run(args: argparse.Namespace) -> int:
     if not (run_dir / "manifest.yaml").is_file():
         raise EvalError("run前必须先prepare")
     orchestrator = RunOrchestrator(run_dir, Path(args.profiles), Path(args.suite), intensity=args.intensity)
+    if args.retry_errors:
+        removed = purge_error_responses(orchestrator.response_log)
+        orchestrator.existing = {
+            item["request_id"]: item for item in read_jsonl(orchestrator.response_log)
+        }
+        if removed:
+            print(f"EVAL_RETRY_ERRORS: removed={removed}")
     try:
         orchestrator.run(stage=args.stage)
     finally:
@@ -661,37 +696,45 @@ def safe_mean(values: list[float]) -> float:
 
 
 def _calibration_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    defect_rows = [row for row in rows if row.get("request_metadata", {}).get("role") == "calibration"]
+    defect_rows = [
+        row
+        for row in rows
+        if row.get("request_metadata", {}).get("role") == "calibration"
+    ]
     clean_rows = [row for row in rows if row.get("request_metadata", {}).get("role") == "calibration_clean"]
     perturb_rows = [row for row in rows if row.get("request_metadata", {}).get("role") == "perturbation"]
     severe = [row for row in defect_rows if row.get("request_metadata", {}).get("severity") == "critical"]
     recall = safe_mean(
         [
-            bool(row.get("result", {}).get("defect_detected"))
-            and row.get("result", {}).get("detected_category")
+            bool(normalize_role_result(row).get("defect_detected"))
+            and normalize_role_result(row).get("detected_category")
             == row.get("request_metadata", {}).get("defect_type")
             for row in severe
         ]
     )
-    false_kill = safe_mean([bool(row.get("result", {}).get("false_kill")) for row in clean_rows])
-    ranking = safe_mean([bool(row.get("result", {}).get("normal_ranked_higher")) for row in defect_rows])
+    false_kill = safe_mean(
+        [bool(normalize_role_result(row).get("false_kill")) for row in clean_rows]
+    )
+    ranking = safe_mean(
+        [bool(normalize_role_result(row).get("normal_ranked_higher")) for row in defect_rows]
+    )
     location = safe_mean(
         [
-            row.get("result", {}).get("located_at")
+            normalize_role_result(row).get("located_at")
             == row.get("request_metadata", {}).get("expected_location")
             for row in defect_rows
         ]
     )
     severity = safe_mean(
         [
-            row.get("result", {}).get("detected_severity")
+            normalize_role_result(row).get("detected_severity")
             == row.get("request_metadata", {}).get("severity")
             for row in defect_rows
         ]
     )
     sensitivity = safe_mean(
         [
-            row.get("result", {}).get("action")
+            normalize_role_result(row).get("action")
             == row.get("request_metadata", {}).get("expected_action")
             for row in perturb_rows
         ]
@@ -699,7 +742,7 @@ def _calibration_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     grouped_judgments: dict[str, list[tuple[Any, ...]]] = defaultdict(list)
     for row in defect_rows:
         meta = row.get("request_metadata", {})
-        result = row.get("result", {})
+        result = normalize_role_result(row)
         grouped_judgments[str(meta.get("defect_id"))].append(
             (
                 result.get("defect_detected"),
@@ -725,7 +768,7 @@ def _calibration_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def compute_calibration(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def compute_calibration(rows: list[dict[str, Any]], *, minimum_grade: str = "C2") -> dict[str, Any]:
     metrics = _calibration_metrics(rows)
     calibration_roles = {"calibration", "calibration_clean", "perturbation"}
     profile_names = sorted(
@@ -749,11 +792,12 @@ def compute_calibration(rows: list[dict[str, Any]]) -> dict[str, Any]:
     eligible = [
         profile_name
         for profile_name, item in per_model.items()
-        if C_ORDER[item["grade"]] >= C_ORDER["C2"]
+        if C_ORDER[item["grade"]] >= C_ORDER[minimum_grade]
     ]
     metrics["per_model"] = per_model
     metrics["eligible_judge_profiles"] = eligible
     metrics["all_judges_eligible"] = len(per_model) == 2 and len(eligible) == 2
+    metrics["minimum_grade"] = minimum_grade
     return metrics
 
 
@@ -956,7 +1000,8 @@ def command_aggregate(args: argparse.Namespace) -> int:
         raise EvalError(f"只有无执行错误的完整run可聚合，当前状态为{status.get('status')}")
     rows = [row for row in read_jsonl(run_dir / "responses.jsonl") if row.get("status") == "ok"]
     cases = validate_suite(Path(args.suite))
-    calibration = compute_calibration(rows)
+    minimum_grade = str(status.get("calibration_minimum") or "C2")
+    calibration = compute_calibration(rows, minimum_grade=minimum_grade)
     summaries = {
         info["case"]["case_id"]: compute_case_summary(info["case"]["case_id"], info, rows, calibration)
         for info in cases
@@ -1019,6 +1064,9 @@ def command_aggregate(args: argparse.Namespace) -> int:
             "四题为校准试点，report_value与restraint不得混报为泛化通过率或系统研究可靠率。",
             "U/C阈值均为pilot_threshold，不得把0.79/0.80解释为经验验证后的硬分界。",
             "mock运行只验证框架，不代表真实模型或研究方法表现。" if status.get("run_mode") == "development" else "",
+            "single_vendor：评测/下游共用同一 model_id，S/C 不得外推为 formal_full 跨模型可靠率。"
+            if status.get("run_mode") == "single_vendor"
+            else "",
         ],
     }
     result["limitations"] = [item for item in result["limitations"] if item]
@@ -1258,6 +1306,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--profiles", required=True)
     run.add_argument("--stage", choices=["all", "calibration", "formal"], default="all")
     run.add_argument("--intensity", choices=["pilot_light", "formal_full"], default="formal_full")
+    run.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help="删除 responses.jsonl 中的 error 记录后重试失败请求",
+    )
     run.set_defaults(func=command_run)
 
     aggregate = sub.add_parser("aggregate")

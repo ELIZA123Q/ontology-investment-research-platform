@@ -261,7 +261,7 @@ describe("v1.3 operational spine", () => {
       core_object: "公司营收",
       judgment_action: "验证同比方向",
       time_scope: { lookback: "2023", as_of: "2025年1月16日——仅采用当日已公开信息", forward: "不适用" },
-      boundaries: ["合并口径"], exclusions: ["不解释原因"], report_type: "核查简报", domain_supported: true,
+      boundaries: ["合并口径"], exclusions: ["不解释原因"], domain_supported: true,
       document_markdown: "未经核验的自由事实",
     }, "截至2025年1月16日，公司营收是否增长？");
     expect(data.time_scope.as_of).toBe("2025-01-16T23:59:59.999+08:00");
@@ -307,6 +307,186 @@ describe("v1.3 operational spine", () => {
     expect(structure.method_applications.map((item: any) => item.method_id)).toEqual(["BF-SD-01", "kb03:A03", "kb04:A03"]);
     expect(structure.variables[0].ontology_node_id).toBe("task_local:V-CONTROLLED-01");
     expect(structure.judgment_units[0].ontology_node_ids).toEqual([]);
+    const edited = workflow.createControlledStructureProjection(run.id, {
+      scope_label: "全球非HBM DRAM；价格、库存、采购和政策抢运冲突裁决（修订）",
+      units: [{
+        id: structure.judgment_units[0].id,
+        title: "可持续景气阶段（修订）",
+        question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+        judgment_type: "cycle_phase",
+        evidence_requirements: ["同口径价格序列", "库存与采购时点", "现货和合约需求交叉验证"],
+      }],
+      counter_evidence_directions: ["库存回升或现货需求谨慎"],
+      competing_explanations: ["关税宽限期触发提前采购，价格上涨不可持续"],
+    });
+    const editedStructure = JSON.parse(edited.json_content);
+    expect(edited.id).toBe(stage02.id);
+    expect(editedStructure.research_scope.label).toContain("修订");
+    expect(editedStructure.judgment_units[0].title).toContain("修订");
+    expect(editedStructure.method_applications.map((item: any) => item.application_id)).toEqual(
+      structure.method_applications.map((item: any) => item.application_id),
+    );
+    expect(editedStructure.document_markdown).toContain("研究结构");
+  });
+
+  it("revises Stage02 via NL patch hook and gates unsupported stages / downstream confirmation", async () => {
+    const run = db.createRun("以2025年上半年公开信息为限，非HBM DRAM是否进入可持续改善？", "semiconductor");
+    const stage01 = workflow.createStage01DeterministicProjection(run.id, {
+      normalized_question: "截至2025年上半年，全球非HBM DRAM是否进入可持续改善阶段？",
+      core_object: "全球非HBM DRAM；价格、库存与终端需求同口径",
+      judgment_action: "裁决改善是否跨价格、库存和需求共同成立，并保留争议或暂不可判断",
+      lookback: "2023年至2025年上半年公开信息",
+      as_of: "2025年上半年",
+      forward: "仅讨论截止时点已可验证的持续性，不外推未来价格",
+      boundaries: ["只采用截止时点前公开且可定位的来源", "价格、库存和需求冲突信号必须共同进入裁决"],
+      exclusions: ["不做个股建议，不把预测当作已实现事实"],
+    });
+    db.updateArtifact(stage01.id, { status: "approved" });
+    const unsupported = await workflow.reviseRunStage(run.id, 1, "收窄边界");
+    expect(unsupported).toMatchObject({ status: "unsupported", target_stage: 1 });
+    const stage02 = await workflow.reviseRunStage(run.id, 2, "保留原结构但改标题", {
+      structurePatch: {
+        revision_summary: "仅修订标题",
+        units: [{
+          title: "可持续景气阶段（改稿）",
+          question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+          judgment_type: "cycle_phase",
+          evidence_requirements: ["同口径价格序列", "库存与采购时点"],
+        }],
+        counter_evidence_directions: ["库存回升或现货需求谨慎"],
+        competing_explanations: ["关税宽限期触发提前采购"],
+      },
+    });
+    expect(stage02.status).toBe("revised");
+    if (stage02.status !== "revised") throw new Error("expected revised");
+    expect(JSON.parse(stage02.artifact.json_content).judgment_units[0].title).toContain("改稿");
+
+    // Approve stage02 and stage03 stub to trigger downstream confirmation.
+    db.updateArtifact(stage02.artifact.id, { status: "approved" });
+    const stage03 = db.createArtifact(run.id, "stage_03", {
+      status: "approved",
+      json_content: "{}",
+      markdown_content: "",
+      prompt_version: "test",
+      knowledge_version: "test",
+    });
+    expect(stage03.status).toBe("approved");
+    const gated = await workflow.reviseRunStage(run.id, 2, "再改一次", {
+      structurePatch: {
+        revision_summary: "应先确认下游",
+        units: [{
+          id: JSON.parse(stage02.artifact.json_content).judgment_units[0].id,
+          title: "可持续景气阶段（再改）",
+          question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+          judgment_type: "cycle_phase",
+          evidence_requirements: ["同口径价格序列"],
+        }],
+        counter_evidence_directions: ["库存回升"],
+        competing_explanations: ["提前采购"],
+      },
+    });
+    expect(gated).toMatchObject({ status: "needs_confirmation" });
+    if (gated.status !== "needs_confirmation") throw new Error("expected needs_confirmation");
+    expect(gated.affected_downstream.some((item) => item.stage === 3)).toBe(true);
+
+    const confirmed = await workflow.reviseRunStage(run.id, 2, "确认后改稿", {
+      confirm_downstream_invalidate: true,
+      structurePatch: {
+        revision_summary: "确认后修订",
+        units: [{
+          title: "可持续景气阶段（确认后）",
+          question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+          judgment_type: "cycle_phase",
+          evidence_requirements: ["同口径价格序列"],
+        }],
+        counter_evidence_directions: ["库存回升"],
+        competing_explanations: ["提前采购"],
+      },
+    });
+    expect(confirmed.status).toBe("revised");
+  });
+
+  it("flags title/question swaps in Stage02 heuristic validation and blocks approve until ok", async () => {
+    const issues = workflow.heuristicStructureIssues({
+      scope_label: "测试",
+      units: [{
+        id: "JU-1",
+        title: "价格改善是否由真实需求支持？",
+        question: "短标题",
+        judgment_type: "cycle_phase",
+        evidence_requirements: ["价格序列"],
+      }],
+      counter_evidence_directions: ["库存回升"],
+      competing_explanations: ["抢运"],
+    }, { core_object: "DRAM", judgment_action: "裁决" });
+    expect(issues.some((item) => item.code === "title_question_mismatch")).toBe(true);
+
+    const run = db.createRun("以2025年上半年公开信息为限，非HBM DRAM是否进入可持续改善？", "semiconductor");
+    const stage01 = workflow.createStage01DeterministicProjection(run.id, {
+      normalized_question: "截至2025年上半年，全球非HBM DRAM是否进入可持续改善阶段？",
+      core_object: "全球非HBM DRAM；价格、库存与终端需求同口径",
+      judgment_action: "裁决改善是否跨价格、库存和需求共同成立，并保留争议或暂不可判断",
+      lookback: "2023年至2025年上半年公开信息",
+      as_of: "2025年上半年",
+      forward: "仅讨论截止时点已可验证的持续性，不外推未来价格",
+      boundaries: ["只采用截止时点前公开且可定位的来源", "价格、库存和需求冲突信号必须共同进入裁决"],
+      exclusions: ["不做个股建议，不把预测当作已实现事实"],
+    });
+    db.updateArtifact(stage01.id, { status: "approved" });
+    const stage02 = workflow.createControlledStructureProjection(run.id, {
+      units: [{
+        title: "可持续景气阶段",
+        question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+        judgment_type: "cycle_phase",
+        evidence_requirements: ["同口径价格序列"],
+      }],
+      counter_evidence_directions: ["库存回升"],
+      competing_explanations: ["提前采购"],
+    });
+    const blocked = await workflow.validateStage02ForApproval(run.id, {
+      validationResult: {
+        ok: false,
+        summary: "标题与问题不一致",
+        issues: [{ severity: "error", code: "title_question_mismatch", message: "标题与问题不一致", unit_id: "JU-CONTROLLED-01" }],
+        suggested_patch: {
+          units: [{
+            id: JSON.parse(stage02.json_content).judgment_units[0].id,
+            title: "可持续景气阶段",
+            question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+            judgment_type: "cycle_phase",
+            evidence_requirements: ["同口径价格序列", "库存时点"],
+          }],
+          counter_evidence_directions: ["库存回升"],
+          competing_explanations: ["提前采购"],
+        },
+      },
+    });
+    expect(blocked.ok).toBe(false);
+    const applied = await workflow.validateStage02ForApproval(run.id, {
+      applySuggestedPatch: true,
+      validationResult: {
+        ok: false,
+        summary: "给出补丁",
+        issues: [{ severity: "error", code: "missing_evidence", message: "证据不足" }],
+        suggested_patch: {
+          units: [{
+            id: JSON.parse(stage02.json_content).judgment_units[0].id,
+            title: "可持续景气阶段",
+            question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+            judgment_type: "cycle_phase",
+            evidence_requirements: ["同口径价格序列", "库存时点"],
+          }],
+          counter_evidence_directions: ["库存回升"],
+          competing_explanations: ["提前采购"],
+        },
+      },
+    });
+    expect(applied.artifact).toBeTruthy();
+    expect(JSON.parse(applied.artifact!.json_content).judgment_units[0].evidence_requirements).toContain("库存时点");
+    const ok = await workflow.validateStage02ForApproval(run.id, {
+      validationResult: { ok: true, summary: "可通过", issues: [], suggested_patch: null },
+    });
+    expect(ok.ok).toBe(true);
   });
 
   it("builds an honest gap-only evidence artifact without inventing facts", () => {
@@ -617,7 +797,7 @@ describe("v1.3 operational spine", () => {
     };
     const structurePlan = { ...baseMa, application_id: "MA-PUBLISH-STRUCTURE", method_id: "BF-SD-01", method_version: "2.0.0", capability_type: "judgment_structure" as const };
     const evidencePlan = { ...baseMa, application_id: "MA-PUBLISH-EVIDENCE", method_id: "kb03:A02", method_version: "3.2.0", capability_type: "evidence" as const };
-    const stage01 = { normalized_question: "测试可发布研究", core_object: "库存", judgment_action: "状态判断", time_scope: { lookback: "一年", as_of: cutoff, forward: "一季度" }, boundaries: ["半导体"], exclusions: ["交易建议"], report_type: "行业判断", domain_supported: true, document_markdown: "# 任务\n\n围绕库存是否下降形成可证伪研究任务，冻结研究对象、截止时间、观察区间和不包含交易建议的表达边界。" };
+    const stage01 = { normalized_question: "测试可发布研究", core_object: "库存", judgment_action: "状态判断", time_scope: { lookback: "一年", as_of: cutoff, forward: "一季度" }, boundaries: ["半导体"], exclusions: ["交易建议"], domain_supported: true, document_markdown: "# 任务\n\n围绕库存是否下降形成可证伪研究任务，冻结研究对象、截止时间、观察区间和不包含交易建议的表达边界。" };
     const stage02 = {
       method_applications: [structurePlan, evidencePlan, baseMa], research_scope: { id: "SCOPE-1", label: "半导体库存范围", dimensions: { domain: "semiconductor" } },
       judgment_units: [{ id: "JU-1", title: "库存", question: "库存是否下降", judgment_type: "state_measurement", scope_ref: "SCOPE-1", ontology_node_ids: ["SV-INV"], evidence_requirements: ["需要可定位库存事实"] }],

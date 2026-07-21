@@ -7,7 +7,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id, proposalId } = await params;
     const body = await request.json();
     if (!Number.isInteger(body.expected_graph_version)) {
-      return Response.json({ error: "必须提交整数 expected_graph_version" }, { status: 400 });
+      return Response.json({ error: "请提交期望的关系图版本号（整数）" }, { status: 400 });
     }
     return Response.json(executeApprovedAction(id, proposalId, body.expected_graph_version));
   } catch (error) {

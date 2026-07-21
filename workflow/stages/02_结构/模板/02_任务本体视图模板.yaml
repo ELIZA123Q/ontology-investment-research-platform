@@ -243,8 +243,8 @@ business_instance_graph:
       - EvidenceAssessment
       required_relation_types:
       - claimCitesSource
-      - factSupportedByClaim
-      - assessmentEvaluatesEvidence
+      - factDerivedFromClaim
+      - assessmentEvaluatesFact
       conflict_relation_types:
       - conflictsWith
       - supersedes

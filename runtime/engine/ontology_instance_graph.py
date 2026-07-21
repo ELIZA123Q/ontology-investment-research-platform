@@ -83,7 +83,7 @@ RUNTIME_CONTRACT_RELATION_TYPES = {
     "sourceDocumentUsesProfile",
     "sourcePublishedBy",
     "claimAbout",
-    "assessmentEvaluatesEvidence",
+    "assessmentEvaluatesFact",
 }
 
 SECTION_TYPES = {

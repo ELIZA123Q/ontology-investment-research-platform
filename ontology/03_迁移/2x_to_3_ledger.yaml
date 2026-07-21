@@ -306,7 +306,7 @@ inventory:
     - claimCitesSource
     - sourcePublishedBy
     - claimAbout
-    - factSupportedByClaim
+    - factDerivedFromClaim
     - factAbout
     - conflictsWith
     - supersedes
@@ -327,7 +327,7 @@ inventory:
     - proxySupportsRequirement
     - readinessAssessesRequirement
     - readinessEvaluatesBasket
-    - assessmentEvaluatesEvidence
+    - assessmentEvaluatesFact
     action_types:
     - RegisterSource
     - ExtractClaim

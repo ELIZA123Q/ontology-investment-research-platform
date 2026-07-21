@@ -31,6 +31,238 @@ PROTOCOL_PATH = RUNTIME_ROOT / "protocol.yaml"
 
 R_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3}
 C_ORDER = {"C0": 0, "C1": 1, "C2": 2, "C3": 3}
+ROLE_RESPONSE_SCHEMAS: dict[str, dict[str, Any]] = {
+    "calibration": {
+        "type": "object",
+        "properties": {
+            "defect_detected": {"type": "boolean"},
+            "detected_category": {"type": "string"},
+            "located_at": {"type": "string"},
+            "detected_severity": {"type": "string"},
+            "normal_ranked_higher": {"type": "boolean"},
+        },
+        "required": ["defect_detected", "normal_ranked_higher"],
+        "additionalProperties": True,
+    },
+    "calibration_clean": {
+        "type": "object",
+        "properties": {
+            "false_kill": {"type": "boolean"},
+            "clean_accepted": {"type": "boolean"},
+        },
+        "required": ["false_kill"],
+        "additionalProperties": True,
+    },
+    "perturbation": {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string"},
+            "sensitivity_passed": {"type": "boolean"},
+            "rationale": {"type": "string"},
+        },
+        "required": ["action"],
+        "additionalProperties": True,
+    },
+    "pairwise": {
+        "type": "object",
+        "properties": {
+            "winner": {"type": "string"},
+            "rationale": {"type": "string"},
+            "cited_locations": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["winner", "rationale"],
+        "additionalProperties": True,
+    },
+    "arbiter": {
+        "type": "object",
+        "properties": {
+            "claim_r": {"type": "string"},
+            "reason": {"type": "string"},
+            "weakest_claim": {"type": "string"},
+            "strongest_counterevidence": {"type": "string"},
+            "major_disagreement": {"type": "string"},
+            "hard_failures": {"type": "array", "items": {"type": "string"}},
+            "no_new_argument_added": {"type": "boolean"},
+        },
+        "required": ["claim_r", "reason", "hard_failures"],
+        "additionalProperties": True,
+    },
+    "downstream_scorer": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string"},
+            "context_id": {"type": "string"},
+            "score": {"type": "number"},
+            "critical_error": {"type": "boolean"},
+            "error_count": {"type": "integer"},
+            "misread_rate": {"type": "number"},
+            "specific_evidence": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["score", "critical_error", "error_count"],
+        "additionalProperties": True,
+    },
+    "claim_extractor": {
+        "type": "object",
+        "properties": {
+            "claims": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "claim_id": {"type": "string"},
+                        "statement": {"type": "string"},
+                        "location": {"type": "string"},
+                        "criticality": {"type": "string"},
+                        "directly_answers_question": {"type": "boolean"},
+                    },
+                    "required": ["statement", "location"],
+                },
+            },
+            "extraction_only": {"type": "boolean"},
+        },
+        "required": ["claims"],
+        "additionalProperties": True,
+    },
+    "claim_reconciler": {
+        "type": "object",
+        "properties": {
+            "claims": {"type": "array"},
+            "disagreements": {"type": "array"},
+            "uncovered_contract_claims": {"type": "array"},
+        },
+        "required": ["claims"],
+        "additionalProperties": True,
+    },
+    "evidence_reviewer": {
+        "type": "object",
+        "properties": {
+            "verdict": {"type": "string"},
+            "fact_accuracy": {"type": "string"},
+            "basket_complete": {"type": "boolean"},
+            "cited_evidence_ids": {"type": "array", "items": {"type": "string"}},
+            "material_limit": {"type": "string"},
+            "severity": {"type": "string"},
+        },
+        "required": ["verdict", "fact_accuracy"],
+        "additionalProperties": True,
+    },
+    "reasoning_reviewer": {
+        "type": "object",
+        "properties": {
+            "verdict": {"type": "string"},
+            "path_complete": {"type": "boolean"},
+            "causal_overreach": {"type": "boolean"},
+            "scope_overreach": {"type": "boolean"},
+            "strength_within_ceiling": {"type": "boolean"},
+            "located_step": {"type": "string"},
+            "severity": {"type": "string"},
+        },
+        "required": ["verdict", "located_step"],
+        "additionalProperties": True,
+    },
+    "adversarial_reviewer": {
+        "type": "object",
+        "properties": {
+            "strongest_counterevidence": {"type": "string"},
+            "competing_explanation": {"type": "string"},
+            "single_point_dependency": {"type": "string"},
+            "leave_one_out_result": {"type": "string"},
+            "most_likely_falsifier": {"type": "string"},
+        },
+        "required": ["strongest_counterevidence", "competing_explanation"],
+        "additionalProperties": True,
+    },
+    "downstream_core_restatement": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string"},
+            "answer": {"type": "string"},
+            "used_new_information": {"type": "string"},
+        },
+        "required": ["answer"],
+        "additionalProperties": True,
+    },
+    "downstream_tracking_plan": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string"},
+            "answer": {"type": "string"},
+        },
+        "required": ["answer"],
+        "additionalProperties": True,
+    },
+    "downstream_information_update": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string"},
+            "answer": {"type": "string"},
+            "used_new_information": {"type": "string"},
+        },
+        "required": ["answer"],
+        "additionalProperties": True,
+    },
+    "downstream_research_questions": {
+        "type": "object",
+        "properties": {
+            "task_id": {"type": "string"},
+            "answer": {"type": "string"},
+        },
+        "required": ["answer"],
+        "additionalProperties": True,
+    },
+    "question_only_generator": {
+        "type": "object",
+        "properties": {
+            "artifact_text": {"type": "string"},
+            "target_length_followed": {"type": "boolean"},
+        },
+        "required": ["artifact_text"],
+        "additionalProperties": True,
+    },
+    "same_evidence_direct_generator": {
+        "type": "object",
+        "properties": {
+            "artifact_text": {"type": "string"},
+            "target_length_followed": {"type": "boolean"},
+        },
+        "required": ["artifact_text"],
+        "additionalProperties": True,
+    },
+    "evidence_summary_generator": {
+        "type": "object",
+        "properties": {
+            "artifact_text": {"type": "string"},
+            "target_length_followed": {"type": "boolean"},
+        },
+        "required": ["artifact_text"],
+        "additionalProperties": True,
+    },
+}
+ROLE_OUTPUT_TOKEN_LIMITS: dict[str, int] = {
+    "calibration": 512,
+    "calibration_clean": 384,
+    "perturbation": 512,
+    "pairwise": 768,
+    "claim_extractor": 1200,
+    "claim_reconciler": 1600,
+    "evidence_reviewer": 900,
+    "reasoning_reviewer": 900,
+    "adversarial_reviewer": 900,
+    "arbiter": 768,
+    "downstream_core_restatement": 1200,
+    "downstream_tracking_plan": 1400,
+    "downstream_information_update": 1000,
+    "downstream_research_questions": 1400,
+    "downstream_scorer": 768,
+    "question_only_generator": 2400,
+    "same_evidence_direct_generator": 2400,
+    "evidence_summary_generator": 1800,
+}
+GENERATOR_ROLES = {
+    "question_only_generator",
+    "same_evidence_direct_generator",
+    "evidence_summary_generator",
+}
 # 试点阈值：仅用于方案比较与运行阻断，非正式经验分界。
 U_THRESHOLDS = {
     "core_restatement": 0.85,
@@ -74,6 +306,91 @@ BANNED_BLIND_PATTERNS = (
 
 class EvalError(RuntimeError):
     """Raised for a contract or execution failure."""
+
+
+def calibration_run_minimum(registry: dict[str, Any], intensity: str) -> str:
+    """Return the minimum C grade required to continue past calibration."""
+    if registry.get("run_mode") == "single_vendor" and intensity == "pilot_light":
+        return "C1"
+    return "C2"
+
+
+def judges_share_model_id(registry: dict[str, Any]) -> bool:
+    bindings = registry.get("role_bindings") or {}
+    profiles = registry.get("profiles") or {}
+    judge_names = list(bindings.get("judges") or [])
+    if len(judge_names) != 2:
+        return False
+    judge_ids = [profiles[name]["model_id"] for name in judge_names if name in profiles]
+    return len(judge_ids) == 2 and len(set(judge_ids)) == 1
+
+
+def role_output_tokens(role: str, payload: dict[str, Any]) -> int:
+    if role in GENERATOR_ROLES:
+        target_length = int(payload.get("target_length") or 0)
+        if target_length > 0:
+            cap = ROLE_OUTPUT_TOKEN_LIMITS.get(role, 2400)
+            return min(cap, max(900, int(target_length / 3.5) + 200))
+    return ROLE_OUTPUT_TOKEN_LIMITS.get(role, 1200)
+
+
+def parse_model_json(text: str) -> Any:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        stripped = "\n".join(lines).strip()
+    return json.loads(stripped)
+
+
+def uses_http_model_adapter(command: list[str]) -> bool:
+    return any("http_model_adapter.py" in str(part) for part in command)
+
+
+def normalize_role_result(row: dict[str, Any]) -> dict[str, Any]:
+    """Map legacy pairwise-shaped calibration JSON into flat metric fields."""
+    result = dict(row.get("result") or {})
+    meta = row.get("request_metadata") or {}
+    if meta.get("role") != "calibration" or "defect_detected" in result or "candidate_1" not in result:
+        return result
+    order = meta.get("candidate_order") or ["normal", "variant"]
+    variant_key = "candidate_2" if order[1] == "variant" else "candidate_1"
+    normal_key = "candidate_1" if variant_key == "candidate_2" else "candidate_2"
+    variant_result = result.get(variant_key) or {}
+    normal_result = result.get(normal_key) or {}
+    normalized = {
+        "defect_detected": bool(variant_result.get("defect_detected")),
+        "detected_category": variant_result.get("detected_category"),
+        "located_at": variant_result.get("located_at"),
+        "detected_severity": variant_result.get("detected_severity"),
+        "normal_ranked_higher": result.get("normal_ranked_higher"),
+    }
+    if normalized["normal_ranked_higher"] is None:
+        sorting = str(result.get("sorting_comparison", "")).lower()
+        if "candidate_1" in sorting and "better" in sorting:
+            normalized["normal_ranked_higher"] = order[0] == "normal"
+        elif "candidate_2" in sorting and "better" in sorting:
+            normalized["normal_ranked_higher"] = order[1] == "normal"
+        else:
+            normalized["normal_ranked_higher"] = not normal_result.get("defect_detected") and bool(
+                variant_result.get("defect_detected")
+            )
+    return normalized
+
+
+def purge_error_responses(response_log: Path) -> int:
+    rows = read_jsonl(response_log)
+    kept = [row for row in rows if row.get("status") != "error"]
+    removed = len(rows) - len(kept)
+    if removed:
+        response_log.write_text(
+            "".join(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n" for row in kept),
+            encoding="utf-8",
+        )
+    return removed
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -151,20 +468,43 @@ def validate_profiles(path: Path, require_official: bool = False) -> dict[str, A
     producer_id = profiles[bindings["producer"]]["model_id"]
     judge_ids = [profiles[name]["model_id"] for name in judge_names]
     downstream_ids = [profiles[name]["model_id"] for name in downstream_names]
-    if producer_id in judge_ids:
-        raise EvalError("生产模型不得兼任评测模型")
-    if len(set(judge_ids)) != 2:
-        raise EvalError("两个评测档案必须使用不同 model_id")
-    if len(set(downstream_ids)) != 2:
-        raise EvalError("两个下游执行档案必须使用不同 model_id")
-    if producer_id in downstream_ids:
-        raise EvalError("生产模型不得兼任下游任务执行模型")
-    if set(judge_ids) & set(downstream_ids):
-        raise EvalError("下游任务执行模型不得给自己的任务产出评分")
-    official = registry["run_mode"] == "official" or require_official
+    run_mode = str(registry["run_mode"])
+    single_vendor = run_mode == "single_vendor"
+    distinct_ids = {producer_id, *judge_ids, *downstream_ids}
+
+    if single_vendor:
+        # 允许全部角色共用同一 model_id（如全 flash 冒烟）；有 ≥2 个 id 时仍禁止生产兼任评测/下游。
+        if len(distinct_ids) >= 2:
+            if producer_id in judge_ids:
+                raise EvalError("生产模型不得兼任评测模型")
+            if producer_id in downstream_ids:
+                raise EvalError("生产模型不得兼任下游任务执行模型")
+        registry.setdefault("isolation_notes", [])
+        if not registry.get("isolation_notes"):
+            if len(distinct_ids) < 2:
+                registry["isolation_notes"] = [
+                    "单模型 pilot：全部角色共用同一 model_id；仅验证管线，不得外推区分能力或正式可靠率。",
+                ]
+            else:
+                registry["isolation_notes"] = [
+                    "单供应商 pilot：允许评测与下游复用同一 model_id；S/C 仅作区分能力参考，不得外推为正式跨模型可靠率。",
+                ]
+    else:
+        if producer_id in judge_ids:
+            raise EvalError("生产模型不得兼任评测模型")
+        if producer_id in downstream_ids:
+            raise EvalError("生产模型不得兼任下游任务执行模型")
+        if len(set(judge_ids)) != 2:
+            raise EvalError("两个评测档案必须使用不同 model_id")
+        if len(set(downstream_ids)) != 2:
+            raise EvalError("两个下游执行档案必须使用不同 model_id")
+        if set(judge_ids) & set(downstream_ids):
+            raise EvalError("下游任务执行模型不得给自己的任务产出评分")
+
+    official = run_mode in {"official", "single_vendor"} or require_official
     if official:
         blob = yaml.safe_dump(registry, allow_unicode=True)
-        if "replace-with" in blob or "mock-" in blob:
+        if "replace-with" in blob or "mock-" in blob or "REPLACE_" in blob:
             raise EvalError("正式模型配置仍含占位符或 mock 模型")
     return registry
 
@@ -745,8 +1085,8 @@ def make_request(
         ],
         "temperature": 0.2,
         "seed": seed,
-        "max_output_tokens": 2400,
-        "response_schema": response_schema or {"type": "object"},
+        "max_output_tokens": role_output_tokens(role, payload),
+        "response_schema": response_schema or ROLE_RESPONSE_SCHEMAS.get(role) or {"type": "object"},
         "prompt_version": prompts["prompt_version"],
         "case_hash": case_hash,
         "metadata": {

@@ -18,7 +18,16 @@ SQLite 数据库或 `instances/00_本机运行` 下的运行导出。
 
 ```bash
 python3 governance/03_校验/validate_project.py
+npm --prefix runtime run typecheck
+npm --prefix runtime test
 npm --prefix runtime run build
+```
+
+可选本地检查：
+
+```bash
+npm --prefix runtime run lint
+python3 -m pip install ruff && ruff check governance/03_校验 runtime/engine
 ```
 
 `PROJECT_ENGINEERING_PASS` 只表示合同、代码、样例、真实工作台冻结夹具和 mock 协议烟测通过；

@@ -57,7 +57,6 @@ export const taskDefinitionSchema = z.object({
   time_scope: z.object({ lookback: nonEmptyString, as_of: nonEmptyString, forward: nonEmptyString }),
   boundaries: z.array(z.string()),
   exclusions: z.array(z.string()),
-  report_type: nonEmptyString,
   domain_supported: z.boolean(),
   document_markdown: markdown,
 });
@@ -89,9 +88,73 @@ export const judgmentStructureSchema = z.object({
     role: nonEmptyString,
   })),
   paths: z.array(z.object({ id: nonEmptyString, statement: nonEmptyString, variable_ids: z.array(z.string()) })),
-  counter_evidence_directions: z.array(z.string()),
-  competing_explanations: z.array(z.string()),
+  counter_evidence_directions: z.array(z.preprocess(
+    (value) => {
+      if (typeof value === "string") {
+        return { direction_id: "CD-COERCED", statement: value, judgment_unit_ids: [] };
+      }
+      if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        return {
+          direction_id: String(record.direction_id || record.id || "CD-COERCED"),
+          statement: String(record.statement || ""),
+          judgment_unit_ids: Array.isArray(record.judgment_unit_ids) ? record.judgment_unit_ids.map(String) : [],
+        };
+      }
+      return value;
+    },
+    z.object({
+      direction_id: nonEmptyString,
+      statement: nonEmptyString,
+      judgment_unit_ids: z.array(z.string()).default([]),
+    }),
+  )),
+  competing_explanations: z.array(z.preprocess(
+    (value) => {
+      if (typeof value === "string") {
+        return { explanation_id: "CE-COERCED", statement: value, judgment_unit_ids: [] };
+      }
+      if (value && typeof value === "object") {
+        const record = value as Record<string, unknown>;
+        return {
+          explanation_id: String(record.explanation_id || record.id || "CE-COERCED"),
+          statement: String(record.statement || ""),
+          judgment_unit_ids: Array.isArray(record.judgment_unit_ids) ? record.judgment_unit_ids.map(String) : [],
+        };
+      }
+      return value;
+    },
+    z.object({
+      explanation_id: nonEmptyString,
+      statement: nonEmptyString,
+      judgment_unit_ids: z.array(z.string()).default([]),
+    }),
+  )),
   document_markdown: markdown,
+}).superRefine((value, context) => {
+  const unitIds = new Set(value.judgment_units.map((unit) => unit.id));
+  for (const [index, item] of value.competing_explanations.entries()) {
+    for (const unitId of item.judgment_unit_ids) {
+      if (!unitIds.has(unitId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["competing_explanations", index, "judgment_unit_ids"],
+          message: `竞争解释挂接了不存在的判断单元 ${unitId}`,
+        });
+      }
+    }
+  }
+  for (const [index, item] of value.counter_evidence_directions.entries()) {
+    for (const unitId of item.judgment_unit_ids) {
+      if (!unitIds.has(unitId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["counter_evidence_directions", index, "judgment_unit_ids"],
+          message: `反向证据方向挂接了不存在的判断单元 ${unitId}`,
+        });
+      }
+    }
+  }
 });
 
 const sourceDraft = z.object({
@@ -206,6 +269,8 @@ export const judgmentDecisionSchema = z.object({
     discriminating_evidence: z.array(z.string()).min(1),
     status: z.enum(["active", "weakened", "eliminated", "unknown"]),
     elimination_rationale: z.string(),
+    source_explanation_id: z.string().optional(),
+    judgment_unit_ids: z.array(z.string()).default([]),
   })).min(1),
   rule_evaluations: z.array(z.object({
     id: nonEmptyString,

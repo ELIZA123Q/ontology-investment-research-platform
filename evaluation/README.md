@@ -24,6 +24,10 @@
 | 02 | [`02_案例`](02_案例) | 试点案例（RV-T01/T02/T07/T08） |
 | 03 | [`03_执行`](03_执行) | 可执行 Harness（命令入口） |
 | 04 | [`04_报告`](04_报告) | 评测报告输出（默认不入库） |
+| 05 | [`05_决策日志`](05_决策日志) | 里程碑结论与硬门槛（入仓） |
+| 06 | [`06_第二领域压力测试`](06_第二领域压力测试) | 通用核心跨领域验证脚手架 |
+| 05 | [`05_决策日志`](05_决策日志) | 里程碑结论入仓（不含密钥与完整导出） |
+| 06 | [`06_第二领域压力测试`](06_第二领域压力测试) | 通用核心跨领域验证脚手架（非扩产品） |
 
 ## 想搞清什么 → 打开哪份
 
@@ -60,3 +64,18 @@ python3 evaluation/03_执行/eval_cli.py report --run-dir /tmp/research-eval
 ```
 
 mock 只证明框架能跑，不代表真实研究质量。正式配置见 [运行手册](01_协议/05_运行与验收手册.md)。
+
+## 仅 DeepSeek 两模型（`single_vendor`）
+
+若账户只有 `deepseek-v4-pro` 与 `deepseek-v4-flash`，使用 [`03_执行/model_profiles.yaml`](03_执行/model_profiles.yaml)（`run_mode: single_vendor`），按 [`03_执行/env.example`](03_执行/env.example) 配置 `EVAL_*` 后：
+
+```bash
+python3 evaluation/03_执行/eval_cli.py prepare --run-dir /tmp/research-eval
+python3 evaluation/03_执行/eval_cli.py run \
+  --run-dir /tmp/research-eval \
+  --profiles evaluation/03_执行/model_profiles.yaml \
+  --stage all \
+  --intensity pilot_light
+```
+
+结果可验证区分能力，但须注明单供应商限制；不能代替 `formal_full` 跨模型结论。

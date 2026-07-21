@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { getMarketEvent, getRunBundle, latestArtifact, listSources, listWorkItems, previousComparableRun } from "@/adapters/db";
 import { BaselineButton } from "@/app/components/baseline-button";
 import { PublishButton } from "@/app/components/publish-button";
-import { RunNav } from "@/app/components/run-nav";
+import { RunChrome } from "@/app/components/run-chrome";
 import { runDifferenceAttribution } from "@/engine/metrics";
 import { parseJson } from "@/engine/types";
 import { evidenceBoundSources } from "@/engine/evidence_sources";
+import { publishStatusLabel, runStatusLabel } from "@/app/lib/ui-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +39,9 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const gaps = evidence.filter((item: any) => item.kind === "gap" || item.kind === "conflict");
 
   return <>
-    <RunNav runId={id} active="overview" />
+    <RunChrome runId={id} active="overview" />
     <section className="run-summary">
-      <div><div className="eyebrow">{bundle.run.parent_run_id ? "Incremental research update" : "Research run"} · {bundle.run.domain === "semiconductor" ? "Semiconductor" : "General"}</div><h1>{bundle.run.question}</h1><div className="run-meta"><span>阶段合同 {completedStages}/5</span><span>状态 {bundle.run.status}</span><span>待处理 {pending.length}</span>{bundle.run.parent_run_id ? <span>继承自父运行</span> : null}{bundle.manifest.validation_summary?.publish_status ? <span>{bundle.manifest.validation_summary.publish_status}</span> : null}</div></div>
+      <div><div className="eyebrow">{bundle.run.parent_run_id ? "增量更新" : "研究任务"} · {bundle.run.domain === "semiconductor" ? "半导体" : "其他领域"}</div><h1>{bundle.run.question}</h1><div className="run-meta"><span>已完成阶段 {completedStages}/5</span><span>状态 {runStatusLabel(bundle.run.status)}</span><span>待处理 {pending.length}</span>{bundle.run.parent_run_id ? <span>继承自上一轮研究</span> : null}{bundle.manifest.validation_summary?.publish_status ? <span>{publishStatusLabel(bundle.manifest.validation_summary.publish_status)}</span> : null}</div></div>
       <div className="actions run-actions"><PublishButton runId={id} disabled={!deliveryReady} /><BaselineButton runId={id} completed={Boolean(baseline)} /></div>
     </section>
     {triggerEvent ? <section className="trigger-banner"><div><span>本轮由市场事件触发</span><strong>{triggerEvent.title}</strong><p>{triggerEvent.summary}</p></div><a href={triggerEvent.url} target="_blank" rel="noreferrer">查看来源 ↗</a></section> : null}
@@ -54,10 +55,10 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       <section className="overview-evidence"><div className="panel-title"><div><span>证据覆盖</span><strong>{evidence.length}</strong></div><Link href={`/runs/${id}/evidence`}>打开证据台 →</Link></div><div className="coverage-metrics"><div><strong>{evidence.filter((item: any) => item.direction === "support").length}</strong><span>支持</span></div><div><strong>{evidence.filter((item: any) => item.kind === "counter" || item.direction === "weaken").length}</strong><span>反证</span></div><div className={gaps.length ? "risk" : ""}><strong>{gaps.length}</strong><span>冲突 / 缺口</span></div></div><p className="muted">证据数量不代表结论强度；关键判断仍受最薄弱环节约束。</p></section>
     </div>
 
-    {previousRun && attribution ? <section className="card attribution-card"><div className="panel-title"><div><span>同题运行差异</span><strong>{attribution.causes.length}</strong></div><Link href={`/runs/${previousRun.id}`}>查看上一次运行 →</Link></div><p>主要变化：{attribution.causes.join("、")}</p><div className="run-meta"><span>新增来源 {attribution.evidence.added_sources.length}</span><span>移除来源 {attribution.evidence.removed_sources.length}</span><span>方法变化 {attribution.methods.changed.length}</span><span>判断变化 {attribution.judgments.changed.length}</span></div></section> : null}
+    {previousRun && attribution ? <section className="card attribution-card"><div className="panel-title"><div><span>同题研究差异</span><strong>{attribution.causes.length}</strong></div><Link href={`/runs/${previousRun.id}`}>查看上一轮 →</Link></div><p>主要变化：{attribution.causes.join("、")}</p><div className="run-meta"><span>新增来源 {attribution.evidence.added_sources.length}</span><span>移除来源 {attribution.evidence.removed_sources.length}</span><span>方法变化 {attribution.methods.changed.length}</span><span>判断变化 {attribution.judgments.changed.length}</span></div></section> : null}
 
-    <div className="section-head"><div><div className="eyebrow">Research tools</div><h2>实验与高级资产</h2></div><span className="section-meta">不属于研究员默认主链</span></div>
-    <div className="grid"><Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">Advanced</span><h3>本体实例集合</h3><p>查询正式对象、关系和 Action 提案。</p></Link><Link className="card run-card" href={`/runs/${id}/compare`}><span className="card-arrow">↗</span><span className="eyebrow">Experiment</span><h3>A/B 对照</h3><p>{baseline ? "同证据基线已冻结，可开始盲评。" : "冻结阶段 03 证据后生成直接基线并盲评。"}</p></Link></div>
+    <div className="section-head"><div><div className="eyebrow">进阶工具</div><h2>实验与知识查询</h2></div><span className="section-meta">不属于研究员默认主链</span></div>
+    <div className="grid"><Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级</span><h3>研究对象关系图</h3><p>查询正式对象、关系与操作建议。</p></Link><Link className="card run-card" href={`/runs/${id}/compare`}><span className="card-arrow">↗</span><span className="eyebrow">实验</span><h3>A/B 对照</h3><p>{baseline ? "同证据基线已冻结，可开始盲评。" : "冻结证据后生成对照基线并盲评。"}</p></Link></div>
   </>;
 }
 

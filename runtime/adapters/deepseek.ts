@@ -6,6 +6,7 @@ import { z } from "zod";
 import { schemas, type SchemaKind } from "../engine/schemas";
 import { ontologyToolDefinitions, runOntologyTool, type OntologyToolName } from "../engine/ontology_tools";
 import { captureSourceSnapshot } from "../engine/source_snapshot";
+import { resolveModelProvider, type ModelRole, type ResolvedModelProvider } from "./model_provider";
 
 type Citation = { url: string; title: string };
 export type ModelResult<T> = {
@@ -24,10 +25,8 @@ type GenerateOptions = {
   validateOutput?: (data: unknown) => void;
 };
 
-function boundedTimeout(name: string, fallback: number, min: number, max: number) {
-  const value = Number(process.env[name] || fallback);
-  return Number.isFinite(value) ? Math.min(Math.max(Math.floor(value), min), max) : fallback;
-}
+export { resolveModelProvider, listConfiguredProviders } from "./model_provider";
+export type { ModelProviderId, ModelRole, ResolvedModelProvider } from "./model_provider";
 
 const webSearchTool = {
   type: "function" as const,
@@ -78,22 +77,22 @@ function chatOntologyTools() {
 
 export class DeepSeekClient {
   private client: OpenAI;
-  readonly provider = "deepseek";
+  private config: ResolvedModelProvider;
+  readonly provider: string;
   readonly model: string;
-  readonly reasoning = process.env.DEEPSEEK_REASONING_EFFORT === "max" ? "max" : "high";
-  readonly role: "producer" | "reviewer";
+  readonly reasoning: "high" | "max" | null;
+  readonly role: ModelRole;
 
-  constructor(role: "producer" | "reviewer" = "producer") {
+  constructor(role: ModelRole = "producer") {
+    this.config = resolveModelProvider(role);
     this.role = role;
-    this.model = role === "reviewer"
-      ? process.env.DEEPSEEK_REVIEW_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-v4-pro"
-      : process.env.DEEPSEEK_MODEL || "deepseek-v4-pro";
-    const apiKey = role === "reviewer" ? process.env.DEEPSEEK_REVIEW_API_KEY || process.env.DEEPSEEK_API_KEY : process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) throw new Error(`缺少 ${role === "reviewer" ? "DEEPSEEK_REVIEW_API_KEY/DEEPSEEK_API_KEY" : "DEEPSEEK_API_KEY"}，请在 .env.local 中配置`);
+    this.provider = this.config.provider;
+    this.model = this.config.model;
+    this.reasoning = this.config.reasoningEffort;
     this.client = new OpenAI({
-      apiKey,
-      baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
-      timeout: boundedTimeout("DEEPSEEK_REQUEST_TIMEOUT_MS", 180_000, 10_000, 600_000),
+      apiKey: this.config.apiKey,
+      baseURL: this.config.baseURL,
+      timeout: this.config.requestTimeoutMs,
       maxRetries: 1,
     });
   }
@@ -119,7 +118,7 @@ export class DeepSeekClient {
     const messages: any[] = [
       {
         role: "system",
-        content: `${instructions}\n\n你正在使用 DeepSeek V4。最终结果必须是合法 JSON，并通过 ${submitName} 函数提交。不要在普通文本中输出最终结果。Schema 中由 Runtime 回填的 source_id、抓取时间/hash、deterministic_result、冻结产物 hash、reviewer/producer model 等字段必须显式提交 null，不得自行伪造；Runtime 会在保存前覆盖。${options.webSearch ? "需要最新外部事实时，必须先调用 search_public_web；搜索摘要只是候选线索。" : ""}`,
+        content: `${instructions}\n\n你正在使用 ${this.config.displayName}。最终结果必须是合法 JSON，并通过 ${submitName} 函数提交。不要在普通文本中输出最终结果。Schema 中由 Runtime 回填的 source_id、抓取时间/hash、deterministic_result、冻结产物 hash、reviewer/producer model 等字段必须显式提交 null，不得自行伪造；Runtime 会在保存前覆盖。${options.webSearch ? "需要最新外部事实时，必须先调用 search_public_web；搜索摘要只是候选线索。" : ""}`,
       },
       { role: "user", content: input },
     ];
@@ -129,7 +128,7 @@ export class DeepSeekClient {
     let lastResponseId = "";
     let lastUsage: unknown = {};
     let lastSubmitError = "";
-    const generationTimeoutMs = boundedTimeout("DEEPSEEK_GENERATION_TIMEOUT_MS", 480_000, 30_000, 1_200_000);
+    const generationTimeoutMs = this.config.generationTimeoutMs;
     const deadline = Date.now() + generationTimeoutMs;
     // Reserve part of the total lease for a schema-validated direct JSON retry.
     // Some model endpoints occasionally stall while deciding between many tools;
@@ -144,24 +143,27 @@ export class DeepSeekClient {
         break;
       }
       let response: any;
-      const requestBudgetMs = Math.min(remaining, boundedTimeout("DEEPSEEK_REQUEST_TIMEOUT_MS", 180_000, 10_000, 600_000));
+      const requestBudgetMs = Math.min(remaining, this.config.requestTimeoutMs);
       const controller = new AbortController();
       let hardTimer: ReturnType<typeof setTimeout> | undefined;
       try {
+        const requestBody: Record<string, unknown> = {
+          model: this.model,
+          messages,
+          tools,
+          tool_choice: "auto",
+          max_tokens: this.config.maxTokens,
+        };
+        if (this.config.provider === "deepseek" && this.reasoning) {
+          requestBody.reasoning_effort = this.reasoning;
+          requestBody.extra_body = { thinking: { type: "enabled" } };
+        }
         response = await Promise.race([
-          this.client.chat.completions.create({
-            model: this.model,
-            messages,
-            tools,
-            tool_choice: "auto",
-            reasoning_effort: this.reasoning,
-            max_tokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 32768),
-            extra_body: { thinking: { type: "enabled" } },
-          } as any, { timeout: requestBudgetMs, signal: controller.signal }),
+          this.client.chat.completions.create(requestBody as any, { timeout: requestBudgetMs, signal: controller.signal }),
           new Promise<never>((_, reject) => {
             hardTimer = setTimeout(() => {
               controller.abort();
-              reject(new Error(`MODEL_TIMEOUT: DeepSeek 第 ${round + 1} 轮超过硬时限 ${requestBudgetMs}ms`));
+              reject(new Error(`MODEL_TIMEOUT: ${this.config.displayName} 第 ${round + 1} 轮超过硬时限 ${requestBudgetMs}ms`));
             }, requestBudgetMs);
           }),
         ]);
@@ -177,7 +179,7 @@ export class DeepSeekClient {
       lastResponseId = response.id || "";
       lastUsage = response.usage || {};
       const message: any = response.choices?.[0]?.message;
-      if (!message) throw new Error("DeepSeek 未返回消息");
+      if (!message) throw new Error(`${this.config.displayName} 未返回消息`);
       raw += `${message.reasoning_content || ""}${message.content || ""}`;
       messages.push(message);
       const calls: any[] = message.tool_calls || [];
@@ -262,7 +264,7 @@ export class DeepSeekClient {
     }
     const toolSummary = toolTrace.map((item) => String(item.name)).join(", ");
     throw new Error(
-      `${Date.now() >= deadline ? "MODEL_TIMEOUT: " : ""}DeepSeek 未提交合法结构化结果`
+      `${Date.now() >= deadline ? "MODEL_TIMEOUT: " : ""}${this.config.displayName} 未提交合法结构化结果`
       + `${toolSummary ? `；已调用: ${toolSummary.slice(0, 1000)}` : "；未调用任何可执行工具"}`
       + `${lastSubmitError ? `；最后一次校验错误: ${lastSubmitError.slice(0, 4000)}` : "；未调用最终提交工具"}`,
     );
@@ -295,12 +297,12 @@ export class DeepSeekClient {
             { role: "user", content: `${input}\n\n已完成工具结果（只可作为候选上下文，仍不得越过来源约束）：\n${toolContext}` },
           ],
           response_format: { type: "json_object" },
-          max_tokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 32768),
+          max_tokens: this.config.maxTokens,
         } as any, { timeout: timeoutMs, signal: controller.signal }),
         new Promise<never>((_, reject) => {
           hardTimer = setTimeout(() => {
             controller.abort();
-            reject(new Error(`MODEL_TIMEOUT: DeepSeek 直接 JSON 降级超过 ${timeoutMs}ms`));
+            reject(new Error(`MODEL_TIMEOUT: ${this.config.displayName} 直接 JSON 降级超过 ${timeoutMs}ms`));
           }, timeoutMs);
         }),
       ]);
@@ -319,13 +321,24 @@ export class DeepSeekClient {
       };
     } catch (error) {
       if (/timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
-        throw new Error("MODEL_TIMEOUT: DeepSeek 直接 JSON 降级未在保留时限内返回", { cause: error });
+        throw new Error(`MODEL_TIMEOUT: ${this.config.displayName} 直接 JSON 降级未在保留时限内返回`, { cause: error });
       }
       throw error;
     } finally {
       if (hardTimer) clearTimeout(hardTimer);
     }
   }
+}
+
+/** Alias kept for call sites that still import DeepSeekClient; factory is preferred. */
+export class ResearchModelClient extends DeepSeekClient {
+  generate(kind: SchemaKind, instructions: string, input: string, options: GenerateOptions = {}): Promise<ModelResult<any>> {
+    return this.generateStructured<any>(kind, schemas[kind] as z.ZodType<any>, instructions, input, options);
+  }
+}
+
+export function createResearchModelClient(role: ModelRole = "producer"): ResearchModelClient {
+  return new ResearchModelClient(role);
 }
 
 export function parseDirectJson<T>(raw: string, schema: z.ZodType<T>): T {
@@ -337,12 +350,6 @@ export function parseDirectJson<T>(raw: string, schema: z.ZodType<T>): T {
     throw new Error(`直接 JSON 降级返回无法解析: ${error instanceof Error ? error.message : String(error)}`);
   }
   return schema.parse(value);
-}
-
-export class ResearchModelClient extends DeepSeekClient {
-  generate(kind: SchemaKind, instructions: string, input: string, options: GenerateOptions = {}): Promise<ModelResult<any>> {
-    return this.generateStructured<any>(kind, schemas[kind] as z.ZodType<any>, instructions, input, options);
-  }
 }
 
 async function searchPublicWeb(args: Record<string, unknown>, citations: Citation[]) {

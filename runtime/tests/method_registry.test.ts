@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   loadMethodRegistry,
+  methodRoutesForPrompt,
   validateMethodRoutes,
   validateRegisteredMethodApplications,
 } from "@/engine/method_registry";
@@ -53,6 +54,38 @@ describe("method registry", () => {
     expect(() => validateMethodRoutes([
       application({ method_id: "kb04:A03", status: "candidate" }),
     ], units)).toThrow(/不允许用于/);
+  });
+
+  it("allows kb03:A01 as start-fact evidence for transmission_path", () => {
+    const units = [{ id: "JU-02", judgment_type: "transmission_path" }];
+    expect(() => validateMethodRoutes([
+      application({
+        application_id: "MA-JU02-EVID",
+        method_id: "kb03:A01",
+        method_version: "3.2.0",
+        capability_type: "evidence",
+        target_judgment_unit_refs: ["JU-02"],
+        status: "candidate",
+      }),
+    ], units)).not.toThrow();
+    expect(() => validateMethodRoutes([
+      application({
+        application_id: "MA-JU02-EVID",
+        method_id: "kb03:A02",
+        method_version: "3.2.0",
+        capability_type: "evidence",
+        target_judgment_unit_refs: ["JU-02"],
+        status: "candidate",
+      }),
+    ], units)).toThrow(/不允许用于/);
+  });
+
+  it("exposes compact method routes for prompts", () => {
+    const routes = methodRoutesForPrompt();
+    expect(routes.routes.transmission_path.allowed_kb03_methods).toEqual(
+      expect.arrayContaining(["kb03:A01", "kb03:A04"]),
+    );
+    expect(routes.routes.transmission_path.default_kb03_method).toBe("kb03:A04");
   });
 
   it("keeps rejected methods route-valid and allows global A00", () => {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Background, BackgroundVariant, Controls, ReactFlow, type Edge, type Node } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, ReactFlow, useEdgesState, useNodesState, type Edge, type Node } from "@xyflow/react";
 import type { ResearchWorkItem } from "@/engine/types";
 
 export type ResearchGraphNode = {
@@ -26,6 +26,36 @@ const colors: Record<string, string> = {
   neutral: "#738087",
 };
 
+function toFlowNodes(inputNodes: ResearchGraphNode[]): Node[] {
+  return inputNodes.map((item) => ({
+    id: item.id,
+    position: { x: item.x, y: item.y },
+    data: { label: <div className="graph-node-copy"><span>{item.meta}</span><strong>{item.label}</strong></div> },
+    className: `research-graph-node tone-${item.tone}`,
+    draggable: true,
+    selectable: true,
+  }));
+}
+
+function toFlowEdges(inputEdges: ResearchGraphEdge[]): Edge[] {
+  return inputEdges.map((item) => ({
+    id: item.id,
+    source: item.source,
+    target: item.target,
+    label: item.label,
+    animated: item.tone === "danger",
+    style: { stroke: colors[item.tone || "neutral"], strokeWidth: 1.7 },
+    labelStyle: { fill: "#687680", fontSize: 10 },
+  }));
+}
+
+function detailEntries(details: ResearchGraphNode["details"] | unknown): Array<[string, unknown]> {
+  if (!details) return [];
+  if (typeof details === "string") return details.trim() ? [["内容", details]] : [];
+  if (typeof details !== "object" || Array.isArray(details)) return [["内容", details]];
+  return Object.entries(details as Record<string, unknown>);
+}
+
 export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessage = "当前还没有可视化对象", runId, workItems = [] }: { nodes: ResearchGraphNode[]; edges: ResearchGraphEdge[]; emptyMessage?: string; runId?: string; workItems?: ResearchWorkItem[] }) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(inputNodes[0]?.id || "");
@@ -34,23 +64,18 @@ export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessa
   const [reviewNote, setReviewNote] = useState("");
   const selected = inputNodes.find((item) => item.id === selectedId);
   const selectedWorkItem = workItems.find((item) => item.target_id === selectedId && (item.status === "pending" || item.status === "rework"));
-  const nodes = useMemo<Node[]>(() => inputNodes.map((item) => ({
-    id: item.id,
-    position: { x: item.x, y: item.y },
-    data: { label: <div className="graph-node-copy"><span>{item.meta}</span><strong>{item.label}</strong></div> },
-    className: `research-graph-node tone-${item.tone}`,
-    draggable: false,
-    selectable: true,
-  })), [inputNodes]);
-  const edges = useMemo<Edge[]>(() => inputEdges.map((item) => ({
-    id: item.id,
-    source: item.source,
-    target: item.target,
-    label: item.label,
-    animated: item.tone === "danger",
-    style: { stroke: colors[item.tone || "neutral"], strokeWidth: 1.7 },
-    labelStyle: { fill: "#687680", fontSize: 10 },
-  })), [inputEdges]);
+  const initialNodes = useMemo(() => toFlowNodes(inputNodes), [inputNodes]);
+  const initialEdges = useMemo(() => toFlowEdges(inputEdges), [inputEdges]);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  useEffect(() => {
+    setNodes(initialNodes);
+  }, [initialNodes, setNodes]);
+
+  useEffect(() => {
+    setEdges(initialEdges);
+  }, [initialEdges, setEdges]);
 
   async function decide(status: "approved" | "rework") {
     if (!runId || !selectedWorkItem) return;
@@ -78,17 +103,29 @@ export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessa
   if (!inputNodes.length) return <div className="card empty-state"><h2>尚无图谱</h2><p className="muted">{emptyMessage}</p></div>;
   return <div className="graph-workspace">
     <div className="graph-canvas">
-      <ReactFlow nodes={nodes} edges={edges} fitView minZoom={0.35} maxZoom={1.5} nodesConnectable={false} elementsSelectable onNodeClick={(_, node) => setSelectedId(node.id)}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        fitView
+        minZoom={0.35}
+        maxZoom={1.5}
+        nodesDraggable
+        nodesConnectable={false}
+        elementsSelectable
+        onNodeClick={(_, node) => setSelectedId(node.id)}
+      >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#d9e0df" />
         <Controls showInteractive={false} />
       </ReactFlow>
     </div>
     <aside className="graph-inspector">
-      <div className="eyebrow">Node inspector</div>
+      <div className="eyebrow">节点详情</div>
       <h2>{selected?.label}</h2>
       <span className={`semantic-key tone-${selected?.tone || "neutral"}`}>{selected?.meta}</span>
       <dl>
-        {Object.entries(selected?.details || {}).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{formatValue(value)}</dd></div>)}
+        {detailEntries(selected?.details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{formatValue(value)}</dd></div>)}
       </dl>
       {selectedWorkItem ? <div className="graph-review-actions"><div><span>{selectedWorkItem.kind}</span><strong>{selectedWorkItem.title}</strong><small>{selectedWorkItem.reason || `退回 ${selectedWorkItem.stage}`}</small></div><div className="field"><label>人工裁决记录</label><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="说明证据上限、竞争解释和结论边界的核对结果" /></div><div className="review-actions"><button className="button" disabled={busy} onClick={() => decide("approved")}>确认裁决</button><button className="button-secondary" disabled={busy} onClick={() => decide("rework")}>退回返工</button></div>{error ? <div className="notice error">{error}</div> : null}</div> : null}
       <details className="advanced-audit"><summary>高级审计字段</summary><pre>{JSON.stringify(selected?.details || {}, null, 2)}</pre></details>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { actionLabel, authorityLabel, objectTypeLabel } from "@/app/lib/ui-labels";
 
 type ObjectSetResponse = {
   authority?: string;
@@ -43,7 +44,6 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId]);
 
   const selected = useMemo(() => data?.objects?.find((o) => o.id === selectedId) || null, [data, selectedId]);
@@ -75,7 +75,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
     const json = await r.json();
     setBusy(false);
     if (!r.ok) {
-      setError(json.error || "提案失败");
+      setError(json.error || "提出操作建议失败");
       return;
     }
     setProposal(json);
@@ -88,7 +88,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
     const response = await fetch(`/api/runs/${runId}/work-items/${workItemId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "approved", note: "由对象集合面板人工批准 Action 提案" }),
+      body: JSON.stringify({ status: "approved", note: "由关系图面板人工批准操作建议" }),
     });
     const workItem = await response.json();
     setBusy(false);
@@ -112,22 +112,27 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
     await load();
   }
 
+  const authorityText = data?.authority ? authorityLabel(data.authority) : "";
+  const provisionalNote = data?.provisional_projection?.note?.includes("草稿投影")
+    ? "以下为草稿预览，尚未写入正式关系图"
+    : data?.provisional_projection?.note;
+
   return (
     <div className="object-set">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">实例图 · Object Set</div>
-          <h1>运行实例集合</h1>
+          <div className="eyebrow">研究对象关系图</div>
+          <h1>本轮研究的对象与关系</h1>
           <p className="muted">
-            可查询与执行 Action 的 business_instance_graph（不是阶段产物视图）
+            查看本轮已确认的研究对象与关系；与上方「结构 / 证据 / 判断」审阅页不同
             {data?.summary ? ` · ${data.summary}` : ""}
-            {data?.authority ? ` · 权威=${data.authority}` : ""}
+            {authorityText ? ` · ${authorityText}` : ""}
             {data?.graph_source ? ` · ${data.graph_source}` : ""}
           </p>
         </div>
         <div className="actions">
           <Link className="button-secondary" href={`/runs/${runId}`}>
-            ← 返回运行
+            ← 返回研究
           </Link>
           <button className="button-secondary" disabled={busy} onClick={load}>
             刷新
@@ -139,29 +144,29 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
         <div className="actions" style={{ alignItems: "end" }}>
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
             <label>对象类型</label>
-            <input value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} placeholder="JudgmentUnit" />
+            <input value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} placeholder="例如：JudgmentUnit（判断单元）" />
           </div>
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
-            <label>relatedTo</label>
-            <input value={relatedTo} onChange={(e) => setRelatedTo(e.target.value)} placeholder="对象 ID" />
+            <label>关联对象</label>
+            <input value={relatedTo} onChange={(e) => setRelatedTo(e.target.value)} placeholder="对象编号" />
           </div>
           <button className="button" disabled={busy} onClick={load}>
             查询
           </button>
           <button className="button-secondary" disabled={busy || !selected} onClick={propose}>
-            对选中对象提案 Action
+            对选中对象提出操作建议
           </button>
         </div>
         {data?.provisional_projection ? (
-          <div className="notice">{data.provisional_projection.note}：{data.provisional_projection.summary}</div>
+          <div className="notice">{provisionalNote}：{data.provisional_projection.summary}</div>
         ) : null}
         {error ? <div className="notice error">{error}</div> : null}
-        <p className="muted">可执行 Action：{(data?.supported_actions || []).join("、")}</p>
+        <p className="muted">可执行操作：{(data?.supported_actions || []).map(actionLabel).join("、") || "暂无"}</p>
       </div>
 
       <div className="three-col">
         <aside className="card ontology-list">
-          <h3>Objects ({data?.total_objects || 0})</h3>
+          <h3>对象列表（{data?.total_objects || 0}）</h3>
           {(data?.objects || []).map((object) => (
             <button
               key={object.id}
@@ -180,7 +185,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
             >
               <strong>{object.id}</strong>
               <br />
-              <small className="muted">{object.type}</small>
+              <small className="muted">{objectTypeLabel(object.type)}</small>
             </button>
           ))}
         </aside>
@@ -189,7 +194,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           {selected ? (
             <>
               <p>
-                <span className="badge">{selected.type}</span> <code>{selected.id}</code>
+                <span className="badge">{objectTypeLabel(selected.type)}</span> <code>{selected.id}</code>
               </p>
               <pre className="json-editor" style={{ minHeight: 280, overflow: "auto" }}>
                 {JSON.stringify(selected.properties || {}, null, 2)}
@@ -200,7 +205,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           )}
         </section>
         <section className="card">
-          <h2>关系展开 / 提案 diff</h2>
+          <h2>相关关系 / 操作变更预览</h2>
           {related.length ? (
             <ul className="source-list">
               {related.map((relation) => (
@@ -210,14 +215,14 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
               ))}
             </ul>
           ) : (
-            <p className="muted">当前对象无关系边</p>
+            <p className="muted">当前对象暂无相关关系</p>
           )}
           {proposal ? (
             <>
-              <h3>Action 提案</h3>
+              <h3>操作建议</h3>
               <div className="actions">
                 <button className="button-secondary" disabled={busy || proposal.approval_work_item?.status === "approved" || proposal.proposal?.status === "executed"} onClick={approveProposal}>人工批准</button>
-                <button className="button" disabled={busy || proposal.approval_work_item?.status !== "approved" || proposal.proposal?.status === "executed"} onClick={executeProposal}>按图版本执行</button>
+                <button className="button" disabled={busy || proposal.approval_work_item?.status !== "approved" || proposal.proposal?.status === "executed"} onClick={executeProposal}>确认后写入正式关系图</button>
               </div>
               <pre className="json-editor" style={{ minHeight: 240, overflow: "auto" }}>
                 {JSON.stringify(proposal, null, 2)}

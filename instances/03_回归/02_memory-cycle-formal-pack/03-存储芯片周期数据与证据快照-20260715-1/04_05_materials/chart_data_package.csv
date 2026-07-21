@@ -1,0 +1,4 @@
+﻿figure_id,execution_id,suggested_title,evidence_role,data_candidate_ids,required_fields,available_fields,source_ids,chart_type_suggestion,chart_readiness,report_grade_status,evidence_message,usage_limit,gap_to_ready
+FIG-01,EXEC-MEM-CYCLE-20260715-1,传统 DRAM 合约价涨幅高位回落,价格阶段,DDC-01,period|normalized_value|unit|source_id,period|indicator|normalized_value|unit|source_id,SRC-07|SRC-06,line,ready,report_grade_ready,可展示 2026Q1 与 2026Q2E 传统 DRAM 合约价涨幅变化,不代表 HBM 同代际成交价,
+FIG-02,EXEC-MEM-CYCLE-20260715-1,HBM 晶圆投入占比继续上升,供给约束,DDC-04,period|normalized_value|unit|source_id,period|indicator|normalized_value|unit|source_id,SRC-08,line,ready,report_grade_ready,可展示 HBM 在前三大 DRAM 晶圆投入中的占比从 2026 年底到 2027 年底继续提升,预测值；不等于全行业有效供给释放,
+FIG-03,EXEC-MEM-CYCLE-20260715-1,新增合格供给缓解窗口仍需认证兑现,改判信号,DDC-03,period|normalized_fact|source_id,period|normalized_fact|source_id,SRC-01|SRC-02|SRC-06|SRC-14,timeline,partial,usable_with_caveat,可展示 2027H1 至 2028 的新增供给节点和条件窗口,缺未来良率和客户认证；不得写成确定见顶时间,补充良率爬坡和客户认证进展

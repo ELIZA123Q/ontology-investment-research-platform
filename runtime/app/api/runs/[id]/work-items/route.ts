@@ -12,22 +12,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id } = await params;
     const body = await request.json();
     const targetId = String(body.target_id || "").trim();
-    if (!targetId) return Response.json({ error: "缺少 target_id" }, { status: 400 });
+    if (!targetId) return Response.json({ error: "缺少目标对象编号" }, { status: 400 });
     const stage = String(body.stage || "stage_03");
     if (!["stage_03", "stage_04", "independent_review"].includes(stage)) {
-      return Response.json({ error: "只允许为可审阅产物创建工作项" }, { status: 400 });
+      return Response.json({ error: "只允许为可审阅稿件创建待办" }, { status: 400 });
     }
     const allowedKinds = new Set(["evidence_review", "judgment_review", "supplement_evidence", "resolve_conflict", "publish_blocker"]);
     if (!allowedKinds.has(String(body.kind || "evidence_review"))) {
-      return Response.json({ error: "非法工作项 kind" }, { status: 400 });
+      return Response.json({ error: "不支持的待办类型" }, { status: 400 });
     }
     const artifact = latestArtifact(id, stage as any, ["approved", "needs_review"]);
-    if (!artifact) return Response.json({ error: "当前阶段没有可绑定的产物" }, { status: 409 });
+    if (!artifact) return Response.json({ error: "当前阶段没有可关联的稿件" }, { status: 409 });
     if (body.artifact_id && String(body.artifact_id) !== artifact.id) {
-      return Response.json({ error: "只能绑定当前阶段的最新有效产物" }, { status: 409 });
+      return Response.json({ error: "只能关联当前阶段的最新有效稿件" }, { status: 409 });
     }
     if (body.attempt !== undefined && Number(body.attempt) !== artifact.version) {
-      return Response.json({ error: "attempt 与当前产物版本不一致" }, { status: 409 });
+      return Response.json({ error: "审阅任务版本与当前稿件版本不一致" }, { status: 409 });
     }
     return Response.json(upsertWorkItem({
       run_id: id,

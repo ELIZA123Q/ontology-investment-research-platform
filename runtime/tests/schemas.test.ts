@@ -60,7 +60,6 @@ describe("stage contracts", () => {
       time_scope: { lookback: "12个月", as_of: "当前", forward: "6个月" },
       boundaries: ["全球"],
       exclusions: ["交易建议"],
-      report_type: "行业周期判断",
       domain_supported: true,
       document_markdown: "# 任务定义\n\n这是一个具有明确范围、时间和反证条件的研究问题，需要检查供给、需求、库存和价格变化。",
     })).toBeTruthy();

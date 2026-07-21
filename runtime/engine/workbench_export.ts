@@ -1,5 +1,9 @@
 import "server-only";
 import type { RunManifest } from "./manifest";
+import {
+  normalizeCompetingExplanations,
+  normalizeCounterEvidenceDirections,
+} from "./structure_candidates";
 
 type Json = Record<string, any>;
 
@@ -19,19 +23,20 @@ export function projectTask(data: Json, manifest: RunManifest): Json {
     time_scope: data.time_scope || {},
     boundaries: asArray<string>(data.boundaries),
     exclusions: asArray<string>(data.exclusions),
-    report_type: data.report_type || "",
     domain_supported: Boolean(data.domain_supported),
     excluded_outputs: asArray<string>(data.exclusions),
   };
 }
 
 export function projectStructure(data: Json): Json {
+  const units = asArray<Json>(data.judgment_units);
+  const unitIds = units.map((unit) => String(unit.id || unit.judgment_unit_id || "")).filter(Boolean);
   return {
     stage: "02",
     package_projection: "workbench_zod",
     schema_version: "3.0.0",
     method_applications: asArray<Json>(data.method_applications),
-    judgment_units: asArray<Json>(data.judgment_units).map((unit) => ({
+    judgment_units: units.map((unit) => ({
       judgment_unit_id: unit.id || unit.judgment_unit_id,
       title: unit.title || "",
       question: unit.question || unit.statement || "",
@@ -43,12 +48,8 @@ export function projectStructure(data: Json): Json {
     })),
     variables: asArray<Json>(data.variables),
     paths: asArray<Json>(data.paths),
-    counter_evidence_directions: asArray<string>(data.counter_evidence_directions),
-    competing_explanations: asArray(data.competing_explanations).map((item, index) =>
-      typeof item === "string"
-        ? { explanation_id: `CE-WB-${index + 1}`, statement: item }
-        : item,
-    ),
+    counter_evidence_directions: normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds }),
+    competing_explanations: normalizeCompetingExplanations(data.competing_explanations, { unitIds }),
   };
 }
 

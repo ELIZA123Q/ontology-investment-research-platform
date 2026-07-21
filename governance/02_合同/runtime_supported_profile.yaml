@@ -58,7 +58,7 @@ runtime_relation_types:
       - ManufacturingFacility
       - ProductionLine
     source_ref: runtime/engine/runtime_operations.yaml#actions.NormalizeClaim
-  assessmentEvaluatesEvidence:
+  assessmentEvaluatesFact:
     source_types: [EvidenceAssessment]
     target_types: [EvidenceClaim, EvidenceFact]
     source_ref: runtime/engine/runtime_operations.yaml#actions.AssessEvidenceForUse

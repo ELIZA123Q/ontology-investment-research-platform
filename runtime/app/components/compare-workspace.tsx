@@ -66,7 +66,7 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
       <button className="button" disabled={saved || busy || !canEvaluate || evaluator.trim().length < 2 || notes.trim().length < 8 || Object.keys(scores).length !== criteria.length * 2} onClick={save}>保存评价并揭示</button>
       {!canEvaluate && !saved ? <div className="notice">基线和阶段 05 都必须先确认，才能锁定盲评输入。</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
-      {saved ? <><div className="notice">方案 A 是 {sideA === "baseline" ? "同冻结证据直接基线" : "本体约束 Runtime"}；方案 B 是 {sideA === "baseline" ? "本体约束 Runtime" : "同冻结证据直接基线"}。该评价已锁定。</div><pre>{JSON.stringify(metrics, null, 2)}</pre></> : null}
+      {saved ? <><div className="notice">方案 A 是 {sideA === "baseline" ? "同证据对照基线" : "本体约束研究路径"}；方案 B 是 {sideA === "baseline" ? "本体约束研究路径" : "同证据对照基线"}。该评价已锁定。</div><pre>{JSON.stringify(metrics, null, 2)}</pre></> : null}
     </section>
   </>;
 }

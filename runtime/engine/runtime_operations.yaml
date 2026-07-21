@@ -61,7 +61,7 @@ actions:
     target_types: [SourceDocument, EvidenceClaim, EvidenceFact]
     parameters: [executionId, profileRef, assessmentScope, evidenceRefs, judgmentUnitRefs]
     audit_preconditions: [证据已登记且可追溯, 任务范围已冻结]
-    effects: [create_EvidenceAssessment, create_assessmentEvaluatesEvidence]
+    effects: [create_EvidenceAssessment, create_assessmentEvaluatesFact]
     outputs: [EvidenceAssessment]
     formal_rule_refs: [evidence_scope_time_alignment]
     method_refs: [kb03:assessment]
@@ -69,7 +69,7 @@ actions:
     runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
     function_ref: AssessEvidenceUsabilityFunction
     logic_refs: []
-    write_scope: [EvidenceAssessment, assessmentEvaluatesEvidence]
+    write_scope: [EvidenceAssessment, assessmentEvaluatesFact]
   FormHypothesis:
     name: 形成假设
     description: 围绕有语义锚点的状态变量形成可证伪假设。

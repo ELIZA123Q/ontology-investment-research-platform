@@ -17,10 +17,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     const resolution = body.resolution === undefined ? "" : String(body.resolution).trim();
     if (terminalDecision && !resolution) {
-      return Response.json({ error: "人工决策必须填写 resolution" }, { status: 400 });
+      return Response.json({ error: "人工决策必须填写处理结论" }, { status: 400 });
     }
     if (current.kind === "supplement_evidence" && body.status === "approved" && resolution !== "accepted_evidence_gap") {
-      return Response.json({ error: "当前产物仍是证据缺口；只能明确记录 accepted_evidence_gap，不得伪装成已补证" }, { status: 400 });
+      return Response.json({ error: "当前仍是证据缺口；只能记录「接受缺口」，不能标成已补证" }, { status: 400 });
     }
     return Response.json(updateWorkItem(itemId, {
       status: body.status,

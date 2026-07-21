@@ -1,0 +1,19 @@
+[project]
+name = "ontology-research-workbench"
+version = "0.0.0"
+requires-python = ">=3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = [
+  "runtime/.next",
+  "instances/00_本机运行",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"governance/03_校验/**/*.py" = ["E501"]
+"runtime/engine/**/*.py" = ["E501"]

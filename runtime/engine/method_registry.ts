@@ -130,6 +130,30 @@ export function registeredMethodCandidates() {
   return [...loadMethodRegistry().values()].sort((a, b) => a.method_id.localeCompare(b.method_id));
 }
 
+export function methodRoutesForPrompt() {
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
+  const routes: Record<string, {
+    default_kb03_method: string;
+    allowed_kb03_methods: string[];
+    default_kb04_method: string;
+    allowed_kb04_methods: string[];
+    optional_auxiliary_methods: string[];
+  }> = {};
+  for (const [judgmentType, route] of Object.entries(routeRegistry.routes || {}) as Array<[string, any]>) {
+    routes[judgmentType] = {
+      default_kb03_method: String(route.default_kb03_method || ""),
+      allowed_kb03_methods: [...(route.allowed_kb03_methods || [])].map(String),
+      default_kb04_method: String(route.default_kb04_method || ""),
+      allowed_kb04_methods: [...(route.allowed_kb04_methods || [])].map(String),
+      optional_auxiliary_methods: [...(route.optional_auxiliary_methods || [])].map(String),
+    };
+  }
+  return {
+    global_optional_reasoning_methods: [...(routeRegistry.global_optional_reasoning_methods || [])].map(String),
+    routes,
+  };
+}
+
 export function defaultMethodIdsForJudgmentType(judgmentType: string) {
   const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
   const route = routeRegistry.routes?.[judgmentType];

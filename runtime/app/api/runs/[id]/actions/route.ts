@@ -22,7 +22,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return Response.json(runOntologyTool(id, name, body.arguments || {}));
     }
     if (mode === "execute") {
-      return Response.json({ error: "禁止直接执行 Action；请先创建提案、批准工作项，再调用提案执行接口" }, { status: 409 });
+      return Response.json({ error: "禁止直接执行操作；请先提出建议、人工批准后再执行" }, { status: 409 });
     }
     return Response.json(createStoredActionProposal(id, String(body.action_id || ""), body.parameters || {}), { status: 201 });
   } catch (error) {

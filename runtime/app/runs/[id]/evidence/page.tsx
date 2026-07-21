@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getRun, latestArtifact, listSources, listWorkItems } from "@/adapters/db";
-import { RunNav } from "@/app/components/run-nav";
+import { RunChrome } from "@/app/components/run-chrome";
 import { EvidenceBoard } from "@/app/components/evidence-board";
 import { SourceAcquisitionForm } from "@/app/components/source-acquisition-form";
 import { ControlledEvidenceProjectionForm } from "@/app/components/controlled-projection-forms";
@@ -13,8 +13,11 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const run = getRun(id);
   if (!run) notFound();
+  const evidenceArtifact = latestArtifact(id, "stage_03", ["approved", "needs_review"]);
+  // 尚无待审/已确认版本时，审阅页没有生成入口；默认进入阶段编辑页。
+  if (!evidenceArtifact) redirect(`/runs/${id}/stages/3`);
   const structure: any = parseJson(latestArtifact(id, "stage_02", ["approved", "needs_review"])?.json_content || "{}", {});
-  const evidenceData: any = parseJson(latestArtifact(id, "stage_03", ["approved", "needs_review"])?.json_content || "{}", {});
+  const evidenceData: any = parseJson(evidenceArtifact.json_content || "{}", {});
   const taskData: any = parseJson(latestArtifact(id, "stage_01", ["approved"])?.json_content || "{}", {});
   const sources = listSources(id);
   const boundSourceIds = new Set<string>((evidenceData.evidence_drafts || []).filter((item: any) => item.kind !== "gap").flatMap((item: any) => Array.isArray(item.source_ids) ? item.source_ids.map(String) : []));
@@ -29,17 +32,17 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   const evidence = (evidenceData.evidence_drafts || []).map((item: any, index: number) => ({ id: String(item.id || item.evidence_id || `EV-${index + 1}`), statement: String(item.statement || ""), kind: String(item.kind || "fact_draft"), direction: String(item.direction || "unknown"), source_ids: Array.isArray(item.source_ids) ? item.source_ids.map(String) : [], judgment_unit_ids: Array.isArray(item.judgment_unit_ids) ? item.judgment_unit_ids.map(String) : Array.isArray(item.target_judgment_unit_refs) ? item.target_judgment_unit_refs.map(String) : [], limitations: Array.isArray(item.limitations) ? item.limitations.map(String) : [] }));
   const pending = listWorkItems(id).filter((item) => item.status === "pending");
   return <>
-    <RunNav runId={id} active="evidence" />
-    <div className="pagehead scene-head"><div><div className="eyebrow">阶段产物视图 · 03</div><h1>证据够不够，缺口在哪里？</h1><p className="muted">本页展示阶段 03 产物与待核验候选，不是实例图。按判断单元审阅支持、反证、冲突和缺口；图操作见 <Link href={`/runs/${id}/object-set`}>实例图</Link>。</p></div><div className="run-meta"><span>待处理 {pending.length}</span><span>证据 {evidence.length}</span><span>来源 {sources.length}</span></div></div>
+    <RunChrome runId={id} active="evidence" />
+    <div className="pagehead scene-head"><div><div className="eyebrow">证据审阅</div><h1>证据够不够，缺口在哪里？</h1><p className="muted">按判断单元审阅支持、反证、冲突和缺口；对象操作请到 <Link href={`/runs/${id}/object-set`}>关系图</Link>。</p></div><div className="run-meta"><span>待处理 {pending.length}</span><span>证据 {evidence.length}</span><span>来源 {sources.length}</span></div></div>
     <SourceAcquisitionForm runId={id} />
     <ControlledEvidenceProjectionForm runId={id} units={units} sources={controlledSources.map((source) => ({ id: source.id, title: source.title, publisher: source.publisher, published_at: source.published_at }))} />
-    {candidates.length ? <section className="card" style={{ marginBottom: 16 }}><div className="panel-title"><div><span>未绑定来源候选</span><strong>{candidates.length}</strong></div></div><ul className="source-list">{candidates.map((source) => {
+    {candidates.length ? <section className="card" style={{ marginBottom: 16 }}><div className="panel-title"><div><span>尚未挂到判断的来源候选</span><strong>{candidates.length}</strong></div></div><ul className="source-list">{candidates.map((source) => {
       const afterCutoff = Number.isFinite(cutoffMs) && Boolean(source.published_at) && Date.parse(String(source.published_at)) > cutoffMs;
       const status = afterCutoff
         ? "晚于本次研究截止时间，不能进入当前事实表"
         : source.usability_status === "usable"
-          ? "已核验但尚未绑定 JudgmentUnit"
-          : `${source.usability_status || "candidate"} / ${source.retrieval_status || "not_attempted"}${source.failure_detail ? `：${source.failure_detail}` : ""}`;
+          ? "已核验但尚未挂到任何判断单元"
+          : `${({ usable: "可用", candidate: "候选", rejected: "已退回", blocked: "不可用" } as Record<string, string>)[source.usability_status || "candidate"] || source.usability_status} / ${({ captured: "正文已抓取", not_attempted: "尚未抓取", failed: "抓取失败", pending: "抓取中" } as Record<string, string>)[source.retrieval_status || "not_attempted"] || source.retrieval_status}${source.failure_detail ? `：${source.failure_detail}` : ""}`;
       return <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a><small>{source.publisher || "未知发布者"} · {source.published_at || "发布日期未知"} · {source.locator || source.url} · {status}</small></li>;
     })}</ul></section> : null}
     {units.length ? <EvidenceBoard runId={id} units={units} evidence={evidence} sources={sources.map((source) => ({ ...source }))} workItems={listWorkItems(id).map((item) => ({ ...item }))} /> : <div className="card empty-state"><h2>先建立研究结构</h2><p className="muted">证据台必须按判断单元组织；请先确认问题树、竞争解释与必要证据。</p><Link className="button" href={`/runs/${id}/stages/2`}>进入结构生成</Link></div>}

@@ -22,8 +22,8 @@ export function PublishButton({ runId, disabled = false }: { runId: string; disa
     }
     setMessage(
       d.validate_ok
-        ? `工作台导出校验通过：${d.export_rel}（package_kind=workbench_export，不可直接正式发布）`
-        : `已导出 ${d.export_rel}；validate_workbench_package 未通过（exit=${d.exit_code}）。请按错误补齐 01—05 追溯链。`,
+        ? `已导出并通过校验：${d.export_rel}（仅供内部验收，不能当作正式发布包）`
+        : `已导出 ${d.export_rel}，但交付前校验未通过。请按提示补齐范围→结构→证据→判断→交付的材料。`,
     );
     router.refresh();
   }
@@ -31,7 +31,7 @@ export function PublishButton({ runId, disabled = false }: { runId: string; disa
   return (
     <div>
       <button className="button-secondary" disabled={busy || disabled} onClick={publish}>
-        {busy ? "导出校验中…" : "导出并校验工作台包"}
+        {busy ? "导出校验中…" : "导出并做交付前校验"}
       </button>
       {message ? <div className="notice">{message}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}

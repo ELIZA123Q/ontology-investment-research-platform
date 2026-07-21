@@ -62,7 +62,7 @@ routes:
 
   causal_attribution:
     default_kb03_method: kb03:A04
-    allowed_kb03_methods: [kb03:A04]
+    allowed_kb03_methods: [kb03:A01, kb03:A04]
     default_kb04_method: kb04:A05
     allowed_kb04_methods: [kb04:A05]
     required_preconditions: [observed_change, competing_explanations]
@@ -72,7 +72,7 @@ routes:
 
   transmission_path:
     default_kb03_method: kb03:A04
-    allowed_kb03_methods: [kb03:A04]
+    allowed_kb03_methods: [kb03:A01, kb03:A04]
     default_kb04_method: kb04:A06
     allowed_kb04_methods: [kb04:A06]
     required_preconditions: [start_fact_identified, path_nodes_defined]

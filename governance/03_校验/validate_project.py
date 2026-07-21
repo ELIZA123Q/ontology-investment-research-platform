@@ -34,6 +34,14 @@ CHECKS = (
             "instances/03_回归/01_tsmc-revenue-workbench",
         ],
     ),
+    (
+        "正式发布包黄金回归",
+        [
+            sys.executable,
+            "governance/03_校验/validate_run.py",
+            "instances/03_回归/02_memory-cycle-formal-pack",
+        ],
+    ),
     ("推理追溯合同", [sys.executable, "governance/03_校验/validate_reasoning_trace_contract.py"]),
     ("推理追溯负向回归", [sys.executable, "governance/03_校验/tests/test_reasoning_trace_contract.py"]),
     ("增量更新合同", [sys.executable, "governance/03_校验/validate_incremental_update_contract.py"]),
@@ -67,7 +75,7 @@ def main() -> int:
 
     print(
         "\nPROJECT_ENGINEERING_PASS: Ontology 3.0、公共合同 1.3、知识库、运行回归、"
-        "两个 run-002 样例、真实工作台链冻结回归及 mock 评测协议烟测全部通过。"
+        "两个 run-002 样例、真实工作台链冻结回归、正式发布包黄金回归及 mock 评测协议烟测全部通过。"
     )
     print(
         "FORMAL_RESEARCH_VALUE_NOT_ASSERTED: 本结果不代表真实模型的 R/U/delta/S/C、"

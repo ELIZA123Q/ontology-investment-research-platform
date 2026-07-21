@@ -26,7 +26,7 @@ export function SourceAcquisitionForm({ runId }: { runId: string }) {
       router.refresh();
       return;
     }
-    setMessage("来源正文、逐字引用与哈希已核验；它仍只是 Stage03 的候选输入。可在下方受控路径中绑定判断单元并生成待审阅事实草稿。");
+    setMessage("来源正文、逐字引用与内容指纹已核验；它仍只是证据阶段的候选输入。可在下方手动路径中挂到判断单元并生成待审阅事实草稿。");
     router.refresh();
   }
 

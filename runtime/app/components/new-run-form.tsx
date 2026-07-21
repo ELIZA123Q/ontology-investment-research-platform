@@ -55,9 +55,9 @@ export function NewRunForm() {
         </select>
       </div>
       <div className="field">
-        <label>绑定语义样例实例图（可选，semantic_fixture）</label>
+        <label>预置样例研究对象（可选）</label>
         <select value={packagePath} onChange={(e) => setPackagePath(e.target.value)}>
-          <option value="">不绑定（由阶段产物合成）</option>
+          <option value="">不使用样例（随研究推进逐步生成）</option>
           {packages.map((item) => (
             <option key={item} value={item}>
               {item}
@@ -65,10 +65,10 @@ export function NewRunForm() {
           ))}
         </select>
       </div>
-      {domain !== "semiconductor" && <div className="notice">当前只有半导体领域本体，系统会明确标注覆盖不足。</div>}
+      {domain !== "semiconductor" && <div className="notice">当前只有半导体领域知识库，系统会明确标注覆盖不足。</div>}
       {error && <div className="notice error">{error}</div>}
       <button className="button" disabled={busy}>
-        {busy ? "正在创建…" : "创建运行并进入工作台 →"}
+        {busy ? "正在创建…" : "创建研究并进入工作台 →"}
       </button>
     </form>
   );

@@ -10,11 +10,19 @@ cp .env.example .env.local
 # 在 .env.local 中填写 DEEPSEEK_API_KEY，并配置与生产模型不同的 DEEPSEEK_REVIEW_MODEL
 npm install
 npm run dev
+# 若曾出现多端口僵尸进程 / Load failed，改用：
+# npm run dev:singleton
 ```
 
-打开 http://localhost:3000 。SQLite 默认写在 `instances/00_本机运行/workbench.sqlite`（不进 Git）。
+打开 http://127.0.0.1:3000 。SQLite 默认写在 `instances/00_本机运行/workbench.sqlite`（不进 Git）。
 
-> 安全边界：当前 API 无多用户鉴权，只允许绑定本机回环地址。不要把开发服务器绑定到 `0.0.0.0` 或直接暴露到公网；远程使用前必须先增加鉴权、限流和受控出口策略。
+> 说明：仓库路径含中文时，Next 16 默认的 Turbopack 会崩溃并在浏览器显示 `Unexpected end of JSON input`。`npm run dev` 已改为 `--webpack` + 轮询监视，避免 EMFILE。请用 `http://127.0.0.1:3000` 打开（不要混用可能被系统代理劫持的 `localhost`）。同一时间只跑一个 `next dev`；重复启动会占满 3001/3002… 并拖垮文件监视。
+
+> 模型生成：接口会立刻返回 `running`（HTTP 202），模型在后台继续；页面每 3 秒刷新状态。不要依赖浏览器挂住长达数分钟的 POST。
+
+> 若出现 `Connection error`：多半是开发服务继承了失效代理，或 DNS/VPN 异常。请在**本机普通终端**执行 `npm run dev:singleton`（脚本会清掉 HTTP(S)_PROXY），并确认浏览器与终端都能访问 `DEEPSEEK_BASE_URL`。
+
+> 安全边界：当前 API 无多用户鉴权，`npm run dev/start` 已强制绑定 `127.0.0.1`；API Proxy 同时拒绝非回环 Host、跨站写入和 Origin 不一致请求。不要改为 `0.0.0.0` 或直接暴露到公网；远程使用前必须先增加鉴权、限流和受控出口策略。
 
 ## 验证
 
@@ -43,7 +51,8 @@ npm run build
 - Object Set：`GET /api/runs/:id/object-set`，页面 `/runs/:id/object-set`
 - Action：`RegisterSource` → `ExtractClaim` → `NormalizeClaim` → `AssessEvidenceForUse` → `FormHypothesis` → `FormJudgment` → `RecordReasoningTrace`
 - 确认 stage_02/03/04 时物化唯一 `instance_graph`；草稿投影不再 silent 冒充权威图
-- 独立审阅：确认 04 后可使用 `DEEPSEEK_REVIEW_MODEL` 指定的不同模型审阅；也可由未参与 Stage04 生产的人类登记结构化审阅。人类路径强制冻结 Stage04 artifact/hash、审阅者标识和至少 20 字独立性/利益冲突声明，自审不能通过。相同模型的分离调用只能用于返工提示，不能通过交付门。
+- 独立审阅：确认 04 后可使用与生产不同的审阅模型（`REVIEW_MODEL_PROVIDER` + `DEEPSEEK_REVIEW_MODEL` 或 `OPENAI_COMPAT_REVIEW_MODEL`）；也可由未参与 Stage04 生产的人类登记结构化审阅。人类路径强制冻结 Stage04 artifact/hash、审阅者标识和至少 20 字独立性/利益冲突声明，自审不能通过。相同模型的分离调用只能用于返工提示，不能通过交付门。
+- **多供应商（可选）：** 若日后有第二供应商，可用 `REVIEW_MODEL_PROVIDER=openai_compatible` 满足 `formal_full` 的五互异 `model_id` 要求；仅 DeepSeek 时用评测 `single_vendor` 档案即可。
 - 同证据基线：确认 03 后冻结证据哈希，基线不联网、不得引用证据包外来源，在 A/B 页面盲评。盲评必须记录评价人和依据，揭示 A/B 身份后不可重评。
 - 模型上下文：每阶段只携带必要上游结构化产物及 hash，不重复传输 Markdown 投影，避免“上下文越大就越可靠”的假安全感。
 - 重复运行归因：相同问题与领域的后续运行自动对照上一运行，区分来源变化、方法变化、模型/Prompt/知识上下文变化和无法由这些因素解释的模型波动

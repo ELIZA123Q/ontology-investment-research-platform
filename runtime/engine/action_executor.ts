@@ -285,7 +285,7 @@ function calculateConfidence(inputs: Record<string, unknown>, graph: BusinessIns
   });
   const sourceGroups = new Set(sources.map((source) => String(source.properties?.source_group || source.properties?.publisher || source.properties?.uri || source.id).toLowerCase()));
   const directFacts = facts.filter((fact) => fact.properties?.directness === "direct"
-    || graph.relations.some((relation) => relation.type === "assessmentEvaluatesEvidence" && relation.targetId === fact.id
+    || graph.relations.some((relation) => relation.type === "assessmentEvaluatesFact" && relation.targetId === fact.id
       && graph.objects.find((object) => object.id === relation.sourceId)?.properties?.directness === "direct")).length;
   const rules = ruleEvaluations.map((id) => graph.objects.find((object) => object.id === id && object.type === "RuleEvaluation")).filter(Boolean) as GraphObject[];
   const failedRules = rules.filter((rule) => ["fail", "blocked"].includes(String(rule.properties?.result))).map((rule) => rule.id);
@@ -493,7 +493,7 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
     const variableRef = String(parameters.variableRef || "").trim();
     if (!variableRef) throw new Error("FormHypothesis 需要 variableRef");
     if (!graph.objects.some((object) => object.id === variableRef && object.type === "StateVariable")) {
-      throw new Error(`状态变量 ${variableRef} 不在实例图中；请先物化 stage_02 或绑定 semantic_fixture 样例包`);
+      throw new Error(`状态变量 ${variableRef} 不在关系图中；请先确认研究结构，或新建时选择预置样例研究对象`);
     }
     if (!String(parameters.falsificationConditions || "").trim() && !asStringArray(parameters.falsificationConditions).length) {
       throw new Error("FormHypothesis 需要 falsificationConditions");
@@ -746,7 +746,7 @@ function planWrites(
       objects: [object],
       relations: evidenceRefs.map((evidenceId, index) => ({
         id: `REL-${assessmentId}-${evidenceId}`,
-        type: "assessmentEvaluatesEvidence",
+        type: "assessmentEvaluatesFact",
         sourceId: assessmentId,
         targetId: evidenceId,
           properties: { index },

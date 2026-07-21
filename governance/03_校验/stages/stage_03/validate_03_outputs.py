@@ -291,7 +291,12 @@ def _validate_normalized_evidence_graph(rows: dict[str, list[dict[str, str]]]) -
         assert_subset(split_refs(claim.get("source_document_id")), source_documents, f"{claim.get('claim_id')}.source_document_id")
         assert_subset(split_refs(claim.get("source_run_refs")), source_runs, f"{claim.get('claim_id')}.source_run_refs")
     relation_rows = rows["evidence_relations.csv"]
-    allowed_relations = {"claimCitesSource", "factSupportedByClaim", "assessmentEvaluatesEvidence", "conflictsWith", "supersedes", "invalidates"}
+    allowed_relations = {
+        "claimCitesSource",
+        "factDerivedFromClaim",
+        "assessmentEvaluatesFact",
+        "evidenceConflictsWith",
+    }
     assert_values([row.get("relation_type", "") for row in relation_rows], allowed_relations, "evidence_relations.relation_type")
     claim_source_links: set[str] = set()
     fact_claim_links: set[str] = set()
@@ -305,27 +310,27 @@ def _validate_normalized_evidence_graph(rows: dict[str, list[dict[str, str]]]) -
             assert_subset([source], claims, f"{relation.get('relation_id')}.source")
             assert_subset([target], source_documents, f"{relation.get('relation_id')}.target")
             claim_source_links.add(source)
-        elif relation_type == "factSupportedByClaim":
+        elif relation_type == "factDerivedFromClaim":
             assert_subset([source], facts, f"{relation.get('relation_id')}.source")
             assert_subset([target], claims, f"{relation.get('relation_id')}.target")
             fact_claim_links.add(source)
-        elif relation_type == "assessmentEvaluatesEvidence":
+        elif relation_type == "assessmentEvaluatesFact":
             assert_subset([source], assessments, f"{relation.get('relation_id')}.source")
-            assert_subset([target], evidence_universe | source_documents, f"{relation.get('relation_id')}.target")
+            assert_subset([target], facts, f"{relation.get('relation_id')}.target")
             assessment_links[source].add(target)
         else:
             assert_subset([source, target], evidence_universe, f"{relation.get('relation_id')}.evidence_endpoints")
     if claims - claim_source_links:
         fail("所有 EvidenceClaim 都必须存在 claimCitesSource: " + ", ".join(sorted(claims - claim_source_links)))
     if facts - fact_claim_links:
-        fail("所有 EvidenceFact 都必须存在 factSupportedByClaim: " + ", ".join(sorted(facts - fact_claim_links)))
+        fail("所有 EvidenceFact 都必须存在 factDerivedFromClaim: " + ", ".join(sorted(facts - fact_claim_links)))
     for assessment in rows["evidence_assessments.csv"]:
         aid = str(assessment.get("assessment_id", ""))
         targets = set(split_refs(assessment.get("evidence_refs")))
-        assert_subset(targets, evidence_universe | source_documents, f"{aid}.evidence_refs")
+        assert_subset(targets, facts, f"{aid}.evidence_refs")
         assert_subset(split_refs(assessment.get("linked_judgment_unit_ids")), judgment_units, f"{aid}.linked_judgment_unit_ids")
         if not targets or not targets.issubset(assessment_links.get(aid, set())):
-            fail(f"{aid} 的 evidence_refs 必须逐项存在 assessmentEvaluatesEvidence")
+            fail(f"{aid} 的 evidence_refs 必须逐项存在 assessmentEvaluatesFact")
 
 
 def _load_strategy_knowledge() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
@@ -709,31 +714,31 @@ def _validate_ontology_instances(view: dict[str, object], rows: dict[str, list[d
             assert_subset([source], claims, f"{relation.get('relation_id')}.source")
             assert_subset([target], source_documents, f"{relation.get('relation_id')}.target")
             claim_source_links.add(source)
-        elif relation_type == "factSupportedByClaim":
+        elif relation_type == "factDerivedFromClaim":
             assert_subset([source], facts, f"{relation.get('relation_id')}.source")
             assert_subset([target], claims, f"{relation.get('relation_id')}.target")
             fact_claim_links.add(source)
-        elif relation_type == "assessmentEvaluatesEvidence":
+        elif relation_type == "assessmentEvaluatesFact":
             assert_subset([source], assessments, f"{relation.get('relation_id')}.source")
-            assert_subset([target], evidence_universe | source_documents, f"{relation.get('relation_id')}.target")
+            assert_subset([target], facts, f"{relation.get('relation_id')}.target")
             if relation.get("relation_role") not in {"support", "counter", "conflict", "context"}:
-                fail(f"{relation.get('relation_id')}.relation_role 不符合 assessmentEvaluatesEvidence")
+                fail(f"{relation.get('relation_id')}.relation_role 不符合 assessmentEvaluatesFact")
             assessment_links[source].add(target)
         else:
             assert_subset([source, target], evidence_universe, f"{relation.get('relation_id')}.endpoints")
     if claims - claim_source_links:
         fail("所有 EvidenceClaim 都必须存在 claimCitesSource")
     if facts - fact_claim_links:
-        fail("所有 EvidenceFact 都必须存在 factSupportedByClaim")
+        fail("所有 EvidenceFact 都必须存在 factDerivedFromClaim")
     for assessment in rows["evidence_assessments.csv"]:
         aid = assessment["assessment_id"]
         if assessment["profile_ref"] not in allowed_profiles:
             fail(f"{aid}.profile_ref 未由 02 evidence_contract 冻结")
         targets = set(split_refs(assessment.get("evidence_refs")))
-        assert_subset(targets, evidence_universe | source_documents, f"{aid}.evidence_refs")
+        assert_subset(targets, facts, f"{aid}.evidence_refs")
         assert_subset(split_refs(assessment.get("linked_judgment_unit_ids")), judgment_units, f"{aid}.linked_judgment_unit_ids")
         if not targets or not targets.issubset(assessment_links.get(aid, set())):
-            fail(f"{aid}.evidence_refs 必须逐项存在 assessmentEvaluatesEvidence")
+            fail(f"{aid}.evidence_refs 必须逐项存在 assessmentEvaluatesFact")
 
 
 def _validate_snapshot_refs(snapshot_dir: Path, rows: dict[str, list[dict[str, str]]]) -> None:
