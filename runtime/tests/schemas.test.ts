@@ -394,4 +394,58 @@ describe("stage contracts", () => {
       independence_level: null,
     })).toBeTruthy();
   });
+
+  it("materializes scopeIncludesObject from core_object and typed ontology instances", () => {
+    const structure = {
+      research_scope: {
+        id: "SCOPE-1",
+        label: "存储芯片范围",
+        dimensions: { domain: "semiconductor", core_object: "存储芯片行业" },
+      },
+      ontology_instances: [
+        { id: "OBJ-PROD-1", type: "Product", name: "DRAM", dimension: "product" },
+        { id: "OBJ-METRIC-1", type: "Metric", name: "库存天数", time_basis: "quarter_end", dimension: "metric" },
+      ],
+      judgment_units: [{
+        id: "JU-1",
+        question: "库存是否改善",
+        judgment_type: "state_measurement",
+        scope_ref: "SCOPE-1",
+        ontology_node_ids: ["OBJ-PROD-1"],
+      }],
+      variables: [{ id: "SV-1", name: "inventory", category: "operations", definition: "可比口径库存", variable_kind: "observed", anchors: ["inventory"] }],
+    };
+    const graph = materializeStageIntoGraph(emptyGraph(), "stage_02", structure);
+    const includes = graph.relations.filter((relation) => relation.type === "scopeIncludesObject");
+    expect(includes.map((relation) => relation.targetId).sort()).toEqual(["OBJ-METRIC-1", "OBJ-PROD-1", "OBJ-SCOPE-CORE"]);
+    expect(includes.every((relation) => typeof relation.properties?.dimension === "string" && relation.properties.dimension)).toBe(true);
+    expect(graph.objects.find((object) => object.id === "OBJ-SCOPE-CORE")?.type).toBe("Industry");
+    expect(graph.objects.find((object) => object.id === "OBJ-PROD-1")?.type).toBe("Product");
+    expect(() => validateRuntimeGraph(graph)).not.toThrow();
+  });
+
+  it("Stage02 CompetingExplanation 投影补齐 Ontology 必填 discriminating_evidence", () => {
+    const structure = {
+      method_applications: [],
+      research_scope: { id: "SCOPE-1", label: "测试范围", dimensions: { domain: "semiconductor" } },
+      judgment_units: [{
+        id: "JU-1",
+        question: "库存是否改善",
+        judgment_type: "state_measurement",
+        scope_ref: "SCOPE-1",
+        evidence_requirements: ["两项独立库存序列"],
+      }],
+      variables: [{ id: "SV-1", name: "inventory", category: "operations", definition: "可比口径库存", variable_kind: "observed", anchors: ["inventory"] }],
+      competing_explanations: [{
+        explanation_id: "CE-EXP-01",
+        statement: "季节性波动造成假象",
+        judgment_unit_ids: ["JU-1"],
+      }],
+    };
+    const graph = materializeStageIntoGraph(emptyGraph(), "stage_02", structure);
+    const competing = graph.objects.find((object) => object.id === "CE-EXP-01");
+    expect(competing?.type).toBe("CompetingExplanation");
+    expect(competing?.properties?.discriminating_evidence).toEqual(["两项独立库存序列"]);
+    expect(() => validateRuntimeGraph(graph)).not.toThrow();
+  });
 });

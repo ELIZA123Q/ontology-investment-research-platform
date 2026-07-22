@@ -3,6 +3,7 @@ import type { RunManifest } from "./manifest";
 import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
+  projectEvidenceRequirementsFromStructure,
 } from "./structure_candidates";
 
 type Json = Record<string, any>;
@@ -48,6 +49,20 @@ export function projectStructure(data: Json): Json {
     })),
     variables: asArray<Json>(data.variables),
     paths: asArray<Json>(data.paths),
+    questions: asArray<Json>(data.questions).length
+      ? asArray<Json>(data.questions)
+      : (data.research_scope?.dimensions?.question || data.research_scope?.label
+        ? [{ id: "RQ-01", statement: String(data.research_scope?.dimensions?.question || data.research_scope?.label) }]
+        : []),
+    evidence_requirements: asArray<Json>(data.evidence_requirements).length
+      ? asArray<Json>(data.evidence_requirements)
+      : projectEvidenceRequirementsFromStructure({
+        units: units.map((unit) => ({
+          id: String(unit.id || unit.judgment_unit_id || ""),
+          evidence_requirements: unit.evidence_requirements,
+        })),
+        counter_evidence_directions: data.counter_evidence_directions,
+      }),
     counter_evidence_directions: normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds }),
     competing_explanations: normalizeCompetingExplanations(data.competing_explanations, { unitIds }),
   };

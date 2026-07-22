@@ -7,7 +7,7 @@ const STAGE_OPTIONS = [
   { value: 1, label: "01 问题定义", supported: true },
   { value: 2, label: "02 判断结构", supported: true },
   { value: 3, label: "03 来源与证据", supported: false },
-  { value: 4, label: "04 判断裁决", supported: false },
+  { value: 4, label: "04 判断裁决", supported: true },
   { value: 5, label: "05 研究表达", supported: false },
 ] as const;
 
@@ -86,7 +86,11 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
       setMessages((prev) => [...prev, {
         role: "assistant",
         text: result.revision_summary
-          || (targetStage === 1 ? "已更新研究范围，请在范围页审阅后确认。" : "已更新判断结构，请在结构页审阅后确认。"),
+          || (targetStage === 1
+            ? "已更新研究范围，请在范围页审阅后确认。"
+            : targetStage === 2
+              ? "已更新判断结构，请在结构页审阅后确认。"
+              : "已更新判断裁决，请在判断页审阅后确认。"),
       }]);
       setInstruction("");
       router.refresh();
@@ -126,9 +130,11 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
             </select>
           </label>
           {!supported ? (
-            <p className="muted run-revise-hint">该阶段自然语言改稿尚未开通；当前支持 Stage01 研究范围与 Stage02 判断结构。</p>
+            <p className="muted run-revise-hint">该阶段自然语言改稿尚未开通；当前支持 Stage01 研究范围、Stage02 判断结构与 Stage04 判断裁决。</p>
           ) : targetStage === 1 ? (
             <p className="muted run-revise-hint">例如：把截止时点改到 2025 年底；或排除 AI 应用层公司。</p>
+          ) : targetStage === 4 ? (
+            <p className="muted run-revise-hint">例如：把 JU-02 结论收紧为暂不可判断；把 EV-3 调整为反证；补一条改判条件。</p>
           ) : (
             <p className="muted run-revise-hint">例如：把 JU-03 拆成成本传导与估值影响两个单元；或收紧反证方向。</p>
           )}

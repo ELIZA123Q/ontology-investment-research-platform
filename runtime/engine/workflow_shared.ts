@@ -25,6 +25,7 @@ import { schemas, type SchemaKind } from "./schemas";
 import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
+  projectEvidenceRequirementsFromStructure,
 } from "./structure_candidates";
 import { ontologyContextForPrompt } from "./ontology_tools";
 import { emptyGraph, loadDomainBusinessGraph, loadGraphForRun, markReachableDownstreamStale, materializeStageIntoGraph } from "./instance_graph";
@@ -415,6 +416,33 @@ export function editArtifact(id: string, jsonContent: string, markdownContent?: 
     const unitIds = (data.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean);
     data.competing_explanations = normalizeCompetingExplanations(data.competing_explanations, { unitIds });
     data.counter_evidence_directions = normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds });
+    data.evidence_requirements = projectEvidenceRequirementsFromStructure({
+      units: data.judgment_units || [],
+      counter_evidence_directions: data.counter_evidence_directions,
+    });
+    if (!Array.isArray(data.questions) || !data.questions.length) {
+      const statement = String(data.research_scope?.dimensions?.question || data.research_scope?.label || "").trim();
+      if (statement) {
+        data.questions = [{
+          id: "RQ-01",
+          question: statement,
+          statement,
+          scope_ref: String(data.research_scope?.id || "SCOPE-UNRESOLVED"),
+          failure_route: "return_to_structure",
+        }];
+      }
+    } else {
+      data.questions = data.questions.map((item: any, index: number) => {
+        const statement = String(item.question || item.statement || "").trim();
+        return {
+          id: String(item.id || item.question_id || `RQ-${String(index + 1).padStart(2, "0")}`),
+          question: statement,
+          statement,
+          scope_ref: String(item.scope_ref || data.research_scope?.id || "SCOPE-UNRESOLVED"),
+          failure_route: item.failure_route || "return_to_structure",
+        };
+      });
+    }
   }
   const schema = schemas[artifact.kind as SchemaKind];
   const syncedKinds = new Set(["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]);

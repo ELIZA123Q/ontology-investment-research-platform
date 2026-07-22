@@ -1,81 +1,42 @@
 import "server-only";
 
-import { z } from "zod";
 import { getRun, latestArtifact, listArtifacts } from "../adapters/db";
 import { createResearchModelClient } from "../adapters/deepseek";
 import { parseJson, STAGES, type Artifact, type StageKind } from "./types";
 import { stageNumber } from "./workflow_shared";
-import { createControlledStructureProjection, createStage01DeterministicProjection } from "./workflow_projections";
+import { createControlledStructureProjection, createControlledJudgmentProjection, createStage01DeterministicProjection } from "./workflow_projections";
 import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
 } from "./structure_candidates";
+import {
+  controlledScopePatchSchema,
+  controlledStructurePatchSchema,
+  controlledJudgmentPatchSchema,
+  structureValidationResultSchema,
+  type ControlledScopePatch,
+  type ControlledStructurePatchInput,
+  type ControlledJudgmentPatch,
+  type StructureValidationResult,
+  type StructureValidationResultInput,
+} from "./revise_schemas";
+
+export {
+  controlledScopePatchSchema,
+  controlledStructurePatchSchema,
+  controlledJudgmentPatchSchema,
+  structureValidationResultSchema,
+  type ControlledScopePatch,
+  type ControlledStructurePatchInput,
+  type ControlledJudgmentPatch,
+  type StructureValidationResult,
+  type StructureValidationResultInput,
+} from "./revise_schemas";
 
 const JUDGMENT_TYPES = [
   "state_measurement", "trend_direction", "cycle_phase", "mechanism_validation", "causal_attribution",
   "transmission_path", "object_differentiation", "impact_realization", "expectation_gap", "valuation_impact",
 ] as const;
-
-export const controlledScopePatchSchema = z.object({
-  normalized_question: z.string().min(1),
-  core_object: z.string().min(1),
-  judgment_action: z.string().min(1),
-  lookback: z.string().min(1),
-  as_of: z.string().min(1),
-  forward: z.string().min(1),
-  boundaries: z.array(z.string().min(1)).min(2),
-  exclusions: z.array(z.string().min(1)).min(1),
-  revision_summary: z.string().min(1),
-});
-
-export type ControlledScopePatch = z.infer<typeof controlledScopePatchSchema>;
-
-const structureUnitSchema = z.object({
-  id: z.string().optional(),
-  title: z.string().min(1),
-  question: z.string().min(1),
-  judgment_type: z.enum(JUDGMENT_TYPES),
-  evidence_requirements: z.array(z.string().min(1)).min(1),
-});
-
-const structureCandidateSchema = z.union([
-  z.string().min(1),
-  z.object({
-    explanation_id: z.string().optional(),
-    direction_id: z.string().optional(),
-    id: z.string().optional(),
-    statement: z.string().min(1),
-    judgment_unit_ids: z.array(z.string()).optional(),
-  }),
-]);
-
-export const controlledStructurePatchSchema = z.object({
-  scope_label: z.string().optional(),
-  units: z.array(structureUnitSchema).min(1),
-  counter_evidence_directions: z.array(structureCandidateSchema).min(1),
-  competing_explanations: z.array(structureCandidateSchema).min(1),
-  revision_summary: z.string().min(1),
-});
-
-export const structureValidationResultSchema = z.object({
-  ok: z.boolean(),
-  summary: z.string().min(1),
-  issues: z.array(z.object({
-    severity: z.enum(["error", "warning"]),
-    unit_id: z.string().optional(),
-    code: z.string().min(1),
-    message: z.string().min(1),
-  })),
-  suggested_patch: z.object({
-    scope_label: z.string().optional(),
-    units: z.array(structureUnitSchema).min(1),
-    counter_evidence_directions: z.array(structureCandidateSchema).min(1),
-    competing_explanations: z.array(structureCandidateSchema).min(1),
-  }).nullable(),
-});
-
-export type ControlledStructurePatch = z.infer<typeof controlledStructurePatchSchema>;
-export type StructureValidationResult = z.infer<typeof structureValidationResultSchema>;
 
 const STAGE_LABELS: Record<number, string> = {
   1: "问题定义",
@@ -85,8 +46,8 @@ const STAGE_LABELS: Record<number, string> = {
   5: "研究表达",
 };
 
-const REVISE_SUPPORTED = new Set([1, 2]);
-const REVISE_SUPPORTED_LABEL = "问题定义（Stage01）与判断结构（Stage02）";
+const REVISE_SUPPORTED = new Set([1, 2, 4]);
+const REVISE_SUPPORTED_LABEL = "问题定义（Stage01）、判断结构（Stage02）与判断裁决（Stage04）";
 
 export function normalizeTargetStage(raw: unknown): number {
   const value = Number(raw);
@@ -253,13 +214,15 @@ export async function reviseRunStage(
     /** Test hook: skip model and apply this patch directly for stage 01. */
     scopePatch?: ControlledScopePatch;
     /** Test hook: skip model and apply this patch directly for stage 02. */
-    structurePatch?: ControlledStructurePatch;
+    structurePatch?: ControlledStructurePatchInput;
+    /** Test hook: skip model and apply this patch directly for stage 04. */
+    judgmentPatch?: ControlledJudgmentPatch;
   } = {},
 ): Promise<ReviseRunStageResult> {
   const run = getRun(runId);
   if (!run) throw new Error("研究任务不存在");
   const trimmed = String(instruction || "").trim();
-  if (!trimmed && !options.structurePatch && !options.scopePatch) throw new Error("请填写改稿指令");
+  if (!trimmed && !options.structurePatch && !options.scopePatch && !options.judgmentPatch) throw new Error("请填写改稿指令");
   if (!REVISE_SUPPORTED.has(targetStage)) {
     return {
       status: "unsupported",
@@ -286,6 +249,9 @@ export async function reviseRunStage(
   }
   if (targetStage === 2) {
     return reviseStage02(runId, trimmed, options);
+  }
+  if (targetStage === 4) {
+    return reviseStage04(runId, trimmed, options);
   }
 
   return {
@@ -353,7 +319,7 @@ async function reviseStage02(
   instruction: string,
   options: {
     createClient?: typeof createResearchModelClient;
-    structurePatch?: ControlledStructurePatch;
+    structurePatch?: ControlledStructurePatchInput;
   },
 ): Promise<ReviseRunStageResult> {
   if (!latestArtifact(runId, "stage_01", ["approved"])) {
@@ -376,6 +342,7 @@ async function reviseStage02(
         "每个判断单元必须：标题短标签、原子判断问题为完整可反证问句、judgment_type 合法、至少一条可执行必要证据。",
         "标题与原子问题、判断类型必须语义一致，不得互相矛盾或填反。",
         "counter_evidence_directions 与 competing_explanations 必须是对象数组：{direction_id|explanation_id, statement, judgment_unit_ids?}；judgment_unit_ids 可多挂，也可留空表示待归属。",
+        "竞争解释还必须给出非空 discriminating_evidence（可区分主路径与该解释的证据要求）。",
         "优先保留未改动单元的既有 id；新增单元可用新 id。",
         "revision_summary 用一两句中文说明改了什么。",
         "不得编造已取证事实；本阶段只改结构。",
@@ -400,7 +367,7 @@ async function reviseStage02(
   const artifact = createControlledStructureProjection(runId, {
     scope_label: patch.scope_label || currentStructure.scope_label,
     units: patch.units.map((unit) => ({
-      id: unit.id,
+      id: unit.id ?? undefined,
       title: unit.title,
       question: unit.question,
       judgment_type: unit.judgment_type,
@@ -418,15 +385,220 @@ async function reviseStage02(
   };
 }
 
+type JudgmentContractView = {
+  judgments: Array<{
+    judgment_unit_id: string;
+    conclusion: string;
+    supporting_evidence_draft_ids: string[];
+    counter_evidence_draft_ids: string[];
+    rationale: string;
+    uncertainties: string[];
+    invalidation_conditions: string[];
+    competing_explanation: string;
+    source_explanation_id?: string;
+    discriminating_evidence: string[];
+    counterevidence_resolution: string;
+    confirmed_precondition_ids: string[];
+    tracking_signals: string[];
+    conditions: string[];
+    strength?: string;
+    decision_status?: string;
+  }>;
+  overall_boundary: string;
+};
+
+function judgmentFromArtifact(
+  artifact: Artifact | undefined,
+  structure: StructureContractView,
+  evidenceData: any,
+): JudgmentContractView {
+  const data = parseJson<any>(artifact?.json_content || "{}", {});
+  const competingByUnit = new Map<string, { statement: string; source_explanation_id?: string }>();
+  for (const item of data.competing_explanations || []) {
+    for (const unitId of item.judgment_unit_ids || []) {
+      if (!competingByUnit.has(String(unitId))) {
+        competingByUnit.set(String(unitId), {
+          statement: String(item.statement || ""),
+          source_explanation_id: item.source_explanation_id ? String(item.source_explanation_id) : undefined,
+        });
+      }
+    }
+  }
+  const automaticallyConfirmed = new Set(["controlled_source_verification", "judgment_unit", "object_scope"]);
+  const confirmedByUnit = new Map<string, string[]>();
+  for (const application of evidenceData.method_applications || []) {
+    for (const unitId of application.target_judgment_unit_refs || []) {
+      const passed = (application.precondition_checks || [])
+        .filter((check: any) => check.result === "pass" && !automaticallyConfirmed.has(String(check.precondition_id)))
+        .map((check: any) => String(check.precondition_id));
+      if (passed.length) {
+        confirmedByUnit.set(String(unitId), [...new Set([...(confirmedByUnit.get(String(unitId)) || []), ...passed])]);
+      }
+    }
+  }
+  const judgments = (data.judgments || []).map((judgment: any) => {
+    const unitId = String(judgment.judgment_unit_id || "");
+    const primaryCompetition = (data.competing_explanations || []).find((item: any) =>
+      (item.judgment_unit_ids || []).includes(unitId) && !String(item.id || "").includes("-S"));
+    const competition = primaryCompetition || competingByUnit.get(unitId);
+    const elimination = String(primaryCompetition?.elimination_rationale || "");
+    const counterevidenceResolution = elimination.startsWith("研究者记录的有限裁决：")
+      ? elimination
+        .replace(/^研究者记录的有限裁决：/, "")
+        .replace(/；竞争解释仍不得标记为 eliminated$/, "")
+        .trim()
+      : "";
+    return {
+      judgment_unit_id: unitId,
+      conclusion: String(judgment.conclusion || ""),
+      supporting_evidence_draft_ids: (judgment.supporting_evidence_draft_ids || []).map(String),
+      counter_evidence_draft_ids: (judgment.counter_evidence_draft_ids || []).map(String),
+      rationale: String(judgment.rationale || ""),
+      uncertainties: (judgment.uncertainties || []).map(String),
+      invalidation_conditions: (judgment.invalidation_conditions || []).map(String),
+      competing_explanation: String(primaryCompetition?.statement || competition?.statement || ""),
+      source_explanation_id: primaryCompetition?.source_explanation_id
+        ? String(primaryCompetition.source_explanation_id)
+        : competition?.source_explanation_id,
+      discriminating_evidence: (primaryCompetition?.discriminating_evidence || []).map(String),
+      counterevidence_resolution: counterevidenceResolution,
+      confirmed_precondition_ids: confirmedByUnit.get(unitId) || [],
+      tracking_signals: (judgment.tracking_signals || []).map(String),
+      conditions: (judgment.conditions || []).map(String),
+      strength: String(judgment.strength || ""),
+      decision_status: String(judgment.decision_status || ""),
+    };
+  });
+  if (!judgments.length) {
+    return {
+      judgments: structure.units.map((unit) => ({
+        judgment_unit_id: unit.id,
+        conclusion: "",
+        supporting_evidence_draft_ids: [],
+        counter_evidence_draft_ids: [],
+        rationale: "",
+        uncertainties: [],
+        invalidation_conditions: [],
+        competing_explanation: structure.competing_explanations.find((item) => item.judgment_unit_ids.includes(unit.id))?.statement || "",
+        source_explanation_id: structure.competing_explanations.find((item) => item.judgment_unit_ids.includes(unit.id))?.explanation_id,
+        discriminating_evidence: [],
+        counterevidence_resolution: "",
+        confirmed_precondition_ids: [],
+        tracking_signals: [],
+        conditions: [],
+      })),
+      overall_boundary: String(data.overall_boundary || ""),
+    };
+  }
+  return {
+    judgments,
+    overall_boundary: String(data.overall_boundary || ""),
+  };
+}
+
+function patchToJudgmentInputs(patch: ControlledJudgmentPatch) {
+  return patch.judgments.map((item) => ({
+    judgment_unit_id: item.judgment_unit_id,
+    conclusion: item.conclusion,
+    supporting_evidence_draft_ids: item.supporting_evidence_draft_ids,
+    counter_evidence_draft_ids: item.counter_evidence_draft_ids,
+    rationale: item.rationale ?? undefined,
+    uncertainties: item.uncertainties,
+    invalidation_conditions: item.invalidation_conditions,
+    competing_explanation: item.competing_explanation,
+    source_explanation_id: item.source_explanation_id ?? undefined,
+    discriminating_evidence: item.discriminating_evidence,
+    counterevidence_resolution: item.counterevidence_resolution ?? undefined,
+    confirmed_precondition_ids: item.confirmed_precondition_ids,
+    tracking_signals: item.tracking_signals ?? undefined,
+    conditions: item.conditions ?? undefined,
+  }));
+}
+
+async function reviseStage04(
+  runId: string,
+  instruction: string,
+  options: {
+    createClient?: typeof createResearchModelClient;
+    judgmentPatch?: ControlledJudgmentPatch;
+  },
+): Promise<ReviseRunStageResult> {
+  if (!latestArtifact(runId, "stage_02", ["approved"])) {
+    throw new Error("请先确认阶段 02，再改判断裁决");
+  }
+  if (!latestArtifact(runId, "stage_03", ["approved"])) {
+    throw new Error("请先确认阶段 03，再改判断裁决");
+  }
+
+  const structureArtifact = latestArtifact(runId, "stage_02", ["approved"])!;
+  const evidenceArtifact = latestArtifact(runId, "stage_03", ["approved"])!;
+  const current = latestArtifact(runId, "stage_04", ["approved", "needs_review", "failed"]);
+  const structure = structureFromArtifact(structureArtifact);
+  const evidenceData = parseJson<any>(evidenceArtifact.json_content, {});
+  const currentJudgment = judgmentFromArtifact(current, structure, evidenceData);
+  const scope = parseJson<any>(latestArtifact(runId, "stage_01", ["approved"])?.json_content || "{}", {});
+
+  const evidenceFacts = (evidenceData.evidence_drafts || [])
+    .filter((item: any) => item.kind !== "gap")
+    .map((item: any) => ({
+      id: String(item.id),
+      statement: String(item.statement || ""),
+      judgment_unit_ids: (item.judgment_unit_ids || []).map(String),
+      direction: String(item.direction || ""),
+    }));
+
+  let patch = options.judgmentPatch;
+  if (!patch) {
+    const client = (options.createClient || createResearchModelClient)("producer");
+    const result = await client.generateStructured(
+      "judgment_revise",
+      controlledJudgmentPatchSchema,
+      [
+        "你是投研工作台的判断裁决改稿器。根据用户指令，在已确认 Stage02 结构与 Stage03 已批准事实范围内修订 Stage04 推理合同。",
+        "只输出 judgments[] 与 revision_summary。每个 judgment_unit_id 必须覆盖 Stage02 的全部判断单元，不得遗漏。",
+        "可改字段：conclusion、supporting_evidence_draft_ids、counter_evidence_draft_ids、rationale、uncertainties、invalidation_conditions、",
+        "competing_explanation、source_explanation_id、discriminating_evidence、counterevidence_resolution、confirmed_precondition_ids、tracking_signals、conditions。",
+        "禁止输出 strength、decision_status、confidence 等系统裁决字段；强度与状态由 Runtime 规则重算。",
+        "证据 ID 只能引用 Stage03 已批准事实；不得编造新事实。",
+        "竞争解释优先沿用 Stage02 候选的 source_explanation_id；可改写 statement 但不得脱离已批准事实。",
+        "revision_summary 用一两句中文说明改了什么。",
+      ].join("\n"),
+      JSON.stringify({
+        instruction,
+        stage_01_scope: {
+          normalized_question: scope.normalized_question,
+          core_object: scope.core_object,
+          judgment_action: scope.judgment_action,
+          time_scope: scope.time_scope,
+        },
+        judgment_units: structure.units,
+        structure_competing_explanations: structure.competing_explanations,
+        approved_evidence: evidenceFacts,
+        current_judgment: currentJudgment,
+      }, null, 2),
+    );
+    patch = result.data;
+  }
+
+  const artifact = createControlledJudgmentProjection(runId, patchToJudgmentInputs(patch));
+
+  return {
+    status: "revised",
+    target_stage: 4,
+    revision_summary: patch.revision_summary || "已按指令更新判断裁决",
+    artifact,
+  };
+}
+
 export async function validateStage02ForApproval(
   runId: string,
   options: {
     createClient?: typeof createResearchModelClient;
     /** Test hook: return this validation result without calling the model. */
-    validationResult?: StructureValidationResult;
+    validationResult?: StructureValidationResultInput;
     applySuggestedPatch?: boolean;
   } = {},
-): Promise<StructureValidationResult & { artifact?: Artifact }> {
+): Promise<StructureValidationResultInput & { artifact?: Artifact }> {
   const run = getRun(runId);
   if (!run) throw new Error("研究任务不存在");
   const stage01 = latestArtifact(runId, "stage_01", ["approved"]);
@@ -484,7 +656,10 @@ export async function validateStage02ForApproval(
   if (options.applySuggestedPatch && result.suggested_patch) {
     const artifact = createControlledStructureProjection(runId, {
       scope_label: result.suggested_patch.scope_label || structure.scope_label,
-      units: result.suggested_patch.units,
+      units: result.suggested_patch.units.map((unit) => ({
+        ...unit,
+        id: unit.id ?? undefined,
+      })),
       counter_evidence_directions: result.suggested_patch.counter_evidence_directions,
       competing_explanations: result.suggested_patch.competing_explanations,
     });

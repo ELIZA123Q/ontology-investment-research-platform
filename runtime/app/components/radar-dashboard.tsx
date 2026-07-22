@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { EventImpact, MarketEvent, ResearchRun, ResearchWorkItem } from "@/engine/types";
 import { runStatusLabel } from "@/app/lib/ui-labels";
 
+const GUIDE_KEY = "radar-guide-seen";
 const directionLabel: Record<string, string> = { support: "支持", weaken: "削弱", invalidate: "触发失效", review: "需要复核", context: "背景变化" };
 const classificationLabel: Record<string, string> = { evidence_update: "仅新增证据（从证据阶段开始）", structure_revision: "判断结构变化（重开结构）", scope_revision: "范围/问题变化（重开范围）" };
 
@@ -19,6 +20,7 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
   const selected = events.find((event) => event.id === selectedId) || events[0];
   const selectedImpacts = useMemo(() => impacts.filter((impact) => impact.event_id === selected?.id), [impacts, selected]);
   const selectedImpact = selectedImpacts.find((impact) => impact.id === selectedImpactId) || selectedImpacts[0];
@@ -27,12 +29,29 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
   const recentRuns = runs.slice(0, 3);
 
   useEffect(() => {
+    try {
+      if (!localStorage.getItem(GUIDE_KEY)) setGuideOpen(true);
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
     setSelectedImpactId(selectedImpacts[0]?.id || "");
-  }, [selected?.id, selectedImpacts]);
+  }, [selected?.id, selectedImpacts[0]?.id]);
 
   useEffect(() => {
     setClassification(selectedImpact?.impact_classification || "evidence_update");
   }, [selectedImpact?.id, selectedImpact?.impact_classification]);
+
+  function closeGuide() {
+    setGuideOpen(false);
+    try {
+      localStorage.setItem(GUIDE_KEY, "1");
+    } catch {
+      // ignore storage errors
+    }
+  }
 
   async function refresh() {
     setBusy(true); setError(""); setMessage("");
@@ -62,11 +81,15 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
 
   return <>
     <section className="radar-head">
-      <div><div className="eyebrow">研究雷达</div><h1>今天，什么变化值得重看？</h1><p>系统只把外部事件映射为待核验线索，不会自动改写任何研究判断。</p></div>
+      <div>
+        <div className="eyebrow">研究雷达</div>
+        <h1>今天，什么变化值得重看？</h1>
+        <p>系统只把外部事件映射为待核验线索，不会自动改写任何研究判断。</p>
+        {workItems.length ? <a className="radar-head-meta" href="#radar-queue">{workItems.length} 条待审阅 →</a> : null}
+      </div>
       <div className="radar-head-actions">
         <button className="button" disabled={busy} onClick={refresh}>{busy ? "正在检索…" : "刷新过去 72 小时"}</button>
-        <Link className="button-secondary" href="/runs">我的研究（{runs.length}）→</Link>
-        <Link className="button-secondary" href="/runs/new">新建研究</Link>
+        <button type="button" className="button-quiet" onClick={() => setGuideOpen(true)}>使用说明</button>
       </div>
     </section>
     {message ? <div className="notice radar-message">{message}</div> : null}
@@ -83,7 +106,7 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
             <strong>{event.title}</strong><p>{event.summary}</p>
             <div className="event-tags">{event.candidate_labels.slice(0, 3).map((label) => <span key={label}>{label}</span>)}{strongest ? <span className={`impact-${strongest.direction}`}>{directionLabel[strongest.direction]}</span> : <span>待映射</span>}</div>
           </button>;
-        }) : <div className="radar-empty"><div className="radar-empty-icon">⌁</div><h2>还没有市场事件</h2><p>点击“刷新过去 72 小时”，系统会围绕已有研究问题、跟踪信号和失效条件寻找公开来源。</p></div>}
+        }) : <div className="radar-empty radar-empty-compact"><h2>暂无事件</h2><p>刷新后按研究问题检索公开来源。</p></div>}
       </section>
 
       <section className="radar-focus">
@@ -105,24 +128,31 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
             }) : <div className="focus-empty">这条事件尚未与已有判断建立可靠映射，只作为候选线索保留。</div>}
           </div>
           <div className="focus-actions">{selectedImpact ? <select value={classification} onChange={(event) => setClassification(event.target.value as typeof classification)} aria-label="影响分类"><option value="evidence_update">仅新增证据 · 从证据阶段开始</option><option value="structure_revision">判断结构变化 · 重开结构</option><option value="scope_revision">范围/问题变化 · 重开范围</option></select> : null}<button className="button" disabled={busy || !selectedImpact} onClick={startUpdate}>开启增量研究 →</button>{selectedImpact ? <Link className="button-secondary" href={`/runs/${selectedImpact.run_id}`}>查看原判断</Link> : null}</div>
-        </> : <div className="radar-onboarding"><div className="eyebrow">使用流程</div><h2>从市场变化回到已有判断</h2><p>雷达不会替你下结论。它先定位可能受影响的判断，再让你决定是否开启一次不可变的增量研究。</p><ol><li><span>01</span><div><strong>刷新事件</strong><small>围绕研究对象、跟踪信号与失效条件检索。</small></div></li><li><span>02</span><div><strong>检查影响</strong><small>核验来源、时点、可信度与潜在影响方向。</small></div></li><li><span>03</span><div><strong>开启增量研究</strong><small>继承既有范围与结构，从证据阶段开始重审。</small></div></li></ol>{runs.length ? <Link className="button-secondary" href="/runs">查看全部研究 →</Link> : <Link className="button-secondary" href="/runs/new">提出第一个研究问题 →</Link>}</div>}
+        </> : <div className="radar-focus-empty">
+          {runs.length ? <>
+            <h2>还没有可核验的事件</h2>
+            <p>围绕已有研究问题、跟踪信号与失效条件检索公开来源，核验后再决定是否开启增量研究。</p>
+            <button className="button" disabled={busy} onClick={refresh}>{busy ? "正在检索…" : "刷新过去 72 小时"}</button>
+          </> : <>
+            <h2>先有判断，雷达才有对照</h2>
+            <p>提出研究问题并完成范围与结构后，雷达才能对照已有判断跟踪市场变化。</p>
+            <Link className="button" href="/runs/new">新建研究</Link>
+          </>}
+        </div>}
       </section>
 
-      <aside className="radar-queue">
+      <aside className="radar-queue" id="radar-queue">
         <div className="panel-title"><div><span>我的下一步</span><strong>{workItems.length}</strong></div><small>待审阅事项</small></div>
         {workItems.length ? workItems.slice(0, 10).map((item) => <Link className={`queue-item priority-${item.priority}`} href={workItemLink(item)} key={item.id}><span>{stageLabel(item.stage)}</span><strong>{item.title}</strong><small>{runMap.get(item.run_id)?.question || item.target_id}</small></Link>) : <div className="queue-empty">当前没有待处理的审阅或补证任务。</div>}
       </aside>
     </div>
 
-    <section className="research-index">
-      <div className="section-head">
-        <div>
-          <div className="eyebrow">近期研究</div>
-          <h2>最近在跟的问题</h2>
+    {recentRuns.length ? (
+      <section className="research-index research-index-compact">
+        <div className="section-head research-index-head">
+          <h2>近期研究</h2>
+          <Link className="section-meta research-index-link" href="/runs">查看全部 {runs.length} 条 →</Link>
         </div>
-        <Link className="section-meta research-index-link" href="/runs">查看全部 {runs.length} 条 →</Link>
-      </div>
-      {recentRuns.length ? (
         <div className="research-mini-grid">
           {recentRuns.map((run) => (
             <Link href={`/runs/${run.id}`} className="research-mini-card" key={run.id}>
@@ -135,14 +165,35 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
             </Link>
           ))}
         </div>
-      ) : (
-        <div className="research-index-empty">
-          <p>还没有研究项目。新建一条问题后，雷达才能对照已有判断跟踪变化。</p>
-          <Link className="button-secondary" href="/runs/new">新建研究</Link>
-        </div>
-      )}
-    </section>
+      </section>
+    ) : (
+      <p className="research-index-fallback"><Link href="/runs/new">新建研究</Link> 后，雷达才能对照已有判断跟踪变化。</p>
+    )}
+
+    {guideOpen ? <RadarGuideDialog runs={runs} onClose={closeGuide} /> : null}
   </>;
+}
+
+function RadarGuideDialog({ runs, onClose }: { runs: ResearchRun[]; onClose: () => void }) {
+  return (
+    <div className="radar-guide-backdrop" onClick={onClose} role="presentation">
+      <div className="radar-guide-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-labelledby="radar-guide-title" aria-modal="true">
+        <button type="button" className="radar-guide-close" onClick={onClose} aria-label="关闭">×</button>
+        <div className="eyebrow">使用流程</div>
+        <h2 id="radar-guide-title">从市场变化回到已有判断</h2>
+        <p>雷达不会替你下结论。它先定位可能受影响的判断，再让你决定是否开启一次不可变的增量研究。</p>
+        <ol>
+          <li><span>01</span><div><strong>刷新事件</strong><small>围绕研究对象、跟踪信号与失效条件检索。</small></div></li>
+          <li><span>02</span><div><strong>检查影响</strong><small>核验来源、时点、可信度与潜在影响方向。</small></div></li>
+          <li><span>03</span><div><strong>开启增量研究</strong><small>继承既有范围与结构，从证据阶段开始重审。</small></div></li>
+        </ol>
+        <div className="radar-guide-actions">
+          {runs.length ? <Link className="button-secondary" href="/runs" onClick={onClose}>查看全部研究 →</Link> : <Link className="button-secondary" href="/runs/new" onClick={onClose}>提出第一个研究问题 →</Link>}
+          <button type="button" className="button" onClick={onClose}>知道了</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function formatDate(value: string) {

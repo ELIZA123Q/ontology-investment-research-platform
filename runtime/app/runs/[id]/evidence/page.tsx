@@ -1,9 +1,14 @@
 import { notFound, redirect } from "next/navigation";
-import { getRun, latestArtifact, listSources, listWorkItems } from "@/adapters/db";
-import { RunChrome } from "@/app/components/run-chrome";
+import { getRun } from "@/adapters/db";
+import {
+  latestArtifactPayload,
+  listSourcesForReview,
+  listWorkItemsForReview,
+} from "@/adapters/db_read_models";
 import { EvidenceBoard } from "@/app/components/evidence-board";
-import { SourceAcquisitionForm } from "@/app/components/source-acquisition-form";
-import { ControlledEvidenceProjectionForm } from "@/app/components/controlled-projection-forms";
+import { sourceRowForClient, workItemForClient } from "@/app/lib/client-rows";
+import { buildEvidenceReviewSuggestions } from "@/engine/evidence_review_assist";
+import { projectEvidenceRequirementsFromStructure } from "@/engine/structure_candidates";
 import { parseJson } from "@/engine/types";
 import Link from "next/link";
 
@@ -13,38 +18,93 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const run = getRun(id);
   if (!run) notFound();
-  const evidenceArtifact = latestArtifact(id, "stage_03", ["approved", "needs_review"]);
-  // 尚无待审/已确认版本时，审阅页没有生成入口；默认进入阶段编辑页。
+  const evidenceArtifact = latestArtifactPayload(id, "stage_03", ["approved", "needs_review"]);
   if (!evidenceArtifact) redirect(`/runs/${id}/stages/3`);
-  const structure: any = parseJson(latestArtifact(id, "stage_02", ["approved", "needs_review"])?.json_content || "{}", {});
+
+  const structure: any = parseJson(latestArtifactPayload(id, "stage_02", ["approved", "needs_review"])?.json_content || "{}", {});
   const evidenceData: any = parseJson(evidenceArtifact.json_content || "{}", {});
-  const taskData: any = parseJson(latestArtifact(id, "stage_01", ["approved"])?.json_content || "{}", {});
-  const sources = listSources(id);
-  const boundSourceIds = new Set<string>((evidenceData.evidence_drafts || []).filter((item: any) => item.kind !== "gap").flatMap((item: any) => Array.isArray(item.source_ids) ? item.source_ids.map(String) : []));
-  const candidates = sources.filter((source) => !boundSourceIds.has(source.id)
-    && (source.usability_status === "candidate" || source.source_type === "market_event_candidate" || source.source_type === "user_supplied_public_evidence"));
+  const taskData: any = parseJson(latestArtifactPayload(id, "stage_01", ["approved"])?.json_content || "{}", {});
+  const sources = listSourcesForReview(id);
+  // 证据页只展示并统计当前 Stage03 版本的对象级审阅任务。
+  // 历史版本和 Stage04/独立审阅任务仍保留在档案中，但不能混入当前证据口径。
+  const workItems = listWorkItemsForReview(id).filter((item) =>
+    item.artifact_id === evidenceArtifact.id && item.attempt === evidenceArtifact.version,
+  );
   const cutoffMs = Date.parse(String(taskData.time_scope?.as_of || ""));
-  const controlledSources = sources.filter((source) => source.usability_status === "usable"
-    && source.retrieval_status === "captured"
-    && Boolean(source.quote_verified)
-    && (!Number.isFinite(cutoffMs) || (Boolean(source.published_at) && Date.parse(String(source.published_at)) <= cutoffMs)));
-  const units = (structure.judgment_units || []).map((unit: any, index: number) => ({ id: String(unit.id || unit.judgment_unit_id || `JU-${index + 1}`), title: String(unit.title || unit.statement || unit.question), question: String(unit.question || unit.statement || ""), ontology_node_ids: Array.isArray(unit.ontology_node_ids) ? unit.ontology_node_ids.map(String) : [] }));
-  const evidence = (evidenceData.evidence_drafts || []).map((item: any, index: number) => ({ id: String(item.id || item.evidence_id || `EV-${index + 1}`), statement: String(item.statement || ""), kind: String(item.kind || "fact_draft"), direction: String(item.direction || "unknown"), source_ids: Array.isArray(item.source_ids) ? item.source_ids.map(String) : [], judgment_unit_ids: Array.isArray(item.judgment_unit_ids) ? item.judgment_unit_ids.map(String) : Array.isArray(item.target_judgment_unit_refs) ? item.target_judgment_unit_refs.map(String) : [], limitations: Array.isArray(item.limitations) ? item.limitations.map(String) : [] }));
-  const pending = listWorkItems(id).filter((item) => item.status === "pending");
+
+  const units = (structure.judgment_units || []).map((unit: any, index: number) => ({
+    id: String(unit.id || unit.judgment_unit_id || `JU-${index + 1}`),
+    title: String(unit.title || unit.statement || unit.question),
+    question: String(unit.question || unit.statement || ""),
+    ontology_node_ids: Array.isArray(unit.ontology_node_ids) ? unit.ontology_node_ids.map(String) : [],
+  }));
+
+  const evidence = (evidenceData.evidence_drafts || []).map((item: any, index: number) => ({
+    id: String(item.id || item.evidence_id || `EV-${index + 1}`),
+    statement: String(item.statement || ""),
+    kind: String(item.kind || "fact_draft"),
+    direction: String(item.direction || "unknown"),
+    directness: item.directness ? String(item.directness) : undefined,
+    source_ids: Array.isArray(item.source_ids) ? item.source_ids.map(String) : [],
+    judgment_unit_ids: Array.isArray(item.judgment_unit_ids)
+      ? item.judgment_unit_ids.map(String)
+      : Array.isArray(item.target_judgment_unit_refs)
+        ? item.target_judgment_unit_refs.map(String)
+        : [],
+    limitations: Array.isArray(item.limitations) ? item.limitations.map(String) : [],
+    requirement: item.requirement ? String(item.requirement) : undefined,
+    evidence_role: item.evidence_role ? String(item.evidence_role) : undefined,
+    minimum_independent_sources: item.minimum_independent_sources !== undefined ? Number(item.minimum_independent_sources) : undefined,
+  }));
+
+  const requirements = projectEvidenceRequirementsFromStructure({
+    units: (structure.judgment_units || []).map((unit: any) => ({
+      id: String(unit.id || ""),
+      evidence_requirements: unit.evidence_requirements,
+    })),
+    counter_evidence_directions: structure.counter_evidence_directions,
+  });
+
+  const suggestions = buildEvidenceReviewSuggestions({
+    evidence,
+    sources: sources as any,
+    workItems: workItems as any,
+    cutoffMs: Number.isFinite(cutoffMs) ? cutoffMs : undefined,
+    requirements,
+  });
+
+  const pending = workItems.filter((item) => item.status === "pending");
+  const approved = workItems.filter((item) => item.status === "approved");
+  const gapAccepted = workItems.filter((item) => item.kind === "supplement_evidence" && item.status === "approved");
+
   return <>
-    <RunChrome runId={id} active="evidence" />
-    <div className="pagehead scene-head"><div><div className="eyebrow">证据审阅</div><h1>证据够不够，缺口在哪里？</h1><p className="muted">按判断单元审阅支持、反证、冲突和缺口；对象操作请到 <Link href={`/runs/${id}/object-set`}>关系图</Link>。</p></div><div className="run-meta"><span>待处理 {pending.length}</span><span>证据 {evidence.length}</span><span>来源 {sources.length}</span></div></div>
-    <SourceAcquisitionForm runId={id} />
-    <ControlledEvidenceProjectionForm runId={id} units={units} sources={controlledSources.map((source) => ({ id: source.id, title: source.title, publisher: source.publisher, published_at: source.published_at }))} />
-    {candidates.length ? <section className="card" style={{ marginBottom: 16 }}><div className="panel-title"><div><span>尚未挂到判断的来源候选</span><strong>{candidates.length}</strong></div></div><ul className="source-list">{candidates.map((source) => {
-      const afterCutoff = Number.isFinite(cutoffMs) && Boolean(source.published_at) && Date.parse(String(source.published_at)) > cutoffMs;
-      const status = afterCutoff
-        ? "晚于本次研究截止时间，不能进入当前事实表"
-        : source.usability_status === "usable"
-          ? "已核验但尚未挂到任何判断单元"
-          : `${({ usable: "可用", candidate: "候选", rejected: "已退回", blocked: "不可用" } as Record<string, string>)[source.usability_status || "candidate"] || source.usability_status} / ${({ captured: "正文已抓取", not_attempted: "尚未抓取", failed: "抓取失败", pending: "抓取中" } as Record<string, string>)[source.retrieval_status || "not_attempted"] || source.retrieval_status}${source.failure_detail ? `：${source.failure_detail}` : ""}`;
-      return <li key={source.id}><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a><small>{source.publisher || "未知发布者"} · {source.published_at || "发布日期未知"} · {source.locator || source.url} · {status}</small></li>;
-    })}</ul></section> : null}
-    {units.length ? <EvidenceBoard runId={id} units={units} evidence={evidence} sources={sources.map((source) => ({ ...source }))} workItems={listWorkItems(id).map((item) => ({ ...item }))} /> : <div className="card empty-state"><h2>先建立研究结构</h2><p className="muted">证据台必须按判断单元组织；请先确认问题树、竞争解释与必要证据。</p><Link className="button" href={`/runs/${id}/stages/2`}>进入结构生成</Link></div>}
+    <div className="pagehead scene-head">
+      <div>
+        <div className="eyebrow">证据审阅</div>
+        <h1>证据够不够，缺口在哪里？</h1>
+        <p className="muted">按判断单元审阅支持、反证、冲突和缺口；来源补充与覆盖分析请到 <Link href={`/runs/${id}/stages/3`}>高级编辑</Link>。实体关系请到 <Link href={`/runs/${id}/object-set`}>关系图</Link>，本体网络请到 <Link href={`/ontology?runId=${id}`}>知识库</Link>。</p>
+      </div>
+      <div className="actions">
+        <div className="run-meta">
+          <span>待审 {pending.length}</span>
+          <span>已确认 {approved.length}</span>
+          <span>缺口已接受 {gapAccepted.length}</span>
+        </div>
+        <Link className="button-secondary" href={`/runs/${id}/stages/3`}>高级编辑</Link>
+      </div>
+    </div>
+
+    {units.length ? <EvidenceBoard
+      runId={id}
+      units={units}
+      evidence={evidence}
+      sources={sources.map(sourceRowForClient)}
+      workItems={workItems.map(workItemForClient)}
+      suggestions={suggestions}
+    /> : <div className="card empty-state">
+      <h2>先建立研究结构</h2>
+      <p className="muted">证据台必须按判断单元组织；请先确认问题树、竞争解释与必要证据。</p>
+      <Link className="button" href={`/runs/${id}/stages/2`}>进入结构生成</Link>
+    </div>}
   </>;
 }

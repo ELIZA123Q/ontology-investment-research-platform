@@ -58,10 +58,28 @@ export function artifactModelLabel(modelName: string | null | undefined, status?
 export function runStatusLabel(status: string): string {
   return (
     {
+      draft: "草稿",
       active: "进行中",
+      in_progress: "进行中",
+      complete: "已完成",
       completed: "已完成",
       archived: "已归档",
       blocked: "受阻",
+    } as Record<string, string>
+  )[status] || status;
+}
+
+export function researchJobStatusLabel(status: string): string {
+  return (
+    {
+      queued: "已排队",
+      running: "执行中",
+      waiting_for_review: "等待人工确认",
+      waiting_for_input: "等待补充输入",
+      retrying: "等待重试",
+      blocked: "已停止重试",
+      completed: "已完成",
+      cancelled: "已取消",
     } as Record<string, string>
   )[status] || status;
 }
@@ -73,7 +91,10 @@ export function publishStatusLabel(status: string): string {
       ready: "可交付",
       published: "已发布",
       blocked: "不可交付",
+      workbench_only: "仅工作台运行",
       workbench_export_only: "仅工作台导出",
+      workbench_validate_passed: "工作台导出校验通过",
+      workbench_validate_failed: "工作台导出校验未通过",
     } as Record<string, string>
   )[status] || status;
 }
@@ -113,7 +134,16 @@ export function objectTypeLabel(type: string): string {
       Hypothesis: "假设",
       Signal: "信号",
       CompetingExplanation: "竞争解释",
+      RuleEvaluation: "规则评估",
+      ReasoningTrace: "推理留痕",
+      BlockingFactor: "阻断因素",
       TrackingSignal: "跟踪信号",
+      Industry: "产业",
+      ValueChainSegment: "产业链环节",
+      Product: "产品",
+      Application: "应用场景",
+      Company: "公司",
+      ManufacturingFacility: "制造设施",
     } as Record<string, string>
   )[type] || type;
 }
@@ -181,4 +211,60 @@ export function directionLabel(direction: string): string {
 
 export function confidenceLabel(confidence: string): string {
   return ({ high: "高", medium: "中", low: "低" } as Record<string, string>)[confidence] || confidence;
+}
+
+export function workItemStatusLabel(status: string): string {
+  return (
+    {
+      pending: "待审阅",
+      approved: "已确认",
+      rework: "退回补证",
+      dismissed: "已驳回",
+      superseded: "已被取代",
+    } as Record<string, string>
+  )[status] || status;
+}
+
+export function authorityTypeLabel(type: string): string {
+  return (
+    {
+      official: "监管 / 官方原文",
+      company_disclosure: "公司披露",
+      industry_provider: "行业数据 / 协会统计",
+      public_secondary: "公开二手",
+      unknown: "未分类",
+    } as Record<string, string>
+  )[type] || type;
+}
+
+export function evidenceRoleLabel(role: string): string {
+  return (
+    {
+      support: "支持",
+      counter: "反证",
+      context: "背景",
+      boundary: "边界",
+    } as Record<string, string>
+  )[role] || role;
+}
+
+export function directnessLabel(directness: string): string {
+  return (
+    {
+      direct: "直接",
+      indirect: "间接",
+      proxy: "代理",
+    } as Record<string, string>
+  )[directness] || directness;
+}
+
+export function reviewSuggestionLabel(suggestion: string): string {
+  return (
+    {
+      accept_evidence: "建议确认可用",
+      accept_gap: "建议接受缺口",
+      rework: "建议退回补证",
+      review_manually: "建议人工复核",
+    } as Record<string, string>
+  )[suggestion] || suggestion;
 }

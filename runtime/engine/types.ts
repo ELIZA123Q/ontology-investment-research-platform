@@ -3,6 +3,44 @@ export type StageKind = (typeof STAGES)[number];
 export type ArtifactKind = StageKind | "baseline" | "evaluation" | "independent_review" | "instance_graph" | "action_audit";
 export type ArtifactStatus = "running" | "needs_review" | "approved" | "failed" | "superseded";
 
+export type ResearchJobStatus =
+  | "queued"
+  | "running"
+  | "waiting_for_review"
+  | "waiting_for_input"
+  | "retrying"
+  | "blocked"
+  | "completed"
+  | "cancelled";
+
+export type ResearchJob = {
+  id: string;
+  run_id: string;
+  job_type: string;
+  stage: string;
+  artifact_id: string | null;
+  status: ResearchJobStatus;
+  dedupe_key: string;
+  lease_token: string | null;
+  worker_id: string | null;
+  lease_expires_at: string | null;
+  heartbeat_at: string | null;
+  attempt: number;
+  max_attempts: number;
+  available_at: string;
+  budget_json: string;
+  input_artifacts_json: string;
+  input_hash: string;
+  payload_json: string;
+  result_json: string;
+  last_error: string | null;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type MethodApplicationStatus = "candidate" | "selected" | "executed" | "rejected" | "blocked" | "degraded";
 export type MethodCapabilityType = "judgment_structure" | "evidence" | "adjudication";
 export type MethodPreconditionResult = "pass" | "fail" | "partial" | "not_checked";
@@ -179,13 +217,14 @@ export type SourceRecord = {
   accessed_at: string;
   source_type: string;
   source_tier?: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8";
+  authority_type?: "official" | "company_disclosure" | "industry_provider" | "public_secondary" | "unknown";
   source_group?: string;
   search_excerpt: string;
   locator?: string;
   captured_at?: string | null;
   content_hash?: string;
   usability_status?: "candidate" | "usable" | "limited" | "rejected";
-  failure_category?: "" | "model_output_error" | "source_acquisition_failure" | "method_not_applicable" | "evidence_insufficient" | "contract_implementation_error";
+  failure_category?: "" | "model_output_error" | "source_acquisition_failure" | "method_not_applicable" | "evidence_insufficient" | "budget_exceeded" | "contract_implementation_error";
   failure_detail?: string;
   final_url?: string;
   content_mime?: string;

@@ -3,6 +3,7 @@ export type RuntimeFailureCategory =
   | "source_acquisition_failure"
   | "method_not_applicable"
   | "evidence_insufficient"
+  | "budget_exceeded"
   | "contract_implementation_error";
 
 export function compactStructuredArtifact(value: unknown): unknown {
@@ -17,6 +18,7 @@ export function compactStructuredArtifact(value: unknown): unknown {
 
 export function classifyRuntimeFailure(error: unknown): RuntimeFailureCategory {
   const message = error instanceof Error ? error.message : String(error);
+  if (/JOB_BUDGET_EXCEEDED|JOB_HARD_TIMEOUT/i.test(message)) return "budget_exceeded";
   if (/MODEL_TIMEOUT|DeepSeek.*超时/i.test(message)) return "model_output_error";
   if (/证据不足|缺少有效来源|insufficient evidence|source_ids|判断超过证据上限|证据上限/i.test(message)) return "evidence_insufficient";
   if (/方法.*不适用|method.*not applicable|precondition.*fail/i.test(message)) return "method_not_applicable";
@@ -25,7 +27,10 @@ export function classifyRuntimeFailure(error: unknown): RuntimeFailureCategory {
     return "model_output_error";
   }
   if (/web_search|fetch_public|来源取得|网页抓取|Bing/i.test(message)) return "source_acquisition_failure";
-  if (/schema|contract|合同|不存在的判断|未绑定|结构校验|validation|确定性本体规则|直接连接|端点类型/i.test(message)) return "contract_implementation_error";
+  if (
+    /structured_schema_contract|optional\(\) without \.nullable\(\)|Zod field at/i.test(message)
+    || /schema|contract|合同|不存在的判断|未绑定|结构校验|validation|确定性本体规则|直接连接|端点类型/i.test(message)
+  ) return "contract_implementation_error";
   return "model_output_error";
 }
 

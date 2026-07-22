@@ -52,6 +52,7 @@ import {
   competingExplanationsForUnit,
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
+  projectEvidenceRequirementsFromStructure,
 } from "./structure_candidates";
 import {
   editArtifact,
@@ -299,6 +300,20 @@ export function createControlledStructureProjection(runId: string, raw: Controll
   const counterDirections = normalizeCounterEvidenceDirections(input.counter_evidence_directions, { unitIds: nextUnitIds });
   const competing = normalizeCompetingExplanations(input.competing_explanations, { unitIds: nextUnitIds });
   if (!counterDirections.length || !competing.length) throw new Error("受控研究结构必须填写反向证据方向和竞争解释");
+  const evidenceRequirements = projectEvidenceRequirementsFromStructure({
+    units,
+    counter_evidence_directions: counterDirections,
+  });
+  const questionStatement = String(stage01Data.normalized_question || run.question || scopeLabel).trim();
+  const questions = questionStatement
+    ? [{
+      id: String(previous.questions?.[0]?.id || "RQ-01"),
+      question: questionStatement,
+      statement: questionStatement,
+      scope_ref: scopeId,
+      failure_route: "return_to_structure" as const,
+    }]
+    : [];
   const data = {
     method_applications: methodApplications,
     research_scope: {
@@ -315,6 +330,8 @@ export function createControlledStructureProjection(runId: string, raw: Controll
     judgment_units: units,
     variables,
     paths,
+    questions,
+    evidence_requirements: evidenceRequirements,
     counter_evidence_directions: counterDirections,
     competing_explanations: competing,
     document_markdown: "placeholder",
@@ -335,6 +352,65 @@ export function createControlledStructureProjection(runId: string, raw: Controll
   });
   syncReviewWorkItems(artifact, data);
   return artifact;
+}
+
+/**
+ * Soft-repair near-miss Stage 03 drafts before schema validation.
+ * Models often emit gap drafts + blocked evidence MAs but forget
+ * input_evidence_refs / alternatives bindings required by the contract.
+ */
+export function repairEvidencePreparationDraft(data: any): any {
+  if (!data || typeof data !== "object" || !Array.isArray(data.method_applications) || !Array.isArray(data.evidence_drafts)) {
+    return data;
+  }
+  const drafts = data.evidence_drafts;
+  const referenced = new Set<string>(
+    data.method_applications.flatMap((item: any) => (
+      Array.isArray(item?.input_evidence_refs) ? item.input_evidence_refs.map(String) : []
+    )),
+  );
+  const unbound = drafts.filter((item: any) => item?.id && !referenced.has(String(item.id)));
+  const needsAlternatives = data.method_applications.some((item: any) => (
+    ["blocked", "rejected"].includes(String(item?.status || "")) && !(item.alternatives || []).length
+  ));
+  if (!unbound.length && !needsAlternatives) return data;
+
+  const applications = data.method_applications.map((application: any) => {
+    let input_evidence_refs = Array.isArray(application.input_evidence_refs)
+      ? application.input_evidence_refs.map(String)
+      : [];
+    const targets = new Set((application.target_judgment_unit_refs || []).map(String));
+    if (application.capability_type === "evidence" && unbound.length) {
+      const extra = unbound
+        .filter((draft: any) => (draft.judgment_unit_ids || []).some((id: string) => targets.has(String(id))))
+        .map((draft: any) => String(draft.id));
+      if (extra.length) input_evidence_refs = [...new Set([...input_evidence_refs, ...extra])];
+    }
+    let alternatives = Array.isArray(application.alternatives) ? [...application.alternatives] : [];
+    if (["blocked", "rejected"].includes(String(application.status || "")) && !alternatives.length) {
+      alternatives = [{
+        method_id: String(application.method_id || "unknown"),
+        decision: "retry_after_source_acquisition",
+        reason: "取得可核验正文后重试同一登记方法",
+      }];
+    }
+    return { ...application, input_evidence_refs, alternatives };
+  });
+
+  const stillReferenced = new Set(applications.flatMap((item: any) => item.input_evidence_refs.map(String)));
+  const stillUnbound = drafts.filter((item: any) => item?.id && !stillReferenced.has(String(item.id)));
+  for (const draft of stillUnbound) {
+    const juIds = new Set((draft.judgment_unit_ids || []).map(String));
+    const target = applications.find((app: any) => (
+      app.capability_type === "evidence"
+      && (app.target_judgment_unit_refs || []).some((id: string) => juIds.has(String(id)))
+    )) || applications.find((app: any) => app.capability_type === "evidence") || applications[0];
+    if (target) {
+      target.input_evidence_refs = [...new Set([...target.input_evidence_refs, String(draft.id)])];
+    }
+  }
+
+  return { ...data, method_applications: applications };
 }
 
 export function buildEvidenceGapFallback(structure: any, reason: string) {
@@ -500,6 +576,7 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
         publisher: source.publisher,
         published_at: source.published_at,
         source_tier: source.source_tier,
+        authority_type: source.authority_type || "unknown",
         source_type: source.source_type,
         search_excerpt: source.search_excerpt || "人工选择的已核验公开来源",
         locator: source.locator || "verified_quote",
@@ -621,12 +698,13 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
   return artifact;
 }
 
-type ControlledJudgmentInput = {
+export type ControlledJudgmentInput = {
   judgment_unit_id: string;
   conclusion: string;
   evidence_draft_ids?: string[];
   supporting_evidence_draft_ids?: string[];
   counter_evidence_draft_ids?: string[];
+  rationale?: string;
   uncertainties?: string[];
   invalidation_conditions?: string[];
   competing_explanation?: string;
@@ -634,6 +712,8 @@ type ControlledJudgmentInput = {
   discriminating_evidence?: string[];
   counterevidence_resolution?: string;
   confirmed_precondition_ids?: string[];
+  tracking_signals?: string[];
+  conditions?: string[];
 };
 
 export function createControlledJudgmentProjection(runId: string, inputs: ControlledJudgmentInput[]) {
@@ -781,6 +861,7 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
       ? [...new Set(input.invalidation_conditions.map(String))]
       : ["取得与当前结论方向相反且同口径、可定位、截止时间合规的新事实"],
     time_horizon: "仅限 Stage01 冻结的研究截止时点与范围",
+    judgment_unit_ids: [input.judgment_unit_id],
   }));
   const structureCandidates = normalizeCompetingExplanations(structure.competing_explanations, {
     unitIds: [...unitById.keys()],
@@ -846,16 +927,22 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
     const stopReason = unresolvedConflict
       ? "支持与反向证据并存，尚缺能够区分短期扰动与可持续改善的后续同口径证据"
       : blockedByMethod ? "裁决方法的语义前置条件未被显式确认，不能把已抓取来源直接升级为判断" : null;
+    const defaultRationale = unresolvedConflict
+      ? "支持证据与反向证据同时存在，且没有记录足以解决冲突的区分性证据；结论保持 J0/contested"
+      : blockedByMethod
+        ? "事实已登记，但裁决方法前置条件未满足；结论保持 J0/indeterminate"
+        : `仅依据已批准事实 ${input.evidence_draft_ids?.join("、")} 形成受控判断；共 ${inputFacts.length} 条事实、${sourceGroups.size} 个来源组，强度上限为 ${strength}`;
+    const researcherRationale = String(input.rationale || "").trim();
+    const defaultConditions = ["只在已批准事实、冻结截止时间与所列适用范围内成立；不自动外推原因、持续性、行业全面性或投资建议"];
+    const customConditions = (input.conditions || []).map(String).map((item) => item.trim()).filter(Boolean);
+    const defaultTracking = [...new Set([...(input.discriminating_evidence || []), ...(input.invalidation_conditions || [])])];
+    const customTracking = (input.tracking_signals || []).map(String).map((item) => item.trim()).filter(Boolean);
     return {
       id: ids.get(input.judgment_unit_id)!.judgment,
       judgment_unit_id: input.judgment_unit_id,
       title: String(unit.title || input.judgment_unit_id),
       conclusion: input.conclusion,
-      rationale: unresolvedConflict
-        ? `支持证据与反向证据同时存在，且没有记录足以解决冲突的区分性证据；结论保持 J0/contested`
-        : blockedByMethod
-          ? "事实已登记，但裁决方法前置条件未满足；结论保持 J0/indeterminate"
-        : `仅依据已批准事实 ${input.evidence_draft_ids?.join("、")} 形成受控判断；共 ${inputFacts.length} 条事实、${sourceGroups.size} 个来源组，强度上限为 ${strength}`,
+      rationale: (unresolvedConflict || blockedByMethod) ? defaultRationale : (researcherRationale || defaultRationale),
       strength,
       confidence: strength === "J2" ? "medium" as const : "low" as const,
       decision_status: decisionStatus,
@@ -863,7 +950,7 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
       not_judgeable_reason: stopReason,
       scope_ref: String(unit.scope_ref || structure.research_scope?.id),
       cutoff_at: normalizeBusinessCutoff(parseJson<any>(latestArtifact(runId, "stage_01", ["approved"])?.json_content || "{}", {}).time_scope?.as_of)!,
-      conditions: ["只在已批准事实、冻结截止时间与所列适用范围内成立；不自动外推原因、持续性、行业全面性或投资建议"],
+      conditions: customConditions.length ? customConditions : defaultConditions,
       supporting_evidence_draft_ids: input.supporting_evidence_draft_ids || [],
       counter_evidence_draft_ids: input.counter_evidence_draft_ids || [],
       hypothesis_ids: [ids.get(input.judgment_unit_id)!.hypothesis],
@@ -874,7 +961,7 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
       invalidation_conditions: input.invalidation_conditions?.length
         ? [...new Set(input.invalidation_conditions.map(String))]
         : ["取得与当前结论方向相反且同口径、可定位、截止时间合规的新事实"],
-      tracking_signals: [...new Set([...(input.discriminating_evidence || []), ...(input.invalidation_conditions || [])])],
+      tracking_signals: customTracking.length ? [...new Set(customTracking)] : [...new Set(defaultTracking)],
     };
   });
   const reasoningTraces = judgments.map((judgment) => ({
@@ -993,6 +1080,7 @@ export function buildJudgmentGapFallback(structure: any, evidence: any, reason: 
       signal_ids: [],
       falsification_conditions: requirements.map((item: string) => `取得并核验：${item}`),
       time_horizon: "补齐证据后重新裁决",
+      judgment_unit_ids: [String(unit.id)],
     });
     const stage02Candidates = competingExplanationsForUnit(
       normalizeCompetingExplanations(structure.competing_explanations, { unitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id)) }),

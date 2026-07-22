@@ -329,6 +329,75 @@ describe("v1.3 operational spine", () => {
     expect(editedStructure.document_markdown).toContain("研究结构");
   });
 
+  it("revises Stage01 via NL patch hook and gates Stage01 downstream confirmation", async () => {
+    const run = db.createRun("以2025年上半年公开信息为限，非HBM DRAM是否进入可持续改善？", "semiconductor");
+    const created = await workflow.reviseRunStage(run.id, 1, "建立研究范围", {
+      scopePatch: {
+        revision_summary: "首次写入范围",
+        normalized_question: "截至2025年上半年，全球非HBM DRAM是否进入可持续改善阶段？",
+        core_object: "全球非HBM DRAM；价格、库存与终端需求同口径",
+        judgment_action: "裁决改善是否跨价格、库存和需求共同成立，并保留争议或暂不可判断",
+        lookback: "2023年至2025年上半年公开信息",
+        as_of: "2025年上半年",
+        forward: "仅讨论截止时点已可验证的持续性，不外推未来价格",
+        boundaries: ["只采用截止时点前公开且可定位的来源", "价格、库存和需求冲突信号必须共同进入裁决"],
+        exclusions: ["不做个股建议，不把预测当作已实现事实"],
+      },
+    });
+    expect(created.status).toBe("revised");
+    if (created.status !== "revised") throw new Error("expected revised");
+    expect(JSON.parse(created.artifact.json_content).core_object).toContain("非HBM DRAM");
+    db.updateArtifact(created.artifact.id, { status: "approved" });
+
+    const stage02 = workflow.createControlledStructureProjection(run.id, {
+      scope_label: "全球非HBM DRAM",
+      units: [{
+        title: "可持续景气阶段",
+        question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+        judgment_type: "cycle_phase",
+        evidence_requirements: ["同口径价格序列"],
+      }],
+      counter_evidence_directions: ["库存回升"],
+      competing_explanations: ["提前采购"],
+    });
+    db.updateArtifact(stage02.id, { status: "approved" });
+
+    const gated = await workflow.reviseRunStage(run.id, 1, "收窄到仅价格", {
+      scopePatch: {
+        revision_summary: "应收窄对象",
+        normalized_question: "截至2025年上半年，全球非HBM DRAM价格是否进入可持续改善？",
+        core_object: "全球非HBM DRAM价格",
+        judgment_action: "裁决价格改善是否可持续",
+        lookback: "2023年至2025年上半年公开信息",
+        as_of: "2025年上半年",
+        forward: "仅讨论截止时点已可验证的持续性",
+        boundaries: ["只采用截止时点前公开且可定位的来源", "只看价格口径"],
+        exclusions: ["不做个股建议"],
+      },
+    });
+    expect(gated).toMatchObject({ status: "needs_confirmation" });
+    if (gated.status !== "needs_confirmation") throw new Error("expected needs_confirmation");
+    expect(gated.affected_downstream.some((item) => item.stage === 2)).toBe(true);
+
+    const revised = await workflow.reviseRunStage(run.id, 1, "确认后收窄", {
+      confirm_downstream_invalidate: true,
+      scopePatch: {
+        revision_summary: "确认后收窄对象到价格",
+        normalized_question: "截至2025年上半年，全球非HBM DRAM价格是否进入可持续改善？",
+        core_object: "全球非HBM DRAM价格",
+        judgment_action: "裁决价格改善是否可持续",
+        lookback: "2023年至2025年上半年公开信息",
+        as_of: "2025年上半年",
+        forward: "仅讨论截止时点已可验证的持续性",
+        boundaries: ["只采用截止时点前公开且可定位的来源", "只看价格口径"],
+        exclusions: ["不做个股建议"],
+      },
+    });
+    expect(revised.status).toBe("revised");
+    if (revised.status !== "revised") throw new Error("expected revised");
+    expect(JSON.parse(revised.artifact.json_content).core_object).toContain("价格");
+  });
+
   it("revises Stage02 via NL patch hook and gates unsupported stages / downstream confirmation", async () => {
     const run = db.createRun("以2025年上半年公开信息为限，非HBM DRAM是否进入可持续改善？", "semiconductor");
     const stage01 = workflow.createStage01DeterministicProjection(run.id, {
@@ -342,8 +411,8 @@ describe("v1.3 operational spine", () => {
       exclusions: ["不做个股建议，不把预测当作已实现事实"],
     });
     db.updateArtifact(stage01.id, { status: "approved" });
-    const unsupported = await workflow.reviseRunStage(run.id, 1, "收窄边界");
-    expect(unsupported).toMatchObject({ status: "unsupported", target_stage: 1 });
+    const unsupported = await workflow.reviseRunStage(run.id, 3, "改证据");
+    expect(unsupported).toMatchObject({ status: "unsupported", target_stage: 3 });
     const stage02 = await workflow.reviseRunStage(run.id, 2, "保留原结构但改标题", {
       structurePatch: {
         revision_summary: "仅修订标题",
@@ -404,6 +473,135 @@ describe("v1.3 operational spine", () => {
       },
     });
     expect(confirmed.status).toBe("revised");
+  });
+
+  it("revises Stage04 via judgment patch hook and gates Stage05 downstream confirmation", async () => {
+    const run = db.createRun("判断裁决改稿测试", "semiconductor");
+    const stage01 = workflow.createStage01DeterministicProjection(run.id, {
+      normalized_question: "截至2025年上半年，全球非HBM DRAM是否进入可持续改善阶段？",
+      core_object: "全球非HBM DRAM；价格、库存与终端需求同口径",
+      judgment_action: "裁决改善是否跨价格、库存和需求共同成立，并保留争议或暂不可判断",
+      lookback: "2023年至2025年上半年公开信息",
+      as_of: "2025年上半年",
+      forward: "仅讨论截止时点已可验证的持续性，不外推未来价格",
+      boundaries: ["只采用截止时点前公开且可定位的来源", "价格、库存和需求冲突信号必须共同进入裁决"],
+      exclusions: ["不做个股建议，不把预测当作已实现事实"],
+    });
+    db.updateArtifact(stage01.id, { status: "approved" });
+    const stage02 = workflow.createControlledStructureProjection(run.id, {
+      scope_label: "全球非HBM DRAM",
+      units: [{
+        title: "可持续景气阶段",
+        question: "价格改善是否由真实需求与库存去化共同支持，而非短期抢运？",
+        judgment_type: "cycle_phase",
+        evidence_requirements: ["同口径价格序列"],
+      }],
+      counter_evidence_directions: ["库存回升"],
+      competing_explanations: ["提前采购"],
+    });
+    db.updateArtifact(stage02.id, { status: "approved" });
+
+    const source = db.upsertSource(run.id, {
+      url: "https://example.com/source",
+      title: "Test source",
+      publisher: "Example",
+      published_at: "2025-01-10T00:00:00.000Z",
+      source_type: "news",
+      source_tier: "S1",
+      search_excerpt: "",
+      locator: "p1",
+      captured_at: "2025-01-10T01:00:00.000Z",
+      content_hash: "a".repeat(64),
+      usability_status: "usable",
+      failure_category: "",
+      failure_detail: "",
+      final_url: "https://example.com/source",
+      content_mime: "text/html",
+      http_status: 200,
+      retrieval_status: "captured",
+      snapshot_text: "公开披露显示价格同比改善",
+      source_quote: "公开披露显示价格同比改善",
+      quote_verified: true,
+    });
+    const stage03 = workflow.createControlledEvidenceProjection(run.id, [{
+      source_id: source.id,
+      judgment_unit_ids: [JSON.parse(stage02.json_content).judgment_units[0].id],
+      subject_ref: "dram_price",
+      observed_at: "2024-12-31T00:00:00.000Z",
+      direction: "support",
+    }]);
+    db.updateArtifact(stage03.id, { status: "approved" });
+    const stage04 = workflow.createControlledJudgmentProjection(run.id, [{
+      judgment_unit_id: JSON.parse(stage02.json_content).judgment_units[0].id,
+      conclusion: "在当前证据边界内，价格改善方向成立。",
+      supporting_evidence_draft_ids: ["EV-CONTROLLED-01"],
+      uncertainties: ["样本期较短"],
+      invalidation_conditions: ["后续同口径价格回落"],
+      competing_explanation: "短期扰动导致的暂时改善",
+      discriminating_evidence: ["后续两个季度的同口径连续序列"],
+      confirmed_precondition_ids: ["state_measurement_or_equivalent_baseline"],
+    }]);
+    db.updateArtifact(stage04.id, { status: "approved" });
+    const stage05 = db.createArtifact(run.id, "stage_05", {
+      status: "approved",
+      json_content: "{}",
+      markdown_content: "",
+      prompt_version: "test",
+      knowledge_version: "test",
+    });
+    expect(stage05.status).toBe("approved");
+
+    const gated = await workflow.reviseRunStage(run.id, 4, "收紧结论", {
+      judgmentPatch: {
+        revision_summary: "先触发下游确认",
+        judgments: [{
+          judgment_unit_id: JSON.parse(stage02.json_content).judgment_units[0].id,
+          conclusion: "方向仍待更多序列确认，暂不升级强判断。",
+          supporting_evidence_draft_ids: ["EV-CONTROLLED-01"],
+          counter_evidence_draft_ids: [],
+          rationale: "当前只有单来源单期事实，先保持保守结论。",
+          uncertainties: ["样本期较短"],
+          invalidation_conditions: ["后续同口径价格回落"],
+          competing_explanation: "短期扰动导致的暂时改善",
+          source_explanation_id: "CE-CONTROLLED-01",
+          discriminating_evidence: ["后续两个季度的同口径连续序列"],
+          counterevidence_resolution: "",
+          confirmed_precondition_ids: ["state_measurement_or_equivalent_baseline"],
+          tracking_signals: ["季度价格序列连续性"],
+          conditions: ["仅在当前冻结时间窗内成立"],
+        }],
+      },
+    });
+    expect(gated).toMatchObject({ status: "needs_confirmation", target_stage: 4 });
+    if (gated.status !== "needs_confirmation") throw new Error("expected needs_confirmation");
+    expect(gated.affected_downstream.some((item) => item.stage === 5)).toBe(true);
+
+    const revised = await workflow.reviseRunStage(run.id, 4, "确认后收紧结论", {
+      confirm_downstream_invalidate: true,
+      judgmentPatch: {
+        revision_summary: "收紧为保守裁决",
+        judgments: [{
+          judgment_unit_id: JSON.parse(stage02.json_content).judgment_units[0].id,
+          conclusion: "方向仍待更多序列确认，暂不升级强判断。",
+          supporting_evidence_draft_ids: ["EV-CONTROLLED-01"],
+          counter_evidence_draft_ids: [],
+          rationale: "当前只有单来源单期事实，先保持保守结论。",
+          uncertainties: ["样本期较短"],
+          invalidation_conditions: ["后续同口径价格回落"],
+          competing_explanation: "短期扰动导致的暂时改善",
+          source_explanation_id: "CE-CONTROLLED-01",
+          discriminating_evidence: ["后续两个季度的同口径连续序列"],
+          counterevidence_resolution: "",
+          confirmed_precondition_ids: ["state_measurement_or_equivalent_baseline"],
+          tracking_signals: ["季度价格序列连续性"],
+          conditions: ["仅在当前冻结时间窗内成立"],
+        }],
+      },
+    });
+    expect(revised.status).toBe("revised");
+    if (revised.status !== "revised") throw new Error("expected revised");
+    const data = JSON.parse(revised.artifact.json_content);
+    expect(data.judgments[0].conclusion).toContain("暂不升级强判断");
   });
 
   it("flags title/question swaps in Stage02 heuristic validation and blocks approve until ok", async () => {
@@ -506,6 +704,43 @@ describe("v1.3 operational spine", () => {
     expect(data.evidence_drafts[0].kind).toBe("gap");
     expect(data.method_applications[0].status).toBe("blocked");
     expect(data.method_applications[0].input_evidence_refs).toEqual([data.evidence_drafts[0].id]);
+  });
+
+  it("repairs near-miss Stage 03 drafts that omit gap bindings and blocked alternatives", async () => {
+    const repaired = workflow.repairEvidencePreparationDraft({
+      method_applications: [
+        {
+          application_id: "MA-EV-1", method_id: "kb03:A02", method_version: "3.2.0", capability_type: "evidence",
+          target_question_refs: ["Q-1"], target_judgment_unit_refs: ["JU-1"], target_ontology_object_refs: [],
+          status: "blocked", precondition_checks: [], input_evidence_refs: [], output_signal_refs: [],
+          output_judgment_refs: [], execution_summary: "", applicability_boundary: "折旧", limitations: [],
+          counter_example_refs: [], provenance: { stage: "stage_03", source_application_id: "MA-EV-1", actor: "model", recorded_at: null },
+          alternatives: [],
+        },
+        {
+          application_id: "MA-ADJ-1", method_id: "kb04:A01", method_version: "1.0.0", capability_type: "adjudication",
+          target_question_refs: ["Q-1"], target_judgment_unit_refs: ["JU-1"], target_ontology_object_refs: [],
+          status: "candidate", precondition_checks: [], input_evidence_refs: [], output_signal_refs: [],
+          output_judgment_refs: [], execution_summary: "", applicability_boundary: "估值", limitations: [],
+          counter_example_refs: [], provenance: { stage: "stage_03", source_application_id: "MA-ADJ-1", actor: "model", recorded_at: null },
+          alternatives: [],
+        },
+      ],
+      sources: [],
+      evidence_drafts: [{
+        id: "GAP-JU-01", statement: "缺少可核验折旧披露", kind: "gap", direction: "unknown", source_keys: [], source_ids: [],
+        judgment_unit_ids: ["JU-1"], ontology_node_ids: [], requirement: "取得折旧口径与金额",
+        evidence_role: "support", minimum_independent_sources: 1, limitations: ["检索未取得可定位正文"],
+      }],
+      unresolved_gaps: ["GAP-JU-01"],
+      document_markdown: "# 证据准备\n\n未取得可核验正文，仅登记缺口；blocked 方法需绑定替代路线并引用 gap。",
+    });
+    expect(repaired.method_applications[0].input_evidence_refs).toEqual(["GAP-JU-01"]);
+    expect(repaired.method_applications[0].alternatives).toEqual([
+      expect.objectContaining({ method_id: "kb03:A02", decision: "retry_after_source_acquisition" }),
+    ]);
+    const { evidencePreparationSchema } = await import("@/engine/schemas");
+    expect(() => evidencePreparationSchema.parse(repaired)).not.toThrow();
   });
 
   it("builds J0 judgments that trace to blocked adjudication methods", () => {

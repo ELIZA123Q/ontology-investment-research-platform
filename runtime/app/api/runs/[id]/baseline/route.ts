@@ -1,12 +1,14 @@
-import { generateArtifact } from "@/engine/workflow";
+import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
 
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const artifact = await generateArtifact((await params).id, "baseline", { background: true });
-    return Response.json(artifact, { status: 202 });
+    const job = enqueueArtifactGeneration({ runId: (await params).id, kind: "baseline" });
+    after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+    return Response.json(job, { status: 202 });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }

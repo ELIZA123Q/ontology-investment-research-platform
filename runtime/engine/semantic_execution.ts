@@ -207,7 +207,7 @@ function computeRule(
     const unresolved = relevantCompetition.some((item: any) => item.status === "active" || item.status === "unknown");
     const decisive = judgment.conflict_status === "decisive";
     let ceiling = 0;
-    if (facts.length && sourceGroups.size === 1) ceiling = 1;
+    if (facts.length && sourceGroups.size >= 1) ceiling = 1;
     if (facts.length >= 2 && qualifiedGroups.size >= 2 && directFacts >= 1) ceiling = 2;
     if (facts.length >= 3 && qualifiedGroups.size >= 3 && highTierGroups.size >= 1 && directFacts >= 2 && !unresolved && !decisive) ceiling = 3;
     if (facts.length >= 4 && qualifiedGroups.size >= 4 && highTierGroups.size >= 2 && directFacts >= 3 && !unresolved && !decisive && counterCount > 0 && judgment.conflict_status === "resolved") ceiling = 4;

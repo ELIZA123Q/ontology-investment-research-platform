@@ -3,15 +3,15 @@
 import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Artifact } from "@/engine/types";
+import type { ArtifactPayload } from "@/adapters/db_read_models";
 import { EVALUATION_CRITERIA as criteria } from "@/engine/schemas";
 import { parseJson } from "@/engine/types";
 
 export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics, canEvaluate }: {
   runId: string;
-  baseline: Artifact;
-  runtime: Artifact;
-  evaluation?: Artifact;
+  baseline: ArtifactPayload;
+  runtime: ArtifactPayload;
+  evaluation?: ArtifactPayload;
   metrics: Record<string, unknown>;
   canEvaluate: boolean;
 }) {

@@ -1,15 +1,43 @@
 import Link from "next/link";
 import { listRuns } from "@/adapters/db";
-import { runStatusLabel } from "@/app/lib/ui-labels";
+import { RunList } from "@/app/components/run-list";
 
 export const dynamic = "force-dynamic";
 
-function domainLabel(domain: string) {
-  return domain === "semiconductor" ? "半导体" : "通用";
+function descendantCounts(runs: ReturnType<typeof listRuns>): Map<string, number> {
+  const childrenByParent = new Map<string, string[]>();
+  for (const run of runs) {
+    if (!run.parent_run_id) continue;
+    const siblings = childrenByParent.get(run.parent_run_id) || [];
+    siblings.push(run.id);
+    childrenByParent.set(run.parent_run_id, siblings);
+  }
+  const memo = new Map<string, number>();
+  const count = (id: string): number => {
+    if (memo.has(id)) return memo.get(id)!;
+    let total = 0;
+    for (const childId of childrenByParent.get(id) || []) {
+      total += 1 + count(childId);
+    }
+    memo.set(id, total);
+    return total;
+  };
+  for (const run of runs) count(run.id);
+  return memo;
 }
 
 export default function RunsPage() {
   const runs = listRuns();
+  const descendants = descendantCounts(runs);
+  const items = runs.map((run) => ({
+    id: run.id,
+    question: run.question,
+    domain: run.domain,
+    current_stage: run.current_stage,
+    status: run.status,
+    parent_run_id: run.parent_run_id,
+    descendant_count: descendants.get(run.id) || 0,
+  }));
 
   return (
     <>
@@ -24,35 +52,8 @@ export default function RunsPage() {
         </div>
       </div>
 
-      {runs.length ? (
-        <section className="run-list" aria-label="研究列表">
-          <div className="run-list-head">
-            <span>研究问题</span>
-            <span>领域</span>
-            <span>进度</span>
-            <span></span>
-          </div>
-          {runs.map((run) => (
-            <Link className="run-row" href={`/runs/${run.id}`} key={run.id}>
-              <div className="run-title">
-                <strong>{run.question}</strong>
-                <span>
-                  {run.parent_run_id ? "增量运行" : "原始研究"}
-                  {" · "}
-                  {runStatusLabel(run.status)}
-                </span>
-              </div>
-              <span className="domain-label">{domainLabel(run.domain)}</span>
-              <div className="run-progress" aria-label={`阶段 ${run.current_stage}/5`}>
-                {[1, 2, 3, 4, 5].map((stage) => (
-                  <i key={stage} className={stage <= run.current_stage ? "done" : undefined} />
-                ))}
-                <span>{run.current_stage}/5</span>
-              </div>
-              <span className="row-arrow" aria-hidden="true">→</span>
-            </Link>
-          ))}
-        </section>
+      {items.length ? (
+        <RunList runs={items} />
       ) : (
         <div className="card empty-state">
           <h2>还没有研究</h2>

@@ -80,3 +80,46 @@ export function objectId(value: unknown): string {
   }
   return "";
 }
+
+const stage03Sections = stageSections.stage_03;
+
+export type Stage03Patch = {
+  affected_object_refs: string[];
+  upserts: Record<string, unknown[]>;
+  removals?: Record<string, string[]>;
+};
+
+export function mergeStage03Patch(base: Record<string, unknown>, patch: Stage03Patch) {
+  const affected = new Set(patch.affected_object_refs);
+  const next = structuredClone(base);
+
+  for (const [section, ids] of Object.entries(patch.removals || {})) {
+    if (!stage03Sections.has(section as never)) throw new Error(`Stage03 patch 不允许修改 ${section}`);
+    const current = arraySection(next, section);
+    const known = new Set(current.map(objectId).filter(Boolean));
+    for (const id of ids) {
+      if (!affected.has(id)) throw new Error(`删除对象 ${id} 未声明为受影响对象`);
+      if (!known.has(id)) throw new Error(`不能删除不存在的对象 ${id}`);
+    }
+    next[section] = current.filter((item) => !ids.includes(objectId(item)));
+  }
+
+  for (const [section, values] of Object.entries(patch.upserts)) {
+    if (!stage03Sections.has(section as never)) throw new Error(`Stage03 patch 不允许修改 ${section}`);
+    if (section === "unresolved_gaps") {
+      next[section] = [...new Set(values.map(String))];
+      continue;
+    }
+    const current = arraySection(next, section);
+    const byId = new Map(current.map((item) => [objectId(item), item]));
+    for (const value of values) {
+      if (!value || typeof value !== "object") throw new Error(`${section} upsert 必须是对象`);
+      const id = objectId(value);
+      if (!id) throw new Error(`${section} upsert 缺少稳定 ID`);
+      if (!affected.has(id)) throw new Error(`更新对象 ${id} 未声明为受影响对象`);
+      byId.set(id, value);
+    }
+    next[section] = [...byId.values()];
+  }
+  return next;
+}

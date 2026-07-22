@@ -10,6 +10,8 @@ cp .env.example .env.local
 # 在 .env.local 中填写 DEEPSEEK_API_KEY，并配置与生产模型不同的 DEEPSEEK_REVIEW_MODEL
 npm install
 npm run dev
+# 另开一个终端启动可恢复的后台执行器：
+npm run worker
 # 若曾出现多端口僵尸进程 / Load failed，改用：
 # npm run dev:singleton
 ```
@@ -18,7 +20,11 @@ npm run dev
 
 > 说明：仓库路径含中文时，Next 16 默认的 Turbopack 会崩溃并在浏览器显示 `Unexpected end of JSON input`。`npm run dev` 已改为 `--webpack` + 轮询监视，避免 EMFILE。请用 `http://127.0.0.1:3000` 打开（不要混用可能被系统代理劫持的 `localhost`）。同一时间只跑一个 `next dev`；重复启动会占满 3001/3002… 并拖垮文件监视。
 
-> 模型生成：接口会立刻返回 `running`（HTTP 202），模型在后台继续；页面每 3 秒刷新状态。不要依赖浏览器挂住长达数分钟的 POST。
+> 模型生成：接口会持久化 `queued` job 并立刻返回 HTTP 202；`npm run worker` 独立领取任务，页面轮询 `queued/running/retrying/waiting_for_input`。Next 请求结束时也会顺手唤醒一次 worker，但可恢复执行不依赖该回调；开发和生产都应保持独立 worker 运行。
+
+> 恢复语义：检查点位于每个阶段开始前。job 冻结上游 artifact ID/hash；worker 中断后从当前阶段起点重试，旧 worker 的 fencing token 失效，不能覆盖新结果。若上游输入已改变，任务进入 `waiting_for_input`，不会沿用旧上下文。模型内部尚未提交的 token 流不会伪装成可恢复检查点。
+
+> 预算语义：`RESEARCH_JOB_MAX_SOURCES` 在抓取前限制单个研究任务的累计来源总数，超出的候选保留为明确缺口；`RESEARCH_JOB_MAX_TOKENS` 在阶段产物提交评审前强制校验累计 token；任务硬超时会立即撤销租约并阻止旧执行写回。美元上限只有在 `.env.local` 同时配置金额上限和输入/输出 token 单价时启用。模型调用已经发生的输入 token 无法事后撤销，因此 token/金额上限是“禁止超额产物进入评审”，不是供应商侧的实时扣费熔断。
 
 > 若出现 `Connection error`：多半是开发服务继承了失效代理，或 DNS/VPN 异常。请在**本机普通终端**执行 `npm run dev:singleton`（脚本会清掉 HTTP(S)_PROXY），并确认浏览器与终端都能访问 `DEEPSEEK_BASE_URL`。
 

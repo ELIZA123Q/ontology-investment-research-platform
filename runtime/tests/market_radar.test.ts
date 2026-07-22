@@ -251,7 +251,15 @@ describe("event-driven research radar", () => {
     expect(refreshed).toMatchObject({ usability_status: "usable", retrieval_status: "captured", quote_verified: 1 });
     const staleGraph = instanceGraph.extractGraph(JSON.parse(db.latestArtifact(child.id, "instance_graph", ["approved"])!.json_content))!;
     const staleIds = new Set(staleGraph.objects.filter((object) => object.properties?.validity_status === "stale").map((object) => object.id));
-    expect(staleIds).toEqual(new Set([childSource.id, "CL-EV-1-1", "EV-1"]));
+    // 来源正文变化会使其陈述、事实，以及依赖该事实形成的评价和证据组合失效；
+    // 判断单元和稳定状态变量本身不因一次来源更新而失效。
+    expect(staleIds).toEqual(new Set([
+      childSource.id,
+      "CL-EV-1-1",
+      "EV-1",
+      "EA-EV-1-JU-1",
+      "EB-JU-1-support",
+    ]));
     expect(staleIds.has("JU-1")).toBe(false);
     expect(staleIds.has("SV-INV")).toBe(false);
   });

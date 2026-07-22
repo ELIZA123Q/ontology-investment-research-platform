@@ -1,6 +1,5 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import { after } from "next/server";
 import {
   approveArtifact,
   createArtifact,
@@ -20,7 +19,8 @@ import {
   withImmediateTransaction,
 } from "../adapters/db";
 import { loadKnowledge } from "./knowledge";
-import { createResearchModelClient } from "../adapters/deepseek";
+import { accumulateTokenUsage, createResearchModelClient } from "../adapters/deepseek";
+import { generationLeaseMs } from "../adapters/model_provider";
 import { promptFor, PROMPT_VERSION } from "./prompts";
 import { schemas, type SchemaKind } from "./schemas";
 import { ontologyContextForPrompt } from "./ontology_tools";
@@ -48,6 +48,16 @@ import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } fro
 import { evidenceBoundSourceIds, evidenceBoundSources } from "./evidence_sources";
 import { syncReviewWorkItems } from "./review_work_items";
 import { classifyRuntimeFailure, compactStructuredArtifact, formatRuntimeFailureMessage } from "./workflow_support";
+import { buildGenerationProgressHeartbeat, parseGenerationProgress } from "./generation_progress";
+import {
+  applyStage03SourceSnapshots,
+  findUnchangedEvidenceIds,
+  runEvidenceSupplementRound,
+  stage03AutoSupplementMaxRounds,
+} from "./evidence_auto_supplement";
+import { computeSourceCoverage, evaluateEvidenceStopCondition } from "./source_coverage";
+import { projectEvidenceRequirementsFromStructure } from "./structure_candidates";
+import { resolveResearchJobReview } from "../adapters/research_jobs";
 
 export {
   classifyRuntimeFailure,
@@ -73,6 +83,7 @@ export {
   createStage01DeterministicProjection,
   createControlledStructureProjection,
   buildEvidenceGapFallback,
+  repairEvidencePreparationDraft,
   createEvidenceGapFallback,
   createControlledEvidenceProjection,
   createControlledJudgmentProjection,
@@ -113,6 +124,7 @@ import {
   createStage05DeterministicProjection,
   normalizeStage01Projection,
   normalizeStage05Projection,
+  repairEvidencePreparationDraft,
 } from "./workflow_projections";
 
 export function approve(id: string) {
@@ -126,6 +138,7 @@ export function approve(id: string) {
     if (approvedStage) supersedeDownstream(artifact.run_id, approvedStage);
     supersedeOtherArtifactAttempts(artifact.run_id, artifact.kind, artifact.id);
     approveArtifact(artifact);
+    resolveResearchJobReview(artifact.id, true);
     if (["stage_02", "stage_03", "stage_04"].includes(artifact.kind)) {
       materializeAuthorityGraph(artifact.run_id, artifact.kind, parseJson(artifact.json_content, {}));
     }
@@ -180,7 +193,15 @@ function materializeAuthorityGraph(runId: string, stageKind: string, stageJson: 
 export async function generateArtifact(
   runId: string,
   kind: ArtifactKind,
-  options?: { background?: boolean },
+  options?: {
+    mode?: "regenerate" | "evidence_supplement";
+    maxAutoRounds?: number;
+    maxSourceCount?: number;
+    executionLease?: {
+      assertActive(): void;
+      onArtifactCreated?(artifactId: string): void;
+    };
+  },
 ) {
   const run = getRun(runId);
   if (!run) throw new Error("研究任务不存在");
@@ -198,9 +219,9 @@ export async function generateArtifact(
   }
   const running = latestArtifact(runId, kind, ["running"]);
   if (running) {
-    const leaseMs = Math.min(Math.max(Number(process.env.DEEPSEEK_GENERATION_TIMEOUT_MS || 480_000), 30_000), 1_200_000);
+    const leaseMs = generationLeaseMs();
     const ageMs = Date.now() - Date.parse(running.created_at);
-    if (Number.isFinite(ageMs) && ageMs < leaseMs + 15_000) {
+    if (Number.isFinite(ageMs) && ageMs < leaseMs + 60_000) {
       throw new Error(`${kind} 已有生成请求运行中（artifact=${running.id}），请等待或在超时后重试`);
     }
     updateArtifact(running.id, {
@@ -285,20 +306,166 @@ export async function generateArtifact(
     input_context: inputContext,
     model_name: client.model,
   });
+  try {
+    options?.executionLease?.onArtifactCreated?.(artifact.id);
+  } catch (error) {
+    updateArtifactIfStatus(artifact.id, "running", {
+      status: "failed",
+      error_message: "[model_output_error] GENERATION_LEASE_LOST: 新产物无法绑定到当前 job 租约",
+    });
+    throw error;
+  }
 
   const runModelJob = async () => {
+    const startedAt = new Date().toISOString();
+    let lastHeartbeatJson = JSON.stringify({
+      in_progress: true,
+      phase: "model_round",
+      round: 0,
+      max_rounds: 0,
+      tool_names: [],
+      heartbeat_at: startedAt,
+      started_at: startedAt,
+      elapsed_ms: 0,
+      message: "已开始生成，等待首轮模型响应",
+    });
+    updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
     try {
-      const useOntologyTools = kind === "stage_02" || kind === "stage_03" || kind === "stage_04";
-      const result = await client.generate(kind as SchemaKind, promptFor(kind), inputContext, {
-        webSearch: kind === "stage_03",
-        ontologyTools: useOntologyTools,
-        runId,
-        validateOutput: (data) => validateGeneratedSemanticDraft(runId, kind, data),
-      });
-      const data: any = result.data;
-      if (getArtifact(artifact.id)?.status !== "running") {
-        throw new Error("GENERATION_LEASE_LOST: 当前生成已被超时恢复流程取代，禁止旧请求写回");
+      const assertRunning = () => {
+        options?.executionLease?.assertActive();
+        if (getArtifact(artifact.id)?.status !== "running") {
+          throw new Error("GENERATION_LEASE_LOST: 当前生成已被超时恢复流程取代，禁止旧请求写回");
+        }
+      };
+      const writeCoverageHeartbeat = (
+        autoRound: number,
+        maxRounds: number,
+        coverage: { coverage_rate: number; verification_rate: number; coverage_gap_count: number },
+        message: string,
+      ) => {
+        const heartbeat = {
+          ...buildGenerationProgressHeartbeat({
+            phase: "coverage_pass",
+            round: autoRound,
+            max_rounds: maxRounds,
+            tool_names: [],
+            message,
+          }, startedAt),
+          auto_round: autoRound,
+          max_auto_rounds: maxRounds,
+          coverage_rate: coverage.coverage_rate,
+          verification_rate: coverage.verification_rate,
+          coverage_gap_count: coverage.coverage_gap_count,
+        };
+        lastHeartbeatJson = JSON.stringify(heartbeat);
+        updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+      };
+
+      const stage03Mode = kind === "stage_03" ? (options?.mode ?? "regenerate") : undefined;
+      const maxAutoRounds = kind === "stage_03" ? (options?.maxAutoRounds ?? stage03AutoSupplementMaxRounds()) : 1;
+      let inheritFromArtifactId: string | undefined;
+      let initialBaseData: any | undefined;
+      let result: Awaited<ReturnType<typeof client.generate>> | null = null;
+      let cumulativeUsage: unknown = {};
+      let data: any;
+      const structureData: any = kind === "stage_03"
+        ? parseJson(latestArtifact(runId, "stage_02", ["approved"])!.json_content, {})
+        : {};
+      const evidenceRequirements = kind === "stage_03"
+        ? projectEvidenceRequirementsFromStructure({
+          units: structureData.judgment_units || [],
+          counter_evidence_directions: structureData.counter_evidence_directions,
+        })
+        : [];
+      const cutoffMs = kind === "stage_03"
+        ? (() => {
+          const normalized = normalizeBusinessCutoff(taskContext?.time_scope?.as_of);
+          if (!normalized) return undefined;
+          const parsed = Date.parse(normalized);
+          return Number.isFinite(parsed) ? parsed : undefined;
+        })()
+        : undefined;
+      const supplementContext = { upstream, question: run.question, domain: run.domain };
+
+      if (kind === "stage_03" && stage03Mode === "evidence_supplement") {
+        const baseArtifact = latestArtifact(runId, "stage_03", ["needs_review", "approved"]);
+        if (!baseArtifact) throw new Error("尚无证据稿件可补充，请先生成全量证据");
+        inheritFromArtifactId = baseArtifact.id;
+        initialBaseData = parseJson(baseArtifact.json_content, {});
+        const supplement = await runEvidenceSupplementRound({
+          client,
+          runId,
+          baseData: initialBaseData,
+          supplementContext,
+          assertRunning,
+          onProgress: (event) => {
+            const heartbeat = buildGenerationProgressHeartbeat({
+              phase: "model_round",
+              round: event.round,
+              max_rounds: maxAutoRounds,
+              tool_names: [],
+              message: event.message,
+            }, startedAt);
+            lastHeartbeatJson = JSON.stringify({ ...heartbeat, auto_round: 1, max_auto_rounds: maxAutoRounds });
+            updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+          },
+          existingSources: listSources(runId),
+          maxSourceCount: options?.maxSourceCount,
+          requirements: evidenceRequirements,
+          cutoffMs,
+        });
+        data = supplement.data;
+        cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
+      } else {
+        const useOntologyTools = kind === "stage_02" || kind === "stage_03" || kind === "stage_04";
+        result = await client.generate(kind as SchemaKind, promptFor(kind), inputContext, {
+          webSearch: kind === "stage_03",
+          ontologyTools: useOntologyTools,
+          runId,
+          validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
+          repairOutput: kind === "stage_03"
+            ? (draft) => repairEvidencePreparationDraft(draft)
+            : undefined,
+          onProgress: (event) => {
+            assertRunning();
+            const heartbeat = buildGenerationProgressHeartbeat(event, startedAt);
+            lastHeartbeatJson = JSON.stringify(heartbeat);
+            updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+          },
+        });
+        cumulativeUsage = accumulateTokenUsage(cumulativeUsage, result.usage);
+        data = result.data;
+        assertRunning();
+        if (kind === "stage_03") {
+          const affectedRefs = new Set<string>(
+            (data.sources || []).map((source: any) => String(source.source_key || "")).filter(Boolean),
+          );
+          data = await applyStage03SourceSnapshots({
+            runId,
+            data,
+            affectedRefs,
+            existingSources: listSources(runId),
+            maxNewSources: options?.maxSourceCount === undefined
+              ? undefined
+              : Math.max(0, options.maxSourceCount - listSources(runId).length),
+            assertRunning,
+            onCaptureProgress: (index, total) => {
+              const captureHeartbeat = buildGenerationProgressHeartbeat({
+                phase: "tool_call",
+                round: index,
+                max_rounds: Math.max(total, 1),
+                tool_names: ["capture_source_snapshot"],
+                last_tool: "capture_source_snapshot",
+                message: `正在冻结来源 ${index}/${total || 1}`,
+              }, startedAt);
+              lastHeartbeatJson = JSON.stringify(captureHeartbeat);
+              updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+            },
+          });
+        }
       }
+
+      assertRunning();
       if (kind === "independent_review") {
         const reviewed = latestArtifact(runId, "stage_04", ["approved"])!;
         data.reviewed_stage04_artifact_id = reviewed.id;
@@ -332,88 +499,105 @@ export async function generateArtifact(
         applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
       }
       if (kind === "stage_03") {
-        const keyMap = new Map<string, string>();
-        for (const s of data.sources || []) {
-          if (getArtifact(artifact.id)?.status !== "running") {
-            throw new Error("GENERATION_LEASE_LOST: 来源抓取期间生成租约已失效");
-          }
-          const snapshot = await captureSourceSnapshot({ url: s.url, locator: s.locator, source_quote: s.source_quote });
-          if (getArtifact(artifact.id)?.status !== "running") {
-            throw new Error("GENERATION_LEASE_LOST: 来源抓取完成后生成租约已失效");
-          }
-          const saved = upsertSource(runId, {
-            url: s.url,
-            title: s.title,
-            publisher: s.publisher,
-            published_at: s.published_at,
-            source_type: s.source_type,
-            source_tier: s.source_tier,
-            search_excerpt: s.search_excerpt,
-            locator: snapshot.locator,
-            captured_at: snapshot.captured_at,
-            content_hash: snapshot.content_hash,
-            usability_status: snapshot.usability_status,
-            failure_category: snapshot.failure_category,
-            failure_detail: snapshot.failure_detail,
-            final_url: snapshot.final_url,
-            content_mime: snapshot.content_mime,
-            http_status: snapshot.http_status,
-            retrieval_status: snapshot.retrieval_status,
-            snapshot_text: snapshot.snapshot_text,
-            source_quote: snapshot.source_quote,
-            quote_verified: snapshot.quote_verified,
+        let autoRound = 1;
+        let previousGapCount: number | undefined;
+        while (autoRound < maxAutoRounds) {
+          const coverage = computeSourceCoverage({
+            sources: listSources(runId),
+            evidence: data.evidence_drafts || [],
+            requirements: evidenceRequirements,
+            cutoffMs,
           });
-          Object.assign(s, {
-            source_id: saved.id,
-            captured_at: snapshot.captured_at,
-            content_hash: snapshot.content_hash,
-            final_url: snapshot.final_url,
-            retrieval_status: snapshot.retrieval_status,
-            quote_verified: snapshot.quote_verified,
+          writeCoverageHeartbeat(
+            autoRound,
+            maxAutoRounds,
+            coverage,
+            `第 ${autoRound}/${maxAutoRounds} 轮后评估：覆盖率 ${(coverage.coverage_rate * 100).toFixed(0)}%，核验率 ${(coverage.verification_rate * 100).toFixed(0)}%`,
+          );
+          const stop = evaluateEvidenceStopCondition(coverage, previousGapCount);
+          if (stop.shouldStop) break;
+          previousGapCount = coverage.coverage_gap_count;
+          autoRound += 1;
+          const supplement = await runEvidenceSupplementRound({
+            client,
+            runId,
+            baseData: data,
+            supplementContext,
+            assertRunning,
+            onProgress: (event) => {
+              const heartbeat = buildGenerationProgressHeartbeat({
+                phase: "model_round",
+                round: event.round,
+                max_rounds: maxAutoRounds,
+                tool_names: [],
+                message: event.message,
+              }, startedAt);
+              lastHeartbeatJson = JSON.stringify({
+                ...heartbeat,
+                auto_round: autoRound,
+                max_auto_rounds: maxAutoRounds,
+              });
+              updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+            },
+            existingSources: listSources(runId),
+            maxSourceCount: options?.maxSourceCount,
+            requirements: evidenceRequirements,
+            cutoffMs,
           });
-          keyMap.set(s.source_key, saved.id);
+          data = supplement.data;
+          cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
         }
-        for (const e of data.evidence_drafts || []) {
-          e.source_ids = (e.source_keys || []).map((k: string) => keyMap.get(k)).filter(Boolean);
-        }
+        schemas.stage_03.parse(data);
       }
       if (kind === "stage_05") {
         const judgmentArtifact = latestArtifact(runId, "stage_04", ["approved"])!;
         normalizeStage05Projection(data, parseJson<any>(judgmentArtifact.json_content, {}), run.question, listSources(runId));
         schemas.stage_05.parse(data);
       }
+      assertRunning();
       const completed = updateArtifactIfStatus(artifact.id, "running", {
         status: "needs_review",
         json_content: JSON.stringify(data, null, 2),
         markdown_content: data.document_markdown || "",
         model_name: client.model,
-        raw_model_output: result.raw,
-        response_id: result.responseId,
-        token_usage: JSON.stringify(result.usage),
-        tool_usage: JSON.stringify(result.toolUsage),
+        raw_model_output: result?.raw || JSON.stringify(data),
+        response_id: result?.responseId || null,
+        token_usage: JSON.stringify(cumulativeUsage),
+        tool_usage: result?.toolUsage ? JSON.stringify(result.toolUsage) : lastHeartbeatJson,
         error_message: null,
       });
       if (!completed) throw new Error("GENERATION_LEASE_LOST: 生成完成前租约已失效，旧请求不得恢复为可审阅产物");
-      syncReviewWorkItems(completed, data);
+      syncReviewWorkItems(completed, data, inheritFromArtifactId && initialBaseData ? {
+        inheritFromArtifactId,
+        unchangedEvidenceIds: findUnchangedEvidenceIds(initialBaseData.evidence_drafts || [], data.evidence_drafts || []),
+      } : undefined);
       return completed;
     } catch (error) {
       const failureCategory = classifyRuntimeFailure(error);
+      const lastProgress = parseGenerationProgress(lastHeartbeatJson);
       updateArtifactIfStatus(artifact.id, "running", {
         status: "failed",
         error_message: `[${failureCategory}] ${formatRuntimeFailureMessage(error)}`,
-        tool_usage: JSON.stringify({ failure_category: failureCategory }),
+        tool_usage: JSON.stringify({
+          failure_category: failureCategory,
+          ...(lastProgress ? {
+            last_progress: {
+              phase: lastProgress.phase,
+              round: lastProgress.round,
+              max_rounds: lastProgress.max_rounds,
+              tool_names: lastProgress.tool_names,
+              last_tool: lastProgress.last_tool,
+              heartbeat_at: lastProgress.heartbeat_at,
+              elapsed_ms: lastProgress.elapsed_ms,
+              message: lastProgress.message,
+            },
+          } : {}),
+        }),
       });
       throw error;
     }
   };
 
-  // 浏览器长连接易被代理/Safari 掐断（Load failed）；后台跑模型，接口立刻返回 running。
-  if (options?.background) {
-    after(() => {
-      void runModelJob().catch(() => undefined);
-    });
-    return artifact;
-  }
   return runModelJob();
 }
 

@@ -6,12 +6,13 @@ import {
   createJudgmentGapFallback,
   createStage01DeterministicProjection,
   createStage05DeterministicProjection,
-  generateArtifact,
 } from "@/engine/workflow";
+import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
 import { STAGES } from "@/engine/types";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 800;
+export const maxDuration = 3600;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; stage: string }> }) {
   try {
@@ -24,6 +25,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (kind === "stage_02" && body.mode === "controlled_structure_projection") {
       return Response.json(createControlledStructureProjection(id, body.structure || {}));
+    }
+    if (kind === "stage_03" && body.mode === "evidence_supplement") {
+      const job = enqueueArtifactGeneration({ runId: id, kind: kind as any, mode: "evidence_supplement" });
+      after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+      return Response.json(job, { status: 202 });
     }
     if (kind === "stage_03" && body.mode === "controlled_evidence_projection") {
       return Response.json(createControlledEvidenceProjection(id, body.bindings || []));
@@ -40,8 +46,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (kind === "stage_05" && body.mode === "deterministic_projection") {
       return Response.json(createStage05DeterministicProjection(id));
     }
-    const artifact = await generateArtifact(id, kind as any, { background: true });
-    return Response.json(artifact, { status: 202 });
+    const job = enqueueArtifactGeneration({ runId: id, kind: kind as any });
+    after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+    return Response.json(job, { status: 202 });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
   }

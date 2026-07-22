@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { LATEST_DATABASE_SCHEMA_VERSION, databaseSchemaVersion, runDatabaseMigrations } from "@/adapters/db_migrations";
+import { LATEST_DATABASE_SCHEMA_VERSION, databaseSchemaVersion, recoverOrphanedRunningArtifacts, runDatabaseMigrations } from "@/adapters/db_migrations";
 
 describe("database migrations", () => {
   it("initializes a clean database to the latest explicit schema and is idempotent", () => {
@@ -15,6 +15,12 @@ describe("database migrations", () => {
       "source_tier", "source_group", "locator", "captured_at", "content_hash", "usability_status", "snapshot_text", "source_quote", "quote_verified", "retrieval_status",
     ]));
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='action_proposals'").get()).toBeTruthy();
+    const jobColumns = (connection.prepare("PRAGMA table_info(research_jobs)").all() as Array<{ name: string }>).map((row) => row.name);
+    expect(jobColumns).toEqual(expect.arrayContaining([
+      "status", "lease_token", "worker_id", "lease_expires_at", "heartbeat_at", "attempt", "max_attempts",
+      "budget_json", "input_artifacts_json", "input_hash", "payload_json", "result_json",
+    ]));
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_research_jobs_active_dedupe'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_artifacts_one_running'").get()).toBeTruthy();
     const now = "2026-07-20T00:00:00Z";
     connection.prepare(
@@ -47,6 +53,33 @@ describe("database migrations", () => {
     runDatabaseMigrations(connection);
     const repaired = connection.prepare("SELECT artifact_id,attempt,payload_json FROM research_work_items WHERE id='wi-legacy'").get() as any;
     expect(repaired).toEqual({ artifact_id: "artifact-v3", attempt: 3, payload_json: "{\"legacy\":true}" });
+    connection.close();
+  });
+
+  it("recovers only orphaned running artifacts and preserves a valid worker lease", () => {
+    const connection = new DatabaseSync(":memory:");
+    connection.exec("PRAGMA foreign_keys = ON");
+    runDatabaseMigrations(connection);
+    const now = "2026-07-22T00:00:00.000Z";
+    connection.prepare(
+      "INSERT INTO research_runs(id,question,domain,current_stage,status,manifest_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+    ).run("run-recovery", "recovery", "semiconductor", 0, "draft", "{}", now, now);
+    const insertArtifact = connection.prepare(
+      "INSERT INTO artifacts(id,run_id,kind,version,status,created_at) VALUES(?,?,?,?,?,?)",
+    );
+    insertArtifact.run("artifact-leased", "run-recovery", "stage_01", 1, "running", now);
+    insertArtifact.run("artifact-orphan", "run-recovery", "stage_02", 1, "running", now);
+    connection.prepare(`INSERT INTO research_jobs(
+      id,run_id,job_type,stage,artifact_id,status,dedupe_key,lease_token,worker_id,lease_expires_at,heartbeat_at,
+      attempt,max_attempts,available_at,input_hash,queued_at,created_at,updated_at
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      "job-leased", "run-recovery", "generate_artifact", "stage_01", "artifact-leased", "running", "leased",
+      "token", "worker-a", "2026-07-22T00:02:00.000Z", now, 1, 3, now, "sha256:test", now, now, now,
+    );
+
+    expect(recoverOrphanedRunningArtifacts(connection, "2026-07-22T00:01:00.000Z")).toBe(1);
+    expect((connection.prepare("SELECT status FROM artifacts WHERE id='artifact-leased'").get() as any).status).toBe("running");
+    expect((connection.prepare("SELECT status FROM artifacts WHERE id='artifact-orphan'").get() as any).status).toBe("failed");
     connection.close();
   });
 });

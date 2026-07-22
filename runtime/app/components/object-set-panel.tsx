@@ -121,10 +121,10 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
     <div className="object-set">
       <div className="pagehead">
         <div>
-          <div className="eyebrow">研究对象关系图</div>
-          <h1>本轮研究的对象与关系</h1>
+          <div className="eyebrow">对象操作台</div>
+          <h1>对象查询与写入建议</h1>
           <p className="muted">
-            查看本轮已确认的研究对象与关系；与上方「结构 / 证据 / 判断」审阅页不同
+            这里用于查询对象并提交写入建议；ER 可视图请使用关系图主视图
             {data?.summary ? ` · ${data.summary}` : ""}
             {authorityText ? ` · ${authorityText}` : ""}
             {data?.graph_source ? ` · ${data.graph_source}` : ""}

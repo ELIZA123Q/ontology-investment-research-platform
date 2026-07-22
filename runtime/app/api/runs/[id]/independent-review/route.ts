@@ -1,4 +1,6 @@
-import { createControlledIndependentReview, generateArtifact } from "@/engine/workflow";
+import { createControlledIndependentReview } from "@/engine/workflow";
+import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
+import { after } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;
@@ -10,8 +12,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (body.mode === "human_controlled") {
       return Response.json(createControlledIndependentReview(id, body.review || {}));
     }
-    const artifact = await generateArtifact(id, "independent_review", { background: true });
-    return Response.json(artifact, { status: 202 });
+    const job = enqueueArtifactGeneration({ runId: id, kind: "independent_review" });
+    after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+    return Response.json(job, { status: 202 });
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : String(error) },

@@ -21,6 +21,16 @@ function boundedTimeout(name: string, fallback: number, min: number, max: number
   return Number.isFinite(value) ? Math.min(Math.max(Math.floor(value), min), max) : fallback;
 }
 
+/** Stage 02/03/04 长跑租约；与模型 generationTimeout 对齐，避免仍在跑就被当作遗弃。 */
+export function generationLeaseMs(provider: ModelProviderId = "deepseek"): number {
+  return boundedTimeout(
+    provider === "deepseek" ? "DEEPSEEK_GENERATION_TIMEOUT_MS" : "OPENAI_COMPAT_GENERATION_TIMEOUT_MS",
+    3_600_000,
+    120_000,
+    7_200_000,
+  );
+}
+
 function required(name: string, value: string | undefined): string {
   if (!value) throw new Error(`缺少 ${name}，请在 .env.local 中配置`);
   return value;
@@ -48,15 +58,15 @@ export function resolveModelProvider(role: ModelRole = "producer"): ResolvedMode
 
   const requestTimeoutMs = boundedTimeout(
     provider === "deepseek" ? "DEEPSEEK_REQUEST_TIMEOUT_MS" : "OPENAI_COMPAT_REQUEST_TIMEOUT_MS",
-    180_000,
-    10_000,
     600_000,
+    30_000,
+    1_800_000,
   );
   const generationTimeoutMs = boundedTimeout(
     provider === "deepseek" ? "DEEPSEEK_GENERATION_TIMEOUT_MS" : "OPENAI_COMPAT_GENERATION_TIMEOUT_MS",
-    480_000,
-    30_000,
-    1_200_000,
+    3_600_000,
+    120_000,
+    7_200_000,
   );
 
   if (provider === "openai_compatible") {

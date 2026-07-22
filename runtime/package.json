@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true next dev --webpack -H 127.0.0.1",
     "dev:singleton": "bash scripts/dev-singleton.sh",
+    "worker": "NODE_OPTIONS='--conditions=react-server' tsx scripts/research-worker.ts",
     "build": "next build --webpack",
     "start": "next start -H 127.0.0.1",
     "test": "vitest run",
@@ -14,12 +15,14 @@
   },
   "dependencies": {
     "@xyflow/react": "^12.11.2",
+    "fflate": "^0.8.2",
     "next": "^16.0.0",
     "openai": "^6.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.0.0",
     "remark-gfm": "^4.0.0",
+    "server-only": "^0.0.1",
     "yaml": "^2.8.0",
     "zod": "^4.0.0"
   },
@@ -30,6 +33,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitest/coverage-v8": "^4.0.0",
     "eslint": "^9.0.0",
+    "tsx": "^4.23.1",
     "typescript": "^5.9.0",
     "typescript-eslint": "^8.0.0",
     "vitest": "^4.0.0"

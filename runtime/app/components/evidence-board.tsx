@@ -1,11 +1,73 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ResearchWorkItem, SourceRecord } from "@/engine/types";
+import { prioritizeEvidenceGaps, type EvidenceReviewSuggestion } from "@/engine/evidence_review_assist";
+import { stripInternalReferencePrefix } from "@/engine/research_overview";
+
+type ClientSource = {
+  id: string;
+  title: string;
+  publisher: string;
+  published_at: string | null;
+  url: string;
+  locator?: string;
+  usability_status?: string;
+  retrieval_status?: string;
+  authority_type?: string;
+  source_tier?: string;
+  source_group?: string;
+  quote_verified?: boolean;
+  source_quote?: string;
+  failure_detail?: string;
+};
+
+type ClientWorkItem = {
+  id: string;
+  run_id: string;
+  kind: string;
+  stage: string;
+  target_type: string;
+  target_id: string;
+  title: string;
+  status: string;
+  priority: string;
+  reason: string;
+  note: string;
+  resolution: string;
+  artifact_id: string;
+  attempt: number;
+  created_at: string;
+  updated_at: string;
+  source_event_id: string | null;
+};
+import {
+  authorityTypeLabel,
+  confidenceLabel,
+  directionLabel,
+  directnessLabel,
+  evidenceKindLabel,
+  evidenceRoleLabel,
+  reviewSuggestionLabel,
+  retrievalLabel,
+  usabilityLabel,
+  workItemStatusLabel,
+} from "@/app/lib/ui-labels";
 
 type Unit = { id: string; title: string; question: string };
-type Evidence = { id: string; statement: string; kind: string; direction: string; source_ids: string[]; judgment_unit_ids: string[]; limitations: string[] };
+type Evidence = {
+  id: string;
+  statement: string;
+  kind: string;
+  direction: string;
+  directness?: string;
+  source_ids: string[];
+  judgment_unit_ids: string[];
+  limitations: string[];
+  requirement?: string;
+  evidence_role?: string;
+  minimum_independent_sources?: number;
+};
 
 const lanes = [
   { id: "support", label: "支持证据" },
@@ -14,16 +76,47 @@ const lanes = [
   { id: "gap", label: "缺口" },
 ];
 
-export function EvidenceBoard({ runId, units, evidence, sources, workItems }: { runId: string; units: Unit[]; evidence: Evidence[]; sources: SourceRecord[]; workItems: ResearchWorkItem[] }) {
+export function EvidenceBoard({
+  runId,
+  units,
+  evidence,
+  sources,
+  workItems,
+  suggestions,
+}: {
+  runId: string;
+  units: Unit[];
+  evidence: Evidence[];
+  sources: ClientSource[];
+  workItems: ClientWorkItem[];
+  suggestions: EvidenceReviewSuggestion[];
+}) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState(evidence[0]?.id || "");
+  const gapPriorities = useMemo(() => prioritizeEvidenceGaps({ evidence, workItems }), [evidence, workItems]);
+  const [selectedId, setSelectedId] = useState(gapPriorities[0]?.evidence_id || evidence[0]?.id || "");
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const selected = evidence.find((item) => item.id === selectedId);
   const sourceMap = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources]);
+  const suggestionMap = useMemo(() => new Map(suggestions.map((item) => [item.evidence_id, item])), [suggestions]);
   const workItem = workItems.find((item) => item.target_id === selectedId && ["evidence_review", "supplement_evidence", "resolve_conflict"].includes(item.kind));
   const terminalReview = workItem && ["approved", "dismissed", "superseded"].includes(workItem.status);
+  const selectedSuggestion = selected ? suggestionMap.get(selected.id) : undefined;
+
+  useEffect(() => {
+    if (!selected) {
+      setReviewNote("");
+      return;
+    }
+    if (terminalReview && workItem?.note) {
+      setReviewNote(workItem.note);
+      return;
+    }
+    const suggestion = suggestionMap.get(selected.id);
+    setReviewNote(suggestion?.note || "");
+  }, [selectedId, selected, terminalReview, workItem?.note, suggestionMap]);
 
   function laneFor(item: Evidence) {
     if (item.kind === "gap") return "gap";
@@ -32,71 +125,206 @@ export function EvidenceBoard({ runId, units, evidence, sources, workItems }: { 
     return "support";
   }
 
+  function toggleChecked(id: string, checked: boolean) {
+    setCheckedIds((current) => {
+      const next = new Set(current);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function toggleAllPending(checked: boolean) {
+    if (!checked) {
+      setCheckedIds(new Set());
+      return;
+    }
+    const pending = evidence.filter((item) => {
+      const work = workItems.find((workItem) => workItem.target_id === item.id);
+      return !work || work.status === "pending";
+    });
+    setCheckedIds(new Set(pending.map((item) => item.id)));
+  }
+
+  async function submitDecisions(items: Array<{ target_id: string; status: string; note: string; resolution: string }>) {
+    if (!items.length) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/runs/${runId}/work-items/batch`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          items,
+          evidence_kinds: Object.fromEntries(evidence.map((item) => [item.id, item.kind])),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok && response.status !== 207) throw new Error(data.error || "批量更新失败");
+      const failed = (data.results || []).filter((item: { ok: boolean }) => !item.ok);
+      if (failed.length) throw new Error(failed.map((item: { error?: string }) => item.error).filter(Boolean).join("；") || "部分条目更新失败");
+      setCheckedIds(new Set());
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function decide(status: "approved" | "rework" | "dismissed") {
     if (!selected) return;
     if (reviewNote.trim().length < 8) {
       setError("请先留下至少 8 个字的核验依据。");
       return;
     }
-    setBusy(true); setError("");
-    try {
-      let itemId = workItem?.id;
-      if (!itemId) {
-        const create = await fetch(`/api/runs/${runId}/work-items`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({
-          kind: selected.kind === "gap" ? "supplement_evidence" : selected.kind === "conflict" ? "resolve_conflict" : "evidence_review",
-          stage: "stage_03", target_type: "EvidenceDraft", target_id: selected.id,
-          title: `${selected.kind === "gap" ? "补齐" : "审阅"}：${selected.statement}`,
-          priority: selected.kind === "gap" || selected.kind === "conflict" ? "high" : "medium",
-          reason: selected.limitations.join("；"), payload: { direction: selected.direction, judgment_unit_ids: selected.judgment_unit_ids },
-        }) });
-        const created = await create.json();
-        if (!create.ok) throw new Error(created.error || "创建工作项失败");
-        itemId = created.id;
-      }
-      const resolution = status === "approved"
-        ? selected.kind === "gap" ? "accepted_evidence_gap" : "accepted_evidence"
-        : status === "rework" ? "rework_requested" : "rejected_evidence";
-      const response = await fetch(`/api/runs/${runId}/work-items/${itemId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status, note: reviewNote.trim(), resolution }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "更新失败");
-      router.refresh();
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-    finally { setBusy(false); }
+    const resolution = status === "approved"
+      ? selected.kind === "gap" ? "accepted_evidence_gap" : "accepted_evidence"
+      : status === "rework" ? "rework_requested" : "rejected_evidence";
+    await submitDecisions([{ target_id: selected.id, status, note: reviewNote.trim(), resolution }]);
   }
 
+  function buildBatchItems(mode: "accept" | "accept_gap" | "rework" | "adopt_high") {
+    const targets = checkedIds.size
+      ? evidence.filter((item) => checkedIds.has(item.id))
+      : evidence;
+    const items: Array<{ target_id: string; status: string; note: string; resolution: string }> = [];
+    for (const item of targets) {
+      const work = workItems.find((workItem) => workItem.target_id === item.id);
+      if (work && ["approved", "dismissed", "superseded"].includes(work.status)) continue;
+      const suggestion = suggestionMap.get(item.id);
+      if (mode === "adopt_high") {
+        if (!suggestion || suggestion.confidence !== "high") continue;
+        if (suggestion.suggestion === "accept_evidence") {
+          items.push({ target_id: item.id, status: "approved", note: suggestion.note, resolution: "accepted_evidence" });
+        } else if (suggestion.suggestion === "accept_gap" && item.kind === "gap") {
+          items.push({ target_id: item.id, status: "approved", note: suggestion.note, resolution: "accepted_evidence_gap" });
+        }
+        continue;
+      }
+      const note = (suggestion?.note || reviewNote || "").trim();
+      if (note.length < 8) continue;
+      if (mode === "accept" && item.kind !== "gap") {
+        items.push({ target_id: item.id, status: "approved", note, resolution: "accepted_evidence" });
+      } else if (mode === "accept_gap" && item.kind === "gap") {
+        items.push({ target_id: item.id, status: "approved", note, resolution: "accepted_evidence_gap" });
+      } else if (mode === "rework") {
+        items.push({ target_id: item.id, status: "rework", note, resolution: "rework_requested" });
+      }
+    }
+    return items;
+  }
+
+  const pendingCount = evidence.filter((item) => {
+    const work = workItems.find((workItem) => workItem.target_id === item.id);
+    return !work || work.status === "pending";
+  }).length;
+  const approvedCount = evidence.filter((item) => {
+    const work = workItems.find((workItem) => workItem.target_id === item.id);
+    return work?.status === "approved";
+  }).length;
+  const gapAcceptedCount = evidence.filter((item) => {
+    const work = workItems.find((workItem) => workItem.target_id === item.id);
+    return item.kind === "gap" && work?.status === "approved";
+  }).length;
+
   if (!units.length) return <div className="card empty-state"><h2>尚无证据任务</h2><p className="muted">完成结构阶段后，证据要求会按判断单元展开。</p></div>;
-  return <div className="evidence-workspace">
-    <div className="evidence-matrix-wrap">
-      <div className="evidence-matrix" style={{ gridTemplateColumns: `138px repeat(${units.length}, minmax(250px, 1fr))` }}>
-        <div className="matrix-corner">证据角色</div>
-        {units.map((unit) => <div className="matrix-unit" key={unit.id}><span>{unit.id}</span><strong>{unit.title}</strong><small>{unit.question}</small></div>)}
-        {lanes.map((lane) => <div className="matrix-row" key={lane.id} style={{ display: "contents" }}>
-          <div className={`matrix-lane lane-${lane.id}`}>{lane.label}</div>
-          {units.map((unit) => <div className="matrix-cell" key={`${lane.id}:${unit.id}`}>
-            {evidence.filter((item) => item.judgment_unit_ids.includes(unit.id) && laneFor(item) === lane.id).map((item) => {
-              const itemWork = workItems.find((work) => work.target_id === item.id);
-              return <button className={`evidence-card lane-${lane.id} ${selectedId === item.id ? "selected" : ""}`} onClick={() => setSelectedId(item.id)} key={item.id}>
-                <span>{({ fact_draft: "事实草稿", counter: "反证", gap: "缺口", conflict: "冲突", background: "背景" } as Record<string, string>)[item.kind] || item.kind}</span><strong>{item.statement}</strong><small>{itemWork?.status || "待审阅"} · 来源 {item.source_ids.length}</small>
-              </button>;
-            })}
-          </div>)}
-        </div>)}
+
+  return <div className="evidence-review-section">
+    {gapPriorities.length ? <section className="gap-priority-panel">
+      <div className="gap-priority-head"><div><span>优先补证</span><strong>先处理最影响判断的 {Math.min(3, gapPriorities.length)} 个缺口</strong></div><small>排序依据：判断绑定、冲突程度、独立来源要求与审阅状态</small></div>
+      <div className="gap-priority-list">{gapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={item.evidence_id} onClick={() => setSelectedId(item.evidence_id)} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
+    </section> : null}
+    <div className="evidence-review-toolbar">
+      <div className="run-meta">
+        <span>待审 {pendingCount}</span>
+        <span>已确认 {approvedCount}</span>
+        <span>缺口已接受 {gapAcceptedCount}</span>
+        <span>已选 {checkedIds.size}</span>
+      </div>
+      <div className="review-batch-actions">
+        <label className="batch-select-all"><input type="checkbox" checked={checkedIds.size > 0 && checkedIds.size === pendingCount} onChange={(event) => toggleAllPending(event.target.checked)} /> 全选待审</label>
+        <button type="button" className="button-secondary" disabled={busy} onClick={() => submitDecisions(buildBatchItems("adopt_high"))}>采纳高置信建议</button>
+        <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept"))}>批量确认</button>
+        <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept_gap"))}>批量接受缺口</button>
+        <button type="button" className="button-quiet" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("rework"))}>批量退回</button>
       </div>
     </div>
-    <aside className="evidence-inspector">
-      <div className="eyebrow">证据详情</div>
-      <h2>{selected?.statement || "选择一项证据"}</h2>
-      {selected ? <>
-        <div className="inspector-tags"><span className={`semantic-key lane-${laneFor(selected)}`}>{laneFor(selected)}</span><span className="semantic-key">{workItem?.status || "待审阅"}</span></div>
-        <h3>来源</h3>
-        {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => { const source = sourceMap.get(id); return <li key={id}>{source ? <><a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a><small>等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"} · 可用性 {({ usable: "可用", candidate: "候选", rejected: "已退回", blocked: "不可用" } as Record<string, string>)[source.usability_status || ""] || source.usability_status || "未评估"} · 正文 {({ captured: "已抓取", not_attempted: "尚未抓取", failed: "抓取失败", pending: "抓取中" } as Record<string, string>)[source.retrieval_status || ""] || source.retrieval_status || "未抓取"} · 引用定位 {source.quote_verified ? "已验证" : "未验证"} · 定位 {source.locator || source.url} · 抓取 {source.captured_at || source.accessed_at} · 内容指纹 {(source.content_hash || "未记录").slice(0, 12)}</small>{source.source_quote ? <blockquote>{source.source_quote}</blockquote> : null}{source.failure_detail ? <small className="error-text">{source.failure_detail}</small> : null}</> : id}</li>; })}</ul> : <p className="muted">尚未挂到来源；只能作为明确的证据缺口，不能确认事实。</p>}
-        <h3>局限</h3><p>{selected.limitations.join("；") || "暂无已登记局限"}</p>
-        <div className="field"><label>人工核验记录</label><textarea value={reviewNote} disabled={Boolean(terminalReview)} onChange={(event) => setReviewNote(event.target.value)} placeholder={selected.kind === "gap" ? "说明为何接受当前缺口，以及结论必须停在什么边界" : "说明已核对的原文、口径、时间和局限"} /></div>
-        <div className="review-actions"><button className="button" disabled={busy || Boolean(terminalReview)} onClick={() => decide("approved")}>{selected.kind === "gap" ? "接受缺口（维持 J0）" : "确认可用"}</button><button className="button-secondary" disabled={busy || Boolean(terminalReview)} onClick={() => decide("rework")}>退回补证</button><button className="button-quiet" disabled={busy || Boolean(terminalReview)} onClick={() => decide("dismissed")}>驳回并重生成</button></div>
-        {terminalReview ? <p className="muted">该审阅已结束；如需改变结论，请重新生成稿件，旧审阅任务会自动作废并由新版本取代。</p> : null}
-        {error ? <div className="notice error">{error}</div> : null}
-        <details className="advanced-audit"><summary>高级审计字段</summary><pre>{JSON.stringify(selected, null, 2)}</pre></details>
-      </> : null}
-    </aside>
+
+    <div className="evidence-workspace">
+      <div className="evidence-matrix-wrap">
+        <div className="evidence-matrix" style={{ gridTemplateColumns: `170px repeat(${units.length}, minmax(250px, 1fr))` }}>
+          <div className="matrix-corner">证据角色</div>
+          {units.map((unit, index) => <div className="matrix-unit" key={unit.id}><span>关键判断 {index + 1}</span><strong>{stripInternalReferencePrefix(unit.title)}</strong><small>{stripInternalReferencePrefix(unit.question)}</small></div>)}
+          {lanes.map((lane) => <div className="matrix-row" key={lane.id} style={{ display: "contents" }}>
+            <div className={`matrix-lane lane-${lane.id}`}>{lane.label}</div>
+            {units.map((unit) => <div className="matrix-cell" key={`${lane.id}:${unit.id}`}>
+              {evidence.filter((item) => item.judgment_unit_ids.includes(unit.id) && laneFor(item) === lane.id).map((item) => {
+                const itemWork = workItems.find((work) => work.target_id === item.id);
+                const suggestion = suggestionMap.get(item.id);
+                return <div className={`evidence-card-wrap ${selectedId === item.id ? "selected" : ""}`} key={item.id}>
+                  <label className="evidence-card-check"><input type="checkbox" checked={checkedIds.has(item.id)} onChange={(event) => toggleChecked(item.id, event.target.checked)} /></label>
+                  <button className={`evidence-card lane-${lane.id}`} onClick={() => setSelectedId(item.id)} type="button">
+                    <span>{evidenceKindLabel(item.kind)}</span>
+                    <strong>{stripInternalReferencePrefix(item.statement)}</strong>
+                    <small>{workItemStatusLabel(itemWork?.status || "pending")} · 来源 {item.source_ids.length}</small>
+                    {suggestion ? <em className={`suggestion-chip confidence-${suggestion.confidence}`}>{reviewSuggestionLabel(suggestion.suggestion)}</em> : null}
+                  </button>
+                </div>;
+              })}
+            </div>)}
+          </div>)}
+        </div>
+      </div>
+      <aside className="evidence-inspector">
+        <div className="eyebrow">证据详情</div>
+        <h2>{selected ? stripInternalReferencePrefix(selected.statement) : "选择一项证据"}</h2>
+        {selected ? <>
+          <div className="inspector-tags">
+            <span className={`semantic-key lane-${laneFor(selected)}`}>{lanes.find((lane) => lane.id === laneFor(selected))?.label}</span>
+            <span className="semantic-key">{workItemStatusLabel(workItem?.status || "pending")}</span>
+            <span className="semantic-key">{evidenceKindLabel(selected.kind)}</span>
+            <span className="semantic-key">{directionLabel(selected.direction)}</span>
+            {selected.directness ? <span className="semantic-key">{directnessLabel(selected.directness)}</span> : null}
+          </div>
+
+          {selectedSuggestion ? <div className={`review-suggestion confidence-${selectedSuggestion.confidence}`}>
+            <strong>{reviewSuggestionLabel(selectedSuggestion.suggestion)}</strong>
+            <span>置信 {confidenceLabel(selectedSuggestion.confidence)}</span>
+            <ul>{selectedSuggestion.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+          </div> : null}
+
+          {selected.kind === "gap" ? <dl className="evidence-attr-grid">
+            <div><dt>缺口要求</dt><dd>{stripInternalReferencePrefix(selected.requirement || selected.statement)}</dd></div>
+            {selected.evidence_role ? <div><dt>证据角色</dt><dd>{evidenceRoleLabel(selected.evidence_role)}</dd></div> : null}
+            {selected.minimum_independent_sources !== undefined ? <div><dt>最低独立来源</dt><dd>{selected.minimum_independent_sources}</dd></div> : null}
+          </dl> : null}
+
+          <h3>来源</h3>
+          {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => {
+            const source = sourceMap.get(id);
+            return <li key={id}>{source ? <>
+              <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+              <small>
+                {authorityTypeLabel(source.authority_type || "unknown")} · 等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"}
+                · {usabilityLabel(source.usability_status || "")} / {retrievalLabel(source.retrieval_status || "")}
+                · 引用 {source.quote_verified ? "已验证" : "未验证"}
+              </small>
+              {source.source_quote ? <blockquote>{source.source_quote}</blockquote> : null}
+            </> : id}</li>;
+          })}</ul> : <p className="muted">尚未挂到来源；只能作为明确的证据缺口，不能确认事实。</p>}
+
+          <h3>局限</h3><p>{selected.limitations.join("；") || "暂无已登记局限"}</p>
+          <div className="field"><label>人工核验记录</label><textarea value={reviewNote} disabled={Boolean(terminalReview)} onChange={(event) => setReviewNote(event.target.value)} placeholder={selected.kind === "gap" ? "说明为何接受当前缺口，以及结论必须停在什么边界" : "说明已核对的原文、口径、时间和局限"} /></div>
+          <div className="review-actions">
+            <button className="button" disabled={busy || Boolean(terminalReview)} onClick={() => decide("approved")} type="button">{selected.kind === "gap" ? "接受缺口（维持 J0）" : "确认可用"}</button>
+            <button className="button-secondary" disabled={busy || Boolean(terminalReview)} onClick={() => decide("rework")} type="button">退回补证</button>
+            <button className="button-quiet" disabled={busy || Boolean(terminalReview)} onClick={() => decide("dismissed")} type="button">驳回</button>
+          </div>
+          {terminalReview ? <p className="muted">该审阅已结束；如需改变结论，请重新生成稿件，旧审阅任务会自动作废并由新版本取代。</p> : null}
+          {error ? <div className="notice error">{error}</div> : null}
+        </> : null}
+      </aside>
+    </div>
   </div>;
 }

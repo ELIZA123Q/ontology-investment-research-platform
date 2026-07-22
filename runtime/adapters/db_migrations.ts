@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const LATEST_DATABASE_SCHEMA_VERSION = 7;
+export const LATEST_DATABASE_SCHEMA_VERSION = 10;
 
 type Migration = {
   version: number;
@@ -210,6 +210,70 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 8,
+    description: "source authority type taxonomy",
+    apply(connection) {
+      ensureColumn(connection, "source", "authority_type", "TEXT NOT NULL DEFAULT 'unknown'");
+    },
+  },
+  {
+    version: 9,
+    description: "durable research jobs with fenced leases, retries and budgets",
+    apply(connection) {
+      connection.exec(`
+        CREATE TABLE IF NOT EXISTS research_jobs (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL,
+          job_type TEXT NOT NULL,
+          stage TEXT NOT NULL DEFAULT '',
+          artifact_id TEXT,
+          status TEXT NOT NULL DEFAULT 'queued'
+            CHECK(status IN ('queued','running','waiting_for_review','waiting_for_input','retrying','blocked','completed','cancelled')),
+          dedupe_key TEXT NOT NULL,
+          lease_token TEXT,
+          worker_id TEXT,
+          lease_expires_at TEXT,
+          heartbeat_at TEXT,
+          attempt INTEGER NOT NULL DEFAULT 0 CHECK(attempt >= 0),
+          max_attempts INTEGER NOT NULL DEFAULT 3 CHECK(max_attempts > 0),
+          available_at TEXT NOT NULL,
+          budget_json TEXT NOT NULL DEFAULT '{}',
+          input_artifacts_json TEXT NOT NULL DEFAULT '[]',
+          input_hash TEXT NOT NULL,
+          payload_json TEXT NOT NULL DEFAULT '{}',
+          result_json TEXT NOT NULL DEFAULT '{}',
+          last_error TEXT,
+          queued_at TEXT NOT NULL,
+          started_at TEXT,
+          finished_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          FOREIGN KEY(run_id) REFERENCES research_runs(id) ON DELETE CASCADE,
+          FOREIGN KEY(artifact_id) REFERENCES artifacts(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_research_jobs_claim
+          ON research_jobs(status, available_at, created_at);
+        CREATE INDEX IF NOT EXISTS idx_research_jobs_run
+          ON research_jobs(run_id, created_at DESC);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_research_jobs_active_dedupe
+          ON research_jobs(dedupe_key)
+          WHERE status IN ('queued','running','waiting_for_review','waiting_for_input','retrying');
+      `);
+    },
+  },
+  {
+    version: 10,
+    description: "allow new generation after a prior job reaches human review",
+    apply(connection) {
+      connection.exec(`
+        DROP INDEX IF EXISTS idx_research_jobs_active_dedupe;
+        CREATE UNIQUE INDEX idx_research_jobs_active_dedupe
+          ON research_jobs(dedupe_key)
+          WHERE status IN ('queued','running','waiting_for_input','retrying');
+      `);
+    },
+  },
 ];
 
 export function runDatabaseMigrations(connection: DatabaseSync) {
@@ -245,4 +309,17 @@ export function runDatabaseMigrations(connection: DatabaseSync) {
 export function databaseSchemaVersion(connection: DatabaseSync) {
   if (!hasTable(connection, "schema_migrations")) return 0;
   return Number((connection.prepare("SELECT COALESCE(MAX(version),0) AS version FROM schema_migrations").get() as { version: number }).version);
+}
+
+/** Recover legacy running artifacts without terminating another process's valid leased work. */
+export function recoverOrphanedRunningArtifacts(connection: DatabaseSync, now = new Date().toISOString()) {
+  const result = connection.prepare(`UPDATE artifacts SET
+    status='failed', error_message=COALESCE(error_message, '服务中断，后台任务将从阶段起点重试')
+    WHERE status='running' AND NOT EXISTS (
+      SELECT 1 FROM research_jobs job
+      WHERE job.artifact_id=artifacts.id
+        AND job.status='running'
+        AND job.lease_expires_at > ?
+    )`).run(now);
+  return Number(result.changes);
 }

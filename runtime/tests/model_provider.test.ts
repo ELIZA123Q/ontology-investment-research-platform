@@ -11,6 +11,8 @@ const KEYS = [
   "DEEPSEEK_MODEL",
   "DEEPSEEK_REVIEW_MODEL",
   "DEEPSEEK_REVIEW_API_KEY",
+  "DEEPSEEK_REQUEST_TIMEOUT_MS",
+  "DEEPSEEK_GENERATION_TIMEOUT_MS",
   "OPENAI_COMPAT_API_KEY",
   "OPENAI_COMPAT_MODEL",
   "OPENAI_COMPAT_REVIEW_API_KEY",
@@ -45,6 +47,16 @@ describe("resolveModelProvider", () => {
     expect(resolved.provider).toBe("deepseek");
     expect(resolved.model).toBe("deepseek-v4-flash");
     expect(resolved.baseURL).toContain("deepseek");
+    expect(resolved.requestTimeoutMs).toBe(600_000);
+    expect(resolved.generationTimeoutMs).toBe(3_600_000);
+  });
+
+  it("keeps long stage leases from being capped too aggressively", async () => {
+    clearKeys();
+    const { generationLeaseMs } = await import("@/adapters/model_provider");
+    expect(generationLeaseMs()).toBe(3_600_000);
+    process.env.DEEPSEEK_GENERATION_TIMEOUT_MS = "7200000";
+    expect(generationLeaseMs()).toBe(7_200_000);
   });
 
   it("resolves openai_compatible reviewer independently", () => {

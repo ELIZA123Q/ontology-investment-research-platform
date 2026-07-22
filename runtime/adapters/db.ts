@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
@@ -20,7 +21,7 @@ import type {
 } from "../engine/types";
 import { createChildManifest, createEmptyManifest, parseManifest, recordApprovedStage } from "../engine/manifest";
 import { repositoryPath } from "./repo-paths";
-import { databaseSchemaVersion, runDatabaseMigrations } from "./db_migrations";
+import { databaseSchemaVersion, recoverOrphanedRunningArtifacts, runDatabaseMigrations } from "./db_migrations";
 import { extractGraph } from "../engine/instance_graph";
 import { validateRuntimeGraph } from "../engine/graph_contract";
 import { evidenceBoundSourceIds } from "../engine/evidence_sources";
@@ -36,9 +37,16 @@ function getDb() {
   const connection = new DatabaseSync(dbPath);
   connection.exec("PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;");
   runDatabaseMigrations(connection);
-  connection.prepare("UPDATE artifacts SET status='failed', error_message=COALESCE(error_message, '服务中断，请重新生成') WHERE status='running'").run();
+  // 多进程 worker 会各自打开 SQLite；新进程启动不能误杀其他 worker
+  // 仍持有有效 job 租约的 running artifact。仅回收无任务或租约已失效的遗留产物。
+  recoverOrphanedRunningArtifacts(connection);
   globalDb.workbenchDb = connection;
   return connection;
+}
+
+/** Shared SQLite connection for page-oriented read models. */
+export function getWorkbenchDb(): DatabaseSync {
+  return getDb();
 }
 
 const db = new Proxy({} as DatabaseSync, {
@@ -82,20 +90,19 @@ function mapRun(row: any): ResearchRun {
 export function listRuns(): ResearchRun[] {
   return (db.prepare("SELECT * FROM research_runs ORDER BY created_at DESC").all() as any[]).map(mapRun);
 }
-export function getRun(id: string): ResearchRun | undefined {
+export const getRun = cache(function getRun(id: string): ResearchRun | undefined {
   const row = db.prepare("SELECT * FROM research_runs WHERE id=?").get(id) as any;
   return row ? mapRun(row) : undefined;
-}
+});
 export function previousComparableRun(runId: string): ResearchRun | undefined {
   const current = getRun(runId);
   if (!current) return undefined;
-  return listRuns().find(
-    (candidate) =>
-      candidate.id !== current.id
-      && candidate.domain === current.domain
-      && candidate.question.trim() === current.question.trim()
-      && candidate.created_at < current.created_at,
-  );
+  const row = db.prepare(
+    `SELECT * FROM research_runs
+     WHERE id != ? AND domain = ? AND trim(question) = ? AND created_at < ?
+     ORDER BY created_at DESC LIMIT 1`,
+  ).get(current.id, current.domain, current.question.trim(), current.created_at) as any;
+  return row ? mapRun(row) : undefined;
 }
 export function createRun(
   question: string,
@@ -156,6 +163,47 @@ export function updateRun(id: string, fields: Partial<Pick<ResearchRun, "package
   return getRun(id)!;
 }
 
+/** Collect run id and all descendant incremental runs (children first, root last). */
+export function collectRunSubtreeIds(rootId: string): string[] {
+  const childrenByParent = new Map<string, string[]>();
+  for (const run of listRuns()) {
+    if (!run.parent_run_id) continue;
+    const siblings = childrenByParent.get(run.parent_run_id) || [];
+    siblings.push(run.id);
+    childrenByParent.set(run.parent_run_id, siblings);
+  }
+  const ordered: string[] = [];
+  const visit = (id: string) => {
+    for (const childId of childrenByParent.get(id) || []) visit(childId);
+    ordered.push(id);
+  };
+  visit(rootId);
+  return ordered;
+}
+
+function deleteRunRecords(runId: string): void {
+  // action_executions.proposal_id and action_proposals.work_item_id use RESTRICT —
+  // clear them before cascading work items / proposals / the run itself.
+  db.prepare("DELETE FROM action_executions WHERE run_id=?").run(runId);
+  db.prepare("DELETE FROM action_proposals WHERE run_id=?").run(runId);
+  db.prepare("DELETE FROM research_work_items WHERE run_id=?").run(runId);
+  db.prepare("DELETE FROM event_impacts WHERE run_id=?").run(runId);
+  db.prepare("DELETE FROM artifacts WHERE run_id=?").run(runId);
+  db.prepare("DELETE FROM source WHERE run_id=?").run(runId);
+  db.prepare("DELETE FROM research_runs WHERE id=?").run(runId);
+}
+
+/** Hard-delete a research run and all of its incremental descendant runs. */
+export function deleteRun(id: string): { deleted_ids: string[] } {
+  const run = getRun(id);
+  if (!run) throw new Error("任务不存在");
+  const deletedIds = collectRunSubtreeIds(id);
+  withImmediateTransaction(() => {
+    for (const runId of deletedIds) deleteRunRecords(runId);
+  });
+  return { deleted_ids: deletedIds };
+}
+
 export function createChildRun(
   parentRunId: string,
   triggerEventId: string,
@@ -214,6 +262,7 @@ export function createChildRun(
         published_at: source.published_at,
         source_type: `inherited:${source.source_type}`,
         source_tier: source.source_tier,
+        authority_type: source.authority_type || "unknown",
         source_group: source.source_group,
         search_excerpt: source.search_excerpt,
         locator: source.locator,
@@ -273,16 +322,24 @@ export function listArtifacts(runId: string): Artifact[] {
 export function getArtifact(id: string): Artifact | undefined {
   return db.prepare("SELECT * FROM artifacts WHERE id=?").get(id) as Artifact | undefined;
 }
-export function latestArtifact(runId: string, kind: ArtifactKind, statuses?: ArtifactStatus[]): Artifact | undefined {
-  if (!statuses?.length) {
+const latestArtifactCached = cache(function latestArtifactCached(
+  runId: string,
+  kind: ArtifactKind,
+  statusKey: string,
+): Artifact | undefined {
+  if (!statusKey) {
     return db.prepare(
       "SELECT * FROM artifacts WHERE run_id=? AND kind=? ORDER BY version DESC LIMIT 1",
     ).get(runId, kind) as Artifact | undefined;
   }
+  const statuses = statusKey.split(",") as ArtifactStatus[];
   const placeholders = statuses.map(() => "?").join(",");
   return db.prepare(
     `SELECT * FROM artifacts WHERE run_id=? AND kind=? AND status IN (${placeholders}) ORDER BY version DESC LIMIT 1`,
   ).get(runId, kind, ...statuses) as Artifact | undefined;
+});
+export function latestArtifact(runId: string, kind: ArtifactKind, statuses?: ArtifactStatus[]): Artifact | undefined {
+  return latestArtifactCached(runId, kind, statuses?.length ? statuses.join(",") : "");
 }
 export function createArtifact(runId: string, kind: ArtifactKind, data: Partial<Artifact> = {}): Artifact {
   const version = Number((db.prepare("SELECT COALESCE(MAX(version),0)+1 v FROM artifacts WHERE run_id=? AND kind=?").get(runId, kind) as { v: number }).v);
@@ -409,11 +466,13 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
       return prior;
     }
     db.prepare(`UPDATE source SET
-      title=?,publisher=?,published_at=?,source_type=?,source_tier=?,source_group=?,search_excerpt=?,locator=?,captured_at=?,content_hash=?,
+      title=?,publisher=?,published_at=?,source_type=?,source_tier=?,authority_type=?,source_group=?,search_excerpt=?,locator=?,captured_at=?,content_hash=?,
       usability_status=?,failure_category=?,failure_detail=?,final_url=?,content_mime=?,http_status=?,retrieval_status=?,
       snapshot_text=?,source_quote=?,quote_verified=? WHERE id=?`).run(
       input.title, input.publisher, input.published_at, input.source_type,
-      input.source_tier || prior.source_tier || "S8", input.source_group || prior.source_group || sourceGroupFromUrl(input.url, input.publisher), input.search_excerpt,
+      input.source_tier || prior.source_tier || "S8",
+      input.authority_type || prior.authority_type || "unknown",
+      input.source_group || prior.source_group || sourceGroupFromUrl(input.url, input.publisher), input.search_excerpt,
       input.locator ?? prior.locator ?? input.url,
       input.captured_at ?? prior.captured_at ?? new Date().toISOString(),
       input.content_hash ?? prior.content_hash ?? "",
@@ -448,6 +507,7 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
     http_status: input.http_status ?? null,
     retrieval_status: input.retrieval_status || "not_attempted",
     source_tier: input.source_tier || "S8",
+    authority_type: input.authority_type || "unknown",
     source_group: input.source_group || sourceGroupFromUrl(input.url, input.publisher),
     snapshot_text: input.snapshot_text || "",
     source_quote: input.source_quote || "",
@@ -455,9 +515,9 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
   };
   db.prepare(`INSERT INTO source(
     id,run_id,normalized_url,url,title,publisher,published_at,accessed_at,source_type,search_excerpt,
-    source_tier,source_group,locator,captured_at,content_hash,usability_status,failure_category,failure_detail,
+    source_tier,authority_type,source_group,locator,captured_at,content_hash,usability_status,failure_category,failure_detail,
     final_url,content_mime,http_status,retrieval_status,snapshot_text,source_quote,quote_verified
-  ) VALUES(${Array(25).fill("?").join(",")})`).run(
+  ) VALUES(${Array(26).fill("?").join(",")})`).run(
     row.id,
     row.run_id,
     row.normalized_url,
@@ -469,6 +529,7 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
     row.source_type,
     row.search_excerpt,
     row.source_tier || "S8",
+    row.authority_type || "unknown",
     row.source_group || sourceGroupFromUrl(row.url, row.publisher),
     row.locator || row.url,
     row.captured_at || accessedAt,

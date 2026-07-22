@@ -1,12 +1,14 @@
 import "server-only";
 
 import OpenAI from "openai";
-import { zodFunction } from "openai/helpers/zod";
+import { assertModelStructuredSchema } from "../engine/model_schema_helpers";
 import { z } from "zod";
+import { zodFunction } from "openai/helpers/zod";
 import { schemas, type SchemaKind } from "../engine/schemas";
 import { ontologyToolDefinitions, runOntologyTool, type OntologyToolName } from "../engine/ontology_tools";
 import { captureSourceSnapshot } from "../engine/source_snapshot";
 import { resolveModelProvider, type ModelRole, type ResolvedModelProvider } from "./model_provider";
+import type { GenerationProgressEvent } from "../engine/generation_progress";
 
 type Citation = { url: string; title: string };
 export type ModelResult<T> = {
@@ -18,12 +20,30 @@ export type ModelResult<T> = {
   citations: Citation[];
 };
 
-type GenerateOptions = {
+export type GenerateOptions = {
   webSearch?: boolean;
   ontologyTools?: boolean;
   runId?: string;
   validateOutput?: (data: unknown) => void;
+  /** Soft-normalize near-miss model JSON before schema validation. */
+  repairOutput?: (data: unknown) => unknown;
+  onProgress?: (progress: GenerationProgressEvent) => void;
 };
+
+export function accumulateTokenUsage(
+  accumulated: unknown,
+  current: unknown,
+): { prompt_tokens: number; completion_tokens: number; total_tokens: number } {
+  const prior = accumulated && typeof accumulated === "object" ? accumulated as Record<string, unknown> : {};
+  const next = current && typeof current === "object" ? current as Record<string, unknown> : {};
+  const priorInput = Number(prior.prompt_tokens ?? prior.input_tokens ?? 0) || 0;
+  const priorOutput = Number(prior.completion_tokens ?? prior.output_tokens ?? 0) || 0;
+  const nextInput = Number(next.prompt_tokens ?? next.input_tokens ?? 0) || 0;
+  const nextOutput = Number(next.completion_tokens ?? next.output_tokens ?? 0) || 0;
+  const promptTokens = Math.max(0, priorInput) + Math.max(0, nextInput);
+  const completionTokens = Math.max(0, priorOutput) + Math.max(0, nextOutput);
+  return { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens };
+}
 
 export { resolveModelProvider, listConfiguredProviders } from "./model_provider";
 export type { ModelProviderId, ModelRole, ResolvedModelProvider } from "./model_provider";
@@ -104,6 +124,7 @@ export class DeepSeekClient {
     input: string,
     options: GenerateOptions = {},
   ): Promise<ModelResult<T>> {
+    assertModelStructuredSchema(name, schema);
     const submitName = `submit_${name}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
     const submitTool = zodFunction({
       name: submitName,
@@ -130,18 +151,28 @@ export class DeepSeekClient {
     let lastSubmitError = "";
     const generationTimeoutMs = this.config.generationTimeoutMs;
     const deadline = Date.now() + generationTimeoutMs;
-    // Reserve part of the total lease for a schema-validated direct JSON retry.
-    // Some model endpoints occasionally stall while deciding between many tools;
-    // a fresh no-tool request is materially more reliable for already-frozen input.
-    const toolPhaseDeadline = Date.now() + Math.max(15_000, Math.floor(generationTimeoutMs * 0.7));
-
-    const maxRounds = options.webSearch ? 16 : 10;
+    // Stage 02/03/04 长跑是常态：工具轮次用满整体预算，不再为“直接 JSON 降级”预留 30% 而提前掐断。
+    // 直接 JSON 仅在工具轮次自然结束后、仍有剩余时间时作为结构修复手段，而不是超时逃生舱。
+    const maxRounds = options.webSearch ? 32 : 20;
+    let consecutiveRoundTimeouts = 0;
+    const emitProgress = (progress: GenerationProgressEvent) => {
+      try { options.onProgress?.(progress); } catch { /* progress must not abort generation */ }
+    };
     for (let round = 0; round < maxRounds; round++) {
-      const remaining = toolPhaseDeadline - Date.now();
-      if (remaining <= 0) {
-        lastSubmitError = `工具模式超过预留时限 ${Math.floor(generationTimeoutMs * 0.7)}ms`;
+      const remaining = deadline - Date.now();
+      if (remaining <= 5_000) {
+        lastSubmitError = `整体生成时限将尽（${generationTimeoutMs}ms）`;
         break;
       }
+      const toolNames = toolTrace.map((item) => String(item.name));
+      emitProgress({
+        phase: "model_round",
+        round: round + 1,
+        max_rounds: maxRounds,
+        tool_names: toolNames,
+        last_tool: toolNames.at(-1),
+        message: `等待模型第 ${round + 1}/${maxRounds} 轮`,
+      });
       let response: any;
       const requestBudgetMs = Math.min(remaining, this.config.requestTimeoutMs);
       const controller = new AbortController();
@@ -167,9 +198,19 @@ export class DeepSeekClient {
             }, requestBudgetMs);
           }),
         ]);
+        consecutiveRoundTimeouts = 0;
       } catch (error) {
         if (/timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
+          consecutiveRoundTimeouts += 1;
           lastSubmitError = `工具模式第 ${round + 1} 轮超时`;
+          // 单轮变慢不视为失败：有剩余预算时继续催提交，连续超时两次才退出工具环。
+          if (consecutiveRoundTimeouts < 2 && deadline - Date.now() > Math.min(30_000, this.config.requestTimeoutMs / 2)) {
+            messages.push({
+              role: "user",
+              content: `上一轮模型请求超时。不要因耗时放弃；请立即调用 ${submitName} 提交当前可核验结果；证据不足时明确登记 gap，禁止继续无节制扩展检索。`,
+            });
+            continue;
+          }
           break;
         }
         throw error;
@@ -177,7 +218,7 @@ export class DeepSeekClient {
         if (hardTimer) clearTimeout(hardTimer);
       }
       lastResponseId = response.id || "";
-      lastUsage = response.usage || {};
+      lastUsage = accumulateTokenUsage(lastUsage, response.usage);
       const message: any = response.choices?.[0]?.message;
       if (!message) throw new Error(`${this.config.displayName} 未返回消息`);
       raw += `${message.reasoning_content || ""}${message.content || ""}`;
@@ -195,7 +236,8 @@ export class DeepSeekClient {
 
         if (toolName === submitName) {
           try {
-            const parsed = schema.parse(args);
+            const candidate = options.repairOutput ? options.repairOutput(args) : args;
+            const parsed = schema.parse(candidate);
             options.validateOutput?.(parsed);
             return {
               data: parsed,
@@ -211,6 +253,14 @@ export class DeepSeekClient {
               role: "tool",
               tool_call_id: call.id,
               content: JSON.stringify({ error: "提交内容未通过结构或语义校验", details: error instanceof Error ? error.message : String(error) }).slice(0, 12000),
+            });
+            emitProgress({
+              phase: "submit_retry",
+              round: round + 1,
+              max_rounds: maxRounds,
+              tool_names: toolTrace.map((item) => String(item.name)),
+              last_tool: toolTrace.length ? String(toolTrace.at(-1)?.name) : undefined,
+              message: `提交未通过校验，正在重试（第 ${round + 1} 轮）`,
             });
             continue;
           }
@@ -232,8 +282,17 @@ export class DeepSeekClient {
         }
         toolTrace.push({ name: toolName, arguments: args, result });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result).slice(0, 24000) });
+        const names = toolTrace.map((item) => String(item.name));
+        emitProgress({
+          phase: "tool_call",
+          round: round + 1,
+          max_rounds: maxRounds,
+          tool_names: names,
+          last_tool: toolName,
+          message: progressMessageForTool(toolName),
+        });
       }
-      if (round >= maxRounds - 4) {
+      if (round >= maxRounds - 6) {
         messages.push({
           role: "user",
           content: `工具调用仅剩 ${maxRounds - round - 1} 轮。停止扩展检索；对未取得可核验正文的要求明确形成 gap，并尽快调用 ${submitName} 提交。`,
@@ -241,7 +300,15 @@ export class DeepSeekClient {
       }
     }
     const directRemaining = deadline - Date.now();
-    if (directRemaining > 5_000) {
+    if (directRemaining > 15_000) {
+      emitProgress({
+        phase: "direct_json",
+        round: maxRounds,
+        max_rounds: maxRounds,
+        tool_names: toolTrace.map((item) => String(item.name)),
+        last_tool: toolTrace.length ? String(toolTrace.at(-1)?.name) : undefined,
+        message: "工具轮次结束，正在直接补交结构化 JSON",
+      });
       try {
         const direct = await this.generateDirectJson(
           name,
@@ -250,16 +317,18 @@ export class DeepSeekClient {
           input,
           toolTrace,
           options.validateOutput,
-          directRemaining,
+          Math.min(directRemaining, this.config.requestTimeoutMs),
+          options.repairOutput,
         );
         return {
           ...direct,
           raw: `${raw}${direct.raw}`,
           citations: dedupeCitations(citations),
+          usage: accumulateTokenUsage(lastUsage, direct.usage),
           toolUsage: { ...summarizeToolTrace(toolTrace), structured_submission_mode: "direct_json_fallback" },
         };
       } catch (error) {
-        lastSubmitError = `${lastSubmitError ? `${lastSubmitError}；` : ""}直接 JSON 降级失败: ${error instanceof Error ? error.message : String(error)}`;
+        lastSubmitError = `${lastSubmitError ? `${lastSubmitError}；` : ""}直接 JSON 补交失败: ${error instanceof Error ? error.message : String(error)}`;
       }
     }
     const toolSummary = toolTrace.map((item) => String(item.name)).join(", ");
@@ -278,6 +347,7 @@ export class DeepSeekClient {
     toolTrace: Array<Record<string, unknown>>,
     validateOutput: GenerateOptions["validateOutput"],
     timeoutMs: number,
+    repairOutput?: GenerateOptions["repairOutput"],
   ): Promise<ModelResult<T>> {
     const schemaJson = JSON.stringify(z.toJSONSchema(schema));
     const toolContext = toolTrace.length
@@ -309,7 +379,7 @@ export class DeepSeekClient {
       const message = response.choices?.[0]?.message;
       const raw = String(message?.content || "").trim();
       if (!raw) throw new Error("直接 JSON 降级未返回正文");
-      const parsed = parseDirectJson(raw, schema);
+      const parsed = parseDirectJson(raw, schema, repairOutput);
       validateOutput?.(parsed);
       return {
         data: parsed,
@@ -321,7 +391,7 @@ export class DeepSeekClient {
       };
     } catch (error) {
       if (/timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
-        throw new Error(`MODEL_TIMEOUT: ${this.config.displayName} 直接 JSON 降级未在保留时限内返回`, { cause: error });
+        throw new Error(`MODEL_TIMEOUT: ${this.config.displayName} 直接 JSON 补交未在剩余时限内返回`, { cause: error });
       }
       throw error;
     } finally {
@@ -341,7 +411,11 @@ export function createResearchModelClient(role: ModelRole = "producer"): Researc
   return new ResearchModelClient(role);
 }
 
-export function parseDirectJson<T>(raw: string, schema: z.ZodType<T>): T {
+export function parseDirectJson<T>(
+  raw: string,
+  schema: z.ZodType<T>,
+  repairOutput?: (data: unknown) => unknown,
+): T {
   const normalized = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   let value: unknown;
   try {
@@ -349,7 +423,8 @@ export function parseDirectJson<T>(raw: string, schema: z.ZodType<T>): T {
   } catch (error) {
     throw new Error(`直接 JSON 降级返回无法解析: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return schema.parse(value);
+  const candidate = repairOutput ? repairOutput(value) : value;
+  return schema.parse(candidate);
 }
 
 async function searchPublicWeb(args: Record<string, unknown>, citations: Citation[]) {
@@ -458,6 +533,15 @@ function decodeXml(value: string) {
 
 function dedupeCitations(citations: Citation[]) {
   return [...new Map(citations.map((item) => [item.url, item])).values()];
+}
+
+function progressMessageForTool(toolName: string): string {
+  if (toolName === "search_public_web") return "已完成公开网页检索";
+  if (toolName === "fetch_public_pages") return "已抓取公开页面正文";
+  if (toolName.startsWith("query_") || toolName.includes("ontology") || toolName.includes("object")) {
+    return `已调用本体工具 ${toolName}`;
+  }
+  return `已调用工具 ${toolName}`;
 }
 
 function summarizeToolTrace(trace: Array<Record<string, unknown>>) {

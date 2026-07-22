@@ -88,6 +88,24 @@ export const judgmentStructureSchema = z.object({
     role: nonEmptyString,
   })),
   paths: z.array(z.object({ id: nonEmptyString, statement: nonEmptyString, variable_ids: z.array(z.string()) })),
+  // optional 字段必须同时 nullable，以兼容 DeepSeek/OpenAI 严格函数 Schema
+  //（所有 properties 均须 required；缺省用 null 表示）。保留 .optional() 以便兼容旧产物缺字段。
+  questions: z.array(z.object({
+    id: nonEmptyString,
+    statement: nonEmptyString.nullable().optional(),
+    question: nonEmptyString.nullable().optional(),
+    scope_ref: z.string().nullable().optional(),
+    failure_route: z.enum(["stop", "downgrade", "competing_explanation", "return_to_structure"]).nullable().optional(),
+  }).refine((item) => Boolean(item.statement || item.question), { message: "研究问题缺少 statement/question" })).default([]),
+  evidence_requirements: z.array(z.object({
+    id: nonEmptyString,
+    requirement: nonEmptyString,
+    evidence_role: z.enum(["support", "counter", "context", "boundary"]),
+    minimum_independent_sources: z.number().int().nonnegative(),
+    judgment_unit_ids: z.array(z.string()).default([]),
+    source: z.enum(["unit_requirement", "counter_direction"]).nullable().optional(),
+    source_ref: z.string().nullable().optional(),
+  })).default([]),
   counter_evidence_directions: z.array(z.preprocess(
     (value) => {
       if (typeof value === "string") {
@@ -112,14 +130,35 @@ export const judgmentStructureSchema = z.object({
   competing_explanations: z.array(z.preprocess(
     (value) => {
       if (typeof value === "string") {
-        return { explanation_id: "CE-COERCED", statement: value, judgment_unit_ids: [] };
+        const statement = value.trim();
+        return {
+          explanation_id: "CE-COERCED",
+          statement,
+          judgment_unit_ids: [],
+          discriminating_evidence: statement
+            ? [`需可区分「${statement}」与主判断路径的对照证据`]
+            : ["需可区分主判断路径与该竞争解释的对照证据"],
+        };
       }
       if (value && typeof value === "object") {
         const record = value as Record<string, unknown>;
+        const statement = String(record.statement || "").trim();
+        let discriminating = Array.isArray(record.discriminating_evidence)
+          ? record.discriminating_evidence.map(String).map((item) => item.trim()).filter(Boolean)
+          : [];
+        if (!discriminating.length && Array.isArray(record.discriminating_evidence_requirements)) {
+          discriminating = record.discriminating_evidence_requirements.map(String).map((item) => item.trim()).filter(Boolean);
+        }
+        if (!discriminating.length) {
+          discriminating = statement
+            ? [`需可区分「${statement}」与主判断路径的对照证据`]
+            : ["需可区分主判断路径与该竞争解释的对照证据"];
+        }
         return {
           explanation_id: String(record.explanation_id || record.id || "CE-COERCED"),
           statement: String(record.statement || ""),
           judgment_unit_ids: Array.isArray(record.judgment_unit_ids) ? record.judgment_unit_ids.map(String) : [],
+          discriminating_evidence: discriminating,
         };
       }
       return value;
@@ -128,6 +167,7 @@ export const judgmentStructureSchema = z.object({
       explanation_id: nonEmptyString,
       statement: nonEmptyString,
       judgment_unit_ids: z.array(z.string()).default([]),
+      discriminating_evidence: z.array(z.string().min(1)).min(1),
     }),
   )),
   document_markdown: markdown,
@@ -155,6 +195,17 @@ export const judgmentStructureSchema = z.object({
       }
     }
   }
+  for (const [index, item] of value.evidence_requirements.entries()) {
+    for (const unitId of item.judgment_unit_ids) {
+      if (!unitIds.has(unitId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["evidence_requirements", index, "judgment_unit_ids"],
+          message: `证据要求挂接了不存在的判断单元 ${unitId}`,
+        });
+      }
+    }
+  }
 });
 
 const sourceDraft = z.object({
@@ -168,6 +219,7 @@ const sourceDraft = z.object({
   publisher: z.string(),
   published_at: nonEmptyString,
   source_tier: z.enum(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]),
+  authority_type: z.enum(["official", "company_disclosure", "industry_provider", "public_secondary", "unknown"]).default("unknown"),
   source_type: nonEmptyString,
   search_excerpt: z.string(),
   locator: nonEmptyString,
@@ -261,6 +313,7 @@ export const judgmentDecisionSchema = z.object({
     signal_ids: z.array(z.string()),
     falsification_conditions: z.array(z.string()).min(1),
     time_horizon: nonEmptyString,
+    judgment_unit_ids: z.array(z.string()).default([]),
   })).min(1),
   competing_explanations: z.array(z.object({
     id: nonEmptyString,
@@ -269,7 +322,7 @@ export const judgmentDecisionSchema = z.object({
     discriminating_evidence: z.array(z.string()).min(1),
     status: z.enum(["active", "weakened", "eliminated", "unknown"]),
     elimination_rationale: z.string(),
-    source_explanation_id: z.string().optional(),
+    source_explanation_id: z.string().nullable().optional(),
     judgment_unit_ids: z.array(z.string()).default([]),
   })).min(1),
   rule_evaluations: z.array(z.object({
