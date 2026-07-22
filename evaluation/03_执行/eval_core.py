@@ -31,6 +31,18 @@ PROTOCOL_PATH = RUNTIME_ROOT / "protocol.yaml"
 
 R_ORDER = {"R0": 0, "R1": 1, "R2": 2, "R3": 3}
 C_ORDER = {"C0": 0, "C1": 1, "C2": 2, "C3": 3}
+PERTURBATION_ACTIONS = (
+    "maintain",
+    "maintain_abstention",
+    "downgrade",
+    "weaken",
+    "dispute",
+    "abstain",
+    "reopen",
+    "reject_scope_substitution",
+    "differentiate",
+    "strengthen",
+)
 ROLE_RESPONSE_SCHEMAS: dict[str, dict[str, Any]] = {
     "calibration": {
         "type": "object",
@@ -56,7 +68,7 @@ ROLE_RESPONSE_SCHEMAS: dict[str, dict[str, Any]] = {
     "perturbation": {
         "type": "object",
         "properties": {
-            "action": {"type": "string"},
+            "action": {"type": "string", "enum": list(PERTURBATION_ACTIONS)},
             "sensitivity_passed": {"type": "boolean"},
             "rationale": {"type": "string"},
         },
@@ -239,9 +251,11 @@ ROLE_RESPONSE_SCHEMAS: dict[str, dict[str, Any]] = {
     },
 }
 ROLE_OUTPUT_TOKEN_LIMITS: dict[str, int] = {
-    "calibration": 512,
-    "calibration_clean": 384,
-    "perturbation": 512,
+    # DeepSeek flash 会把 reasoning tokens 计入 completion；过低上限会产生已计费但无最终 JSON 的空响应。
+    # 总成本由 --max-new-requests 控制，单次上限按既有成功日志留出形成最终结构化答案的空间。
+    "calibration": 2048,
+    "calibration_clean": 1024,
+    "perturbation": 1600,
     "pairwise": 768,
     "claim_extractor": 1200,
     "claim_reconciler": 1600,
@@ -354,6 +368,23 @@ def normalize_role_result(row: dict[str, Any]) -> dict[str, Any]:
     """Map legacy pairwise-shaped calibration JSON into flat metric fields."""
     result = dict(row.get("result") or {})
     meta = row.get("request_metadata") or {}
+    if meta.get("role") == "perturbation":
+        nested = result.get("evaluation") if isinstance(result.get("evaluation"), dict) else {}
+        raw_action = (
+            result.get("action")
+            or nested.get("action")
+            or nested.get("result")
+            or result.get("judgment")
+            or result.get("decision")
+            or result.get("verdict")
+            or result.get("final_answer_type")
+            or result.get("conclusion_impact")
+            or result.get("final_judgment")
+            or result.get("new_conclusion")
+            or ""
+        )
+        result["action"] = normalize_perturbation_action(raw_action)
+        return result
     if meta.get("role") != "calibration" or "defect_detected" in result or "candidate_1" not in result:
         return result
     order = meta.get("candidate_order") or ["normal", "variant"]
@@ -379,6 +410,29 @@ def normalize_role_result(row: dict[str, Any]) -> dict[str, Any]:
                 variant_result.get("defect_detected")
             )
     return normalized
+
+
+def normalize_perturbation_action(value: Any) -> str:
+    """Normalize legacy Chinese/free-text actions to the frozen action vocabulary."""
+    text = str(value or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if text in PERTURBATION_ACTIONS:
+        return text
+    aliases = (
+        (("维持暂不可判断", "维持弃答", "maintain_abstention"), "maintain_abstention"),
+        (("拒绝口径替换", "拒绝范围替换", "reject_scope", "scope_substitution"), "reject_scope_substitution"),
+        (("重新打开", "重开", "重新判断", "reopen"), "reopen"),
+        (("转争议", "争议", "dispute", "contested"), "dispute"),
+        (("区分", "分化", "differentiate"), "differentiate"),
+        (("加强", "强化", "解决", "strengthen", "resolve"), "strengthen"),
+        (("降级", "downgrade"), "downgrade"),
+        (("削弱", "weaken"), "weaken"),
+        (("弃答", "暂不可判断", "abstain"), "abstain"),
+        (("维持", "maintain", "unchanged"), "maintain"),
+    )
+    for tokens, canonical in aliases:
+        if any(token in text for token in tokens):
+            return canonical
+    return text
 
 
 def purge_error_responses(response_log: Path) -> int:
@@ -469,6 +523,8 @@ def validate_profiles(path: Path, require_official: bool = False) -> dict[str, A
     judge_ids = [profiles[name]["model_id"] for name in judge_names]
     downstream_ids = [profiles[name]["model_id"] for name in downstream_names]
     run_mode = str(registry["run_mode"])
+    if run_mode not in {"development", "single_vendor", "official"}:
+        raise EvalError(f"未知 run_mode: {run_mode}")
     single_vendor = run_mode == "single_vendor"
     distinct_ids = {producer_id, *judge_ids, *downstream_ids}
 
@@ -500,6 +556,21 @@ def validate_profiles(path: Path, require_official: bool = False) -> dict[str, A
             raise EvalError("两个下游执行档案必须使用不同 model_id")
         if set(judge_ids) & set(downstream_ids):
             raise EvalError("下游任务执行模型不得给自己的任务产出评分")
+
+    # 声明资格是冻结运行的一部分。尤其不能让“同一模型扮演所有角色”的冒烟结果
+    # 因校准分数较高而被误写成研究增益证据。
+    if run_mode == "official":
+        registry["evaluation_scope"] = "formal_independent"
+        registry["research_gain_claim_eligible"] = True
+    elif single_vendor and len(distinct_ids) >= 2:
+        registry["evaluation_scope"] = "single_vendor_comparative"
+        registry["research_gain_claim_eligible"] = True
+    elif single_vendor:
+        registry["evaluation_scope"] = "pipeline_only"
+        registry["research_gain_claim_eligible"] = False
+    else:
+        registry["evaluation_scope"] = "development_only"
+        registry["research_gain_claim_eligible"] = False
 
     official = run_mode in {"official", "single_vendor"} or require_official
     if official:
@@ -649,6 +720,15 @@ def validate_case(case_path: Path) -> dict[str, Any]:
     observed_types = {str(item.get("type")) for item in items}
     if not PERTURBATION_TYPES <= observed_types:
         raise EvalError(f"{case['case_id']} 扰动类型不完整: {sorted(PERTURBATION_TYPES - observed_types)}")
+    for item in items:
+        actions = item.get("acceptable_actions")
+        if not isinstance(actions, list) or not actions:
+            raise EvalError(f"{item.get('perturbation_id')} 缺少 acceptable_actions")
+        unknown_actions = set(map(str, actions)) - set(PERTURBATION_ACTIONS)
+        if unknown_actions:
+            raise EvalError(f"{item.get('perturbation_id')} 含未知标准动作: {sorted(unknown_actions)}")
+        if item.get("expected_action") is not None:
+            raise EvalError(f"{item.get('perturbation_id')} 不得继续使用自由字符串 expected_action")
 
     isolation = case["isolation"]
     forbidden = set(isolation.get("producer_forbidden") or [])

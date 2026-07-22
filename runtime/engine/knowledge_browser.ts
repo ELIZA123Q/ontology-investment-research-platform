@@ -5,7 +5,7 @@ import YAML from "yaml";
 import { getRun, latestArtifact } from "@/adapters/db";
 import { repositoryPath } from "@/adapters/repo-paths";
 import { loadGraphForRun } from "@/engine/instance_graph";
-import { ontologyTypeLabel } from "@/engine/ontology_display_labels";
+import { formalStateVariableDisplayNames, ontologyTypeLabel } from "@/engine/ontology_display_labels";
 import { deriveOntologyResearchValue } from "@/engine/ontology_research_value";
 import { parseJson } from "@/engine/types";
 
@@ -56,10 +56,11 @@ export function getRunOntologyResearchValue(runId: string) {
   const stage02 = latestArtifact(runId, "stage_02", ["approved", "needs_review"]);
   const stage04 = latestArtifact(runId, "stage_04", ["approved", "needs_review"]);
   const graph = loadGraphForRun(runId, getRun(runId)?.package_path).graph;
+  const formalVariableNames = formalStateVariableDisplayNames();
   return deriveOntologyResearchValue({
     structure: parseJson(stage02?.json_content || "{}", {}),
     judgment: parseJson(stage04?.json_content || "{}", {}),
     graph,
-    labelForOntologyRef: ontologyTypeLabel,
+    labelForOntologyRef: (ref) => formalVariableNames.get(ref) || ontologyTypeLabel(ref),
   });
 }

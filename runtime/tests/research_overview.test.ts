@@ -44,4 +44,24 @@ describe("research_overview", () => {
     expect(stripInternalReferencePrefix("未取得可核验来源：ER-04:需要两条独立来源")).toBe("未取得可核验来源：需要两条独立来源");
     expect(stripInternalReferencePrefix("普通研究文本")).toBe("普通研究文本");
   });
+
+  it("turns a generated artifact into an explicit human-review action even without work items", () => {
+    const overview = buildResearchOverview({
+      runId: "run-recovered",
+      currentStage: 0,
+      pending: [],
+      awaitingReviewStage: "stage_01",
+      deliveryReady: false,
+      judgments: [],
+      evidence: [],
+    });
+
+    expect(overview.primaryAction).toEqual({
+      eyebrow: "等待人工确认",
+      title: "检查范围草稿",
+      description: "AI 已完成本阶段；确认或退回后才会继续下一阶段。",
+      href: "/runs/run-recovered/stages/1",
+      cta: "去确认 →",
+    });
+  });
 });

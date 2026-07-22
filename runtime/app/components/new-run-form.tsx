@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function NewRunForm() {
-  const [question, setQuestion] = useState("");
+export function NewRunForm({ initialQuestion = "", experienceCaseId = "" }: { initialQuestion?: string; experienceCaseId?: string }) {
+  const [question, setQuestion] = useState(initialQuestion);
   const [domain, setDomain] = useState("semiconductor");
   const [packagePath, setPackagePath] = useState("");
   const [packages, setPackages] = useState<string[]>([]);
@@ -25,7 +25,7 @@ export function NewRunForm() {
     const r = await fetch("/api/runs", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ question, domain, package_path: packagePath || null }),
+      body: JSON.stringify({ question, domain, package_path: packagePath || null, experience_case_id: experienceCaseId || null }),
     });
     const d = await r.json();
     if (!r.ok) {
@@ -45,8 +45,10 @@ export function NewRunForm() {
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="例如：未来 6—12 个月，存储芯片供需是否会由过剩转向平衡？"
           required
+          readOnly={Boolean(experienceCaseId)}
         />
       </div>
+      {experienceCaseId && <div className="notice">体验基线 {experienceCaseId}：问题已冻结。创建后会从第一步开始记录真实操作，不做历史回填。</div>}
       <div className="field">
         <label>知识覆盖领域</label>
         <select value={domain} onChange={(e) => setDomain(e.target.value)}>

@@ -13,6 +13,7 @@ const KEYS = [
   "DEEPSEEK_REVIEW_API_KEY",
   "DEEPSEEK_REQUEST_TIMEOUT_MS",
   "DEEPSEEK_GENERATION_TIMEOUT_MS",
+  "RESEARCH_JOB_LEASE_MS",
   "OPENAI_COMPAT_API_KEY",
   "OPENAI_COMPAT_MODEL",
   "OPENAI_COMPAT_REVIEW_API_KEY",
@@ -57,6 +58,16 @@ describe("resolveModelProvider", () => {
     expect(generationLeaseMs()).toBe(3_600_000);
     process.env.DEEPSEEK_GENERATION_TIMEOUT_MS = "7200000";
     expect(generationLeaseMs()).toBe(7_200_000);
+  });
+
+  it("uses a short renewable worker lease independent of the generation timeout", async () => {
+    clearKeys();
+    const { researchJobLeaseMs } = await import("@/adapters/model_provider");
+    expect(researchJobLeaseMs()).toBe(60_000);
+    process.env.DEEPSEEK_GENERATION_TIMEOUT_MS = "7200000";
+    expect(researchJobLeaseMs()).toBe(60_000);
+    process.env.RESEARCH_JOB_LEASE_MS = "1000";
+    expect(researchJobLeaseMs()).toBe(1_000);
   });
 
   it("resolves openai_compatible reviewer independently", () => {

@@ -10,11 +10,24 @@ const GUIDE_KEY = "radar-guide-seen";
 const directionLabel: Record<string, string> = { support: "支持", weaken: "削弱", invalidate: "触发失效", review: "需要复核", context: "背景变化" };
 const classificationLabel: Record<string, string> = { evidence_update: "仅新增证据（从证据阶段开始）", structure_revision: "判断结构变化（重开结构）", scope_revision: "范围/问题变化（重开范围）" };
 
-export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems, runs }: { initialEvents: MarketEvent[]; initialImpacts: EventImpact[]; initialWorkItems: ResearchWorkItem[]; runs: ResearchRun[] }) {
+export function RadarDashboard({
+  initialEvents,
+  initialImpacts,
+  initialWorkItems,
+  initialLastRefreshedAt = null,
+  runs,
+}: {
+  initialEvents: MarketEvent[];
+  initialImpacts: EventImpact[];
+  initialWorkItems: ResearchWorkItem[];
+  initialLastRefreshedAt?: string | null;
+  runs: ResearchRun[];
+}) {
   const router = useRouter();
   const [events, setEvents] = useState(initialEvents);
   const [impacts, setImpacts] = useState(initialImpacts);
   const [workItems, setWorkItems] = useState(initialWorkItems);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string | null>(initialLastRefreshedAt);
   const [selectedId, setSelectedId] = useState(initialEvents[0]?.id || "");
   const [selectedImpactId, setSelectedImpactId] = useState("");
   const [busy, setBusy] = useState(false);
@@ -62,6 +75,8 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
       const radarResponse = await fetch("/api/radar", { cache: "no-store" });
       const radar = await radarResponse.json();
       setEvents(radar.events || []); setImpacts(radar.impacts || []); setWorkItems(radar.pending_work_items || []);
+      if (radar.last_refreshed_at) setLastRefreshedAt(radar.last_refreshed_at);
+      else if (data.last_refreshed_at) setLastRefreshedAt(data.last_refreshed_at);
       if (radar.events?.[0]?.id) setSelectedId(radar.events[0].id);
       setMessage(`发现 ${data.discovered} 条，新增 ${data.inserted} 条，去重 ${data.deduplicated} 条`);
     } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
@@ -88,7 +103,10 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
         {workItems.length ? <a className="radar-head-meta" href="#radar-queue">{workItems.length} 条待审阅 →</a> : null}
       </div>
       <div className="radar-head-actions">
-        <button className="button" disabled={busy} onClick={refresh}>{busy ? "正在检索…" : "刷新过去 72 小时"}</button>
+        <div className="radar-refresh-meta">
+          <button className="button" disabled={busy} onClick={refresh}>{busy ? "正在检索…" : "刷新过去 72 小时"}</button>
+          <small>上次刷新：{formatLastRefresh(lastRefreshedAt)}</small>
+        </div>
         <button type="button" className="button-quiet" onClick={() => setGuideOpen(true)}>使用说明</button>
       </div>
     </section>
@@ -133,11 +151,14 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
             <h2>还没有可核验的事件</h2>
             <p>围绕已有研究问题、跟踪信号与失效条件检索公开来源，核验后再决定是否开启增量研究。</p>
             <button className="button" disabled={busy} onClick={refresh}>{busy ? "正在检索…" : "刷新过去 72 小时"}</button>
-          </> : <>
-            <h2>先有判断，雷达才有对照</h2>
-            <p>提出研究问题并完成范围与结构后，雷达才能对照已有判断跟踪市场变化。</p>
-            <Link className="button" href="/runs/new">新建研究</Link>
-          </>}
+          </> : (
+            <div className="radar-first-run-card">
+              <div className="eyebrow">开始</div>
+              <h2>开始你的第一项研究</h2>
+              <p>提出研究问题并完成范围与结构后，雷达才能对照已有判断跟踪市场变化。</p>
+              <Link className="button" href="/runs/new">提出第一个研究问题 →</Link>
+            </div>
+          )}
         </div>}
       </section>
 
@@ -167,7 +188,14 @@ export function RadarDashboard({ initialEvents, initialImpacts, initialWorkItems
         </div>
       </section>
     ) : (
-      <p className="research-index-fallback"><Link href="/runs/new">新建研究</Link> 后，雷达才能对照已有判断跟踪变化。</p>
+      <section className="radar-first-run-banner">
+        <div>
+          <div className="eyebrow">空白工作台</div>
+          <h2>开始你的第一项研究</h2>
+          <p>新建研究并确认范围后，雷达才会有可对照的判断。</p>
+        </div>
+        <Link className="button" href="/runs/new">提出第一个研究问题 →</Link>
+      </section>
     )}
 
     {guideOpen ? <RadarGuideDialog runs={runs} onClose={closeGuide} /> : null}
@@ -198,6 +226,20 @@ function RadarGuideDialog({ runs, onClose }: { runs: ResearchRun[]; onClose: () 
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatLastRefresh(value: string | null) {
+  if (!value) return "尚未刷新";
+  const ts = Date.parse(value);
+  if (!Number.isFinite(ts)) return value;
+  const date = new Date(ts);
+  const today = new Date();
+  const sameDay = date.getFullYear() === today.getFullYear()
+    && date.getMonth() === today.getMonth()
+    && date.getDate() === today.getDate();
+  const time = new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(date);
+  if (sameDay) return `今天 ${time}`;
+  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
 function stageLabel(stage: string) {

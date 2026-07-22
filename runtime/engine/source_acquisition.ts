@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getRun, upsertSource } from "../adapters/db";
+import { getRun, recordResearchExperienceEvent, upsertSource } from "../adapters/db";
 import { normalizeAuthorityType } from "./authority_types";
 import { captureSourceSnapshot } from "./source_snapshot";
 import { normalizeSourceAcquisitionInput, type SourceAcquisitionInput } from "./source_acquisition_input";
@@ -44,6 +44,21 @@ export async function acquirePublicSource(runId: string, raw: unknown) {
     && source.usability_status === "usable"
     && Boolean(source.quote_verified)
     && /^[a-f0-9]{64}$/.test(source.content_hash || "");
+  recordResearchExperienceEvent({
+    runId,
+    eventType: "source_acquisition_completed",
+    actorType: "human",
+    stage: "stage_03",
+    targetType: "SourceDocument",
+    targetId: source.id,
+    outcome: accepted ? "accepted" : "rejected",
+    payload: {
+      retrieval_status: source.retrieval_status,
+      usability_status: source.usability_status,
+      quote_verified: Boolean(source.quote_verified),
+    },
+    dedupeKey: `source_acquisition_completed:${source.id}:${source.content_hash || "no-hash"}`,
+  });
   return {
     accepted,
     source: { ...source, snapshot_text: undefined, snapshot_length: source.snapshot_text?.length || 0 },

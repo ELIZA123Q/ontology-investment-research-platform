@@ -86,6 +86,12 @@ export const judgmentStructureSchema = z.object({
     anchors: z.array(z.string()).min(1),
     ontology_node_id: nonEmptyString,
     role: nonEmptyString,
+    metric_ref: z.string().nullable().optional(),
+    unit: z.string().nullable().optional(),
+    time_basis: z.string().nullable().optional(),
+    object_scope: z.array(z.string()).nullable().optional(),
+    geography: z.string().nullable().optional(),
+    observation_period: z.string().nullable().optional(),
   })),
   paths: z.array(z.object({ id: nonEmptyString, statement: nonEmptyString, variable_ids: z.array(z.string()) })),
   // optional 字段必须同时 nullable，以兼容 DeepSeek/OpenAI 严格函数 Schema
@@ -231,6 +237,27 @@ const sourceDraft = z.object({
   quote_verified: z.boolean().nullable(),
 });
 
+const commercializationStage = z.enum([
+  "concept", "sample", "customer_evaluation", "qualification", "design_win",
+  "pilot", "mass_production", "repeat_purchase", "scale_adoption",
+]);
+
+const qualificationScope = z.object({
+  product_spec_ref: z.string().nullable(),
+  customer_ref: z.string().nullable(),
+  facility_ref: z.string().nullable(),
+});
+
+const semiconductorMeasurement = z.object({
+  metric_kind: z.enum(["capacity", "yield"]),
+  facility_ref: z.string().nullable(),
+  wafer_size: z.string().nullable(),
+  process_or_product_ref: z.string().nullable(),
+  batch_stage: z.string().nullable(),
+  unit: z.string().nullable(),
+  business_time_basis: z.string().nullable(),
+});
+
 const evidenceFactDraft = z.object({
   id: nonEmptyString,
   statement: nonEmptyString,
@@ -250,6 +277,14 @@ const evidenceFactDraft = z.object({
   cutoff_at: nonEmptyString,
   directness: z.enum(["direct", "indirect", "proxy"]),
   limitations: z.array(z.string()),
+  proxy_disclosure: z.object({
+    lag: z.string().nullable(),
+    scope: z.string().nullable(),
+    non_substitution: z.string().nullable(),
+  }).nullable().optional(),
+  commercialization_stage: commercializationStage.nullable().optional(),
+  qualification_scope: qualificationScope.nullable().optional(),
+  semiconductor_measurement: semiconductorMeasurement.nullable().optional(),
 });
 
 const evidenceGapDraft = z.object({
@@ -367,6 +402,9 @@ export const judgmentDecisionSchema = z.object({
     uncertainties: z.array(z.string()),
     invalidation_conditions: z.array(z.string()).min(1),
     tracking_signals: z.array(z.string()),
+    claimed_commercialization_stage: commercializationStage.nullable().optional(),
+    qualification_claim_scope: qualificationScope.nullable().optional(),
+    semiconductor_claim_scope: semiconductorMeasurement.nullable().optional(),
   })).min(1),
   reasoning_traces: z.array(z.object({
     id: nonEmptyString,

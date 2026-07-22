@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const LATEST_DATABASE_SCHEMA_VERSION = 10;
+export const LATEST_DATABASE_SCHEMA_VERSION = 13;
 
 type Migration = {
   version: number;
@@ -271,6 +271,79 @@ const migrations: Migration[] = [
         CREATE UNIQUE INDEX idx_research_jobs_active_dedupe
           ON research_jobs(dedupe_key)
           WHERE status IN ('queued','running','waiting_for_input','retrying');
+      `);
+    },
+  },
+  {
+    version: 11,
+    description: "cross-run ontology candidate governance and append-only expert decisions",
+    apply(connection) {
+      connection.exec(`
+        CREATE TABLE IF NOT EXISTS ontology_candidate_reviews (
+          candidate_key TEXT PRIMARY KEY,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','expert_confirmed','promoted','rejected')),
+          expert_name TEXT NOT NULL DEFAULT '',
+          decision_note TEXT NOT NULL DEFAULT '',
+          target_ontology_node_id TEXT NOT NULL DEFAULT '',
+          reviewed_at TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS ontology_candidate_review_events (
+          id TEXT PRIMARY KEY,
+          candidate_key TEXT NOT NULL,
+          prior_status TEXT NOT NULL,
+          next_status TEXT NOT NULL,
+          expert_name TEXT NOT NULL,
+          decision_note TEXT NOT NULL,
+          target_ontology_node_id TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(candidate_key) REFERENCES ontology_candidate_reviews(candidate_key) ON DELETE RESTRICT
+        );
+        CREATE INDEX IF NOT EXISTS idx_ontology_candidate_review_status
+          ON ontology_candidate_reviews(status, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ontology_candidate_events_key
+          ON ontology_candidate_review_events(candidate_key, created_at DESC);
+      `);
+    },
+  },
+  {
+    version: 12,
+    description: "append-only researcher experience events for workflow KPI measurement",
+    apply(connection) {
+      connection.exec(`
+        CREATE TABLE IF NOT EXISTS research_experience_events (
+          id TEXT PRIMARY KEY,
+          run_id TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          actor_type TEXT NOT NULL CHECK(actor_type IN ('human','ai','system')),
+          stage TEXT NOT NULL DEFAULT '',
+          target_type TEXT NOT NULL DEFAULT '',
+          target_id TEXT NOT NULL DEFAULT '',
+          outcome TEXT NOT NULL DEFAULT '',
+          payload_json TEXT NOT NULL DEFAULT '{}',
+          dedupe_key TEXT NOT NULL UNIQUE,
+          occurred_at TEXT NOT NULL,
+          FOREIGN KEY(run_id) REFERENCES research_runs(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_research_experience_run_time
+          ON research_experience_events(run_id, occurred_at);
+        CREATE INDEX IF NOT EXISTS idx_research_experience_type
+          ON research_experience_events(event_type, occurred_at);
+      `);
+    },
+  },
+  {
+    version: 13,
+    description: "runtime meta key-value store for radar refresh timestamps",
+    apply(connection) {
+      connection.exec(`
+        CREATE TABLE IF NOT EXISTS runtime_meta (
+          key TEXT PRIMARY KEY,
+          value_json TEXT NOT NULL DEFAULT '{}',
+          updated_at TEXT NOT NULL
+        );
       `);
     },
   },

@@ -57,7 +57,12 @@ describe("replayable research job runner", () => {
     });
 
     expect(completed).toMatchObject({ id: queued.id, status: "waiting_for_review", artifact_id: artifact.id });
-    expect(JSON.parse(completed!.result_json)).toEqual({ artifact_id: artifact.id, artifact_version: 1 });
+    expect(JSON.parse(completed!.result_json)).toMatchObject({
+      artifact_id: artifact.id,
+      artifact_version: 1,
+      new_source_count: 0,
+      total_source_count: 0,
+    });
   });
 
   it("detects missing or changed frozen inputs before replay", async () => {

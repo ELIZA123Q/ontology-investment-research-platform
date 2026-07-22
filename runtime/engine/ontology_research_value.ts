@@ -45,7 +45,7 @@ const RESEARCH_PROCESS_TYPES = new Set([
   "ResearchQuestion", "JudgmentUnit", "EvidenceRequirement", "SourceDocument", "EvidenceClaim",
   "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
   "CompetingExplanation", "BlockingFactor", "RuleEvaluation", "Judgment", "ReasoningTrace",
-  "MethodApplication", "ActionProposal", "ActionExecution",
+  "MethodApplication", "ResearchPath", "ActionProposal", "ActionExecution",
 ]);
 
 function strings(values: unknown): string[] {

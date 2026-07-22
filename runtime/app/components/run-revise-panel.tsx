@@ -6,18 +6,17 @@ import { useRouter } from "next/navigation";
 const STAGE_OPTIONS = [
   { value: 1, label: "01 问题定义", supported: true },
   { value: 2, label: "02 判断结构", supported: true },
-  { value: 3, label: "03 来源与证据", supported: false },
   { value: 4, label: "04 判断裁决", supported: true },
-  { value: 5, label: "05 研究表达", supported: false },
 ] as const;
 
 function defaultStageForActive(active: string) {
   switch (active) {
     case "scope": return 1;
     case "structure": return 2;
-    case "evidence": return 3;
     case "judgment": return 4;
-    case "delivery": return 5;
+    case "evidence":
+    case "delivery":
+      return 2;
     default: return 2;
   }
 }
@@ -26,6 +25,29 @@ type ChatItem = {
   role: "user" | "assistant" | "system";
   text: string;
 };
+
+function storageKey(runId: string) {
+  return `revise-log:${runId}`;
+}
+
+function loadMessages(runId: string): ChatItem[] {
+  try {
+    const raw = sessionStorage.getItem(storageKey(runId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((item) => item && typeof item.text === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(runId: string, messages: ChatItem[]) {
+  try {
+    sessionStorage.setItem(storageKey(runId), JSON.stringify(messages.slice(-40)));
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export function RunRevisePanel({ runId, active }: { runId: string; active: string }) {
   const router = useRouter();
@@ -44,7 +66,15 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
     setTargetStage(sceneDefault);
   }, [sceneDefault]);
 
-  const supported = STAGE_OPTIONS.find((item) => item.value === targetStage)?.supported ?? false;
+  useEffect(() => {
+    setMessages(loadMessages(runId));
+  }, [runId]);
+
+  useEffect(() => {
+    saveMessages(runId, messages);
+  }, [runId, messages]);
+
+  const supported = STAGE_OPTIONS.some((item) => item.value === targetStage);
 
   async function submit(confirmDownstream = false) {
     const text = instruction.trim();
@@ -124,20 +154,19 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
             >
               {STAGE_OPTIONS.map((item) => (
                 <option key={item.value} value={item.value}>
-                  {item.label}{item.supported ? "" : "（未开通）"}
+                  {item.label}
                 </option>
               ))}
             </select>
           </label>
-          {!supported ? (
-            <p className="muted run-revise-hint">该阶段自然语言改稿尚未开通；当前支持 Stage01 研究范围、Stage02 判断结构与 Stage04 判断裁决。</p>
-          ) : targetStage === 1 ? (
-            <p className="muted run-revise-hint">例如：把截止时点改到 2025 年底；或排除 AI 应用层公司。</p>
-          ) : targetStage === 4 ? (
-            <p className="muted run-revise-hint">例如：把 JU-02 结论收紧为暂不可判断；把 EV-3 调整为反证；补一条改判条件。</p>
-          ) : (
-            <p className="muted run-revise-hint">例如：把 JU-03 拆成成本传导与估值影响两个单元；或收紧反证方向。</p>
-          )}
+          <p className="muted run-revise-hint">
+            {targetStage === 1
+              ? "例如：把截止时点改到 2025 年底；或排除 AI 应用层公司。"
+              : targetStage === 4
+                ? "例如：把 JU-02 结论收紧为暂不可判断；把 EV-3 调整为反证；补一条改判条件。"
+                : "例如：把 JU-03 拆成成本传导与估值影响两个单元；或收紧反证方向。"}
+            {" "}更多阶段即将开放。
+          </p>
           <div className="run-revise-log">
             {messages.length === 0 ? <p className="muted">改稿记录会显示在这里。</p> : null}
             {messages.map((item, index) => (
@@ -160,7 +189,7 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
             value={instruction}
             disabled={busy || !supported}
             onChange={(event) => setInstruction(event.target.value)}
-            placeholder={supported ? "用一句话说明要怎么改…" : "该阶段尚未开通"}
+            placeholder="用一句话说明要怎么改…"
             rows={3}
           />
           <button

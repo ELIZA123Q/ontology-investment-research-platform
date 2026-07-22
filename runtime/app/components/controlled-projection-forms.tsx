@@ -326,7 +326,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
         {units.map((unit, index) => (
           <div className="structure-unit-card" key={unit.id || index}>
             <div className="structure-unit-head">
-              <span className="structure-unit-id">{unit.id || `判断单元 ${String(index + 1).padStart(2, "0")}`}</span>
+              <span className="structure-unit-id">关键判断 {String(index + 1).padStart(2, "0")}</span>
             </div>
             <div className="structure-unit-grid">
               <div className="field structure-field-title">
@@ -429,7 +429,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
                             : item.judgment_unit_ids.filter((id) => id !== unit.id);
                           setCounterDirections(counterDirections.map((value, itemIndex) => itemIndex === index ? { ...value, judgment_unit_ids: nextIds } : value));
                         }}
-                      /> {unit.id}
+                      /> {unit.title || `关键判断 ${units.findIndex((row) => row.id === unit.id) + 1}`}
                     </label>
                   ))}
                 </div>
@@ -483,7 +483,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
                             : item.judgment_unit_ids.filter((id) => id !== unit.id);
                           setCompetingExplanations(competingExplanations.map((value, itemIndex) => itemIndex === index ? { ...value, judgment_unit_ids: nextIds } : value));
                         }}
-                      /> {unit.id}
+                      /> {unit.title || `关键判断 ${units.findIndex((row) => row.id === unit.id) + 1}`}
                     </label>
                   ))}
                 </div>
@@ -799,7 +799,7 @@ export function ControlledEvidenceProjectionForm({ runId, units, sources }: {
             const current = unitRefs[source.id] || [];
             const next = event.target.checked ? [...new Set([...current, unit.id])] : current.filter((id) => id !== unit.id);
             setUnitRefs({ ...unitRefs, [source.id]: next });
-          }} /> {unit.id} · {unit.title}</label>)}</div>
+          }} /> {unit.title}</label>)}</div>
           <div className="field"><label>事实对象（口径标识）</label><input value={subjects[source.id] || ""} onChange={(event) => setSubjects({ ...subjects, [source.id]: event.target.value })} placeholder="例如：台积电营收" /></div>
           <div className="field"><label>事实观测日期</label><input type="date" value={observed[source.id] || ""} onChange={(event) => setObserved({ ...observed, [source.id]: event.target.value })} /></div>
           <div className="field"><label>相对待检验命题的证据方向</label><select value={directions[source.id] || "support"} onChange={(event) => setDirections({ ...directions, [source.id]: event.target.value as "support" | "weaken" | "neutral" })}><option value="support">支持</option><option value="weaken">削弱 / 反证</option><option value="neutral">背景 / 中性</option></select></div>
@@ -1091,7 +1091,7 @@ function JudgmentFallbackPanel({ open, setOpen, formBody }: { open: boolean; set
 
 function JudgmentUnitHeader({ unit, badge }: { unit: UnitOption; badge?: { strength?: string; decisionStatus?: string } }) {
   return <div className="panel-title" style={{ marginBottom: 8 }}>
-    <strong>{unit.id} · {unit.title}</strong>
+    <strong>{unit.title}</strong>
     {badge?.strength ? <span className="workspace-status">{badge.strength}{badge.decisionStatus ? ` / ${badge.decisionStatus}` : ""}</span> : null}
   </div>;
 }
@@ -1205,7 +1205,7 @@ function JudgmentFormBody({
         <JudgmentUnitHeader unit={unit} badge={badge} />
         <div className="field"><label>方向结论</label><textarea disabled={locked} value={conclusions[unit.id] || ""} onChange={(event) => setConclusions({ ...conclusions, [unit.id]: event.target.value })} /></div>
         <div className="field"><label>推理要点</label><textarea disabled={locked} value={rationales[unit.id] || ""} onChange={(event) => setRationales({ ...rationales, [unit.id]: event.target.value })} placeholder="说明为何由这些事实得到该结论；强度仍由系统重算" /></div>
-        <div className="field"><label>使用的已批准事实及其相对结论角色</label>{(evidenceByUnit.get(unit.id) || []).map((item) => <div className="evidence-role-row" key={item.id}><select disabled={locked} value={evidenceRoles[unit.id]?.[item.id] || "none"} onChange={(event) => setEvidenceRoles({ ...evidenceRoles, [unit.id]: { ...(evidenceRoles[unit.id] || {}), [item.id]: event.target.value as "none" | "support" | "counter" } })}><option value="none">不使用</option><option value="support">支持结论</option><option value="counter">反证 / 限制结论</option></select><span>{item.id} · {item.statement}{item.direction ? `（证据阶段：${({ support: "支持", weaken: "削弱", neutral: "中性" } as Record<string, string>)[item.direction] || item.direction}）` : ""}</span></div>)}</div>
+        <div className="field"><label>使用的已批准事实及其相对结论角色</label>{(evidenceByUnit.get(unit.id) || []).map((item) => <div className="evidence-role-row" key={item.id}><select disabled={locked} value={evidenceRoles[unit.id]?.[item.id] || "none"} onChange={(event) => setEvidenceRoles({ ...evidenceRoles, [unit.id]: { ...(evidenceRoles[unit.id] || {}), [item.id]: event.target.value as "none" | "support" | "counter" } })}><option value="none">不使用</option><option value="support">支持结论</option><option value="counter">反证 / 限制结论</option></select><span>{item.statement}{item.direction ? `（证据阶段：${({ support: "支持", weaken: "削弱", neutral: "中性" } as Record<string, string>)[item.direction] || item.direction}）` : ""}</span></div>)}</div>
         <div className="field"><label>方法适用条件（只勾选你能由当前结构和已批准事实确认的条件）</label>
           {methodApplications.filter((application) => application.target_judgment_unit_refs.includes(unit.id)).map((application) => <JudgmentMethodCard key={application.application_id} application={application} unitId={unit.id} confirmedPreconditions={confirmedPreconditions} setConfirmedPreconditions={setConfirmedPreconditions} locked={locked} />)}
           {!methodApplications.some((application) => application.target_judgment_unit_refs.includes(unit.id)) ? <div className="notice">该判断单元还没有登记可用的取证/裁决方法，不能形成可交付判断。</div> : null}

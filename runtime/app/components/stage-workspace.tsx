@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -155,6 +156,15 @@ export function StageWorkspace({
     if (d) { setJson(d.json_content); setMd(d.markdown_content); }
   }
 
+  async function saveMarkdown() {
+    const d = await call(`/api/runs/${runId}/artifacts/${artifact!.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ json_content: json, markdown_content: md, prefer_markdown: true }),
+    });
+    if (d) { setJson(d.json_content); setMd(d.markdown_content); }
+  }
+
   async function saveScope() {
     setError("");
     await scopeFormRef.current?.save();
@@ -259,41 +269,57 @@ export function StageWorkspace({
     : activeJob ? researchJobStatusLabel(activeJob.status) : "尚未首次生成";
   const formEditable = unlocked && !busy && artifact?.status !== "running" && !jobInFlight;
   const canApprove = Boolean(artifact && artifact.status === "needs_review");
+  const generateLabel = busy || artifact?.status === "running" || jobInFlight
+    ? "模型正在工作…"
+    : artifact
+      ? (stage === 3 ? "重新生成" : "生成新版本")
+      : "生成本阶段 →";
+  const generateClass = artifact ? "button-secondary" : "button";
+  const approveClass = canApprove ? "button" : "button-secondary";
 
   return <>
     <div className="workspace-toolbar">
       <div className="actions">
         {stage === 3 && artifact ? <>
-          <button className="button" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("regenerate")}>{busy || artifact?.status === "running" || jobInFlight ? "模型正在工作…" : "重新生成"}</button>
-          <button className="button-secondary" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("evidence_supplement")}>补充取证</button>
-        </> : <button className="button" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{busy || artifact?.status === "running" || jobInFlight ? "模型正在工作…" : artifact ? "生成新版本" : "生成本阶段 →"}</button>}
-        {activeJob && (jobInFlight || jobNeedsAttention) ? <button className="button-secondary" onClick={() => call(`/api/runs/${runId}/jobs/${activeJob.id}/cancel`, { method: "POST" })}>取消后台任务</button> : artifact?.status === "running" ? <button className="button-secondary" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button> : null}
-        {stage === 3 && artifact?.status === "failed" && <button className="button-secondary" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/03/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_gap_fallback", reason: "公开来源取得或模型结构化提交失败，人工选择登记显式证据缺口" }) })}>登记为显式证据缺口</button>}
-        {stage === 4 && artifact?.status === "failed" && <button className="button-secondary" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成" }) })}>生成「暂不可判断」结论</button>}
+          <button className={generateClass} disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("regenerate")}>{generateLabel}</button>
+          <button className="button-quiet" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("evidence_supplement")}>补充取证</button>
+        </> : <button className={generateClass} disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{generateLabel}</button>}
+        {activeJob && (jobInFlight || jobNeedsAttention) ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/jobs/${activeJob.id}/cancel`, { method: "POST" })}>取消后台任务</button> : artifact?.status === "running" ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button> : null}
         {stage === 1 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveScope}>{busy ? "正在保存…" : artifact ? "保存研究范围" : "建立研究范围"}</button>
-          {artifact && artifact.status !== "failed" ? <button className="button-secondary" disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button> : null}
+          {artifact && artifact.status !== "failed" ? <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button> : null}
         </> : stage === 2 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveStructure}>{busy ? "正在保存…" : artifact ? "保存研究结构" : "建立研究结构"}</button>
-          {artifact && artifact.status !== "failed" ? <button className="button-secondary" disabled={busy || !canApprove} onClick={confirmStage02}>{busy ? "正在校验…" : "确认并进入下一阶段"}</button> : null}
+          {artifact && artifact.status !== "failed" ? <button className={approveClass} disabled={busy || !canApprove} onClick={confirmStage02}>{busy ? "正在校验…" : "确认并进入下一阶段"}</button> : null}
         </> : stage === 3 ? <>
           {artifact && artifact.status !== "failed" ? (
-            <button className="button-secondary" disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
+            <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
           ) : null}
         </> : stage === 4 ? <>
           <button className="button-secondary" disabled={!formEditable || !judgmentProjection} onClick={saveJudgment}>{busy ? "正在保存…" : "保存推理逻辑"}</button>
           {artifact && artifact.status !== "failed" ? (
-            <button className="button-secondary" disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
+            <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
           ) : null}
         </> : artifact && artifact.status !== "failed" ? <>
-          <button className="button-secondary" disabled={busy} onClick={saveJson}>保存结构化内容</button>
-          <button className="button-secondary" disabled={busy || artifact.status !== "needs_review"} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
+          <button className="button-secondary" disabled={busy} onClick={saveMarkdown}>保存可读稿</button>
+          <button className={approveClass} disabled={busy || artifact.status !== "needs_review"} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
         </> : null}
+        {(stage === 3 && artifact?.status === "failed") || (stage === 4 && artifact?.status === "failed") ? (
+          <details className="toolbar-more">
+            <summary>更多</summary>
+            {stage === 3 && artifact?.status === "failed" ? (
+              <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/03/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_gap_fallback", reason: "公开来源取得或模型结构化提交失败，人工选择登记显式证据缺口" }) })}>登记为显式证据缺口</button>
+            ) : null}
+            {stage === 4 && artifact?.status === "failed" ? (
+              <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成" }) })}>生成「暂不可判断」结论</button>
+            ) : null}
+          </details>
+        ) : null}
       </div>
       <span className="workspace-status">{statusText}</span>
     </div>
-    {!unlocked && <div className="notice">当前阶段已锁定。请先完成并确认上一阶段。</div>}
-    {activeJob && artifact?.status !== "running" ? <div className={`notice generation-progress${jobNeedsAttention ? " generation-progress-stale" : ""}`}><strong>{researchJobStatusLabel(activeJob.status)}</strong><p>后台任务第 {activeJob.attempt}/{activeJob.max_attempts} 次尝试。{activeJob.status === "queued" ? "worker 将在取得租约后开始生成。" : activeJob.status === "retrying" ? "上次执行中断，将从本阶段起点安全重试。" : activeJob.status === "waiting_for_input" ? "冻结的上游输入已变化或证据条件不足，请检查后重新提交。" : activeJob.status === "blocked" ? "已达到重试上限，需要人工检查错误后重新提交。" : ""}</p>{activeJob.last_error ? <p className="muted">{activeJob.last_error}</p> : null}</div> : null}
+    {!unlocked && <div className="notice">当前阶段已锁定。请先 <Link href={prevStageHref(runId, stage)}>完成并确认上一阶段 →</Link></div>}
+    {activeJob && artifact?.status !== "running" ? <div className={`notice generation-progress${jobNeedsAttention ? " generation-progress-stale" : ""}`}><strong>{researchJobStatusLabel(activeJob.status)}</strong><p>后台任务第 {activeJob.attempt}/{activeJob.max_attempts} 次尝试。{activeJob.status === "queued" ? "任务已提交，稍后会自动开始生成。" : activeJob.status === "retrying" ? "上次执行中断，将从本阶段起点安全重试。" : activeJob.status === "waiting_for_input" ? "上游输入已变化或证据条件不足，请检查后重新提交。" : activeJob.status === "blocked" ? "已达到重试上限，需要人工检查错误后重新提交。" : ""}</p>{activeJob.last_error ? <p className="muted">{activeJob.last_error}</p> : null}{jobNeedsAttention ? <p><Link href={jobRecoveryHref(runId, stage, activeJob.status)}>去处理 →</Link></p> : null}<p className="muted">页面自动刷新中，每 5 秒同步一次进度。</p></div> : null}
     {error && <div className="notice error">{error}</div>}
     {artifact?.status === "running" ? (
       <div className={`notice generation-progress${progressStale ? " generation-progress-stale" : ""}`}>
@@ -310,6 +336,7 @@ export function StageWorkspace({
         {progress?.tool_names?.length ? (
           <p className="muted">已调用：{progress.tool_names.slice(-8).join(", ")}{progress.tool_names.length > 8 ? "…" : ""}</p>
         ) : null}
+        <p className="muted">页面自动刷新中，每 5 秒同步一次进度。</p>
       </div>
     ) : null}
     {validation && !validation.ok ? (
@@ -451,15 +478,41 @@ export function StageWorkspace({
       </section>
     </div> : stage === 5 && artifact ? <div className="two-col">
       <section className="card editor-panel">
-        <div className="panel-head"><h2>结构化内容</h2><span>权威数据，可编辑后保存</span></div>
-        <textarea aria-label="结构化内容" className="json-editor" value={json} onChange={(e) => setJson(e.target.value)} spellCheck={false} />
+        <div className="panel-head"><h2>交付稿</h2><span>Markdown 可读稿，可直接编辑</span></div>
+        <textarea
+          aria-label="交付稿 Markdown"
+          className="json-editor"
+          value={md}
+          onChange={(e) => setMd(e.target.value)}
+          spellCheck={false}
+          disabled={!formEditable}
+        />
+        <details className="structure-advanced" open={showAdvancedJson} onToggle={(event) => setShowAdvancedJson((event.target as HTMLDetailsElement).open)}>
+          <summary>高级：原始 JSON（逃生舱）</summary>
+          <p className="muted">日常请编辑上方可读稿。直接改 JSON 会按结构化字段重写可读稿。</p>
+          <textarea aria-label="结构化内容" className="json-editor" value={json} onChange={(e) => setJson(e.target.value)} spellCheck={false} disabled={!formEditable} />
+          <button type="button" className="button-secondary" disabled={!formEditable} onClick={saveJson}>保存原始 JSON</button>
+        </details>
       </section>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>可读稿</h2><span>保存结构化内容时自动重写</span></div>
+        <div className="panel-head"><h2>预览</h2><span>保存后同步到交付页</span></div>
         <article className="markdown preview-pane preview-pane-only">
           {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无可读稿。生成或重新生成后会显示在这里。</p>}
         </article>
       </section>
     </div> : null}
   </>;
+}
+
+function prevStageHref(runId: string, stage: number) {
+  if (stage <= 2) return `/runs/${runId}/stages/1`;
+  if (stage === 3) return `/runs/${runId}/structure`;
+  if (stage === 4) return `/runs/${runId}/evidence`;
+  return `/runs/${runId}/judgments`;
+}
+
+function jobRecoveryHref(runId: string, stage: number, status: string) {
+  if (status === "waiting_for_input" && stage === 3) return `/runs/${runId}/evidence`;
+  if (status === "waiting_for_input" && stage >= 4) return `/runs/${runId}/stages/${stage - 1}`;
+  return `/runs/${runId}/stages/${stage}`;
 }

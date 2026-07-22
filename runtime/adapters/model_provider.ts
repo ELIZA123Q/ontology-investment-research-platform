@@ -31,6 +31,20 @@ export function generationLeaseMs(provider: ModelProviderId = "deepseek"): numbe
   );
 }
 
+/**
+ * Worker lease is deliberately shorter than the generation hard timeout.
+ * A live worker renews it in the background; a dead process becomes recoverable
+ * promptly instead of occupying the stage until the hour-long model timeout.
+ */
+export function researchJobLeaseMs(): number {
+  return boundedTimeout(
+    "RESEARCH_JOB_LEASE_MS",
+    60_000,
+    process.env.NODE_ENV === "test" ? 1_000 : 10_000,
+    600_000,
+  );
+}
+
 function required(name: string, value: string | undefined): string {
   if (!value) throw new Error(`缺少 ${name}，请在 .env.local 中配置`);
   return value;

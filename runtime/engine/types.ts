@@ -95,6 +95,27 @@ export type ResearchRun = {
   updated_at: string;
 };
 
+export type ResearchExperienceEventType =
+  | "run_created"
+  | "stage_approved"
+  | "work_item_decision"
+  | "stage_revision_completed"
+  | "source_acquisition_completed";
+
+export type ResearchExperienceEvent = {
+  id: string;
+  run_id: string;
+  event_type: ResearchExperienceEventType;
+  actor_type: "human" | "ai" | "system";
+  stage: string;
+  target_type: string;
+  target_id: string;
+  outcome: string;
+  payload_json: string;
+  dedupe_key: string;
+  occurred_at: string;
+};
+
 export type MarketEventStatus = "new" | "reviewed" | "applied" | "dismissed";
 export type ImpactDirection = "support" | "weaken" | "invalidate" | "review" | "context";
 export type ImpactClassification = "evidence_update" | "structure_revision" | "scope_revision";

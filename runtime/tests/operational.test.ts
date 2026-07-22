@@ -14,6 +14,7 @@ let publish: typeof import("@/adapters/publish_package");
 let workflow: typeof import("@/engine/workflow");
 let deepseek: typeof import("@/adapters/deepseek");
 let evidenceSources: typeof import("@/engine/evidence_sources");
+let semanticExecution: typeof import("@/engine/semantic_execution");
 let approveRoute: typeof import("@/app/api/runs/[id]/artifacts/[artifactId]/approve/route");
 let editRoute: typeof import("@/app/api/runs/[id]/artifacts/[artifactId]/route");
 let reportRoute: typeof import("@/app/api/runs/[id]/report.md/route");
@@ -30,6 +31,7 @@ beforeAll(async () => {
   workflow = await import("@/engine/workflow");
   deepseek = await import("@/adapters/deepseek");
   evidenceSources = await import("@/engine/evidence_sources");
+  semanticExecution = await import("@/engine/semantic_execution");
   approveRoute = await import("@/app/api/runs/[id]/artifacts/[artifactId]/approve/route");
   editRoute = await import("@/app/api/runs/[id]/artifacts/[artifactId]/route");
   reportRoute = await import("@/app/api/runs/[id]/report.md/route");
@@ -210,7 +212,7 @@ describe("v1.3 operational spine", () => {
     }]);
     const judgmentData = JSON.parse(judgmentArtifact.json_content);
     expect(judgmentData.judgments[0]).toMatchObject({ strength: "J1", decision_status: "supported" });
-    expect(judgmentData.rule_evaluations.filter((item: any) => item.id.startsWith("RE-SYS-"))).toHaveLength(5);
+    expect(judgmentData.rule_evaluations.filter((item: any) => item.id.startsWith("RE-SYS-"))).toHaveLength(semanticExecution.REQUIRED_RULES.length);
     expect(judgmentData.rule_evaluations.every((item: any) => item.result === "pass")).toBe(true);
     expect(judgmentData.competing_explanations[0]).toMatchObject({ status: "active" });
 
@@ -685,6 +687,14 @@ describe("v1.3 operational spine", () => {
       validationResult: { ok: true, summary: "可通过", issues: [], suggested_patch: null },
     });
     expect(ok.ok).toBe(true);
+
+    const createClient = vi.fn(() => {
+      throw new Error("人工受控结构不应调用付费模型校验");
+    });
+    const deterministic = await workflow.validateStage02ForApproval(run.id, { createClient: createClient as any });
+    expect(deterministic.ok).toBe(true);
+    expect(deterministic.summary).toContain("未产生额外模型费用");
+    expect(createClient).not.toHaveBeenCalled();
   });
 
   it("builds an honest gap-only evidence artifact without inventing facts", () => {
@@ -974,7 +984,7 @@ describe("v1.3 operational spine", () => {
       { id: "EV-1", type: "EvidenceFact", properties: { statement: "可比价格上行", subject_ref: "SV-1", time_basis: "publication_time", scope_ref: "SCOPE-1", observed_at: "2026-07-17T00:00:00Z", valid_from: "2026-07-17T00:00:00Z", published_at: "2026-07-18T00:00:00Z", cutoff_at: "2026-07-18T02:00:00Z", directness: "direct" } },
       { id: "SIG-1", type: "Signal", properties: { statement: "价格上行支持假设", role: "support" } },
       { id: "MA-TEST", type: "MethodApplication", properties: { application_id: "MA-TEST", status: "executed", method_id: "kb04:A02", method_version: "1.0.0" } },
-      ...["evidence_scope_time_alignment", "no_direct_evidence_to_judgment", "judgment_reference_integrity", "judgment_evidence_threshold", "judgment_status_consistency"].map((rule, index) => ({ id: `RE-${index + 1}`, type: "RuleEvaluation", properties: { rule_ref: rule, input_refs: ["EV-1"], condition_results: [{ condition_id: "runtime", outcome: "pass" }], result: "pass", deterministic_result: { engine_version: "runtime-semantic-rules-2.0.0", result: "pass" } } })),
+      ...semanticExecution.REQUIRED_RULES.map((rule, index) => ({ id: `RE-${index + 1}`, type: "RuleEvaluation", properties: { rule_ref: rule, input_refs: ["EV-1"], condition_results: [{ condition_id: "runtime", outcome: "pass" }], result: "pass", deterministic_result: { engine_version: semanticExecution.ENGINE_VERSION, result: "pass" } } })),
     );
     graph.relations.push(
       { id: "REL-CL-SD", type: "claimCitesSource", sourceId: "CL-1", targetId: "SD-1", properties: {} },
@@ -987,7 +997,7 @@ describe("v1.3 operational spine", () => {
       "FormJudgment",
       {
         statement: "价格存在有条件上行趋势", hypothesisRefs: hyp.written_object_ids, signalRefs: ["SIG-1"], evidenceRefs: ["EV-1"],
-        ruleEvaluationRefs: ["RE-1", "RE-2", "RE-3", "RE-4", "RE-5"], methodApplicationRefs: ["MA-TEST"],
+        ruleEvaluationRefs: semanticExecution.REQUIRED_RULES.map((_, index) => `RE-${index + 1}`), methodApplicationRefs: ["MA-TEST"],
         judgmentUnitRef: "JU-1", scopeRef: "SCOPE-1", cutoffAt: "2026-07-18T02:00:00Z", judgmentLevel: "J1",
         decisionStatus: "supported", conflictStatus: "none", conditions: ["口径可比"], invalidationConditions: ["价格回落"],
       },
@@ -999,7 +1009,7 @@ describe("v1.3 operational spine", () => {
       "RecordReasoningTrace",
       {
         judgmentRef: judgment.written_object_ids[0],
-        inputRefs: ["SCOPE-1", "JU-1", "EV-1", "SIG-1", hyp.written_object_ids[0], "RE-1", "RE-2", "RE-3", "RE-4", "RE-5"],
+        inputRefs: ["SCOPE-1", "JU-1", "EV-1", "SIG-1", hyp.written_object_ids[0], ...semanticExecution.REQUIRED_RULES.map((_, index) => `RE-${index + 1}`)],
         methodApplicationRefs: ["MA-TEST"], evaluatedAt: "2026-07-18T02:00:00Z",
       },
       graph,
@@ -1056,8 +1066,8 @@ describe("v1.3 operational spine", () => {
     const executedStructure = execute(selectedStructure, [], ["J-1"]);
     const executedEvidence = execute(selectedEvidence, ["SIG-1"], []);
     const executed = execute(selected, ["SIG-1"], ["J-1"]);
-    const ruleNames = ["evidence_scope_time_alignment", "no_direct_evidence_to_judgment", "judgment_reference_integrity", "judgment_evidence_threshold", "judgment_status_consistency"];
-    const rules = ruleNames.map((rule_ref, index) => ({ id: `RE-${index + 1}`, rule_ref, judgment_id: "J-1", input_refs: ["EV-1"], condition_results: [{ condition_id: "runtime", expression: "verified", input_refs: ["EV-1"], outcome: "pass", rationale: "verified" }], result: "pass", deterministic_result: { engine_version: "runtime-semantic-rules-2.0.0", result: "pass", rationale: "verified", evaluated_at: cutoff } }));
+    const ruleNames = [...semanticExecution.REQUIRED_RULES];
+    const rules = ruleNames.map((rule_ref, index) => ({ id: `RE-${index + 1}`, rule_ref, judgment_id: "J-1", input_refs: ["EV-1"], condition_results: [{ condition_id: "runtime", expression: "verified", input_refs: ["EV-1"], outcome: "pass", rationale: "verified" }], result: "pass", deterministic_result: { engine_version: "runtime-semantic-rules-3.0.0", result: "pass", rationale: "verified", evaluated_at: cutoff } }));
     const stage04 = { method_applications: [executedStructure, executedEvidence, executed], signals: [{ id: "SIG-1", statement: "库存下降构成支持信号", role: "support", evidence_draft_ids: ["EV-1"], judgment_unit_ids: ["JU-1"], target_hypothesis_ids: ["H-1"] }], hypotheses: [{ id: "H-1", statement: "库存处于下降阶段", signal_ids: ["SIG-1"], falsification_conditions: ["库存回升"], time_horizon: "一季度" }], competing_explanations: [{ id: "CE-1", statement: "季节性波动", signal_ids: ["SIG-1"], discriminating_evidence: ["跨季对照"], status: "weakened", elimination_rationale: "部分削弱" }], rule_evaluations: rules, judgments: [{ id: "J-1", judgment_unit_id: "JU-1", title: "库存观察", conclusion: "库存存在下降迹象", rationale: "一组直接来源仅支持 J1", strength: "J1", confidence: "low", decision_status: "supported", conflict_status: "none", not_judgeable_reason: null, scope_ref: "SCOPE-1", cutoff_at: cutoff, conditions: [], supporting_evidence_draft_ids: ["EV-1"], counter_evidence_draft_ids: [], hypothesis_ids: ["H-1"], rule_evaluation_ids: rules.map((rule) => rule.id), method_application_ids: ["MA-PUBLISH"], ontology_node_ids: ["SV-INV"], uncertainties: ["样本短"], invalidation_conditions: ["库存回升"], tracking_signals: ["库存"] }], reasoning_traces: [{ id: "RT-1", judgment_id: "J-1", node_ids: ["SCOPE-1", "JU-1", "EV-1", "SIG-1", "H-1", ...rules.map((rule) => rule.id), "MA-PUBLISH", "J-1"], created_at: cutoff }], overall_boundary: "仅限本范围", document_markdown: "# 判断\n\n当前只有一组直接来源，确定性规则将证据上限限制在 J1；保留季节性竞争解释和库存回升失效条件，不外推为确定趋势。" };
     const stage05 = { title: "测试报告", executive_points: ["库存存在下降迹象"], report_claims: [{ id: "EX-1", statement: "库存存在下降迹象", judgment_ids: ["J-1"], method_application_ids: ["MA-PUBLISH"], evidence_draft_ids: ["EV-1"], source_ids: [source.id] }], limitations: ["仅一组直接来源"], document_markdown: "# 测试报告\n\n库存存在下降迹象，但当前仅一组直接来源，因此结论保持在 J1 观察层。" };
     const addApproved = (kind: "stage_01"|"stage_02"|"stage_03"|"stage_04"|"stage_05", data: object, model = "producer-model") => {

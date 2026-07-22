@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getRun, latestArtifact, listArtifacts } from "../adapters/db";
+import { getRun, latestArtifact, listArtifacts, recordResearchExperienceEvent } from "../adapters/db";
 import { createResearchModelClient } from "../adapters/deepseek";
 import { parseJson, STAGES, type Artifact, type StageKind } from "./types";
 import { stageNumber } from "./workflow_shared";
@@ -244,21 +244,30 @@ export async function reviseRunStage(
     };
   }
 
-  if (targetStage === 1) {
-    return reviseStage01(runId, run.question, trimmed, options);
-  }
-  if (targetStage === 2) {
-    return reviseStage02(runId, trimmed, options);
-  }
-  if (targetStage === 4) {
-    return reviseStage04(runId, trimmed, options);
-  }
-
-  return {
+  let result: ReviseRunStageResult;
+  if (targetStage === 1) result = await reviseStage01(runId, run.question, trimmed, options);
+  else if (targetStage === 2) result = await reviseStage02(runId, trimmed, options);
+  else if (targetStage === 4) result = await reviseStage04(runId, trimmed, options);
+  else result = {
     status: "unsupported",
     target_stage: targetStage,
     message: `阶段 ${String(targetStage).padStart(2, "0")} 自然语言改稿尚未开通`,
   };
+
+  if (result.status === "revised") {
+    recordResearchExperienceEvent({
+      runId,
+      eventType: "stage_revision_completed",
+      actorType: "human",
+      stage: `stage_${String(targetStage).padStart(2, "0")}`,
+      targetType: "Artifact",
+      targetId: result.artifact.id,
+      outcome: "revised",
+      payload: { instruction: trimmed, revision_summary: result.revision_summary },
+      dedupeKey: `stage_revision_completed:${result.artifact.id}`,
+    });
+  }
+  return result;
 }
 
 async function reviseStage01(
@@ -612,6 +621,17 @@ export async function validateStage02ForApproval(
   const heuristic = heuristicStructureIssues(structure, scope);
 
   let result = options.validationResult;
+  if (!result && stage02.model_name === "human-controlled-structure-projection") {
+    const errors = heuristic.filter((item) => item.severity === "error");
+    result = {
+      ok: errors.length === 0,
+      summary: errors.length
+        ? "人工受控结构未通过确定性确认前校验"
+        : "人工受控结构已通过 Schema 与确定性确认前校验；未产生额外模型费用",
+      issues: heuristic,
+      suggested_patch: null,
+    };
+  }
   if (!result) {
     const client = (options.createClient || createResearchModelClient)("producer");
     const modelResult = await client.generateStructured(

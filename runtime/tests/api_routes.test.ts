@@ -1,12 +1,20 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { resolve } from "node:path";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("next/server")>();
   return { ...actual, after: vi.fn() };
 });
-process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-api-${process.pid}.sqlite`;
-process.env.WORKBENCH_EXPORT_ROOT = `/tmp/ontology-workbench-api-exports-${process.pid}`;
+// Use a workspace-local DB so experience enrollment remains cohort-eligible in API tests.
+process.env.WORKBENCH_DB_PATH = resolve(
+  process.cwd(),
+  `../instances/00_本机运行/.vitest-api-${process.pid}.sqlite`,
+);
+process.env.WORKBENCH_EXPORT_ROOT = resolve(
+  process.cwd(),
+  `../instances/00_本机运行/.vitest-api-exports-${process.pid}`,
+);
 
 let db: typeof import("@/adapters/db");
 let objectSetRoute: typeof import("@/app/api/runs/[id]/object-set/route");
@@ -14,6 +22,8 @@ let changeSetRoute: typeof import("@/app/api/runs/[id]/change-set/route");
 let publishRoute: typeof import("@/app/api/runs/[id]/publish/route");
 let runRoute: typeof import("@/app/api/runs/[id]/route");
 let continueRoute: typeof import("@/app/api/runs/[id]/continue/route");
+let runsRoute: typeof import("@/app/api/runs/route");
+let experienceCohort: typeof import("@/adapters/experience_cohort");
 let researchJobs: typeof import("@/adapters/research_jobs");
 
 beforeAll(async () => {
@@ -23,6 +33,8 @@ beforeAll(async () => {
   publishRoute = await import("@/app/api/runs/[id]/publish/route");
   runRoute = await import("@/app/api/runs/[id]/route");
   continueRoute = await import("@/app/api/runs/[id]/continue/route");
+  runsRoute = await import("@/app/api/runs/route");
+  experienceCohort = await import("@/adapters/experience_cohort");
   researchJobs = await import("@/adapters/research_jobs");
 });
 
@@ -111,5 +123,30 @@ describe("critical API routes", () => {
       next_href: `/runs/${run.id}/stages/1`,
     });
     expect(researchJobs.listResearchJobsForRun(run.id)).toHaveLength(0);
+  });
+
+  it("enrolls a frozen experience case once and rejects drift or duplicates", async () => {
+    const definition = experienceCohort.getExperienceCohortCaseDefinition("RXB-S02")!;
+    const request = (question: string) => new Request("http://127.0.0.1/api/runs", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        question,
+        domain: "semiconductor",
+        experience_case_id: definition.case_id,
+      }),
+    });
+
+    const drifted = await runsRoute.POST(request(`${definition.question} 改写`));
+    expect(drifted.status).toBe(400);
+
+    const created = await runsRoute.POST(request(definition.question));
+    expect(created.status).toBe(201);
+    const run = await created.json();
+    const creationEvent = db.listResearchExperienceEvents(run.id).find((item) => item.event_type === "run_created")!;
+    expect(JSON.parse(creationEvent.payload_json).experience_case_id).toBe("RXB-S02");
+
+    const duplicate = await runsRoute.POST(request(definition.question));
+    expect(duplicate.status).toBe(409);
   });
 });

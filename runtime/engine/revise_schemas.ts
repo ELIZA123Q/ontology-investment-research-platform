@@ -66,6 +66,7 @@ export type ControlledStructurePatch = z.infer<typeof controlledStructurePatchSc
 export type StructureValidationResult = z.infer<typeof structureValidationResultSchema>;
 
 export const controlledEvidencePatchSchema = z.object({
+  // 与 upserts/removals 双记账：模型常漏写新建 SRC。提交前 Runtime 会从 upserts/removals 并入。
   affected_object_refs: z.array(z.string().min(1)).min(1),
   upserts: z.record(z.string(), z.array(z.unknown())),
   removals: z.record(z.string(), z.array(z.string())).default({}),

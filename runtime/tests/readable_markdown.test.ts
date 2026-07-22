@@ -80,4 +80,31 @@ describe("save structured JSON rewrites readable markdown", () => {
     const parsed = JSON.parse(saved.json_content);
     expect(parsed.document_markdown).toBe(saved.markdown_content);
   });
+
+  it("keeps stage_05 client markdown when preferMarkdown is set", () => {
+    const run = db.createRun("交付稿权威保存", "semiconductor");
+    const data = {
+      title: "测试报告",
+      executive_points: ["库存存在下降迹象"],
+      report_claims: [{
+        id: "EX-1",
+        statement: "库存存在下降迹象",
+        judgment_ids: ["J-1"],
+        method_application_ids: ["MA-1"],
+        evidence_draft_ids: ["EV-1"],
+        source_ids: [],
+      }],
+      limitations: ["样本有限"],
+      document_markdown: "# 旧交付稿\n\n这段应被研究员改写覆盖。请保留足够长度以满足可读稿合同。",
+    };
+    const artifact = db.createArtifact(run.id, "stage_05", {
+      status: "needs_review",
+      json_content: JSON.stringify(data),
+      markdown_content: data.document_markdown,
+    });
+    const preferred = "# 研究员改写稿\n\n这是研究员直接编辑的交付可读稿，应作为权威正文保存，而不是被结构化字段重写覆盖。";
+    const saved = workflow.editArtifact(artifact.id, JSON.stringify(data), preferred, { preferMarkdown: true });
+    expect(saved.markdown_content).toBe(preferred);
+    expect(JSON.parse(saved.json_content).document_markdown).toBe(preferred);
+  });
 });

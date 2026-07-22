@@ -58,23 +58,23 @@ formal_ontology_rules:
   state_time_consistency:
     source_ref: ontology/01_通用/models/state_event.yaml#rules
     rule_class: state_consistency
-    execution_surface: unimplemented
-    blocking: false
+    execution_surface: runtime_semantic_execution
+    blocking: true
   semiconductor_proxy_disclosure:
     source_ref: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints
     rule_class: evidence_constraint
-    execution_surface: unimplemented
-    blocking: false
+    execution_surface: runtime_semantic_execution
+    blocking: true
   semiconductor_qualification_stage_alignment:
     source_ref: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints
     rule_class: evidence_constraint
-    execution_surface: unimplemented
-    blocking: false
+    execution_surface: runtime_semantic_execution
+    blocking: true
   semiconductor_capacity_yield_scope_alignment:
     source_ref: ontology/01_通用/models/semiconductor_extension.yaml#evidence_constraints
     rule_class: evidence_constraint
-    execution_surface: unimplemented
-    blocking: false
+    execution_surface: runtime_semantic_execution
+    blocking: true
 
 method_assets:
   kb04:A00: {source_ref: methods/04_裁决/A00_裁决总则.md, capability: adjudication}

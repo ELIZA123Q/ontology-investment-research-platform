@@ -8,6 +8,7 @@ import {
   listSourcesForAttribution,
 } from "@/adapters/db_read_models";
 import { RunArchivePanel } from "@/app/components/run-archive-panel";
+import { artifactKindLabel, artifactStatusLabel } from "@/app/lib/ui-labels";
 import { runDifferenceAttribution } from "@/engine/metrics";
 import { evidenceBoundSources } from "@/engine/evidence_sources";
 import { parseJson, type Artifact } from "@/engine/types";
@@ -37,7 +38,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
     <RunArchivePanel runId={id} archive={archive} />
     <div className="history-grid" style={{ marginTop: 16 }}>
       <section className="card"><div className="panel-title"><div><span>研究关系</span></div></div>{parent ? <Link className="history-run parent" href={`/runs/${parent.id}`}><span>上一轮</span><strong>{parent.question}</strong><small>{parent.created_at}</small></Link> : <div className="history-run root"><span>起点</span><strong>这是该研究链的起点</strong></div>}{children.map((child) => <Link className="history-run child" href={`/runs/${child.id}`} key={child.id}><span>增量研究</span><strong>{child.question}</strong><small>{child.created_at}</small></Link>)}</section>
-      <section className="card"><div className="panel-title"><div><span>阶段版本</span><strong>{artifacts.length}</strong></div></div><div className="artifact-ledger">{artifacts.map((artifact) => <div key={artifact.id}><span>{artifact.kind}</span><strong>第 {artifact.version} 版 · {artifact.status}</strong><small>{artifact.created_at}</small></div>)}</div></section>
+      <section className="card"><div className="panel-title"><div><span>阶段版本</span><strong>{artifacts.length}</strong></div></div><div className="artifact-ledger">{artifacts.map((artifact) => <div key={artifact.id}><span>{artifactKindLabel(artifact.kind)}</span><strong>第 {artifact.version} 版 · {artifactStatusLabel(artifact.status)}</strong><small>{artifact.created_at}</small></div>)}</div></section>
       {comparisons.map(({ previous, current, attribution }) => <section className="card history-comparison" key={`${previous.id}-${current.id}`}>
         <div className="panel-title"><div><span>前后轮差异</span><strong>{classificationLabel(current.trigger_classification)}</strong></div><Link href={`/runs/${current.id}`}>查看后续研究 →</Link></div>
         <div className="comparison-head"><div><small>上一轮</small><strong>{previous.id.slice(0, 8)}</strong></div><span>→</span><div><small>本轮</small><strong>{current.id.slice(0, 8)}</strong></div></div>

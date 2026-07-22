@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-type PrimaryAction = { eyebrow: string; title: string; description: string; href: string };
+type PrimaryAction = { eyebrow: string; title: string; description: string; href: string; cta?: string };
 
 export function RunPrimaryAction({ runId, action, autoContinue }: {
   runId: string;
@@ -41,5 +41,5 @@ export function RunPrimaryAction({ runId, action, autoContinue }: {
 }
 
 function ActionCopy({ action }: { action: PrimaryAction }) {
-  return <><span>{action.eyebrow}</span><strong>{action.title}</strong><small>{action.description}</small><b>继续 →</b></>;
+  return <><span>{action.eyebrow}</span><strong>{action.title}</strong><small>{action.description}</small><b>{action.cta || "继续 →"}</b></>;
 }

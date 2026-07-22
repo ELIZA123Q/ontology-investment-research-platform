@@ -9,6 +9,7 @@ import {
   latestArtifact,
   listEventImpacts,
   listRuns,
+  setRadarLastRefreshedAt,
   updateEventImpactStatus,
   updateMarketEventStatus,
   upsertEventImpact,
@@ -133,7 +134,15 @@ export async function refreshMarketRadar(
       impacts++;
     }
   }
-  return { batch_id: batchId, provider: provider.name, discovered: drafts.length, inserted, deduplicated, impacts };
+  return {
+    batch_id: batchId,
+    provider: provider.name,
+    discovered: drafts.length,
+    inserted,
+    deduplicated,
+    impacts,
+    last_refreshed_at: setRadarLastRefreshedAt(new Date().toISOString(), lookbackHours),
+  };
 }
 
 function normalizeRadarUrl(raw: string) {

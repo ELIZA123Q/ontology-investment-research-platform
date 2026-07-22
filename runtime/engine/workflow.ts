@@ -42,7 +42,7 @@ import {
 } from "./method_registry";
 import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type SourceRecord, type StageKind } from "./types";
 import { validateReasoningTraceBindings } from "./reasoning_trace";
-import { changeSetSchema, mergeChangeSet, type ChangeSet } from "./change_set";
+import { changeSetSchema, expandAffectedObjectRefs, mergeChangeSet, type ChangeSet } from "./change_set";
 import { captureSourceSnapshot } from "./source_snapshot";
 import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } from "./semantic_execution";
 import { evidenceBoundSourceIds, evidenceBoundSources } from "./evidence_sources";
@@ -498,7 +498,8 @@ export async function generateArtifact(
         const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
         applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
       }
-      if (kind === "stage_03") {
+      if (kind === "stage_03" && stage03Mode !== "evidence_supplement") {
+        // 全量生成后可自动多轮补证；「补充取证」按钮本身已是一轮，再套 max_auto_rounds 会把 token 打爆。
         let autoRound = 1;
         let previousGapCount: number | undefined;
         while (autoRound < maxAutoRounds) {
@@ -630,10 +631,12 @@ export async function applyIncrementalChangeSet(runId: string, rawChangeSet: Cha
   if (changeSet.target_attempt !== nextAttempt) throw new Error(`ChangeSet target_attempt 应为 ${nextAttempt}`);
   const graphVersion = latestArtifact(runId, "instance_graph", ["approved"])?.version || 0;
   if (changeSet.expected_graph_version !== graphVersion) throw new Error(`图版本冲突：期望 ${changeSet.expected_graph_version}，当前 ${graphVersion}`);
-  const merged: any = mergeChangeSet(parseJson(baseArtifact.json_content, {}), changeSet);
+  const mergedRaw: any = mergeChangeSet(parseJson(baseArtifact.json_content, {}), changeSet);
+  const merged: any = stage === "stage_03" ? repairEvidencePreparationDraft(mergedRaw) : mergedRaw;
+  const affectedObjectRefs = expandAffectedObjectRefs(changeSet);
 
   if (stage === "stage_03") {
-    const affected = new Set(changeSet.affected_object_refs);
+    const affected = new Set(affectedObjectRefs);
     const existingSources = listSources(runId);
     const sourceKeyMap = new Map<string, string>();
     for (const source of merged.sources || []) {
@@ -697,7 +700,7 @@ export async function applyIncrementalChangeSet(runId: string, rawChangeSet: Cha
   }
   schemas[stage].parse(merged);
   const loadedGraph = loadGraphForRun(runId, run.package_path);
-  const graphRefs = changeSet.affected_object_refs.map((ref) => {
+  const graphRefs = affectedObjectRefs.map((ref) => {
     const source = (merged.sources || []).find((item: any) => String(item.source_key) === ref);
     return String(source?.source_id || ref);
   });

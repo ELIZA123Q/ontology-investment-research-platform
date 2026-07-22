@@ -46,6 +46,7 @@ import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } fro
 import { evidenceBoundSourceIds, evidenceBoundSources } from "./evidence_sources";
 import { syncReviewWorkItems } from "./review_work_items";
 import { classifyRuntimeFailure, compactStructuredArtifact } from "./workflow_support";
+import { normalizeEvidencePreparationNulls, dropIncompleteSources, reconcileMethodEvidenceRefs } from "./evidence_draft_normalize";
 
 import { syncStage02ReadableMarkdown } from "./readable_markdown";
 import {
@@ -358,24 +359,29 @@ export function createControlledStructureProjection(runId: string, raw: Controll
  * Soft-repair near-miss Stage 03 drafts before schema validation.
  * Models often emit gap drafts + blocked evidence MAs but forget
  * input_evidence_refs / alternatives bindings required by the contract.
+ * Also: empty source quotes, dangling EV-* refs after partial patches.
  */
 export function repairEvidencePreparationDraft(data: any): any {
-  if (!data || typeof data !== "object" || !Array.isArray(data.method_applications) || !Array.isArray(data.evidence_drafts)) {
-    return data;
+  if (!data || typeof data !== "object") return data;
+  let normalized: any = normalizeEvidencePreparationNulls(data);
+  normalized = dropIncompleteSources(normalized);
+  normalized = reconcileMethodEvidenceRefs(normalized);
+  if (!Array.isArray(normalized.method_applications) || !Array.isArray(normalized.evidence_drafts)) {
+    return normalized;
   }
-  const drafts = data.evidence_drafts;
+  const drafts = normalized.evidence_drafts;
   const referenced = new Set<string>(
-    data.method_applications.flatMap((item: any) => (
+    normalized.method_applications.flatMap((item: any) => (
       Array.isArray(item?.input_evidence_refs) ? item.input_evidence_refs.map(String) : []
     )),
   );
   const unbound = drafts.filter((item: any) => item?.id && !referenced.has(String(item.id)));
-  const needsAlternatives = data.method_applications.some((item: any) => (
+  const needsAlternatives = normalized.method_applications.some((item: any) => (
     ["blocked", "rejected"].includes(String(item?.status || "")) && !(item.alternatives || []).length
   ));
-  if (!unbound.length && !needsAlternatives) return data;
+  if (!unbound.length && !needsAlternatives) return normalized;
 
-  const applications = data.method_applications.map((application: any) => {
+  const applications = normalized.method_applications.map((application: any) => {
     let input_evidence_refs = Array.isArray(application.input_evidence_refs)
       ? application.input_evidence_refs.map(String)
       : [];
@@ -410,7 +416,7 @@ export function repairEvidencePreparationDraft(data: any): any {
     }
   }
 
-  return { ...data, method_applications: applications };
+  return { ...normalized, method_applications: applications };
 }
 
 export function buildEvidenceGapFallback(structure: any, reason: string) {

@@ -12,7 +12,7 @@ import {
   listSources,
   updateArtifactIfStatus,
 } from "../adapters/db";
-import { generationLeaseMs } from "../adapters/model_provider";
+import { generationLeaseMs, researchJobLeaseMs } from "../adapters/model_provider";
 import type { Artifact, ArtifactKind, ResearchJob, StageKind } from "./types";
 import { STAGES } from "./types";
 import { classifyRuntimeFailure, generateArtifact } from "./workflow";
@@ -118,7 +118,7 @@ export function enqueueArtifactGeneration(input: {
     budget: {
       max_auto_rounds: maxAutoRounds,
       max_sources: Number(process.env.RESEARCH_JOB_MAX_SOURCES || 40),
-      max_tokens: Number(process.env.RESEARCH_JOB_MAX_TOKENS || 120_000),
+      max_tokens: Number(process.env.RESEARCH_JOB_MAX_TOKENS || 1_000_000),
       max_cost_usd: process.env.RESEARCH_JOB_MAX_COST_USD ? Number(process.env.RESEARCH_JOB_MAX_COST_USD) : null,
       input_usd_per_million_tokens: process.env.RESEARCH_INPUT_USD_PER_MILLION_TOKENS ? Number(process.env.RESEARCH_INPUT_USD_PER_MILLION_TOKENS) : null,
       output_usd_per_million_tokens: process.env.RESEARCH_OUTPUT_USD_PER_MILLION_TOKENS ? Number(process.env.RESEARCH_OUTPUT_USD_PER_MILLION_TOKENS) : null,
@@ -162,7 +162,7 @@ export async function executeClaimedGenerationJob(
   if (!job.lease_token || job.status !== "running") throw new Error("任务尚未取得运行租约");
   const token = job.lease_token;
   const payload = parseGenerationPayload(job);
-  const leaseMs = generationLeaseMs();
+  const leaseMs = researchJobLeaseMs();
   const budget = parseResearchJobBudget(job);
   const startedMs = Date.now();
   const frozen = verifyFrozenJobInputs(job);
@@ -181,7 +181,7 @@ export async function executeClaimedGenerationJob(
   const heartbeat = () => {
     if (!store.heartbeat(job.id, token, leaseMs)) leaseLost = true;
   };
-  const timer = setInterval(heartbeat, Math.max(10_000, Math.floor(leaseMs / 3)));
+  const timer = setInterval(heartbeat, Math.max(1_000, Math.floor(leaseMs / 3)));
   timer.unref?.();
   try {
     const execution = execute(payload.run_id, payload.kind, {
@@ -225,16 +225,37 @@ export async function executeClaimedGenerationJob(
       elapsedMs: Date.now() - startedMs,
     });
     if (!budgetResult.ok) {
+      // 生成已通过 schema 并进入 needs_review 时，token 超限不应销毁可审阅稿；
+      // 仅登记预算告警，交给研究员决定是否接受或重跑。
+      const warning = budgetViolationMessage(budgetResult.violations);
+      let priorTool: Record<string, unknown> = {};
+      try { priorTool = JSON.parse(artifact.tool_usage || "{}"); } catch { priorTool = {}; }
       updateArtifactIfStatus(artifact.id, "needs_review", {
-        status: "failed",
-        error_message: budgetViolationMessage(budgetResult.violations),
+        tool_usage: JSON.stringify({
+          ...priorTool,
+          budget_warning: warning,
+          budget: budgetResult,
+        }),
+        error_message: null,
       });
       return store.finish(job.id, token, {
-        reason: budgetViolationMessage(budgetResult.violations),
-        budget: budgetResult,
-      }, "waiting_for_input");
+        artifact_id: artifact.id,
+        artifact_version: artifact.version,
+        new_source_count: newSourceCount,
+        total_source_count: currentSourceIds.size,
+        elapsed_ms: budgetResult.elapsed_ms,
+        token_usage: budgetResult.usage,
+        budget_warning: warning,
+      }, "waiting_for_review");
     }
-    const finished = store.finish(job.id, token, { artifact_id: artifact.id, artifact_version: artifact.version }, "waiting_for_review");
+    const finished = store.finish(job.id, token, {
+      artifact_id: artifact.id,
+      artifact_version: artifact.version,
+      new_source_count: newSourceCount,
+      total_source_count: currentSourceIds.size,
+      elapsed_ms: budgetResult.elapsed_ms,
+      token_usage: budgetResult.usage,
+    }, "waiting_for_review");
     if (!finished) {
       updateArtifactIfStatus(artifact.id, "needs_review", {
         status: "failed",
@@ -275,7 +296,7 @@ export async function runNextResearchJob(options: {
   const store = options.store || getResearchJobStore();
   const job = store.claimNext({
     workerId: options.workerId || `worker-${process.pid}`,
-    leaseMs: generationLeaseMs(),
+    leaseMs: researchJobLeaseMs(),
     jobTypes: ["generate_artifact"],
   });
   if (!job) return undefined;

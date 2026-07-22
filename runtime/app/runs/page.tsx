@@ -37,6 +37,8 @@ export default function RunsPage() {
     status: run.status,
     parent_run_id: run.parent_run_id,
     descendant_count: descendants.get(run.id) || 0,
+    created_at: run.created_at,
+    updated_at: run.updated_at,
   }));
 
   return (

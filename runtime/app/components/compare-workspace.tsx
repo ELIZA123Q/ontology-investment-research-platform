@@ -64,9 +64,45 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
       <div className="field"><label>评价人标识</label><input disabled={saved} value={evaluator} onChange={(event) => setEvaluator(event.target.value)} placeholder="例如：主研究员 / Codex 运行验收" /></div>
       <div className="field"><label>对比备注</label><textarea disabled={saved} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="说明评分依据、最大差异和不确定性" /></div>
       <button className="button" disabled={saved || busy || !canEvaluate || evaluator.trim().length < 2 || notes.trim().length < 8 || Object.keys(scores).length !== criteria.length * 2} onClick={save}>保存评价并揭示</button>
-      {!canEvaluate && !saved ? <div className="notice">基线和阶段 05 都必须先确认，才能锁定盲评输入。</div> : null}
+      {!canEvaluate && !saved ? <div className="notice">基线和交付报告都必须先确认，才能锁定盲评输入。</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
-      {saved ? <><div className="notice">方案 A 是 {sideA === "baseline" ? "同证据对照基线" : "本体约束研究路径"}；方案 B 是 {sideA === "baseline" ? "本体约束研究路径" : "同证据对照基线"}。该评价已锁定。</div><pre>{JSON.stringify(metrics, null, 2)}</pre></> : null}
+      {saved ? <>
+        <div className="notice">方案 A 是 {sideA === "baseline" ? "同证据对照基线" : "本体约束研究路径"}；方案 B 是 {sideA === "baseline" ? "本体约束研究路径" : "同证据对照基线"}。该评价已锁定。</div>
+        <div className="compare-metrics">
+          {Object.entries(metrics || {}).length ? Object.entries(metrics).map(([key, value]) => (
+            <div key={key}>
+              <span>{metricLabel(key)}</span>
+              <strong>{formatMetricValue(value)}</strong>
+            </div>
+          )) : <p className="muted">暂无附加确定性指标。</p>}
+        </div>
+        <details className="source-tech-details">
+          <summary>原始指标 JSON</summary>
+          <pre>{JSON.stringify(metrics, null, 2)}</pre>
+        </details>
+      </> : null}
     </section>
   </>;
+}
+
+function metricLabel(key: string) {
+  return ({
+    delta: "结论差异",
+    agreement: "一致性",
+    coverage: "覆盖",
+    strength: "强度",
+    confidence: "置信",
+  } as Record<string, string>)[key] || key;
+}
+
+function formatMetricValue(value: unknown) {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "number") return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  if (typeof value === "boolean") return value ? "是" : "否";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }

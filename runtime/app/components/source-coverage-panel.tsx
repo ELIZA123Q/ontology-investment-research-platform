@@ -231,16 +231,21 @@ export function SourceCoveragePanel({
         <div className="field"><label>来源标题</label><input name="title" required /></div>
         <div className="field"><label>发布者</label><input name="publisher" required /></div>
         <div className="field"><label>发布日期</label><input name="published_at" type="date" required /></div>
-        <div className="field"><label>来源权威类型</label>
-          <select name="authority_type" defaultValue={defaultAuthority || "company_disclosure"} required>
-            {ACQUIRE_AUTHORITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select>
-        </div>
-        <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S2">{["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"].map((tier) => <option key={tier}>{tier}</option>)}</select></div>
-        <div className="field"><label>独立来源组（可选）</label><input name="source_group" placeholder="默认使用发布者" /></div>
         <div className="field source-wide"><label>页内定位</label><input name="locator" placeholder="段落标题、表格行或 quote:…" required /></div>
         <div className="field source-wide"><label>正文逐字引用</label><textarea name="source_quote" placeholder="必须能在抓取正文中逐字定位，至少 20 个字符" required /></div>
       </div>
+      <details className="source-tech-details">
+        <summary>高级来源字段</summary>
+        <div className="source-form-grid">
+          <div className="field"><label>来源权威类型</label>
+            <select name="authority_type" defaultValue={defaultAuthority || "company_disclosure"} required>
+              {ACQUIRE_AUTHORITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </div>
+          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S2">{["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"].map((tier) => <option key={tier}>{tier}</option>)}</select></div>
+          <div className="field"><label>独立来源组（可选）</label><input name="source_group" placeholder="默认使用发布者" /></div>
+        </div>
+      </details>
       {acquireMessage ? <div className="notice">{acquireMessage}</div> : null}
       <button className="button" disabled={acquireBusy}>{acquireBusy ? "正在抓取并核验…" : "取得来源并进入候选池"}</button>
     </form> : null}
@@ -254,7 +259,7 @@ export function SourceCoveragePanel({
             const current = unitRefs[source.id] || [];
             const next = event.target.checked ? [...new Set([...current, unit.id])] : current.filter((id) => id !== unit.id);
             setUnitRefs({ ...unitRefs, [source.id]: next });
-          }} /> {unit.id} · {unit.title}</label>)}</div>
+          }} /> {unit.title}</label>)}</div>
           <div className="field"><label>事实对象（口径标识）</label><input value={subjects[source.id] || ""} onChange={(event) => setSubjects({ ...subjects, [source.id]: event.target.value })} placeholder="例如：HBM 合约价" /></div>
           <div className="field"><label>事实观测日期</label><input type="date" value={observed[source.id] || ""} onChange={(event) => setObserved({ ...observed, [source.id]: event.target.value })} /></div>
           <div className="field"><label>证据方向</label><select value={directions[source.id] || "support"} onChange={(event) => setDirections({ ...directions, [source.id]: event.target.value as "support" | "weaken" | "neutral" })}><option value="support">支持</option><option value="weaken">削弱 / 反证</option><option value="neutral">背景 / 中性</option></select></div>

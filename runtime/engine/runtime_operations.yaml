@@ -93,7 +93,16 @@ actions:
     audit_preconditions: [假设已评价且证据门槛明确, 至少一个 MethodApplication 已执行]
     effects: [create_Judgment, create_judgmentBasedOnHypothesis, create_judgmentHasRuleEvaluation, create_judgmentResolvesUnit, create_runtimeJudgmentUsesMethodApplication]
     outputs: [Judgment]
-    formal_rule_refs: [judgment_evidence_threshold]
+    formal_rule_refs:
+      - evidence_scope_time_alignment
+      - no_direct_evidence_to_judgment
+      - judgment_reference_integrity
+      - judgment_evidence_threshold
+      - judgment_status_consistency
+      - state_time_consistency
+      - semiconductor_proxy_disclosure
+      - semiconductor_qualification_stage_alignment
+      - semiconductor_capacity_yield_scope_alignment
     method_refs: []
     governance_rule_refs: []
     runtime_rule_refs: [RT-METHOD-STATUS-001, RT-OPERATION-REGISTRY-001]

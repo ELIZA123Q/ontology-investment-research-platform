@@ -62,6 +62,10 @@ PROMPT_VARIANTS = {11: "A", 22: "B", 33: "A"}
 DOWNSTREAM_TASKS = ["core_restatement", "tracking_plan", "information_update", "research_questions"]
 
 
+class RequestBudgetExhausted(EvalError):
+    """Raised before a new model request would exceed the caller's hard cap."""
+
+
 def now_iso() -> str:
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -208,12 +212,23 @@ def command_prepare(args: argparse.Namespace) -> int:
 
 
 class RunOrchestrator:
-    def __init__(self, run_dir: Path, profiles_path: Path, suite_path: Path, intensity: str = "formal_full"):
+    def __init__(
+        self,
+        run_dir: Path,
+        profiles_path: Path,
+        suite_path: Path,
+        intensity: str = "formal_full",
+        max_new_requests: int | None = None,
+    ):
         self.run_dir = run_dir
         self.registry = validate_profiles(profiles_path)
         if intensity not in {"pilot_light", "formal_full"}:
             raise EvalError(f"未知评测强度: {intensity}")
         self.intensity = intensity
+        if max_new_requests is not None and max_new_requests < 1:
+            raise EvalError("--max-new-requests 必须为正整数")
+        self.max_new_requests = max_new_requests
+        self.new_requests = 0
         self.seeds = [11] if intensity == "pilot_light" else list(SEEDS)
         self.context_ids = ["B", "C", "D"] if intensity == "pilot_light" else ["A", "B", "C", "D", "E"]
         execution_lock = {
@@ -286,6 +301,15 @@ class RunOrchestrator:
         )
         if extra_meta:
             request["metadata"].update(extra_meta)
+        is_new_request = request["request_id"] not in self.existing
+        if (
+            is_new_request
+            and self.max_new_requests is not None
+            and self.new_requests >= self.max_new_requests
+        ):
+            raise RequestBudgetExhausted(
+                f"新请求硬上限 {self.max_new_requests} 已用尽；未发送 {request['request_id']}"
+            )
         response = execute_request(
             request,
             self.sessions[profile_name],
@@ -293,6 +317,8 @@ class RunOrchestrator:
             self.response_log,
             self.existing,
         )
+        if is_new_request:
+            self.new_requests += 1
         if response.get("status") != "ok":
             self.errors += 1
         return response
@@ -305,47 +331,12 @@ class RunOrchestrator:
         defects = load_yaml(DEFECTS_PATH)["items"]
 
         # Calibration is a release gate and therefore always runs before formal R/U/delta work.
+        # Under a tight request budget, defect and clean checks carry more information than
+        # perturbations, so run them first; budget exhaustion still stops before the next call.
         pilot_single_vendor = self.intensity == "pilot_light" and self.registry["run_mode"] == "single_vendor"
         selected_defects = (
             [item for item in defects if item.get("severity") == "critical"] if pilot_single_vendor else defects
         )
-
-        for info in self.cases:
-            case = info["case"]
-            case_id = case["case_id"]
-            question = case["task_input"]["question"]
-            system_text = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
-            perturbations = info["perturbations"]["items"]
-            if pilot_single_vendor:
-                perturbations = [
-                    item
-                    for item in perturbations
-                    if item.get("type") in {"delete_critical_evidence", "inject_counterevidence"}
-                ]
-            for perturbation in perturbations:
-                for judge in judges:
-                    for seed in self.seeds:
-                        self.call(
-                            "perturbation",
-                            judge,
-                            case_id,
-                            {
-                                "question": question,
-                                "original_artifact": system_text,
-                                "evidence": info["evidence"]["evidence"],
-                                "perturbation": {
-                                    key: value
-                                    for key, value in perturbation.items()
-                                    if key != "expected_action"
-                                },
-                            },
-                            seed=seed,
-                            suffix=f"perturb-{perturbation['perturbation_id']}-{judge}-{seed}",
-                            extra_meta={
-                                "perturbation_id": perturbation["perturbation_id"],
-                                "expected_action": perturbation["expected_action"],
-                            },
-                        )
 
         for defect in selected_defects:
             case_id = defect["base_case"]
@@ -393,6 +384,43 @@ class RunOrchestrator:
                         seed=seed,
                         suffix=f"calibration-clean-{judge}-{seed}",
                     )
+
+        for info in self.cases:
+            case = info["case"]
+            case_id = case["case_id"]
+            question = case["task_input"]["question"]
+            system_text = (self.run_dir / "candidates" / case_id / "system.md").read_text(encoding="utf-8")
+            perturbations = info["perturbations"]["items"]
+            if pilot_single_vendor:
+                perturbations = [
+                    item
+                    for item in perturbations
+                    if item.get("type") in {"delete_critical_evidence", "inject_counterevidence"}
+                ]
+            for perturbation in perturbations:
+                for judge in judges:
+                    for seed in self.seeds:
+                        self.call(
+                            "perturbation",
+                            judge,
+                            case_id,
+                            {
+                                "question": question,
+                                "original_artifact": system_text,
+                                "evidence": info["evidence"]["evidence"],
+                                "perturbation": {
+                                    key: value
+                                    for key, value in perturbation.items()
+                                    if key != "acceptable_actions"
+                                },
+                            },
+                            seed=seed,
+                            suffix=f"perturb-{perturbation['perturbation_id']}-{judge}-{seed}",
+                            extra_meta={
+                                "perturbation_id": perturbation["perturbation_id"],
+                                "acceptable_actions": perturbation["acceptable_actions"],
+                            },
+                        )
 
         calibration = compute_calibration(
             [row for row in self.existing.values() if row.get("status") == "ok"],
@@ -640,9 +668,13 @@ class RunOrchestrator:
                 "error_responses": self.errors,
                 "unique_requests": len(self.existing),
                 "run_mode": self.registry["run_mode"],
+                "evaluation_scope": self.registry["evaluation_scope"],
+                "research_gain_claim_eligible": self.registry["research_gain_claim_eligible"],
                 "intensity": self.intensity,
                 "calibration_minimum": self.calibration_minimum,
                 "repetitions_per_judge": len(self.seeds),
+                "max_new_requests": self.max_new_requests,
+                "new_requests_sent": self.new_requests,
                 "profiles": {
                     name: {"model_id": value["model_id"], "provider_family": value["provider_family"]}
                     for name, value in self.registry["profiles"].items()
@@ -655,7 +687,18 @@ def command_run(args: argparse.Namespace) -> int:
     run_dir = Path(args.run_dir).resolve()
     if not (run_dir / "manifest.yaml").is_file():
         raise EvalError("run前必须先prepare")
-    orchestrator = RunOrchestrator(run_dir, Path(args.profiles), Path(args.suite), intensity=args.intensity)
+    orchestrator = RunOrchestrator(
+        run_dir,
+        Path(args.profiles),
+        Path(args.suite),
+        intensity=args.intensity,
+        max_new_requests=args.max_new_requests,
+    )
+    if (
+        orchestrator.registry.get("evaluation_scope") == "pipeline_only"
+        and args.max_new_requests is None
+    ):
+        raise EvalError("pipeline_only 真实模型运行必须显式设置 --max-new-requests，防止冒烟配置误发数百请求")
     if args.retry_errors:
         removed = purge_error_responses(orchestrator.response_log)
         orchestrator.existing = {
@@ -665,6 +708,10 @@ def command_run(args: argparse.Namespace) -> int:
             print(f"EVAL_RETRY_ERRORS: removed={removed}")
     try:
         orchestrator.run(stage=args.stage)
+    except RequestBudgetExhausted as error:
+        orchestrator._write_status("request_budget_exhausted", args.stage)
+        print(f"EVAL_REQUEST_BUDGET_EXHAUSTED: {error}", file=sys.stderr)
+        return 4
     finally:
         close_sessions(orchestrator.sessions)
     if orchestrator.calibration_blocked:
@@ -735,7 +782,10 @@ def _calibration_metrics(rows: list[dict[str, Any]]) -> dict[str, Any]:
     sensitivity = safe_mean(
         [
             normalize_role_result(row).get("action")
-            == row.get("request_metadata", {}).get("expected_action")
+            in (
+                row.get("request_metadata", {}).get("acceptable_actions")
+                or [row.get("request_metadata", {}).get("expected_action")]
+            )
             for row in perturb_rows
         ]
     )
@@ -1039,13 +1089,20 @@ def command_aggregate(args: argparse.Namespace) -> int:
                 4,
             ),
         }
-    release_allowed = C_ORDER[calibration["grade"]] >= C_ORDER["C2"] and calibration["all_judges_eligible"]
+    claim_eligible = status.get("research_gain_claim_eligible") is True
+    release_allowed = (
+        claim_eligible
+        and C_ORDER[calibration["grade"]] >= C_ORDER["C2"]
+        and calibration["all_judges_eligible"]
+    )
     result = {
         "document_type": "research_value_eval_summary",
         "schema_version": "2.1.0",
         "suite_id": load_yaml(Path(args.suite))["suite_id"],
         "generated_at": now_iso(),
         "run_mode": status.get("run_mode"),
+        "evaluation_scope": status.get("evaluation_scope") or "legacy_unclassified",
+        "research_gain_claim_eligible": claim_eligible,
         "run_status": status.get("status"),
         "no_composite_score": True,
         "suite_proxy_rate_release_allowed": release_allowed,
@@ -1067,6 +1124,12 @@ def command_aggregate(args: argparse.Namespace) -> int:
             "single_vendor：评测/下游共用同一 model_id，S/C 不得外推为 formal_full 跨模型可靠率。"
             if status.get("run_mode") == "single_vendor"
             else "",
+            (
+                "本轮属于 pipeline_only 或未分类旧运行；R/U/delta/S/C 只可用于调试评测管线，"
+                "不得作为本体工作流带来研究增益的证据。"
+                if not claim_eligible
+                else ""
+            ),
         ],
     }
     result["limitations"] = [item for item in result["limitations"] if item]
@@ -1129,6 +1192,9 @@ def command_report(args: argparse.Namespace) -> int:
         f"- 评测可信度（评测器校准）：**{calibration['grade']}**"
         + ("；达到进入正式结论的门槛" if C_ORDER[calibration["grade"]] >= C_ORDER["C2"] else "；未达门槛，下文正式结论应谨慎使用"),
         f"- 运行模式：`{summary['run_mode']}`",
+        f"- 评测范围：`{summary.get('evaluation_scope', 'legacy_unclassified')}`",
+        "- 研究增益声明资格："
+        + ("**有（仍受样本量与质量门约束）**" if summary.get("research_gain_claim_eligible") else "**无，仅作管线诊断**"),
         f"- 专家盲审：`{summary['expert_review']['status']}`",
         "",
         "## 总览",
@@ -1306,6 +1372,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--profiles", required=True)
     run.add_argument("--stage", choices=["all", "calibration", "formal"], default="all")
     run.add_argument("--intensity", choices=["pilot_light", "formal_full"], default="formal_full")
+    run.add_argument(
+        "--max-new-requests",
+        type=int,
+        help="本次命令最多允许发送多少个新模型请求；续跑命中的既有 request_id 不计入。",
+    )
     run.add_argument(
         "--retry-errors",
         action="store_true",

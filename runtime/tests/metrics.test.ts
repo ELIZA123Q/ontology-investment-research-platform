@@ -90,6 +90,10 @@ describe("comparison metrics", () => {
     const stage04 = artifact({
       judgments: [{ id: "J-1", supporting_evidence_draft_ids: ["EV-1"], counter_evidence_draft_ids: [], method_application_ids: ["MA-1"] }],
       method_applications: [{ application_id: "MA-1", status: "executed", capability_type: "adjudication" }],
+      rule_evaluations: [
+        { id: "RE-1", result: "pass" },
+        { id: "RE-2", deterministic_result: { result: "blocked" } },
+      ],
       competing_explanations: [{ id: "CE-1", status: "active" }],
     });
     const report = artifact({
@@ -111,6 +115,9 @@ describe("comparison metrics", () => {
     expect(metrics.runtime.traceable_claim_ratio).toBe(0.5);
     expect(metrics.runtime.counterevidence_fact_count).toBe(0);
     expect(metrics.runtime.active_competing_explanation_count).toBe(1);
+    expect(metrics.runtime.method_finalization_ratio).toBe(1);
+    expect(metrics.runtime.rule_evaluation_count).toBe(2);
+    expect(metrics.runtime.blocking_rule_evaluation_count).toBe(1);
   });
 
   it("accepts the full judgment method chain when it includes one executed adjudication", () => {

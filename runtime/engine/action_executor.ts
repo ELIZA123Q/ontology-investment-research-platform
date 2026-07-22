@@ -10,6 +10,7 @@ import {
   type GraphRelation,
 } from "./instance_graph";
 import { validateRuntimeGraph } from "./graph_contract";
+import { ENGINE_VERSION as SEMANTIC_ENGINE_VERSION, REQUIRED_RULES } from "./semantic_execution";
 
 export type ActionTypeDef = {
   id: string;
@@ -546,14 +547,14 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
         throw new Error(`信号 ${signalRef} 未评估所选假设`);
       }
     }
-    const requiredRules = ["evidence_scope_time_alignment", "no_direct_evidence_to_judgment", "judgment_reference_integrity", "judgment_evidence_threshold", "judgment_status_consistency"];
+    const requiredRules = REQUIRED_RULES;
     const evaluations = ruleEvaluationRefs.map((ref) => graph.objects.find((object) => object.id === ref)!);
     for (const rule of requiredRules) {
       const evaluation = evaluations.find((item) => item.properties?.rule_ref === rule);
       if (!evaluation) throw new Error(`FormJudgment 缺少确定性规则 ${rule}`);
       const result = String(evaluation.properties?.result || "");
       const deterministic = evaluation.properties?.deterministic_result as Record<string, unknown> | undefined;
-      if (!deterministic || deterministic.engine_version !== "runtime-semantic-rules-2.0.0" || deterministic.result !== result) {
+      if (!deterministic || deterministic.engine_version !== SEMANTIC_ENGINE_VERSION || deterministic.result !== result) {
         throw new Error(`规则 ${rule} 缺少可验证的 Runtime 确定性执行留痕`);
       }
       if (result !== "pass" && !(level === "J0" && result === "contested")) {

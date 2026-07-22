@@ -71,6 +71,13 @@ export class ResearchJobStore {
     ).all(runId) as ResearchJob[];
   }
 
+  listActive(limit = 20): ResearchJob[] {
+    const statuses = ["queued", "running", "retrying", "waiting_for_input", "blocked"] as const;
+    return this.connection.prepare(
+      `SELECT * FROM research_jobs WHERE status IN (${placeholders(statuses)}) ORDER BY updated_at DESC LIMIT ?`,
+    ).all(...statuses, Math.max(1, Math.floor(limit))) as ResearchJob[];
+  }
+
   enqueue(input: EnqueueResearchJobInput): ResearchJob {
     const now = input.now || new Date().toISOString();
     const inputArtifactsJson = JSON.stringify(input.inputArtifacts || []);
@@ -259,6 +266,10 @@ export function enqueueResearchJob(input: EnqueueResearchJobInput) {
 
 export function listResearchJobsForRun(runId: string) {
   return getResearchJobStore().listForRun(runId);
+}
+
+export function listActiveResearchJobs(limit = 20) {
+  return getResearchJobStore().listActive(limit);
 }
 
 export function resolveResearchJobReview(artifactId: string, accepted: boolean) {

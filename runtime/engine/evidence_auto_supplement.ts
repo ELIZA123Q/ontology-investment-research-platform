@@ -1,6 +1,6 @@
 import type { ResearchModelClient } from "../adapters/deepseek";
 import { normalizeUrl, upsertSource } from "../adapters/db";
-import { mergeStage03Patch, objectId } from "./change_set";
+import { mergeStage03Patch, normalizeStage03Patch, objectId, type Stage03Patch } from "./change_set";
 import { captureSourceSnapshot } from "./source_snapshot";
 import { computeSourceCoverage } from "./source_coverage";
 import type { EvidenceRequirementProjection } from "./structure_candidates";
@@ -155,6 +155,7 @@ export async function runEvidenceSupplementRound(input: {
     }),
     evidence: input.baseData.evidence_drafts || [],
     sources: input.existingSources,
+    draftSources: input.baseData.sources || [],
     requirements: input.requirements,
   });
 
@@ -171,23 +172,24 @@ export async function runEvidenceSupplementRound(input: {
         evidence_drafts: input.baseData.evidence_drafts || [],
         unresolved_gaps: input.baseData.unresolved_gaps || [],
       },
+      patch_contract: {
+        id_space: "source_key/application_id/evidence_id",
+        note: "affected_object_refs 与 upserts/removals 使用同一套稳定业务 ID（如 SRC-09、MA-EV-01、EV-1），不是 registry UUID。新增对象只需出现在 upserts；Runtime 会自动补齐 affected_object_refs。",
+      },
       ...input.supplementContext,
     }, null, 2),
     {
       webSearch: true,
       ontologyTools: true,
       runId: input.runId,
-      repairOutput: (data) => data,
+      // 提交时即把 upserts/removals ID 并入 affected，避免 schema 过关后 merge 再因漏声明失败。
+      repairOutput: (data) => normalizeStage03Patch(data as Stage03Patch),
     },
   );
   input.assertRunning();
 
-  const patch = result.data;
-  const merged = mergeStage03Patch(input.baseData, {
-    affected_object_refs: patch.affected_object_refs,
-    upserts: patch.upserts,
-    removals: patch.removals,
-  });
+  const patch = normalizeStage03Patch(result.data);
+  const merged = mergeStage03Patch(input.baseData, patch);
   const repaired = repairEvidencePreparationDraft(merged);
   const affectedRefs = new Set(patch.affected_object_refs);
   const withSnapshots = await applyStage03SourceSnapshots({

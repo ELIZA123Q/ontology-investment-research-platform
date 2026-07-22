@@ -403,7 +403,12 @@ export function syncReadableMarkdownForArtifact(artifact: { id: string; run_id: 
   return String(data.document_markdown || "");
 }
 
-export function editArtifact(id: string, jsonContent: string, markdownContent?: string) {
+export function editArtifact(
+  id: string,
+  jsonContent: string,
+  markdownContent?: string,
+  options?: { preferMarkdown?: boolean },
+) {
   const artifact = getArtifact(id);
   if (!artifact) throw new Error("稿件不存在");
   let data: any;
@@ -446,10 +451,13 @@ export function editArtifact(id: string, jsonContent: string, markdownContent?: 
   }
   const schema = schemas[artifact.kind as SchemaKind];
   const syncedKinds = new Set(["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]);
-  const markdown = syncedKinds.has(artifact.kind)
-    ? syncReadableMarkdownForArtifact(artifact, data)
-    : (markdownContent ?? String(data.document_markdown || ""));
-  if (syncedKinds.has(artifact.kind)) data.document_markdown = markdown;
+  const preferMarkdown = Boolean(options?.preferMarkdown) && artifact.kind === "stage_05" && typeof markdownContent === "string";
+  const markdown = preferMarkdown
+    ? markdownContent!
+    : syncedKinds.has(artifact.kind)
+      ? syncReadableMarkdownForArtifact(artifact, data)
+      : (markdownContent ?? String(data.document_markdown || ""));
+  if (syncedKinds.has(artifact.kind) || preferMarkdown) data.document_markdown = markdown;
   if (schema) schema.parse(data);
   const nextJson = JSON.stringify(data, null, 2);
 

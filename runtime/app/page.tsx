@@ -10,6 +10,7 @@ export default function Home() {
     initialEvents={radar.events}
     initialImpacts={radar.impacts}
     initialWorkItems={radar.pending_work_items}
+    initialLastRefreshedAt={radar.last_refreshed_at}
     runs={runs}
   />;
 }

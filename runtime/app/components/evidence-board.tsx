@@ -98,6 +98,7 @@ export function EvidenceBoard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reviewNote, setReviewNote] = useState("");
+  const [unitFilter, setUnitFilter] = useState("all");
   const selected = evidence.find((item) => item.id === selectedId);
   const sourceMap = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources]);
   const suggestionMap = useMemo(() => new Map(suggestions.map((item) => [item.evidence_id, item])), [suggestions]);
@@ -230,6 +231,8 @@ export function EvidenceBoard({
 
   if (!units.length) return <div className="card empty-state"><h2>尚无证据任务</h2><p className="muted">完成结构阶段后，证据要求会按判断单元展开。</p></div>;
 
+  const visibleUnits = unitFilter === "all" ? units : units.filter((unit) => unit.id === unitFilter);
+
   return <div className="evidence-review-section">
     {gapPriorities.length ? <section className="gap-priority-panel">
       <div className="gap-priority-head"><div><span>优先补证</span><strong>先处理最影响判断的 {Math.min(3, gapPriorities.length)} 个缺口</strong></div><small>排序依据：判断绑定、冲突程度、独立来源要求与审阅状态</small></div>
@@ -243,6 +246,15 @@ export function EvidenceBoard({
         <span>已选 {checkedIds.size}</span>
       </div>
       <div className="review-batch-actions">
+        <label className="unit-filter">
+          <span>判断单元</span>
+          <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)} aria-label="按判断单元过滤">
+            <option value="all">全部单元</option>
+            {units.map((unit, index) => (
+              <option key={unit.id} value={unit.id}>关键判断 {index + 1} · {stripInternalReferencePrefix(unit.title)}</option>
+            ))}
+          </select>
+        </label>
         <label className="batch-select-all"><input type="checkbox" checked={checkedIds.size > 0 && checkedIds.size === pendingCount} onChange={(event) => toggleAllPending(event.target.checked)} /> 全选待审</label>
         <button type="button" className="button-secondary" disabled={busy} onClick={() => submitDecisions(buildBatchItems("adopt_high"))}>采纳高置信建议</button>
         <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept"))}>批量确认</button>
@@ -253,12 +265,15 @@ export function EvidenceBoard({
 
     <div className="evidence-workspace">
       <div className="evidence-matrix-wrap">
-        <div className="evidence-matrix" style={{ gridTemplateColumns: `170px repeat(${units.length}, minmax(250px, 1fr))` }}>
+        <div className="evidence-matrix" style={{ gridTemplateColumns: `170px repeat(${visibleUnits.length}, minmax(250px, 1fr))` }}>
           <div className="matrix-corner">证据角色</div>
-          {units.map((unit, index) => <div className="matrix-unit" key={unit.id}><span>关键判断 {index + 1}</span><strong>{stripInternalReferencePrefix(unit.title)}</strong><small>{stripInternalReferencePrefix(unit.question)}</small></div>)}
+          {visibleUnits.map((unit, index) => {
+            const originalIndex = units.findIndex((item) => item.id === unit.id);
+            return <div className="matrix-unit" key={unit.id}><span>关键判断 {originalIndex + 1}</span><strong>{stripInternalReferencePrefix(unit.title)}</strong><small>{stripInternalReferencePrefix(unit.question)}</small></div>;
+          })}
           {lanes.map((lane) => <div className="matrix-row" key={lane.id} style={{ display: "contents" }}>
             <div className={`matrix-lane lane-${lane.id}`}>{lane.label}</div>
-            {units.map((unit) => <div className="matrix-cell" key={`${lane.id}:${unit.id}`}>
+            {visibleUnits.map((unit) => <div className="matrix-cell" key={`${lane.id}:${unit.id}`}>
               {evidence.filter((item) => item.judgment_unit_ids.includes(unit.id) && laneFor(item) === lane.id).map((item) => {
                 const itemWork = workItems.find((work) => work.target_id === item.id);
                 const suggestion = suggestionMap.get(item.id);
@@ -305,19 +320,26 @@ export function EvidenceBoard({
             const source = sourceMap.get(id);
             return <li key={id}>{source ? <>
               <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
-              <small>
-                {authorityTypeLabel(source.authority_type || "unknown")} · 等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"}
-                · {usabilityLabel(source.usability_status || "")} / {retrievalLabel(source.retrieval_status || "")}
-                · 引用 {source.quote_verified ? "已验证" : "未验证"}
+              <small className="source-publisher">
+                {source.publisher || "未识别发布者"}
+                {source.published_at ? ` · ${formatSourceTime(source.published_at)}` : ""}
               </small>
               {source.source_quote ? <blockquote>{source.source_quote}</blockquote> : null}
+              <details className="source-tech-details">
+                <summary>技术字段</summary>
+                <small>
+                  {authorityTypeLabel(source.authority_type || "unknown")} · 等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"}
+                  · {usabilityLabel(source.usability_status || "")} / {retrievalLabel(source.retrieval_status || "")}
+                  · 引用 {source.quote_verified ? "已验证" : "未验证"}
+                </small>
+              </details>
             </> : id}</li>;
           })}</ul> : <p className="muted">尚未挂到来源；只能作为明确的证据缺口，不能确认事实。</p>}
 
           <h3>局限</h3><p>{selected.limitations.join("；") || "暂无已登记局限"}</p>
           <div className="field"><label>人工核验记录</label><textarea value={reviewNote} disabled={Boolean(terminalReview)} onChange={(event) => setReviewNote(event.target.value)} placeholder={selected.kind === "gap" ? "说明为何接受当前缺口，以及结论必须停在什么边界" : "说明已核对的原文、口径、时间和局限"} /></div>
           <div className="review-actions">
-            <button className="button" disabled={busy || Boolean(terminalReview)} onClick={() => decide("approved")} type="button">{selected.kind === "gap" ? "接受缺口（维持 J0）" : "确认可用"}</button>
+            <button className="button" disabled={busy || Boolean(terminalReview)} onClick={() => decide("approved")} type="button">{selected.kind === "gap" ? "接受缺口（暂不形成方向判断）" : "确认可用"}</button>
             <button className="button-secondary" disabled={busy || Boolean(terminalReview)} onClick={() => decide("rework")} type="button">退回补证</button>
             <button className="button-quiet" disabled={busy || Boolean(terminalReview)} onClick={() => decide("dismissed")} type="button">驳回</button>
           </div>
@@ -327,4 +349,10 @@ export function EvidenceBoard({
       </aside>
     </div>
   </div>;
+}
+
+function formatSourceTime(value: string) {
+  const ts = Date.parse(value);
+  if (!Number.isFinite(ts)) return value;
+  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(ts));
 }

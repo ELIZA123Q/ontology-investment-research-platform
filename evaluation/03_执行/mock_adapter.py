@@ -244,7 +244,7 @@ def build_result(request: dict[str, Any], profile: str) -> dict[str, Any]:
 
     if role == "perturbation":
         return {
-            "action": meta.get("expected_action"),
+            "action": (meta.get("acceptable_actions") or [meta.get("expected_action")])[0],
             "sensitivity_passed": True,
             "rationale": "mock扰动按预设单调性变化",
         }

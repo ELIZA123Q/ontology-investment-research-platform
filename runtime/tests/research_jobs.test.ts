@@ -47,6 +47,19 @@ describe("durable research job leases", () => {
     expect(store.listForRun("run-1")).toHaveLength(1);
   });
 
+  it("lists active jobs across statuses for the global indicator", () => {
+    store.enqueue({
+      runId: "run-1",
+      jobType: "generate_artifact",
+      stage: "stage_03",
+      dedupeKey: "run-1:stage_03:active",
+      now: t0,
+    });
+    const active = store.listActive();
+    expect(active).toHaveLength(1);
+    expect(active[0]).toMatchObject({ run_id: "run-1", stage: "stage_03", status: "queued" });
+  });
+
   it("allows one worker to claim and extend a fenced lease", () => {
     const queued = store.enqueue({ runId: "run-1", jobType: "generate_artifact", dedupeKey: "claim-once", now: t0 });
     const claimed = store.claimNext({ workerId: "worker-a", leaseMs: 60_000, now: t0 });

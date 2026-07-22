@@ -21,6 +21,10 @@ describe("database migrations", () => {
       "budget_json", "input_artifacts_json", "input_hash", "payload_json", "result_json",
     ]));
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_research_jobs_active_dedupe'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_candidate_reviews'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_candidate_review_events'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='research_experience_events'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='runtime_meta'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_artifacts_one_running'").get()).toBeTruthy();
     const now = "2026-07-20T00:00:00Z";
     connection.prepare(

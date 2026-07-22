@@ -26,8 +26,7 @@
 | 04 | [`04_报告`](04_报告) | 评测报告输出（默认不入库） |
 | 05 | [`05_决策日志`](05_决策日志) | 里程碑结论与硬门槛（入仓） |
 | 06 | [`06_第二领域压力测试`](06_第二领域压力测试) | 通用核心跨领域验证脚手架 |
-| 05 | [`05_决策日志`](05_决策日志) | 里程碑结论入仓（不含密钥与完整导出） |
-| 06 | [`06_第二领域压力测试`](06_第二领域压力测试) | 通用核心跨领域验证脚手架（非扩产品） |
+| 07 | [`07_研究员体验基线`](07_研究员体验基线) | 10 题前瞻体验队列、同证据配对与分母纪律 |
 
 ## 想搞清什么 → 打开哪份
 
@@ -65,9 +64,9 @@ python3 evaluation/03_执行/eval_cli.py report --run-dir /tmp/research-eval
 
 mock 只证明框架能跑，不代表真实研究质量。正式配置见 [运行手册](01_协议/05_运行与验收手册.md)。
 
-## 仅 DeepSeek 两模型（`single_vendor`）
+## 仅 DeepSeek（`single_vendor`）
 
-若账户只有 `deepseek-v4-pro` 与 `deepseek-v4-flash`，使用 [`03_执行/model_profiles.yaml`](03_执行/model_profiles.yaml)（`run_mode: single_vendor`），按 [`03_执行/env.example`](03_执行/env.example) 配置 `EVAL_*` 后：
+按 [`03_执行/env.example`](03_执行/env.example) 配置 `EVAL_*` 后，可用 [`03_执行/model_profiles.yaml`](03_执行/model_profiles.yaml) 先检查外部模型链路：
 
 ```bash
 python3 evaluation/03_执行/eval_cli.py prepare --run-dir /tmp/research-eval
@@ -75,7 +74,10 @@ python3 evaluation/03_执行/eval_cli.py run \
   --run-dir /tmp/research-eval \
   --profiles evaluation/03_执行/model_profiles.yaml \
   --stage all \
-  --intensity pilot_light
+  --intensity pilot_light \
+  --max-new-requests 2
 ```
 
-结果可验证区分能力，但须注明单供应商限制；不能代替 `formal_full` 跨模型结论。
+当前仓库档案为生产 `deepseek-v4-flash` + 评测/下游 `deepseek-v4-pro`，运行范围是 `single_vendor_comparative`：可以形成有边界的供应商内试点结论，但完整 C 门与 `formal_full` 未通过前，仍不得把局部校准切片写成研究增益或流程增益证据。真实运行必须显式传 `--max-new-requests`。
+
+若要做有边界的单供应商比较试点，至少要有两个冻结且互异的 `model_id`，并让生产者与评测/下游模型分离；此时范围为 `single_vendor_comparative`。它可以形成供应商内的试点证据，但仍不能代替 `formal_full` 跨模型结论。

@@ -70,8 +70,11 @@ describe("evidence_auto_supplement", () => {
         source_ids: ["SRC-2"],
       }],
       sources: [source({ id: "SRC-2", quote_verified: false, usability_status: "limited", retrieval_status: "limited" })],
+      draftSources: [{ source_key: "SRC-02", source_id: "SRC-2" }],
     });
-    expect(brief.failed_sources).toHaveLength(1);
+    expect(brief.failed_sources).toEqual([
+      expect.objectContaining({ id: "SRC-2", source_key: "SRC-02" }),
+    ]);
     expect(brief.gap_units).toHaveLength(1);
     expect(brief.rework_evidence[0]?.issue).toBe("all_sources_unusable");
   });

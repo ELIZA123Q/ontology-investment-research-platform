@@ -47,14 +47,26 @@ export function buildSupplementBrief(input: {
   coverage: SourceCoverageSummary;
   evidence: EvidenceDraftLike[];
   sources: SourceRecord[];
+  /** stage_03 稿件中的 sources（含 source_key）；用于把 registry UUID 映射回 SRC-xx */
+  draftSources?: Array<{ source_key?: string; source_id?: string | null; url?: string }>;
   requirements?: EvidenceRequirementProjection[];
 }) {
+  const sourceKeyById = new Map<string, string>();
+  const sourceKeyByUrl = new Map<string, string>();
+  for (const draft of input.draftSources || []) {
+    const key = draft.source_key ? String(draft.source_key) : "";
+    if (!key) continue;
+    if (draft.source_id) sourceKeyById.set(String(draft.source_id), key);
+    if (draft.url) sourceKeyByUrl.set(String(draft.url), key);
+  }
+
   const sourceById = new Map(input.sources.map((source) => [source.id, source]));
   const failedSources = input.sources
     .filter((source) => Boolean(source.url))
     .filter((source) => !isUsableSource(source))
     .map((source) => ({
       id: source.id,
+      source_key: sourceKeyById.get(source.id) || sourceKeyByUrl.get(source.url) || null,
       title: source.title,
       url: source.url,
       retrieval_status: source.retrieval_status,

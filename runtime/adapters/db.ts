@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createHash } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import type {
   ActionProposalStatus,
@@ -13,6 +14,8 @@ import type {
   ImpactClassification,
   MarketEvent,
   ResearchRun,
+  ResearchExperienceEvent,
+  ResearchExperienceEventType,
   ResearchWorkItem,
   SourceRecord,
   StoredActionExecution,
@@ -30,6 +33,18 @@ const dbPath = process.env.WORKBENCH_DB_PATH
   ? path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.WORKBENCH_DB_PATH)
   : repositoryPath("instances", "00_本机运行", "workbench.sqlite");
 mkdirSync(path.dirname(dbPath), { recursive: true });
+
+export function getWorkbenchDatabaseIdentity() {
+  const resolvedPath = path.resolve(dbPath);
+  const temporaryRoots = [tmpdir(), "/tmp", "/private/tmp"]
+    .map((root) => `${path.resolve(root)}${path.sep}`);
+  const isTemporary = temporaryRoots.some((root) => resolvedPath.startsWith(root));
+  return {
+    path: resolvedPath,
+    scope: isTemporary ? "temporary" as const : process.env.WORKBENCH_DB_PATH ? "custom" as const : "persistent_default" as const,
+    cohort_eligible: !isTemporary,
+  };
+}
 
 const globalDb = globalThis as unknown as { workbenchDb?: DatabaseSync };
 function getDb() {
@@ -112,6 +127,11 @@ export function createRun(
     parentRunId?: string | null;
     triggerEventId?: string | null;
     triggerClassification?: ImpactClassification | null;
+    experienceCase?: {
+      cohortId: string;
+      caseId: string;
+      informationCutoff: string;
+    } | null;
   } = {},
 ): ResearchRun {
   const now = new Date().toISOString();
@@ -150,7 +170,62 @@ export function createRun(
     options.triggerEventId || null,
     options.triggerClassification || null,
   );
+  recordResearchExperienceEvent({
+    runId: id,
+    eventType: "run_created",
+    actorType: options.parentRunId ? "system" : "human",
+    targetType: "ResearchRun",
+    targetId: id,
+    outcome: options.parentRunId ? "incremental_run_created" : "new_research_created",
+    payload: options.experienceCase ? {
+      experience_cohort_id: options.experienceCase.cohortId,
+      experience_case_id: options.experienceCase.caseId,
+      information_cutoff: options.experienceCase.informationCutoff,
+    } : undefined,
+    dedupeKey: `run_created:${id}`,
+    occurredAt: now,
+  });
   return getRun(id)!;
+}
+
+export function recordResearchExperienceEvent(input: {
+  runId: string;
+  eventType: ResearchExperienceEventType;
+  actorType: ResearchExperienceEvent["actor_type"];
+  stage?: string;
+  targetType?: string;
+  targetId?: string;
+  outcome?: string;
+  payload?: Record<string, unknown>;
+  dedupeKey: string;
+  occurredAt?: string;
+}): ResearchExperienceEvent {
+  const occurredAt = input.occurredAt || new Date().toISOString();
+  const existing = db.prepare("SELECT * FROM research_experience_events WHERE dedupe_key=?")
+    .get(input.dedupeKey) as ResearchExperienceEvent | undefined;
+  if (existing) return existing;
+  const event: ResearchExperienceEvent = {
+    id: crypto.randomUUID(),
+    run_id: input.runId,
+    event_type: input.eventType,
+    actor_type: input.actorType,
+    stage: input.stage || "",
+    target_type: input.targetType || "",
+    target_id: input.targetId || "",
+    outcome: input.outcome || "",
+    payload_json: JSON.stringify(input.payload || {}),
+    dedupe_key: input.dedupeKey,
+    occurred_at: occurredAt,
+  };
+  db.prepare(`INSERT INTO research_experience_events(
+    id,run_id,event_type,actor_type,stage,target_type,target_id,outcome,payload_json,dedupe_key,occurred_at
+  ) VALUES(${Array(11).fill("?").join(",")})`).run(...Object.values(event));
+  return event;
+}
+
+export function listResearchExperienceEvents(runId: string): ResearchExperienceEvent[] {
+  return db.prepare("SELECT * FROM research_experience_events WHERE run_id=? ORDER BY occurred_at ASC, id ASC")
+    .all(runId) as ResearchExperienceEvent[];
 }
 export function updateRun(id: string, fields: Partial<Pick<ResearchRun, "package_path" | "manifest_json" | "status" | "current_stage" | "parent_run_id" | "trigger_event_id" | "trigger_classification">>): ResearchRun {
   const entries = Object.entries({ ...fields, updated_at: new Date().toISOString() }).filter(([, value]) => value !== undefined);
@@ -420,7 +495,22 @@ export function supersedeOtherArtifactAttempts(runId: string, kind: ArtifactKind
 }
 export function approveArtifact(artifact: Artifact) {
   const stage = Number(artifact.kind.slice(-2));
-  updateArtifact(artifact.id, { status: "approved", approved_at: new Date().toISOString() });
+  const approvedAt = new Date().toISOString();
+  updateArtifact(artifact.id, { status: "approved", approved_at: approvedAt });
+  if (stage) {
+    recordResearchExperienceEvent({
+      runId: artifact.run_id,
+      eventType: "stage_approved",
+      actorType: "human",
+      stage: artifact.kind,
+      targetType: "Artifact",
+      targetId: artifact.id,
+      outcome: "approved",
+      payload: { version: artifact.version },
+      dedupeKey: `stage_approved:${artifact.id}`,
+      occurredAt: approvedAt,
+    });
+  }
   const run = getRun(artifact.run_id);
   if (run) {
     const approved = getArtifact(artifact.id)!;
@@ -809,6 +899,20 @@ export function updateWorkItem(id: string, fields: { status?: WorkItemStatus; no
     id,
   );
   const updated = mapWorkItem(db.prepare("SELECT * FROM research_work_items WHERE id=?").get(id));
+  if (status !== current.status && ["approved", "rework", "dismissed"].includes(status)) {
+    recordResearchExperienceEvent({
+      runId: updated.run_id,
+      eventType: "work_item_decision",
+      actorType: "human",
+      stage: updated.stage,
+      targetType: updated.target_type,
+      targetId: updated.target_id,
+      outcome: status,
+      payload: { work_item_id: updated.id, kind: updated.kind, attempt: updated.attempt },
+      dedupeKey: `work_item_decision:${updated.id}:${current.status}:${status}:${updatedAt}`,
+      occurredAt: updatedAt,
+    });
+  }
   syncActionProposalFromWorkItem(updated);
   return updated;
 }
@@ -922,5 +1026,43 @@ export function radarBundle() {
   const events = listMarketEvents();
   const impacts = listEventImpacts();
   const pendingWorkItems = listWorkItems(undefined, "pending");
-  return { events, impacts, pending_work_items: pendingWorkItems };
+  return {
+    events,
+    impacts,
+    pending_work_items: pendingWorkItems,
+    last_refreshed_at: getRadarLastRefreshedAt(),
+  };
+}
+
+export function getRuntimeMeta(key: string): { key: string; value_json: string; updated_at: string } | undefined {
+  return getWorkbenchDb().prepare("SELECT key, value_json, updated_at FROM runtime_meta WHERE key=?").get(key) as
+    | { key: string; value_json: string; updated_at: string }
+    | undefined;
+}
+
+export function setRuntimeMeta(key: string, value: Record<string, unknown>, updatedAt = new Date().toISOString()) {
+  getWorkbenchDb().prepare(`
+    INSERT INTO runtime_meta(key, value_json, updated_at) VALUES(?,?,?)
+    ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json, updated_at=excluded.updated_at
+  `).run(key, JSON.stringify(value), updatedAt);
+  return getRuntimeMeta(key)!;
+}
+
+export function getRadarLastRefreshedAt(): string | null {
+  const row = getRuntimeMeta("radar_last_refresh");
+  if (!row) return null;
+  try {
+    const parsed = JSON.parse(row.value_json) as { last_refreshed_at?: string };
+    return parsed.last_refreshed_at || row.updated_at || null;
+  } catch {
+    return row.updated_at || null;
+  }
+}
+
+export function setRadarLastRefreshedAt(lastRefreshedAt = new Date().toISOString(), lookbackHours?: number) {
+  setRuntimeMeta("radar_last_refresh", {
+    last_refreshed_at: lastRefreshedAt,
+    lookback_hours: lookbackHours ?? null,
+  }, lastRefreshedAt);
+  return lastRefreshedAt;
 }

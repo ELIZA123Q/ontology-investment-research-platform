@@ -1,7 +1,7 @@
 import type { Artifact, SourceRecord } from "./types";
 import { parseJson } from "./types";
 
-export const COMPARISON_METRICS_VERSION = "comparison-metrics-v4";
+export const COMPARISON_METRICS_VERSION = "comparison-metrics-v5";
 
 const usage = (artifact: Artifact) => parseJson<any>(artifact.token_usage, {});
 
@@ -131,6 +131,7 @@ export function comparisonMetrics(
   const reportClaims = reportData.report_claims || [];
   const judgments = judgmentData.judgments || [];
   const applications = judgmentData.method_applications || [];
+  const ruleEvaluations = judgmentData.rule_evaluations || [];
   const evidenceDrafts = evidenceData.evidence_drafts || [];
   const evidenceById = new Map<string, any>(evidenceDrafts.map((item: any) => [String(item.id), item]));
   const judgmentById = new Map<string, any>(judgments.map((item: any) => [String(item.id), item]));
@@ -235,6 +236,14 @@ export function comparisonMetrics(
         : 0,
       method_application_count: applications.length,
       executed_method_application_count: executedIds.size,
+      method_finalization_ratio: applications.length
+        ? applications.filter((item: any) => finalStatuses.has(String(item.status))).length / applications.length
+        : 0,
+      rule_evaluation_count: ruleEvaluations.length,
+      blocking_rule_evaluation_count: ruleEvaluations.filter((item: any) =>
+        ["fail", "blocked", "contested"].includes(String(
+          item.deterministic_result?.result || item.result || "",
+        ))).length,
       evidence_drafts: evidenceDrafts.length,
       tokens: tokens(report),
       web_search_calls: parseJson<any>(stage03?.tool_usage || "{}", {}).web_search_calls || 0,

@@ -25,6 +25,7 @@ export type ResearchOverview = {
     title: string;
     description: string;
     href: string;
+    cta?: string;
   };
 };
 
@@ -77,6 +78,7 @@ export function buildResearchOverview(input: {
   runId: string;
   currentStage: number;
   pending: WorkItemLike[];
+  awaitingReviewStage?: string;
   deliveryReady: boolean;
   judgments: JudgmentLike[];
   evidence: EvidenceLike[];
@@ -91,21 +93,32 @@ export function buildResearchOverview(input: {
       title: stripInternalReferencePrefix(topPending.title) || "继续人工确认",
       description: stripInternalReferencePrefix(topPending.reason) || "完成这项确认后，研究流程才能继续。",
       href: workItemHref(topPending.stage, input.runId),
+      cta: "去处理 →",
     }
+    : input.awaitingReviewStage
+      ? {
+        eyebrow: "等待人工确认",
+        title: `检查${({ stage_01: "范围", stage_02: "结构", stage_03: "证据", stage_04: "判断", stage_05: "交付" } as Record<string, string>)[input.awaitingReviewStage] || "当前阶段"}草稿`,
+        description: "AI 已完成本阶段；确认或退回后才会继续下一阶段。",
+        href: workItemHref(input.awaitingReviewStage, input.runId),
+        cta: "去确认 →",
+      }
     : input.currentStage < 5
       ? nextStage(input.currentStage, input.runId)
       : input.deliveryReady
         ? {
           eyebrow: "交付已就绪",
           title: "检查报告并导出交付",
-          description: "报告、独立审阅、对照基线和评估均已齐备。",
+          description: "报告与独立审阅已齐备；同证据基线与 A/B 为可选质量实验。",
           href: `/runs/${input.runId}/report`,
+          cta: "查看 →",
         }
         : {
           eyebrow: "完成交付准备",
           title: "检查交付条件",
-          description: "查看尚未满足的报告、独立审阅、基线或评估条件。",
+          description: "查看尚未满足的报告确认、独立审阅或待办条件。",
           href: `/runs/${input.runId}/report`,
+          cta: "查看 →",
         };
 
   if (!input.judgments.length) {

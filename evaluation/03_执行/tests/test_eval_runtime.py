@@ -31,6 +31,8 @@ from eval_core import (  # noqa: E402
     grade_s,
     grade_u,
     load_yaml,
+    normalize_role_result,
+    role_output_tokens,
     validate_case,
     validate_profiles,
     validate_suite,
@@ -77,6 +79,25 @@ class ContractTests(unittest.TestCase):
         self.assertNotIn("原始05标题", result)
         with self.assertRaises(EvalError):
             blind_candidate("# 标题\n\n正文夹带 high_quality_pass 标签\n")
+
+    def test_legacy_perturbation_actions_normalize_to_frozen_vocabulary(self) -> None:
+        base = {"request_metadata": {"role": "perturbation"}}
+        self.assertEqual(normalize_role_result({**base, "result": {"judgment": "降级"}})["action"], "downgrade")
+        self.assertEqual(
+            normalize_role_result({**base, "result": {"evaluation": {"result": "维持暂不可判断"}}})["action"],
+            "maintain_abstention",
+        )
+        self.assertEqual(normalize_role_result({**base, "result": {"action": "reopen"}})["action"], "reopen")
+        self.assertEqual(normalize_role_result({**base, "result": {"decision": "弃答"}})["action"], "abstain")
+
+    def test_perturbation_actions_reject_free_text_contract(self) -> None:
+        def mutate(_: dict, case_dir: Path) -> None:
+            path = case_dir / "perturbations.yaml"
+            perturbations = load_yaml(path)
+            perturbations["items"][0]["acceptable_actions"] = ["自由文本"]
+            path.write_text(yaml.safe_dump(perturbations, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+        self._mutate_case("RV-T08", mutate)
 
     def _copy_case(self, case_id: str, root: Path) -> Path:
         source = RUNTIME_ROOT.parent / "02_案例" / case_id
@@ -163,15 +184,53 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(EvalError):
                 validate_profiles(path)
 
-    def test_single_vendor_accepts_flash_only(self) -> None:
+    def test_single_vendor_pro_flash_profile_is_bounded_comparative(self) -> None:
         path = RUNTIME_ROOT / "model_profiles.yaml"
         registry = validate_profiles(path)
         self.assertEqual(registry["run_mode"], "single_vendor")
         ids = {profile["model_id"] for profile in registry["profiles"].values()}
-        self.assertEqual(ids, {"deepseek-v4-flash"})
+        self.assertEqual(ids, {"deepseek-v4-flash", "deepseek-v4-pro"})
+        self.assertEqual(registry["evaluation_scope"], "single_vendor_comparative")
+        self.assertTrue(registry["research_gain_claim_eligible"])
+        self.assertEqual(registry["profiles"]["producer"]["model_id"], "deepseek-v4-flash")
+        self.assertEqual(registry["profiles"]["judge_a"]["model_id"], "deepseek-v4-pro")
+
+    def test_single_vendor_flash_only_stays_pipeline_only(self) -> None:
+        source = load_yaml(RUNTIME_ROOT / "model_profiles.yaml")
+        for name in source["profiles"]:
+            source["profiles"][name]["model_id"] = "deepseek-v4-flash"
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "profiles.yaml"
+            path.write_text(yaml.safe_dump(source, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            registry = validate_profiles(path)
+        self.assertEqual(registry["evaluation_scope"], "pipeline_only")
+        self.assertFalse(registry["research_gain_claim_eligible"])
+
+    def test_single_vendor_two_model_profile_is_bounded_comparative(self) -> None:
+        source = load_yaml(RUNTIME_ROOT / "model_profiles.yaml")
+        source["profiles"]["producer"]["model_id"] = "deepseek-pro-frozen"
+        source["profiles"]["downstream_a"]["model_id"] = "deepseek-v4-pro"
+        source["profiles"]["downstream_b"]["model_id"] = "deepseek-v4-pro"
+        source["profiles"]["judge_a"]["model_id"] = "deepseek-v4-flash"
+        source["profiles"]["judge_b"]["model_id"] = "deepseek-v4-flash"
+        with tempfile.TemporaryDirectory() as raw:
+            path = Path(raw) / "profiles.yaml"
+            path.write_text(yaml.safe_dump(source, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            registry = validate_profiles(path)
+        self.assertEqual(registry["evaluation_scope"], "single_vendor_comparative")
+        self.assertTrue(registry["research_gain_claim_eligible"])
+    def test_development_profile_is_not_claim_eligible(self) -> None:
+        registry = validate_profiles(RUNTIME_ROOT / "mock_profiles.yaml")
+        self.assertEqual(registry["evaluation_scope"], "development_only")
+        self.assertFalse(registry["research_gain_claim_eligible"])
 
 
 class MetricTests(unittest.TestCase):
+    def test_structured_calibration_budget_allows_a_final_json_answer(self) -> None:
+        self.assertEqual(role_output_tokens("calibration", {}), 2048)
+        self.assertEqual(role_output_tokens("calibration_clean", {}), 1024)
+        self.assertEqual(role_output_tokens("perturbation", {}), 1600)
+
     def test_conservative_median_and_wilson(self) -> None:
         self.assertEqual(conservative_median([0, 1, 2, 3, 3, 3]), 2)
         self.assertEqual(apply_r_hard_gate("R3", ["核心事实错误"]), 0)
@@ -223,6 +282,47 @@ class AdapterTests(unittest.TestCase):
 
 
 class EndToEndTests(unittest.TestCase):
+    def test_pipeline_only_profile_requires_an_explicit_request_cap(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            run_dir = root / "run"
+            profiles_path = root / "profiles.yaml"
+            source = load_yaml(RUNTIME_ROOT / "model_profiles.yaml")
+            for name in source["profiles"]:
+                source["profiles"][name]["model_id"] = "deepseek-v4-flash"
+            profiles_path.write_text(yaml.safe_dump(source, allow_unicode=True, sort_keys=False), encoding="utf-8")
+            run_cli("prepare", "--run-dir", str(run_dir))
+            run_cli(
+                "run",
+                "--run-dir",
+                str(run_dir),
+                "--profiles",
+                str(profiles_path),
+                expect=1,
+            )
+            self.assertFalse((run_dir / "responses.jsonl").exists())
+
+    def test_hard_request_budget_stops_before_extra_model_call(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            run_dir = Path(raw) / "run"
+            run_cli("prepare", "--run-dir", str(run_dir))
+            run_cli(
+                "run",
+                "--run-dir",
+                str(run_dir),
+                "--profiles",
+                str(RUNTIME_ROOT / "mock_profiles.yaml"),
+                "--max-new-requests",
+                "2",
+                expect=4,
+            )
+            responses = (run_dir / "responses.jsonl").read_text(encoding="utf-8").splitlines()
+            status = load_yaml(run_dir / "run_status.yaml")
+            self.assertEqual(len(responses), 2)
+            self.assertEqual(status["status"], "request_budget_exhausted")
+            self.assertEqual(status["new_requests_sent"], 2)
+            self.assertEqual(status["max_new_requests"], 2)
+
     def test_failed_calibration_blocks_formal_roles(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -295,6 +395,9 @@ class EndToEndTests(unittest.TestCase):
             summary = load_yaml(run_dir / "summary.yaml")
             report = (run_dir / "report.md").read_text(encoding="utf-8")
             self.assertTrue(summary["no_composite_score"])
+            self.assertEqual(summary["evaluation_scope"], "development_only")
+            self.assertFalse(summary["research_gain_claim_eligible"])
+            self.assertFalse(summary["suite_proxy_rate_release_allowed"])
             self.assertEqual(summary["calibration"]["grade"], "C3")
             self.assertTrue(summary["calibration"]["all_judges_eligible"])
             self.assertEqual(set(summary["cases"]), {"RV-T01", "RV-T02", "RV-T07", "RV-T08"})
@@ -302,6 +405,7 @@ class EndToEndTests(unittest.TestCase):
             self.assertNotIn("代理可靠概率", report)
             self.assertIn("裁决支持频率", report)
             self.assertIn("同证据直接生成", report)
+            self.assertIn("无，仅作管线诊断", report)
             self.assertNotIn("proxy_reliability_probability", json.dumps(summary, ensure_ascii=False))
             self.assertIn("adjudication_support_rate", summary["cases"]["RV-T01"])
             self.assertIn("proxy_reliability_rate", summary["strata"]["report_value"])

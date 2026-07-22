@@ -31,7 +31,7 @@ export function PublishButton({ runId, disabled = false }: { runId: string; disa
   return (
     <div>
       <button className="button-secondary" disabled={busy || disabled} onClick={publish}>
-        {busy ? "导出校验中…" : "导出并做交付前校验"}
+        {busy ? "进阶校验中…" : "进阶：导出并做交付前校验"}
       </button>
       {message ? <div className="notice">{message}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}

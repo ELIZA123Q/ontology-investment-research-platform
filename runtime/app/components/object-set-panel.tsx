@@ -144,7 +144,14 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
         <div className="actions" style={{ alignItems: "end" }}>
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
             <label>对象类型</label>
-            <input value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} placeholder="例如：JudgmentUnit（判断单元）" />
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} aria-label="对象类型">
+              <option value="JudgmentUnit">判断单元</option>
+              <option value="EvidenceFact">证据事实</option>
+              <option value="EvidenceRequirement">证据要求</option>
+              <option value="Source">来源</option>
+              <option value="Judgment">判断</option>
+              <option value="">全部类型</option>
+            </select>
           </div>
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
             <label>关联对象</label>
@@ -183,7 +190,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
               }}
               onClick={() => setSelectedId(object.id)}
             >
-              <strong>{object.id}</strong>
+              <strong>{objectLabel(object)}</strong>
               <br />
               <small className="muted">{objectTypeLabel(object.type)}</small>
             </button>
@@ -194,11 +201,14 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           {selected ? (
             <>
               <p>
-                <span className="badge">{objectTypeLabel(selected.type)}</span> <code>{selected.id}</code>
+                <span className="badge">{objectTypeLabel(selected.type)}</span> {objectLabel(selected)}
               </p>
-              <pre className="json-editor" style={{ minHeight: 280, overflow: "auto" }}>
-                {JSON.stringify(selected.properties || {}, null, 2)}
-              </pre>
+              <details className="structure-advanced">
+                <summary>高级：原始属性 JSON</summary>
+                <pre className="json-editor" style={{ minHeight: 280, overflow: "auto" }}>
+                  {JSON.stringify(selected.properties || {}, null, 2)}
+                </pre>
+              </details>
             </>
           ) : (
             <p className="muted">选择左侧对象</p>
@@ -224,13 +234,22 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
                 <button className="button-secondary" disabled={busy || proposal.approval_work_item?.status === "approved" || proposal.proposal?.status === "executed"} onClick={approveProposal}>人工批准</button>
                 <button className="button" disabled={busy || proposal.approval_work_item?.status !== "approved" || proposal.proposal?.status === "executed"} onClick={executeProposal}>确认后写入正式关系图</button>
               </div>
-              <pre className="json-editor" style={{ minHeight: 240, overflow: "auto" }}>
-                {JSON.stringify(proposal, null, 2)}
-              </pre>
+              <details className="structure-advanced">
+                <summary>高级：操作建议 JSON</summary>
+                <pre className="json-editor" style={{ minHeight: 240, overflow: "auto" }}>
+                  {JSON.stringify(proposal, null, 2)}
+                </pre>
+              </details>
             </>
           ) : null}
         </section>
       </div>
     </div>
   );
+}
+
+function objectLabel(object: { id: string; type: string; properties?: Record<string, unknown> }) {
+  const props = object.properties || {};
+  const title = String(props.title || props.statement || props.question || props.label || "").trim();
+  return title || objectTypeLabel(object.type);
 }

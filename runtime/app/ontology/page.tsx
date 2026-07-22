@@ -1,23 +1,36 @@
 import Link from "next/link";
 import { loadOntology, ontologyInstances } from "@/adapters/ontology";
 import { listRuns } from "@/adapters/db";
+import { listCrossRunVariableComparability } from "@/adapters/variable_comparability";
+import { listEvidenceImpactQueries, listVariableUsageQueries } from "@/adapters/ontology_research_queries";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
+import { OntologyCandidateQueue } from "@/app/components/ontology-candidate-queue";
 import { buildOntologyNetworkGraph, selectRelevantOntologyNodes } from "@/app/lib/ontology-network-graph";
 import { collectRunOntologyTouchpoints, getRunOntologyResearchValue, listKnowledgeAssets } from "@/engine/knowledge_browser";
 import type { OntologyResearchEffectKind } from "@/engine/ontology_research_value";
 
 export const dynamic = "force-dynamic";
 
+function displayComparisonField(value: unknown, fallback: string): string {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (Array.isArray(value)) return value.map(String).join("、") || fallback;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
 export default async function OntologyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ node?: string; runId?: string; tab?: string; scope?: string }>;
+  searchParams: Promise<{ node?: string; runId?: string; tab?: string; scope?: string; queryRunId?: string }>;
 }) {
   const q = await searchParams;
   const nodes = loadOntology();
   const selected = nodes.find((n) => n.id === q.node) || nodes[0];
   const runs = listRuns();
-  const runId = q.runId || runs.find((run) => run.status !== "archived")?.id || runs[0]?.id;
+  const runId = q.runId
+    || runs.find((run) => run.current_stage > 0 && run.status !== "archived")?.id
+    || runs.find((run) => run.status !== "archived")?.id
+    || runs[0]?.id;
   const tab = q.tab || "network";
   const touched = runId ? collectRunOntologyTouchpoints(runId) : [];
   const ontologyValue = runId ? getRunOntologyResearchValue(runId) : null;
@@ -30,6 +43,10 @@ export default async function OntologyPage({
     ? ontologyInstances(selected.id, runId)
     : { instances: [] as any[], sources: [] as Array<{ id: string; url: string; title: string }>, graph_source: "", executable_actions: [] as string[] };
   const groups = Object.groupBy(nodes, (n) => n.category);
+  const comparabilityGroups = tab === "comparability" ? listCrossRunVariableComparability() : [];
+  const queryRunId = runs.some((run) => run.id === q.queryRunId) ? q.queryRunId! : runId;
+  const evidenceImpactQueries = tab === "queries" && queryRunId ? listEvidenceImpactQueries(queryRunId) : [];
+  const variableUsageQueries = tab === "queries" ? listVariableUsageQueries() : [];
   const effectKinds: Array<{ kind: OntologyResearchEffectKind; label: string; description: string }> = [
     { kind: "completion", label: "补全", description: "标准口径与可复用身份" },
     { kind: "constraint", label: "限制", description: "阻止牵强映射与越级判断" },
@@ -62,9 +79,12 @@ export default async function OntologyPage({
           <Link className={`button-secondary${tab === "network" ? " active" : ""}`} href={`/ontology?tab=network${runId ? `&runId=${runId}` : ""}`}>本体网络</Link>
           <Link className={`button-secondary${tab === "catalog" ? " active" : ""}`} href={`/ontology?tab=catalog${runId ? `&runId=${runId}` : ""}`}>类型目录</Link>
           <Link className={`button-secondary${tab === "methods" ? " active" : ""}`} href={`/ontology?tab=methods${runId ? `&runId=${runId}` : ""}`}>方法与规范</Link>
+          <Link className={`button-secondary${tab === "governance" ? " active" : ""}`} href="/ontology?tab=governance">本体缺口治理</Link>
+          <Link className={`button-secondary${tab === "comparability" ? " active" : ""}`} href="/ontology?tab=comparability">跨研究口径</Link>
+          <Link className={`button-secondary${tab === "queries" ? " active" : ""}`} href={`/ontology?tab=queries${runId ? `&queryRunId=${runId}` : ""}`}>研究问题查询</Link>
         </div>
       </div>
-      {runId && ontologyValue ? (
+      {runId && ontologyValue && !["governance", "comparability", "queries"].includes(tab) ? (
         <section className="card ontology-value-summary">
           <div className="section-heading">
             <div>
@@ -199,6 +219,118 @@ export default async function OntologyPage({
                 <pre className="json-editor" style={{ whiteSpace: "pre-wrap" }}>{asset.snippet}</pre>
               </details>
             ))}
+          </div>
+        </section>
+      ) : null}
+      {tab === "governance" ? <OntologyCandidateQueue /> : null}
+      {tab === "comparability" ? (
+        <section className="ontology-comparability">
+          <div className="card ontology-governance-note">
+            <strong>只对齐，不猜测</strong>
+            <span>正式语义对象、对象/产品范围、地区、指标、单位和时间基准全部一致才允许直接比较；缺字段标为信息不足，任一关键口径不同则明确阻断。</span>
+          </div>
+          {comparabilityGroups.map((group) => {
+            const observationById = new Map(group.observations.map((observation) => [observation.observation_id, observation]));
+            return (
+              <article className="card comparability-group" key={group.ontology_node_id}>
+                <div className="section-heading">
+                  <div>
+                    <div className="eyebrow">正式 StateVariable</div>
+                    <h2>{group.ontology_label}</h2>
+                    <p className="muted">{new Set(group.observations.map((observation) => observation.run_id)).size} 个研究 · {group.observations.length} 个变量实例</p>
+                  </div>
+                  <div className="comparability-counts">
+                    <span className="aligned">可比 {group.aligned_count}</span>
+                    <span className="blocked">不可直比 {group.blocked_count}</span>
+                    <span className="insufficient">信息不足 {group.insufficient_count}</span>
+                  </div>
+                </div>
+                <div className="comparability-list">
+                  {group.comparisons.slice(0, 12).map((comparison) => {
+                    const left = observationById.get(comparison.left_observation_id)!;
+                    const right = observationById.get(comparison.right_observation_id)!;
+                    return (
+                      <details className={comparison.status} key={`${comparison.left_observation_id}:${comparison.right_observation_id}`}>
+                        <summary>
+                          <span>{comparison.status === "aligned" ? "可直接比较" : comparison.status === "blocked" ? "不可直接比较" : "信息不足"}</span>
+                          <strong>{left.name} ↔ {right.name}</strong>
+                        </summary>
+                        <div className="comparability-pair">
+                          <p>
+                            <b>{left.question}</b>
+                            <small>{left.name} · 观测期 {displayComparisonField(left.observation_period, "未填写")} · {displayComparisonField(left.unit, "单位未填写")} · {displayComparisonField(left.time_basis, "时间基准未填写")}</small>
+                          </p>
+                          <p>
+                            <b>{right.question}</b>
+                            <small>{right.name} · 观测期 {displayComparisonField(right.observation_period, "未填写")} · {displayComparisonField(right.unit, "单位未填写")} · {displayComparisonField(right.time_basis, "时间基准未填写")}</small>
+                          </p>
+                        </div>
+                        <ul>{comparison.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                      </details>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+          {!comparabilityGroups.length ? <div className="card"><p className="muted">当前还没有同一正式变量跨两个研究出现的记录。</p></div> : null}
+        </section>
+      ) : null}
+      {tab === "queries" ? (
+        <section className="ontology-query-workbench">
+          <div className="card ontology-governance-note">
+            <strong>从研究问题进入图谱</strong>
+            <span>查询结果来自当前实例图的正式下游方向和跨 run 结构产物，不以字符串包含或视觉连线替代语义关系。</span>
+          </div>
+          <div className="ontology-query-grid">
+            <article className="card ontology-query-section">
+              <div className="section-heading">
+                <div><div className="eyebrow">问题一</div><h2>这条证据影响哪些判断？</h2></div>
+                <form>
+                  <input type="hidden" name="tab" value="queries" />
+                  <select name="queryRunId" defaultValue={queryRunId}>
+                    {runs.filter((run) => run.current_stage > 0).map((run) => <option key={run.id} value={run.id}>{run.question.slice(0, 36)}</option>)}
+                  </select>
+                  <button className="button-secondary">切换研究</button>
+                </form>
+              </div>
+              <div className="ontology-query-results">
+                {evidenceImpactQueries.map((result) => (
+                  <details key={result.evidence.id}>
+                    <summary><strong>{result.evidence.label}</strong><span>{result.impacted_judgments.length} 个下游判断</span></summary>
+                    {result.impacted_judgments.length ? result.impacted_judgments.map((judgment) => (
+                      <div className="ontology-impact-result" key={judgment.id}>
+                        <strong>{judgment.label}</strong>
+                        <small>{judgment.strength || "未定级"} · {judgment.decision_status || "未裁决"}</small>
+                        <p>影响路径：{judgment.path_labels.join(" → ")}</p>
+                      </div>
+                    )) : <p className="muted">当前实例图中尚无可达 Judgment；可能仍处于结构/证据阶段，或该事实尚未形成信号与假设链。</p>}
+                  </details>
+                ))}
+                {!evidenceImpactQueries.length ? <p className="muted">当前研究还没有已物化的 EvidenceFact。</p> : null}
+              </div>
+            </article>
+            <article className="card ontology-query-section">
+              <div className="section-heading"><div><div className="eyebrow">问题二</div><h2>这个变量在哪些研究出现？</h2></div></div>
+              <div className="ontology-query-results variable-usage-results">
+                {variableUsageQueries.slice(0, 40).map((usage) => (
+                  <details key={usage.semantic_ref}>
+                    <summary>
+                      <strong>{usage.label}</strong>
+                      <span>{usage.source === "formal" ? "正式本体" : "task_local"} · {usage.run_count} 个研究</span>
+                    </summary>
+                    <ul className="source-list">
+                      {usage.occurrences.slice(0, 10).map((occurrence) => (
+                        <li key={`${occurrence.run_id}:${occurrence.variable_id}`}>
+                          <Link href={`/runs/${occurrence.run_id}/structure`}>{occurrence.question}</Link>
+                          <small className="muted"> · {occurrence.name}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            </article>
           </div>
         </section>
       ) : null}

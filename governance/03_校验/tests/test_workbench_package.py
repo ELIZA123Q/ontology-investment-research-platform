@@ -26,7 +26,9 @@ def _write_minimal_package(run_dir: Path) -> None:
     cutoff = "2026-07-18T08:00:00+08:00"
     rule_names = [
         "evidence_scope_time_alignment", "no_direct_evidence_to_judgment", "judgment_reference_integrity",
-        "judgment_evidence_threshold", "judgment_status_consistency",
+        "judgment_evidence_threshold", "judgment_status_consistency", "state_time_consistency",
+        "semiconductor_proxy_disclosure", "semiconductor_qualification_stage_alignment",
+        "semiconductor_capacity_yield_scope_alignment",
     ]
     ma = {
         "application_id": "MA-01",
@@ -74,7 +76,7 @@ def _write_minimal_package(run_dir: Path) -> None:
     rules = [{
         "id": f"RE-{index}", "rule_ref": name, "input_refs": ["EV-01"],
         "condition_results": [{"condition_id": "runtime", "expression": "verified", "input_refs": ["EV-01"], "outcome": "pass", "rationale": "verified"}],
-        "result": "pass", "deterministic_result": {"engine_version": "runtime-semantic-rules-2.0.0", "result": "pass", "rationale": "verified", "evaluated_at": cutoff},
+        "result": "pass", "deterministic_result": {"engine_version": "runtime-semantic-rules-3.0.0", "result": "pass", "rationale": "verified", "evaluated_at": cutoff},
     } for index, name in enumerate(rule_names, 1)]
     judgment = {
         "stage": "04", "method_applications": [ma],
