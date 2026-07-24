@@ -1,13 +1,20 @@
 /** Stage03 双产物（数据与证据准备.md + 跨域实例清单.yaml）与覆盖/双就绪门禁。 */
 
 import YAML from "yaml";
+import {
+  applyHighQualityGate,
+  bodyMeetsMinDensity,
+  downgradeIfHighQualityFails,
+  nonEmptyText,
+  requireDeterministicChecked,
+  type StageQualityIssue,
+} from "./stage_high_quality";
 
 export const STAGE03_QUALITY_GATE_REF =
   "workflow/stages/03_证据/03_数据与证据准备规范.md#3-质量门槛与返工";
 
 function nonEmpty(value: unknown, fallback = ""): string {
-  const text = String(value ?? "").trim();
-  return text || fallback;
+  return nonEmptyText(value, fallback);
 }
 
 function asList(value: unknown): string[] {
@@ -92,7 +99,7 @@ export function ensureStage03DocumentFields(
   }
   const coverageTotal = unitIds.size || Math.max(drafts.length, 1);
   const backed = unitIds.size
-    ? [...unitIds].filter((id) => covered.has(id)).length
+    ? [...unitIds].filter((id) => covered.has(String(id))).length
     : drafts.filter((item: any) => String(item?.kind) !== "gap").length;
   const rate = coverageTotal ? backed / coverageTotal : 0;
   const allGap = drafts.length > 0 && drafts.every((item: any) => String(item?.kind) === "gap");
@@ -171,7 +178,73 @@ export function ensureStage03DocumentFields(
   if (nonEmpty(next.preparation_markdown)) {
     next.document_markdown = next.preparation_markdown;
   }
+
+  if (nonEmpty(next.quality_status) === "high_quality_pass") {
+    const provisional = { ...next, deterministic_check_status: "checked" };
+    const hqErrors = collectStage03HighQualityIssues(provisional);
+    if (hqErrors.length) downgradeIfHighQualityFails(next, hqErrors);
+    else next.deterministic_check_status = "checked";
+  }
   return next;
+}
+
+/** Stage03 high_quality：准备说明密度、压缩产物、非 gap 有来源、数字 grounding、deterministic checked。 */
+export function collectStage03HighQualityIssues(data: any): StageQualityIssue[] {
+  const issues: StageQualityIssue[] = [];
+  const prep = nonEmpty(data?.preparation_markdown, data?.document_markdown);
+  if (!bodyMeetsMinDensity(prep, 400)) {
+    issues.push({
+      severity: "error",
+      code: "stage03_prep_thin",
+      message: "high_quality 要求数据与证据准备正文达到可审阅密度",
+    });
+  }
+  const drafts = Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : [];
+  const nonGap = drafts.filter((item: any) => String(item?.kind) !== "gap");
+  if (!nonGap.length && drafts.length === 0) {
+    issues.push({
+      severity: "error",
+      code: "evidence_drafts_empty",
+      message: "high_quality 要求至少有证据草稿或显式 gap 登记",
+    });
+  }
+  for (const draft of nonGap) {
+    const sources = asList(draft?.source_keys).length + asList(draft?.source_ids).length;
+    if (!sources) {
+      issues.push({
+        severity: "error",
+        code: "nongap_without_source",
+        message: `high_quality：非 gap 证据 ${draft?.id || ""} 必须绑定来源`,
+      });
+      break;
+    }
+  }
+  const bundles = Array.isArray(data?.evidence_bundles) ? data.evidence_bundles : [];
+  const summaries = Array.isArray(data?.evidence_summaries) ? data.evidence_summaries : [];
+  if (!bundles.length && nonGap.length) {
+    issues.push({
+      severity: "error",
+      code: "evidence_bundles_missing",
+      message: "high_quality 要求按判断单元产出 evidence_bundles",
+    });
+  }
+  if (!summaries.length && nonGap.length) {
+    issues.push({
+      severity: "error",
+      code: "evidence_summaries_missing",
+      message: "high_quality 要求产出 evidence_summaries 压缩摘要",
+    });
+  }
+  // 数字 grounding：对 HQ 一律按 error 收集
+  const grounded = collectNumericGroundingWarnings({ ...data, quality_status: "high_quality_pass" })
+    .filter((item) => item.severity === "error");
+  issues.push(...grounded.map((item) => ({
+    severity: "error" as const,
+    code: item.code,
+    message: item.message,
+  })));
+  requireDeterministicChecked(data, issues);
+  return issues;
 }
 
 /** 从 drafts 投影 Evidence Summary / Bundle；模型已写则保留并补缺。 */
@@ -229,7 +302,9 @@ export function ensureEvidenceCompressionFields(data: any, structure?: any): voi
   }
 }
 
-/** 陈述中的数字是否出现在 quote 或 summary.numeric_values（渐进 warn，不挡门）。 */
+/** 陈述中的数字是否出现在 quote 或 summary.numeric_values。
+ * 非 gap 草稿的未 grounding 数字在 high_quality_pass 时升为 error；否则 warning。
+ */
 export function collectNumericGroundingWarnings(data: any): Stage03ConsistencyIssue[] {
   const warnings: Stage03ConsistencyIssue[] = [];
   const sources = Array.isArray(data?.sources) ? data.sources : [];
@@ -238,6 +313,7 @@ export function collectNumericGroundingWarnings(data: any): Stage03ConsistencyIs
     .flatMap((s: any) => (Array.isArray(s?.numeric_values) ? s.numeric_values : []))
     .map((n: any) => String(n?.value ?? ""));
   const allowed = new Set([...summaryNums, ...extractNumericTokens(quotePool)]);
+  const elevate = String(data?.quality_status || "") === "high_quality_pass";
 
   for (const draft of Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : []) {
     if (String(draft?.kind) === "gap") continue;
@@ -246,7 +322,7 @@ export function collectNumericGroundingWarnings(data: any): Stage03ConsistencyIs
     const ungrounded = nums.filter((n) => !tokenGrounded(n, allowed, quotePool));
     if (ungrounded.length) {
       warnings.push({
-        severity: "warning",
+        severity: elevate ? "error" : "warning",
         code: "numeric_ungrounded",
         message: `${draft.id} 陈述中的数字未见于 source_quote 或 evidence_summaries.numeric_values：${ungrounded.join(", ")}`,
       });
@@ -301,14 +377,18 @@ export function collectStage03ConsistencyIssues(data: any): Stage03ConsistencyIs
     });
   }
   const quality = nonEmpty(data?.quality_status);
-  if (!["minimum_pass", "high_quality_pass"].includes(quality)) {
+  if (quality !== "high_quality_pass") {
     issues.push({
       severity: "error",
       code: "quality_status",
-      message: "quality_status 须为 minimum_pass 或 high_quality_pass 才能确认",
+      message: "本稿尚未达到可交接密度，请重新生成后再确认",
     });
   }
-  issues.push(...collectNumericGroundingWarnings(data));
+  // 未达 HQ 时数字 grounding 仍提示；达 HQ 后由 HQ 门禁升为 error
+  if (quality !== "high_quality_pass") {
+    issues.push(...collectNumericGroundingWarnings(data));
+  }
+  issues.push(...applyHighQualityGate(collectStage03HighQualityIssues(data), quality));
   return issues;
 }
 

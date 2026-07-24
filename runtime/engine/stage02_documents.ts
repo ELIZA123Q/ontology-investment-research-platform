@@ -1,13 +1,21 @@
 /** Stage02 双产物（研究逻辑.md + 本体视图.yaml）同步与一致性门禁。 */
 
 import YAML from "yaml";
+import {
+  applyHighQualityGate,
+  bodyMeetsMinDensity,
+  downgradeIfHighQualityFails,
+  looksLikePlaceholder,
+  nonEmptyText,
+  requireDeterministicChecked,
+  type StageQualityIssue,
+} from "./stage_high_quality";
 
 export const STAGE02_QUALITY_GATE_REF =
   "workflow/stages/02_结构/02_判断结构与本体视图规范.md#7-质量门槛与返工规则";
 
 function nonEmpty(value: unknown, fallback = ""): string {
-  const text = String(value ?? "").trim();
-  return text || fallback;
+  return nonEmptyText(value, fallback);
 }
 
 function asList(value: unknown): string[] {
@@ -133,6 +141,8 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
     next.quality_status,
     next.can_enter_03 ? "minimum_pass" : "return_required",
   );
+  next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
+  next.semantic_review_status = nonEmpty(next.semantic_review_status, "not_reviewed");
 
   const logicFromAlias = nonEmpty(next.research_logic_markdown, nonEmpty(next.document_markdown));
   if (logicFromAlias) next.research_logic_markdown = logicFromAlias;
@@ -143,6 +153,13 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
   if (nonEmpty(next.research_logic_markdown)) {
     next.document_markdown = next.research_logic_markdown;
   }
+
+  if (nonEmpty(next.quality_status) === "high_quality_pass") {
+    const provisional = { ...next, deterministic_check_status: "checked" };
+    const hqErrors = collectStage02HighQualityIssues(provisional);
+    if (hqErrors.length) downgradeIfHighQualityFails(next, hqErrors);
+    else next.deterministic_check_status = "checked";
+  }
   return next;
 }
 
@@ -151,6 +168,80 @@ export type Stage02ConsistencyIssue = {
   code: string;
   message: string;
 };
+
+/** Stage02 high_quality：研究逻辑密度、spine、多单元、竞争解释、MA 三类齐全。 */
+export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] {
+  const issues: StageQualityIssue[] = [];
+  const logic = nonEmpty(data?.research_logic_markdown, data?.document_markdown);
+  if (!bodyMeetsMinDensity(logic, 400)) {
+    issues.push({
+      severity: "error",
+      code: "stage02_logic_thin",
+      message: "high_quality 要求研究逻辑达到可支撑 05 论点章的密度",
+    });
+  }
+  if (looksLikePlaceholder(data?.judgment_spine) || nonEmpty(data?.judgment_spine).length < 24) {
+    issues.push({
+      severity: "error",
+      code: "judgment_spine_thin",
+      message: "high_quality 要求 judgment_spine 写清核心待验证命题",
+    });
+  }
+  const units = Array.isArray(data?.judgment_units) ? data.judgment_units : [];
+  if (units.length < 2) {
+    issues.push({
+      severity: "error",
+      code: "judgment_units_thin",
+      message: "high_quality 要求至少 2 个判断单元，避免单一均值叙事",
+    });
+  }
+  const ces = Array.isArray(data?.competing_explanations) ? data.competing_explanations : [];
+  const substantiveCe = ces.filter((item: any) =>
+    nonEmpty(item?.statement).length >= 8
+    && (Array.isArray(item?.discriminating_evidence)
+      ? item.discriminating_evidence.length > 0
+      : nonEmpty(item?.discriminating_evidence).length >= 4),
+  );
+  if (!substantiveCe.length) {
+    issues.push({
+      severity: "error",
+      code: "competing_explanations_thin",
+      message: "high_quality 要求至少 1 条带可区分证据的竞争解释",
+    });
+  }
+  const mas = Array.isArray(data?.method_applications) ? data.method_applications : [];
+  for (const cap of ["judgment_structure", "evidence", "adjudication"] as const) {
+    if (!mas.some((item: any) => String(item?.capability_type) === cap)) {
+      issues.push({
+        severity: "error",
+        code: `ma_${cap}_missing`,
+        message: `high_quality 要求登记 ${cap} 能力的 MethodApplication`,
+      });
+    }
+  }
+  const scopeBlob = [
+    nonEmpty(data?.research_scope?.label),
+    nonEmpty(data?.judgment_spine),
+    logic,
+    ...units.map((unit: any) => `${unit?.title || ""} ${unit?.question || ""}`),
+  ].join("\n");
+  if (/存储|DRAM|NAND|HBM|内存周期/.test(scopeBlob)) {
+    const productHints = ["HBM", "DRAM", "NAND", "通用", "消费", "企业级"];
+    const covered = productHints.filter((hint) =>
+      units.some((unit: any) => `${unit?.title || ""}${unit?.question || ""}`.includes(hint))
+      || scopeBlob.includes(hint),
+    );
+    if (covered.length < 2) {
+      issues.push({
+        severity: "error",
+        code: "memory_cycle_product_split",
+        message: "存储周期类 high_quality 须在判断单元中显式区分至少两类产品线",
+      });
+    }
+  }
+  requireDeterministicChecked(data, issues);
+  return issues;
+}
 
 export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIssue[] {
   const issues: Stage02ConsistencyIssue[] = [];
@@ -231,6 +322,38 @@ export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIs
   if (!nonEmpty(data?.judgment_spine)) {
     issues.push({ severity: "error", code: "missing_judgment_spine", message: "缺少 judgment_spine（核心待验证命题）" });
   }
+
+  // 存储周期类任务：须有分产品/分路径判断单元，避免行业均值叙事。
+  const scopeBlob = [
+    nonEmpty(data?.research_scope?.label),
+    nonEmpty(data?.judgment_spine),
+    nonEmpty(data?.research_logic_markdown, data?.document_markdown),
+    ...(Array.isArray(data?.judgment_units) ? data.judgment_units : []).map((unit: any) =>
+      `${unit?.title || ""} ${unit?.question || ""}`),
+  ].join("\n");
+  const memoryCycleTask = /存储|DRAM|NAND|HBM|内存周期/.test(scopeBlob);
+  if (memoryCycleTask) {
+    const units = Array.isArray(data?.judgment_units) ? data.judgment_units : [];
+    const productHints = ["HBM", "DRAM", "NAND", "通用", "消费", "企业级"];
+    const covered = productHints.filter((hint) =>
+      units.some((unit: any) => `${unit?.title || ""}${unit?.question || ""}`.includes(hint))
+      || scopeBlob.includes(hint),
+    );
+    if (units.length < 2) {
+      issues.push({
+        severity: nonEmpty(data?.quality_status) === "high_quality_pass" ? "error" : "warning",
+        code: "memory_cycle_units_thin",
+        message: "存储周期类任务须至少拆出 2 个判断单元（分产品/分路径），禁止单一行业均值单元",
+      });
+    } else if (covered.length < 2) {
+      issues.push({
+        severity: "warning",
+        code: "memory_cycle_product_split",
+        message: "存储周期类任务建议在判断单元中显式区分 HBM/通用 DRAM/NAND 等产品线",
+      });
+    }
+  }
+
   const gapStatus = nonEmpty(data?.ontology_gap_scan_status);
   if (gapStatus === "blocking_gap" && data?.can_enter_03) {
     issues.push({
@@ -247,13 +370,14 @@ export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIs
     });
   }
   const quality = nonEmpty(data?.quality_status);
-  if (!["minimum_pass", "high_quality_pass"].includes(quality)) {
+  if (quality !== "high_quality_pass") {
     issues.push({
       severity: "error",
       code: "quality_status",
-      message: "quality_status 须为 minimum_pass 或 high_quality_pass",
+      message: "本稿尚未达到可交接密度，请重新生成后再确认",
     });
   }
+  issues.push(...applyHighQualityGate(collectStage02HighQualityIssues(data), quality));
   return issues;
 }
 

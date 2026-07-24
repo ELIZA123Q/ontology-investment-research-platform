@@ -1,6 +1,10 @@
 /**
  * Stage05 交付结构校验（对齐 governance validate_05_outputs.REQUIRED_FIXED_SECTIONS）。
  * 用于 Runtime 确认门禁；不替代完整 Python 发布包校验。
+ *
+ * minimum_pass：固定节 + 论点章 + 禁审计腔/压平简报
+ * high_quality_pass：额外要求 Research Edge 实质字段、论点章密度、可执行跟踪表、
+ *   deterministic_check_status=checked；禁止占位 research_edge / skeleton 冒充。
  */
 
 export const STAGE05_REQUIRED_FIXED_SECTIONS = [
@@ -17,6 +21,19 @@ export const STAGE05_REQUIRED_TAIL_MARKERS = ["未来重点观察", "主要风�
 const ARGUMENT_CHAPTER_PATTERN = /^##\s+[一二三四五]、/gm;
 const MIN_ARGUMENT_CHAPTERS = 2;
 const MAX_ARGUMENT_CHAPTERS = 5;
+
+/** high_quality：每个论点章最少正文汉字/字符（对标 7:13 金标密度启发式）。 */
+export const HQ_MIN_ARGUMENT_CHAPTER_CHARS = 280;
+/** high_quality：Research Edge 表格至少实质行数（不含表头）。 */
+export const HQ_MIN_RESEARCH_EDGE_ROWS = 1;
+/** 占位 research_edge 文案（不得标 high_quality）。 */
+export const RESEARCH_EDGE_PLACEHOLDER_MARKERS = [
+  "见正文「市场认知差 / Research Edge」",
+  "见正文表格",
+  "见正文证伪列",
+  "见正文证据边界列",
+  "需由后续证据补足",
+];
 
 /** 高可见位置禁止的机器审计腔（不含研究叙述里常见的「不是确定结束日」等合法表述）。 */
 const HIGH_VISIBILITY_AUDIT_MARKERS = [
@@ -67,6 +84,9 @@ const FLAT_BRIEF_MARKERS = [
   "研究判断简报｜",
 ];
 
+const TRACKING_TABLE_HEADERS = ["当前基线", "触发条件", "对判断的影响"];
+const NUMERIC_OR_GAP_PATTERN = /\d|\d%|缺口|暂无|不足|无法核验|待补齐|公开材料不足以/;
+
 export type Stage05StructureIssue = {
   severity: "error" | "warning";
   code: string;
@@ -101,6 +121,19 @@ export function looksLikeFlattenedBrief(body: string): boolean {
   if (FLAT_BRIEF_MARKERS.some((marker) => text.includes(marker))) return true;
   if (text.includes("<details>") && text.includes("审计索引")) return true;
   return false;
+}
+
+/** 是否像确定性骨架模板（可作 minimum 草稿，不得标 high_quality）。 */
+export function looksLikeDeterministicSkeleton(body: string): boolean {
+  const text = nonEmpty(body);
+  if (!text) return false;
+  const skeletonMarkers = [
+    "仅限已确认判断卡",
+    "当前没有可支撑方向判断的事实级来源；结论保持不可判断边界",
+    "配对审计见 expression_audit_yaml",
+  ];
+  const hit = skeletonMarkers.filter((marker) => text.includes(marker)).length;
+  return hit >= 2;
 }
 
 /** LLM/人工稿是否应保留（有研报节或论点章，且不是压平简报）。 */
@@ -141,6 +174,154 @@ function extractHighVisibilitySlices(body: string): Array<{ label: string; text:
     }
   }
   return slices;
+}
+
+/** 切出 `## 一、`…`## 五、` 各章正文（不含下一章标题）。 */
+export function extractArgumentChapterBodies(body: string): Array<{ heading: string; body: string }> {
+  const text = nonEmpty(body);
+  const matches = [...text.matchAll(/^##\s+([一二三四五]、.+)$/gm)];
+  const chapters: Array<{ heading: string; body: string }> = [];
+  for (let i = 0; i < matches.length; i += 1) {
+    const start = matches[i].index! + matches[i][0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : text.length;
+    const rest = text.slice(start, end);
+    const fixedCut = rest.search(/\n## (?![一二三四五]、)/);
+    const chapterBody = (fixedCut >= 0 ? rest.slice(0, fixedCut) : rest).trim();
+    chapters.push({ heading: matches[i][1], body: chapterBody });
+  }
+  return chapters;
+}
+
+export function isPlaceholderResearchEdge(edge: {
+  market_view?: string;
+  differentiated_view?: string;
+  falsifier?: string;
+  evidence_boundary?: string;
+  underestimated_mechanism?: string;
+}): boolean {
+  const blob = [
+    edge.market_view,
+    edge.differentiated_view,
+    edge.falsifier,
+    edge.evidence_boundary,
+    edge.underestimated_mechanism,
+  ].map((item) => nonEmpty(item)).join("\n");
+  if (!blob) return true;
+  return RESEARCH_EDGE_PLACEHOLDER_MARKERS.some((marker) => blob.includes(marker));
+}
+
+function countResearchEdgeTableRows(body: string): number {
+  const idx = body.indexOf("## 市场认知差 / Research Edge");
+  if (idx < 0) return 0;
+  const rest = body.slice(idx);
+  const next = rest.search(/\n##\s+/);
+  const block = next > 0 ? rest.slice(0, next) : rest;
+  return block
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("|") && !line.includes("---"))
+    .filter((line) => {
+      const firstCell = (line.split("|")[1] || "").trim();
+      return firstCell && !/参考认识|常见认识|市场认知|项目/.test(firstCell);
+    })
+    .filter((line) => (line.match(/\|/g) || []).length >= 4)
+    .length;
+}
+
+function hasExecutableTrackingTable(body: string): boolean {
+  const idx = body.indexOf("## 催化、验证与风险");
+  if (idx < 0) return false;
+  const block = body.slice(idx, idx + 2500);
+  return TRACKING_TABLE_HEADERS.every((header) => block.includes(header))
+    && block.includes("|");
+}
+
+/**
+ * high_quality 额外形态检查（对标 7:13 金标启发式）。
+ * 不替代完整 00A 语义审查。
+ */
+export function collectStage05HighQualityIssues(input: {
+  body: string;
+  research_edge?: Array<Record<string, unknown>>;
+  deterministic_check_status?: string;
+  from_skeleton?: boolean;
+}): Stage05StructureIssue[] {
+  const issues: Stage05StructureIssue[] = [];
+  const text = nonEmpty(input.body);
+  if (input.from_skeleton || looksLikeDeterministicSkeleton(text)) {
+    issues.push({
+      severity: "error",
+      code: "skeleton_not_high_quality",
+      message: "确定性骨架/模板稿不得标 high_quality_pass",
+    });
+  }
+
+  const edges = Array.isArray(input.research_edge) ? input.research_edge : [];
+  const substantiveEdges = edges.filter((edge) => !isPlaceholderResearchEdge(edge as any));
+  if (!substantiveEdges.length && countResearchEdgeTableRows(text) < HQ_MIN_RESEARCH_EDGE_ROWS) {
+    issues.push({
+      severity: "error",
+      code: "research_edge_thin",
+      message: "high_quality 要求 Research Edge 有实质行（常见认识/研究判断/被低估机制/证伪），不得用占位文案",
+    });
+  }
+  for (const edge of substantiveEdges) {
+    const market = nonEmpty(edge.market_view);
+    const diff = nonEmpty(edge.differentiated_view);
+    const falsifier = nonEmpty(edge.falsifier);
+    const mechanism = nonEmpty(edge.underestimated_mechanism);
+    if (!market || !diff) {
+      issues.push({
+        severity: "error",
+        code: "research_edge_incomplete",
+        message: "Research Edge 每行须含常见认识与研究判断",
+      });
+      break;
+    }
+    if (!falsifier && !mechanism && !nonEmpty(edge.evidence_boundary)) {
+      issues.push({
+        severity: "warning",
+        code: "research_edge_weak_falsifier",
+        message: "Research Edge 建议补齐证伪条件或被低估机制",
+      });
+    }
+  }
+
+  const chapters = extractArgumentChapterBodies(text);
+  for (const chapter of chapters) {
+    if (chapter.body.length < HQ_MIN_ARGUMENT_CHAPTER_CHARS) {
+      issues.push({
+        severity: "error",
+        code: "argument_chapter_thin",
+        message: `论点章「${chapter.heading}」正文过短（<${HQ_MIN_ARGUMENT_CHAPTER_CHARS} 字），不足以支撑研报级论证`,
+      });
+    }
+    if (!NUMERIC_OR_GAP_PATTERN.test(chapter.body)) {
+      issues.push({
+        severity: "error",
+        code: "argument_chapter_ungrounded",
+        message: `论点章「${chapter.heading}」须含可追溯数字或明确缺口说明`,
+      });
+    }
+  }
+
+  if (!hasExecutableTrackingTable(text)) {
+    issues.push({
+      severity: "error",
+      code: "tracking_table_missing",
+      message: "「催化、验证与风险」须含可执行跟踪表（基线/触发/对判断影响）",
+    });
+  }
+
+  if (nonEmpty(input.deterministic_check_status) !== "checked") {
+    issues.push({
+      severity: "error",
+      code: "deterministic_not_checked",
+      message: "high_quality_pass 要求 deterministic_check_status=checked",
+    });
+  }
+
+  return issues;
 }
 
 export function collectStage05StructureIssues(body: string): Stage05StructureIssue[] {
@@ -298,7 +479,6 @@ export function buildStage05SkeletonMarkdown(input: {
       "- 取得可核验事实后再进入方向判断。",
     ];
 
-  // 若只有 1 个 claim，补第二节以满足 2–5 论点章要求
   if (input.claims.length === 1) {
     claimBlocks.push([
       "## 二、验证与改判条件",
@@ -371,4 +551,179 @@ export function buildStage05SkeletonMarkdown(input: {
     "- 本报告用于内部研究讨论，不构成证券评级、收益承诺或交易操作建议。",
     "- 正式表达不得抬高 04 结论强度；配对审计见 expression_audit_yaml。",
   ].join("\n");
+}
+
+// =============================================================================
+// v2 增强: 跨阶段引用完整性检查
+// =============================================================================
+
+/**
+ * 检查 05 expressions 是否全部映射到 04 claims
+ * 对标 governance/validate_publish.py 05_to_04 引用完整性
+ */
+export function checkExpressClaimMapping(
+  expressions: any[],
+  stage04Claims: any[],
+): { missingMappings: string[]; passed: boolean } {
+  const claimIds = new Set(stage04Claims.map((c) => String(c.id || c.claim_id || "")));
+  const missingMappings: string[] = [];
+
+  for (const expression of expressions) {
+    const expressionId = String(expression.id || expression.expression_id || "");
+    const claimRef = String(expression.claim_id || expression.claim_ref || "");
+    if (!claimRef) {
+      missingMappings.push(`EX ${expressionId}: 缺少 claim_ref`);
+    } else if (!claimIds.has(claimRef)) {
+      missingMappings.push(`EX ${expressionId}: claim_ref="${claimRef}" 在 04 claims 中不存在`);
+    }
+  }
+
+  return {
+    missingMappings,
+    passed: missingMappings.length === 0,
+  };
+}
+
+/**
+ * 检查 05 source_lines 中的引用是否可追溯到 03 sources
+ */
+export function checkSourceLineReferences(
+  sourceLines: any[],
+  stage03Sources: any[],
+): { brokenRefs: string[]; passed: boolean } {
+  const sourceIds = new Set(stage03Sources.map((s) => String(s.id || "")));
+  const brokenRefs: string[] = [];
+
+  for (const line of sourceLines) {
+    const sourceRef = String(line.source_ref || line.source_id || "");
+    if (sourceRef && !sourceIds.has(sourceRef)) {
+      brokenRefs.push(`source_ref="${sourceRef}" 在 03 sources 中不存在`);
+    }
+  }
+
+  return {
+    brokenRefs,
+    passed: brokenRefs.length === 0,
+  };
+}
+
+/**
+ * 检查 05 表达强度是否超过 04 判断等级
+ * 对标 governance/validate_publish.py "05 表达超过 04 审计边界"
+ */
+export type ExpressionBoundaryViolation = {
+  expressionId: string;
+  claimId: string;
+  claimLevel: string;
+  violation: string;
+  suggestion: string;
+};
+
+export function checkExpressionBoundaries(
+  expressions: any[],
+  stage04Claims: any[],
+  stage04Judgments: any[],
+): ExpressionBoundaryViolation[] {
+  const violations: ExpressionBoundaryViolation[] = [];
+  const claimMap = new Map(stage04Claims.map((c) => [String(c.id || c.claim_id || ""), c]));
+  const judgmentMap = new Map(stage04Judgments.map((j) => [String(j.id || j.judgment_id || ""), j]));
+
+  // 从 evidence_quality_gate 导入判断等级上限
+  const J_RANK: Record<string, number> = { J0: 0, J1: 1, J2: 2, J3: 3, J4: 4 };
+  const EXPRESSION_STRENGTH_KEYWORDS: Record<number, string[]> = {
+    3: ["确认", "确定", "已确认", "明确"],
+    4: ["目标价", "评级", "买入", "卖出"],
+  };
+
+  for (const expression of expressions) {
+    const expressionId = String(expression.id || expression.expression_id || "");
+    const claimRef = String(expression.claim_id || expression.claim_ref || "");
+    const text = String(expression.text || expression.content || expression.body || "");
+
+    const claim = claimMap.get(claimRef);
+    if (!claim) continue;
+
+    const judgmentRef = String(claim.judgment_id || claim.judgment_ref || "");
+    const judgment = judgmentMap.get(judgmentRef);
+    const claimLevel = String(judgment?.strength || "J0");
+    const claimRank = J_RANK[claimLevel] || 0;
+
+    // 检查是否存在越级关键词
+    for (const [minRank, keywords] of Object.entries(EXPRESSION_STRENGTH_KEYWORDS)) {
+      if (claimRank < Number(minRank)) {
+        for (const keyword of keywords) {
+          if (text.includes(keyword)) {
+            violations.push({
+              expressionId,
+              claimId: claimRef,
+              claimLevel,
+              violation: `EX ${expressionId} (claim=${claimRef}, J${claimLevel.slice(1)}) 包含 ${keyword}，超过许可强度`,
+              suggestion: `移除/替换越级关键词，或降低 Claim ${claimRef} 对应的判断强度`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
+/**
+ * 跨阶段完整性综合检查 — 返回所有 violation
+ */
+export function runCrossStageIntegrityChecks(
+  stage05Data: {
+    expressions?: any[];
+    source_lines?: any[];
+    body?: string;
+  },
+  stage04Data: {
+    claims?: any[];
+    judgments?: any[];
+  },
+  stage03Data: {
+    sources?: any[];
+  },
+): {
+  exClaimMapping: { missingMappings: string[]; passed: boolean };
+  sourceRefs: { brokenRefs: string[]; passed: boolean };
+  expressionBoundaries: ExpressionBoundaryViolation[];
+  passed: boolean;
+  summary: string;
+} {
+  const exClaimMapping = checkExpressClaimMapping(
+    stage05Data.expressions || [],
+    stage04Data.claims || [],
+  );
+  const sourceRefs = checkSourceLineReferences(
+    stage05Data.source_lines || [],
+    stage03Data.sources || [],
+  );
+  const expressionBoundaries = checkExpressionBoundaries(
+    stage05Data.expressions || [],
+    stage04Data.claims || [],
+    stage04Data.judgments || [],
+  );
+
+  const issues: string[] = [];
+  if (!exClaimMapping.passed) {
+    issues.push(`${exClaimMapping.missingMappings.length} 条 EX→C 映射缺失`);
+  }
+  if (!sourceRefs.passed) {
+    issues.push(`${sourceRefs.brokenRefs.length} 条来源引用断裂`);
+  }
+  if (expressionBoundaries.length > 0) {
+    issues.push(`${expressionBoundaries.length} 条表达越界`);
+  }
+
+  return {
+    exClaimMapping,
+    sourceRefs,
+    expressionBoundaries,
+    passed: exClaimMapping.passed && sourceRefs.passed && expressionBoundaries.length === 0,
+    summary: issues.length > 0
+      ? `跨阶段完整性检查失败: ${issues.join("; ")}`
+      : "跨阶段引用完整性通过",
+  };
 }

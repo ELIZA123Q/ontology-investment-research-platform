@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isHumanClarificationQuestion } from "./stage01_contract";
 
 const markdown = z.string().min(40);
 const nonEmptyString = z.string().min(1);
@@ -149,22 +150,36 @@ export const taskDefinitionSchema = z.object({
   }),
 }).superRefine((value, context) => {
   if (value.task_disposition === "needs_clarification") {
-    const unanswered = value.input_resolution.clarifications.filter((item) => !item.answer);
+    const clarifications = value.input_resolution.clarifications;
+    const unanswered = clarifications.filter((item) => !item.answer);
     const unresolved = value.input_resolution.unresolved_structural_ambiguities;
-    if (!unanswered.length && !unresolved.length) {
+    const allAnsweredAwaitingRegen = clarifications.length > 0
+      && clarifications.every((item) => Boolean(item.answer))
+      && value.input_resolution.mode === "user_clarified"
+      && value.input_resolution.status === "pending";
+    if (!unanswered.length && !unresolved.length && !allAnsweredAwaitingRegen) {
       context.addIssue({
         code: "custom",
         path: ["task_disposition"],
         message: "needs_clarification 必须登记待答澄清或未决结构性歧义",
       });
     }
-    if (unanswered.length > 1) {
+    if (unanswered.length > 5) {
       context.addIssue({
         code: "custom",
         path: ["input_resolution", "clarifications"],
-        message: "一次只允许一个未回答的澄清问题",
+        message: "澄清问题过多：一次最多 5 个结构性追问，请合并或拆题",
       });
     }
+    unanswered.forEach((item, index) => {
+      if (!isHumanClarificationQuestion(item.question)) {
+        context.addIssue({
+          code: "custom",
+          path: ["input_resolution", "clarifications", index, "question"],
+          message: "澄清问题必须是短句人话（对齐 7/13：如「是否把 HBM、非 HBM DRAM 与 NAND 分开判断」），禁止模板腔与内部代号",
+        });
+      }
+    });
   }
   if (value.input_resolution.mode === "direct_extract") {
     const forged = value.input_resolution.clarifications.some((item) => Boolean(item.answer));
@@ -668,11 +683,17 @@ export const judgmentDecisionSchema = z.object({
   expression_permission: z.object({
     allowed_core_claims: z.array(z.string()).default([]),
     restricted_claims: z.array(z.string()).default([]),
+    prohibited_claims: z.array(z.string()).default([]),
+    allowed_mechanisms: z.array(z.string()).default([]),
+    restricted_phrasing: z.array(z.string()).default([]),
     max_expression_level: z.enum(["J0", "J1", "J2", "J3", "J4"]).default("J0"),
     notes: z.string().default(""),
   }).default({
     allowed_core_claims: [],
     restricted_claims: [],
+    prohibited_claims: [],
+    allowed_mechanisms: [],
+    restricted_phrasing: [],
     max_expression_level: "J0",
     notes: "",
   }),
@@ -725,10 +746,31 @@ export const researchExpressionSchema = z.object({
   research_edge: z.array(z.object({
     market_view: z.string(),
     differentiated_view: z.string(),
+    underestimated_mechanism: z.string().optional(),
     falsifier: z.string().optional(),
     evidence_boundary: z.string().optional(),
   })).default([]),
   argument_chapters: z.array(z.string()).default([]),
+  research_value_review: z.object({
+    status: z.enum(["pass", "fail", "skipped"]).default("skipped"),
+    checks: z.array(z.object({
+      id: z.string(),
+      pass: z.boolean(),
+      evidence_span: z.string().default(""),
+      note: z.string().default(""),
+    })).default([]),
+    retry_count: z.number().int().min(0).default(0),
+    reviewed_at: z.string().optional(),
+  }).optional(),
+  expression_permission_summary: z.object({
+    allowed_core_claims: z.array(z.string()).default([]),
+    restricted_claims: z.array(z.string()).default([]),
+    prohibited_claims: z.array(z.string()).default([]),
+    allowed_mechanisms: z.array(z.string()).default([]),
+    restricted_phrasing: z.array(z.string()).default([]),
+    max_expression_level: z.string().default(""),
+    notes: z.string().default(""),
+  }).optional(),
   document_markdown: markdown,
 });
 

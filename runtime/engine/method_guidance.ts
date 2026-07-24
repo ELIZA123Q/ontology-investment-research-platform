@@ -45,6 +45,26 @@ export type MethodGuidanceExcerpt = {
   excerpt_mode: "full" | "sections";
 };
 
+/** 行业场景卡：不进 method_registry，按任务关键词命中后注入 guidance。 */
+export type ScenarioCardSpec = {
+  scenario_id: string;
+  file: string;
+  keywords: string[];
+};
+
+export const SEMICONDUCTOR_SCENARIO_CARDS: ScenarioCardSpec[] = [
+  {
+    scenario_id: "SCN-MEM-CYCLE",
+    file: "methods/02_判断结构/行业框架库/半导体行业/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md",
+    keywords: ["存储周期", "DRAM", "NAND", "见顶", "周期反转", "内存周期", "存储芯片周期", "稀缺定价"],
+  },
+  {
+    scenario_id: "SCN-MEM-HBM",
+    file: "methods/02_判断结构/行业框架库/半导体行业/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md",
+    keywords: ["HBM", "高带宽内存", "资源挤占", "HBM供需"],
+  },
+];
+
 export type ThresholdCapsProjection = {
   formal_rule_ref: string;
   evidence_grade_caps: Record<string, string>;
@@ -371,6 +391,41 @@ export function excerptMethodBody(
   };
 }
 
+/** 按任务文本命中半导体场景卡（存储周期 / HBM 等）。 */
+export function matchScenarioCards(taskText: string): ScenarioCardSpec[] {
+  const text = String(taskText || "");
+  if (!text.trim()) return [];
+  return SEMICONDUCTOR_SCENARIO_CARDS.filter((card) =>
+    card.keywords.some((keyword) => text.includes(keyword)),
+  );
+}
+
+export function loadScenarioCardGuidance(
+  taskText: string,
+  options: { perCardChars?: number; totalChars?: number } = {},
+): MethodGuidanceExcerpt[] {
+  const perCardChars = options.perCardChars ?? BODY_PER_METHOD_CHARS;
+  const totalChars = options.totalChars ?? BODY_TOTAL_CHARS;
+  const out: MethodGuidanceExcerpt[] = [];
+  let used = 0;
+  for (const card of matchScenarioCards(taskText)) {
+    if (used >= totalChars) break;
+    if (!existsSync(repositoryPath(card.file))) continue;
+    const content = readFileSync(repositoryPath(card.file), "utf8");
+    const remaining = Math.min(perCardChars, totalChars - used);
+    const { excerpt, truncated, excerpt_mode } = excerptMethodBody(content, remaining);
+    out.push({
+      method_id: card.scenario_id,
+      file: card.file,
+      excerpt,
+      truncated,
+      excerpt_mode,
+    });
+    used += excerpt.length;
+  }
+  return out;
+}
+
 export function loadSelectedMethodGuidance(
   methodIds: string[],
   options: { perMethodChars?: number; totalChars?: number } = {},
@@ -514,12 +569,31 @@ export function buildStageGenerationGuidance(input: {
     input.candidates,
     input.taskText || "",
   );
+  const totalChars = input.totalChars ?? BODY_TOTAL_CHARS;
+  // Stage02：场景卡优先占预算，保证分产品/生产者纪律进入裁剪上下文。
+  const scenarioGuidance = input.kind === "stage_02"
+    ? loadScenarioCardGuidance(input.taskText || "", {
+      perCardChars: input.perMethodChars,
+      totalChars: Math.min(16_000, totalChars),
+    })
+    : [];
+  const scenarioUsed = scenarioGuidance.reduce((sum, item) => sum + item.excerpt.length, 0);
+  const methodGuidance = loadSelectedMethodGuidance(methodIds, {
+    perMethodChars: input.perMethodChars,
+    totalChars: Math.max(4_000, totalChars - scenarioUsed),
+  });
+  const selected = [...scenarioGuidance, ...methodGuidance];
+  let used = 0;
+  const clipped: MethodGuidanceExcerpt[] = [];
+  for (const item of selected) {
+    if (used >= totalChars) break;
+    clipped.push(item);
+    used += item.excerpt.length;
+  }
   return {
     method_ids: methodIds,
-    selected_method_guidance: loadSelectedMethodGuidance(methodIds, {
-      perMethodChars: input.perMethodChars,
-      totalChars: input.totalChars,
-    }),
+    scenario_card_ids: scenarioGuidance.map((item) => item.method_id),
+    selected_method_guidance: clipped,
   };
 }
 

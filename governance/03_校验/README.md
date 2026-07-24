@@ -7,6 +7,7 @@
 | 想确认 | 打开或运行 |
 |--------|------------|
 | 高质量原则与发布规则 | [`00A_高质量产出判别标准.md`](00A_高质量产出判别标准.md) |
+| 三库→Runtime 注入覆盖 | [`runtime_asset_coverage.yaml`](runtime_asset_coverage.yaml)（维护 ontology/methods/workflow 时对照；`runtime/tests/runtime_asset_coverage.test.ts`） |
 | 正式发布包（中文命名 MD/YAML） | `python3 governance/03_校验/validate_run.py <运行目录>` |
 | V3 黄金样例（紧凑 YAML） | `python3 governance/03_校验/validate_v3_samples.py <运行目录>` |
 | 工作台导出包 | `python3 governance/03_校验/validate_workbench_package.py <导出目录>` |

@@ -1,0 +1,217 @@
+# ontology / methods / workflow → Runtime 工作台注入覆盖矩阵
+# 维护三库时对照本表：改 critical 资产须保证对应 injection_mode 仍生效。
+schema_name: runtime_asset_coverage
+schema_version: 1.0.0
+status: active
+
+injection_modes:
+  knowledge: "governance/01_架构/runtime_contexts.yaml 阶段白名单全文（可截断）"
+  registry_routed: "method_registry / judgment_method_routes 进入 method_candidates"
+  guidance_excerpt: "method_guidance 按候选截断摘录 selected_method_guidance"
+  ontology_slice: "ontology_tools / context_assembler 按语义路由切片"
+  structured_input: "workflow.generate 结构化字段（caps / cards / hints / permission）"
+  missing_critical: "应进 Runtime 但尚未接线（须优先补齐）"
+
+# 阶段 knowledge 白名单（与 runtime_contexts.yaml 对齐；测试会交叉校验）
+knowledge_expected:
+  stage_01:
+    - governance/01_架构/00_项目定位与边界.md
+    - workflow/stages/01_受理/01_投研判断任务受理与整理规范.md
+    - workflow/stages/01_受理/01_附录2_澄清追问写法.md
+    - workflow/stages/01_受理/模板/01_投研需求说明模板.md
+  stage_02:
+    - workflow/stages/02_结构/02_判断结构与本体视图规范.md
+    - workflow/stages/02_结构/02_附录1_框架裁剪与选用细则.md
+    - methods/02_判断结构/README.md
+  stage_03:
+    - workflow/stages/03_证据/03_数据与证据准备规范.md
+    - methods/03_取证/00_证据质量与结论上限.md
+    - methods/03_取证/B00_来源选择与使用边界.md
+    - methods/03_取证/B01_通用来源速查.md
+    - methods/03_取证/B02_半导体来源速查.md
+    - methods/03_取证/B03_MCP通道注册.md
+    - methods/03_取证/OPS_MCP查询快速参考.md
+  stage_04:
+    - workflow/stages/04_判断/04_推理输出规范.md
+    - methods/04_裁决/A00_裁决总则.md
+    - methods/04_裁决/A00-附录2_反证与竞争解释协议.md
+  stage_05:
+    - workflow/stages/05_表达/05_投研表达与交付规范.md
+    - delivery/01_标准/05_投研表达标准.md
+    - governance/03_校验/00A_高质量产出判别标准.md
+
+assets:
+  - id: WF-01-SPEC
+    path: workflow/stages/01_受理/01_投研判断任务受理与整理规范.md
+    injection_mode: knowledge
+    stages: [stage_01]
+    critical: true
+
+  - id: WF-01-CLARIFY
+    path: workflow/stages/01_受理/01_附录2_澄清追问写法.md
+    injection_mode: knowledge
+    stages: [stage_01]
+    critical: true
+
+  - id: WF-01-TEMPLATE
+    path: workflow/stages/01_受理/模板/01_投研需求说明模板.md
+    injection_mode: knowledge
+    stages: [stage_01]
+    critical: true
+
+  - id: WF-02-SPEC
+    path: workflow/stages/02_结构/02_判断结构与本体视图规范.md
+    injection_mode: knowledge
+    stages: [stage_02]
+    critical: true
+
+  - id: WF-03-SPEC
+    path: workflow/stages/03_证据/03_数据与证据准备规范.md
+    injection_mode: knowledge
+    stages: [stage_03]
+    critical: true
+
+  - id: WF-04-SPEC
+    path: workflow/stages/04_判断/04_推理输出规范.md
+    injection_mode: knowledge
+    stages: [stage_04]
+    critical: true
+
+  - id: WF-05-SPEC
+    path: workflow/stages/05_表达/05_投研表达与交付规范.md
+    injection_mode: knowledge
+    stages: [stage_05]
+    critical: true
+
+  - id: KB03-B00
+    path: methods/03_取证/B00_来源选择与使用边界.md
+    injection_mode: knowledge
+    stages: [stage_03]
+    critical: true
+
+  - id: KB03-B01
+    path: methods/03_取证/B01_通用来源速查.md
+    injection_mode: knowledge
+    stages: [stage_03]
+    critical: true
+
+  - id: KB03-B02
+    path: methods/03_取证/B02_半导体来源速查.md
+    injection_mode: knowledge
+    stages: [stage_03]
+    critical: true
+
+  - id: KB03-B03
+    path: methods/03_取证/B03_MCP通道注册.md
+    injection_mode: knowledge
+    stages: [stage_03]
+    critical: true
+    note: "MCP 是通道不是生产者；须与 OPS 卡片同进 Stage03"
+
+  - id: KB03-OPS-MCP
+    path: methods/03_取证/OPS_MCP查询快速参考.md
+    injection_mode: knowledge
+    stages: [stage_03]
+    critical: true
+
+  - id: KB03-OPS-WEB
+    path: methods/03_取证/OPS_通用真实来源查询与回退手册.md
+    injection_mode: structured_input
+    stages: [stage_03]
+    critical: false
+    note: "MCP 失败时 Web 回退；完整手册不默认塞 knowledge，由 OPS 卡片指向"
+
+  - id: KB04-A00
+    path: methods/04_裁决/A00_裁决总则.md
+    injection_mode: knowledge
+    stages: [stage_04]
+    critical: true
+
+  - id: KB04-A00-CE
+    path: methods/04_裁决/A00-附录2_反证与竞争解释协议.md
+    injection_mode: knowledge
+    stages: [stage_04]
+    critical: true
+
+  - id: GOV-00A
+    path: governance/03_校验/00A_高质量产出判别标准.md
+    injection_mode: knowledge
+    stages: [stage_05]
+    critical: true
+    note: "研究洞见另经 research_value_review 半自动闭环"
+
+  - id: DELIVERY-05-STD
+    path: delivery/01_标准/05_投研表达标准.md
+    injection_mode: knowledge
+    stages: [stage_05]
+    critical: true
+
+  - id: SCN-MEM-CYCLE
+    path: methods/02_判断结构/行业框架库/半导体行业/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
+    injection_mode: guidance_excerpt
+    stages: [stage_02]
+    critical: true
+    note: "任务命中存储周期关键词时强制进入 selected_method_guidance"
+
+  - id: SCN-MEM-HBM
+    path: methods/02_判断结构/行业框架库/半导体行业/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
+    injection_mode: guidance_excerpt
+    stages: [stage_02]
+    critical: true
+    note: "任务命中 HBM 关键词时强制进入 selected_method_guidance"
+
+  - id: METHOD-REGISTRY
+    path: methods/00_登记/method_assets.yaml
+    injection_mode: registry_routed
+    stages: [stage_02, stage_03, stage_04]
+    critical: true
+
+  - id: FRAMEWORK-DEP-REG
+    path: methods/02_判断结构/00_framework_dependency_registry.yaml
+    injection_mode: registry_routed
+    stages: [stage_02]
+    critical: true
+
+  - id: KB03-REGISTRY
+    path: methods/03_取证/03_registry.yaml
+    injection_mode: registry_routed
+    stages: [stage_03]
+    critical: true
+
+  - id: JUDGMENT-THRESHOLD
+    path: governance/02_合同/judgment_threshold_policy.yaml
+    injection_mode: structured_input
+    stages: [stage_03, stage_04]
+    critical: true
+
+  - id: ONTOLOGY-DOMAIN
+    path: ontology/02_领域
+    injection_mode: ontology_slice
+    stages: [stage_02, stage_03]
+    critical: true
+    note: "Stage04 故意关闭 ontology 工具；仅用上游摘要 + formal rules"
+
+  - id: KB03-A01-A09
+    path: methods/03_取证
+    injection_mode: guidance_excerpt
+    stages: [stage_03]
+    critical: true
+    note: "A01–A09 正文经 selected_method_guidance 按 MA 截断注入"
+
+  - id: KB04-A01-A10
+    path: methods/04_裁决
+    injection_mode: guidance_excerpt
+    stages: [stage_04]
+    critical: true
+    note: "裁决方法正文经 guidance 注入；A00 另强制优先"
+
+# 已知非缺口（故意不进默认 knowledge）
+intentionally_excluded:
+  - path: methods/03_取证/OPS_半导体真实来源查询与口径手册.md
+    reason: "按需 Web/口径回退；token 预算优先 B00–B03 + OPS_MCP"
+  - path: methods/04_裁决/A00-附录3_改判与版本协议.md
+    reason: "经 guidance 命中时摘录；不整篇塞 knowledge"
+  - path: methods/04_裁决/A00-附录4_通用认知错误与误用索引.md
+    reason: "经 guidance 命中时摘录；不整篇塞 knowledge"
+  - path: ontology/
+    reason: "整库不硬塞；按 semantic_route 切片"

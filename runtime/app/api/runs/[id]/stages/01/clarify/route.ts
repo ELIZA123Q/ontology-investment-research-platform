@@ -11,14 +11,26 @@ export async function POST(
 ) {
   const { id } = await context.params;
   const body = await request.json().catch(() => ({}));
-  const answer = String(body.answer || "").trim();
-  if (!answer) {
+  const batchAnswers = Array.isArray(body.answers)
+    ? body.answers.map((item: any) => ({
+      question_id: item?.question_id ? String(item.question_id) : undefined,
+      answer: String(item?.answer || "").trim(),
+    }))
+    : null;
+  const singleAnswer = String(body.answer || "").trim();
+  if ((!batchAnswers || !batchAnswers.length) && !singleAnswer) {
     return Response.json({ error: "澄清回答不能为空" }, { status: 400 });
   }
   try {
-    const artifact = clarifyStage01(id, answer, {
-      question_id: body.question_id ? String(body.question_id) : undefined,
-    });
+    const artifact = clarifyStage01(
+      id,
+      batchAnswers && batchAnswers.length
+        ? batchAnswers
+        : singleAnswer,
+      {
+        question_id: body.question_id ? String(body.question_id) : undefined,
+      },
+    );
     const regenerate = body.regenerate !== false;
     if (regenerate) {
       const job = enqueueArtifactGeneration({ runId: id, kind: "stage_01" });

@@ -64,6 +64,8 @@ import { assertStage02ReadyForApproval, ensureStage02DocumentFields } from "./st
 import { assertStage03ReadyForApproval, ensureStage03DocumentFields } from "./stage03_documents";
 import { assertStage04ReadyForApproval, ensureStage04DocumentFields } from "./stage04_documents";
 import { assertStage05ReadyForApproval, ensureStage05DocumentFields } from "./stage05_documents";
+import { checkDerivedFields, checkCrossStageReferences, computeBindingHash, type OutputQualityReport } from "./output_contract";
+import { routeError, buildReworkReport, type ReturnStage, type ErrorContext } from "./error_router";
 
 export function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;
@@ -346,6 +348,52 @@ export function validateApproval(artifact: Artifact) {
         throw new Error(`同证据基线携带了冻结证据外的来源 ${source.source_key || source.url}`);
       }
     }
+  }
+  // =========================================================
+  // v2 增强: 输出合同校验 (派生字段 + 跨阶段引用完整性)
+  // =========================================================
+  if (artifact.kind === "stage_03" || artifact.kind === "stage_04" || artifact.kind === "stage_05") {
+    const stageNum = artifact.kind.slice(-2);
+    const dataObj: any = parseJson(artifact.json_content, {});
+
+    // 1. 派生字段检查
+    const derivedViolations = checkDerivedFields(dataObj, artifact.kind);
+    if (derivedViolations.length > 0) {
+      throw new Error(
+        `[output_contract] ${artifact.kind} 包含 ${derivedViolations.length} 个禁止手动填写的派生字段: ${derivedViolations.slice(0, 3).join("; ")}`
+      );
+    }
+
+    // 2. 跨阶段引用完整性
+    const upstreamData: Record<string, unknown> = {};
+    if (stageNum === "03" || stageNum === "04" || stageNum === "05") {
+      const stage02 = latestArtifact(artifact.run_id, "stage_02", ["approved"]);
+      if (stage02) upstreamData.stage_02 = parseJson(stage02.json_content, {});
+    }
+    if (stageNum === "04" || stageNum === "05") {
+      const stage03 = latestArtifact(artifact.run_id, "stage_03", ["approved"]);
+      if (stage03) upstreamData.stage_03 = parseJson(stage03.json_content, {});
+    }
+    if (stageNum === "05") {
+      const stage04 = latestArtifact(artifact.run_id, "stage_04", ["approved"]);
+      if (stage04) upstreamData.stage_04 = parseJson(stage04.json_content, {});
+    }
+
+    const brokenRefs = checkCrossStageReferences(dataObj, artifact.kind, upstreamData);
+    if (brokenRefs.length > 0) {
+      throw new Error(
+        `[output_contract] ${artifact.kind} 发现 ${brokenRefs.length} 个跨阶段引用断裂: ${brokenRefs.slice(0, 3).map((r) => `${r.sourceField}→${r.missingRef}`).join("; ")}`
+      );
+    }
+
+    // 3. 哈希绑定生成 (不阻断，仅记录)
+    const upstreamHashes: Record<string, string> = {};
+    for (const [k, v] of Object.entries(upstreamData)) {
+      upstreamHashes[k] = createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 16);
+    }
+    const bindingHash = computeBindingHash(upstreamHashes, artifact.kind);
+    // 绑定哈希供后续流程使用 (approve 时写入 manifest)
+    (dataObj as any).binding_hash = bindingHash;
   }
   if (artifact.kind === "independent_review") {
     const current = latestArtifact(artifact.run_id, "stage_04", ["approved"]);

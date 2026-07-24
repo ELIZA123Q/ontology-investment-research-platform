@@ -30,6 +30,7 @@ import {
 const longMd = "# 标题\n\n".padEnd(80, "正文内容足够长以通过 markdown 最小长度约束。");
 
 function publishableStage05Markdown(title = "库存趋势暂不可判断") {
+  const denseGap = "当前缺少可核验的连续库存披露与同口径样本，证据缺口明确，不能把局部线索外推为行业改善结论。".repeat(8);
   return [
     `# ${title}`,
     "",
@@ -51,11 +52,11 @@ function publishableStage05Markdown(title = "库存趋势暂不可判断") {
     "",
     "## 一、库存证据不足",
     "",
-    "- 当前不能确认库存改善。",
+    denseGap,
     "",
     "## 二、验证与改判",
     "",
-    "- 取得连续两季库存披露后再判断。",
+    denseGap,
     "",
     "## 投资含义与重点观察",
     "",
@@ -67,17 +68,18 @@ function publishableStage05Markdown(title = "库存趋势暂不可判断") {
     "",
     "### 未来重点观察",
     "",
-    "| 时间或频率 | 指标/事件 | 当前基线 | 触发条件 | 对判断的影响 | 首选来源 |",
-    "|---|---|---|---|---|---|",
-    "| 下两季 | 库存 | 未知 | 连续下降 | 增强 | 公司披露 |",
+    "| 当前基线 | 触发条件 | 对判断的影响 |",
+    "|---|---|---|",
+    "| 证据不足 | 连续两季库存下降 | 可转为方向性观察 |",
     "",
     "### 主要风险",
     "",
-    "- 证据不足。",
+    "- 把缺口报告误写成方向性结论。",
     "",
     "## 主要资料来源",
     "",
-    "- 无已绑定来源",
+    "- 本轮无可用公开来源。",
+    "",
   ].join("\n");
 }
 
@@ -236,15 +238,43 @@ describe("stage03/04/05 norm density", () => {
     expect(data.document_markdown).toBe(data.preparation_markdown);
     expect(data.allowed_05_output).toBe("gap_report_only");
     expect(data.evidence_readiness).toBe("not_ready");
+    data.preparation_markdown = "# 数据与证据准备\n\n".padEnd(420, "覆盖范围、缺口与交给 04 的上限说明。");
+    data.document_markdown = data.preparation_markdown;
+    data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
+    ensureStage03DocumentFields(data, {
+      question: "库存是否改善？",
+      structure: { judgment_units: [{ id: "JU-1", title: "库存" }] },
+    });
+    data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
+    data.preparation_markdown = "# 数据与证据准备\n\n".padEnd(420, "覆盖范围、缺口与交给 04 的上限说明。");
+    data.document_markdown = data.preparation_markdown;
     expect(() => evidencePreparationSchema.parse(data)).not.toThrow();
     expect(() => assertStage03ReadyForApproval(data)).not.toThrow();
     data.quality_status = "return_required";
-    expect(() => assertStage03ReadyForApproval(data)).toThrow(/quality_status/);
+    expect(() => assertStage03ReadyForApproval(data)).toThrow(/可交接密度|quality_status/);
   });
 
   it("fails stage04 when brief/audit judgment ids drift", () => {
     const data: any = leanStage04();
     syncStage04ReadableMarkdown(data, { question: "库存是否改善？" });
+    data.judgment_brief_markdown = "# 判断简报\n\n".padEnd(420, "一句话结论、对象分化、主路径与竞争解释。");
+    data.document_markdown = data.judgment_brief_markdown;
+    data.object_differentiation = "库存对象单独观察，不做行业均值替代";
+    data.primary_path_ruling = "证据不足，维持不可判断";
+    data.investment_proposition = "等待可核验库存披露后再更新假设";
+    data.expression_permission = {
+      allowed_core_claims: ["暂不可判断"],
+      allowed_mechanisms: [],
+      prohibited_claims: ["确定见顶"],
+      restricted_phrasing: ["不得写成已确认"],
+      max_expression_level: "J0",
+      notes: "不抬升",
+    };
+    data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
+    data.brief_quality_check_result = "pass";
     expect(() => judgmentDecisionSchema.parse(data)).not.toThrow();
     expect(() => assertStage04ReadyForApproval(data)).not.toThrow();
     data.reasoning_audit_yaml = data.reasoning_audit_yaml.replaceAll("J-1", "J-MISSING");
@@ -267,8 +297,18 @@ describe("stage03/04/05 norm density", () => {
       limitations: ["证据不足"],
       document_markdown: publishableStage05Markdown(),
       quality_status: "high_quality_pass",
+      deterministic_check_status: "checked",
+      research_edge: [{
+        market_view: "库存已改善",
+        differentiated_view: "证据不足不能确认改善",
+        underestimated_mechanism: "口径与样本缺口",
+        falsifier: "取得连续披露",
+        evidence_boundary: "仅公开材料",
+      }],
     };
     ensureStage05DocumentFields(data, { question: "库存是否改善？" });
+    data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
     expect(() => researchExpressionSchema.parse(data)).not.toThrow();
     expect(() => assertStage05ReadyForApproval(data, { requirePublishableStructure: true })).not.toThrow();
     data.expression_audit_yaml = data.expression_audit_yaml.replace("RC-01", "RC-XX");
@@ -316,12 +356,22 @@ describe("stage03/04/05 norm density", () => {
     expect(data.quality_status).toBe("minimum_pass");
     const structureCodes = collectStage05ConsistencyIssues(data).map((item) => item.code);
     expect(structureCodes.some((code) => code === "missing_fixed_section" || code === "argument_chapter_count")).toBe(true);
-    expect(() => assertStage05ReadyForApproval(data, { requirePublishableStructure: true })).toThrow(/固定节|论点章|结构/);
+    expect(() => assertStage05ReadyForApproval(data, { requirePublishableStructure: true })).toThrow(/可交接密度|固定节|论点章|结构/);
 
     data.document_markdown = publishableStage05Markdown();
     data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
+    data.research_edge = [{
+      market_view: "库存已改善",
+      differentiated_view: "证据不足不能确认改善",
+      underestimated_mechanism: "口径与样本缺口",
+      falsifier: "取得连续披露",
+      evidence_boundary: "仅公开材料",
+    }];
     data.expression_audit_yaml = "";
     ensureStage05DocumentFields(data);
+    data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
     expect(data.document_markdown).toContain("Research Edge");
     expect(data.document_markdown).not.toContain("J1/supported");
     expect(data.document_markdown).not.toContain("审计索引");

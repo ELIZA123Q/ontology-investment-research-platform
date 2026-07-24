@@ -66,6 +66,220 @@ export const REQUIRED_RULES = [
   "semiconductor_capacity_yield_scope_alignment",
 ] as const;
 const LEVEL = { J0: 0, J1: 1, J2: 2, J3: 3, J4: 4 } as const;
+type JudgmentLevel = keyof typeof LEVEL;
+type EvidenceGrade = "Q0" | "Q1" | "Q2" | "Q3" | "Q4";
+type CounterevidenceResult = "cleared" | "weakened" | "contested" | "decisive" | "not_checked" | "not_applicable";
+type PathReadinessStatus = "ready" | "restricted" | "blocked" | "not_applicable";
+
+/**
+ * 状态派生矩阵 — 唯一权威来源: governance/02_合同/judgment_threshold_policy.yaml
+ * 120 种组合 (5 evidence × 6 counterevidence × 4 path_readiness)
+ * invariant: max_level = min(evidence_cap, counterevidence_cap, path_readiness_cap)
+ */
+const EVIDENCE_GRADE_CAPS: Record<EvidenceGrade, JudgmentLevel> = { Q0: "J0", Q1: "J1", Q2: "J2", Q3: "J3", Q4: "J4" };
+const COUNTEREVIDENCE_CAPS: Record<CounterevidenceResult, JudgmentLevel> = { cleared: "J4", weakened: "J2", contested: "J1", decisive: "J0", not_checked: "J1", not_applicable: "J4" };
+const PATH_READINESS_CAPS: Record<PathReadinessStatus, JudgmentLevel> = { ready: "J4", restricted: "J2", blocked: "J0", not_applicable: "J4" };
+
+/** 根据证据等级映射标准质量描述词汇到 Q 等级 */
+export function evidenceGradeFromQuality(quality: string): EvidenceGrade {
+  const q = quality.toLowerCase();
+  if (q === "充分" || q === "sufficient") return "Q3"; // Q3-Q4, 取保守
+  if (q === "受限" || q === "limited") return "Q2";
+  if (q === "观察" || q === "observation") return "Q1";
+  return "Q0"; // 不可用 / unusable
+}
+
+/** 根据证据草稿和来源计算 evidence grade (Q0-Q4) */
+export function computeEvidenceGrade(facts: EvidenceDraft[], sourceGroups: Set<string>, qualifiedGroups: Set<string>, directFacts: number): EvidenceGrade {
+  if (!facts.length || sourceGroups.size === 0) return "Q0";
+  if (facts.length >= 4 && qualifiedGroups.size >= 4 && directFacts >= 3) return "Q4";
+  if (facts.length >= 3 && qualifiedGroups.size >= 3 && directFacts >= 2) return "Q3";
+  if (facts.length >= 2 && qualifiedGroups.size >= 2 && directFacts >= 1) return "Q2";
+  return "Q1";
+}
+
+/** 根据冲突状态推导 counterevidence result */
+export function deriveCounterevidenceResult(conflictStatus: string, counterEvidenceCount: number, hasUnresolvedCompetition: boolean, hasDeceptiveConflict: boolean): CounterevidenceResult {
+  if (hasDeceptiveConflict) return "decisive";
+  if (hasUnresolvedCompetition) return "contested";
+  if (conflictStatus === "resolved" && counterEvidenceCount > 0) return "weakened";
+  if (conflictStatus === "resolved" || conflictStatus === "none") return "cleared";
+  return "not_checked";
+}
+
+/**
+ * 状态派生矩阵核心函数 — 120 种组合完整覆盖
+ * @returns 最大允许判断等级 (J0-J4) 与限制原因
+ */
+export function deriveMaxJudgmentLevel(
+  evidenceGrade: EvidenceGrade,
+  counterevidenceResult: CounterevidenceResult,
+  pathReadiness: PathReadinessStatus,
+): { maxLevel: JudgmentLevel; reasons: string[] } {
+  const evidenceCap = LEVEL[EVIDENCE_GRADE_CAPS[evidenceGrade]];
+  const counterevidenceCap = LEVEL[COUNTEREVIDENCE_CAPS[counterevidenceResult]];
+  const pathCap = LEVEL[PATH_READINESS_CAPS[pathReadiness]];
+  const max = Math.min(evidenceCap, counterevidenceCap, pathCap);
+  const levelKeys = Object.keys(LEVEL) as JudgmentLevel[];
+  const maxLevel = levelKeys.find((k) => LEVEL[k] === max) || "J0";
+
+  const reasons: string[] = [];
+  const caps = [
+    { name: "证据等级", value: evidenceGrade, cap: EVIDENCE_GRADE_CAPS[evidenceGrade], clamped: evidenceCap < 4 },
+    { name: "反证结果", value: counterevidenceResult, cap: COUNTEREVIDENCE_CAPS[counterevidenceResult], clamped: counterevidenceCap < 4 },
+    { name: "路径就绪", value: pathReadiness, cap: PATH_READINESS_CAPS[pathReadiness], clamped: pathCap < 4 },
+  ];
+  for (const cap of caps) {
+    if (cap.clamped && LEVEL[cap.cap] === max) {
+      reasons.push(`${cap.name}(${cap.value}) 限制上限为 ${cap.cap}`);
+    }
+  }
+  if (!reasons.length) reasons.push("所有维度无限制，可达 J4");
+
+  return { maxLevel, reasons };
+}
+
+/** 完整推导链：从原始数据到最大判断等级 */
+export function deriveMaxJudgmentLevelFromData(
+  judgment: any,
+  facts: EvidenceDraft[],
+  sources: SourceRecord[],
+): { maxLevel: JudgmentLevel; evidenceGrade: EvidenceGrade; counterevidenceResult: CounterevidenceResult; pathReadiness: PathReadinessStatus; reasons: string[] } {
+  const sourceGroups = new Set(sources.map(sourceGroup));
+  const qualifiedSources = sources.filter((s) => sourceTierNumber(s.source_tier) <= 6);
+  const qualifiedGroups = new Set(qualifiedSources.map(sourceGroup));
+  const directFacts = facts.filter((f) => f.directness === "direct").length;
+  const evidenceGrade = computeEvidenceGrade(facts, sourceGroups, qualifiedGroups, directFacts);
+
+  const counterCount = (judgment.counter_evidence_draft_ids || []).length;
+  const decisive = judgment.conflict_status === "decisive";
+  const unresolved = judgment.conflict_status === "unresolved";
+  const counterevidenceResult = deriveCounterevidenceResult(
+    String(judgment.conflict_status || "not_checked"),
+    counterCount,
+    unresolved && !decisive,
+    decisive,
+  );
+
+  // Path readiness: 从 judgment 的 path_result_status 推导
+  const pathStatus = String(judgment.path_result_status || "");
+  const pathReadiness = pathStatusToReadiness(pathStatus);
+
+  const { maxLevel, reasons } = deriveMaxJudgmentLevel(evidenceGrade, counterevidenceResult, pathReadiness);
+  return { maxLevel, evidenceGrade, counterevidenceResult, pathReadiness, reasons };
+}
+
+function pathStatusToReadiness(status: string): PathReadinessStatus {
+  const s = status.toLowerCase();
+  if (s === "established") return "ready";
+  if (s === "partially_established" || s === "weakened") return "restricted";
+  if (s === "blocked" || s === "insufficient_evidence") return "blocked";
+  if (s === "contested") return "restricted";
+  return "not_applicable";
+}
+
+/**
+ * CalculateConfidence — 确定性 confidence 计算
+ * 唯一权威: runtime/engine/runtime_operations.yaml#CalculateConfidence
+ *
+ * 输入: evidence_grade, source_diversity_score, direct_fact_ratio, has_conflict
+ * 输出: "low" | "medium" | "high"
+ *
+ * 规则:
+ *   Q0 → low (无有效证据)
+ *   Q1 → low (仅观察级别)
+ *   Q2 → low/medium (source_diversity >= 2 且无冲突 → medium)
+ *   Q3 → medium/high (direct_fact_ratio >= 0.5 且无冲突 → high)
+ *   Q4 → high (充分证据且无决定性冲突)
+ *   有冲突 → 降一级 (high→medium, medium→low, low 不变)
+ */
+export type ConfidenceLevel = "low" | "medium" | "high";
+
+export function calculateConfidence(params: {
+  evidenceGrade: EvidenceGrade;
+  sourceGroupCount: number;
+  directFactCount: number;
+  totalFactCount: number;
+  hasConflict: boolean;
+  hasUnresolvedCompetition: boolean;
+}): ConfidenceLevel {
+  const { evidenceGrade, sourceGroupCount, directFactCount, totalFactCount, hasConflict, hasUnresolvedCompetition } = params;
+  const directRatio = totalFactCount > 0 ? directFactCount / totalFactCount : 0;
+
+  let base: ConfidenceLevel = "low";
+  switch (evidenceGrade) {
+    case "Q0":
+      base = "low";
+      break;
+    case "Q1":
+      base = "low";
+      break;
+    case "Q2":
+      base = sourceGroupCount >= 2 && directFactCount >= 1 ? "medium" : "low";
+      break;
+    case "Q3":
+      base = directRatio >= 0.5 && sourceGroupCount >= 3 ? "high" : "medium";
+      break;
+    case "Q4":
+      base = directRatio >= 0.6 && sourceGroupCount >= 4 ? "high" : "medium";
+      break;
+  }
+
+  // 冲突降级
+  if (hasConflict || hasUnresolvedCompetition) {
+    if (base === "high") return "medium";
+    if (base === "medium") return "low";
+    return "low";
+  }
+
+  return base;
+}
+
+/**
+ * 为所有 Judgment 执行确定性 confidence 计算
+ * 在 applyDeterministicRuleEvaluations 中调用
+ */
+export function applyDeterministicConfidence(data: any, evidenceDrafts: EvidenceDraft[], sources: SourceRecord[]) {
+  const sourceMap = new Map(sources.map((s) => [s.id, s]));
+  const evidenceMap = new Map(evidenceDrafts.map((e) => [e.id, e]));
+
+  for (const judgment of data.judgments || []) {
+    const judgmentId = String(judgment.id || judgment.judgment_id || "");
+    const evidenceIds: string[] = [
+      ...(judgment.supporting_evidence_draft_ids || []),
+      ...(judgment.counter_evidence_draft_ids || []),
+    ].map(String);
+    const facts = evidenceIds.map((id) => evidenceMap.get(id)).filter(Boolean) as EvidenceDraft[];
+    const boundSources = uniqueById(
+      facts.flatMap((f) => (f.source_ids || []).map((sid) => sourceMap.get(sid)).filter(Boolean) as SourceRecord[])
+    );
+    const sourceGroups = new Set(boundSources.map(sourceGroup));
+    const directFacts = facts.filter((f) => f.directness === "direct").length;
+    const hasConflict = judgment.conflict_status === "unresolved" || judgment.conflict_status === "decisive"
+      || (judgment.counter_evidence_draft_ids || []).length > 0;
+
+    const evidenceGrade = computeEvidenceGrade(facts, sourceGroups,
+      new Set(boundSources.filter((s) => sourceTierNumber(s.source_tier) <= 6).map(sourceGroup)), directFacts);
+
+    const computedConfidence = calculateConfidence({
+      evidenceGrade,
+      sourceGroupCount: sourceGroups.size,
+      directFactCount: directFacts,
+      totalFactCount: facts.length,
+      hasConflict,
+      hasUnresolvedCompetition: judgment.conflict_status === "unresolved",
+    });
+
+    judgment.confidence = computedConfidence;
+    judgment._confidence_calc = {
+      engine: ENGINE_VERSION,
+      inputs: { evidenceGrade, sourceGroups: sourceGroups.size, directFacts, totalFacts: facts.length, hasConflict },
+      result: computedConfidence,
+      evaluated_at: new Date().toISOString(),
+    };
+  }
+  return data;
+}
 const COMMERCIALIZATION_STAGE_ORDER: Record<CommercializationStage, number> = {
   concept: 1,
   sample: 2,
@@ -140,6 +354,8 @@ export function applyDeterministicRuleEvaluations(
     generated = materialize();
   }
   assertDeterministicRuleResults(data);
+  // A2: 确定性 confidence 计算 — 权重不依赖 AI 模型自由裁量
+  applyDeterministicConfidence(data, evidenceDrafts, sources);
   return data;
 }
 
@@ -319,19 +535,25 @@ function computeRule(
       (item.signal_ids || []).some((id: string) => relevantSignals.has(String(id))));
     const unresolved = relevantCompetition.some((item: any) => item.status === "active" || item.status === "unknown");
     const decisive = judgment.conflict_status === "decisive";
-    let ceiling = 0;
-    if (facts.length && sourceGroups.size >= 1) ceiling = 1;
-    if (facts.length >= 2 && qualifiedGroups.size >= 2 && directFacts >= 1) ceiling = 2;
-    if (facts.length >= 3 && qualifiedGroups.size >= 3 && highTierGroups.size >= 1 && directFacts >= 2 && !unresolved && !decisive) ceiling = 3;
-    if (facts.length >= 4 && qualifiedGroups.size >= 4 && highTierGroups.size >= 2 && directFacts >= 3 && !unresolved && !decisive && counterCount > 0 && judgment.conflict_status === "resolved") ceiling = 4;
-    if (unresolved) ceiling = Math.min(ceiling, 2);
-    if (decisive) ceiling = 0;
+
+    // 使用完整状态派生矩阵 (120 种组合)
+    const evidenceGrade = computeEvidenceGrade(facts, sourceGroups, qualifiedGroups, directFacts);
+    const counterevidenceResult = deriveCounterevidenceResult(
+      String(judgment.conflict_status || "not_checked"), counterCount,
+      unresolved && !decisive, decisive);
+    const pathStatus = String(judgment.path_result_status || judgment.path_readiness_status || "");
+    const pathReadiness = pathStatusToReadiness(pathStatus);
+    const { maxLevel, reasons: capReasons } = deriveMaxJudgmentLevel(evidenceGrade, counterevidenceResult, pathReadiness);
+
+    const ceiling = LEVEL[maxLevel];
     const requested = LEVEL[judgment.strength as keyof typeof LEVEL] ?? -1;
     const failed = requested < 0 || requested > ceiling;
-    const rationale = `请求 ${judgment.strength}；上限 J${ceiling}；事实 ${facts.length}、独立来源组 ${sourceGroups.size}、S1-S6 来源组 ${qualifiedGroups.size}、S1-S3 来源组 ${highTierGroups.size}、直接事实 ${directFacts}、反证 ${counterCount}、未决解释 ${unresolved ? "是" : "否"}`;
+
+    const rationale = `请求 ${judgment.strength}；上限 ${maxLevel} (证据=${evidenceGrade} 反证=${counterevidenceResult} 路径=${pathReadiness})；事实 ${facts.length}、独立来源组 ${sourceGroups.size}、S1-S6 来源组 ${qualifiedGroups.size}、S1-S3 来源组 ${highTierGroups.size}、直接事实 ${directFacts}、反证 ${counterCount}、未决解释 ${unresolved ? "是" : "否"}；${capReasons.join("；")}`;
     return resultOf(failed ? "fail" : "pass", inputRefs, rationale, [
-      condition("independent_sources", "independent_source_groups determine ceiling", inputRefs, sourceGroups.size ? "pass" : "fail", `独立来源组 ${sourceGroups.size}`),
-      condition("level_ceiling", "judgment.level <= evidence_ceiling", inputRefs, failed ? "fail" : "pass", rationale),
+      condition("status_derivation_matrix", "evidence_grade × counterevidence × path_readiness → max J (120 组合)", inputRefs, failed ? "fail" : "pass", rationale),
+      condition("independent_sources", "independent_source_groups determine evidence grade", inputRefs, sourceGroups.size ? "pass" : "fail", `独立来源组 ${sourceGroups.size}`),
+      condition("level_ceiling", "judgment.level <= derived_ceiling", inputRefs, failed ? "fail" : "pass", `J${requested} ≤ J${ceiling}`),
     ]);
   }
 

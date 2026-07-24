@@ -1,13 +1,21 @@
 /** Stage04 双产物（判断简报.md + 推理审计.yaml）与确认门禁。 */
 
 import YAML from "yaml";
+import {
+  applyHighQualityGate,
+  bodyMeetsMinDensity,
+  downgradeIfHighQualityFails,
+  looksLikePlaceholder,
+  nonEmptyText,
+  requireDeterministicChecked,
+  type StageQualityIssue,
+} from "./stage_high_quality";
 
 export const STAGE04_QUALITY_GATE_REF =
   "workflow/stages/04_判断/04_推理输出规范.md#6-质量门槛与返工";
 
 function nonEmpty(value: unknown, fallback = ""): string {
-  const text = String(value ?? "").trim();
-  return text || fallback;
+  return nonEmptyText(value, fallback);
 }
 
 function asList(value: unknown): string[] {
@@ -140,13 +148,39 @@ export function ensureStage04DocumentFields(
       ? next.expression_permission.restricted_claims
       : judgments.filter((item: any) => item?.strength === "J0").map((item: any) => item.id),
   );
+  next.expression_permission.prohibited_claims = asList(
+    next.expression_permission.prohibited_claims?.length
+      ? next.expression_permission.prohibited_claims
+      : [
+        "个股买卖建议",
+        "确定周期结束日",
+        "超出证据上限的强度抬升",
+      ],
+  );
+  next.expression_permission.allowed_mechanisms = asList(
+    next.expression_permission.allowed_mechanisms?.length
+      ? next.expression_permission.allowed_mechanisms
+      : judgments
+        .filter((item: any) => item?.strength !== "J0")
+        .map((item: any) => nonEmpty(item.conclusion) || nonEmpty(item.title) || String(item.id))
+        .slice(0, 8),
+  );
+  next.expression_permission.restricted_phrasing = asList(
+    next.expression_permission.restricted_phrasing?.length
+      ? next.expression_permission.restricted_phrasing
+      : [
+        "不得写成确定见顶/见底",
+        "不得把样本公司外推为全行业覆盖率",
+        "不得把权限否定句抬成标题",
+      ],
+  );
   next.expression_permission.max_expression_level = nonEmpty(
     next.expression_permission.max_expression_level,
     maxLevel,
   );
   next.expression_permission.notes = nonEmpty(
     next.expression_permission.notes,
-    "05 不得抬高强度，不得新增事实；仅复述本简报已许可主张。",
+    "05 不得抬高强度，不得新增事实；仅按 allowed_mechanisms 展开，受限表述见 restricted_phrasing，禁止项见 prohibited_claims。",
   );
 
   const brief = nonEmpty(next.judgment_brief_markdown, nonEmpty(next.document_markdown));
@@ -157,7 +191,73 @@ export function ensureStage04DocumentFields(
   if (nonEmpty(next.judgment_brief_markdown)) {
     next.document_markdown = next.judgment_brief_markdown;
   }
+
+  if (nonEmpty(next.quality_status) === "high_quality_pass") {
+    const provisional = { ...next, deterministic_check_status: "checked" };
+    const hqErrors = collectStage04HighQualityIssues(provisional);
+    if (hqErrors.length) downgradeIfHighQualityFails(next, hqErrors);
+    else next.deterministic_check_status = "checked";
+  }
   return next;
+}
+
+/** Stage04 high_quality：简报密度、分层表达许可、对象分化/主路径/投资命题、竞争解释。 */
+export function collectStage04HighQualityIssues(data: any): StageQualityIssue[] {
+  const issues: StageQualityIssue[] = [];
+  const brief = nonEmpty(data?.judgment_brief_markdown, data?.document_markdown);
+  if (!bodyMeetsMinDensity(brief, 400)) {
+    issues.push({
+      severity: "error",
+      code: "stage04_brief_thin",
+      message: "high_quality 要求判断简报达到可交接 05 的密度",
+    });
+  }
+  const perm = data?.expression_permission || {};
+  if (!asList(perm.allowed_mechanisms).length && !asList(perm.allowed_core_claims).length) {
+    issues.push({
+      severity: "error",
+      code: "expression_permission_thin",
+      message: "high_quality 要求 expression_permission 写清可写机制或核心主张",
+    });
+  }
+  if (!asList(perm.prohibited_claims).length && !asList(perm.restricted_phrasing).length) {
+    issues.push({
+      severity: "error",
+      code: "expression_permission_boundaries_thin",
+      message: "high_quality 要求写清禁止抬升项或受限表述",
+    });
+  }
+  if (looksLikePlaceholder(data?.object_differentiation)) {
+    issues.push({
+      severity: "error",
+      code: "object_differentiation_thin",
+      message: "high_quality 要求写清对象分化",
+    });
+  }
+  if (looksLikePlaceholder(data?.primary_path_ruling)) {
+    issues.push({
+      severity: "error",
+      code: "primary_path_ruling_thin",
+      message: "high_quality 要求写清主路径裁决",
+    });
+  }
+  if (looksLikePlaceholder(data?.investment_proposition)) {
+    issues.push({
+      severity: "error",
+      code: "investment_proposition_thin",
+      message: "high_quality 要求写清投资命题与改判条件",
+    });
+  }
+  const ces = Array.isArray(data?.competing_explanations) ? data.competing_explanations : [];
+  if (!ces.length) {
+    issues.push({
+      severity: "error",
+      code: "competing_explanations_missing",
+      message: "high_quality 要求显式竞争解释（可标记仍活跃）",
+    });
+  }
+  requireDeterministicChecked(data, issues);
+  return issues;
 }
 
 export type Stage04ConsistencyIssue = {
@@ -202,8 +302,12 @@ export function collectStage04ConsistencyIssues(data: any): Stage04ConsistencyIs
     issues.push({ severity: "error", code: "brief_quality", message: "brief_quality_check_result 必须为 pass" });
   }
   const quality = nonEmpty(data?.quality_status);
-  if (!["minimum_pass", "high_quality_pass"].includes(quality)) {
-    issues.push({ severity: "error", code: "quality_status", message: "quality_status 须为 minimum_pass 或 high_quality_pass" });
+  if (quality !== "high_quality_pass") {
+    issues.push({
+      severity: "error",
+      code: "quality_status",
+      message: "本稿尚未达到可交接密度，请重新生成后再确认",
+    });
   }
   if (!nonEmpty(data?.object_differentiation)) {
     issues.push({ severity: "warning", code: "missing_object_differentiation", message: "建议填写对象分化 object_differentiation" });
@@ -214,6 +318,7 @@ export function collectStage04ConsistencyIssues(data: any): Stage04ConsistencyIs
   if (!nonEmpty(data?.investment_proposition)) {
     issues.push({ severity: "warning", code: "missing_investment_proposition", message: "建议填写投资命题 investment_proposition" });
   }
+  issues.push(...applyHighQualityGate(collectStage04HighQualityIssues(data), quality));
   return issues;
 }
 

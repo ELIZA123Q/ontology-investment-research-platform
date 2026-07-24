@@ -2,8 +2,11 @@
 
 import YAML from "yaml";
 import {
+  collectStage05HighQualityIssues,
   collectStage05StructureIssues,
   hasPublishableStage05Structure,
+  isPlaceholderResearchEdge,
+  looksLikeDeterministicSkeleton,
   stripInlineAuditDetails,
 } from "./stage05_quality";
 
@@ -19,6 +22,15 @@ function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
 }
 
+function highQualityErrors(data: any) {
+  return collectStage05HighQualityIssues({
+    body: nonEmpty(data?.document_markdown),
+    research_edge: Array.isArray(data?.research_edge) ? data.research_edge : [],
+    deterministic_check_status: nonEmpty(data?.deterministic_check_status),
+    from_skeleton: Boolean(data?.__from_skeleton) || looksLikeDeterministicSkeleton(nonEmpty(data?.document_markdown)),
+  }).filter((item) => item.severity === "error");
+}
+
 export function projectExpressionAuditYaml(
   data: any,
   options: { taskId?: string; question?: string; stage04?: any } = {},
@@ -26,13 +38,15 @@ export function projectExpressionAuditYaml(
   const claims = Array.isArray(data?.report_claims) ? data.report_claims : [];
   const body = nonEmpty(data?.document_markdown);
   const structureOk = hasPublishableStage05Structure(body);
+  const hqErrors = highQualityErrors(data);
+  const quality = nonEmpty(data?.quality_status, structureOk && !hqErrors.length ? "high_quality_pass" : "minimum_pass");
   const payload = {
     document_type: "expression_audit",
     schema_version: "1.0.0",
     metadata: {
       task_id: nonEmpty(options.taskId, "JTASK-RUNTIME"),
       stage_status: nonEmpty(data?.stage_status, "complete"),
-      quality_status: nonEmpty(data?.quality_status, structureOk ? "high_quality_pass" : "minimum_pass"),
+      quality_status: quality,
       quality_gate_ref: nonEmpty(data?.quality_gate_ref, STAGE05_QUALITY_GATE_REF),
       deterministic_check_status: nonEmpty(data?.deterministic_check_status, "not_checked"),
       semantic_review_status: nonEmpty(data?.semantic_review_status, "not_reviewed"),
@@ -54,19 +68,23 @@ export function projectExpressionAuditYaml(
     })),
     research_edge_check: {
       status: body.includes("市场认知差 / Research Edge") || body.includes("Research Edge")
-        ? "present"
+        ? (Array.isArray(data?.research_edge) && data.research_edge.some((edge: any) => !isPlaceholderResearchEdge(edge))
+          ? "substantive"
+          : "present")
         : "missing",
     },
     structure_check: {
       publishable_shape: structureOk,
+      high_quality_shape: hqErrors.length === 0,
     },
+    research_value_review: data?.research_value_review || null,
     high_risk_section_coverage: {
       trading_advice: "absent",
       price_target: "absent",
     },
     overall_check: {
       result: "pass",
-      notes: "表达审计由执行字段投影；确认时校验 EX 与 report_claims 对齐、不抬强度、正文无高可见审计腔。",
+      notes: "表达审计由执行字段投影；确认时校验 EX 与 report_claims 对齐、不抬强度、正文无高可见审计腔；high_quality 另验密度与 Research Edge。",
     },
   };
   return YAML.stringify(payload);
@@ -79,7 +97,6 @@ export function ensureStage05DocumentFields(
   const next = data && typeof data === "object" ? data : {};
   next.stage_status = nonEmpty(next.stage_status, "complete");
   next.quality_gate_ref = nonEmpty(next.quality_gate_ref, STAGE05_QUALITY_GATE_REF);
-  next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
   next.semantic_review_status = nonEmpty(next.semantic_review_status, "not_reviewed");
   next.source_04_brief_ref = nonEmpty(
     next.source_04_brief_ref,
@@ -97,26 +114,21 @@ export function ensureStage05DocumentFields(
       || "industry_cycle_report",
   );
 
+  // 从 04 继承表达许可摘要，供 05 分层展开（不抬升）。
+  if (!next.expression_permission_summary && options.stage04?.expression_permission) {
+    next.expression_permission_summary = options.stage04.expression_permission;
+  }
+
   if (nonEmpty(next.document_markdown)) {
     next.document_markdown = stripInlineAuditDetails(next.document_markdown);
   }
 
   const structureOk = hasPublishableStage05Structure(nonEmpty(next.document_markdown));
   const requestedQuality = nonEmpty(next.quality_status);
-  // 结构未达标时不得自称 high_quality_pass；达标时正式路径倾向 high_quality_pass。
-  if (requestedQuality === "high_quality_pass" && !structureOk) {
-    next.quality_status = "minimum_pass";
-  } else if (!requestedQuality) {
-    next.quality_status = structureOk ? "high_quality_pass" : "minimum_pass";
-  } else if (structureOk && requestedQuality === "minimum_pass") {
-    // 保留显式 minimum_pass（内部流转）；不自动抬升，避免绕过人工确认语义。
-    next.quality_status = "minimum_pass";
-  } else {
-    next.quality_status = requestedQuality;
-  }
 
+  // 占位 research_edge 仅允许在 minimum 路径补结构；不得用于抬升 high_quality。
   if (!Array.isArray(next.research_edge) || !next.research_edge.length) {
-    if (structureOk) {
+    if (structureOk && requestedQuality !== "high_quality_pass") {
       next.research_edge = [{
         market_view: "见正文「市场认知差 / Research Edge」",
         differentiated_view: "见正文表格",
@@ -125,13 +137,53 @@ export function ensureStage05DocumentFields(
       }];
     }
   }
+
+  // 结构达标且无 HQ 形态错误时，正式路径可标 high + checked；否则降档。
+  const provisional = { ...next, deterministic_check_status: "checked" };
+  const hqErrors = highQualityErrors(provisional);
+
+  if (requestedQuality === "high_quality_pass") {
+    if (!structureOk || hqErrors.length) {
+      next.quality_status = "minimum_pass";
+      next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
+    } else {
+      next.quality_status = "high_quality_pass";
+      next.deterministic_check_status = "checked";
+    }
+  } else if (!requestedQuality) {
+    if (structureOk && !hqErrors.length) {
+      next.quality_status = "high_quality_pass";
+      next.deterministic_check_status = "checked";
+    } else {
+      next.quality_status = "minimum_pass";
+      next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
+    }
+  } else if (structureOk && requestedQuality === "minimum_pass") {
+    next.quality_status = "minimum_pass";
+    next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
+  } else {
+    next.quality_status = requestedQuality;
+    next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
+  }
+
+  // skeleton / 占位 edge 强制不得 high
+  if (
+    looksLikeDeterministicSkeleton(nonEmpty(next.document_markdown))
+    || (Array.isArray(next.research_edge) && next.research_edge.length
+      && next.research_edge.every((edge: any) => isPlaceholderResearchEdge(edge)))
+  ) {
+    if (next.quality_status === "high_quality_pass") {
+      next.quality_status = "minimum_pass";
+      next.deterministic_check_status = "not_checked";
+    }
+  }
+
   if (!Array.isArray(next.argument_chapters) || !next.argument_chapters.length) {
     const body = nonEmpty(next.document_markdown);
     const headings = [...body.matchAll(/^##\s+([一二三四五]、.+)$/gm)].map((m) => m[1]);
     if (headings.length) next.argument_chapters = headings;
   }
 
-  // 审计 YAML 随正文/质量状态刷新关键元数据；若已有人工审计且 claim 仍对齐则保留正文登记，否则重投影。
   if (!nonEmpty(next.expression_audit_yaml)) {
     next.expression_audit_yaml = projectExpressionAuditYaml(next, options);
   } else {
@@ -139,10 +191,19 @@ export function ensureStage05DocumentFields(
       const parsed = YAML.parse(next.expression_audit_yaml);
       if (parsed?.metadata) {
         parsed.metadata.quality_status = next.quality_status;
+        parsed.metadata.deterministic_check_status = next.deterministic_check_status;
         parsed.research_edge_check = {
-          status: nonEmpty(next.document_markdown).includes("Research Edge") ? "present" : "missing",
+          status: nonEmpty(next.document_markdown).includes("Research Edge")
+            ? (Array.isArray(next.research_edge) && next.research_edge.some((edge: any) => !isPlaceholderResearchEdge(edge))
+              ? "substantive"
+              : "present")
+            : "missing",
         };
-        parsed.structure_check = { publishable_shape: structureOk };
+        parsed.structure_check = {
+          publishable_shape: structureOk,
+          high_quality_shape: highQualityErrors(next).length === 0,
+        };
+        if (next.research_value_review) parsed.research_value_review = next.research_value_review;
         next.expression_audit_yaml = YAML.stringify(parsed);
       }
     } catch {
@@ -199,8 +260,12 @@ export function collectStage05ConsistencyIssues(data: any): Stage05ConsistencyIs
     }
   }
   const quality = nonEmpty(data?.quality_status);
-  if (!["minimum_pass", "high_quality_pass"].includes(quality)) {
-    issues.push({ severity: "error", code: "quality_status", message: "quality_status 须为 minimum_pass 或 high_quality_pass" });
+  if (quality !== "high_quality_pass") {
+    issues.push({
+      severity: "error",
+      code: "quality_status",
+      message: "本稿尚未达到可交接密度，请重新生成后再确认",
+    });
   }
 
   const structureIssues = collectStage05StructureIssues(body);
@@ -213,8 +278,14 @@ export function collectStage05ConsistencyIssues(data: any): Stage05ConsistencyIs
         message: `high_quality_pass 要求：${item.message}`,
       });
     }
+    for (const item of highQualityErrors(data)) {
+      issues.push({
+        severity: "error",
+        code: item.code,
+        message: `high_quality_pass 要求：${item.message}`,
+      });
+    }
   } else {
-    // minimum_pass 仅内部流转：结构缺失记 warning；但审计腔/压平简报仍阻断确认。
     for (const item of structureErrors) {
       const blocking = ["audit_register_voice", "inline_audit_details", "flattened_brief", "yaml_frontmatter"].includes(item.code);
       issues.push({
@@ -230,11 +301,14 @@ export function collectStage05ConsistencyIssues(data: any): Stage05ConsistencyIs
   return issues;
 }
 
-/** 确认门禁：minimum 可流转但禁止审计腔/压平；high_quality / 正式确认要求结构达标。 */
+/** 确认门禁：须 high_quality_pass；正式确认要求结构达标。 */
 export function assertStage05ReadyForApproval(
   data: any,
   options: { requirePublishableStructure?: boolean } = {},
 ) {
+  if (nonEmpty(data?.quality_status) !== "high_quality_pass") {
+    throw new Error("本稿尚未达到可交接密度，请重新生成后再确认");
+  }
   const requireStructure = Boolean(
     options.requirePublishableStructure
     || nonEmpty(data?.quality_status) === "high_quality_pass",
@@ -246,6 +320,11 @@ export function assertStage05ReadyForApproval(
       .filter((item) => item.severity === "error");
     for (const item of structureErrors) {
       if (!errors.some((existing) => existing.code === item.code && existing.message === item.message)) {
+        errors.push({ severity: "error", code: item.code, message: item.message });
+      }
+    }
+    for (const item of highQualityErrors(data)) {
+      if (!errors.some((existing) => existing.code === item.code)) {
         errors.push({ severity: "error", code: item.code, message: item.message });
       }
     }

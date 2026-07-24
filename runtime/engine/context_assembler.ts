@@ -35,6 +35,13 @@ export type AssembledStageContext = {
   knowledge_version: string;
   budgets: typeof CONTEXT_SLOT_BUDGETS;
   assembly_note: string;
+  /** 标准加载统计 */
+  standards_loading: {
+    files_total: number;
+    files_loaded: number;
+    files_missing: number;
+    missing_list: string[];
+  };
 };
 
 /** 从上游 01/02 投影本次语义路由（本体切片 + 方法子集线索）。 */
@@ -133,6 +140,9 @@ export function assembleStageContext(input: {
     })
     : { version: "none", context: "", files: [] as string[] };
 
+  const missingList = (knowledge as any).missingFiles || [];
+  const stats = (knowledge as any).stats || { total: knowledge.files.length, loaded: knowledge.files.length, missing: 0 };
+
   return {
     semantic_route: route,
     ontology_object_set,
@@ -140,7 +150,12 @@ export function assembleStageContext(input: {
     knowledge_context: knowledge.context,
     knowledge_version: knowledge.version,
     budgets: CONTEXT_SLOT_BUDGETS,
-    assembly_note:
-      "上下文按语义路由装配：本体切片 + 任务相关知识文件 + 方法子集；未路由资产不进默认 knowledge。",
+    assembly_note: `上下文按语义路由装配：本体切片 + 任务相关知识文件 + 方法子集；未路由资产不进默认 knowledge。加载: ${stats.loaded}/${stats.total} 文件 (${stats.total - stats.loaded} 缺失)。`,
+    standards_loading: {
+      files_total: stats.total,
+      files_loaded: stats.loaded,
+      files_missing: stats.total - stats.loaded,
+      missing_list: missingList,
+    },
   };
 }

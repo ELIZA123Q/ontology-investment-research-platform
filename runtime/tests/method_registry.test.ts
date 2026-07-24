@@ -16,6 +16,8 @@ import {
   guidanceMethodIdsForStage,
   judgmentThresholdCapsForPrompt,
   loadSelectedMethodGuidance,
+  loadScenarioCardGuidance,
+  matchScenarioCards,
 } from "@/engine/method_guidance";
 import { registeredFiles } from "@/engine/knowledge";
 import type { MethodApplication } from "@/engine/types";
@@ -240,6 +242,28 @@ describe("method guidance injection", () => {
       expect.arrayContaining(["primary", "baseline", "cross_check", "counter"]),
     );
   });
+
+  it("matches SCN-MEM-CYCLE / SCN-MEM-HBM scenario cards from task text", () => {
+    const cycle = matchScenarioCards("存储芯片周期是否见顶，DRAM 与 NAND 是否分化");
+    expect(cycle.map((item) => item.scenario_id)).toContain("SCN-MEM-CYCLE");
+    const hbm = matchScenarioCards("HBM 供需与对通用 DRAM 的资源挤占");
+    expect(hbm.map((item) => item.scenario_id)).toEqual(expect.arrayContaining(["SCN-MEM-HBM"]));
+    expect(matchScenarioCards("无关宏观问题")).toEqual([]);
+  });
+
+  it("injects scenario card guidance ahead of methods for stage_02 memory-cycle tasks", () => {
+    const registry = loadMethodRegistry();
+    const candidates = [...registry.values()].slice(0, 20);
+    const built = buildStageGenerationGuidance({
+      kind: "stage_02",
+      candidates,
+      taskText: "存储芯片周期何时结束：DRAM/NAND/HBM 分产品判断",
+    });
+    expect(built.scenario_card_ids).toEqual(expect.arrayContaining(["SCN-MEM-CYCLE", "SCN-MEM-HBM"]));
+    expect(built.selected_method_guidance[0]?.method_id).toMatch(/^SCN-MEM-/);
+    const loaded = loadScenarioCardGuidance("存储周期见顶");
+    expect(loaded.some((item) => item.method_id === "SCN-MEM-CYCLE" && item.excerpt.includes("分产品"))).toBe(true);
+  });
 });
 
 describe("runtime knowledge contexts", () => {
@@ -252,10 +276,12 @@ describe("runtime knowledge contexts", () => {
     ]));
   });
 
-  it("loads B00/B01 for stage_03 and omits routes yaml from stage_04 knowledge", () => {
+  it("loads B00/B01/B03/OPS for stage_03 and omits routes yaml from stage_04 knowledge", () => {
     expect(registeredFiles("stage_03")).toEqual(expect.arrayContaining([
       "methods/03_取证/B00_来源选择与使用边界.md",
       "methods/03_取证/B01_通用来源速查.md",
+      "methods/03_取证/B03_MCP通道注册.md",
+      "methods/03_取证/OPS_MCP查询快速参考.md",
     ]));
     expect(registeredFiles("stage_04")).not.toContain("governance/02_合同/judgment_method_routes.yaml");
   });

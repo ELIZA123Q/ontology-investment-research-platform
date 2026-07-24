@@ -24,6 +24,11 @@ import {
   parseGenerationProgress,
 } from "@/engine/generation_progress";
 import type { SourceCoverageSummary, SourceFactStatus } from "@/engine/source_coverage";
+import {
+  clarificationImpactHint,
+  isHumanClarificationQuestion,
+  synthesizeClarificationQuestion,
+} from "@/engine/stage01_contract";
 
 export type { ApprovedScopeSummary };
 
@@ -109,7 +114,7 @@ export function StageWorkspace({
   const [md, setMd] = useState(artifact?.markdown_content || "");
   const [showAdvancedJson, setShowAdvancedJson] = useState(false);
   const [validation, setValidation] = useState<ValidationState | null>(null);
-  const [clarifyAnswer, setClarifyAnswer] = useState("");
+  const [clarifyAnswers, setClarifyAnswers] = useState<Record<string, string>>({});
   const [stage02PreviewTab, setStage02PreviewTab] = useState<"logic" | "ontology">("logic");
   const [stageDualPreviewTab, setStageDualPreviewTab] = useState<"primary" | "companion">("primary");
 
@@ -118,19 +123,59 @@ export function StageWorkspace({
     setMd(artifact?.markdown_content || "");
     setError(artifact?.error_message || "");
     setValidation(null);
-    setClarifyAnswer("");
+    setClarifyAnswers({});
     setStageDualPreviewTab("primary");
   }, [artifact?.id, artifact?.json_content, artifact?.markdown_content, artifact?.error_message, artifact?.tool_usage]);
 
   let parsedStageJson: any = {};
   try { parsedStageJson = JSON.parse(json || "{}"); } catch { parsedStageJson = {}; }
-  const pendingClarification = Array.isArray(parsedStageJson?.input_resolution?.clarifications)
-    ? parsedStageJson.input_resolution.clarifications.find((item: any) => !item?.answer)
-    : null;
+  const clarificationList = Array.isArray(parsedStageJson?.input_resolution?.clarifications)
+    ? parsedStageJson.input_resolution.clarifications
+    : [];
+  const unresolvedAmbiguities = Array.isArray(parsedStageJson?.input_resolution?.unresolved_structural_ambiguities)
+    ? parsedStageJson.input_resolution.unresolved_structural_ambiguities.map(String).filter(Boolean)
+    : [];
+  const systemUnderstanding = parsedStageJson?.input_resolution?.system_understanding && typeof parsedStageJson.input_resolution.system_understanding === "object"
+    ? parsedStageJson.input_resolution.system_understanding
+    : {};
+  const pendingClarifications = (() => {
+    const unanswered = clarificationList.filter((item: any) => !item?.answer);
+    if (unanswered.length) return unanswered;
+    if (!unresolvedAmbiguities.length) return [];
+    return unresolvedAmbiguities.slice(0, 5).map((topic: string, index: number) => ({
+      question_id: `UC-${String(clarificationList.length + index + 1).padStart(2, "0")}`,
+      topic,
+      question: "",
+      answer: null,
+      answered_at: null,
+    }));
+  })();
   const needsClarification = stage === 1 && (
     String(parsedStageJson?.task_disposition || "") === "needs_clarification"
-    || Boolean(pendingClarification)
+    || pendingClarifications.length > 0
   );
+  const clarificationItems = pendingClarifications.map((item: any, index: number) => {
+    const topicKey = (item?.topic === "structural_ambiguity" && unresolvedAmbiguities[index])
+      ? unresolvedAmbiguities[index]
+      : (item?.topic || unresolvedAmbiguities[index] || "");
+    const raw = String(item?.question || "").trim();
+    const humanQuestion = isHumanClarificationQuestion(raw)
+      ? raw
+      : synthesizeClarificationQuestion({
+        topic: topicKey,
+        unresolved: unresolvedAmbiguities,
+        understanding: systemUnderstanding,
+        original_input: parsedStageJson?.original_input || question,
+      });
+    return {
+      question_id: String(item?.question_id || `UC-${String(index + 1).padStart(2, "0")}`),
+      topic: topicKey,
+      question: humanQuestion,
+      impact: clarificationImpactHint(topicKey),
+    };
+  });
+  const allClarifyAnswersFilled = clarificationItems.length > 0
+    && clarificationItems.every((item: { question_id: string }) => Boolean(String(clarifyAnswers[item.question_id] || "").trim()));
   const ontologyYamlPreview = String(parsedStageJson?.ontology_view_yaml || "");
   const logicPreview = String(parsedStageJson?.research_logic_markdown || md || "");
   const stage03PrepPreview = String(parsedStageJson?.preparation_markdown || md || "");
@@ -138,6 +183,22 @@ export function StageWorkspace({
   const stage04BriefPreview = String(parsedStageJson?.judgment_brief_markdown || md || "");
   const stage04AuditPreview = String(parsedStageJson?.reasoning_audit_yaml || "");
   const stage05AuditPreview = String(parsedStageJson?.expression_audit_yaml || "");
+  const injectedAssets = parsedStageJson?.context_injected_assets && typeof parsedStageJson.context_injected_assets === "object"
+    ? parsedStageJson.context_injected_assets as {
+      knowledge_files?: string[];
+      method_guidance_ids?: string[];
+      scenario_card_ids?: string[];
+      structured_keys?: string[];
+    }
+    : null;
+  const researchValueReview = parsedStageJson?.research_value_review && typeof parsedStageJson.research_value_review === "object"
+    ? parsedStageJson.research_value_review as {
+      status?: string;
+      mode?: string;
+      retry_count?: number;
+      checks?: Array<{ id: string; pass: boolean; note?: string }>;
+    }
+    : null;
 
   const jobInFlight = Boolean(activeJob && ["queued", "running", "retrying"].includes(activeJob.status));
   const jobNeedsAttention = Boolean(activeJob && ["waiting_for_input", "blocked"].includes(activeJob.status));
@@ -279,17 +340,20 @@ export function StageWorkspace({
   }
 
   async function submitClarification() {
-    if (!clarifyAnswer.trim()) {
-      setError("请先填写澄清回答");
+    const answers = clarificationItems.map((item: { question_id: string }) => ({
+      question_id: item.question_id,
+      answer: String(clarifyAnswers[item.question_id] || "").trim(),
+    }));
+    if (!answers.length || answers.some((item: { answer: string }) => !item.answer)) {
+      setError("请一次答完全部问题后再提交");
       return;
     }
-    setClarifyAnswer("");
+    setClarifyAnswers({});
     await call(`/api/runs/${runId}/stages/01/clarify`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        answer: clarifyAnswer,
-        question_id: pendingClarification?.question_id,
+        answers,
         regenerate: true,
       }),
     });
@@ -307,25 +371,42 @@ export function StageWorkspace({
     ? `第 ${artifact.version} 版 · ${artifactStatusLabel(artifact.status)} · ${artifactModelLabel(artifact.model_name, artifact.status)}`
     : activeJob ? researchJobStatusLabel(activeJob.status) : "尚未首次生成";
   const formEditable = unlocked && !busy && artifact?.status !== "running" && !jobInFlight;
-  const canApprove = Boolean(artifact && artifact.status === "needs_review" && !needsClarification);
+  const qualityStatus = String(parsedStageJson?.quality_status || "");
+  const densityReady = !artifact
+    || artifact.status !== "needs_review"
+    || qualityStatus === "high_quality_pass"
+    || needsClarification;
+  const canApprove = Boolean(
+    artifact
+    && artifact.status === "needs_review"
+    && !needsClarification
+    && densityReady,
+  );
+  const canGenerate = unlocked && !busy && artifact?.status !== "running" && !jobInFlight && !needsClarification;
   const generateLabel = busy || artifact?.status === "running" || jobInFlight
     ? "模型正在工作…"
-    : artifact
-      ? (stage === 3 ? "重新生成" : "生成新版本")
-      : "生成本阶段 →";
+    : needsClarification
+      ? "请先回答澄清问题"
+      : artifact
+        ? (stage === 3 ? "重新生成" : "生成新版本")
+        : "生成本阶段 →";
   const generateClass = artifact ? "button-secondary" : "button";
   const approveClass = canApprove ? "button" : "button-secondary";
-  const approveLabel = needsClarification ? "请先完成澄清" : "确认并进入下一阶段";
+  const approveLabel = needsClarification
+    ? "请先完成澄清"
+    : !densityReady
+      ? "本稿尚未达到可交接密度"
+      : "确认并进入下一阶段";
 
   return <>
     <div className="workspace-toolbar">
       <div className="actions">
         {stage === 3 ? null : (
-          <button className={generateClass} disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{generateLabel}</button>
+          <button className={generateClass} disabled={!canGenerate} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{generateLabel}</button>
         )}
         {activeJob && (jobInFlight || jobNeedsAttention) ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/jobs/${activeJob.id}/cancel`, { method: "POST" })}>取消后台任务</button> : artifact?.status === "running" ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button> : null}
         {stage === 1 ? <>
-          <button className="button-secondary" disabled={!formEditable} onClick={saveScope}>{busy ? "正在保存…" : artifact ? "保存研究范围" : "建立研究范围"}</button>
+          <button className="button-secondary" disabled={!formEditable || needsClarification} onClick={saveScope}>{busy ? "正在保存…" : artifact ? "保存研究范围" : "建立研究范围"}</button>
           {artifact && artifact.status !== "failed" ? <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>{approveLabel}</button> : null}
         </> : stage === 2 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveStructure}>{busy ? "正在保存…" : artifact ? "保存研究结构" : "建立研究结构"}</button>
@@ -403,28 +484,54 @@ export function StageWorkspace({
       </div>
     ) : null}
     {needsClarification ? (
-      <div className="notice structure-validation">
-        <strong>需要澄清后才能确认 Stage01</strong>
-        <p>系统理解：{parsedStageJson?.input_resolution?.system_understanding?.core_object || "—"} / {parsedStageJson?.input_resolution?.system_understanding?.judgment_action || "—"}</p>
-        <p><strong>{pendingClarification?.question_id || "UC"}</strong> · {pendingClarification?.topic || "structural_ambiguity"}</p>
-        <p>{pendingClarification?.question || "请回答当前结构性歧义问题。"}</p>
-        <textarea
-          aria-label="澄清回答"
-          className="json-editor"
-          rows={3}
-          value={clarifyAnswer}
-          onChange={(event) => setClarifyAnswer(event.target.value)}
-          disabled={!formEditable}
-          placeholder="用一句话给出可操作的澄清回答"
-        />
-        <div className="actions">
-          <button type="button" className="button" disabled={!formEditable || !clarifyAnswer.trim()} onClick={submitClarification}>
-            提交澄清并重新生成
+      <section className="clarify-sheet">
+        <header className="clarify-sheet-head">
+          <div>
+            <p className="clarify-kicker">开始研究前</p>
+            <h2>先确认这 {clarificationItems.length} 件事</h2>
+            <p className="muted">一次答完即可；这些选择会决定后续研究怎么拆、时间怎么落、交什么成果。</p>
+          </div>
+          <span className="clarify-count">{clarificationItems.length} 问</span>
+        </header>
+        <ol className="clarify-list">
+          {clarificationItems.map((item: { question_id: string; question: string; impact: string }, index: number) => (
+            <li key={item.question_id} className="clarify-item">
+              <div className="clarify-item-head">
+                <span className="clarify-index">{index + 1}</span>
+                <div>
+                  <p className="clarify-question">{item.question}</p>
+                  <p className="muted clarify-impact">{item.impact}</p>
+                </div>
+              </div>
+              <input
+                type="text"
+                className="clarify-input"
+                aria-label={`回答问题 ${index + 1}`}
+                value={clarifyAnswers[item.question_id] || ""}
+                onChange={(event) => setClarifyAnswers((prev) => ({
+                  ...prev,
+                  [item.question_id]: event.target.value,
+                }))}
+                disabled={!formEditable}
+                placeholder="一句话回答"
+              />
+            </li>
+          ))}
+        </ol>
+        <div className="clarify-actions">
+          <button
+            type="button"
+            className="button"
+            disabled={!formEditable || !allClarifyAnswersFilled}
+            onClick={submitClarification}
+          >
+            全部答完，继续收敛
           </button>
+          <p className="muted">提交后会按你的回答重写研究范围，不会直接进入下一阶段。</p>
         </div>
-      </div>
+      </section>
     ) : null}
-    {stage === 1 ? <div className="two-col">
+    {stage === 1 && !needsClarification ? <div className="two-col">
       <section className="card scope-panel">
         <div className="panel-head"><h2>研究范围</h2><span>四层合同：问题 → 判断 → 时间 → 边界</span></div>
         <div className="scope-panel-body">
@@ -625,6 +732,31 @@ export function StageWorkspace({
         )}
       </section>
     </div> : null}
+    {injectedAssets ? (
+      <details className="structure-advanced">
+        <summary>维护对照：本阶段注入资产</summary>
+        <p className="muted">仅供维护 ontology / methods / workflow 时对照，不影响用户澄清与确认。</p>
+        <p className="muted">知识文件 {injectedAssets.knowledge_files?.length || 0} · 方法摘录 {injectedAssets.method_guidance_ids?.length || 0} · 场景卡 {(injectedAssets.scenario_card_ids || []).join("、") || "无"} · 结构化键 {(injectedAssets.structured_keys || []).join("、") || "无"}</p>
+        {injectedAssets.knowledge_files?.length ? (
+          <ul>
+            {injectedAssets.knowledge_files.slice(0, 16).map((file) => (
+              <li key={file}><code>{file}</code></li>
+            ))}
+            {(injectedAssets.knowledge_files.length > 16) ? <li className="muted">…共 {injectedAssets.knowledge_files.length} 个</li> : null}
+          </ul>
+        ) : null}
+        {researchValueReview ? (
+          <p className="muted">
+            00A 研究价值审查：{researchValueReview.status || "skipped"}
+            {researchValueReview.mode ? ` · ${researchValueReview.mode}` : ""}
+            {typeof researchValueReview.retry_count === "number" ? ` · 重试 ${researchValueReview.retry_count}` : ""}
+            {Array.isArray(researchValueReview.checks)
+              ? ` · 通过 ${researchValueReview.checks.filter((item) => item.pass).length}/${researchValueReview.checks.length}`
+              : ""}
+          </p>
+        ) : null}
+      </details>
+    ) : null}
   </>;
 }
 
