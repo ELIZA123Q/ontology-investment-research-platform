@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -13,25 +12,33 @@ export function PublishButton({ runId, disabled = false }: { runId: string; disa
     setBusy(true);
     setError("");
     setMessage("");
-    const r = await fetch(`/api/runs/${runId}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const r = await fetch(`/api/runs/${runId}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    });
     const d = await r.json();
     setBusy(false);
     if (!r.ok) {
-      setError(d.error || "导出校验失败");
+      setError(d.error || "导出正式包失败");
       return;
     }
-    setMessage(
-      d.validate_ok
-        ? `已导出并通过校验：${d.export_rel}（仅供内部验收，不能当作正式发布包）`
-        : `已导出 ${d.export_rel}，但交付前校验未通过。请按提示补齐范围→结构→证据→判断→交付的材料。`,
-    );
+    const status = String(d.validation_summary?.publish_status || "");
+    const rel = d.export_rel || d.validation_summary?.export_rel || "";
+    if (d.validation_summary?.publishable || status === "PUBLISHABLE") {
+      setMessage(`已导出正式包并通过校验：${rel}（状态 PUBLISHABLE）`);
+    } else if (d.validate_ok) {
+      setMessage(`已导出正式包：${rel}（状态 ${status || "STAGE_READY"}；尚需补齐正式校验项）`);
+    } else {
+      setMessage(`已导出正式包：${rel}，正式校验未通过（${status || "RETURN_REQUIRED"}）。请按提示返工后重试。`);
+    }
     router.refresh();
   }
 
   return (
     <div>
-      <button className="button-secondary" disabled={busy || disabled} onClick={publish}>
-        {busy ? "进阶校验中…" : "进阶：导出并做交付前校验"}
+      <button className="button" disabled={busy || disabled} onClick={publish}>
+        {busy ? "正在导出正式包…" : "导出正式发布包"}
       </button>
       {message ? <div className="notice">{message}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}

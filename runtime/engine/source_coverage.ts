@@ -58,7 +58,12 @@ export const DEFAULT_EVIDENCE_STOP_THRESHOLDS: EvidenceStopThresholds = {
 
 export type EvidenceStopEvaluation = {
   shouldStop: boolean;
-  reason: "coverage_gap_count_zero" | "no_gap_improvement" | "continue";
+  reason:
+    | "coverage_gap_count_zero"
+    | "no_gap_improvement"
+    | "no_gap_improvement_but_coverage_ok"
+    | "no_gap_improvement_continue"
+    | "continue";
 };
 
 export type SourceFactStatus = "none" | "draft" | "approved";
@@ -287,14 +292,20 @@ function computeVerificationRate(sources: SourceRecord[]): number {
 export function evaluateEvidenceStopCondition(
   coverage: Pick<SourceCoverageSummary, "coverage_gap_count" | "coverage_rate" | "verification_rate">,
   previousGapCount?: number,
-  _thresholds: EvidenceStopThresholds = DEFAULT_EVIDENCE_STOP_THRESHOLDS,
+  thresholds: EvidenceStopThresholds = DEFAULT_EVIDENCE_STOP_THRESHOLDS,
 ): EvidenceStopEvaluation {
   if (coverage.coverage_gap_count === 0) {
     return { shouldStop: true, reason: "coverage_gap_count_zero" };
   }
-  // 覆盖率/核验率只是进度指标，不是进 04 门槛；有单元缺口时不得仅凭阈值停补。
+  // 有单元缺口时不得仅凭「缺口数未降」早停；覆盖/核验已达标才允许停。
   if (previousGapCount !== undefined && coverage.coverage_gap_count >= previousGapCount) {
-    return { shouldStop: true, reason: "no_gap_improvement" };
+    if (
+      coverage.coverage_rate >= thresholds.coverageRate
+      && coverage.verification_rate >= thresholds.verificationRate
+    ) {
+      return { shouldStop: true, reason: "no_gap_improvement_but_coverage_ok" };
+    }
+    return { shouldStop: false, reason: "no_gap_improvement_continue" };
   }
   return { shouldStop: false, reason: "continue" };
 }

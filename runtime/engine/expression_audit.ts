@@ -465,17 +465,25 @@ function getFixSuggestion(defectType: DefectType, detail: string): string {
 }
 
 /**
- * 05 交付前自检 — 生成时不使用审计腔措辞
+ * 05 交付前清洗 — 只清机器审计标注（J2/supported 等），不改写英文正文。
  */
 export function sanitizeAuditVoice(text: string): string {
   let result = text;
-  // 替换 J 等级标注
-  result = result.replace(/J\d[/]\w+/g, "");
+  result = result.replace(/\bJ[0-4]\s*\/\s*(supported|indeterminate|blocked|contested|rejected)\b/gi, "");
   result = result.replace(/RE-SYS-\S+/g, "");
-  // 替换审计用词
-  result = result.replace(/supported/g, "有证据支持");
-  result = result.replace(/indeterminate/g, "暂不可形成判断");
-  result = result.replace(/blocked/g, "证据阻断");
+  // 仅当拉丁状态词紧贴中文语境时视为审计腔，避免误伤 English prose
+  result = result.replace(
+    /([^\x00-\x7F]|[：:（【[])\s*(supported|indeterminate|blocked)\s*(?=[^\x00-\x7F]|[。．）】\]，,；;]|$)/gi,
+    (_all, lead: string, word: string) => {
+      const key = word.toLowerCase();
+      const mapped = key === "supported"
+        ? "有证据支持"
+        : key === "indeterminate"
+          ? "暂不可形成判断"
+          : "证据阻断";
+      return `${lead}${mapped}`;
+    },
+  );
   return result;
 }
 

@@ -65,24 +65,31 @@ describe("evidence compression", () => {
         { id: "EV-2", kind: "fact_draft", judgment_unit_ids: ["JU-1"] },
         { id: "EV-3", kind: "fact_draft", judgment_unit_ids: ["JU-1"] },
         { id: "EV-4", kind: "counter", judgment_unit_ids: ["JU-1"] },
+        { id: "EV-5", kind: "fact_draft", judgment_unit_ids: ["JU-1"] },
+        { id: "EV-6", kind: "fact_draft", judgment_unit_ids: ["JU-1"] },
+        { id: "EV-7", kind: "fact_draft", judgment_unit_ids: ["JU-1"] },
+        { id: "EV-8", kind: "fact_draft", judgment_unit_ids: ["JU-1"] },
       ],
       evidence_summaries: [{ id: "ESUM-01", statement: "趋势下行" }],
       evidence_bundles: [{
         judgment_unit_id: "JU-1",
-        support_evidence_ids: ["EV-1", "EV-2", "EV-3"],
+        support_evidence_ids: ["EV-1", "EV-2", "EV-3", "EV-5", "EV-6", "EV-7", "EV-8"],
         counter_evidence_ids: ["EV-4"],
         gap_ids: [],
         summary_ids: ["ESUM-01"],
         readiness: "ready",
         notes: [],
       }],
-      preparation_markdown: "long text",
-      document_markdown: "long text",
+      preparation_markdown: "long preparation text with coverage and gaps",
+      document_markdown: "long preparation text with coverage and gaps",
     });
     expect(compacted.preparation_markdown).toBeUndefined();
+    expect(compacted.preparation_excerpt).toContain("long preparation");
     expect(compacted.evidence_summaries).toHaveLength(1);
-    expect(compacted.evidence_drafts.length).toBeLessThanOrEqual(4);
+    expect(compacted.evidence_drafts.length).toBeGreaterThanOrEqual(4);
+    expect(compacted.evidence_drafts.length).toBeLessThanOrEqual(7);
     expect(compacted.evidence_compression.mode).toBe("bundle_summary_samples");
+    expect(compacted.evidence_compression.sample_per_unit).toBe(6);
   });
 
   it("warns when statement numbers are ungrounded", () => {

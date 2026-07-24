@@ -33,6 +33,8 @@ const PLACEHOLDER_PATTERNS = [
   /待补充/,
   /待填写/,
   /暂无/,
+  /尚未形成/,
+  /尚未登记/,
   /见正文/,
   /placeholder/i,
   /^TBD$/i,

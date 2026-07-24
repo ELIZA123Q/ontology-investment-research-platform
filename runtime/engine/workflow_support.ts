@@ -17,25 +17,55 @@ export function compactStructuredArtifact(value: unknown): unknown {
 }
 
 /**
- * Stage04/05 上游默认投喂证据压缩视图：Bundle + Summary + Record 样例（每 JU 最多 2 条非 gap），
- * 剥离 preparation_markdown / instance_manifest_yaml 长文以降低上下文膨胀。
+ * Stage04/05 上游默认投喂证据压缩视图：Bundle + Summary + Record 样例，
+ * 保留准备说明摘录；每 JU 保留更多 support/counter/gap，避免 04 裁决信息面过瘦。
  */
-export function compactStage03ForUpstream(value: unknown, samplePerUnit = 2): unknown {
+export function compactStage03ForUpstream(value: unknown, samplePerUnit = 6): unknown {
   const base = compactStructuredArtifact(value) as Record<string, unknown> | unknown;
   if (!base || typeof base !== "object" || Array.isArray(base)) return base;
   const data = { ...(base as Record<string, unknown>) };
+  const prep = String(data.preparation_markdown || data.document_markdown || "").trim();
   delete data.preparation_markdown;
   delete data.instance_manifest_yaml;
   delete data.document_markdown;
+  if (prep) {
+    data.preparation_excerpt = prep.length > 8_000
+      ? `${prep.slice(0, 8_000)}\n…[preparation truncated for upstream]`
+      : prep;
+  }
 
   const drafts = Array.isArray(data.evidence_drafts) ? (data.evidence_drafts as any[]) : [];
+  const draftById = new Map(drafts.map((d) => [String(d.id), d]));
   const bundles = Array.isArray(data.evidence_bundles) ? (data.evidence_bundles as any[]) : [];
   const keepIds = new Set<string>();
+
+  const rankDraft = (draft: any): number => {
+    const kind = String(draft?.kind || "");
+    const dir = String(draft?.direction || "");
+    const directness = String(draft?.directness || "");
+    let score = 0;
+    if (kind === "counter" || kind === "conflict" || dir === "weaken") score += 100;
+    if (kind === "gap") score += 80;
+    if (directness === "direct") score += 40;
+    if (directness === "indirect") score += 20;
+    // 较新 published / 更长 quote 略优先
+    const quoteLen = String(draft?.statement || "").length;
+    score += Math.min(20, Math.floor(quoteLen / 40));
+    return score;
+  };
+  const pickRanked = (ids: string[], limit: number) => {
+    const ranked = ids
+      .map((id) => draftById.get(String(id)))
+      .filter(Boolean)
+      .sort((a, b) => rankDraft(b) - rankDraft(a) || String(a.id).localeCompare(String(b.id)));
+    return ranked.slice(0, limit).map((d) => String(d.id));
+  };
+
   if (bundles.length) {
     for (const bundle of bundles) {
-      const support = (bundle.support_evidence_ids || []).slice(0, samplePerUnit);
-      const counter = (bundle.counter_evidence_ids || []).slice(0, samplePerUnit);
-      const gaps = (bundle.gap_ids || []).slice(0, samplePerUnit);
+      const support = pickRanked(bundle.support_evidence_ids || [], samplePerUnit);
+      const counter = pickRanked(bundle.counter_evidence_ids || [], Math.max(samplePerUnit, 4));
+      const gaps = pickRanked(bundle.gap_ids || [], Math.max(samplePerUnit, 4));
       for (const id of [...support, ...counter, ...gaps]) keepIds.add(String(id));
     }
   } else {
@@ -51,14 +81,26 @@ export function compactStage03ForUpstream(value: unknown, samplePerUnit = 2): un
       }
     }
     for (const list of byUnit.values()) {
-      for (const draft of list.slice(0, samplePerUnit)) keepIds.add(String(draft.id));
+      const counters = list.filter((d) => String(d?.kind) === "counter" || String(d?.direction) === "weaken");
+      const gaps = list.filter((d) => String(d?.kind) === "gap");
+      const support = list.filter((d) => !counters.includes(d) && !gaps.includes(d));
+      for (const draft of [
+        ...[...support].sort((a, b) => rankDraft(b) - rankDraft(a)).slice(0, samplePerUnit),
+        ...[...counters].sort((a, b) => rankDraft(b) - rankDraft(a)).slice(0, Math.max(samplePerUnit, 4)),
+        ...[...gaps].sort((a, b) => rankDraft(b) - rankDraft(a)).slice(0, Math.max(samplePerUnit, 4)),
+      ]) {
+        keepIds.add(String(draft.id));
+      }
     }
   }
   data.evidence_drafts = drafts.filter((d) => keepIds.has(String(d.id)));
   data.evidence_compression = {
     mode: "bundle_summary_samples",
+    sample_per_unit: samplePerUnit,
     retained_draft_ids: [...keepIds],
-    note: "04 默认消费 evidence_bundles + evidence_summaries；evidence_drafts 仅为样例 Record",
+    preparation_excerpt_chars: String(data.preparation_excerpt || "").length,
+    ranking: "counter_gap_direct_first",
+    note: "04 消费 bundles/summaries + 每 JU 按反证/缺口/直接性排序的多样本 Record + preparation_excerpt；完整 preparation 见 Stage03 产物",
   };
   return data;
 }

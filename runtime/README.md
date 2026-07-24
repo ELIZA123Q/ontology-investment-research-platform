@@ -50,9 +50,12 @@ npm run build
 - Stage04、05、同证据基线、父子差异和导出包只使用已获批 Stage03 `evidence_drafts.source_ids` 实际绑定的来源；雷达线索、检索候选和失败抓取仅保留审计。
 - 运行记录是事实来源；Markdown 是可编辑展示层。
 - 新建运行维护 `run_manifest` 1.3.0 摘要；既有 1.2.0 本机运行只读兼容。确认阶段产物时写入 attempt/hash。
-- **包类型不要混用**：`instances/02_V3样例` 是 `semantic_fixture` 语义验收基线（`validate_v3_samples.py`，不可直接当正式发布包）；工作台导出走 `workbench_export` + `validate_workbench_package.py`；正式发布包是 `formal_pack`，走 `validate_run.py` / `validate_publish.py`。
+- **包类型不要混用**：`instances/02_V3样例` 是 `semantic_fixture` 语义验收基线（`validate_v3_samples.py`）；工作台正式交付走 `formal_pack`（交付台「导出正式发布包」→ `instances/00_本机运行/formal/...` + `validate_run.py`）；紧凑投影 `workbench_export` 仅作内部回归（`validate_workbench_package.py`）。
 - **方法选择与规则应用发生在此**：`runtime/` 编排 01—05、检索并绑定 `methods/` 中的方法。Runtime 3.0 对每个新判断确定性重算并挡门权威表中 9 条 `execution_surface=runtime_semantic_execution` 规则，包括状态时间、代理披露、认证阶段、产能/良率口径和判断引用完整性；关系端点兼容 `semantic_endpoint_compatibility` 由实例图物化时的 `validateRuntimeGraph` 执行。A01/A02/A03 门槛以 `runtime_supported_profile.yaml#executable_method_profile` 为唯一权威。
-- **方法正文注入（生成质量）**：主生成与 Stage03 补证都会注入 `selected_method_guidance`。Stage02 优先本题路由 default 方法正文；Stage03 只喂 kb03，Stage04 只喂 kb04（含 A00）；长框架按章节摘录保留停止/边界段，短方法尽量全文。
+- **方法正文注入（生成质量）**：主生成与 Stage03 补证都会注入 `selected_method_guidance`（每方法约 12k、合计约 72k 字符）。Stage02 优先本题路由 default 方法正文；Stage03 只喂 kb03，Stage04 只喂 kb04（含 A00）；长框架按章节摘录保留停止/边界段。01–04 另注入 `00A_runtime_quality_card`；Stage02/03 默认注入附录2（缺口矩阵 / 取数留痕）。
+- **质量假绿防护**：生成后不得无条件盖 `deterministic_check_status=checked`；`research_value_review` 失败或 Stage03 `evidence_quality_gate` 未通过时，禁止 `forceHighQualityTarget` 冲回 `high_quality_pass`。证据门失败写入 `return_required` 并进入确认断言；Stage03 **确认时重算**证据门（含逐 JU 独立性/反证需求），缺 `mcp_channel_usage` 不得确认。独立审阅 `pass` 必须附带五项 `semantic_checks`；正式包禁止把批量 verdict 映射成五项同结果。回归见 `tests/quality_enforcement.test.ts`、`tests/round4_quality_drains.test.ts`。
+- **中间长文保留**：Stage02/03/04 的 `sync*ReadableMarkdown` 在模型稿已达可审阅密度时保留正文，不再用库存清单/简报骨架无条件覆盖。Stage05 对 Research Edge 等节名变体更宽容。补证不得仅因「缺口数未降」早停。见 `tests/remaining_quality_drains.test.ts`。
+- **取证与上游投喂**：Stage03 登记非 gap 却零一手 MCP → `return_required`；临近结束优先催 MCP 而非盲 submit。Stage04/05 上游保留 `preparation_excerpt` 且每 JU 多样本 Record（默认 6）。`sanitizeAuditVoice` 不再全局替换英文 blocked。见 `tests/round3_quality_drains.test.ts`。
 - **界面分层**：结构/证据/判断页是阶段产物视图；Object Set 页才是实例图查询与 Action 执行面。
 
 ## 操作语义能力（V1.3）
@@ -68,14 +71,14 @@ npm run build
 - 同证据基线：确认 03 后冻结证据哈希，基线不联网、不得引用证据包外来源，在 A/B 页面盲评。盲评必须记录评价人和依据，揭示 A/B 身份后不可重评。
 - 模型上下文：每阶段只携带必要上游结构化产物及 hash，不重复传输 Markdown 投影，避免“上下文越大就越可靠”的假安全感。
 - 重复运行归因：相同问题与领域的后续运行自动对照上一运行，区分来源变化、方法变化、模型/Prompt/知识上下文变化和无法由这些因素解释的模型波动
-- 导出校验：`POST /api/runs/:id/publish` 默认写入 `instances/00_本机运行/exports/<runId>`，也可用 `WORKBENCH_EXPORT_ROOT` 指向仓库外；导出同时经 `validate_workbench_package.py` 检查证据血缘、方法、判断、审阅、基线与盲评绑定。
+- **正式包导出**：`POST /api/runs/:id/publish` 默认写入 `instances/00_本机运行/formal/<主题>-<YYYYMMDD>-<n>/`（中文命名 01—05 + 03 快照目录），并跑 `validate_run.py`；可用 `WORKBENCH_FORMAL_ROOT` 改根目录。`mode=workbench_export` 仍可走旧紧凑投影。
 - 研究者来源取得：`POST /api/runs/:id/sources/acquire` 会实际抓取公开 URL、核对逐字引用并冻结发布日期、定位、抓取时间、正文 hash 与可用性。成功结果只进入 Source Registry 候选池，不会直接成为 EvidenceFact 或修改 Judgment。
 - 受控事实投影：证据页或 `POST /api/runs/:id/stages/03/generate` 的 `controlled_evidence_projection` 模式可把研究者明确选择的、已满足 `usable/captured/quote_verified` 的来源逐字登记为事实草稿。请求必须给出 `source_id`、`judgment_unit_ids`、`subject_ref`、`observed_at`；同一来源只能登记一次，多个判断单元合并在同一绑定中。系统重查截止时间、hash 和引用，随后仍要求对象级人工批准。
 - 受控判断投影：判断页或同一阶段接口的 `controlled_judgment_projection` 模式允许研究者为每个 JudgmentUnit 填写结论、已批准事实、不确定性、竞争解释、区分性证据和改判条件，并逐项确认真正满足的方法前置条件。未显式确认的语义前置条件会使方法降级，来源抓取成功不会冒充方法适用；Runtime 再计算 Signal/Hypothesis/CompetingExplanation、J0—J4 上限和五项语义规则。
 - 低成本受控确认：由研究者显式提交的 Stage 02 受控结构，确认前使用 Schema 与确定性启发式校验，不再重复调用付费模型；模型生成的结构仍保留模型确认前复核。两条路径都必须通过对象级人工批准，且受控路径不会因此绕过方法前置条件或后续本体规则。
 - 体验数据库身份：`/experience` 会显示当前 SQLite 的数据范围；若连接 `/tmp` 或系统临时目录中的 QA 数据库，将明确标红并禁止把计数解释为正式前瞻样本。正式基线必须在持久工作台数据库重新登记。
 - 受控表达投影：Stage04 确认后，Stage05 的 `deterministic_projection` 可直接从当前 Judgment、MethodApplication、EvidenceFact 和 Source 血缘生成**05C 骨架草稿**（含固定节与论点章），不需要先让模型写一份“种子报告”；表达只能重述获准判断，不能新增事实或抬高强度。模型生成路径会保留研报正文，`normalizeStage05Projection` **不得**再整篇压平为「研究判断简报」。
-- **工作台确认 ≠ PUBLISHABLE**：Stage05 确认会跑与 `validate_05_outputs` 对齐的关键结构规则（固定节、Research Edge、2–5 论点章、禁审计腔），但正式发布包仍须通过 `governance/03_校验/validate_run.py` / `validate_05_outputs.py`。`minimum_pass` 仅表示内部可流转草稿；正式交付倾向 `high_quality_pass`。
+- **工作台确认 ≠ 自动 PUBLISHABLE**：各阶段确认要求 `high_quality_pass`；正式包导出后仍须 `validate_run.py` 派生 `PUBLISHABLE`（含独立语义审查）。`minimum_pass` 不再作为可确认门槛。
 - `task_local:<variable_id>` 表示只在当前研究任务内成立的观测变量，不会伪装为正式本体 `StateVariable`。知识库“本体缺口治理”会按规范化语义键统计跨 run 频次，记录专家确认、晋升/驳回与追加式历史；“晋升”只表示批准进入正式本体变更流程，不会自动改写本体 YAML。
 - 确定性指标修复不允许改写已揭示的 A/B 评分。`POST /api/runs/:id/evaluation/recompute-metrics` 只在基线、03、04、05 的冻结 artifact/hash 完全一致时创建新评价版本，保留原评分、评价人、备注与 A/B 身份，并记录被替代评价。
 - 创建运行时可绑定 V3 `semantic_fixture` 样例包，直接查询其 `business_instance_graph`（不是正式发布包）

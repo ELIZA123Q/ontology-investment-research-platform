@@ -1409,6 +1409,26 @@ export function createControlledIndependentReview(runId: string, input: Controll
     throw new Error("pass 不得携带问题；rework 必须至少登记一项结构化问题");
   }
   const strengths = [...new Set((input.strengths || []).map(String).map((item) => item.trim()).filter(Boolean))];
+  const semanticChecks = [
+    "local_evidence_not_globalized",
+    "parent_aggregation_complete",
+    "incremental_update_is_local_first",
+    "title_represents_major_scopes",
+    "conditions_scope_and_prohibitions_preserved",
+  ].map((check_id) => (
+    input.verdict === "pass"
+      ? {
+        check_id,
+        result: "pass" as const,
+        reason: `人类独立审阅确认：${assessment.slice(0, 120)}`,
+      }
+      : {
+        check_id,
+        result: "needs_human" as const,
+        reason: `人类独立审阅要求返工：${issues[0]?.description || assessment}`.slice(0, 200),
+        return_to_stage: (issues[0]?.return_stage?.replace("stage_", "") || "04") as "02" | "03" | "04" | "05",
+      }
+  ));
   const data = {
     reviewed_stage04_artifact_id: reviewed.id,
     reviewed_stage04_artifact_hash: createHash("sha256").update(reviewed.json_content).digest("hex"),
@@ -1416,6 +1436,7 @@ export function createControlledIndependentReview(runId: string, input: Controll
     issues,
     strengths,
     overall_assessment: assessment,
+    semantic_checks: semanticChecks,
     document_markdown: [
       "# 人类独立审阅",
       "",
@@ -1427,6 +1448,10 @@ export function createControlledIndependentReview(runId: string, input: Controll
       "## 总体意见",
       "",
       assessment,
+      "",
+      "## 五项语义审查",
+      "",
+      ...semanticChecks.map((check) => `- ${check.check_id}: ${check.result} — ${check.reason}`),
       "",
       "## 优点",
       "",

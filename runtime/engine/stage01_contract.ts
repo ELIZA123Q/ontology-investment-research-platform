@@ -573,11 +573,11 @@ export function collectStage01HighQualityIssues(data: any): StageQualityIssue[] 
       message: "high_quality 要求明确 delivery_archetype.primary",
     });
   }
-  if (!bodyMeetsMinDensity(data?.document_markdown, 200)) {
+  if (!bodyMeetsMinDensity(data?.document_markdown, 500)) {
     issues.push({
       severity: "error",
       code: "stage01_body_thin",
-      message: "high_quality 要求需求说明正文达到可审阅密度（非短摘要）",
+      message: "high_quality 要求需求说明正文达到可审阅密度（≥500 字，非短摘要）",
     });
   }
   requireDeterministicChecked(data, issues);

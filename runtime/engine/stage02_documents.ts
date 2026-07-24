@@ -169,15 +169,15 @@ export type Stage02ConsistencyIssue = {
   message: string;
 };
 
-/** Stage02 high_quality：研究逻辑密度、spine、多单元、竞争解释、MA 三类齐全。 */
+/** Stage02 high_quality：对齐 02 §8.2 语义门槛（密度 + 反证/停止条件/框架理由/权重提示）。 */
 export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] {
   const issues: StageQualityIssue[] = [];
   const logic = nonEmpty(data?.research_logic_markdown, data?.document_markdown);
-  if (!bodyMeetsMinDensity(logic, 400)) {
+  if (!bodyMeetsMinDensity(logic, 800)) {
     issues.push({
       severity: "error",
       code: "stage02_logic_thin",
-      message: "high_quality 要求研究逻辑达到可支撑 05 论点章的密度",
+      message: "high_quality 要求研究逻辑达到可支撑 05 论点章的密度（≥800 字）",
     });
   }
   if (looksLikePlaceholder(data?.judgment_spine) || nonEmpty(data?.judgment_spine).length < 24) {
@@ -207,6 +207,55 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
       severity: "error",
       code: "competing_explanations_thin",
       message: "high_quality 要求至少 1 条带可区分证据的竞争解释",
+    });
+  }
+  const counters = Array.isArray(data?.counter_evidence_directions) ? data.counter_evidence_directions : [];
+  const substantiveCd = counters.filter((item: any) => nonEmpty(item?.statement).length >= 8);
+  if (!substantiveCd.length) {
+    issues.push({
+      severity: "error",
+      code: "counter_evidence_directions_thin",
+      message: "high_quality 要求至少 1 条可执行的反证方向（非空 statement）",
+    });
+  }
+  const ers = Array.isArray(data?.evidence_requirements) ? data.evidence_requirements : [];
+  if (!ers.some((item: any) => String(item?.evidence_role) === "counter")) {
+    issues.push({
+      severity: "error",
+      code: "counter_evidence_role_missing",
+      message: "high_quality 要求 evidence_requirements 中至少有 1 条 counter 角色，区分主证与反证",
+    });
+  }
+  if (!/停止条件/.test(logic)) {
+    issues.push({
+      severity: "error",
+      code: "stop_condition_section_missing",
+      message: "high_quality 要求研究逻辑写明「停止条件」（最低验证条件，而非材料越多越好）",
+    });
+  }
+  if (/继续收集更多资料|材料足够多|尽量多收集/.test(logic)) {
+    const vagueClauses = [...logic.matchAll(/[^。；\n]*?(继续收集更多资料|材料足够多|尽量多收集)[^。；\n]*/g)];
+    const positiveVague = vagueClauses.some((match) => !/不是|并非|不得|禁止|而非|避免|不要/.test(match[0]));
+    if (positiveVague) {
+      issues.push({
+        severity: "error",
+        code: "stop_condition_vague",
+        message: "high_quality：停止条件不得写成「继续收集更多资料/材料足够多」",
+      });
+    }
+  }
+  if (!/框架|裁剪|选用|为何选用|output_gate/.test(logic)) {
+    issues.push({
+      severity: "error",
+      code: "framework_rationale_missing",
+      message: "high_quality 要求写清框架选用/裁剪理由，禁止仅按热点词机械匹配",
+    });
+  }
+  if (!/critical|关键|优先|权重|主干/.test(logic) && units.length >= 3) {
+    issues.push({
+      severity: "error",
+      code: "critical_weight_unspecified",
+      message: "high_quality：多单元时须标明 critical/优先单元，避免同等优先失焦",
     });
   }
   const mas = Array.isArray(data?.method_applications) ? data.method_applications : [];

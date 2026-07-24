@@ -172,25 +172,44 @@ export default async function OntologyPage({
       <nav className="card ontology-tab-nav" aria-label="知识库能力分组">
         {TAB_GROUPS.map((group) => {
           const items = TAB_GUIDE.filter((item) => item.group === group.id);
+          const groupLinks = (
+            <div className="ontology-tab-links">
+              {items.map((item) => (
+                <Link
+                  className={`ontology-tab-link${tab === item.id ? " active" : ""}`}
+                  href={tabHref(item.id, runId)}
+                  key={item.id}
+                >
+                  <strong>{item.label}</strong>
+                  <span>{item.blurb}</span>
+                </Link>
+              ))}
+            </div>
+          );
+
+          // 看本轮始终展开
+          if (group.id === "run") {
+            return (
+              <div className="ontology-tab-group" key={group.id}>
+                <div className="ontology-tab-group-head">
+                  <strong>{group.label}</strong>
+                  <span>{group.hint}</span>
+                </div>
+                {groupLinks}
+              </div>
+            );
+          }
+
+          // 跨研究和治理默认折叠，当前活跃Tab所在分组自动展开
+          const isActiveGroup = items.some((item) => item.id === tab);
           return (
-            <div className={`ontology-tab-group${group.demoted ? " demoted" : ""}`} key={group.id}>
-              <div className="ontology-tab-group-head">
+            <details className={`ontology-tab-group demoted`} key={group.id} open={isActiveGroup}>
+              <summary className="ontology-tab-group-head">
                 <strong>{group.label}</strong>
                 <span>{group.hint}</span>
-              </div>
-              <div className="ontology-tab-links">
-                {items.map((item) => (
-                  <Link
-                    className={`ontology-tab-link${tab === item.id ? " active" : ""}`}
-                    href={tabHref(item.id, runId)}
-                    key={item.id}
-                  >
-                    <strong>{item.label}</strong>
-                    <span>{item.blurb}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
+              </summary>
+              {groupLinks}
+            </details>
           );
         })}
       </nav>

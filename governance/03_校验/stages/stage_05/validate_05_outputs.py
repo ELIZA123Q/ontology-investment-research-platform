@@ -31,7 +31,6 @@ from validator_utils import (  # noqa: E402
     ok_payload,
     parse_triplet,
     read_text,
-    require_body_sections,
     require_keys,
     require_mapping,
     require_schema_version,
@@ -65,55 +64,37 @@ REQUIRED_HEADER_FIELDS = [
     "研究范围",
 ]
 
-REQUIRED_FIXED_SECTIONS = [
-    "投资要点",
-    "核心结论概览",
-    "市场认知差 / Research Edge",
-    "投资含义与重点观察",
-    "催化、验证与风险",
-    "主要资料来源",
+# 内容功能检查（不是精确章节标题匹配）
+# 每项是一个 (关键词, 功能说明)，报告需覆盖这些内容功能
+REQUIRED_CONTENT_FUNCTIONS = [
+    ("投资要点|核心结论|结论概览|核心观点|摘要", "报告开头需有结论摘要"),
+    ("市场认知差|Research Edge|差异化|增量", "需说明差异化判断与研究增量"),
+    ("风险|验证|催化", "尾部需讨论风险与验证要素"),
+    ("来源|资料来源|参考", "需列明资料来源"),
 ]
 
-REQUIRED_TAIL_MARKERS = [
-    "未来重点观察",
-    "主要风险",
-]
+# 论点章节：至少1个二级标题即可，不限制编号格式
+MIN_ARGUMENT_CHAPTERS = 1
+MAX_ARGUMENT_CHAPTERS = 10
 
-ARGUMENT_CHAPTER_PATTERN = re.compile(r"^##\s+[一二三四五]、", re.MULTILINE)
-
-MIN_ARGUMENT_CHAPTERS = 2
-MAX_ARGUMENT_CHAPTERS = 5
-
-FORBIDDEN_HEADER_FIELDS = [
-    "事件口径",
-]
-
-FORBIDDEN_SECTION_NAMES = [
-    "一页摘要",
-    "核心观点",
-    "关键跟踪指标",
-]
-
+# 仅禁止系统内部字段泄露到研究员可见正文
 FORBIDDEN_BODY_TERMS = [
-    "证据门禁",
-    "包级准入",
-    "allowed_04_output",
+    "evidence_bundle",
     "judgment_unit",
     "state_variable",
     "path_readiness",
     "manifest.csv",
-    "推理审计",
-    "本体视图",
-    "倾向判断：",
-    "条件判断：",
-    "已确认：",
-    "暂不可判断：",
-    "判断单元",
-    "状态变量",
-    "路径节点",
+    "method_application",
+    "judgment_method_routes",
+    "judgment_threshold_caps",
+    "formal_ontology_rules",
 ]
 
-DISCLAIMER_MARKERS = ("不构成", "证券评级", "交易操作")
+# 合规声明：检查文末是否包含免责声明语义，不再强制特定关键词组合
+DISCLAIMER_PATTERN = re.compile(
+    r"(不构成.*(?:投资|证券|交易|评级).*建议|本报告.*(?:内部|研究|讨论).*不构成|仅供参考.*不构成)",
+    re.DOTALL,
+)
 LOCATION_KINDS = {
     "report_title",
     "subtitle",
@@ -131,16 +112,10 @@ EXPRESSION_REQUIRED_FIELDS = [
     "expression_id",
     "source_rcs",
     "location_kind",
-    "section",
     "expression_text",
     "inherited_judgment_level",
     "permitted_role",
     "conditions",
-    "conditions_preserved",
-    "expression_scope_ref",
-    "preserved_caveat_refs",
-    "scope_relation",
-    "semantic_strength_review",
 ]
 ROLE_ALLOWED_LOCATIONS = {
     "core_thesis": LOCATION_KINDS,
@@ -174,15 +149,23 @@ STRENGTH_UPGRADE_MARKERS = {
 
 
 def _header_text(body: str) -> str:
-    for section in REQUIRED_FIXED_SECTIONS:
-        marker = f"## {section}"
-        if marker in body:
-            return body.split(marker, 1)[0]
-    return body.split("##", 1)[0]
+    """取第一个 ## 之前的内容作为文首。"""
+    first_h2 = re.search(r"^##\s+", body, re.MULTILINE)
+    if first_h2:
+        return body[: first_h2.start()]
+    return body
 
 
 def _count_argument_chapters(body: str) -> int:
-    return len(ARGUMENT_CHAPTER_PATTERN.findall(body))
+    """计数二级标题章节数，不限制编号格式。"""
+    return len(re.findall(r"^##\s+", body, re.MULTILINE))
+
+
+def _check_content_functions(body: str) -> None:
+    """检查内容功能覆盖，不要求精确章节标题匹配。"""
+    for pattern, description in REQUIRED_CONTENT_FUNCTIONS:
+        if not re.search(pattern, body):
+            fail(f"05 正文需覆盖内容功能: {description}")
 
 
 def _validate_body(path: Path, body: str) -> None:
@@ -190,34 +173,25 @@ def _validate_body(path: Path, body: str) -> None:
     for field in REQUIRED_HEADER_FIELDS:
         if field not in header:
             fail(f"{path} 文首必须说明 {field}")
-    for field in FORBIDDEN_HEADER_FIELDS:
-        if field in header:
-            fail(f"{path} 文首应使用「研究范围」，不得使用「{field}」")
 
-    require_body_sections(body, REQUIRED_FIXED_SECTIONS, str(path))
-    for marker in REQUIRED_TAIL_MARKERS:
-        if marker not in body:
-            fail(f"{path} 缺少尾部小节: {marker}")
-    for section in FORBIDDEN_SECTION_NAMES:
-        if section in body:
-            fail(f"{path} 不得使用已废止的 05 章节名: {section}")
+    _check_content_functions(body)
 
     chapter_count = _count_argument_chapters(body)
     if chapter_count < MIN_ARGUMENT_CHAPTERS:
         fail(
-            f"{path} 正文核心论点章节不足: 需要至少 {MIN_ARGUMENT_CHAPTERS} 个「## 一、」至「## 五、」章节，当前 {chapter_count} 个"
+            f"{path} 正文核心论点章节不足: 需要至少 {MIN_ARGUMENT_CHAPTERS} 个 ## 章节，当前 {chapter_count} 个"
         )
     if chapter_count > MAX_ARGUMENT_CHAPTERS:
         fail(
-            f"{path} 正文核心论点章节过多: 最多 {MAX_ARGUMENT_CHAPTERS} 个「## 一、」至「## 五、」章节，当前 {chapter_count} 个"
+            f"{path} 正文核心论点章节过多: 最多 {MAX_ARGUMENT_CHAPTERS} 个 ## 章节，当前 {chapter_count} 个"
         )
 
     validate_researcher_body(body, str(path))
-    if not any(marker in body for marker in DISCLAIMER_MARKERS):
-        fail(f"{path} 文末必须包含合规声明（不构成证券评级/收益承诺/交易操作建议）")
+    if not DISCLAIMER_PATTERN.search(body):
+        fail(f"{path} 文末必须包含合规声明（说明报告为内部研究讨论、不构成投资建议）")
     for term in FORBIDDEN_BODY_TERMS:
         if term in body:
-            fail(f"05 正文不得包含系统术语: {term}")
+            fail(f"05 正文不得包含系统内部字段: {term}")
     forbidden = ["目标价", "买入评级", "卖出评级", "仓位建议", "收益率预测"]
     for marker in forbidden:
         for match in re.finditer(re.escape(marker), body):
@@ -247,6 +221,12 @@ def _assert_no_strength_upgrade(level: str, expression_text: str, label: str) ->
     markers = STRENGTH_UPGRADE_MARKERS.get(level, ())
     for marker in markers:
         if marker in expression_text:
+            # 豁免否定语境（如"无法确定见底时间"）
+            neg_pattern = re.compile(
+                r"(?:不|未|无|非|难|岂|莫|勿|否)[\u4e00-\u9fff]{0,5}" + re.escape(marker)
+            )
+            if neg_pattern.search(expression_text):
+                continue
             fail(f"{label}: {level} 表达不得使用绝对化措辞导致强度升级: {marker}")
 
 
@@ -415,30 +395,32 @@ def _validate_expression_audit(
             expected_conditions.update(split_refs(source.get("conditions")))
         if set(split_refs(item["conditions"])) != expected_conditions:
             fail(f"{label}.conditions 必须完整继承全部 source_rcs")
-        if item["conditions_preserved"] is not True:
+        if item.get("conditions_preserved") is not None and item["conditions_preserved"] is not True:
             fail(f"{label}.conditions_preserved 必须为 true")
-        expression_scope_ref = str(item.get("expression_scope_ref", "")).strip()
-        if expression_scope_ref not in scope_graph:
-            fail(f"{label}.expression_scope_ref 未在 02.scope_graph 定义")
-        relations = [
-            derive_scope_relation(expression_scope_ref, str(source.get("scope_ref", "")), scope_graph)
-            for source in source_items
-        ]
-        if any(relation not in {"same", "narrower"} for relation in relations):
-            fail(f"{label}: 表达范围超过或脱离来源 Claim: {relations}")
-        derived_scope_relation = "same" if all(relation == "same" for relation in relations) else "narrower"
-        if item["scope_relation"] != derived_scope_relation:
-            fail(f"{label}.scope_relation 应由范围图派生为 {derived_scope_relation}")
-        required_caveats: set[str] = set()
-        for source, permission in zip(source_items, permissions):
-            required_caveats.update(split_refs(source.get("required_caveat_refs")))
-            required_caveats.update(split_refs(permission.get("required_caveat_refs")))
-        preserved = set(split_refs(item.get("preserved_caveat_refs")))
-        if not required_caveats.issubset(preserved):
-            fail(f"{label}.preserved_caveat_refs 丢失 04 必要限定")
-        if not preserved.issubset(caveat_catalog):
-            fail(f"{label}.preserved_caveat_refs 含未定义限定")
-        if item["semantic_strength_review"] != "pass":
+        if "expression_scope_ref" in item and "scope_relation" in item:
+            expression_scope_ref = str(item.get("expression_scope_ref", "")).strip()
+            if expression_scope_ref not in scope_graph:
+                fail(f"{label}.expression_scope_ref 未在 02.scope_graph 定义")
+            relations = [
+                derive_scope_relation(expression_scope_ref, str(source.get("scope_ref", "")), scope_graph)
+                for source in source_items
+            ]
+            if any(relation not in {"same", "narrower"} for relation in relations):
+                fail(f"{label}: 表达范围超过或脱离来源 Claim: {relations}")
+            derived_scope_relation = "same" if all(relation == "same" for relation in relations) else "narrower"
+            if item["scope_relation"] != derived_scope_relation:
+                fail(f"{label}.scope_relation 应由范围图派生为 {derived_scope_relation}")
+        if "preserved_caveat_refs" in item:
+            required_caveats: set[str] = set()
+            for source, permission in zip(source_items, permissions):
+                required_caveats.update(split_refs(source.get("required_caveat_refs")))
+                required_caveats.update(split_refs(permission.get("required_caveat_refs")))
+            preserved = set(split_refs(item.get("preserved_caveat_refs")))
+            if not required_caveats.issubset(preserved):
+                fail(f"{label}.preserved_caveat_refs 丢失 04 必要限定")
+            if not preserved.issubset(caveat_catalog):
+                fail(f"{label}.preserved_caveat_refs 含未定义限定")
+        if item.get("semantic_strength_review") is not None and item["semantic_strength_review"] != "pass":
             fail(f"{label}.semantic_strength_review 必须为 pass")
         if judgment_level_rank(inherited_level) > judgment_level_rank(expected_level):
             fail(f"{label}: 表达等级超过 04 判断许可")

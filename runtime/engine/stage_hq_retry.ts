@@ -65,13 +65,45 @@ export function markGenerationBelowHighQuality(data: any, issues: StageQualityIs
   return next;
 }
 
-/** 强制模型以 HQ 为目标；ensure 路径不得再静默降档后当作可确认稿。 */
+/**
+ * 仅声明「应以 HQ 为目标」——不得覆盖上游硬失败（研究价值 / 证据门）。
+ * deterministic_check_status 由 HQ 形态检查通过后才可保持为 checked，禁止无条件盖章。
+ */
 export function forceHighQualityTarget(data: any): any {
   const next = data && typeof data === "object" ? data : {};
   if (String(next.task_disposition || "") === "needs_clarification") return next;
+  if (shouldPreserveUpstreamQualityFailure(next).preserve) return next;
   next.quality_status = "high_quality_pass";
-  if (!next.deterministic_check_status || next.deterministic_check_status === "not_checked") {
-    // 由各阶段 ensure / HQ 检查决定是否真正 checked；此处仅声明目标
-  }
   return next;
+}
+
+/** 研究价值审查或证据质量门已失败时，禁止 forceHQ / checked 盖章冲掉。 */
+export function shouldPreserveUpstreamQualityFailure(
+  data: any,
+  kind?: ArtifactKind,
+): { preserve: boolean; reason: string } {
+  if (String(data?.research_value_review?.status || "") === "fail") {
+    return { preserve: true, reason: "00A 研究价值审查未通过，不得盖章为 high_quality_pass" };
+  }
+  const gate = data?.evidence_quality_gate;
+  if (
+    (kind === "stage_03" || gate)
+    && gate
+    && (gate.passed === false || String(gate.quality_status || "") === "return_required")
+  ) {
+    return {
+      preserve: true,
+      reason: String(data?.evidence_quality_summary || "证据质量门未通过，不得盖章为 high_quality_pass"),
+    };
+  }
+  return { preserve: false, reason: "" };
+}
+
+/** 上游硬失败 → 不可确认返工态。 */
+export function applyUpstreamQualityFailure(data: any, reason: string): any {
+  return markGenerationBelowHighQuality(data, [{
+    severity: "error",
+    code: "upstream_quality_gate",
+    message: reason,
+  }]);
 }

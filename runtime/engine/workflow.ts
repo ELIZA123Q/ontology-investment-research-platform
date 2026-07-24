@@ -45,23 +45,27 @@ import {
   buildStageGenerationGuidance,
   judgmentThresholdCapsForPrompt,
   mcpChannelHintsForPrompt,
+  methodDisciplineDigest,
 } from "./method_guidance";
 import {
   attachResearchValueReview,
   buildStage05RetryContext,
   heuristicResearchValueReview,
+  mergeResearchValueReviews,
   researchValueReviewPrompt,
   researchValueReviewSchema,
   type ResearchValueReview,
 } from "./research_value_review";
 import { summarizeInjectedAssets } from "./runtime_asset_coverage";
 import {
+  applyUpstreamQualityFailure,
   buildQualityRetryNotes,
   collectStageHighQualityErrors,
   forceHighQualityTarget,
   HQ_RETRY_KEY,
   markGenerationBelowHighQuality,
   meetsHighQualityForReview,
+  shouldPreserveUpstreamQualityFailure,
 } from "./stage_hq_retry";
 import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type SourceRecord, type StageKind } from "./types";
 import { validateReasoningTraceBindings } from "./reasoning_trace";
@@ -70,7 +74,7 @@ import { captureSourceSnapshot } from "./source_snapshot";
 import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } from "./semantic_execution";
 import { evidenceBoundSourceIds, evidenceBoundSources } from "./evidence_sources";
 import { syncReviewWorkItems } from "./review_work_items";
-import { assembleStageContext, buildSemanticRoute } from "./context_assembler";
+import { assembleStageContext, buildSemanticRoute, clipUpstreamJsonSoft, CONTEXT_SLOT_BUDGETS } from "./context_assembler";
 import { classifyRuntimeFailure, compactStructuredArtifact, compactStage03ForUpstream, formatRuntimeFailureMessage } from "./workflow_support";
 import { formalOntologyRuleIds, repairJudgmentPreparationDraft } from "./judgment_draft_normalize";
 import { buildGenerationProgressHeartbeat, parseGenerationProgress } from "./generation_progress";
@@ -289,7 +293,7 @@ export async function generateArtifact(
     independent_review: ["stage_02", "stage_03", "stage_04"],
   };
   const upstreamStages = dependencyStages[kind] || [];
-  const upstream = upstreamStages
+  const upstreamRaw = upstreamStages
     .map((s) => latestArtifact(runId, s, ["approved"]))
     .filter(Boolean)
     .map((a) => {
@@ -305,6 +309,8 @@ export async function generateArtifact(
         json: compressed,
       };
     });
+  const upstreamClip = clipUpstreamJsonSoft(upstreamRaw, CONTEXT_SLOT_BUDGETS.upstream_json_soft);
+  const upstream = upstreamClip.value;
   const approvedEvidenceArtifact = latestArtifact(runId, "stage_03", ["approved"]);
   const approvedEvidence: any = approvedEvidenceArtifact
     ? parseJson(approvedEvidenceArtifact.json_content, {})
@@ -358,6 +364,11 @@ export async function generateArtifact(
     : null;
   const priorStage01Data = priorStage01 ? parseJson<any>(priorStage01.json_content, {}) : null;
   const methodCandidates = methodCandidatesForPrompt(kind, upstream, run.question);
+  // C1 修复：将方法关键纪律提取为文本，注入 system prompt 前面，避免模型忽略 JSON 深处的方法正文
+  const methodDigest = (kind === "stage_02" || kind === "stage_03" || kind === "stage_04")
+    ? methodDisciplineDigest(methodCandidates)
+    : "";
+  const systemPrompt = methodDigest ? `${promptFor(kind)}\n\n${methodDigest}` : promptFor(kind);
   const stageGuidance = (kind === "stage_02" || kind === "stage_03" || kind === "stage_04")
     ? buildStageGenerationGuidance({
       kind,
@@ -395,6 +406,11 @@ export async function generateArtifact(
         budgets: assembled.budgets,
         knowledge_version: assembled.knowledge_version,
         injected_assets: injectedAssets,
+        upstream_json: {
+          clipped: upstreamClip.clipped,
+          original_chars: upstreamClip.original_chars,
+          final_chars: upstreamClip.final_chars,
+        },
       },
       clarification_state: kind === "stage_01" && priorStage01Data
         ? {
@@ -587,7 +603,7 @@ export async function generateArtifact(
       } else {
         // Stage04 的 upstream 已含结构/证据；开放 ontologyTools 易陷入 query_object_set/propose_action 空转直至超时。
         const useOntologyTools = kind === "stage_02" || kind === "stage_03";
-        result = await client.generate(kind as SchemaKind, promptFor(kind), inputContext, {
+        result = await client.generate(kind as SchemaKind, systemPrompt, inputContext, {
           webSearch: kind === "stage_03",
           ontologyTools: useOntologyTools,
           // Stage04 无检索工具；测试友好保留较低轮次，但仍给模型几次修正机会。
@@ -767,11 +783,18 @@ export async function generateArtifact(
         });
         schemas.stage_03.parse(data);
 
-        // A3: 证据最低质量门 - 强制执行
+        // A3: 证据最低质量门 - 强制执行（含 Stage02 逐 JU 独立性/反证需求）
+        const stage03Requirements = Array.isArray(structureData?.evidence_requirements) && structureData.evidence_requirements.length
+          ? structureData.evidence_requirements
+          : projectEvidenceRequirementsFromStructure({
+            units: structureData?.judgment_units || [],
+            counter_evidence_directions: structureData?.counter_evidence_directions,
+          });
         const evidenceQuality = evaluateEvidenceQuality({
           evidenceDrafts: data.evidence_drafts || [],
           sources: listSources(runId),
           judgmentUnits: structureData?.judgment_units || [],
+          evidenceRequirements: stage03Requirements,
         });
         data.evidence_quality_gate = {
           passed: evidenceQuality.passed,
@@ -784,17 +807,52 @@ export async function generateArtifact(
         };
         data.evidence_quality_summary = evidenceQuality.summary;
 
-        if (!evidenceQuality.passed) {
+        if (!evidenceQuality.passed || evidenceQuality.qualityStatus === "return_required") {
           console.warn(`[EVIDENCE:GATE] Stage 03 未通过: ${evidenceQuality.summary}`);
-          // 未通过时写入 gap report 供后续分析
+          data.quality_status = "return_required";
+          data.return_required = true;
+          data.deterministic_check_status = "not_checked";
+          data.status_reason = evidenceQuality.summary;
           data.evidence_gap_report = {
             generated_at: new Date().toISOString(),
             reason: "evidence_quality_floor_not_met",
             details: evidenceQuality.gapDetails.filter((d) => d.isBlocking),
             recommendation: "建议手动补证或缩小研究范围后重试",
           };
-        } else {
-          data.evidence_quality_summary = evidenceQuality.summary;
+        } else if (evidenceQuality.qualityStatus === "minimum_pass") {
+          // 证据仅达最低流转：不得自称 HQ；确认门禁仍要求 HQ，故标为需补强
+          if (String(data.quality_status || "") === "high_quality_pass") {
+            data.quality_status = "minimum_pass";
+            data.deterministic_check_status = "not_checked";
+          }
+        }
+
+        // 一手 MCP 硬门禁：登记了非 gap 事实却零 MCP 调用 → 不得 HQ（Bing 不能冒充一手）
+        const toolUsage = (result?.toolUsage && typeof result.toolUsage === "object")
+          ? result.toolUsage as Record<string, unknown>
+          : {};
+        const mcpCalls = Number(toolUsage.mcp_evidence_calls || 0);
+        const webCalls = Number(toolUsage.web_search_calls || 0);
+        const nonGapCount = (Array.isArray(data.evidence_drafts) ? data.evidence_drafts : [])
+          .filter((item: any) => String(item?.kind) !== "gap").length;
+        data.mcp_channel_usage = {
+          mcp_evidence_calls: mcpCalls,
+          web_search_calls: webCalls,
+          public_page_fetch_calls: Number(toolUsage.public_page_fetch_calls || 0),
+          tools: Array.isArray(toolUsage.tools) ? toolUsage.tools : [],
+          evaluated_at: new Date().toISOString(),
+        };
+        if (nonGapCount > 0 && mcpCalls <= 0) {
+          console.warn("[MCP:GATE] Stage03 未调用一手 MCP 却登记了非 gap 证据");
+          data.quality_status = "return_required";
+          data.return_required = true;
+          data.deterministic_check_status = "not_checked";
+          data.status_reason = "未调用一手 MCP（cninfo/datayes/policy 等）却登记了非 gap 证据；请补 MCP 取证或改为显式 gap";
+          data.mcp_channel_usage = {
+            ...data.mcp_channel_usage,
+            gate: "return_required",
+            reason: "non_gap_without_primary_mcp",
+          };
         }
       }
       if (kind === "stage_05") {
@@ -872,7 +930,7 @@ export async function generateArtifact(
             ...JSON.parse(inputContext),
             research_value_retry_notes: buildStage05RetryContext(review),
           }, null, 2);
-          const retryResult = await client.generate(kind as SchemaKind, promptFor(kind), retryInput, {
+          const retryResult = await client.generate(kind as SchemaKind, systemPrompt, retryInput, {
             maxToolRounds: 4,
             runId,
             validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
@@ -901,12 +959,40 @@ export async function generateArtifact(
             listSources(runId),
           );
           if (!data.delivery_archetype) data.delivery_archetype = deliveryArchetype;
-          review = heuristicResearchValueReview({
+          let retryReview = heuristicResearchValueReview({
             body: String(data.document_markdown || ""),
             stage01: taskContext,
             research_edge: data.research_edge,
             retry_count: 1,
           });
+          // 重试后仍尝试 LLM 审查；失败则保留启发式，不得静默当过。
+          try {
+            const llmRetry = await client.generateStructured(
+              "research_value_review",
+              researchValueReviewSchema,
+              researchValueReviewPrompt(),
+              JSON.stringify({
+                question: run.question,
+                stage01_normalized_question: taskContext?.normalized_question || null,
+                document_markdown: String(data.document_markdown || "").slice(0, 24_000),
+                research_edge: data.research_edge || [],
+              }, null, 2),
+              { maxToolRounds: 2 },
+            );
+            cumulativeUsage = accumulateTokenUsage(cumulativeUsage, llmRetry.usage);
+            retryReview = mergeResearchValueReviews(retryReview, {
+              status: llmRetry.data.status,
+              checks: llmRetry.data.checks,
+              retry_count: 1,
+              reviewed_at: new Date().toISOString(),
+              mode: "llm",
+            });
+            retryReview.retry_count = 1;
+            retryReview.mode = "combined";
+          } catch {
+            // keep heuristic
+          }
+          review = retryReview;
         }
 
         attachResearchValueReview(data, review);
@@ -933,6 +1019,7 @@ export async function generateArtifact(
       }
 
       // 01–05：生成后静默 HQ 门禁；失败则注入失败项再生成一次，仍失败则标为不可确认。
+      // 上游硬失败（00A 研究价值 / 证据质量门）禁止 forceHQ + checked 盖章冲掉。
       const stageKindsForHq = new Set(["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]);
       if (
         stageKindsForHq.has(kind)
@@ -940,134 +1027,174 @@ export async function generateArtifact(
         && typeof data === "object"
         && String(data.task_disposition || "") !== "needs_clarification"
       ) {
-        forceHighQualityTarget(data);
-        if (String(data.deterministic_check_status || "") !== "checked") {
+        const upstreamLock = shouldPreserveUpstreamQualityFailure(data, kind as ArtifactKind);
+        if (upstreamLock.preserve) {
+          applyUpstreamQualityFailure(data, upstreamLock.reason);
+        } else {
+          forceHighQualityTarget(data);
+          // 仅在形态检查期间临时假定 checked；通过后才保留，失败由 markGeneration 清回。
           data.deterministic_check_status = "checked";
-        }
-        let hqErrors = collectStageHighQualityErrors(kind, data);
-        if (hqErrors.length && stage03Mode !== "evidence_supplement") {
-          assertRunning();
-          const retryNotes = buildQualityRetryNotes(hqErrors);
-          const retryHeartbeat = buildGenerationProgressHeartbeat({
-            phase: "model_round",
-            round: 1,
-            max_rounds: 2,
-            tool_names: [],
-            message: "正在按可交接密度标准补强本稿",
-          }, startedAt);
-          lastHeartbeatJson = JSON.stringify(retryHeartbeat);
-          updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-          const retryInput = JSON.stringify({
-            ...JSON.parse(inputContext),
-            [HQ_RETRY_KEY]: retryNotes,
-          }, null, 2);
-          const useOntologyTools = kind === "stage_02" || kind === "stage_03";
-          const retryResult = await client.generate(kind as SchemaKind, promptFor(kind), retryInput, {
-            webSearch: kind === "stage_03",
-            ontologyTools: useOntologyTools,
-            maxToolRounds: kind === "stage_04" ? 6 : undefined,
-            runId,
-            validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
-            repairOutput: kind === "stage_03"
-              ? (draft) => {
-                const repaired = repairEvidencePreparationDraft(draft);
-                ensureStage03DocumentFields(repaired, {
-                  question: run.question,
-                  taskId: run.id,
-                  structure: structureData,
-                });
-                return repaired;
-              }
-              : kind === "stage_04"
+          let hqErrors = collectStageHighQualityErrors(kind, data);
+          if (hqErrors.length && stage03Mode !== "evidence_supplement") {
+            assertRunning();
+            const retryNotes = buildQualityRetryNotes(hqErrors);
+            const retryHeartbeat = buildGenerationProgressHeartbeat({
+              phase: "model_round",
+              round: 1,
+              max_rounds: 2,
+              tool_names: [],
+              message: "正在按可交接密度标准补强本稿",
+            }, startedAt);
+            lastHeartbeatJson = JSON.stringify(retryHeartbeat);
+            updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+            const retryInput = JSON.stringify({
+              ...JSON.parse(inputContext),
+              [HQ_RETRY_KEY]: retryNotes,
+            }, null, 2);
+            const useOntologyTools = kind === "stage_02" || kind === "stage_03";
+            const retryResult = await client.generate(kind as SchemaKind, systemPrompt, retryInput, {
+              webSearch: kind === "stage_03",
+              ontologyTools: useOntologyTools,
+              maxToolRounds: kind === "stage_04" ? 6 : undefined,
+              runId,
+              validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
+              repairOutput: kind === "stage_03"
                 ? (draft) => {
-                  const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
-                  const repaired = repairJudgmentPreparationDraft(draft, {
-                    judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
-                    scopeRef: structure.research_scope?.id || null,
+                  const repaired = repairEvidencePreparationDraft(draft);
+                  ensureStage03DocumentFields(repaired, {
+                    question: run.question,
+                    taskId: run.id,
+                    structure: structureData,
                   });
-                  ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
                   return repaired;
                 }
-                : kind === "stage_02"
-                  ? (draft) => ensureStage02DocumentFields(draft, { question: run.question, taskId: run.id })
-                  : kind === "stage_05"
-                    ? (draft) => {
-                      const stage04: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])?.json_content || "{}", {});
-                      return ensureStage05DocumentFields(draft, { question: run.question, taskId: run.id, stage04 });
-                    }
-                    : kind === "stage_01"
+                : kind === "stage_04"
+                  ? (draft) => {
+                    const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+                    const repaired = repairJudgmentPreparationDraft(draft, {
+                      judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
+                      scopeRef: structure.research_scope?.id || null,
+                    });
+                    ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
+                    return repaired;
+                  }
+                  : kind === "stage_02"
+                    ? (draft) => ensureStage02DocumentFields(draft, { question: run.question, taskId: run.id })
+                    : kind === "stage_05"
                       ? (draft) => {
-                        normalizeStage01Projection(draft, run.question);
-                        return draft;
+                        const stage04: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])?.json_content || "{}", {});
+                        return ensureStage05DocumentFields(draft, { question: run.question, taskId: run.id, stage04 });
                       }
-                      : undefined,
-            onProgress: (event) => {
-              assertRunning();
-              const heartbeat = buildGenerationProgressHeartbeat({
-                ...event,
-                message: `密度补强：${event.message || ""}`,
-              }, startedAt);
-              lastHeartbeatJson = JSON.stringify(heartbeat);
-              updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-            },
-          });
-          cumulativeUsage = accumulateTokenUsage(cumulativeUsage, retryResult.usage);
-          data = retryResult.data;
-          result = retryResult;
-          assertRunning();
-          if (kind === "stage_01") {
-            normalizeStage01Projection(data, run.question);
-            schemas.stage_01.parse(data);
-          } else if (kind === "stage_02") {
-            ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
-            if (!String(data.research_logic_markdown || "").trim() && String(data.document_markdown || "").trim()) {
-              data.research_logic_markdown = data.document_markdown;
+                      : kind === "stage_01"
+                        ? (draft) => {
+                          normalizeStage01Projection(draft, run.question);
+                          return draft;
+                        }
+                        : undefined,
+              onProgress: (event) => {
+                assertRunning();
+                const heartbeat = buildGenerationProgressHeartbeat({
+                  ...event,
+                  message: `密度补强：${event.message || ""}`,
+                }, startedAt);
+                lastHeartbeatJson = JSON.stringify(heartbeat);
+                updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+              },
+            });
+            cumulativeUsage = accumulateTokenUsage(cumulativeUsage, retryResult.usage);
+            data = retryResult.data;
+            result = retryResult;
+            assertRunning();
+            if (kind === "stage_01") {
+              normalizeStage01Projection(data, run.question);
+              schemas.stage_01.parse(data);
+            } else if (kind === "stage_02") {
+              ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
+              if (!String(data.research_logic_markdown || "").trim() && String(data.document_markdown || "").trim()) {
+                data.research_logic_markdown = data.document_markdown;
+              }
+              if (String(data.research_logic_markdown || "").trim()) {
+                data.document_markdown = data.research_logic_markdown;
+              }
+              ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
+              schemas.stage_02.parse(data);
+            } else if (kind === "stage_03") {
+              data = repairEvidencePreparationDraft(data);
+              syncStage03ReadableMarkdown(data, {
+                question: run.question,
+                taskId: run.id,
+                structure: structureData,
+              });
+              ensureStage03DocumentFields(data, {
+                question: run.question,
+                taskId: run.id,
+                structure: structureData,
+              });
+              // HQ 重试后重新执法证据门，避免补强稿冲掉先前失败态
+              const stage03Requirements = Array.isArray(structureData?.evidence_requirements) && structureData.evidence_requirements.length
+                ? structureData.evidence_requirements
+                : projectEvidenceRequirementsFromStructure({
+                  units: structureData?.judgment_units || [],
+                  counter_evidence_directions: structureData?.counter_evidence_directions,
+                });
+              const evidenceQuality = evaluateEvidenceQuality({
+                evidenceDrafts: data.evidence_drafts || [],
+                sources: listSources(runId),
+                judgmentUnits: structureData?.judgment_units || [],
+                evidenceRequirements: stage03Requirements,
+              });
+              data.evidence_quality_gate = {
+                passed: evidenceQuality.passed,
+                quality_status: evidenceQuality.qualityStatus,
+                total_evidence: evidenceQuality.totalEvidence,
+                source_groups: evidenceQuality.sourceGroups,
+                direct_facts: evidenceQuality.directFacts,
+                gap_details: evidenceQuality.gapDetails,
+                evaluated_at: new Date().toISOString(),
+              };
+              data.evidence_quality_summary = evidenceQuality.summary;
+              if (!evidenceQuality.passed || evidenceQuality.qualityStatus === "return_required") {
+                data.quality_status = "return_required";
+                data.return_required = true;
+                data.deterministic_check_status = "not_checked";
+                data.status_reason = evidenceQuality.summary;
+              }
+              schemas.stage_03.parse(data);
+            } else if (kind === "stage_04") {
+              const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+              const repaired = repairJudgmentPreparationDraft(data, {
+                judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
+                scopeRef: structure.research_scope?.id || null,
+              });
+              ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
+              data = repaired;
+              schemas.stage_04.parse(data);
+            } else if (kind === "stage_05") {
+              const judgmentJson: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])!.json_content, {});
+              normalizeStage05Projection(data, judgmentJson, run.question, listSources(runId));
+              ensureStage05DocumentFields(data, {
+                question: run.question,
+                taskId: run.id,
+                stage04: judgmentJson,
+              });
+              schemas.stage_05.parse(data);
             }
-            if (String(data.research_logic_markdown || "").trim()) {
-              data.document_markdown = data.research_logic_markdown;
+            const retryLock = shouldPreserveUpstreamQualityFailure(data, kind as ArtifactKind);
+            if (retryLock.preserve) {
+              applyUpstreamQualityFailure(data, retryLock.reason);
+              hqErrors = [];
+            } else {
+              forceHighQualityTarget(data);
+              data.deterministic_check_status = "checked";
+              hqErrors = collectStageHighQualityErrors(kind, data);
             }
-            ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
-            schemas.stage_02.parse(data);
-          } else if (kind === "stage_03") {
-            data = repairEvidencePreparationDraft(data);
-            syncStage03ReadableMarkdown(data, {
-              question: run.question,
-              taskId: run.id,
-              structure: structureData,
-            });
-            ensureStage03DocumentFields(data, {
-              question: run.question,
-              taskId: run.id,
-              structure: structureData,
-            });
-            schemas.stage_03.parse(data);
-          } else if (kind === "stage_04") {
-            const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
-            const repaired = repairJudgmentPreparationDraft(data, {
-              judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
-              scopeRef: structure.research_scope?.id || null,
-            });
-            ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
-            data = repaired;
-            schemas.stage_04.parse(data);
-          } else if (kind === "stage_05") {
-            const judgmentJson: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])!.json_content, {});
-            normalizeStage05Projection(data, judgmentJson, run.question, listSources(runId));
-            ensureStage05DocumentFields(data, {
-              question: run.question,
-              taskId: run.id,
-              stage04: judgmentJson,
-            });
-            schemas.stage_05.parse(data);
           }
-          forceHighQualityTarget(data);
-          if (String(data.deterministic_check_status || "") !== "checked") {
-            data.deterministic_check_status = "checked";
+          if (
+            !shouldPreserveUpstreamQualityFailure(data, kind as ArtifactKind).preserve
+            && !meetsHighQualityForReview(kind, data)
+          ) {
+            markGenerationBelowHighQuality(data, hqErrors.length ? hqErrors : collectStageHighQualityErrors(kind, data));
           }
-          hqErrors = collectStageHighQualityErrors(kind, data);
-        }
-        if (!meetsHighQualityForReview(kind, data)) {
-          markGenerationBelowHighQuality(data, hqErrors.length ? hqErrors : collectStageHighQualityErrors(kind, data));
         }
       }
 

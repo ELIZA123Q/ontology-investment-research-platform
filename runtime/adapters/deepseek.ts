@@ -556,9 +556,12 @@ export class DeepSeekClient {
         });
       }
       if (round >= submitNudgeFrom) {
+        const calledMcp = toolTrace.some((item) => MCP_TOOL_NAMES.has(String(item.name)));
         messages.push({
           role: "user",
-          content: `工具调用仅剩 ${maxRounds - round - 1} 轮。停止扩展检索；对未取得可核验正文的要求明确形成 gap，并尽快调用 ${submitName} 提交。`,
+          content: calledMcp
+            ? `工具调用仅剩 ${maxRounds - round - 1} 轮。停止无节制 Bing 扩检索；对仍无法核验的要求明确登记 gap，并尽快调用 ${submitName} 提交。`
+            : `工具调用仅剩 ${maxRounds - round - 1} 轮。尚未调用一手 MCP（query_cninfo / query_datayes_* / query_china_policy 等）。请先补至少一轮相关 MCP，再对仍无法核验的要求登记 gap，并调用 ${submitName} 提交；Bing 不得代替一手通道。`,
         });
       }
     }

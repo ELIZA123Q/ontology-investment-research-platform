@@ -4,11 +4,14 @@
 
 | 编号 | 目录 | 说明 |
 |------|------|------|
-| 00 | [`00_本机运行`](00_本机运行) | 本机数据库、工作台导出；**不进 Git**。导出为 `workbench_export`，不是正式发布包 |
+| 00 | [`00_本机运行`](00_本机运行) | 本机数据库、工作台导出；**不进 Git**。正式包在 `formal/`，紧凑投影在 `exports/` |
 | 02 | [`02_V3样例`](02_V3样例) | Ontology 3.0 / Public Contract 1.3 **语义黄金样例**（`semantic_fixture`） |
 | 03 | [`03_回归`](03_回归) | 从真实工作台链冻结的最小回归夹具；验证运行/导出能力，不作为研究增益结论 |
 
 包类型见 [`governance/02_合同/package_kinds.yaml`](../governance/02_合同/package_kinds.yaml)：`formal_pack` / `semantic_fixture` / `workbench_export`。
+
+- **正式交付**：工作台交付台「导出正式发布包」→ `instances/00_本机运行/formal/<主题>-<日期>-<序号>/`（中文命名，对齐 `7:13`）→ `validate_run.py`
+- **内部投影**：`exports/<runId>/` 仍为 `workbench_export`，供回归与调试
 
 当前语义黄金样例（`semantic_fixture`，不是 formal_pack）：
 

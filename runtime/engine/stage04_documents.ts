@@ -117,24 +117,32 @@ export function ensureStage04DocumentFields(
 
   const competing = Array.isArray(next.competing_explanations) ? next.competing_explanations : [];
   const activeCompeting = competing.filter((item: any) => String(item?.status || "active") !== "eliminated");
-  next.object_differentiation = nonEmpty(
-    next.object_differentiation,
-    judgments.length > 1
-      ? judgments.map((item: any) => `${item.title || item.id}：${item.conclusion || ""}`).join("；")
-      : (primary ? `${primary.title || primary.id}：${primary.conclusion || ""}` : "尚未形成对象分化。"),
-  );
-  next.primary_path_ruling = nonEmpty(
-    next.primary_path_ruling,
-    primary
-      ? `主路径采纳「${primary.conclusion || primary.title || primary.id}」；活跃竞争解释 ${activeCompeting.length} 条。`
-      : "尚未形成主路径裁决。",
-  );
-  next.investment_proposition = nonEmpty(
-    next.investment_proposition,
-    primary
-      ? `投资命题：${primary.conclusion || "暂不可判断"}；改判看：${asList(primary?.invalidation_conditions).slice(0, 3).join("；") || "未登记"}。`
-      : "暂无投资命题。",
-  );
+  const targetingHq = nonEmpty(next.quality_status) === "high_quality_pass";
+  // HQ 路径禁止用脚手架句冒充研究字段；空着让 HQ 门禁诚实失败。
+  if (!targetingHq) {
+    next.object_differentiation = nonEmpty(
+      next.object_differentiation,
+      judgments.length > 1
+        ? judgments.map((item: any) => `${item.title || item.id}：${item.conclusion || ""}`).join("；")
+        : (primary ? `${primary.title || primary.id}：${primary.conclusion || ""}` : "尚未形成对象分化。"),
+    );
+    next.primary_path_ruling = nonEmpty(
+      next.primary_path_ruling,
+      primary
+        ? `主路径采纳「${primary.conclusion || primary.title || primary.id}」；活跃竞争解释 ${activeCompeting.length} 条。`
+        : "尚未形成主路径裁决。",
+    );
+    next.investment_proposition = nonEmpty(
+      next.investment_proposition,
+      primary
+        ? `投资命题：${primary.conclusion || "暂不可判断"}；改判看：${asList(primary?.invalidation_conditions).slice(0, 3).join("；") || "未登记"}。`
+        : "暂无投资命题。",
+    );
+  } else {
+    next.object_differentiation = nonEmpty(next.object_differentiation);
+    next.primary_path_ruling = nonEmpty(next.primary_path_ruling);
+    next.investment_proposition = nonEmpty(next.investment_proposition);
+  }
   if (!next.expression_permission || typeof next.expression_permission !== "object") {
     next.expression_permission = {};
   }
@@ -201,15 +209,15 @@ export function ensureStage04DocumentFields(
   return next;
 }
 
-/** Stage04 high_quality：简报密度、分层表达许可、对象分化/主路径/投资命题、竞争解释。 */
+/** Stage04 high_quality：简报密度、分层表达许可、对象分化/主路径/投资命题、竞争解释、改判条件。 */
 export function collectStage04HighQualityIssues(data: any): StageQualityIssue[] {
   const issues: StageQualityIssue[] = [];
   const brief = nonEmpty(data?.judgment_brief_markdown, data?.document_markdown);
-  if (!bodyMeetsMinDensity(brief, 400)) {
+  if (!bodyMeetsMinDensity(brief, 800)) {
     issues.push({
       severity: "error",
       code: "stage04_brief_thin",
-      message: "high_quality 要求判断简报达到可交接 05 的密度",
+      message: "high_quality 要求判断简报达到可交接 05 的密度（≥800 字）",
     });
   }
   const perm = data?.expression_permission || {};
@@ -225,6 +233,13 @@ export function collectStage04HighQualityIssues(data: any): StageQualityIssue[] 
       severity: "error",
       code: "expression_permission_boundaries_thin",
       message: "high_quality 要求写清禁止抬升项或受限表述",
+    });
+  }
+  if (!nonEmpty(perm.max_expression_level)) {
+    issues.push({
+      severity: "error",
+      code: "max_expression_level_missing",
+      message: "high_quality 要求写明 max_expression_level，约束 05 不得越权抬升",
     });
   }
   if (looksLikePlaceholder(data?.object_differentiation)) {
@@ -246,6 +261,13 @@ export function collectStage04HighQualityIssues(data: any): StageQualityIssue[] 
       severity: "error",
       code: "investment_proposition_thin",
       message: "high_quality 要求写清投资命题与改判条件",
+    });
+  }
+  if (!/改判|证伪|推翻|失效条件/.test(`${brief}\n${nonEmpty(data?.investment_proposition)}`)) {
+    issues.push({
+      severity: "error",
+      code: "falsifier_missing",
+      message: "high_quality 要求写明改判/证伪条件，禁止只有方向没有失效边界",
     });
   }
   const ces = Array.isArray(data?.competing_explanations) ? data.competing_explanations : [];

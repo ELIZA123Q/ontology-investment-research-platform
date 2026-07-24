@@ -43,9 +43,14 @@ export function registeredFiles(stage: StageKind, options: LoadKnowledgeOptions 
     if (template) files.push(template);
   }
 
+  // 条件资源加载：按判断类型筛选。
+  // 回退策略：如果未提供 judgmentTypes（首次生成 Stage02 时 Stage01 可能未填），
+  // 加载全部 conditional_assets，避免框架文件完全缺失。
+  const hasJudgmentTypes = (options.judgmentTypes || []).length > 0;
   for (const rule of config.conditional_assets || []) {
     const when = [...(rule.when_judgment_types || [])].map(String);
     const match = !when.length
+      || !hasJudgmentTypes  // 回退：无判断类型时加载全部
       || when.some((type) => (options.judgmentTypes || []).includes(type));
     if (match) files.push(...(rule.assets || []).map(String));
   }
@@ -120,8 +125,8 @@ export function loadKnowledge(stage: StageKind, options: LoadKnowledgeOptions = 
 
   const loaded = loadedFiles.map((file) => ({ file, content: readFileSync(repositoryPath(file), "utf8") }));
   const version = createHash("sha256").update(loaded.map((x) => `${x.file}\0${x.content}`).join("\0")).digest("hex");
-  // Bound API cost while retaining headings, rules and field contracts.
-  const context = loaded.map((x) => `\n## ${x.file}\n${x.content.slice(0, 24000)}`).join("\n");
+  // Bound API cost while retaining headings / 质量门槛 / 停止条件等优先节。
+  const context = loaded.map((x) => `\n## ${x.file}\n${preferQualitySections(x.content, 60_000)}`).join("\n");
   return {
     version: `sha256:${version}`,
     context,
@@ -129,4 +134,47 @@ export function loadKnowledge(stage: StageKind, options: LoadKnowledgeOptions = 
     missingFiles,
     stats: { total: files.length, loaded: loadedFiles.length, missing: missingFiles.length },
   };
+}
+
+/** 超长规范优先保留方法指导和质量章节，避免偏向约束性内容。 */
+function preferQualitySections(content: string, maxChars: number): string {
+  if (content.length <= maxChars) return content;
+  const parts = content.split(/(?=^#{1,3}\s+)/m);
+  if (parts.length < 3) {
+    return `${content.slice(0, maxChars)}\n…[truncated]`;
+  }
+  const headBudget = Math.floor(maxChars * 0.25);
+  const selected = new Set<number>([0]);
+  // 方法指导优先，约束性章节次之
+  const METHOD_GUIDE = /分析[步骤流程方法框架]|计算[步骤逻辑方法]|数据[来源采集映射]|关键指标|推理[过程链步骤]|判断[流逻辑步骤]|评估[方法逻辑]|验证[方法步骤]|研究[路线框架方法]|操作[步骤流程]|案例/;
+  const CONSTRAINT = /质量|门槛|返工|停止|门禁|00A|不得|禁止|确认前|high_quality|minimum_pass|证据不越权|判断价值/;
+  const ranked = parts
+    .map((part, index) => ({
+      index,
+      priority: index === 0
+        ? -1                          // 引导段永远第一
+        : METHOD_GUIDE.test(part) ? 0  // 方法指导最高优先
+        : CONSTRAINT.test(part) ? 1    // 约束性次之
+        : 2,                           // 其他最后
+    }))
+    .sort((a, b) => a.priority - b.priority || a.index - b.index);
+
+  let budgetLeft = maxChars;
+  const lengths = new Map<number, number>();
+  for (const item of ranked) {
+    if (budgetLeft <= 0) break;
+    const part = parts[item.index] || "";
+    const allow = item.index === 0 ? Math.min(part.length, headBudget, budgetLeft) : Math.min(part.length, budgetLeft);
+    if (allow <= 0) continue;
+    selected.add(item.index);
+    lengths.set(item.index, allow);
+    budgetLeft -= allow;
+  }
+
+  let out = "";
+  for (let i = 0; i < parts.length; i += 1) {
+    if (!selected.has(i)) continue;
+    out += parts[i].slice(0, lengths.get(i) || 0);
+  }
+  return `${out}\n…[truncated prioritizing quality sections]`;
 }

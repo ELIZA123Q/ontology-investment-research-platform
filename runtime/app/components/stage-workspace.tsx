@@ -432,7 +432,7 @@ export function StageWorkspace({
           ) : null}
         </> : artifact && artifact.status !== "failed" ? <>
           <button className="button-secondary" disabled={busy} onClick={saveMarkdown}>保存可读稿</button>
-          <button className={approveClass} disabled={busy || artifact.status !== "needs_review"} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
+          <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>{approveLabel}</button>
         </> : null}
         {stage === 4 && artifact?.status === "failed" ? (
           <details className="toolbar-more">

@@ -8,12 +8,15 @@ import { createHash } from "node:crypto";
 import { loadKnowledge, type LoadKnowledgeOptions } from "./knowledge";
 import type { ArtifactKind, StageKind } from "./types";
 
-/** 各槽位默认字符预算（近似 token 控制）。 */
+/** 各槽位默认字符预算（近似 token 控制）。
+ *  A2修复：ontology 从 12K 提升到 36K（+24K），从 upstream_json_soft 减 24K 平衡。
+ *  实例图摘要 + 本体定义摘要需要更多空间；upstream JSON 可通过 clipUpstreamJsonSoft 进一步压缩。
+ */
 export const CONTEXT_SLOT_BUDGETS = {
-  knowledge: 72_000,
-  ontology: 12_000,
-  method_guidance: 48_000,
-  upstream_json_soft: 120_000,
+  knowledge: 144_000,
+  ontology: 36_000,
+  method_guidance: 128_000,
+  upstream_json_soft: 96_000,
   sources_snapshot: 12_000,
 } as const;
 
@@ -87,7 +90,87 @@ function clip(text: string, budget: number): string {
   return `${text.slice(0, budget)}\n…[truncated to ${budget} chars]`;
 }
 
-/** 按任务相关判断类型加载知识；超出预算则按文件截断。 */
+/**
+ * 真正执行 upstream_json_soft 预算：超限时进一步压缩 Stage03 样本并截断长字符串字段。
+ */
+export function clipUpstreamJsonSoft<T>(
+  upstream: T,
+  budget = CONTEXT_SLOT_BUDGETS.upstream_json_soft,
+): { value: T; clipped: boolean; original_chars: number; final_chars: number } {
+  const original = JSON.stringify(upstream);
+  if (original.length <= budget) {
+    return { value: upstream, clipped: false, original_chars: original.length, final_chars: original.length };
+  }
+  if (!Array.isArray(upstream)) {
+    return {
+      value: upstream,
+      clipped: true,
+      original_chars: original.length,
+      final_chars: original.length,
+    };
+  }
+
+  let next = (upstream as any[]).map((item) => {
+    if (!item || typeof item !== "object") return item;
+    if (item.kind === "stage_03" && item.json) {
+      return {
+        ...item,
+        json: {
+          ...(typeof item.json === "object" ? item.json : {}),
+          preparation_excerpt: clip(String(item.json?.preparation_excerpt || ""), 3_000),
+          evidence_drafts: Array.isArray(item.json?.evidence_drafts)
+            ? item.json.evidence_drafts.slice(0, 12)
+            : [],
+          sources: Array.isArray(item.json?.sources) ? item.json.sources.slice(0, 16) : [],
+          evidence_summaries: Array.isArray(item.json?.evidence_summaries)
+            ? item.json.evidence_summaries.slice(0, 8)
+            : [],
+          evidence_compression: {
+            ...(item.json?.evidence_compression || {}),
+            upstream_soft_clipped: true,
+          },
+        },
+      };
+    }
+    if (item.json && typeof item.json === "object") {
+      const json = { ...item.json };
+      for (const key of Object.keys(json)) {
+        if (typeof json[key] === "string" && json[key].length > 4_000 && /markdown|yaml|excerpt/i.test(key)) {
+          json[key] = clip(json[key], 4_000);
+        }
+      }
+      return { ...item, json };
+    }
+    return item;
+  });
+
+  let serialized = JSON.stringify(next);
+  // 仍超限：逐项再砍 Stage03 drafts
+  if (serialized.length > budget) {
+    next = next.map((item: any) => {
+      if (item?.kind !== "stage_03" || !item.json) return item;
+      return {
+        ...item,
+        json: {
+          ...item.json,
+          evidence_drafts: Array.isArray(item.json.evidence_drafts) ? item.json.evidence_drafts.slice(0, 6) : [],
+          sources: Array.isArray(item.json.sources) ? item.json.sources.slice(0, 8) : [],
+          preparation_excerpt: clip(String(item.json.preparation_excerpt || ""), 1_500),
+        },
+      };
+    });
+    serialized = JSON.stringify(next);
+  }
+
+  return {
+    value: next as T,
+    clipped: true,
+    original_chars: original.length,
+    final_chars: serialized.length,
+  };
+}
+
+/** 按任务相关判断类型加载知识；超出预算则优先保留规范/短卡，再截断附录。 */
 export function loadRoutedKnowledge(
   kind: StageKind,
   options: LoadKnowledgeOptions & { maxTotalChars?: number } = {},
@@ -96,7 +179,15 @@ export function loadRoutedKnowledge(
   const loaded = loadKnowledge(kind, options);
   if (loaded.context.length <= maxTotal) return loaded;
 
-  const perFile = Math.max(4_000, Math.floor(maxTotal / Math.max(loaded.files.length, 1)));
+  const priorityBoost = (file: string): number => {
+    if (/00A_runtime_quality_card|投研判断任务受理|判断结构与本体视图|数据与证据准备|推理输出规范|投研表达/.test(file)) {
+      return 2.5;
+    }
+    if (/00A_高质量|A00_裁决总则|B0[0-4]_|OPS_MCP|附录[1-4]/.test(file)) return 1.8;
+    if (/模板|README/.test(file)) return 1.0;
+    return 1;
+  };
+  const weightSum = loaded.files.reduce((sum, file) => sum + priorityBoost(file), 0);
   const parts: string[] = [];
   let used = 0;
   for (const file of loaded.files) {
@@ -105,9 +196,17 @@ export function loadRoutedKnowledge(
     if (start < 0) continue;
     const next = loaded.context.indexOf("\n## ", start + marker.length);
     const body = loaded.context.slice(start + marker.length, next < 0 ? undefined : next);
+    const OVERHEAD_PER_FILE = 100; // marker (~70) + possible suffix (~19) + margin
+    const share = priorityBoost(file) / Math.max(weightSum, 1);
+    const perFile = Math.max(4_000, Math.floor(maxTotal * share) - OVERHEAD_PER_FILE);
     const slice = body.slice(0, perFile);
     const chunk = `${marker}${slice}${body.length > perFile ? "\n…[file truncated]" : ""}`;
-    if (used + chunk.length > maxTotal) break;
+    if (used + chunk.length > maxTotal) {
+      const remain = maxTotal - used;
+      if (remain < 2_000) break;
+      parts.push(`${marker}${body.slice(0, Math.max(0, remain - marker.length - 19))}\n…[file truncated]`);
+      break;
+    }
     parts.push(chunk);
     used += chunk.length;
   }

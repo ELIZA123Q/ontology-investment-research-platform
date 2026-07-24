@@ -103,7 +103,28 @@ export function countArgumentChapters(body: string): number {
 }
 
 export function hasStage05FixedSections(body: string): boolean {
-  return STAGE05_REQUIRED_FIXED_SECTIONS.every((section) => body.includes(`## ${section}`));
+  const text = String(body || "");
+  return STAGE05_REQUIRED_FIXED_SECTIONS.every((section) => stage05SectionPresent(text, section));
+}
+
+/** 允许 Research Edge 等节名的常见变体，避免因少一个斜杠就压成骨架。 */
+export function stage05SectionPresent(body: string, section: string): boolean {
+  if (body.includes(`## ${section}`)) return true;
+  if (section === "市场认知差 / Research Edge") {
+    return /##\s*市场认知差/.test(body)
+      || /##\s*Research\s*Edge/i.test(body)
+      || /##\s*认知差/.test(body);
+  }
+  if (section === "投资含义与重点观察") {
+    return /##\s*投资含义/.test(body) || /##\s*重点观察/.test(body);
+  }
+  if (section === "催化、验证与风险") {
+    return /##\s*催化/.test(body) || /##\s*验证与风险/.test(body) || /##\s*风险与验证/.test(body);
+  }
+  if (section === "主要资料来源") {
+    return /##\s*主要资料来源/.test(body) || /##\s*资料来源/.test(body) || /##\s*参考资料/.test(body);
+  }
+  return false;
 }
 
 /** 是否已具备正式研报骨架（固定节 + 2–5 论点章）。 */
@@ -142,7 +163,15 @@ export function shouldPreserveStage05Markdown(body: string): boolean {
   if (!text || text === "placeholder" || text.length < 80) return false;
   if (looksLikeFlattenedBrief(text)) return false;
   if (hasStage05FixedSections(text)) return true;
-  if (countArgumentChapters(text) >= MIN_ARGUMENT_CHAPTERS && text.includes("## 投资要点")) return true;
+  if (countArgumentChapters(text) >= MIN_ARGUMENT_CHAPTERS && /##\s*投资要点/.test(text)) return true;
+  if (
+    text.length >= 1200
+    && countArgumentChapters(text) >= MIN_ARGUMENT_CHAPTERS
+    && stage05SectionPresent(text, "市场认知差 / Research Edge")
+    && /##\s*投资要点/.test(text)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -338,7 +367,7 @@ export function collectStage05StructureIssues(body: string): Stage05StructureIss
     });
   }
   for (const section of STAGE05_REQUIRED_FIXED_SECTIONS) {
-    if (!text.includes(`## ${section}`)) {
+    if (!stage05SectionPresent(text, section)) {
       issues.push({
         severity: "error",
         code: "missing_fixed_section",

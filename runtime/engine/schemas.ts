@@ -830,6 +830,19 @@ export const independentReviewSchema = z.object({
   reviewer_type: z.enum(["model", "human"]).default("model"),
   reviewer_attestation: z.string().nullable().default(null),
   independence_level: z.enum(["independent_model", "independent_human", "same_model_separate_call"]).nullable(),
+  /** 正式五项语义审查；verdict=pass 时确认门禁要求完整且通过 validateSemanticReview */
+  semantic_checks: z.array(z.object({
+    check_id: z.enum([
+      "local_evidence_not_globalized",
+      "parent_aggregation_complete",
+      "incremental_update_is_local_first",
+      "title_represents_major_scopes",
+      "conditions_scope_and_prohibitions_preserved",
+    ]),
+    result: z.enum(["pass", "fail", "needs_human"]),
+    reason: nonEmptyString,
+    return_to_stage: z.enum(["02", "03", "04", "05"]).optional(),
+  })).default([]),
 }).superRefine((value, context) => {
   if (value.independence_level === "independent_human") {
     if (value.reviewer_type !== "human") context.addIssue({ code: "custom", path: ["reviewer_type"], message: "人类独立审阅必须标记 reviewer_type=human" });
@@ -839,6 +852,22 @@ export const independentReviewSchema = z.object({
   }
   if (value.independence_level === "independent_model" && value.reviewer_type !== "model") {
     context.addIssue({ code: "custom", path: ["reviewer_type"], message: "模型独立审阅必须标记 reviewer_type=model" });
+  }
+  if (value.verdict === "pass" && value.semantic_checks.length !== 5) {
+    context.addIssue({
+      code: "custom",
+      path: ["semantic_checks"],
+      message: "verdict=pass 时必须填写全部五项 semantic_checks",
+    });
+  }
+  for (const check of value.semantic_checks) {
+    if (check.result !== "pass" && !check.return_to_stage) {
+      context.addIssue({
+        code: "custom",
+        path: ["semantic_checks"],
+        message: `${check.check_id} 未通过时必须指定 return_to_stage`,
+      });
+    }
   }
 });
 

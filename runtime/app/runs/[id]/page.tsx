@@ -112,18 +112,37 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
 
     {previousRun && attribution ? <section className="card attribution-card"><div className="panel-title"><div><span>同题研究差异</span><strong>{attribution.causes.length}</strong></div><Link href={`/runs/${previousRun.id}`}>查看上一轮 →</Link></div><p>主要变化：{attribution.causes.join("、")}</p><div className="run-meta"><span>新增来源 {attribution.evidence.added_sources.length}</span><span>移除来源 {attribution.evidence.removed_sources.length}</span><span>方法变化 {attribution.methods.changed.length}</span><span>判断变化 {attribution.judgments.changed.length}</span></div></section> : null}
 
+    <section className="research-index research-index-compact">
+      <div className="section-head research-index-head">
+        <h2>辅助工具</h2>
+        <Link className="section-meta research-index-link" href={`/runs/${id}/history`}>查看完整历史 →</Link>
+      </div>
+      <div className="research-mini-grid">
+        <Link className="card run-card" href={`/runs/${id}/history`}>
+          <span className="card-arrow">↗</span>
+          <span className="eyebrow">历史档案</span>
+          <h3>产物版本与增量继承</h3>
+          <p>{previousRun ? "含前后轮差异归因与来源变化追溯。" : "按阶段保留可复盘产出。"}</p>
+        </Link>
+        <Link className="card run-card" href={`/runs/${id}/compare`}>
+          <span className="card-arrow">↗</span>
+          <span className="eyebrow">A/B 对照实验</span>
+          <h3>同证据直接生成 vs 本体约束</h3>
+          <p>{baseline ? "同证据基线已冻结，可开始盲评。" : "冻结证据后生成对照基线并盲评。"}</p>
+        </Link>
+      </div>
+    </section>
+
     <details className="advanced-tools">
       <summary>
         <div>
           <div className="eyebrow">进阶工具</div>
-          <strong>实验、历史与知识查询</strong>
+          <strong>调试与知识查询</strong>
         </div>
         <span className="section-meta">不属于研究员默认主链</span>
       </summary>
       <div className="grid">
         <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级</span><h3>本轮实体关系</h3><p>实例 ER 与 Action 调试面；日常补证/判断请走上方「证据」「判断」场景，不要从这里重新造证据。</p></Link>
-        <Link className="card run-card" href={`/runs/${id}/history`}><span className="card-arrow">↗</span><span className="eyebrow">辅助</span><h3>历史</h3><p>查看本轮产物版本、审阅与增量继承关系。</p></Link>
-        <Link className="card run-card" href={`/runs/${id}/compare`}><span className="card-arrow">↗</span><span className="eyebrow">实验</span><h3>A/B 对照</h3><p>{baseline ? "同证据基线已冻结，可开始盲评。" : "冻结证据后生成对照基线并盲评。"}</p></Link>
         <Link className="card run-card" href="/experience"><span className="card-arrow">↗</span><span className="eyebrow">试运行</span><h3>流程体验基线</h3><p>查看真实任务队列与流程体验指标；不用于评价研究员绩效。</p></Link>
       </div>
     </details>

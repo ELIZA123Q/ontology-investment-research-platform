@@ -1,5 +1,3 @@
-import "server-only";
-
 /**
  * Stage 03 证据最低质量门 — 确保弱模型下不会产出空证据集
  *
@@ -17,6 +15,8 @@ type EvidenceDraft = {
   directness?: "direct" | "indirect" | "proxy";
   source_ids?: string[];
   direction?: string;
+  judgment_unit_ids?: string[];
+  scope_ref?: string;
 };
 
 type JudgmentUnit = {
@@ -25,10 +25,19 @@ type JudgmentUnit = {
   title?: string;
 };
 
+type EvidenceRequirementLite = {
+  id?: string;
+  evidence_role?: string;
+  minimum_independent_sources?: number;
+  judgment_unit_ids?: string[];
+};
+
 type EvidenceGateInput = {
   evidenceDrafts: EvidenceDraft[];
   sources: SourceRecord[];
   judgmentUnits: JudgmentUnit[];
+  /** Stage02 投影的逐单元证据需求；确认/生成门禁消费独立性与反证角色。 */
+  evidenceRequirements?: EvidenceRequirementLite[];
 };
 
 export type EvidenceGapDetail = {
@@ -84,16 +93,21 @@ function countSourceGroups(sources: SourceRecord[]): number {
 }
 
 export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateResult {
-  const { evidenceDrafts, sources, judgmentUnits } = input;
+  const { evidenceDrafts, sources, judgmentUnits, evidenceRequirements = [] } = input;
   const sourceMap = new Map(sources.map((s) => [s.id, s]));
 
-  // 基础统计
+  // gap 不算「可用证据」；不得用缺口条数抬高质量门槛
+  const usableDrafts = evidenceDrafts.filter((d) => String(d.kind || "") !== "gap");
+  const gapDrafts = evidenceDrafts.filter((d) => String(d.kind || "") === "gap");
+  const gapOnlyCount = gapDrafts.length;
+
+  // 基础统计（仅非 gap）
   const allSourceIds = new Set<string>();
   const directFacts: EvidenceDraft[] = [];
   const indirectFacts: EvidenceDraft[] = [];
   const proxyFacts: EvidenceDraft[] = [];
 
-  for (const draft of evidenceDrafts) {
+  for (const draft of usableDrafts) {
     for (const sid of draft.source_ids || []) allSourceIds.add(String(sid));
     if (draft.directness === "direct") directFacts.push(draft);
     else if (draft.directness === "proxy") proxyFacts.push(draft);
@@ -105,15 +119,19 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
     .filter(Boolean) as SourceRecord[];
   const sourceGroups = countSourceGroups(boundSources);
 
-  // 逐 JU 检查
+  // 逐 JU 检查：优先 judgment_unit_ids，其次 scope_ref / id 兼容
   const gapDetails: EvidenceGapDetail[] = [];
   for (const ju of judgmentUnits) {
     const juId = String(ju.id || "");
-    const juEvidence = evidenceDrafts.filter((d) => {
-      // 通过 scope_ref 或 id 中包含 JU ID 来匹配
-      const scopeRef = (d as any).scope_ref || "";
-      return scopeRef.includes(juId) || d.id.includes(juId);
-    });
+    const juEvidence = usableDrafts.filter((d) => draftBelongsToJudgmentUnit(d, juId));
+    const juGaps = gapDrafts.filter((d) => draftBelongsToJudgmentUnit(d, juId));
+    const juRequirements = evidenceRequirements.filter((req) =>
+      (Array.isArray(req.judgment_unit_ids) ? req.judgment_unit_ids.map(String) : []).includes(juId),
+    );
+    const requiredIndependence = juRequirements.length
+      ? Math.max(MIN_EVIDENCE_PER_JU, ...juRequirements.map((req) => Number(req.minimum_independent_sources || 1) || 1))
+      : MIN_EVIDENCE_PER_JU;
+    const requiresCounter = juRequirements.some((req) => String(req.evidence_role || "") === "counter");
 
     const juSources = new Set<string>();
     for (const d of juEvidence) {
@@ -124,9 +142,26 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
       .filter(Boolean) as SourceRecord[];
     const juSourceGroups = countSourceGroups(juBoundSources);
     const juDirect = juEvidence.filter((d) => d.directness === "direct").length;
+    const juCounter = juEvidence.filter((d) => {
+      const kind = String(d.kind || "");
+      const dir = String(d.direction || "");
+      return kind === "counter" || kind === "conflict" || dir === "weaken";
+    }).length;
+    const counterSatisfied = juCounter > 0 || juGaps.length > 0;
 
-    const isBlocker = juEvidence.length < MIN_EVIDENCE_PER_JU;
+    const missingSupport = juEvidence.length < MIN_EVIDENCE_PER_JU;
+    const missingIndependence = juEvidence.length > 0 && juSourceGroups < requiredIndependence;
+    const missingCounter = requiresCounter && !counterSatisfied;
+    const isBlocker = missingSupport || missingIndependence || missingCounter;
     if (isBlocker || juEvidence.length < 2) {
+      const missingParts = [
+        missingSupport ? "完全缺失可用证据（gap 不计），无法支撑任何判断" : "",
+        missingIndependence
+          ? `独立来源组不足（${juSourceGroups}/${requiredIndependence}）`
+          : "",
+        missingCounter ? "结构要求的反证角色未登记（需 counter/conflict 或显式 gap）" : "",
+        !isBlocker ? "可用证据不足 2 条，仅供初步观察" : "",
+      ].filter(Boolean);
       gapDetails.push({
         judgmentUnitId: juId,
         judgmentType: ju.judgment_type,
@@ -134,22 +169,20 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
         directEvidence: juDirect,
         sourceGroupCount: juSourceGroups,
         isBlocking: isBlocker,
-        missing: isBlocker
-          ? "完全缺失证据，无法支撑任何判断"
-          : "证据不足 2 条，仅供初步观察",
+        missing: missingParts.join("；") || "证据薄弱",
         suggestion: isBlocker
-          ? `JU-${juId}: 需要至少 1 条直接证据，建议优先使用 ${ju.judgment_type ? methodForType(ju.judgment_type) : "MCP 数据源"}`
+          ? `JU-${juId}: ${missingParts[0]}；建议优先使用 ${ju.judgment_type ? methodForType(ju.judgment_type) : "MCP 数据源"}`
           : `JU-${juId}: 补充 1 条验证性证据增加来源多样性`,
       });
     }
   }
 
-  // 判断质量状态
+  // 判断质量状态（条数门槛只看可用证据）
   const hasBlocking = gapDetails.some((d) => d.isBlocking);
   const belowFloor =
-    evidenceDrafts.length < QUALITY_FLOOR_MIN_EVIDENCE || sourceGroups < QUALITY_FLOOR_MIN_GROUPS;
+    usableDrafts.length < QUALITY_FLOOR_MIN_EVIDENCE || sourceGroups < QUALITY_FLOOR_MIN_GROUPS;
   const meetsHighQuality =
-    evidenceDrafts.length >= HIGH_QUALITY_MIN_EVIDENCE &&
+    usableDrafts.length >= HIGH_QUALITY_MIN_EVIDENCE &&
     sourceGroups >= HIGH_QUALITY_MIN_GROUPS &&
     directFacts.length >= HIGH_QUALITY_MIN_DIRECT &&
     !hasBlocking;
@@ -159,22 +192,22 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
 
   if (hasBlocking) {
     qualityStatus = "return_required";
-    summary = `证据不满足最低门槛：${gapDetails.filter((d) => d.isBlocking).length} 个判断单元无可用证据。总证据 ${evidenceDrafts.length} 条，来源组 ${sourceGroups}。需补证后重试。`;
+    summary = `证据不满足最低门槛：${gapDetails.filter((d) => d.isBlocking).length} 个判断单元无可用证据。可用证据 ${usableDrafts.length} 条（另有 gap ${gapOnlyCount}），来源组 ${sourceGroups}。需补证后重试。`;
   } else if (belowFloor) {
     qualityStatus = "minimum_pass";
-    summary = `证据仅达最低流转标准：总证据 ${evidenceDrafts.length} 条，来源组 ${sourceGroups}，未达高质量门槛（需 >=${HIGH_QUALITY_MIN_EVIDENCE} 条）`;
+    summary = `证据仅达最低流转标准：可用证据 ${usableDrafts.length} 条，来源组 ${sourceGroups}，未达高质量门槛（需 >=${HIGH_QUALITY_MIN_EVIDENCE} 条非 gap）`;
   } else if (meetsHighQuality) {
     qualityStatus = "high_quality_pass";
-    summary = `证据充分：总证据 ${evidenceDrafts.length} 条，${directFacts.length} 直接，${sourceGroups} 个来源组，直接事实 ${directFacts.length}>=${HIGH_QUALITY_MIN_DIRECT}`;
+    summary = `证据充分：可用证据 ${usableDrafts.length} 条，${directFacts.length} 直接，${sourceGroups} 个来源组，直接事实 ${directFacts.length}>=${HIGH_QUALITY_MIN_DIRECT}`;
   } else {
     qualityStatus = "minimum_pass";
-    summary = `证据基本可用：${evidenceDrafts.length} 条 / ${sourceGroups} 个来源组，存在 ${gapDetails.length} 个薄弱判断单元`;
+    summary = `证据基本可用：${usableDrafts.length} 条非 gap / ${sourceGroups} 个来源组，存在 ${gapDetails.length} 个薄弱判断单元`;
   }
 
   return {
     passed: !hasBlocking,
     qualityStatus,
-    totalEvidence: evidenceDrafts.length,
+    totalEvidence: usableDrafts.length,
     totalSources: sources.length,
     sourceGroups,
     directFacts: directFacts.length,
@@ -183,6 +216,17 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
     gapDetails,
     summary,
   };
+}
+
+function draftBelongsToJudgmentUnit(draft: EvidenceDraft, juId: string): boolean {
+  if (!juId) return false;
+  const unitIds = Array.isArray((draft as any).judgment_unit_ids)
+    ? (draft as any).judgment_unit_ids.map(String)
+    : [];
+  if (unitIds.includes(juId)) return true;
+  const scopeRef = String((draft as any).scope_ref || "");
+  if (scopeRef.includes(juId)) return true;
+  return String(draft.id || "").includes(juId);
 }
 
 /**

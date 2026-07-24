@@ -108,6 +108,7 @@ export function RadarDashboard({
           <button className="button" disabled={busy} onClick={refresh}>{busy ? "正在检索…" : "刷新过去 72 小时"}</button>
           <small>上次刷新：{formatLastRefresh(lastRefreshedAt)}</small>
         </div>
+        <Link className="button-secondary" href="/runs/new">新建独立研究</Link>
         <button type="button" className="button-quiet" onClick={() => setGuideOpen(true)}>使用说明</button>
       </div>
     </section>

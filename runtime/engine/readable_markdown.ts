@@ -20,6 +20,49 @@ function bullets(values: unknown[], empty = "- 无"): string[] {
   return values.length ? values.map((value) => `- ${String(value)}`) : [empty];
 }
 
+function countProseLines(text: string, minLen = 24): number {
+  return text.split("\n").filter((line) => {
+    const trimmed = line.trim();
+    return trimmed.length >= minLen
+      && !trimmed.startsWith("#")
+      && !trimmed.startsWith("-")
+      && !trimmed.startsWith("*")
+      && !trimmed.startsWith(">")
+      && !trimmed.startsWith("---")
+      && !trimmed.startsWith("`")
+      && !trimmed.startsWith("|");
+  }).length;
+}
+
+/** 模型写的 03 长文应保留；仅库存清单模板不够格时才重建。 */
+export function shouldPreserveStage03Markdown(body: string): boolean {
+  const text = String(body || "").trim();
+  if (text.length < 800) return false;
+  const looksLikeInventory = /##\s*1\.\s*范围交接/.test(text) && /##\s*6\.\s*交给\s*04/.test(text);
+  if (looksLikeInventory) return countProseLines(text) >= 5;
+  return /证据|来源|缺口|覆盖|上限|取证|MCP|留痕/.test(text) && countProseLines(text) >= 2;
+}
+
+/** 模型写的 04 判断长文应保留；仅简报骨架不够格时才重建。 */
+export function shouldPreserveStage04Markdown(body: string): boolean {
+  const text = String(body || "").trim();
+  if (text.length < 800) return false;
+  const looksLikeBriefSkeleton = /##\s*1\.\s*一句话结论/.test(text) && /##\s*7\.\s*允许\s*05/.test(text);
+  if (looksLikeBriefSkeleton) return countProseLines(text) >= 5;
+  return /判断|路径|竞争解释|改判|证伪|对象分化/.test(text) && countProseLines(text) >= 2;
+}
+
+/** 模型写的 02 研究逻辑应保留；仅同步模板不够格时才重建。 */
+export function shouldPreserveStage02Markdown(body: string): boolean {
+  const text = String(body || "").trim();
+  if (text.length < 800) return false;
+  const looksLikeSyncTemplate = /##\s*1\.\s*核心待验证命题/.test(text)
+    && /##\s*6\.\s*停止条件/.test(text)
+    && /##\s*7\.\s*双产物交接/.test(text);
+  if (looksLikeSyncTemplate) return countProseLines(text) >= 5;
+  return /判断|框架|停止条件|竞争解释|反证/.test(text) && countProseLines(text) >= 2;
+}
+
 function yamlFrontmatter(fields: Record<string, unknown>): string {
   const lines = ["---"];
   for (const [key, value] of Object.entries(fields)) {
@@ -132,10 +175,18 @@ export function syncStage01ReadableMarkdown(data: any, question: string): string
 
 export function syncStage02ReadableMarkdown(data: any): string {
   ensureStage02DocumentFields(data);
+  const existing = String(data.research_logic_markdown || data.document_markdown || "").trim();
+  if (shouldPreserveStage02Markdown(existing)) {
+    data.research_logic_markdown = existing;
+    data.document_markdown = existing;
+    ensureStage02DocumentFields(data);
+    return data.document_markdown;
+  }
   const units = data.judgment_units || [];
   const unitIds = units.map((unit: any) => String(unit.id || "")).filter(Boolean);
   const counters = normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds });
   const competing = normalizeCompetingExplanations(data.competing_explanations, { unitIds });
+  const ers = Array.isArray(data.evidence_requirements) ? data.evidence_requirements : [];
   const logic = [
     yamlFrontmatter({
       document_type: "research_logic",
@@ -157,7 +208,15 @@ export function syncStage02ReadableMarkdown(data: any): string {
     "",
     `研究范围：${String(data.research_scope?.label || data.research_scope?.id || "未命名")}`,
     "",
-    "## 2. 原子判断单元",
+    "## 2. 框架选用与裁剪理由",
+    "",
+    `本阶段按 judgment_type 路由选用/裁剪框架；framework_usage_ref=\`${String(data.framework_usage_ref || "")}\`。`,
+    "仅保留改变输出门槛、前置、主路径/反证或停止条件的最小充分组合，禁止按热点词机械匹配。",
+    units.length >= 3
+      ? "多单元时优先保证 critical/关键 单元决定总判断，supporting 不与之同等优先。"
+      : "判断单元保持最小可判断结构，避免无关扩展。",
+    "",
+    "## 3. 原子判断单元",
     "",
     ...(units.length
       ? units.map((unit: any) => {
@@ -166,15 +225,24 @@ export function syncStage02ReadableMarkdown(data: any): string {
       })
       : ["- 尚未登记判断单元"]),
     "",
-    "## 3. 必须主动寻找的反向证据",
+    "## 4. 必须主动寻找的反向证据",
     "",
     ...bullets(counters.map((item) => formatCandidateBullet(item)), "- 尚未登记；确认前必须补齐。"),
     "",
-    "## 4. 竞争解释",
+    "## 5. 竞争解释",
     "",
     ...bullets(competing.map((item) => formatCandidateBullet(item)), "- 尚未登记；确认前必须补齐。"),
     "",
-    "## 5. 双产物交接",
+    "## 6. 停止条件",
+    "",
+    "停止条件是核心判断达到最低验证条件（主证/反证/可区分竞争解释齐备）；禁止把停止条件写成继续堆材料。",
+    "不得以「继续收集更多资料」或「材料足够多」作为停止条件。",
+    ...(ers.length
+      ? ers.slice(0, 8).map((item: any) =>
+        `- ${item.id || "ER"}（${item.evidence_role || "role"}）：${item.requirement || ""}；最低独立来源 ${item.minimum_independent_sources ?? "未填"}`)
+      : ["- 证据要求尚未登记；确认前必须补齐最低验证条件。"]),
+    "",
+    "## 7. 双产物交接",
     "",
     `- 配对本体视图：\`${String(data.ontology_view_ref || "")}\``,
     `- 缺口扫描：\`${String(data.ontology_gap_scan_status || "")}\``,
@@ -192,6 +260,13 @@ export function syncStage03ReadableMarkdown(
   options: { question?: string; taskId?: string; structure?: any } = {},
 ): string {
   ensureStage03DocumentFields(data, options);
+  const existing = String(data.preparation_markdown || data.document_markdown || "").trim();
+  if (shouldPreserveStage03Markdown(existing)) {
+    data.preparation_markdown = existing;
+    data.document_markdown = existing;
+    ensureStage03DocumentFields(data, options);
+    return data.document_markdown;
+  }
   const drafts = data.evidence_drafts || [];
   const sources = data.sources || [];
   const gaps = data.unresolved_gaps || [];
@@ -270,6 +345,13 @@ export function syncStage04ReadableMarkdown(
   options: { question?: string; taskId?: string } = {},
 ): string {
   ensureStage04DocumentFields(data, options);
+  const existing = String(data.judgment_brief_markdown || data.document_markdown || "").trim();
+  if (shouldPreserveStage04Markdown(existing)) {
+    data.judgment_brief_markdown = existing;
+    data.document_markdown = existing;
+    ensureStage04DocumentFields(data, options);
+    return data.document_markdown;
+  }
   const judgments = data.judgments || [];
   const competing = data.competing_explanations || [];
   const primary = judgments[0];

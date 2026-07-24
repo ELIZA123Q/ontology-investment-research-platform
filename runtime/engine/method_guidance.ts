@@ -79,11 +79,12 @@ export type ThresholdCapsProjection = {
   invariants: string[];
 };
 
-const BODY_PER_METHOD_CHARS = 8_000;
-const BODY_TOTAL_CHARS = 48_000;
+const BODY_PER_METHOD_CHARS = 32_000;
+const BODY_TOTAL_CHARS = 128_000;
 const STAGE02_MAX_PER_CAPABILITY = 4;
 
-const SECTION_PRIORITY_PATTERN = /停止|边界|不适用|最少必须|output_gate|判断原则|gate|不适用时|何时停止|完备度/;
+const SECTION_PRIORITY_PATTERN = /停止|边界|不适用|最少必须|output_gate|判断原则|完备度|适用条件|前置条件|质量检[检测查验]|降级|阻断/;
+const METHOD_SECTION_PATTERN = /操作步骤|典型场景|常见错误|分析[步骤流程方法框架]|计算[步骤逻辑方法]|数据[来源采集映射]|关键指标|推理[过程链步骤]|判断[流逻辑步骤]|评估[方法逻辑]|验证[方法步骤]|研究[路线框架方法]|案例|注意事项/;
 
 function parseYaml(path: string) {
   return YAML.parse(readFileSync(repositoryPath(path), "utf8")) as any;
@@ -133,8 +134,13 @@ function resolveMethodBodyFile(method: RegisteredMethod): string | null {
     return method.file;
   }
   if (method.capability_type === "judgment_structure") {
-    return frameworkMarkdownIndex().get(method.method_id) || null;
+    const found = frameworkMarkdownIndex().get(method.method_id) || null;
+    if (!found) {
+      console.warn(`[METHOD:WARN] 方法 ${method.method_id} 无正文文件：file="${method.file}"，frameworkMarkdownIndex中未找到`);
+    }
+    return found;
   }
+  console.warn(`[METHOD:WARN] 方法 ${method.method_id} (capability=${method.capability_type}) 无正文文件：file="${method.file}"`);
   return null;
 }
 
@@ -338,9 +344,11 @@ function splitMarkdownSections(content: string): MarkdownSection[] {
     const title = currentTitle || "(lead)";
     const priority = !currentTitle
       ? 0
-      : SECTION_PRIORITY_PATTERN.test(title)
+      : METHOD_SECTION_PATTERN.test(title)
         ? 1
-        : 2;
+        : SECTION_PRIORITY_PATTERN.test(title)
+          ? 2
+          : 3;
     sections.push({ title, body: currentTitle ? `## ${currentTitle}\n${body}` : body, priority });
   };
   for (const line of lines) {
@@ -357,7 +365,7 @@ function splitMarkdownSections(content: string): MarkdownSection[] {
   return sections;
 }
 
-/** Prefer full text; for long docs keep lead + stop/boundary sections first. */
+/** Prefer full text; for long docs prioritize method guidance over constraints. */
 export function excerptMethodBody(
   content: string,
   limit: number,
@@ -370,6 +378,7 @@ export function excerptMethodBody(
     ...sections.filter((item) => item.priority === 0),
     ...sections.filter((item) => item.priority === 1),
     ...sections.filter((item) => item.priority === 2),
+    ...sections.filter((item) => item.priority === 3),
   ];
   const parts: string[] = [];
   let used = 0;
@@ -434,13 +443,20 @@ export function loadSelectedMethodGuidance(
   const totalChars = options.totalChars ?? BODY_TOTAL_CHARS;
   const registry = loadMethodRegistry();
   const out: MethodGuidanceExcerpt[] = [];
+  const skippedIds: string[] = [];
   let used = 0;
   for (const methodId of unique(methodIds)) {
     if (used >= totalChars) break;
     const method = registry.get(methodId);
-    if (!method) continue;
+    if (!method) {
+      skippedIds.push(methodId);
+      continue;
+    }
     const file = resolveMethodBodyFile(method);
-    if (!file) continue;
+    if (!file) {
+      skippedIds.push(methodId);
+      continue;
+    }
     const content = readFileSync(repositoryPath(file), "utf8");
     const remaining = totalChars - used;
     const limit = Math.min(perMethodChars, remaining);
@@ -453,6 +469,9 @@ export function loadSelectedMethodGuidance(
       excerpt_mode,
     });
     used += excerpt.length;
+  }
+  if (skippedIds.length > 0) {
+    console.warn(`[METHOD:WARN] 跳过无正文的方法 (${skippedIds.length}/${methodIds.length}): ${skippedIds.join(", ")}`);
   }
   return out;
 }
@@ -607,4 +626,101 @@ export function evidenceMethodIdsFromApplications(
       .map((item) => String(item.method_id || ""))
       .filter(Boolean),
   );
+}
+
+/**
+ * C1 修复：从已 enriched 的方法卡片中提取关键纪律摘要，作为文本注入 system prompt。
+ * 避免模型忽略 JSON 深处的 selected_method_guidance / method_candidates。
+ *
+ * 提取内容：
+ * - judgment_structure: output_gates requires / minimum_evidence, quality_gates, boundary_handoffs
+ * - evidence: required_roles, use_when, forbidden_without
+ * - adjudication: (通用卡片，无特殊约束字段)
+ *
+ * 输出约 2-4K chars 的精简文本。
+ */
+export function methodDisciplineDigest(cards: MethodPromptCard[]): string {
+  if (!cards.length) return "";
+
+  const lines: string[] = ["# 方法关键纪律摘要（从注册方法中提取，必须遵守）"];
+
+  for (const card of cards) {
+    const id = card.method_id;
+    const cap = card.capability_type;
+
+    if (cap === "judgment_structure") {
+      const gateEntries = Object.entries(card.output_gates || {});
+      if (!gateEntries.length && !card.quality_gates?.length && !card.boundary_handoffs) continue;
+
+      lines.push(`\n## ${id}`);
+
+      // output_gates: 产出门禁
+      for (const [gateId, gate] of gateEntries.slice(0, 6)) {
+        const reqs = (gate.requires || []).join("、");
+        const mins = (gate.minimum_evidence || []).join("、");
+        lines.push(`- 产出门禁 [${gateId}]: 必须条件=${reqs || "无"}; 最低证据=${mins || "无"}`);
+      }
+
+      // quality_gates
+      if (card.quality_gates?.length) {
+        const gateStrs = card.quality_gates.map((g) =>
+          typeof g === "string" ? g : `${g.id}(requires: ${(g.requires || []).join(",")})`,
+        );
+        lines.push(`- 质量门禁: ${gateStrs.join("; ")}`);
+      }
+
+      // boundary_handoffs
+      if (card.boundary_handoffs) {
+        const handoffs = Object.entries(card.boundary_handoffs).slice(0, 4)
+          .map(([k, v]) => `${k}→${v}`);
+        if (handoffs.length) lines.push(`- 边界交接: ${handoffs.join("; ")}`);
+      }
+
+      // downstream_unlocks
+      if (card.downstream_unlocks?.length) {
+        lines.push(`- 下游解锁: ${card.downstream_unlocks.join(", ")}`);
+      }
+    }
+
+    if (cap === "evidence") {
+      const roles = card.required_roles?.length || card.judgment_type_rows?.some((r) => r.required_roles?.length);
+      if (!roles && !card.use_when && !card.forbidden_without) continue;
+
+      lines.push(`\n## ${id}`);
+
+      // required_roles from judgment_type_rows
+      if (card.judgment_type_rows?.length) {
+        for (const row of card.judgment_type_rows.slice(0, 4)) {
+          const reqRoles = (row.required_roles || []).join("、");
+          const optRoles = (row.optional_roles || []).join("、");
+          const maxComp = row.max_completeness_without_direct_data || "";
+          lines.push(`- 判断类型 ${row.judgment_type}: 必需角色=${reqRoles || "无"}; 可选=${optRoles || "无"}${maxComp ? `; 无直接数据上限=${maxComp}` : ""}`);
+        }
+      }
+
+      if (card.use_when) {
+        const useWhen = Array.isArray(card.use_when) ? card.use_when.join("; ") : String(card.use_when);
+        lines.push(`- 适用场景: ${useWhen.slice(0, 200)}`);
+      }
+
+      if (card.forbidden_without) {
+        const forbidden = typeof card.forbidden_without === "string"
+          ? card.forbidden_without
+          : JSON.stringify(card.forbidden_without).slice(0, 200);
+        lines.push(`- 禁止条件: ${forbidden}`);
+      }
+    }
+
+    if (cap === "adjudication") {
+      // 裁决方法通用卡片，提取 applicability
+      if (card.applicability) {
+        lines.push(`\n## ${id}`);
+        lines.push(`- 适用: ${String(card.applicability).slice(0, 200)}`);
+      }
+    }
+  }
+
+  const result = lines.join("\n");
+  // 控制在 4K 以内
+  return result.length > 4_000 ? `${result.slice(0, 3_990)}…` : result;
 }

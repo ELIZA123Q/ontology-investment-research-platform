@@ -6,17 +6,19 @@ import { useParams, usePathname } from "next/navigation";
 
 const items = [
   { id: "overview", label: "概览", path: "", stageKind: null },
-  { id: "scope", label: "范围", path: "/stages/1", stageKind: "stage_01" },
+  { id: "scope", label: "范围", path: "/scope", stageKind: "stage_01" },
   { id: "structure", label: "结构", path: "/structure", stageKind: "stage_02" },
   { id: "evidence", label: "证据", path: "/evidence", stageKind: "stage_03" },
   { id: "judgment", label: "判断", path: "/judgments", stageKind: "stage_04" },
   { id: "delivery", label: "交付", path: "/report", stageKind: "stage_05" },
+  { id: "history", label: "历史", path: "/history", stageKind: null },
+  { id: "object-set", label: "关系图", path: "/object-set", stageKind: null },
 ] as const;
 
 export type StageNavStatus = "complete" | "needs_review" | "idle";
 
 export function activeSceneFromPath(pathname: string): string {
-  if (pathname.includes("/stages/1")) return "scope";
+  if (pathname.includes("/stages/1") || pathname.includes("/scope")) return "scope";
   if (pathname.includes("/stages/2") || pathname.includes("/structure")) return "structure";
   if (pathname.includes("/stages/3") || pathname.includes("/evidence")) return "evidence";
   if (pathname.includes("/stages/4") || pathname.includes("/judgments")) return "judgment";
@@ -86,13 +88,6 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
           </Link>
         );
       })}
-      <details className="run-nav-more">
-        <summary aria-label="更多">⋯</summary>
-        <div className="run-nav-more-menu">
-          <Link href={`/runs/${resolvedRunId}/history`} className={resolvedActive === "history" ? "active" : ""}>历史</Link>
-          <Link href={`/runs/${resolvedRunId}/object-set`} className={resolvedActive === "object-set" ? "active" : ""}>关系图</Link>
-        </div>
-      </details>
     </nav>
   );
 }

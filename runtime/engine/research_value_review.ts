@@ -101,15 +101,28 @@ export function heuristicResearchValueReview(input: {
 
   const edges = Array.isArray(input.research_edge) ? input.research_edge : [];
   const substantive = edges.some((edge) => !isPlaceholderResearchEdge(edge as any));
-  const hasEdgeSection = body.includes("Research Edge") || body.includes("市场认知差");
-  const hasMechanismLanguage = /机制|分化|误读|认知差|相对|不是|而是/.test(body);
+  const hasEdgeSection = body.includes("Research Edge") || body.includes("市场认知差") || body.includes("认知差");
+  const thinChapters = collectStage05HighQualityIssues({
+    body,
+    research_edge: edges,
+    deterministic_check_status: "checked",
+  }).some((item) => item.code === "argument_chapter_thin" || item.code === "argument_chapter_ungrounded");
+  // 有节名/关键词但无实质 Research Edge、或论点章过薄 → 仍判无判断价值
   checks.push({
     id: "has_judgment_value",
-    pass: hasEdgeSection && (substantive || hasMechanismLanguage),
-    evidence_span: substantive ? "research_edge substantive" : hasEdgeSection ? "Research Edge section" : "",
-    note: substantive || hasMechanismLanguage
-      ? "存在认知差或机制性表述"
-      : "缺少判断价值信号（Research Edge / 机制分歧）",
+    pass: hasEdgeSection && substantive && !thinChapters,
+    evidence_span: substantive && !thinChapters
+      ? "research_edge substantive + argument density"
+      : thinChapters
+        ? "argument chapters thin"
+        : hasEdgeSection
+          ? "Research Edge section only"
+          : "",
+    note: substantive && !thinChapters
+      ? "存在实质认知差与可审阅论点章"
+      : thinChapters
+        ? "论点章过薄或未 grounding，材料堆砌不等于判断价值"
+        : "缺少实质 Research Edge（禁止仅靠关键词/节名交差）",
   });
 
   const overreach = Boolean(input.intensity_lifted)

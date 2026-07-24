@@ -27,7 +27,7 @@ describe("per-stage high_quality_pass gates", () => {
       core_object: "存储芯片",
       judgment_action: "周期判断",
       time_scope: { as_of: "2026-07-01", forward: "12个月" },
-      document_markdown: "# 需求\n\n".padEnd(220, "正式需求说明正文。"),
+      document_markdown: "# 需求\n\n".padEnd(520, "正式需求说明正文。"),
     };
     ensureStage01ContractFields(data, "存储周期是否见顶");
     data.task_disposition = "accepted";
@@ -51,7 +51,7 @@ describe("per-stage high_quality_pass gates", () => {
         changing_variable: "HBM 挤占与合约价斜率",
         incremental_question: "分产品稀缺是否仍强化",
       },
-      document_markdown: "# 需求\n\n".padEnd(220, "正式需求说明正文。"),
+      document_markdown: "# 需求\n\n".padEnd(520, "正式需求说明正文。"),
     })).toEqual([]);
   });
 
@@ -101,8 +101,8 @@ describe("per-stage high_quality_pass gates", () => {
 
   it("stage03: ungrounded numbers block high_quality_pass", () => {
     const data = {
-      preparation_markdown: "# 准备\n\n".padEnd(420, "证据准备正文。"),
-      document_markdown: "# 准备\n\n".padEnd(420, "证据准备正文。"),
+      preparation_markdown: "# 准备\n\n".padEnd(820, "证据准备正文。"),
+      document_markdown: "# 准备\n\n".padEnd(820, "证据准备正文。"),
       instance_manifest_yaml: "metadata:\n  task_id: T\n",
       evidence_drafts: [{
         id: "EV-1",
@@ -111,10 +111,22 @@ describe("per-stage high_quality_pass gates", () => {
         source_keys: ["SRC-01"],
         source_ids: ["s1"],
         judgment_unit_ids: ["JU-1"],
+      }, {
+        id: "EV-GAP-1",
+        kind: "gap",
+        direction: "unknown",
+        statement: "缺少独立产能交叉验证",
+        source_keys: [],
+        source_ids: [],
+        judgment_unit_ids: ["JU-1"],
       }],
       evidence_summaries: [{ id: "ES-1", title: "价", numeric_values: [] }],
       evidence_bundles: [{ judgment_unit_id: "JU-1", support_evidence_ids: ["EV-1"] }],
       sources: [{ source_key: "SRC-01", source_quote: "价格上涨但无具体数字" }],
+      evidence_quality_gate: {
+        passed: true,
+        quality_status: "high_quality_pass",
+      },
       quality_status: "high_quality_pass",
       deterministic_check_status: "checked",
     };
@@ -122,6 +134,27 @@ describe("per-stage high_quality_pass gates", () => {
     expect(hq.some((item) => item.code === "numeric_ungrounded")).toBe(true);
     const issues = collectStage03ConsistencyIssues(data);
     expect(issues.some((item) => item.severity === "error" && item.code === "numeric_ungrounded")).toBe(true);
+  });
+
+  it("stage03: evidence quality gate failure blocks approval", () => {
+    const data = {
+      preparation_markdown: "# 准备\n\n".padEnd(820, "证据准备正文。"),
+      document_markdown: "# 准备\n\n".padEnd(820, "证据准备正文。"),
+      instance_manifest_yaml: "metadata:\n  task_id: T\n",
+      evidence_drafts: [{ id: "EV-1", kind: "gap", direction: "unknown", statement: "无证据", source_keys: [], source_ids: [] }],
+      evidence_summaries: [],
+      evidence_bundles: [],
+      sources: [],
+      evidence_quality_gate: {
+        passed: false,
+        quality_status: "return_required",
+      },
+      evidence_quality_summary: "判断单元无可用证据",
+      quality_status: "high_quality_pass",
+      deterministic_check_status: "checked",
+    };
+    expect(collectStage03ConsistencyIssues(data).some((item) => item.code === "evidence_quality_gate")).toBe(true);
+    expect(collectStage03HighQualityIssues(data).some((item) => item.code === "evidence_quality_gate_failed")).toBe(true);
   });
 
   it("stage04: thin expression_permission cannot high_quality_pass", () => {
@@ -143,11 +176,11 @@ describe("per-stage high_quality_pass gates", () => {
       ...data,
       quality_status: "high_quality_pass",
       deterministic_check_status: "checked",
-      judgment_brief_markdown: "# 简报\n\n".padEnd(420, "对象分化与主路径裁决正文。"),
-      document_markdown: "# 简报\n\n".padEnd(420, "对象分化与主路径裁决正文。"),
+      judgment_brief_markdown: "# 简报\n\n".padEnd(820, "对象分化与主路径裁决正文，含改判条件说明。"),
+      document_markdown: "# 简报\n\n".padEnd(820, "对象分化与主路径裁决正文，含改判条件说明。"),
       object_differentiation: "HBM 与通用 DRAM 机制不同",
       primary_path_ruling: "采纳供给约束主路径",
-      investment_proposition: "跟踪验证窗口，不给结束日",
+      investment_proposition: "跟踪验证窗口；改判条件为合约价斜率转负",
       competing_explanations: [{ explanation_id: "CE-1", statement: "需求一次性脉冲", status: "active" }],
       expression_permission: {
         allowed_core_claims: ["J1"],

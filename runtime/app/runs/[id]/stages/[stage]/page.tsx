@@ -195,7 +195,7 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
   const activeJob = listResearchJobsForRun(id).find((job) =>
     job.stage === kind && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(job.status),
   );
-  const reviewable = n > 1 ? latestArtifactMeta(id, kind, ["approved", "needs_review"]) : undefined;
+  const reviewable = latestArtifactMeta(id, kind, ["approved", "needs_review"]);
   const unlocked = n === 1 || Boolean(latestArtifactMeta(id, STAGES[n - 2], ["approved"]));
   const approvedScope = n === 2
     ? compactScopeSummary(latestArtifactPayload(id, "stage_01", ["approved"])?.json_content)
@@ -211,7 +211,7 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
     cancelled: "已取消",
     superseded: "已被新版取代",
   } as Record<string, string>)[artifact?.status || ""] || artifact?.status || "尚未开始";
-  const reviewHref = n === 2 ? `/runs/${id}/structure` : n === 3 ? `/runs/${id}/evidence` : n === 4 ? `/runs/${id}/judgments` : n === 5 ? `/runs/${id}/report` : null;
+  const reviewHref = n === 1 ? `/runs/${id}/scope` : n === 2 ? `/runs/${id}/structure` : n === 3 ? `/runs/${id}/evidence` : n === 4 ? `/runs/${id}/judgments` : n === 5 ? `/runs/${id}/report` : null;
 
   return <>
     <div className="pagehead scene-head">
@@ -230,10 +230,16 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
                   : "本阶段尚无待审版本：先在此生成，再进入审阅场景。"}
         </p>
       </div>
-      {reviewHref && reviewable ? (
-        <Link className="button" href={reviewHref}>
-          返回审阅 →
-        </Link>
+      {reviewHref ? (
+        reviewable ? (
+          <Link className="button" href={reviewHref}>
+            返回审阅 →
+          </Link>
+        ) : (
+          <span className="button button-muted" aria-disabled="true" title="生成后可进入审阅场景">
+            生成后进入审阅
+          </span>
+        )
       ) : null}
     </div>
     <StageWorkspaceLazy

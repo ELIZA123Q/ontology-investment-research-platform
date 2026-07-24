@@ -9,6 +9,9 @@ import {
   requireDeterministicChecked,
   type StageQualityIssue,
 } from "./stage_high_quality";
+import { evaluateEvidenceQuality } from "./evidence_quality_gate";
+import { projectEvidenceRequirementsFromStructure } from "./structure_candidates";
+import type { SourceRecord } from "./types";
 
 export const STAGE03_QUALITY_GATE_REF =
   "workflow/stages/03_证据/03_数据与证据准备规范.md#3-质量门槛与返工";
@@ -192,11 +195,11 @@ export function ensureStage03DocumentFields(
 export function collectStage03HighQualityIssues(data: any): StageQualityIssue[] {
   const issues: StageQualityIssue[] = [];
   const prep = nonEmpty(data?.preparation_markdown, data?.document_markdown);
-  if (!bodyMeetsMinDensity(prep, 400)) {
+  if (!bodyMeetsMinDensity(prep, 800)) {
     issues.push({
       severity: "error",
       code: "stage03_prep_thin",
-      message: "high_quality 要求数据与证据准备正文达到可审阅密度",
+      message: "high_quality 要求数据与证据准备正文达到可审阅密度（≥800 字，含覆盖/缺口/上限）",
     });
   }
   const drafts = Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : [];
@@ -206,6 +209,38 @@ export function collectStage03HighQualityIssues(data: any): StageQualityIssue[] 
       severity: "error",
       code: "evidence_drafts_empty",
       message: "high_quality 要求至少有证据草稿或显式 gap 登记",
+    });
+  }
+  const hasCounterOrGap = drafts.some((item: any) => {
+    const kind = String(item?.kind || "");
+    const dir = String(item?.direction || "");
+    return kind === "counter" || kind === "gap" || kind === "conflict" || dir === "weaken" || dir === "unknown";
+  });
+  if (nonGap.length && !hasCounterOrGap) {
+    issues.push({
+      severity: "error",
+      code: "counter_or_gap_missing",
+      message: "high_quality 要求显式反证/冲突或 gap，禁止只有单向支持事实",
+    });
+  }
+  const gate = data?.evidence_quality_gate;
+  if (!gate) {
+    issues.push({
+      severity: "error",
+      code: "evidence_quality_gate_missing",
+      message: "high_quality 要求存在可复核的 evidence_quality_gate（确认时会重算）",
+    });
+  } else if (gate.passed === false || String(gate.quality_status || "") === "return_required") {
+    issues.push({
+      severity: "error",
+      code: "evidence_quality_gate_failed",
+      message: `high_quality 要求证据质量门通过：${nonEmpty(data?.evidence_quality_summary, "未通过")}`,
+    });
+  } else if (String(gate.quality_status || "") !== "high_quality_pass") {
+    issues.push({
+      severity: "error",
+      code: "evidence_quality_not_hq",
+      message: "high_quality 要求 evidence_quality_gate.quality_status=high_quality_pass（证据条数/来源组/直接事实达标）",
     });
   }
   for (const draft of nonGap) {
@@ -384,12 +419,84 @@ export function collectStage03ConsistencyIssues(data: any): Stage03ConsistencyIs
       message: "本稿尚未达到可交接密度，请重新生成后再确认",
     });
   }
+  const nonGapCount = (Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : [])
+    .filter((item: any) => String(item?.kind) !== "gap").length;
+  const gate = data?.evidence_quality_gate;
+  if (!gate) {
+    issues.push({
+      severity: "error",
+      code: "evidence_quality_gate_missing",
+      message: "缺少 evidence_quality_gate；确认前须按草稿与 Source Registry 重算并通过",
+    });
+  } else if (gate.passed === false || String(gate.quality_status || "") === "return_required") {
+    issues.push({
+      severity: "error",
+      code: "evidence_quality_gate",
+      message: `证据质量门未通过：${nonEmpty(data?.evidence_quality_summary, "需补证后重试")}`,
+    });
+  }
   // 未达 HQ 时数字 grounding 仍提示；达 HQ 后由 HQ 门禁升为 error
   if (quality !== "high_quality_pass") {
     issues.push(...collectNumericGroundingWarnings(data));
   }
+  const mcpUsage = data?.mcp_channel_usage;
+  if (nonGapCount > 0 && (!mcpUsage || Number(mcpUsage.mcp_evidence_calls || 0) <= 0)) {
+    issues.push({
+      severity: "error",
+      code: "mcp_channel_missing",
+      message: "确认前须至少调用一手 MCP 通道，或将全部非核验主张改为 gap",
+    });
+  }
   issues.push(...applyHighQualityGate(collectStage03HighQualityIssues(data), quality));
   return issues;
+}
+
+/**
+ * 确认前重算证据质量门：忽略可被手工篡改的旧 gate 结论，按当前草稿 + Source Registry 派生。
+ * 不改写 mcp_channel_usage（应由生成期工具留痕写入）。
+ */
+export function recomputeStage03EvidenceQualityGate(
+  data: any,
+  options: { structure?: any; sources?: SourceRecord[] } = {},
+): any {
+  const next = data && typeof data === "object" ? { ...data } : {};
+  const structure = options.structure || {};
+  const units = Array.isArray(structure.judgment_units) ? structure.judgment_units : [];
+  const requirements = Array.isArray(structure.evidence_requirements) && structure.evidence_requirements.length
+    ? structure.evidence_requirements
+    : projectEvidenceRequirementsFromStructure({
+      units,
+      counter_evidence_directions: structure.counter_evidence_directions,
+    });
+  const evidenceQuality = evaluateEvidenceQuality({
+    evidenceDrafts: Array.isArray(next.evidence_drafts) ? next.evidence_drafts : [],
+    sources: Array.isArray(options.sources) ? options.sources : [],
+    judgmentUnits: units,
+    evidenceRequirements: requirements,
+  });
+  next.evidence_quality_gate = {
+    passed: evidenceQuality.passed,
+    quality_status: evidenceQuality.qualityStatus,
+    total_evidence: evidenceQuality.totalEvidence,
+    source_groups: evidenceQuality.sourceGroups,
+    direct_facts: evidenceQuality.directFacts,
+    gap_details: evidenceQuality.gapDetails,
+    evaluated_at: new Date().toISOString(),
+    recomputed_on_approval: true,
+  };
+  next.evidence_quality_summary = evidenceQuality.summary;
+  if (!evidenceQuality.passed || evidenceQuality.qualityStatus === "return_required") {
+    next.quality_status = "return_required";
+    next.return_required = true;
+    next.deterministic_check_status = "not_checked";
+  } else if (
+    evidenceQuality.qualityStatus === "minimum_pass"
+    && String(next.quality_status || "") === "high_quality_pass"
+  ) {
+    next.quality_status = "minimum_pass";
+    next.deterministic_check_status = "not_checked";
+  }
+  return next;
 }
 
 export function assertStage03ReadyForApproval(data: any) {

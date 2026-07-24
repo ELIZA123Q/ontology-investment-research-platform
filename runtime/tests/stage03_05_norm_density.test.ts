@@ -238,7 +238,7 @@ describe("stage03/04/05 norm density", () => {
     expect(data.document_markdown).toBe(data.preparation_markdown);
     expect(data.allowed_05_output).toBe("gap_report_only");
     expect(data.evidence_readiness).toBe("not_ready");
-    data.preparation_markdown = "# 数据与证据准备\n\n".padEnd(420, "覆盖范围、缺口与交给 04 的上限说明。");
+    data.preparation_markdown = "# 数据与证据准备\n\n".padEnd(820, "覆盖范围、缺口与交给 04 的上限说明。");
     data.document_markdown = data.preparation_markdown;
     data.quality_status = "high_quality_pass";
     data.deterministic_check_status = "checked";
@@ -248,8 +248,16 @@ describe("stage03/04/05 norm density", () => {
     });
     data.quality_status = "high_quality_pass";
     data.deterministic_check_status = "checked";
-    data.preparation_markdown = "# 数据与证据准备\n\n".padEnd(420, "覆盖范围、缺口与交给 04 的上限说明。");
+    data.preparation_markdown = "# 数据与证据准备\n\n".padEnd(820, "覆盖范围、缺口与交给 04 的上限说明。");
     data.document_markdown = data.preparation_markdown;
+    data.evidence_quality_gate = {
+      passed: true,
+      quality_status: "high_quality_pass",
+      total_evidence: 5,
+      source_groups: 3,
+      direct_facts: 2,
+    };
+    data.evidence_quality_summary = "证据充分（测试夹具）";
     expect(() => evidencePreparationSchema.parse(data)).not.toThrow();
     expect(() => assertStage03ReadyForApproval(data)).not.toThrow();
     data.quality_status = "return_required";
@@ -259,11 +267,11 @@ describe("stage03/04/05 norm density", () => {
   it("fails stage04 when brief/audit judgment ids drift", () => {
     const data: any = leanStage04();
     syncStage04ReadableMarkdown(data, { question: "库存是否改善？" });
-    data.judgment_brief_markdown = "# 判断简报\n\n".padEnd(420, "一句话结论、对象分化、主路径与竞争解释。");
+    data.judgment_brief_markdown = "# 判断简报\n\n".padEnd(820, "一句话结论、对象分化、主路径与竞争解释，并写明改判条件。");
     data.document_markdown = data.judgment_brief_markdown;
     data.object_differentiation = "库存对象单独观察，不做行业均值替代";
     data.primary_path_ruling = "证据不足，维持不可判断";
-    data.investment_proposition = "等待可核验库存披露后再更新假设";
+    data.investment_proposition = "等待可核验库存披露后再更新假设；改判条件为连续两季同口径改善";
     data.expression_permission = {
       allowed_core_claims: ["暂不可判断"],
       allowed_mechanisms: [],

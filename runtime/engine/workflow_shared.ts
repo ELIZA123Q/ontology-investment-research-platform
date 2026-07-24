@@ -61,11 +61,12 @@ import {
 } from "./readable_markdown";
 import { assertStage01ReadyForApproval, ensureStage01ContractFields } from "./stage01_contract";
 import { assertStage02ReadyForApproval, ensureStage02DocumentFields } from "./stage02_documents";
-import { assertStage03ReadyForApproval, ensureStage03DocumentFields } from "./stage03_documents";
+import { assertStage03ReadyForApproval, ensureStage03DocumentFields, recomputeStage03EvidenceQualityGate } from "./stage03_documents";
 import { assertStage04ReadyForApproval, ensureStage04DocumentFields } from "./stage04_documents";
 import { assertStage05ReadyForApproval, ensureStage05DocumentFields } from "./stage05_documents";
 import { checkDerivedFields, checkCrossStageReferences, computeBindingHash, type OutputQualityReport } from "./output_contract";
 import { routeError, buildReworkReport, type ReturnStage, type ErrorContext } from "./error_router";
+import { validateSemanticReview, SEMANTIC_REVIEW_CHECKS } from "./semantic_review";
 
 export function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;
@@ -173,6 +174,11 @@ export function validateApproval(artifact: Artifact) {
     const run = getRun(artifact.run_id);
     const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
     ensureStage03DocumentFields(data, { question: run?.question, taskId: artifact.run_id, structure });
+    // 确认时重算证据门，防止手工编辑省略/伪造 gate 绕过生成期门禁
+    Object.assign(data, recomputeStage03EvidenceQualityGate(data, {
+      structure,
+      sources: listSources(artifact.run_id),
+    }));
     schemas.stage_03.parse(data);
     assertStage03ReadyForApproval(data);
   } else if (artifact.kind === "stage_04") {
@@ -418,6 +424,30 @@ export function validateApproval(artifact: Artifact) {
     }
     if ((data.verdict === "pass" && data.issues.length) || (data.verdict === "rework" && !data.issues.length)) {
       throw new Error("独立审阅 verdict 与 issues 不一致");
+    }
+    // pass 必须附带正式五项语义审查；禁止仅用批量 verdict 冒充
+    if (data.verdict === "pass") {
+      const checks = Array.isArray(data.semantic_checks) ? data.semantic_checks : [];
+      const validated = validateSemanticReview(
+        {
+          reviewer_id: String(data.reviewer_model || artifact.model_name || "reviewer"),
+          reviewer_type: data.reviewer_type === "human" ? "human" : "model",
+          independent_from_producer: true,
+          checks,
+          verdict: "pass",
+        },
+        {
+          producerId: String(data.producer_model || current.model_name || "producer"),
+          runMode: "development",
+          stageHashes: { stage_04: expectedHash },
+          contractVersion: "1.3.0",
+        },
+      );
+      if (!validated.valid || validated.verdict !== "pass") {
+        throw new Error(
+          `独立审阅 pass 须通过正式五项语义审查（${SEMANTIC_REVIEW_CHECKS.join("、")}）：${validated.errors.join("；") || validated.verdict}`,
+        );
+      }
     }
   }
 }

@@ -1,4 +1,7 @@
 import "server-only";
+import { readFileSync } from "node:fs";
+import YAML from "yaml";
+import { repositoryPath } from "../adapters/repo-paths";
 import {
   createActionExecutionRecord,
   createActionProposalRecord,
@@ -263,6 +266,108 @@ function executeApprovedActionTransaction(runId: string, proposalId: string, exp
   return record;
 }
 
+/** 从本体 YAML 文件提取精简摘要：对象类型、关系类型、规则。
+ *  估算大小约 9-12K chars，覆盖语义结构但不包含完整属性定义。
+ *  YAML 结构为 dict（key=类型名, value={metadata, ...}），不是数组。
+ */
+export function ontologyDefinitionSummary(): string {
+  const lines: string[] = ["# 本体定义摘要（对象类型、关系类型、规则）"];
+
+  const modelFiles = [
+    { path: "ontology/01_通用/models/semantic.yaml", label: "语义模型" },
+    { path: "ontology/01_通用/models/judgment.yaml", label: "判断模型" },
+    { path: "ontology/01_通用/models/evidence.yaml", label: "证据模型" },
+    { path: "ontology/01_通用/models/state_event.yaml", label: "状态事件模型" },
+    { path: "ontology/01_通用/models/scenario.yaml", label: "场景模型" },
+  ];
+
+  for (const { path, label } of modelFiles) {
+    try {
+      const fullPath = repositoryPath(path);
+      const content = readFileSync(fullPath, "utf8");
+      const parsed = YAML.parse(content) as any;
+      if (!parsed) continue;
+
+      // 提取对象类型（dict 结构：key=类型名, value={metadata, primary_key, ...}）
+      const otEntries = Object.entries(parsed.object_types || {});
+      if (otEntries.length) {
+        lines.push(`\n## ${label} - 对象类型 (${otEntries.length})`);
+        for (const [name, val] of otEntries.slice(0, 20)) {
+          const meta = (val as any)?.metadata || {};
+          const def = String(meta.definition || meta.description || (val as any)?.definition || "").slice(0, 200);
+          const pk = (val as any)?.primary_key || "";
+          const labelZh = meta.label_zh || "";
+          lines.push(`- ${name}${labelZh ? `(${labelZh})` : ""}: ${def}${pk ? ` [主键:${pk}]` : ""}`);
+        }
+      }
+
+      // 提取关系类型（dict 结构：key=关系名, value={metadata, source_types, target_types, ...}）
+      const rtEntries = Object.entries(parsed.relation_types || {});
+      if (rtEntries.length) {
+        lines.push(`\n## ${label} - 关系类型 (${rtEntries.length})`);
+        for (const [name, val] of rtEntries.slice(0, 20)) {
+          const meta = (val as any)?.metadata || {};
+          const def = String(meta.definition || (val as any)?.definition || "").slice(0, 150);
+          const src = Array.isArray((val as any)?.source_types)
+            ? (val as any).source_types.join("|")
+            : ((val as any)?.source_type || "?");
+          const tgt = Array.isArray((val as any)?.target_types)
+            ? (val as any).target_types.join("|")
+            : ((val as any)?.target_type || "?");
+          lines.push(`- ${name}: ${def} [${src} → ${tgt}]`);
+        }
+      }
+
+      // 提取规则（dict 结构：key=规则名, value={metadata, rule_class, applies_to, ...}）
+      const ruleEntries = Object.entries(parsed.rules || {});
+      if (ruleEntries.length) {
+        lines.push(`\n## ${label} - 规则 (${ruleEntries.length})`);
+        for (const [name, val] of ruleEntries.slice(0, 10)) {
+          const meta = (val as any)?.metadata || {};
+          const def = String(meta.definition || (val as any)?.definition || "").slice(0, 200);
+          const appliesTo = Array.isArray((val as any)?.applies_to)
+            ? (val as any).applies_to.join(",")
+            : "";
+          lines.push(`- ${name}: ${def}${appliesTo ? ` [作用于:${appliesTo}]` : ""}`);
+        }
+      }
+    } catch {
+      // 文件可能不存在，跳过
+    }
+  }
+
+  // 加载半导体扩展
+  try {
+    const extPath = repositoryPath("ontology/01_通用/models/semiconductor_extension.yaml");
+    const extContent = readFileSync(extPath, "utf8");
+    const extParsed = YAML.parse(extContent) as any;
+    if (extParsed) {
+      const otEntries = Object.entries(extParsed.object_types || {});
+      if (otEntries.length) {
+        lines.push(`\n## 半导体领域扩展 - 对象类型 (${otEntries.length})`);
+        for (const [name, val] of otEntries.slice(0, 10)) {
+          const meta = (val as any)?.metadata || {};
+          const def = String(meta.definition || (val as any)?.definition || "").slice(0, 200);
+          lines.push(`- ${name}: ${def}`);
+        }
+      }
+      const rtEntries = Object.entries(extParsed.relation_types || {});
+      if (rtEntries.length) {
+        lines.push(`\n## 半导体领域扩展 - 关系类型 (${rtEntries.length})`);
+        for (const [name, val] of rtEntries.slice(0, 10)) {
+          const meta = (val as any)?.metadata || {};
+          const def = String(meta.definition || "").slice(0, 150);
+          lines.push(`- ${name}: ${def}`);
+        }
+      }
+    }
+  } catch {
+    // 跳过
+  }
+
+  return lines.join("\n");
+}
+
 export function ontologyContextForPrompt(
   runId: string,
   options: { focusNodeIds?: string[]; focusJudgmentUnitIds?: string[] } = {},
@@ -308,6 +413,8 @@ export function ontologyContextForPrompt(
     lines.push(`Judgment: ${judgments.objects.map((o) => o.id).join(", ") || "(无)"}`);
     lines.push(`MethodApplication: ${methodApplications.objects.map((o) => `${o.id}:${o.properties?.status || "unknown"}`).join(", ") || "(无)"}`);
   }
+  // A2修复：注入本体定义摘要，让模型理解对象类型语义
+  lines.push(ontologyDefinitionSummary());
   lines.push(`可用工具: query_object_set / call_function / propose_action；可执行 Action: ${supportedActions().join(", ")}`);
   return lines.join("\n");
 }
