@@ -64,11 +64,11 @@ export function exportRunPackage(
   }
 
   const files = {
-    stage_01: ["01_task.yaml"],
-    stage_02: ["02_structure.yaml"],
-    stage_03: ["03_evidence.yaml"],
-    stage_04: ["04_judgment.yaml"],
-    stage_05: ["05_expression.yaml", "05_report.md"],
+    stage_01: ["01_task.yaml", "01-投研需求说明.md"],
+    stage_02: ["02_structure.yaml", "02-研究逻辑.md", "02-本体视图.yaml"],
+    stage_03: ["03_evidence.yaml", "03-数据与证据准备.md", "03-语义域与证据域实例清单.yaml", "03-证据快照摘要.yaml"],
+    stage_04: ["04_judgment.yaml", "04-判断简报.md", "04-推理审计.yaml"],
+    stage_05: ["05_expression.yaml", "05-研究报告.md", "05_report.md", "05-表达审计.yaml"],
   };
 
   writeFileSync(
@@ -82,18 +82,71 @@ export function exportRunPackage(
         schema_name: "controlled_research_run_manifest",
         schema_version: "1.3.0",
       },
-      note: "工作台 Zod 投影；文件名对齐 V3 紧凑布局，不是正式发布包，也不是黄金样例。",
+      note: "工作台 Zod 投影；01—05 对齐规范双产物命名，不是正式发布包，也不是黄金样例。",
     }),
     "utf8",
   );
   writeFileSync(path.join(exportDir, "01_task.yaml"), YAML.stringify(projectTask(s01.data, manifest)), "utf8");
-  writeFileSync(path.join(exportDir, "02_structure.yaml"), YAML.stringify(projectStructure(s02.data)), "utf8");
-  writeFileSync(path.join(exportDir, "03_evidence.yaml"), YAML.stringify(projectEvidence(s03.data)), "utf8");
-  writeFileSync(path.join(exportDir, "04_judgment.yaml"), YAML.stringify(projectJudgment(s04.data)), "utf8");
-  writeFileSync(path.join(exportDir, "05_expression.yaml"), YAML.stringify(projectExpression(s05.data)), "utf8");
   writeFileSync(
-    path.join(exportDir, "05_report.md"),
-    s05.artifact?.markdown_content || s05.data.document_markdown || `# ${s05.data.title || "工作台报告"}\n`,
+    path.join(exportDir, "01-投研需求说明.md"),
+    s01.artifact?.markdown_content || s01.data.document_markdown || "# 投研需求说明\n",
+    "utf8",
+  );
+  writeFileSync(path.join(exportDir, "02_structure.yaml"), YAML.stringify(projectStructure(s02.data)), "utf8");
+  writeFileSync(
+    path.join(exportDir, "02-研究逻辑.md"),
+    s02.artifact?.markdown_content || s02.data.research_logic_markdown || s02.data.document_markdown || "# 研究逻辑\n",
+    "utf8",
+  );
+  writeFileSync(
+    path.join(exportDir, "02-本体视图.yaml"),
+    String(s02.data.ontology_view_yaml || YAML.stringify(projectStructure(s02.data))),
+    "utf8",
+  );
+  writeFileSync(path.join(exportDir, "03_evidence.yaml"), YAML.stringify(projectEvidence(s03.data)), "utf8");
+  writeFileSync(
+    path.join(exportDir, "03-数据与证据准备.md"),
+    s03.artifact?.markdown_content || s03.data.preparation_markdown || s03.data.document_markdown || "# 数据与证据准备\n",
+    "utf8",
+  );
+  writeFileSync(
+    path.join(exportDir, "03-语义域与证据域实例清单.yaml"),
+    String(s03.data.instance_manifest_yaml || "document_type: cross_domain_runtime_instance_manifest\nnote: missing\n"),
+    "utf8",
+  );
+  writeFileSync(
+    path.join(exportDir, "03-证据快照摘要.yaml"),
+    YAML.stringify({
+      document_type: "evidence_snapshot_summary",
+      snapshot_ref: s03.data.snapshot_ref || "03-证据快照摘要.yaml",
+      sources_count: Array.isArray(s03.data.sources) ? s03.data.sources.length : 0,
+      evidence_draft_count: Array.isArray(s03.data.evidence_drafts) ? s03.data.evidence_drafts.length : 0,
+      unresolved_gaps: s03.data.unresolved_gaps || [],
+      evidence_readiness: s03.data.evidence_readiness || null,
+      delivery_readiness: s03.data.delivery_readiness || null,
+      allowed_05_output: s03.data.allowed_05_output || null,
+    }),
+    "utf8",
+  );
+  writeFileSync(path.join(exportDir, "04_judgment.yaml"), YAML.stringify(projectJudgment(s04.data)), "utf8");
+  writeFileSync(
+    path.join(exportDir, "04-判断简报.md"),
+    s04.artifact?.markdown_content || s04.data.judgment_brief_markdown || s04.data.document_markdown || "# 判断简报\n",
+    "utf8",
+  );
+  writeFileSync(
+    path.join(exportDir, "04-推理审计.yaml"),
+    String(s04.data.reasoning_audit_yaml || "document_type: reasoning_audit\nnote: missing\n"),
+    "utf8",
+  );
+  writeFileSync(path.join(exportDir, "05_expression.yaml"), YAML.stringify(projectExpression(s05.data)), "utf8");
+  const stage05Report =
+    s05.artifact?.markdown_content || s05.data.document_markdown || `# ${s05.data.title || "工作台报告"}\n`;
+  writeFileSync(path.join(exportDir, "05-研究报告.md"), stage05Report, "utf8");
+  writeFileSync(path.join(exportDir, "05_report.md"), stage05Report, "utf8");
+  writeFileSync(
+    path.join(exportDir, "05-表达审计.yaml"),
+    String(s05.data.expression_audit_yaml || "document_type: expression_audit\nnote: missing\n"),
     "utf8",
   );
 

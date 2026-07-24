@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import { normalizeEvidencePreparationNulls } from "@/engine/evidence_draft_normalize";
 import { evidencePreparationSchema } from "@/engine/schemas";
+import { syncStage03ReadableMarkdown } from "@/engine/readable_markdown";
 
 let workflow: typeof import("@/engine/workflow");
 
@@ -75,6 +76,7 @@ describe("evidence_draft_normalize", () => {
     expect(repaired.sources[0].publisher).toBe("");
     expect(repaired.sources[0].search_excerpt).toBe("");
     expect(repaired.unresolved_gaps).toEqual([]);
+    syncStage03ReadableMarkdown(repaired);
     expect(() => evidencePreparationSchema.parse(repaired)).not.toThrow();
   });
 
@@ -152,5 +154,116 @@ describe("evidence_draft_normalize", () => {
     expect(reconciled.evidence_drafts.some((item: any) => item.id === "EV-GAP-05" && item.kind === "gap")).toBe(true);
     expect(reconciled.method_applications[0].input_evidence_refs).toContain("EV-GAP-05");
     expect(reconciled.method_applications[0].status).toBe("degraded");
+  });
+
+  it("把已绑定来源的事实降为 gap 时强制清空 source_keys，并纠正非法 kind", async () => {
+    const { normalizeEvidenceDraftNulls } = await import("@/engine/evidence_draft_normalize");
+    const asGap: any = normalizeEvidenceDraftNulls({
+      id: "EV-1",
+      statement: "无法核验的主张",
+      kind: "gap",
+      direction: "support",
+      source_keys: ["SRC-06", "SRC-07"],
+      source_ids: ["uuid-1"],
+      judgment_unit_ids: ["JU-1"],
+      ontology_node_ids: [],
+      requirement: "取得可核验披露",
+      evidence_role: "support",
+      minimum_independent_sources: 1,
+      limitations: [],
+    });
+    expect(asGap).toMatchObject({
+      kind: "gap",
+      direction: "unknown",
+      source_keys: [],
+      source_ids: [],
+    });
+    expect(asGap.limitations.some((item: string) => item.includes("SRC-06"))).toBe(true);
+
+    const coerced: any = normalizeEvidenceDraftNulls({
+      id: "EV-2",
+      statement: "缺证据",
+      kind: "evidence_gap",
+      source_keys: null,
+      judgment_unit_ids: ["JU-1"],
+      requirement: "补公开原文",
+      evidence_role: "support",
+      minimum_independent_sources: 1,
+    });
+    expect(coerced.kind).toBe("gap");
+    expect(coerced.source_keys).toEqual([]);
+  });
+
+  it("纠正 precondition result 与 semiconductor metric_kind 非法枚举", async () => {
+    const { normalizeMethodApplicationNulls, normalizeEvidenceDraftNulls } = await import("@/engine/evidence_draft_normalize");
+    const method: any = normalizeMethodApplicationNulls({
+      application_id: "MA-1",
+      precondition_checks: [
+        { precondition_id: "P1", result: "passed", evidence_refs: [], reason: "ok" },
+        { precondition_id: "P2", result: "unchecked", evidence_refs: [], reason: "" },
+        { precondition_id: "P3", result: "weird", evidence_refs: [], reason: "" },
+      ],
+      provenance: null,
+    });
+    expect(method.precondition_checks.map((item: any) => item.result)).toEqual([
+      "pass",
+      "not_checked",
+      "not_checked",
+    ]);
+    expect(method.precondition_checks[1].reason).toBe("未提供前置条件说明");
+
+    const chinese: any = normalizeMethodApplicationNulls({
+      application_id: "MA-2",
+      precondition_checks: [
+        { precondition_id: "", result: "通过", evidence_refs: null, reason: null },
+        { precondition_id: "P2", result: "失败", evidence_refs: [], reason: "缺正文" },
+      ],
+    });
+    expect(chinese.precondition_checks.map((item: any) => item.result)).toEqual(["pass", "fail"]);
+    expect(chinese.precondition_checks[0].precondition_id).toBe("unspecified_precondition");
+    expect(chinese.precondition_checks[0].reason).toBe("未提供前置条件说明");
+
+    const yieldDraft: any = normalizeEvidenceDraftNulls({
+      id: "EV-Y",
+      statement: "某厂良率提升",
+      kind: "fact_draft",
+      source_keys: ["SRC-1"],
+      judgment_unit_ids: ["JU-1"],
+      semiconductor_measurement: { metric_kind: "wafer_yield", facility_ref: null },
+    });
+    expect(yieldDraft.semiconductor_measurement.metric_kind).toBe("yield");
+
+    const junk: any = normalizeEvidenceDraftNulls({
+      id: "EV-X",
+      statement: "无关叙述",
+      kind: "fact_draft",
+      source_keys: ["SRC-1"],
+      judgment_unit_ids: ["JU-1"],
+      semiconductor_measurement: { metric_kind: "throughput", facility_ref: null },
+    });
+    expect(junk.semiconductor_measurement).toBeNull();
+  });
+
+  it("抓取后无可用 quote 的事实降为 gap", async () => {
+    const { demoteUnverifiedEvidenceDrafts } = await import("@/engine/evidence_draft_normalize");
+    const demoted: any = demoteUnverifiedEvidenceDrafts({
+      sources: [
+        { source_key: "SRC-OK", quote_verified: true, usability_status: "usable", retrieval_status: "captured" },
+        { source_key: "SRC-BAD", quote_verified: false, usability_status: "limited", retrieval_status: "limited" },
+      ],
+      evidence_drafts: [
+        { id: "EV-1", kind: "fact_draft", statement: "ok", source_keys: ["SRC-OK"], judgment_unit_ids: ["JU-1"] },
+        { id: "EV-2", kind: "fact_draft", statement: "bad", source_keys: ["SRC-BAD"], judgment_unit_ids: ["JU-1"] },
+      ],
+      unresolved_gaps: [],
+    });
+    expect(demoted.evidence_drafts[0].kind).toBe("fact_draft");
+    expect(demoted.evidence_drafts[1]).toMatchObject({
+      kind: "gap",
+      direction: "unknown",
+      source_keys: [],
+      source_ids: [],
+    });
+    expect(demoted.unresolved_gaps[0]).toMatch(/EV-2/);
   });
 });

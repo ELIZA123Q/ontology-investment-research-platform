@@ -109,13 +109,35 @@ export function StageWorkspace({
   const [md, setMd] = useState(artifact?.markdown_content || "");
   const [showAdvancedJson, setShowAdvancedJson] = useState(false);
   const [validation, setValidation] = useState<ValidationState | null>(null);
+  const [clarifyAnswer, setClarifyAnswer] = useState("");
+  const [stage02PreviewTab, setStage02PreviewTab] = useState<"logic" | "ontology">("logic");
+  const [stageDualPreviewTab, setStageDualPreviewTab] = useState<"primary" | "companion">("primary");
 
   useEffect(() => {
     setJson(artifact?.json_content || "{}");
     setMd(artifact?.markdown_content || "");
     setError(artifact?.error_message || "");
     setValidation(null);
+    setClarifyAnswer("");
+    setStageDualPreviewTab("primary");
   }, [artifact?.id, artifact?.json_content, artifact?.markdown_content, artifact?.error_message, artifact?.tool_usage]);
+
+  let parsedStageJson: any = {};
+  try { parsedStageJson = JSON.parse(json || "{}"); } catch { parsedStageJson = {}; }
+  const pendingClarification = Array.isArray(parsedStageJson?.input_resolution?.clarifications)
+    ? parsedStageJson.input_resolution.clarifications.find((item: any) => !item?.answer)
+    : null;
+  const needsClarification = stage === 1 && (
+    String(parsedStageJson?.task_disposition || "") === "needs_clarification"
+    || Boolean(pendingClarification)
+  );
+  const ontologyYamlPreview = String(parsedStageJson?.ontology_view_yaml || "");
+  const logicPreview = String(parsedStageJson?.research_logic_markdown || md || "");
+  const stage03PrepPreview = String(parsedStageJson?.preparation_markdown || md || "");
+  const stage03ManifestPreview = String(parsedStageJson?.instance_manifest_yaml || "");
+  const stage04BriefPreview = String(parsedStageJson?.judgment_brief_markdown || md || "");
+  const stage04AuditPreview = String(parsedStageJson?.reasoning_audit_yaml || "");
+  const stage05AuditPreview = String(parsedStageJson?.expression_audit_yaml || "");
 
   const jobInFlight = Boolean(activeJob && ["queued", "running", "retrying"].includes(activeJob.status));
   const jobNeedsAttention = Boolean(activeJob && ["waiting_for_input", "blocked"].includes(activeJob.status));
@@ -256,6 +278,23 @@ export function StageWorkspace({
     }
   }
 
+  async function submitClarification() {
+    if (!clarifyAnswer.trim()) {
+      setError("请先填写澄清回答");
+      return;
+    }
+    setClarifyAnswer("");
+    await call(`/api/runs/${runId}/stages/01/clarify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        answer: clarifyAnswer,
+        question_id: pendingClarification?.question_id,
+        regenerate: true,
+      }),
+    });
+  }
+
   async function generateStage03(mode: "regenerate" | "evidence_supplement" = "regenerate") {
     await call(`/api/runs/${runId}/stages/${stage}/generate`, {
       method: "POST",
@@ -268,7 +307,7 @@ export function StageWorkspace({
     ? `第 ${artifact.version} 版 · ${artifactStatusLabel(artifact.status)} · ${artifactModelLabel(artifact.model_name, artifact.status)}`
     : activeJob ? researchJobStatusLabel(activeJob.status) : "尚未首次生成";
   const formEditable = unlocked && !busy && artifact?.status !== "running" && !jobInFlight;
-  const canApprove = Boolean(artifact && artifact.status === "needs_review");
+  const canApprove = Boolean(artifact && artifact.status === "needs_review" && !needsClarification);
   const generateLabel = busy || artifact?.status === "running" || jobInFlight
     ? "模型正在工作…"
     : artifact
@@ -276,25 +315,35 @@ export function StageWorkspace({
       : "生成本阶段 →";
   const generateClass = artifact ? "button-secondary" : "button";
   const approveClass = canApprove ? "button" : "button-secondary";
+  const approveLabel = needsClarification ? "请先完成澄清" : "确认并进入下一阶段";
 
   return <>
     <div className="workspace-toolbar">
       <div className="actions">
-        {stage === 3 && artifact ? <>
-          <button className={generateClass} disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("regenerate")}>{generateLabel}</button>
-          <button className="button-quiet" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("evidence_supplement")}>补充取证</button>
-        </> : <button className={generateClass} disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{generateLabel}</button>}
+        {stage === 3 ? null : (
+          <button className={generateClass} disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => call(`/api/runs/${runId}/stages/${stage}/generate`, { method: "POST" })}>{generateLabel}</button>
+        )}
         {activeJob && (jobInFlight || jobNeedsAttention) ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/jobs/${activeJob.id}/cancel`, { method: "POST" })}>取消后台任务</button> : artifact?.status === "running" ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button> : null}
         {stage === 1 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveScope}>{busy ? "正在保存…" : artifact ? "保存研究范围" : "建立研究范围"}</button>
-          {artifact && artifact.status !== "failed" ? <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button> : null}
+          {artifact && artifact.status !== "failed" ? <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>{approveLabel}</button> : null}
         </> : stage === 2 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveStructure}>{busy ? "正在保存…" : artifact ? "保存研究结构" : "建立研究结构"}</button>
           {artifact && artifact.status !== "failed" ? <button className={approveClass} disabled={busy || !canApprove} onClick={confirmStage02}>{busy ? "正在校验…" : "确认并进入下一阶段"}</button> : null}
         </> : stage === 3 ? <>
+          {canApprove ? <Link className="button" href={`/runs/${runId}/evidence`}>去证据审阅批准 →</Link> : null}
           {artifact && artifact.status !== "failed" ? (
-            <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
+            <button className="button-secondary" disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
           ) : null}
+          <details className="toolbar-more">
+            <summary>模型自动取证（次级）</summary>
+            <p className="muted">日常手动路径：左侧「抓取 URL → 挂判断 → 审阅」。点下方按钮时，worker 可走一手 MCP（巨潮 / 通联财务 / 中央政策），失败再回退 Bing 与公开网页；MCP 结果仍须核验原文后才能当证据。</p>
+            <button className="button-quiet" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("regenerate")}>{artifact ? "重新生成整包证据" : "让模型自动取证"}</button>
+            {artifact ? <button className="button-quiet" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("evidence_supplement")}>按缺口补充取证</button> : null}
+            {artifact?.status === "failed" ? (
+              <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/03/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_gap_fallback", reason: "公开来源取得或模型结构化提交失败，人工选择登记显式证据缺口" }) })}>登记为显式证据缺口</button>
+            ) : null}
+          </details>
         </> : stage === 4 ? <>
           <button className="button-secondary" disabled={!formEditable || !judgmentProjection} onClick={saveJudgment}>{busy ? "正在保存…" : "保存推理逻辑"}</button>
           {artifact && artifact.status !== "failed" ? (
@@ -304,15 +353,10 @@ export function StageWorkspace({
           <button className="button-secondary" disabled={busy} onClick={saveMarkdown}>保存可读稿</button>
           <button className={approveClass} disabled={busy || artifact.status !== "needs_review"} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
         </> : null}
-        {(stage === 3 && artifact?.status === "failed") || (stage === 4 && artifact?.status === "failed") ? (
+        {stage === 4 && artifact?.status === "failed" ? (
           <details className="toolbar-more">
             <summary>更多</summary>
-            {stage === 3 && artifact?.status === "failed" ? (
-              <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/03/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_gap_fallback", reason: "公开来源取得或模型结构化提交失败，人工选择登记显式证据缺口" }) })}>登记为显式证据缺口</button>
-            ) : null}
-            {stage === 4 && artifact?.status === "failed" ? (
-              <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成" }) })}>生成「暂不可判断」结论</button>
-            ) : null}
+            <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成" }) })}>生成「暂不可判断」结论</button>
           </details>
         ) : null}
       </div>
@@ -358,6 +402,28 @@ export function StageWorkspace({
         </div>
       </div>
     ) : null}
+    {needsClarification ? (
+      <div className="notice structure-validation">
+        <strong>需要澄清后才能确认 Stage01</strong>
+        <p>系统理解：{parsedStageJson?.input_resolution?.system_understanding?.core_object || "—"} / {parsedStageJson?.input_resolution?.system_understanding?.judgment_action || "—"}</p>
+        <p><strong>{pendingClarification?.question_id || "UC"}</strong> · {pendingClarification?.topic || "structural_ambiguity"}</p>
+        <p>{pendingClarification?.question || "请回答当前结构性歧义问题。"}</p>
+        <textarea
+          aria-label="澄清回答"
+          className="json-editor"
+          rows={3}
+          value={clarifyAnswer}
+          onChange={(event) => setClarifyAnswer(event.target.value)}
+          disabled={!formEditable}
+          placeholder="用一句话给出可操作的澄清回答"
+        />
+        <div className="actions">
+          <button type="button" className="button" disabled={!formEditable || !clarifyAnswer.trim()} onClick={submitClarification}>
+            提交澄清并重新生成
+          </button>
+        </div>
+      </div>
+    ) : null}
     {stage === 1 ? <div className="two-col">
       <section className="card scope-panel">
         <div className="panel-head"><h2>研究范围</h2><span>四层合同：问题 → 判断 → 时间 → 边界</span></div>
@@ -376,7 +442,7 @@ export function StageWorkspace({
         </div>
       </section>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>可读稿</h2><span>由后台结构化内容同步生成，只读</span></div>
+        <div className="panel-head"><h2>投研需求说明</h2><span>规范正文，由结构化字段同步，只读</span></div>
         <article className="markdown preview-pane preview-pane-only">
           {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无可读稿。保存研究范围或模型生成后会显示在这里。</p>}
         </article>
@@ -407,10 +473,25 @@ export function StageWorkspace({
         </div>
       </section>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>可读稿</h2><span>由后台结构化内容同步生成，只读</span></div>
-        <article className="markdown preview-pane preview-pane-only">
-          {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无可读稿。保存研究结构或模型生成后会显示在这里。</p>}
-        </article>
+        <div className="panel-head">
+          <h2>双产物预览</h2>
+          <span>
+            <button type="button" className={stage02PreviewTab === "logic" ? "button-quiet" : "button-quiet"} onClick={() => setStage02PreviewTab("logic")}>研究逻辑</button>
+            {" · "}
+            <button type="button" className="button-quiet" onClick={() => setStage02PreviewTab("ontology")}>本体视图 YAML</button>
+          </span>
+        </div>
+        {stage02PreviewTab === "logic" ? (
+          <article className="markdown preview-pane preview-pane-only">
+            {logicPreview.trim()
+              ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{logicPreview}</ReactMarkdown>
+              : <p className="muted">尚无研究逻辑正文。</p>}
+          </article>
+        ) : (
+          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
+            {ontologyYamlPreview.trim() || "尚无本体视图 YAML。保存或生成 Stage02 后会写入 ontology_view_yaml。"}
+          </pre>
+        )}
       </section>
     </div> : stage === 3 ? <div className="two-col">
       <div className="stage3-left-stack">
@@ -431,10 +512,25 @@ export function StageWorkspace({
         )}
       </div>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>证据准备</h2><span>Stage 03 产出结果，只读</span></div>
-        <article className="markdown preview-pane preview-pane-only">
-          {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无证据准备结果。生成或补充来源并投影后会显示在这里。</p>}
-        </article>
+        <div className="panel-head">
+          <h2>双产物预览</h2>
+          <span>
+            <button type="button" className="button-quiet" onClick={() => setStageDualPreviewTab("primary")}>数据与证据准备</button>
+            {" · "}
+            <button type="button" className="button-quiet" onClick={() => setStageDualPreviewTab("companion")}>实例清单 YAML</button>
+          </span>
+        </div>
+        {stageDualPreviewTab === "primary" ? (
+          <article className="markdown preview-pane preview-pane-only">
+            {stage03PrepPreview.trim()
+              ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{stage03PrepPreview}</ReactMarkdown>
+              : <p className="muted">尚无证据准备结果。生成或补充来源并投影后会显示在这里。</p>}
+          </article>
+        ) : (
+          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
+            {stage03ManifestPreview.trim() || "尚无实例清单 YAML。保存或生成 Stage03 后会写入 instance_manifest_yaml。"}
+          </pre>
+        )}
       </section>
     </div> : stage === 4 ? <div className="two-col">
       <section className="card scope-panel">
@@ -471,14 +567,29 @@ export function StageWorkspace({
         </div>
       </section>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>可读稿</h2><span>由后台结构化内容同步生成，只读</span></div>
-        <article className="markdown preview-pane preview-pane-only">
-          {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无可读稿。保存推理逻辑或模型生成后会显示在这里。</p>}
-        </article>
+        <div className="panel-head">
+          <h2>双产物预览</h2>
+          <span>
+            <button type="button" className="button-quiet" onClick={() => setStageDualPreviewTab("primary")}>判断简报</button>
+            {" · "}
+            <button type="button" className="button-quiet" onClick={() => setStageDualPreviewTab("companion")}>推理审计 YAML</button>
+          </span>
+        </div>
+        {stageDualPreviewTab === "primary" ? (
+          <article className="markdown preview-pane preview-pane-only">
+            {stage04BriefPreview.trim()
+              ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{stage04BriefPreview}</ReactMarkdown>
+              : <p className="muted">尚无可读稿。保存推理逻辑或模型生成后会显示在这里。</p>}
+          </article>
+        ) : (
+          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
+            {stage04AuditPreview.trim() || "尚无推理审计 YAML。保存或生成 Stage04 后会写入 reasoning_audit_yaml。"}
+          </pre>
+        )}
       </section>
     </div> : stage === 5 && artifact ? <div className="two-col">
       <section className="card editor-panel">
-        <div className="panel-head"><h2>交付稿</h2><span>Markdown 可读稿，可直接编辑</span></div>
+        <div className="panel-head"><h2>研报正文</h2><span>Markdown 可读稿，可直接编辑</span></div>
         <textarea
           aria-label="交付稿 Markdown"
           className="json-editor"
@@ -495,10 +606,23 @@ export function StageWorkspace({
         </details>
       </section>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>预览</h2><span>保存后同步到交付页</span></div>
-        <article className="markdown preview-pane preview-pane-only">
-          {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无可读稿。生成或重新生成后会显示在这里。</p>}
-        </article>
+        <div className="panel-head">
+          <h2>双产物预览</h2>
+          <span>
+            <button type="button" className="button-quiet" onClick={() => setStageDualPreviewTab("primary")}>研报预览</button>
+            {" · "}
+            <button type="button" className="button-quiet" onClick={() => setStageDualPreviewTab("companion")}>表达审计 YAML</button>
+          </span>
+        </div>
+        {stageDualPreviewTab === "primary" ? (
+          <article className="markdown preview-pane preview-pane-only">
+            {md.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{md}</ReactMarkdown> : <p className="muted">尚无可读稿。生成或重新生成后会显示在这里。</p>}
+          </article>
+        ) : (
+          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
+            {stage05AuditPreview.trim() || "尚无表达审计 YAML。保存或生成 Stage05 后会写入 expression_audit_yaml。"}
+          </pre>
+        )}
       </section>
     </div> : null}
   </>;

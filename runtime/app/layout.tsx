@@ -4,8 +4,8 @@ import { ActiveJobsIndicator } from "@/app/components/active-jobs-indicator";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "本体投研工作台",
-  description: "以证据、本体与可复盘判断驱动的研究运行工作台",
+  title: "本体约束的投研判断工作台",
+  description: "以本体提供语义与约束、以证据与确定性计算提供事实基础、以 LLM 完成受约束判断的投研工作台",
 };
 
 function RadarIcon() {
@@ -27,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="topbar">
           <Link href="/" className="brand">
             <span className="brandmark">OR</span>
-            <span className="brand-copy"><strong>本体投研工作台</strong><small>证据可复盘的投研工作台</small></span>
+            <span className="brand-copy"><strong>本体约束工作台</strong><small>语义约束 · 证据计算 · 受约束判断</small></span>
           </Link>
           <nav aria-label="主导航">
             <Link href="/"><RadarIcon />研究雷达</Link>

@@ -2,6 +2,20 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runResearchWorkerLoop } from "../engine/research_job_runner";
 
+/**
+ * Cursor / 沙箱常注入失效的 HTTP(S)_PROXY；Node 会走代理导致 DeepSeek Connection error。
+ * 与 scripts/dev-singleton.sh 对齐，启动时清掉代理。
+ */
+function clearInheritedProxyEnv() {
+  for (const key of [
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+    "http_proxy", "https_proxy", "all_proxy",
+    "SOCKS_PROXY", "SOCKS5_PROXY", "socks_proxy", "socks5_proxy",
+  ]) {
+    delete process.env[key];
+  }
+}
+
 /** Next.js 会自动读 .env.local；独立 worker 不会，必须显式加载。 */
 function loadEnvLocal() {
   const envPath = resolve(process.cwd(), ".env.local");
@@ -24,6 +38,7 @@ function loadEnvLocal() {
   }
 }
 
+clearInheritedProxyEnv();
 loadEnvLocal();
 
 const controller = new AbortController();

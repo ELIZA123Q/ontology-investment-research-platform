@@ -3,10 +3,35 @@ import { z } from "zod";
 
 vi.mock("server-only", () => ({}));
 
-import { accumulateTokenUsage, parseDirectJson } from "@/adapters/deepseek";
+import { accumulateTokenUsage, parseDirectJson, resolveMaxToolRounds } from "@/adapters/deepseek";
 
 describe("DeepSeek structured-output recovery", () => {
   const schema = z.object({ decision: z.enum(["supported", "indeterminate"]), evidence_ids: z.array(z.string()) });
+
+  it("uses test-friendly tool-round defaults and option/env overrides", () => {
+    const prev = {
+      MODEL_TOOL_ROUNDS: process.env.MODEL_TOOL_ROUNDS,
+      MODEL_TOOL_ROUNDS_WEB: process.env.MODEL_TOOL_ROUNDS_WEB,
+      MODEL_MAX_TOOL_ROUNDS: process.env.MODEL_MAX_TOOL_ROUNDS,
+    };
+    try {
+      delete process.env.MODEL_TOOL_ROUNDS;
+      delete process.env.MODEL_TOOL_ROUNDS_WEB;
+      delete process.env.MODEL_MAX_TOOL_ROUNDS;
+      expect(resolveMaxToolRounds({})).toBe(6);
+      expect(resolveMaxToolRounds({ webSearch: true })).toBe(8);
+      expect(resolveMaxToolRounds({ maxToolRounds: 4 })).toBe(4);
+      process.env.MODEL_TOOL_ROUNDS = "20";
+      process.env.MODEL_TOOL_ROUNDS_WEB = "32";
+      expect(resolveMaxToolRounds({})).toBe(20);
+      expect(resolveMaxToolRounds({ webSearch: true })).toBe(32);
+    } finally {
+      for (const [key, value] of Object.entries(prev)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
 
   it("accepts a validated plain JSON result and strips a defensive code fence", () => {
     expect(parseDirectJson('{"decision":"supported","evidence_ids":["EV-1"]}', schema))

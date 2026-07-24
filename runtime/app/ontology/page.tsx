@@ -11,11 +11,93 @@ import type { OntologyResearchEffectKind } from "@/engine/ontology_research_valu
 
 export const dynamic = "force-dynamic";
 
+type OntologyTabId = "network" | "catalog" | "methods" | "comparability" | "queries" | "governance";
+type OntologyTabGroup = "run" | "cross" | "governance";
+
+type TabGuide = {
+  id: OntologyTabId;
+  group: OntologyTabGroup;
+  label: string;
+  blurb: string;
+  answers: string;
+  sees: string[];
+  nextUse: string;
+};
+
+const TAB_GROUPS: Array<{ id: OntologyTabGroup; label: string; hint: string; demoted?: boolean }> = [
+  { id: "run", label: "看本轮", hint: "核对当前研究用了什么知识" },
+  { id: "cross", label: "跨研究", hint: "对齐口径与影响范围" },
+  { id: "governance", label: "治理", hint: "专家维护正式本体", demoted: true },
+];
+
+const TAB_GUIDE: TabGuide[] = [
+  {
+    id: "network",
+    group: "run",
+    label: "本体网络",
+    blurb: "本轮研究实际用到了哪些类型与规则",
+    answers: "本轮触及了哪些本体节点？",
+    sees: ["默认只显示任务相关子图", "可切换完整网络做排查", "与上方「补全 / 限制 / 关联」对照"],
+    nextUse: "用来核对系统补全与约束是否合理，而不是浏览完整大图。",
+  },
+  {
+    id: "catalog",
+    group: "run",
+    label: "类型目录",
+    blurb: "查某个类型的定义，以及本轮有没有实例",
+    answers: "这个类型是什么、本轮有没有实例？",
+    sees: ["类型定义、属性与关系端点", "本轮对应实例列表", "可执行操作提示"],
+    nextUse: "避免把「类型存在」当成「本轮已用」；有实例再回结构/证据页核对。",
+  },
+  {
+    id: "methods",
+    group: "run",
+    label: "方法与规范",
+    blurb: "各阶段注入给模型的方法文件（只读摘录）",
+    answers: "模型按什么规范跑各阶段？",
+    sees: ["按阶段列出的方法资产", "文件路径与开头摘录", "运行时注入来源说明"],
+    nextUse: "查方法口径；全文仍在 methods/，此处不做编辑器。",
+  },
+  {
+    id: "comparability",
+    group: "cross",
+    label: "跨研究口径",
+    blurb: "同名正式变量能不能直接对比",
+    answers: "这两个变量能不能直接比？",
+    sees: ["可比 / 不可直比 / 信息不足三态", "对象、指标、单位、时间基准等口径", "阻断或信息不足的具体原因"],
+    nextUse: "写跨研究结论前先看这里，避免混口径。",
+  },
+  {
+    id: "queries",
+    group: "cross",
+    label: "研究问题查询",
+    blurb: "证据影响哪些判断、变量出现在哪些研究",
+    answers: "证据/变量的下游影响是什么？",
+    sees: ["证据 → 判断的正式影响路径", "变量跨研究出现位置", "正式本体与 task_local 区分"],
+    nextUse: "评估补证与改判的波及面，再回到证据台或判断审阅。",
+  },
+  {
+    id: "governance",
+    group: "governance",
+    label: "本体缺口治理",
+    blurb: "专家确认 / 晋升 / 驳回 task_local 候选",
+    answers: "哪些 task_local 该升正式本体？",
+    sees: ["跨 run 频次与复用信号", "确认 / 晋升 / 驳回操作", "追加式决策历史"],
+    nextUse: "晋升只登记进入正式本体变更流程，不会自动改写本体 YAML。",
+  },
+];
+
 function displayComparisonField(value: unknown, fallback: string): string {
   if (value === null || value === undefined || value === "") return fallback;
   if (Array.isArray(value)) return value.map(String).join("、") || fallback;
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
+}
+
+function tabHref(tabId: OntologyTabId, runId?: string): string {
+  if (tabId === "governance" || tabId === "comparability") return `/ontology?tab=${tabId}`;
+  if (tabId === "queries") return `/ontology?tab=queries${runId ? `&queryRunId=${runId}` : ""}`;
+  return `/ontology?tab=${tabId}${runId ? `&runId=${runId}` : ""}`;
 }
 
 export default async function OntologyPage({
@@ -31,7 +113,9 @@ export default async function OntologyPage({
     || runs.find((run) => run.current_stage > 0 && run.status !== "archived")?.id
     || runs.find((run) => run.status !== "archived")?.id
     || runs[0]?.id;
-  const tab = q.tab || "network";
+  const requestedTab = q.tab || "network";
+  const tabGuide = TAB_GUIDE.find((item) => item.id === requestedTab) || TAB_GUIDE[0];
+  const tab = tabGuide.id;
   const touched = runId ? collectRunOntologyTouchpoints(runId) : [];
   const ontologyValue = runId ? getRunOntologyResearchValue(runId) : null;
   const allRelevantIds = [...new Set([...touched, ...(ontologyValue?.relevant_node_ids || [])])];
@@ -58,32 +142,78 @@ export default async function OntologyPage({
       <div className="pagehead">
         <div>
           <div className="eyebrow">知识库</div>
-          <h1>本体网络与方法规范</h1>
-          <p className="muted">跨研究复用的知识资产：本体类型网络、定义目录与各阶段规范。</p>
+          <h1>看懂系统用了什么知识</h1>
+          <p className="muted">
+            这里不是新建研究入口，而是回答三类问题：本轮用了什么、跨研究能否对齐、缺口要不要进正式本体。
+          </p>
+          {!runId ? (
+            <p className="muted ontology-run-hint">当前还没有可高亮的研究；先创建研究后，「看本轮」视图才有任务上下文。</p>
+          ) : (
+            <p className="muted ontology-run-hint">切换研究后，「看本轮」相关视图会按该研究高亮与过滤。</p>
+          )}
         </div>
-        <form>
+        <form className="ontology-run-switcher">
           <input type="hidden" name="node" value={selected?.id || ""} />
           <input type="hidden" name="tab" value={tab} />
-          <select name="runId" defaultValue={runId} onChange={undefined}>
-            {runs.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.question.slice(0, 36)}
-              </option>
-            ))}
-          </select>
-          <button className="button-secondary">切换高亮研究</button>
+          <label>
+            <span>高亮研究</span>
+            <select name="runId" defaultValue={runId} onChange={undefined}>
+              {runs.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.question.slice(0, 36)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button className="button-secondary">切换</button>
         </form>
       </div>
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="actions">
-          <Link className={`button-secondary${tab === "network" ? " active" : ""}`} href={`/ontology?tab=network${runId ? `&runId=${runId}` : ""}`}>本体网络</Link>
-          <Link className={`button-secondary${tab === "catalog" ? " active" : ""}`} href={`/ontology?tab=catalog${runId ? `&runId=${runId}` : ""}`}>类型目录</Link>
-          <Link className={`button-secondary${tab === "methods" ? " active" : ""}`} href={`/ontology?tab=methods${runId ? `&runId=${runId}` : ""}`}>方法与规范</Link>
-          <Link className={`button-secondary${tab === "governance" ? " active" : ""}`} href="/ontology?tab=governance">本体缺口治理</Link>
-          <Link className={`button-secondary${tab === "comparability" ? " active" : ""}`} href="/ontology?tab=comparability">跨研究口径</Link>
-          <Link className={`button-secondary${tab === "queries" ? " active" : ""}`} href={`/ontology?tab=queries${runId ? `&queryRunId=${runId}` : ""}`}>研究问题查询</Link>
+
+      <nav className="card ontology-tab-nav" aria-label="知识库能力分组">
+        {TAB_GROUPS.map((group) => {
+          const items = TAB_GUIDE.filter((item) => item.group === group.id);
+          return (
+            <div className={`ontology-tab-group${group.demoted ? " demoted" : ""}`} key={group.id}>
+              <div className="ontology-tab-group-head">
+                <strong>{group.label}</strong>
+                <span>{group.hint}</span>
+              </div>
+              <div className="ontology-tab-links">
+                {items.map((item) => (
+                  <Link
+                    className={`ontology-tab-link${tab === item.id ? " active" : ""}`}
+                    href={tabHref(item.id, runId)}
+                    key={item.id}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{item.blurb}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+
+      <section className="card ontology-tab-guide" aria-label={`${tabGuide.label}用途说明`}>
+        <div className="ontology-tab-guide-title">
+          <div className="eyebrow">本页回答</div>
+          <h2>{tabGuide.answers}</h2>
         </div>
-      </div>
+        <div className="ontology-tab-guide-grid">
+          <div>
+            <strong>你能看到</strong>
+            <ul>
+              {tabGuide.sees.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          </div>
+          <div>
+            <strong>后续作用</strong>
+            <p>{tabGuide.nextUse}</p>
+          </div>
+        </div>
+      </section>
+
       {runId && ontologyValue && !["governance", "comparability", "queries"].includes(tab) ? (
         <section className="card ontology-value-summary">
           <div className="section-heading">
@@ -225,10 +355,6 @@ export default async function OntologyPage({
       {tab === "governance" ? <OntologyCandidateQueue /> : null}
       {tab === "comparability" ? (
         <section className="ontology-comparability">
-          <div className="card ontology-governance-note">
-            <strong>只对齐，不猜测</strong>
-            <span>正式语义对象、对象/产品范围、地区、指标、单位和时间基准全部一致才允许直接比较；缺字段标为信息不足，任一关键口径不同则明确阻断。</span>
-          </div>
           {comparabilityGroups.map((group) => {
             const observationById = new Map(group.observations.map((observation) => [observation.observation_id, observation]));
             return (
@@ -278,10 +404,6 @@ export default async function OntologyPage({
       ) : null}
       {tab === "queries" ? (
         <section className="ontology-query-workbench">
-          <div className="card ontology-governance-note">
-            <strong>从研究问题进入图谱</strong>
-            <span>查询结果来自当前实例图的正式下游方向和跨 run 结构产物，不以字符串包含或视觉连线替代语义关系。</span>
-          </div>
           <div className="ontology-query-grid">
             <article className="card ontology-query-section">
               <div className="section-heading">

@@ -2,6 +2,18 @@
 
 本库只回答：要证明什么、用哪一种取证方法、最少要拿到什么、优先去哪里找、完备度最高到哪一级。单次归档与阶段门槛见 [`workflow/stages/03_证据/03_数据与证据准备规范.md`](../../workflow/stages/03_证据/03_数据与证据准备规范.md)。
 
+## 证据压缩协议（三类产物）
+
+不能把大量原始材料直接扔给 LLM。03 交付须先压缩为高语义密度结构，再交 04：
+
+| 产物 | 职责 | Runtime / 产物映射 |
+|---|---|---|
+| **Evidence Record** | 原始事实、来源、时间、口径、逐字 quote | `evidence_drafts` + source registry |
+| **Evidence Summary** | 趋势、分布、对比、异常；同比/环比/测算等确定性计算输出 | `evidence_summaries`（LLM 只引用其中数字，不得自造） |
+| **Evidence Bundle** | 围绕某个判断单元的支持 / 反证 / 缺口 | `evidence_bundles[]`（按 `judgment_unit_id` 组织） |
+
+04 默认消费 Bundle + Summary；全量 Record 仅作抽检样例或按需展开。取证通道（MCP 等）产出线索后须落入 Record，计算落入 Summary。
+
 ## 和 02、04 的边界
 
 - [`methods/02_判断结构`](../02_判断结构/README.md) 决定判断什么、按什么结构验证。
@@ -33,14 +45,16 @@
 
 材料作用：主证据、比较基准、机制或承接、独立交叉验证、反证与限制。取数前核对可追溯、权限、对象、业务时间、定义单位、版本。
 
+取数通道：MCP、API、数据库终端是获取通道，不影响来源可靠度评价。可用 MCP 通道见 [B03_MCP通道注册](B03_MCP通道注册.md)，操作参考见 [OPS_MCP查询快速参考](OPS_MCP查询快速参考.md)。**`runtime/` 工作台已接入首批一手 MCP**（Stage03 模型生成/补证：cninfo、datayes-finoper、china-policy）；研究员手动补证仍可贴公开 URL。MCP 摘要只是线索，须核验原文后才能进证据。
+
 ## 文件结构
 
 ```text
 methods/03_取证/
 ├── 00_取证任务卡.md / 00_证据质量与结论上限.md
 ├── A01—A09   # 取证方法（不裁决命题）
-├── B00—B02   # 来源原则与速查
-├── OPS_*     # 真实查询手册
+├── B00—B03   # 来源原则与速查（B03 = MCP通道注册）
+├── OPS_*     # 真实查询手册（含 OPS_MCP）
 ├── 03_registry.yaml
 └── validate_03.py
 ```

@@ -7,6 +7,10 @@ import {
   researchExpressionSchema,
   taskDefinitionSchema,
 } from "@/engine/schemas";
+import { ensureStage01ContractFields } from "@/engine/stage01_contract";
+import { ensureStage03DocumentFields } from "@/engine/stage03_documents";
+import { ensureStage05DocumentFields } from "@/engine/stage05_documents";
+import { syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "@/engine/readable_markdown";
 import {
   validateExpressionMethodBindings,
   validateJudgmentCapabilityCoverage,
@@ -53,7 +57,7 @@ describe("stage contracts", () => {
   });
 
   it("accepts a valid task definition", () => {
-    expect(taskDefinitionSchema.parse({
+    const data: any = {
       normalized_question: "未来六个月供需是否改善？",
       core_object: "存储芯片",
       judgment_action: "趋势判断",
@@ -62,7 +66,18 @@ describe("stage contracts", () => {
       exclusions: ["交易建议"],
       domain_supported: true,
       document_markdown: "# 任务定义\n\n这是一个具有明确范围、时间和反证条件的研究问题，需要检查供给、需求、库存和价格变化。",
-    })).toBeTruthy();
+    };
+    ensureStage01ContractFields(data, "未来六个月供需是否改善？");
+    data.task_disposition = "accepted";
+    data.quality_status = "minimum_pass";
+    data.research_value_gate.status = "pass";
+    data.overscope_check.status = "pass";
+    data.input_resolution.mode = "direct_extract";
+    data.input_resolution.status = "resolved";
+    data.input_resolution.clarifications = [];
+    data.input_resolution.unresolved_structural_ambiguities = [];
+    syncStage01ReadableMarkdown(data, "未来六个月供需是否改善？");
+    expect(taskDefinitionSchema.parse(data)).toBeTruthy();
   });
 
   it("allows a source-free explicit gap but rejects source-free facts", () => {
@@ -74,7 +89,7 @@ describe("stage contracts", () => {
       limitations: ["当前无可核验来源"],
       alternatives: [{ method_id: "kb03:B01", decision: "retry", reason: "等待正式披露" }],
     };
-    expect(evidencePreparationSchema.parse({
+    const gapDraft: any = {
       method_applications: [gapApplication],
       sources: [],
       evidence_drafts: [{
@@ -84,8 +99,10 @@ describe("stage contracts", () => {
       }],
       unresolved_gaps: ["缺少可核验库存披露"],
       document_markdown: "# 证据准备\n\n正式来源取得失败，未形成任何事实草稿；仅登记阻断性缺口和下一步回退路线，不使用搜索摘要替代证据。",
-    })).toBeTruthy();
-    expect(() => evidencePreparationSchema.parse({
+    };
+    syncStage03ReadableMarkdown(gapDraft);
+    expect(evidencePreparationSchema.parse(gapDraft)).toBeTruthy();
+    const invalidFact: any = {
       method_applications: [application("selected", "stage_03")],
       sources: [],
       evidence_drafts: [{
@@ -96,12 +113,14 @@ describe("stage contracts", () => {
       }],
       unresolved_gaps: ["来源缺失"],
       document_markdown: "# 证据准备\n\n没有来源时不得生成事实草稿；该负向样例必须由合同拒绝，以防为了填满结构而制造证据。",
-    })).toThrow(/无来源时只能登记显式 gap/);
+    };
+    ensureStage03DocumentFields(invalidFact);
+    expect(() => evidencePreparationSchema.parse(invalidFact)).toThrow(/无来源时只能登记显式 gap/);
   });
 
   it("accepts J0 with an executed method application", () => {
     const executed = application("executed", "stage_04");
-    expect(judgmentDecisionSchema.parse({
+    const judgmentDraft: any = {
       method_applications: [executed],
       signals: [{
         id: "S-1",
@@ -172,7 +191,9 @@ describe("stage contracts", () => {
       }],
       overall_boundary: "不外推",
       document_markdown: "# 判断\n\n由于关键证据不足，目前暂不可判断，不能把局部价格信号外推为全行业改善，需要继续跟踪库存和产能。",
-    })).toBeTruthy();
+    };
+    syncStage04ReadableMarkdown(judgmentDraft);
+    expect(judgmentDecisionSchema.parse(judgmentDraft)).toBeTruthy();
     expect(() => validateMethodApplications("stage_04", [executed], {
       prior: [application("selected", "stage_03")],
       evidenceIds: new Set(["EV-1"]),
@@ -222,6 +243,7 @@ describe("stage contracts", () => {
       document_markdown: "# 暂不可判断\n\n截至信息截止时点没有取得可核验来源，因此不生成事实或信号，不输出方向结论；仅保留待检验假设、阻断原因和后续跟踪条件。",
     };
     applyDeterministicRuleEvaluations(decision, [gap], [], { judgment_units: [{ id: "JU-1" }] });
+    syncStage04ReadableMarkdown(decision);
     const parsed = judgmentDecisionSchema.parse(decision);
     expect(parsed.signals).toHaveLength(0);
     expect(parsed.judgments[0].supporting_evidence_draft_ids).toHaveLength(0);
@@ -284,13 +306,15 @@ describe("stage contracts", () => {
 
   it("requires report claim traceability through judgments and methods", () => {
     const executed = application("executed", "stage_04");
-    expect(researchExpressionSchema.parse({
+    const expression: any = {
       title: "报告",
       executive_points: ["当前只能形成受限判断"],
       report_claims: [{ id: "RC-1", statement: "结论", judgment_ids: ["J-1"], method_application_ids: ["MA-01"], evidence_draft_ids: ["EV-1"], source_ids: [] }],
       limitations: ["证据范围有限"],
       document_markdown: "# 报告\n\n当前结论严格继承判断与方法应用，不新增事实、方法调用或方向性判断；证据不足部分继续保留限制并等待后续更新。",
-    })).toBeTruthy();
+    };
+    ensureStage05DocumentFields(expression);
+    expect(researchExpressionSchema.parse(expression)).toBeTruthy();
     expect(() => validateExpressionMethodBindings(
       [{ id: "RC-1", judgment_ids: ["J-1"], method_application_ids: ["MA-01"], evidence_draft_ids: ["EV-1"] }],
       [executed],
@@ -370,7 +394,12 @@ describe("stage contracts", () => {
     const overclaim = structuredClone(base);
     overclaim.judgments[0].strength = "J3";
     overclaim.competing_explanations[0].status = "active";
-    expect(() => applyDeterministicRuleEvaluations(overclaim, evidence, [source], structure)).toThrow(/确定性本体规则未通过/);
+    const demoted = applyDeterministicRuleEvaluations(overclaim, evidence, [source], structure);
+    expect(demoted.judgments[0]).toMatchObject({
+      strength: "J0",
+      decision_status: "indeterminate",
+      supporting_evidence_draft_ids: [],
+    });
   });
 
   it("accepts an independent review with an explicit return stage", () => {

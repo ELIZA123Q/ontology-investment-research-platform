@@ -43,7 +43,7 @@ FORBIDDEN_ADJUDICATION = [
     "weaken / block / invalidate",
     "supported / blocked / contested",
 ]
-QP_PATTERN = re.compile(r"\bQP-(?:GEN|SEMI|GEO)-\d{2}\b")
+QP_PATTERN = re.compile(r"\bQP-(?:(?:GEN|SEMI|GEO)-\d{2}|MCP-\d{2})\b")
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -245,12 +245,21 @@ def validate_frontstage(errors: list[str]) -> None:
     if len(a_files) != 9:
         errors.append(f"根目录必须且只能包含 A01—A09 九个方法文件，当前: {a_files}")
     b_files = sorted(p.name for p in ROOT.glob("B0*.md"))
-    if b_files != [
+    required_b = {
         "B00_来源选择与使用边界.md",
         "B01_通用来源速查.md",
         "B02_半导体来源速查.md",
-    ]:
-        errors.append(f"根目录必须且只能包含 B00—B02 三个来源文件，当前: {b_files}")
+    }
+    if not required_b <= set(b_files):
+        errors.append(f"根目录至少需要 B00—B02 三个来源文件，当前: {b_files}")
+    # B03 为可选的 MCP 通道注册
+    b03 = ROOT / "B03_MCP通道注册.md"
+    if b03.is_file():
+        text = b03.read_text(encoding="utf-8")
+        if "不是来源生产者" not in text:
+            errors.append("B03_MCP通道注册.md 必须声明 MCP 是获取通道而非来源生产者")
+        if "留痕要求" not in text:
+            errors.append("B03_MCP通道注册.md 必须包含 MCP 获取留痕要求")
     b00 = ROOT / "B00_来源选择与使用边界.md"
     if b00.is_file():
         text = b00.read_text(encoding="utf-8")
@@ -279,8 +288,11 @@ def validate_frontstage(errors: list[str]) -> None:
 
 def validate_ops_and_qp_links(errors: list[str]) -> None:
     ops_files = sorted(ROOT.glob("OPS_*.md"))
-    if len(ops_files) != 3:
-        errors.append(f"根目录应有三份 OPS_*.md，当前: {[p.name for p in ops_files]}")
+    core_ops_prefixes = ("OPS_通用", "OPS_半导体", "OPS_地缘")
+    core_ops = [p for p in ops_files if p.name.startswith(core_ops_prefixes)]
+    if len(core_ops) < 3:
+        errors.append(f"根目录至少需要三份核心 OPS_*.md（通用/半导体/地缘），当前: {[p.name for p in core_ops]}")
+    # OPS_MCP 为可选文件
     all_qps: dict[str, str] = {}
     for path in ops_files:
         text = path.read_text(encoding="utf-8")

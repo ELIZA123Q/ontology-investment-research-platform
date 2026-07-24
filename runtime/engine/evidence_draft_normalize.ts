@@ -66,6 +66,20 @@ export function normalizeMethodApplicationNulls(item: unknown): unknown {
   for (const key of METHOD_ARRAY_KEYS) {
     if (!Array.isArray(next[key])) next[key] = [];
   }
+  if (Array.isArray(next.precondition_checks)) {
+    next.precondition_checks = next.precondition_checks.map((check) => {
+      if (!isPlainObject(check)) return check;
+      const evidence_refs = Array.isArray(check.evidence_refs) ? check.evidence_refs : [];
+      const reason = nonEmpty(check.reason) ? String(check.reason) : "未提供前置条件说明";
+      return {
+        ...check,
+        result: coercePreconditionResult(check.result),
+        evidence_refs,
+        reason,
+        precondition_id: nonEmpty(check.precondition_id) ? String(check.precondition_id) : "unspecified_precondition",
+      };
+    });
+  }
   if (typeof next.execution_summary !== "string") next.execution_summary = "";
   if (typeof next.applicability_boundary !== "string" || !next.applicability_boundary.trim()) {
     next.applicability_boundary = "未声明适用边界";
@@ -90,6 +104,48 @@ export function normalizeMethodApplicationNulls(item: unknown): unknown {
   return next;
 }
 
+const PRECONDITION_RESULTS = new Set(["pass", "fail", "partial", "not_checked"]);
+const PRECONDITION_RESULT_ALIASES: Record<string, string> = {
+  passed: "pass",
+  success: "pass",
+  ok: "pass",
+  true: "pass",
+  yes: "pass",
+  通过: "pass",
+  通过检查: "pass",
+  满足: "pass",
+  failed: "fail",
+  failure: "fail",
+  false: "fail",
+  no: "fail",
+  失败: "fail",
+  不通过: "fail",
+  未通过: "fail",
+  partially: "partial",
+  partialpass: "partial",
+  部分: "partial",
+  部分通过: "partial",
+  unchecked: "not_checked",
+  unknown: "not_checked",
+  pending: "not_checked",
+  skip: "not_checked",
+  skipped: "not_checked",
+  na: "not_checked",
+  n_a: "not_checked",
+  未检查: "not_checked",
+  待检查: "not_checked",
+  未知: "not_checked",
+};
+
+function coercePreconditionResult(raw: unknown): string {
+  if (raw == null || raw === "") return "not_checked";
+  const text = String(raw).trim();
+  if (PRECONDITION_RESULTS.has(text)) return text;
+  if (PRECONDITION_RESULT_ALIASES[text]) return PRECONDITION_RESULT_ALIASES[text];
+  const lower = text.toLowerCase().replace(/[\s-]+/g, "_");
+  return PRECONDITION_RESULT_ALIASES[lower] || "not_checked";
+}
+
 export function normalizeSourceDraftNulls(item: unknown): unknown {
   if (!isPlainObject(item)) return item;
   const next: Record<string, unknown> = { ...item };
@@ -108,16 +164,93 @@ export function normalizeSourceDraftNulls(item: unknown): unknown {
   return next;
 }
 
+const EVIDENCE_KINDS = new Set(["source_claim", "fact_draft", "counter", "conflict", "gap"]);
+const EVIDENCE_KIND_ALIASES: Record<string, string> = {
+  claim: "source_claim",
+  sourceclaim: "source_claim",
+  fact: "fact_draft",
+  factdraft: "fact_draft",
+  evidence_gap: "gap",
+  evidencegap: "gap",
+  missing: "gap",
+  unknown: "gap",
+};
+
+function coerceEvidenceKind(raw: unknown, draft: Record<string, unknown>): string {
+  const text = String(raw || "").trim();
+  const lower = text.toLowerCase().replace(/[\s-]+/g, "");
+  if (EVIDENCE_KINDS.has(text)) return text;
+  if (EVIDENCE_KIND_ALIASES[lower]) return EVIDENCE_KIND_ALIASES[lower];
+  const looksLikeGap = nonEmpty(draft.requirement)
+    || nonEmpty(draft.evidence_role)
+    || draft.minimum_independent_sources != null;
+  if (looksLikeGap) return "gap";
+  const keys = Array.isArray(draft.source_keys) ? draft.source_keys : [];
+  if (keys.length > 0) return "fact_draft";
+  return "gap";
+}
+
 export function normalizeEvidenceDraftNulls(item: unknown): unknown {
   if (!isPlainObject(item)) return item;
   const next: Record<string, unknown> = { ...item };
   for (const key of EVIDENCE_ARRAY_KEYS) {
     if (!Array.isArray(next[key])) next[key] = [];
   }
-  if (next.kind === "gap" && Array.isArray(next.limitations) && next.limitations.length === 0) {
-    next.limitations = ["尚未取得可定位、可核验的公开正文"];
+  next.kind = coerceEvidenceKind(next.kind, next);
+
+  if (next.kind === "gap") {
+    // gap 不得挂来源：补证常把 fact 改成 gap 却 omit/null source_keys，字段级合并会留下旧绑定。
+    const priorKeys = Array.isArray(next.source_keys) ? next.source_keys.map(String).filter(Boolean) : [];
+    next.source_keys = [];
+    next.source_ids = [];
+    next.direction = "unknown";
+    if (!nonEmpty(next.requirement)) {
+      next.requirement = nonEmpty(next.statement)
+        ? `取得可核验正文以支撑：${String(next.statement).slice(0, 120)}`
+        : "取得可定位、可核验的公开正文";
+    }
+    if (!["support", "counter", "context", "boundary"].includes(String(next.evidence_role || ""))) {
+      next.evidence_role = "support";
+    }
+    if (typeof next.minimum_independent_sources !== "number" || !Number.isFinite(next.minimum_independent_sources)) {
+      next.minimum_independent_sources = 1;
+    }
+    const limitations = Array.isArray(next.limitations) ? next.limitations.map(String).filter(Boolean) : [];
+    if (priorKeys.length) {
+      limitations.push(`原绑定来源 ${priorKeys.join(", ")} 在降为 gap 时已清空，不得当作已核验事实`);
+    }
+    if (!limitations.length) {
+      limitations.push("尚未取得可定位、可核验的公开正文");
+    }
+    next.limitations = [...new Set(limitations)];
+    next.semiconductor_measurement = null;
+  } else {
+    next.semiconductor_measurement = normalizeSemiconductorMeasurement(
+      next.semiconductor_measurement,
+      String(next.statement || ""),
+    );
   }
   return next;
+}
+
+function coerceMetricKind(raw: unknown, hintText: string): "capacity" | "yield" | null {
+  const text = String(raw || "").trim();
+  const lower = text.toLowerCase();
+  if (lower === "capacity" || lower === "yield") return lower;
+  if (/良率|yield|die[_\s-]?yield|wafer[_\s-]?yield/i.test(text) || /良率|yield/i.test(hintText)) return "yield";
+  if (/产能|capacity|nameplate|effective[_\s-]?output|有效产出/i.test(text) || /产能|capacity|有效产出/i.test(hintText)) {
+    return "capacity";
+  }
+  return null;
+}
+
+/** 非法 metric_kind 先尝试语义归并；仍无法归并则整段置 null（该字段可选）。 */
+function normalizeSemiconductorMeasurement(value: unknown, hintText: string): unknown {
+  if (value == null) return null;
+  if (!isPlainObject(value)) return null;
+  const kind = coerceMetricKind(value.metric_kind, hintText);
+  if (!kind) return null;
+  return { ...value, metric_kind: kind };
 }
 
 export function normalizeEvidencePreparationNulls(data: unknown): unknown {
@@ -255,4 +388,68 @@ export function reconcileMethodEvidenceRefs(data: any): any {
     evidence_drafts: [...drafts, ...synthesizedGaps],
     unresolved_gaps: unresolved,
   };
+}
+
+/**
+ * 抓取后：非 gap 事实若绑定来源全部未 quote_verified / 不可用，则降为 gap。
+ * 避免未核验“事实”泄漏进 Stage04；失败源仍可通过 failed_sources 补修。
+ */
+export function demoteUnverifiedEvidenceDrafts(data: any): any {
+  if (!data || typeof data !== "object" || !Array.isArray(data.evidence_drafts) || !Array.isArray(data.sources)) {
+    return data;
+  }
+  const usableKeys = new Set(
+    data.sources
+      .filter((source: any) => (
+        source?.source_key
+        && source.quote_verified === true
+        && (source.usability_status === "usable" || source.retrieval_status === "captured")
+      ))
+      .map((source: any) => String(source.source_key)),
+  );
+  let changed = false;
+  const demotedIds: string[] = [];
+  const evidence_drafts = data.evidence_drafts.map((draft: any) => {
+    if (!draft || typeof draft !== "object" || draft.kind === "gap") return draft;
+    const keys = Array.isArray(draft.source_keys) ? draft.source_keys.map(String).filter(Boolean) : [];
+    if (keys.some((key: string) => usableKeys.has(key))) return draft;
+    changed = true;
+    demotedIds.push(String(draft.id || ""));
+    const priorKeys = keys;
+    const limitations = Array.isArray(draft.limitations) ? draft.limitations.map(String).filter(Boolean) : [];
+    if (priorKeys.length) {
+      limitations.push(`绑定来源 ${priorKeys.join(", ")} 抓取后未能 quote_verified，已降为 gap`);
+    } else {
+      limitations.push("未绑定任何可核验来源，已降为 gap");
+    }
+    return {
+      ...draft,
+      kind: "gap",
+      direction: "unknown",
+      source_keys: [],
+      source_ids: [],
+      requirement: nonEmpty(draft.requirement)
+        ? draft.requirement
+        : nonEmpty(draft.statement)
+          ? `取得可核验正文以支撑：${String(draft.statement).slice(0, 120)}`
+          : "取得可定位、可核验的公开正文",
+      evidence_role: ["support", "counter", "context", "boundary"].includes(String(draft.evidence_role || ""))
+        ? draft.evidence_role
+        : "support",
+      minimum_independent_sources: typeof draft.minimum_independent_sources === "number"
+        && Number.isFinite(draft.minimum_independent_sources)
+        ? draft.minimum_independent_sources
+        : 1,
+      limitations: [...new Set(limitations.length ? limitations : ["尚未取得可定位、可核验的公开正文"])],
+      semiconductor_measurement: null,
+    };
+  });
+  if (!changed) return data;
+  const unresolved = [
+    ...new Set([
+      ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
+      ...demotedIds.filter(Boolean).map((id) => `${id}: 抓取后无可用 quote_verified 来源，已降为显式缺口`),
+    ]),
+  ];
+  return { ...data, evidence_drafts, unresolved_gaps: unresolved };
 }

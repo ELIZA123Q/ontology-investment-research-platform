@@ -263,24 +263,43 @@ function executeApprovedActionTransaction(runId: string, proposalId: string, exp
   return record;
 }
 
-export function ontologyContextForPrompt(runId: string): string {
+export function ontologyContextForPrompt(
+  runId: string,
+  options: { focusNodeIds?: string[]; focusJudgmentUnitIds?: string[] } = {},
+): string {
   const run = getRun(runId);
   if (!run) return "";
   const loaded = loadGraphForRun(runId, run.package_path);
   const provisional = buildProvisionalProjection(runId);
   const domainGraph = loadDomainBusinessGraph();
+  const focusNodes = new Set((options.focusNodeIds || []).map(String).filter(Boolean));
+  const focusUnits = new Set((options.focusJudgmentUnitIds || []).map(String).filter(Boolean));
   const lines = [
     `权威图来源: ${loaded.source} (${loaded.authority}${loaded.provisional ? ", provisional" : ""})`,
     loaded.graph.objects.length ? summarizeGraph(loaded.graph) : "权威图为空；确认 stage_02/03/04 后会物化 instance_graph",
   ];
+  if (focusUnits.size || focusNodes.size) {
+    lines.push(
+      `任务本体切片: JU=[${[...focusUnits].join(", ") || "(无)"}] nodes=[${[...focusNodes].slice(0, 40).join(", ") || "(无)"}]`,
+    );
+  }
   if (domainGraph) {
-    lines.push(`半导体业务参数图(只读): ${summarizeGraph(domainGraph, 80)}`);
+    const domainSummary = summarizeGraph(domainGraph, 80);
+    // 有任务切片时压缩领域参数图，避免整图噪声
+    lines.push(
+      focusUnits.size || focusNodes.size
+        ? `半导体业务参数图(只读,压缩): ${domainSummary.slice(0, 2_000)}`
+        : `半导体业务参数图(只读): ${domainSummary}`,
+    );
   }
   if (provisional.objects.length && loaded.authority !== "formal") {
     lines.push(`草稿投影(非权威): ${summarizeGraph(provisional)}`);
   }
   if (loaded.graph.objects.length) {
-    const ju = queryObjectSet(loaded.graph, { type: "JudgmentUnit", limit: 20 });
+    const juAll = queryObjectSet(loaded.graph, { type: "JudgmentUnit", limit: 40 });
+    const ju = focusUnits.size
+      ? { objects: juAll.objects.filter((o) => focusUnits.has(o.id)).slice(0, 20) }
+      : { objects: juAll.objects.slice(0, 20) };
     const claims = queryObjectSet(loaded.graph, { type: ["EvidenceClaim", "EvidenceFact", "SourceDocument"], limit: 20 });
     const judgments = queryObjectSet(loaded.graph, { type: "Judgment", limit: 20 });
     const methodApplications = queryObjectSet(loaded.graph, { type: "MethodApplication", limit: 40 });

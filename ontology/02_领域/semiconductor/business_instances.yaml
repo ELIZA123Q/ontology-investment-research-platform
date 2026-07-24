@@ -1,5 +1,7 @@
 # 人读目录见同目录 *.md；本文件为机器权威定义。
 # 分区注释仅便于浏览，不改变 schema。
+# 资产边界：type: EvidenceRecipe 条目仅为领域索引/投影（指向 methods/03_取证 策略正文），
+# 取证配方的权威定义在 methods/03_取证（A0x + 03_registry），不得将本文件当作方法正文权威。
 schema_name: semiconductor_domain_business_instances
 schema_version: 1.1.0
 depends_on:

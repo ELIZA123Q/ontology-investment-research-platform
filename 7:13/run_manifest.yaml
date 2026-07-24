@@ -1,0 +1,74 @@
+schema_name: controlled_research_run_manifest
+schema_version: 1.0.0
+task_id: JTASK-MEM-CYCLE-001
+run_id: EXEC-MEM-CYCLE-20260713-1
+parent_run_id: null
+versions:
+  contract: 1.0.0
+  ontology: 2.1.0
+  kb02: 2.0.0
+  kb03: 3.1.0
+  kb04: 1.0.0
+stages:
+  stage_01:
+    artifact:
+    - 01-存储芯片周期投研需求说明-20260713-1.md
+    hash: sha256:6fb8002a2815f7630c145d021817cef10f6917fd9e57d46f2eded9247f2fd352
+    source_hashes: {}
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_02:
+    artifact:
+    - 02-存储芯片周期研究逻辑-20260713-1.md
+    - 02-存储芯片周期本体视图-20260713-1.yaml
+    hash: sha256:1357885b50d69b6543a345f36c32e60bb3c167fa0b0a4c41f1f517a69dc5ac2c
+    source_hashes:
+      stage_01: sha256:6fb8002a2815f7630c145d021817cef10f6917fd9e57d46f2eded9247f2fd352
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_03:
+    artifact:
+    - 03-存储芯片周期数据与证据准备-20260713-1.md
+    - 03-存储芯片周期数据与证据快照-20260713-1
+    - 03-存储芯片周期语义域与证据域实例清单-20260713-1.yaml
+    hash: sha256:f37b77c63726cb1b4808697236c599244a178ba1bb50c402b351edcc132a9547
+    source_hashes:
+      stage_02: sha256:1357885b50d69b6543a345f36c32e60bb3c167fa0b0a4c41f1f517a69dc5ac2c
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_04:
+    artifact:
+    - 04-存储芯片周期判断简报-20260713-1.md
+    - 04-存储芯片周期推理审计-20260713-1.yaml
+    hash: sha256:806492257ab47223e89cb20d736963cee6879e4e6e3f73221ba72d6bccab10e0
+    source_hashes:
+      stage_03: sha256:f37b77c63726cb1b4808697236c599244a178ba1bb50c402b351edcc132a9547
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+  stage_05:
+    artifact:
+    - 05-存储芯片周期行业周期判断-20260713-1.md
+    - 05-存储芯片周期表达审计-20260713-1.yaml
+    hash: sha256:c5d5892f127c4432c4cbf395f521e5609fc91c41ecd85fc28a471d07b41d9137
+    source_hashes:
+      stage_04: sha256:806492257ab47223e89cb20d736963cee6879e4e6e3f73221ba72d6bccab10e0
+    stage_status: complete
+    validity_status: current
+    attempt: 1
+    supersedes_attempt: null
+validation_issues: []
+validation_summary:
+  quality_pass: true
+  publishable: true
+  publish_status: PUBLISHABLE
+  judgment_level: J2
+  directional_conclusion_available: true
+  contract_version: 1.0.0

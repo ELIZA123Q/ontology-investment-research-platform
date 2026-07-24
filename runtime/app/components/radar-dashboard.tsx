@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { EventImpact, MarketEvent, ResearchRun, ResearchWorkItem } from "@/engine/types";
+import { workItemHref } from "@/engine/research_overview";
 import { runStatusLabel } from "@/app/lib/ui-labels";
 
 const GUIDE_KEY = "radar-guide-seen";
@@ -164,7 +165,7 @@ export function RadarDashboard({
 
       <aside className="radar-queue" id="radar-queue">
         <div className="panel-title"><div><span>我的下一步</span><strong>{workItems.length}</strong></div><small>待审阅事项</small></div>
-        {workItems.length ? workItems.slice(0, 10).map((item) => <Link className={`queue-item priority-${item.priority}`} href={workItemLink(item)} key={item.id}><span>{stageLabel(item.stage)}</span><strong>{item.title}</strong><small>{runMap.get(item.run_id)?.question || item.target_id}</small></Link>) : <div className="queue-empty">当前没有待处理的审阅或补证任务。</div>}
+        {workItems.length ? workItems.slice(0, 10).map((item) => <Link className={`queue-item priority-${item.priority}`} href={workItemHref(item.stage, item.run_id)} key={item.id}><span>{stageLabel(item.stage)}</span><strong>{item.title}</strong><small>{runMap.get(item.run_id)?.question || item.target_id}</small></Link>) : <div className="queue-empty">当前没有待处理的审阅或补证任务。</div>}
       </aside>
     </div>
 
@@ -244,12 +245,4 @@ function formatLastRefresh(value: string | null) {
 
 function stageLabel(stage: string) {
   return ({ stage_01: "范围", stage_02: "结构", stage_03: "证据", stage_04: "判断", stage_05: "交付" } as Record<string, string>)[stage] || stage;
-}
-
-function workItemLink(item: ResearchWorkItem) {
-  if (item.stage === "stage_03") return `/runs/${item.run_id}/evidence`;
-  if (item.stage === "stage_04") return `/runs/${item.run_id}/judgments`;
-  if (item.stage === "stage_05") return `/runs/${item.run_id}/report`;
-  if (item.stage === "stage_02") return `/runs/${item.run_id}/structure`;
-  return `/runs/${item.run_id}/stages/1`;
 }

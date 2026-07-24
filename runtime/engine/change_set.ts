@@ -79,6 +79,25 @@ function applyUpserts(
     if (!affected.has(id)) throw new Error(`更新对象 ${id} 未声明为受影响对象`);
     byId.set(id, mergeUpsertObject(byId.get(id), value));
   }
+  if (section === "evidence_drafts") {
+    // 合并后再做一次 gap 清键：patch 只改 kind 时 merge 会保留基座 source_keys。
+    next[section] = [...byId.values()].map((item) => {
+      if (!isPlainObject(item) || item.kind !== "gap") return item;
+      const priorKeys = Array.isArray(item.source_keys) ? item.source_keys.map(String).filter(Boolean) : [];
+      const limitations = Array.isArray(item.limitations) ? item.limitations.map(String) : [];
+      if (priorKeys.length) {
+        limitations.push(`原绑定来源 ${priorKeys.join(", ")} 在降为 gap 时已清空，不得当作已核验事实`);
+      }
+      return {
+        ...item,
+        source_keys: [],
+        source_ids: [],
+        direction: "unknown",
+        limitations: [...new Set(limitations.filter(Boolean))],
+      };
+    });
+    return;
+  }
   next[section] = [...byId.values()];
 }
 

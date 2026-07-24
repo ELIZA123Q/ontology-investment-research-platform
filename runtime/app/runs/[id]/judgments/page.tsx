@@ -31,7 +31,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
   });
 
   return <>
-    <div className="pagehead scene-head"><div><div className="eyebrow">判断审阅</div><h1>现有证据，允许说到多强？</h1><p className="muted">从证据、信号、假设、规则评估与推理留痕逐层检查判断；实体关系请到 <Link href={`/runs/${id}/object-set`}>关系图</Link>，本体网络请到 <Link href={`/ontology?runId=${id}`}>知识库</Link>。</p></div><div className="actions">{artifact.status === "approved" ? <IndependentReviewButton runId={id} completed={Boolean(reviewArtifact)} /> : null}<Link className="button-secondary" href={`/runs/${id}/stages/4`}>高级编辑</Link></div></div>
+    <div className="pagehead scene-head"><div><div className="eyebrow">判断审阅</div><h1>现有证据，允许说到多强？</h1><p className="muted">从证据、信号、假设、规则评估与推理留痕逐层检查判断。需要改结论或重跑模型时用「编辑判断」；关系图 / 知识库为进阶查询。</p></div><div className="actions">{artifact.status === "approved" ? <IndependentReviewButton runId={id} completed={Boolean(reviewArtifact)} /> : null}<Link className="button-secondary" href={`/runs/${id}/stages/4`}>编辑判断</Link></div></div>
     <ResearchGraphLazy nodes={nodes} edges={edges} runId={id} workItems={workItems.map(workItemForGraph)} emptyMessage={emptyReason || "阶段 04 尚未形成可视化判断。"} />
     {reviewArtifact ? <section className={`review-strip ${review.verdict === "rework" ? "review-rework" : "review-pass"}`}><div><span>独立审阅 · {review.verdict === "pass" ? "通过" : review.verdict === "rework" ? "需返工" : review.verdict}</span><strong>{review.overall_assessment}</strong></div><small>{(review.issues || []).length ? `${review.issues.length} 项问题已标记到推理图` : "未发现需要返工的实质问题"}</small></section> : null}
   </>;

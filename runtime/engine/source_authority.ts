@@ -8,7 +8,7 @@ export const SOURCE_AUTHORITY_TYPES = [
 
 export type SourceAuthorityType = (typeof SOURCE_AUTHORITY_TYPES)[number];
 
-/** 覆盖图默认应补齐的三类核心来源（对齐领域 SourceProfile）。 */
+/** 对齐领域 SourceProfile 的三类一手权威角色；仅作标注分类。 */
 export const CORE_SOURCE_AUTHORITY_TYPES: SourceAuthorityType[] = [
   "official",
   "company_disclosure",

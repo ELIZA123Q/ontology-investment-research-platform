@@ -21,7 +21,7 @@ rules:
     validator_refs: [runtime/engine/research_loop.py]
     test_refs: [governance/03_校验/tests/test_v3_samples.py]
   - rule_id: LOOP-ATTEMPT-001
-    source_ref: governance/03_校验/README.md#7-本体驱动证据闭环
+    source_ref: governance/03_校验/README.md#证据闭环与attempt归档
     requirement: 新 attempt 不覆盖旧 attempt，历史归档哈希必须可复核。
     execution_mode: automated
     validator_refs: [runtime/engine/research_loop.py, governance/03_校验/validate_run.py]

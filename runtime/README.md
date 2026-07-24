@@ -4,16 +4,19 @@
 
 ## 启动
 
+**唯一入口（请收藏这个）：[http://127.0.0.1:3000](http://127.0.0.1:3000)**  
+不要用 `localhost:3000`，也不要改用 3001/3002——端口被占时用 `npm run dev:singleton` 清掉再启。
+
 ```bash
 cd runtime
 cp .env.example .env.local
 # 在 .env.local 中填写 DEEPSEEK_API_KEY，并配置与生产模型不同的 DEEPSEEK_REVIEW_MODEL
 npm install
-npm run dev
+npm run dev:singleton
 # 另开一个终端启动可恢复的后台执行器：
 npm run worker
-# 若曾出现多端口僵尸进程 / Load failed，改用：
-# npm run dev:singleton
+# 浏览器打开固定入口：
+npm run open
 ```
 
 打开 http://127.0.0.1:3000 。SQLite 默认写在 `instances/00_本机运行/workbench.sqlite`（不进 Git）。
@@ -42,11 +45,14 @@ npm run build
 
 - 正式支持半导体；其他领域会提示知识覆盖不足。
 - 搜索结果只是线索，不会因模型返回 citation 就写成正式来源；Runtime 会抓取正文、计算正文 SHA-256 并校验逐字引用定位，失败的来源不得冒充可用证据。
+- **证据主路径（日常）**：抓取公开 URL → 挂到判断单元并生成事实草稿 → 在证据审阅页批准。Stage03 模型生成/补证可走一手 MCP（巨潮 cninfo、通联财务、中央政策），失败回退 Bing/公开网页；Object Set Action 仍为进阶入口。
+- **MCP 在工作台内怎么用**：worker 跑 Stage03 时通过 `mcp_evidence.ts` 调用已配置的 MCP（读 `MCP_CONFIG_PATH` 或 `~/.workbuddy/mcp.json`）。MCP 返回的是线索/摘录，写正式 `source_quote` 前仍须 `fetch_public_pages` 或可核验原文。B03 里尚未接入 Runtime 的通道仍可给外部 Agent 用。
 - Stage04、05、同证据基线、父子差异和导出包只使用已获批 Stage03 `evidence_drafts.source_ids` 实际绑定的来源；雷达线索、检索候选和失败抓取仅保留审计。
 - 运行记录是事实来源；Markdown 是可编辑展示层。
 - 新建运行维护 `run_manifest` 1.3.0 摘要；既有 1.2.0 本机运行只读兼容。确认阶段产物时写入 attempt/hash。
 - **包类型不要混用**：`instances/02_V3样例` 是 `semantic_fixture` 语义验收基线（`validate_v3_samples.py`，不可直接当正式发布包）；工作台导出走 `workbench_export` + `validate_workbench_package.py`；正式发布包是 `formal_pack`，走 `validate_run.py` / `validate_publish.py`。
 - **方法选择与规则应用发生在此**：`runtime/` 编排 01—05、检索并绑定 `methods/` 中的方法。Runtime 3.0 对每个新判断确定性重算并挡门权威表中 9 条 `execution_surface=runtime_semantic_execution` 规则，包括状态时间、代理披露、认证阶段、产能/良率口径和判断引用完整性；关系端点兼容 `semantic_endpoint_compatibility` 由实例图物化时的 `validateRuntimeGraph` 执行。A01/A02/A03 门槛以 `runtime_supported_profile.yaml#executable_method_profile` 为唯一权威。
+- **方法正文注入（生成质量）**：主生成与 Stage03 补证都会注入 `selected_method_guidance`。Stage02 优先本题路由 default 方法正文；Stage03 只喂 kb03，Stage04 只喂 kb04（含 A00）；长框架按章节摘录保留停止/边界段，短方法尽量全文。
 - **界面分层**：结构/证据/判断页是阶段产物视图；Object Set 页才是实例图查询与 Action 执行面。
 
 ## 操作语义能力（V1.3）
@@ -68,7 +74,8 @@ npm run build
 - 受控判断投影：判断页或同一阶段接口的 `controlled_judgment_projection` 模式允许研究者为每个 JudgmentUnit 填写结论、已批准事实、不确定性、竞争解释、区分性证据和改判条件，并逐项确认真正满足的方法前置条件。未显式确认的语义前置条件会使方法降级，来源抓取成功不会冒充方法适用；Runtime 再计算 Signal/Hypothesis/CompetingExplanation、J0—J4 上限和五项语义规则。
 - 低成本受控确认：由研究者显式提交的 Stage 02 受控结构，确认前使用 Schema 与确定性启发式校验，不再重复调用付费模型；模型生成的结构仍保留模型确认前复核。两条路径都必须通过对象级人工批准，且受控路径不会因此绕过方法前置条件或后续本体规则。
 - 体验数据库身份：`/experience` 会显示当前 SQLite 的数据范围；若连接 `/tmp` 或系统临时目录中的 QA 数据库，将明确标红并禁止把计数解释为正式前瞻样本。正式基线必须在持久工作台数据库重新登记。
-- 受控表达投影：Stage04 确认后，Stage05 的 `deterministic_projection` 可直接从当前 Judgment、MethodApplication、EvidenceFact 和 Source 血缘生成可审阅报告，不需要先让模型写一份“种子报告”；表达只能重述获准判断，不能新增事实或抬高强度。
+- 受控表达投影：Stage04 确认后，Stage05 的 `deterministic_projection` 可直接从当前 Judgment、MethodApplication、EvidenceFact 和 Source 血缘生成**05C 骨架草稿**（含固定节与论点章），不需要先让模型写一份“种子报告”；表达只能重述获准判断，不能新增事实或抬高强度。模型生成路径会保留研报正文，`normalizeStage05Projection` **不得**再整篇压平为「研究判断简报」。
+- **工作台确认 ≠ PUBLISHABLE**：Stage05 确认会跑与 `validate_05_outputs` 对齐的关键结构规则（固定节、Research Edge、2–5 论点章、禁审计腔），但正式发布包仍须通过 `governance/03_校验/validate_run.py` / `validate_05_outputs.py`。`minimum_pass` 仅表示内部可流转草稿；正式交付倾向 `high_quality_pass`。
 - `task_local:<variable_id>` 表示只在当前研究任务内成立的观测变量，不会伪装为正式本体 `StateVariable`。知识库“本体缺口治理”会按规范化语义键统计跨 run 频次，记录专家确认、晋升/驳回与追加式历史；“晋升”只表示批准进入正式本体变更流程，不会自动改写本体 YAML。
 - 确定性指标修复不允许改写已揭示的 A/B 评分。`POST /api/runs/:id/evaluation/recompute-metrics` 只在基线、03、04、05 的冻结 artifact/hash 完全一致时创建新评价版本，保留原评分、评价人、备注与 A/B 身份，并记录被替代评价。
 - 创建运行时可绑定 V3 `semantic_fixture` 样例包，直接查询其 `business_instance_graph`（不是正式发布包）

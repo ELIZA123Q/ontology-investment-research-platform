@@ -80,9 +80,9 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   return <>
     <div className="pagehead scene-head">
       <div>
-        <div className="eyebrow">证据审阅</div>
+        <div className="eyebrow">证据审阅 · 主路径第 3 步</div>
         <h1>证据够不够，缺口在哪里？</h1>
-        <p className="muted">按判断单元审阅支持、反证、冲突和缺口；来源补充与覆盖分析请到 <Link href={`/runs/${id}/stages/3`}>高级编辑</Link>。实体关系请到 <Link href={`/runs/${id}/object-set`}>关系图</Link>，本体网络请到 <Link href={`/ontology?runId=${id}`}>知识库</Link>。</p>
+        <p className="muted">在此批准事实、接受缺口或解冲突。缺来源时到「补充来源」完成抓取与挂判断；关系图 / 知识库为进阶查询，不是补证入口。</p>
       </div>
       <div className="actions">
         <div className="run-meta">
@@ -90,7 +90,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
           <span>已确认 {approved.length}</span>
           <span>缺口已接受 {gapAccepted.length}</span>
         </div>
-        <Link className="button-secondary" href={`/runs/${id}/stages/3`}>高级编辑</Link>
+        <Link className="button-secondary" href={`/runs/${id}/stages/3`}>补充来源</Link>
       </div>
     </div>
 
@@ -104,7 +104,7 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     /> : <div className="card empty-state">
       <h2>先建立研究结构</h2>
       <p className="muted">证据台必须按判断单元组织；请先确认问题树、竞争解释与必要证据。</p>
-      <Link className="button" href={`/runs/${id}/stages/2`}>进入结构生成</Link>
+      <Link className="button" href={`/runs/${id}/structure`}>进入结构场景</Link>
     </div>}
   </>;
 }

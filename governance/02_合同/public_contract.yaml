@@ -56,7 +56,7 @@ ownership:
     - 运行路由枚举（stage_status / task_disposition / quality_status）保持运行合同，不新建治理域本体。
     - methods/00_登记 声明方法能力、适用条件和候选关系；本合同只约束跨阶段合法性与允许路由值域。
     - 本次方法选择与应用由 runtime/engine 执行，选择理由和结果写入 instances；合同层不得预先写死本次选择。
-    - judgment_method_routes 为跨阶段方法路由合法性合同；judgment_type 值域仍由一级本体驱动。
+    - judgment_method_routes 为跨阶段方法路由合法性合同；judgment_type 值域仍由一级本体类型约束。
     - 参数归属清单见 parameter_authority_matrix.yaml；覆盖率指已登记参数权威唯一，不是一切皆本体。
     - 二级 evidence_quality_dimensions / event_type_taxonomy 与 04 handoff 审计枚举见矩阵 not_promoted，本期不升格为 ontology_rule_param。
 

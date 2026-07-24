@@ -86,52 +86,126 @@ export function applyDeterministicRuleEvaluations(
 ) {
   const sourceMap = new Map(sources.map((source) => [source.id, source]));
   const evidenceMap = new Map(evidenceDrafts.map((evidence) => [evidence.id, evidence]));
-  const retained = ((data.rule_evaluations || []) as RuleEvaluation[])
-    .filter((item) => !REQUIRED_RULES.includes(item.rule_ref as typeof REQUIRED_RULES[number]));
-  const generated: RuleEvaluation[] = [];
 
-  for (const judgment of data.judgments || []) {
-    const judgmentId = String(judgment.id || judgment.judgment_id || "");
-    if (!judgmentId) throw new Error("Judgment 缺少稳定 ID，无法执行确定性规则");
-    const ruleIds: string[] = [];
-    for (const ruleRef of REQUIRED_RULES) {
-      const computed = computeRule(ruleRef, judgment, data, evidenceMap, sourceMap, structure);
-      const id = `RE-SYS-${slug(judgmentId)}-${slug(ruleRef)}`;
-      generated.push({
-        id,
-        rule_ref: ruleRef,
-        judgment_id: judgmentId,
-        input_refs: computed.inputRefs,
-        condition_results: computed.conditions,
-        result: computed.result,
-        deterministic_result: {
-          engine_version: ENGINE_VERSION,
+  const materialize = () => {
+    const retained = ((data.rule_evaluations || []) as RuleEvaluation[])
+      .filter((item) => !REQUIRED_RULES.includes(item.rule_ref as typeof REQUIRED_RULES[number]));
+    const generated: RuleEvaluation[] = [];
+    for (const judgment of data.judgments || []) {
+      const judgmentId = String(judgment.id || judgment.judgment_id || "");
+      if (!judgmentId) throw new Error("Judgment 缺少稳定 ID，无法执行确定性规则");
+      const ruleIds: string[] = [];
+      for (const ruleRef of REQUIRED_RULES) {
+        const computed = computeRule(ruleRef, judgment, data, evidenceMap, sourceMap, structure);
+        const id = `RE-SYS-${slug(judgmentId)}-${slug(ruleRef)}`;
+        generated.push({
+          id,
+          rule_ref: ruleRef,
+          judgment_id: judgmentId,
+          input_refs: computed.inputRefs,
+          condition_results: computed.conditions,
           result: computed.result,
-          rationale: computed.rationale,
-          evaluated_at: new Date().toISOString(),
-        },
-      });
-      ruleIds.push(id);
+          deterministic_result: {
+            engine_version: ENGINE_VERSION,
+            result: computed.result,
+            rationale: computed.rationale,
+            evaluated_at: new Date().toISOString(),
+          },
+        });
+        ruleIds.push(id);
+      }
+      judgment.rule_evaluation_ids = [
+        ...new Set([...(judgment.rule_evaluation_ids || []).filter((id: string) => !String(id).startsWith("RE-SYS-")), ...ruleIds]),
+      ];
     }
-    judgment.rule_evaluation_ids = [
-      ...new Set([...(judgment.rule_evaluation_ids || []).filter((id: string) => !String(id).startsWith("RE-SYS-")), ...ruleIds]),
-    ];
-  }
+    data.rule_evaluations = [...retained, ...generated];
+    const generatedIds = new Set(generated.map((item) => item.id));
+    for (const trace of data.reasoning_traces || []) {
+      const judgmentId = String(trace.judgment_id || trace.judgment_ref || "");
+      const ids = generated.filter((item) => item.judgment_id === judgmentId).map((item) => item.id);
+      trace.node_ids = [...new Set([...(trace.node_ids || trace.node_refs || []), ...ids])];
+      if (trace.node_refs) trace.node_refs = trace.node_ids;
+    }
+    for (const judgment of data.judgments || []) {
+      judgment.rule_evaluation_ids = (judgment.rule_evaluation_ids || [])
+        .filter((id: string) => !String(id).startsWith("RE-SYS-") || generatedIds.has(id));
+    }
+    return generated;
+  };
 
-  data.rule_evaluations = [...retained, ...generated];
-  const generatedIds = new Set(generated.map((item) => item.id));
-  for (const trace of data.reasoning_traces || []) {
-    const judgmentId = String(trace.judgment_id || trace.judgment_ref || "");
-    const ids = generated.filter((item) => item.judgment_id === judgmentId).map((item) => item.id);
-    trace.node_ids = [...new Set([...(trace.node_ids || trace.node_refs || []), ...ids])];
-    if (trace.node_refs) trace.node_refs = trace.node_ids;
-  }
-  // Remove stale system IDs that no longer belong to any current judgment.
-  for (const judgment of data.judgments || []) {
-    judgment.rule_evaluation_ids = (judgment.rule_evaluation_ids || []).filter((id: string) => !String(id).startsWith("RE-SYS-") || generatedIds.has(id));
+  let generated = materialize();
+  const blocked = collectBlockingRuleEvaluations(data, generated);
+  if (blocked.size) {
+    demoteJudgmentsForBlockingRules(data, blocked, structure);
+    generated = materialize();
   }
   assertDeterministicRuleResults(data);
   return data;
+}
+
+function collectBlockingRuleEvaluations(data: any, generated: RuleEvaluation[]) {
+  const byJudgment = new Map<string, RuleEvaluation[]>();
+  for (const evaluation of generated) {
+    if (evaluation.result !== "fail" && evaluation.result !== "blocked") continue;
+    const judgmentId = String(evaluation.judgment_id || "");
+    byJudgment.set(judgmentId, [...(byJudgment.get(judgmentId) || []), evaluation]);
+  }
+  return byJudgment;
+}
+
+/** 确定性规则 fail/blocked 时，把对应 Judgment 降为 J0，避免整阶段因上游近失证据直接崩溃。 */
+function demoteJudgmentsForBlockingRules(data: any, blocked: Map<string, RuleEvaluation[]>, structure: any = {}) {
+  const unitIds = (structure.judgment_units || []).map((item: any) => String(item.id || "")).filter(Boolean);
+  const scopeRef = String(structure.research_scope?.id || unitIds[0] || "SCOPE-UNKNOWN");
+  const hypotheses = Array.isArray(data.hypotheses) ? [...data.hypotheses] : [];
+  for (const judgment of data.judgments || []) {
+    const judgmentId = String(judgment.id || judgment.judgment_id || "");
+    const blockers = blocked.get(judgmentId);
+    if (!blockers?.length) continue;
+    const reasons = blockers.map((item) => `${item.rule_ref}: ${item.deterministic_result?.rationale || item.result}`);
+    let unitId = String(judgment.judgment_unit_id || "");
+    if (!unitIds.includes(unitId)) {
+      const matched = unitIds.find((id: string) => judgmentId.includes(id) || id.includes(unitId));
+      unitId = matched || unitIds[0] || unitId || "JU-UNKNOWN";
+    }
+    let hypothesisIds = Array.isArray(judgment.hypothesis_ids) ? judgment.hypothesis_ids.map(String) : [];
+    hypothesisIds = hypothesisIds.filter((id: string) => hypotheses.some((item: any) => String(item.id) === id));
+    if (!hypothesisIds.length) {
+      const hypothesisId = `H-REPAIR-${judgmentId}`;
+      hypotheses.push({
+        id: hypothesisId,
+        statement: `${unitId} 的方向命题目前未被可核验事实充分检验`,
+        signal_ids: [],
+        falsification_conditions: ["取得同口径可核验反证或补齐关键证据"],
+        time_horizon: "补齐证据后重新裁决",
+        judgment_unit_ids: unitId ? [unitId] : [],
+      });
+      hypothesisIds = [hypothesisId];
+    } else {
+      for (const hypothesisId of hypothesisIds) {
+        const hypothesis = hypotheses.find((item: any) => String(item.id) === hypothesisId);
+        if (hypothesis) hypothesis.signal_ids = [];
+      }
+    }
+    judgment.judgment_unit_id = unitId;
+    judgment.scope_ref = String(judgment.scope_ref || scopeRef);
+    judgment.hypothesis_ids = hypothesisIds;
+    judgment.strength = "J0";
+    judgment.confidence = "low";
+    judgment.decision_status = "indeterminate";
+    judgment.conflict_status = judgment.conflict_status === "unresolved" ? "unresolved" : "none";
+    judgment.not_judgeable_reason = `确定性规则未通过，已降为暂不可判断。${reasons.join("；")}`;
+    judgment.supporting_evidence_draft_ids = [];
+    judgment.counter_evidence_draft_ids = [];
+    judgment.claimed_commercialization_stage = null;
+    judgment.qualification_claim_scope = null;
+    judgment.semiconductor_claim_scope = null;
+    judgment.conclusion = judgment.conclusion && String(judgment.conclusion).includes("暂不可")
+      ? judgment.conclusion
+      : "当前暂不可形成方向判断";
+    judgment.rationale = `${judgment.not_judgeable_reason}；已清空越界或口径不全的事实绑定，禁止把未通过规则的证据升级为结论。`;
+  }
+  data.hypotheses = hypotheses;
 }
 
 export function assertDeterministicRuleResults(data: any) {
@@ -313,6 +387,12 @@ function computeRule(
   }
 
   if (rule === "semiconductor_qualification_stage_alignment") {
+    const indeterminateStop = isIndeterminateStop(judgment) && !facts.length;
+    if (indeterminateStop) {
+      return resultOf("pass", [judgmentId], "暂不可判断且无支持事实，跳过商业化阶段校验", [
+        condition("commercialization_claim_present", "commercialization stage claim is present", [judgmentId], "pass", "J0 停止路径"),
+      ]);
+    }
     const claimedStage = asCommercializationStage(judgment.claimed_commercialization_stage)
       || detectCommercializationClaimStage(`${judgment.title || ""} ${judgment.conclusion || ""}`);
     const supportingIds = new Set((judgment.supporting_evidence_draft_ids || []).map(String));
@@ -355,6 +435,12 @@ function computeRule(
   }
 
   if (rule === "semiconductor_capacity_yield_scope_alignment") {
+    const indeterminateStop = isIndeterminateStop(judgment) && !facts.length;
+    if (indeterminateStop) {
+      return resultOf("pass", [judgmentId], "暂不可判断且无支持事实，跳过产能/良率口径校验", [
+        condition("capacity_or_yield_claim_present", "capacity or yield claim is present", [judgmentId], "pass", "J0 停止路径"),
+      ]);
+    }
     const claimScope = semiconductorMeasurement(judgment.semiconductor_claim_scope);
     const claimedKind = claimScope?.metric_kind || detectSemiconductorMetricKind(`${judgment.title || ""} ${judgment.conclusion || ""}`);
     const supportingIds = new Set((judgment.supporting_evidence_draft_ids || []).map(String));
@@ -478,9 +564,23 @@ function qualificationScopesMatch(left: QualificationScope, right: Qualification
   return !leftFacility && !rightFacility || leftFacility === rightFacility;
 }
 
+function isIndeterminateStop(judgment: any) {
+  return judgment.strength === "J0"
+    && ["blocked", "indeterminate", "contested"].includes(String(judgment.decision_status || ""))
+    && Boolean(String(judgment.not_judgeable_reason || "").trim());
+}
+
 function detectSemiconductorMetricKind(text: string): SemiconductorMetricKind | null {
   if (/良率|\byield\b/i.test(text)) return "yield";
-  if (/产能|有效产出|nameplate capacity|effective capacity|\bcapacity\b/i.test(text)) return "capacity";
+  // 「产能扩张」是因果叙事常见词，不等于产能/良率度量主张；避免误触发六维口径挡门。
+  if (/产能扩张|capacity expansion/i.test(text)
+    && !/产能利用率|名义产能|有效产出|nameplate capacity|effective capacity/i.test(text)) {
+    return null;
+  }
+  if (/产能利用率|名义产能|有效产出|nameplate capacity|effective capacity|\bcapacity\b/i.test(text)) {
+    return "capacity";
+  }
+  if (/产能/i.test(text)) return "capacity";
   return null;
 }
 

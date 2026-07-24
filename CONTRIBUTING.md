@@ -14,6 +14,18 @@ npm --prefix runtime ci
 本机启动前复制 `runtime/.env.example` 为 `runtime/.env.local`。不要提交 API Key、`.env.local`、
 SQLite 数据库或 `instances/00_本机运行` 下的运行导出。
 
+## AI 上下文文件
+
+项目根目录多份 AI 上下文文件需保持同步：
+
+| 文件 | 对应工具 | 同步关系 |
+|------|----------|---------|
+| `CLAUDE.md` | Claude Code / Claude Desktop | 主力文件 |
+| `.cursor/rules/03-evidence-sources.mdc` | Cursor | ← CLAUDE.md |
+| `.workbuddy/project.md` | WorkBuddy | ← CLAUDE.md |
+
+新增/移除 MCP 数据通道时，同步更新上述文件 + `methods/03_取证/B03_MCP通道注册.md` + `OPS_MCP查询快速参考.md` + `03_registry.yaml`。
+
 ## 必过检查
 
 ```bash

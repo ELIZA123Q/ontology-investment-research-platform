@@ -108,7 +108,6 @@ function buildStage3SourceCoverage(runId: string): Stage3SourceCoverageProps | u
   const coverage = computeSourceCoverage({
     sources: sources as any,
     evidence,
-    boundSourceIds,
     requirements,
     cutoffMs: Number.isFinite(cutoffMs) ? cutoffMs : undefined,
   });
@@ -221,19 +220,19 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
         <h1>{names[n - 1]}</h1>
         <p className="muted">
           {n === 1
-            ? "左侧编辑研究范围，右侧为后台同步的可读稿；日常审阅请优先使用上方工作场景。"
+            ? "编辑研究范围后确认；这是范围阶段的主工作面。"
             : n === 2
-              ? "范围只读；结构改用右下角改稿。手改仅限必要证据与反证/竞争；确认前会做 AI 校验。"
+              ? "生成或手改结构后，请到「结构」场景审阅确认。手改仅限必要证据与反证/竞争。"
               : n === 3
-                ? "左侧补来源与覆盖分析，右侧为 Stage 03 证据准备结果；日常证据审阅请回审阅视图。"
+                ? "主路径：① 抓取公开 URL → ② 挂到判断单元生成事实草稿 → ③ 回证据审阅批准。模型自动取证为次级入口。"
                 : reviewable
-                  ? "这里保留阶段生成和原始结构编辑；日常审阅请优先使用上方工作场景。"
-                  : "本阶段尚无待审版本：先在此生成，生成后再进入审阅视图。"}
+                  ? "这里是生成与编辑面；日常确认请用上方对应工作场景。"
+                  : "本阶段尚无待审版本：先在此生成，再进入审阅场景。"}
         </p>
       </div>
       {reviewHref && reviewable ? (
-        <Link className="button-secondary" href={reviewHref}>
-          返回审阅视图 ↗
+        <Link className="button" href={reviewHref}>
+          返回审阅 →
         </Link>
       ) : null}
     </div>

@@ -18,11 +18,20 @@ export type KnowledgeAsset = {
 
 export function listKnowledgeAssets(): KnowledgeAsset[] {
   const registry = YAML.parse(readFileSync(repositoryPath("governance/01_架构/runtime_contexts.yaml"), "utf8")) as {
-    stages?: Record<string, { assets?: string[] }>;
+    stages?: Record<string, {
+      assets?: string[];
+      template_by_archetype?: Record<string, string>;
+      conditional_assets?: Array<{ assets?: string[] }>;
+    }>;
   };
   const assets: KnowledgeAsset[] = [];
   for (const [stage, config] of Object.entries(registry.stages || {})) {
-    for (const file of config.assets || []) {
+    const files = new Set<string>([
+      ...(config.assets || []),
+      ...Object.values(config.template_by_archetype || {}),
+      ...(config.conditional_assets || []).flatMap((rule) => rule.assets || []),
+    ]);
+    for (const file of files) {
       const content = readFileSync(repositoryPath(file), "utf8");
       const lines = content.split("\n").slice(0, 10).join("\n");
       assets.push({

@@ -18,7 +18,6 @@ import {
   upsertSource,
   withImmediateTransaction,
 } from "../adapters/db";
-import { loadKnowledge } from "./knowledge";
 import { accumulateTokenUsage, createResearchModelClient } from "../adapters/deepseek";
 import { generationLeaseMs } from "../adapters/model_provider";
 import { promptFor, PROMPT_VERSION } from "./prompts";
@@ -40,6 +39,13 @@ import {
   validateMethodRoutes,
   validateRegisteredMethodApplications,
 } from "./method_registry";
+import {
+  evidenceJudgmentTypeCardsForPrompt,
+  executedMethodsSummary,
+  buildStageGenerationGuidance,
+  judgmentThresholdCapsForPrompt,
+  mcpChannelHintsForPrompt,
+} from "./method_guidance";
 import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type SourceRecord, type StageKind } from "./types";
 import { validateReasoningTraceBindings } from "./reasoning_trace";
 import { changeSetSchema, expandAffectedObjectRefs, mergeChangeSet, type ChangeSet } from "./change_set";
@@ -47,13 +53,16 @@ import { captureSourceSnapshot } from "./source_snapshot";
 import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } from "./semantic_execution";
 import { evidenceBoundSourceIds, evidenceBoundSources } from "./evidence_sources";
 import { syncReviewWorkItems } from "./review_work_items";
-import { classifyRuntimeFailure, compactStructuredArtifact, formatRuntimeFailureMessage } from "./workflow_support";
+import { assembleStageContext, buildSemanticRoute } from "./context_assembler";
+import { classifyRuntimeFailure, compactStructuredArtifact, compactStage03ForUpstream, formatRuntimeFailureMessage } from "./workflow_support";
+import { formalOntologyRuleIds, repairJudgmentPreparationDraft } from "./judgment_draft_normalize";
 import { buildGenerationProgressHeartbeat, parseGenerationProgress } from "./generation_progress";
 import {
   applyStage03SourceSnapshots,
   findUnchangedEvidenceIds,
   runEvidenceSupplementRound,
   stage03AutoSupplementMaxRounds,
+  syncStage03DraftSourcesFromRegistry,
 } from "./evidence_auto_supplement";
 import { computeSourceCoverage, evaluateEvidenceStopCondition } from "./source_coverage";
 import { projectEvidenceRequirementsFromStructure } from "./structure_candidates";
@@ -62,6 +71,7 @@ import { resolveResearchJobReview } from "../adapters/research_jobs";
 export {
   classifyRuntimeFailure,
   compactStructuredArtifact,
+  compactStage03ForUpstream,
   formatRuntimeFailureMessage,
   type RuntimeFailureCategory,
 } from "./workflow_support";
@@ -70,6 +80,7 @@ export {
   validateOntologyVariableBindings,
   validateApproval,
   methodCandidatesForPrompt,
+  upstreamJudgmentTypes,
   sourcesForPrompt,
   sourceForFrozenBaseline,
   normalizeBusinessCutoff,
@@ -109,9 +120,11 @@ import {
   sourcesForPrompt,
   sourceForFrozenBaseline,
   stageNumber,
+  upstreamJudgmentTypes,
   validateApproval,
   validateGeneratedSemanticDraft,
   validateOntologyVariableBindings,
+  editArtifact,
 } from "./workflow_shared";
 import {
   createControlledEvidenceProjection,
@@ -126,12 +139,29 @@ import {
   normalizeStage05Projection,
   repairEvidencePreparationDraft,
 } from "./workflow_projections";
+import { ensureStage02DocumentFields } from "./stage02_documents";
+import { ensureStage03DocumentFields } from "./stage03_documents";
+import { ensureStage04DocumentFields } from "./stage04_documents";
+import { ensureStage05DocumentFields } from "./stage05_documents";
+import { applyClarificationAnswer, pendingClarificationQuestion } from "./stage01_contract";
+import { syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "./readable_markdown";
 
 export function approve(id: string) {
   return withImmediateTransaction(() => {
-    const artifact = getArtifact(id);
+    let artifact = getArtifact(id);
     if (!artifact) throw new Error("产物不存在");
     if (artifact.status !== "needs_review") throw new Error("只有待确认产物可以确认");
+    if (artifact.kind === "stage_03") {
+      // Registry 可能被补证/重新取得来源更新；确认前把冻结字段投影回草稿，再做严格核对。
+      const synced = syncStage03DraftSourcesFromRegistry(
+        parseJson(artifact.json_content, {}),
+        listSources(artifact.run_id),
+      );
+      if (synced.changed) {
+        updateArtifact(artifact.id, { json_content: JSON.stringify(synced.data, null, 2) });
+        artifact = getArtifact(id)!;
+      }
+    }
     validateApproval(artifact);
     assertArtifactReviewComplete(artifact);
     const approvedStage = stageNumber(artifact.kind);
@@ -230,13 +260,12 @@ export async function generateArtifact(
       tool_usage: JSON.stringify({ failure_category: "model_output_error", recovered_abandoned_generation: true }),
     });
   }
-  const knowledge = kind.startsWith("stage_") ? loadKnowledge(kind as StageKind) : { version: "none", context: "", files: [] };
   const dependencyStages: Partial<Record<ArtifactKind, StageKind[]>> = {
     stage_01: [],
     stage_02: ["stage_01"],
     stage_03: ["stage_01", "stage_02"],
     stage_04: ["stage_02", "stage_03"],
-    stage_05: ["stage_03", "stage_04"],
+    stage_05: ["stage_01", "stage_03", "stage_04"],
     baseline: [],
     independent_review: ["stage_02", "stage_03", "stage_04"],
   };
@@ -244,7 +273,19 @@ export async function generateArtifact(
   const upstream = upstreamStages
     .map((s) => latestArtifact(runId, s, ["approved"]))
     .filter(Boolean)
-    .map((a) => ({ artifact_id: a!.id, artifact_hash: createHash("sha256").update(a!.json_content).digest("hex"), model_name: a!.model_name, kind: a!.kind, json: compactStructuredArtifact(parseJson(a!.json_content, {})) }));
+    .map((a) => {
+      const raw = parseJson(a!.json_content, {});
+      const compressed = a!.kind === "stage_03" && ["stage_04", "stage_05", "independent_review"].includes(kind)
+        ? compactStage03ForUpstream(raw)
+        : compactStructuredArtifact(raw);
+      return {
+        artifact_id: a!.id,
+        artifact_hash: createHash("sha256").update(a!.json_content).digest("hex"),
+        model_name: a!.model_name,
+        kind: a!.kind,
+        json: compressed,
+      };
+    });
   const approvedEvidenceArtifact = latestArtifact(runId, "stage_03", ["approved"]);
   const approvedEvidence: any = approvedEvidenceArtifact
     ? parseJson(approvedEvidenceArtifact.json_content, {})
@@ -257,7 +298,31 @@ export async function generateArtifact(
   const frozenSources = isEvidenceConsumer && approvedEvidence
     ? evidenceBoundSources(allSources, approvedEvidence)
     : [];
-  const taskContext: any = upstream.find((item) => item.kind === "stage_01")?.json;
+  const taskContext: any = upstream.find((item) => item.kind === "stage_01")?.json
+    || parseJson(latestArtifact(runId, "stage_01", ["approved"])?.json_content || "{}", {});
+  const deliveryArchetype = String(
+    taskContext?.delivery_archetype?.primary
+    || "industry_cycle_report",
+  );
+  const routePreview = buildSemanticRoute(upstream);
+  const ontologyRaw = ontologyContextForPrompt(runId, {
+    focusNodeIds: routePreview.ontology_node_ids,
+    focusJudgmentUnitIds: routePreview.judgment_unit_ids,
+  });
+  const assembled = assembleStageContext({
+    kind,
+    upstream,
+    ontologyObjectSet: ontologyRaw,
+    deliveryArchetype,
+  });
+  const judgmentTypesForKnowledge = assembled.semantic_route.judgment_types.length
+    ? assembled.semantic_route.judgment_types
+    : upstreamJudgmentTypes(upstream);
+  const knowledge = {
+    version: assembled.knowledge_version,
+    context: assembled.knowledge_context,
+    files: assembled.knowledge_files,
+  };
   const promptSources = sourcesForPrompt(kind, allSources, taskContext?.time_scope?.as_of);
   const sourceContext = promptSources.map((source) => ({
     ...source,
@@ -266,15 +331,41 @@ export async function generateArtifact(
   // 同证据基线只能看到 Stage03 已登记的逐字引文，不能从完整快照
   // 额外开采主链未登记的新事实，否则“同证据”比较失真。
   const frozenSourceContext = frozenSources.map(sourceForFrozenBaseline);
-  const ontologyContext = ontologyContextForPrompt(runId);
+  const ontologyContext = assembled.ontology_object_set;
   const frozenEvidenceArtifact = kind === "baseline" ? approvedEvidenceArtifact : undefined;
   const frozenEvidence: any = frozenEvidenceArtifact ? parseJson(frozenEvidenceArtifact.json_content, {}) : undefined;
+  const priorStage01 = kind === "stage_01"
+    ? latestArtifact(runId, "stage_01", ["needs_review", "approved"])
+    : null;
+  const priorStage01Data = priorStage01 ? parseJson<any>(priorStage01.json_content, {}) : null;
+  const methodCandidates = methodCandidatesForPrompt(kind, upstream, run.question);
+  const selectedMethodGuidance = (kind === "stage_02" || kind === "stage_03" || kind === "stage_04")
+    ? buildStageGenerationGuidance({
+      kind,
+      candidates: methodCandidates,
+      taskText: run.question,
+    }).selected_method_guidance
+    : undefined;
   const inputContext = JSON.stringify(
     {
       question: run.question,
       domain: run.domain,
       package_path: run.package_path,
       upstream,
+      semantic_route: assembled.semantic_route,
+      context_assembly: {
+        note: assembled.assembly_note,
+        budgets: assembled.budgets,
+        knowledge_version: assembled.knowledge_version,
+      },
+      clarification_state: kind === "stage_01" && priorStage01Data
+        ? {
+          previous_artifact_id: priorStage01?.id,
+          task_disposition: priorStage01Data.task_disposition,
+          input_resolution: priorStage01Data.input_resolution,
+          pending_question: pendingClarificationQuestion(priorStage01Data),
+        }
+        : undefined,
       sources: kind === "baseline" ? undefined : sourceContext,
       frozen_evidence: kind === "baseline" ? {
         artifact_id: frozenEvidenceArtifact?.id,
@@ -284,14 +375,42 @@ export async function generateArtifact(
         source_registry: frozenSourceContext,
       } : undefined,
       ontology_object_set: ontologyContext,
-      method_candidates: methodCandidatesForPrompt(
-        kind,
-        upstream,
-        run.question,
-      ),
+      method_candidates: methodCandidates,
+      selected_method_guidance: selectedMethodGuidance,
       judgment_method_routes: kind === "stage_02" || kind === "stage_03" || kind === "stage_04"
         ? methodRoutesForPrompt()
         : undefined,
+      judgment_threshold_caps: kind === "stage_03" || kind === "stage_04"
+        ? judgmentThresholdCapsForPrompt()
+        : undefined,
+      evidence_judgment_type_cards: kind === "stage_03"
+        ? evidenceJudgmentTypeCardsForPrompt(judgmentTypesForKnowledge)
+        : undefined,
+      mcp_channel_hints: kind === "stage_03" ? mcpChannelHintsForPrompt() : undefined,
+      executed_methods_summary: kind === "stage_05"
+        ? executedMethodsSummary(
+          upstream.flatMap((item) => (item.json as any)?.method_applications || []),
+        )
+        : undefined,
+      formal_ontology_rules: kind === "stage_04" ? [...formalOntologyRuleIds()].sort() : undefined,
+      delivery_archetype: kind === "stage_05" ? {
+        primary: deliveryArchetype,
+        secondary: taskContext?.delivery_archetype?.secondary || [],
+        modules: taskContext?.delivery_archetype?.modules || [],
+        template_hint: deliveryArchetype === "industry_cycle_report"
+          ? "delivery/02_模板/05C_行业周期判断模板.md"
+          : deliveryArchetype === "event_commentary"
+            ? "delivery/02_模板/05A_事件点评模板.md"
+            : deliveryArchetype === "industry_dynamic_commentary"
+              ? "delivery/02_模板/05B_行业动态点评模板.md"
+              : deliveryArchetype === "company_earnings_commentary"
+                ? "delivery/02_模板/05D_公司业绩点评模板.md"
+                : deliveryArchetype === "theme_deep_dive"
+                  ? "delivery/02_模板/05E_主题深度研究模板.md"
+                  : "delivery/02_模板/05C_行业周期判断模板.md",
+        expression_standard: "delivery/01_标准/05_投研表达标准.md",
+        quality_gate_note: "工作台确认 ≠ PUBLISHABLE；正式发布仍须 governance validate_05_outputs / validate_run。",
+      } : undefined,
       knowledge_files: knowledge.files,
       knowledge_context: knowledge.context,
     },
@@ -385,7 +504,12 @@ export async function generateArtifact(
           return Number.isFinite(parsed) ? parsed : undefined;
         })()
         : undefined;
-      const supplementContext = { upstream, question: run.question, domain: run.domain };
+      const supplementContext = {
+        upstream,
+        question: run.question,
+        domain: run.domain,
+        judgmentTypes: judgmentTypesForKnowledge,
+      };
 
       if (kind === "stage_03" && stage03Mode === "evidence_supplement") {
         const baseArtifact = latestArtifact(runId, "stage_03", ["needs_review", "approved"]);
@@ -417,15 +541,43 @@ export async function generateArtifact(
         data = supplement.data;
         cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
       } else {
-        const useOntologyTools = kind === "stage_02" || kind === "stage_03" || kind === "stage_04";
+        // Stage04 的 upstream 已含结构/证据；开放 ontologyTools 易陷入 query_object_set/propose_action 空转直至超时。
+        const useOntologyTools = kind === "stage_02" || kind === "stage_03";
         result = await client.generate(kind as SchemaKind, promptFor(kind), inputContext, {
           webSearch: kind === "stage_03",
           ontologyTools: useOntologyTools,
+          // Stage04 无检索工具；测试友好保留较低轮次，但仍给模型几次修正机会。
+          maxToolRounds: kind === "stage_04" ? 6 : undefined,
           runId,
           validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
           repairOutput: kind === "stage_03"
-            ? (draft) => repairEvidencePreparationDraft(draft)
-            : undefined,
+            ? (draft) => {
+              const repaired = repairEvidencePreparationDraft(draft);
+              ensureStage03DocumentFields(repaired, {
+                question: run.question,
+                taskId: run.id,
+                structure: structureData,
+              });
+              return repaired;
+            }
+            : kind === "stage_04"
+              ? (draft) => {
+                const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+                const repaired = repairJudgmentPreparationDraft(draft, {
+                  judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
+                  scopeRef: structure.research_scope?.id || null,
+                });
+                ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
+                return repaired;
+              }
+              : kind === "stage_02"
+                ? (draft) => ensureStage02DocumentFields(draft, { question: run.question, taskId: run.id })
+                : kind === "stage_05"
+                  ? (draft) => {
+                    const stage04: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])?.json_content || "{}", {});
+                    return ensureStage05DocumentFields(draft, { question: run.question, taskId: run.id, stage04 });
+                  }
+                : undefined,
           onProgress: (event) => {
             assertRunning();
             const heartbeat = buildGenerationProgressHeartbeat(event, startedAt);
@@ -481,6 +633,17 @@ export async function generateArtifact(
         normalizeStage01Projection(data, run.question);
         schemas.stage_01.parse(data);
       }
+      if (kind === "stage_02") {
+        ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
+        if (!String(data.research_logic_markdown || "").trim() && String(data.document_markdown || "").trim()) {
+          data.research_logic_markdown = data.document_markdown;
+        }
+        if (String(data.research_logic_markdown || "").trim()) {
+          data.document_markdown = data.research_logic_markdown;
+        }
+        ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
+        schemas.stage_02.parse(data);
+      }
       if (kind === "baseline") {
         data.frozen_stage03_artifact_id = frozenEvidenceArtifact!.id;
         data.frozen_stage03_artifact_hash = createHash("sha256").update(frozenEvidenceArtifact!.json_content).digest("hex");
@@ -497,6 +660,8 @@ export async function generateArtifact(
         const evidence: any = parseJson(latestArtifact(runId, "stage_03", ["approved"])?.json_content || "{}", {});
         const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
         applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
+        syncStage04ReadableMarkdown(data, { question: run.question, taskId: run.id });
+        schemas.stage_04.parse(data);
       }
       if (kind === "stage_03" && stage03Mode !== "evidence_supplement") {
         // 全量生成后可自动多轮补证；「补充取证」按钮本身已是一轮，再套 max_auto_rounds 会把 token 打爆。
@@ -548,11 +713,26 @@ export async function generateArtifact(
           data = supplement.data;
           cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
         }
+      }
+      if (kind === "stage_03") {
+        data = repairEvidencePreparationDraft(data);
+        syncStage03ReadableMarkdown(data, {
+          question: run.question,
+          taskId: run.id,
+          structure: structureData,
+        });
         schemas.stage_03.parse(data);
       }
       if (kind === "stage_05") {
         const judgmentArtifact = latestArtifact(runId, "stage_04", ["approved"])!;
-        normalizeStage05Projection(data, parseJson<any>(judgmentArtifact.json_content, {}), run.question, listSources(runId));
+        // 对齐 claim↔judgment 与审计；保留模型研报正文，不压平为简报。
+        normalizeStage05Projection(
+          data,
+          parseJson<any>(judgmentArtifact.json_content, {}),
+          run.question,
+          listSources(runId),
+        );
+        if (!data.delivery_archetype) data.delivery_archetype = deliveryArchetype;
         schemas.stage_05.parse(data);
       }
       assertRunning();
@@ -725,4 +905,25 @@ export async function applyIncrementalChangeSet(runId: string, rawChangeSet: Cha
   });
   syncReviewWorkItems(artifact, merged);
   return artifact;
+}
+
+/** Stage01：提交一条澄清回答并写回产物；随后应重新生成 Stage01。 */
+export function clarifyStage01(
+  runId: string,
+  answer: string,
+  options: { question_id?: string; regenerate?: boolean } = {},
+): Artifact {
+  const run = getRun(runId);
+  if (!run) throw new Error("研究任务不存在");
+  const artifact = latestArtifact(runId, "stage_01", ["needs_review"]);
+  if (!artifact) throw new Error("尚无待澄清的 Stage01 草稿");
+  const previous = parseJson<any>(artifact.json_content, {});
+  if (String(previous.task_disposition || "") !== "needs_clarification"
+    && !pendingClarificationQuestion(previous)) {
+    throw new Error("当前 Stage01 不处于待澄清状态");
+  }
+  const next = applyClarificationAnswer(previous, answer, { question_id: options.question_id });
+  syncStage01ReadableMarkdown(next, run.question);
+  schemas.stage_01.parse(next);
+  return editArtifact(artifact.id, JSON.stringify(next, null, 2), next.document_markdown);
 }

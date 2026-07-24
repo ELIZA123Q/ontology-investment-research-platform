@@ -64,7 +64,9 @@ export async function captureSourceSnapshot(
     const mime = String(response.headers.get("content-type") || "application/octet-stream").split(";")[0].trim().toLowerCase();
     const text = isTextMime(mime) ? extractReadableText(bytes.toString("utf8"), mime) : "";
     const normalizedBody = normalizeText(text);
-    const quoteVerified = Boolean(quote && normalizedBody.includes(quote));
+    const aligned = alignQuoteToBody(quote, normalizedBody);
+    const quoteVerified = aligned.verified;
+    const alignedQuote = aligned.alignedQuote || quote;
     const captured = response.ok && bytes.length > 0;
     const usable = captured && text.length >= 200 && quoteVerified;
     const detail = !response.ok
@@ -84,9 +86,10 @@ export async function captureSourceSnapshot(
       http_status: response.status,
       retrieval_status: usable ? "captured" : captured ? "limited" : "failed",
       snapshot_text: text.slice(0, 200_000),
-      source_quote: input.source_quote || "",
+      // 标点折叠命中时改存正文逐字片段，避免后续重核验/展示仍用“带逗号的改写句”。
+      source_quote: quoteVerified ? alignedQuote : (input.source_quote || ""),
       quote_verified: quoteVerified,
-      locator: input.locator || (quote ? `quote:${(input.source_quote || "").slice(0, 120)}` : input.url),
+      locator: input.locator || (alignedQuote ? `quote:${alignedQuote.slice(0, 120)}` : input.url),
       usability_status: usable ? "usable" : captured ? "limited" : "rejected",
       failure_category: captured ? "" : "source_acquisition_failure",
       failure_detail: detail,
@@ -318,4 +321,111 @@ function safeCodePoint(value: number) {
 
 function normalizeText(value: string) {
   return value.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * 轻量标点折叠：去掉中英文逗号/句号差异与引号差异后再比连续子串。
+ * 不做语义模糊匹配——改写后的句子仍应失败。
+ */
+function foldPunctuation(value: string) {
+  return normalizeText(value)
+    .replace(/[\u201c\u201d\u2018\u2019"'「」『』]/g, "")
+    .replace(/[,，.。;；:：!！?？、]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * 用 quote 中的数字/长词锚点，从正文切回一段连续原文。
+ * 解决维基信息框「模型加了逗号、正文无逗号」这类近失配。
+ */
+export function recoverQuoteSpanFromBody(quote: string, body: string): string | null {
+  const normalizedQuote = normalizeText(quote);
+  const normalizedBody = normalizeText(body);
+  if (!normalizedQuote || !normalizedBody) return null;
+  if (normalizedBody.includes(normalizedQuote)) return normalizedQuote;
+
+  const tokens = normalizedQuote
+    .split(/[\s,，/|]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2);
+  if (tokens.length < 2) return null;
+
+  const digitTokens = tokens.filter((token) => /\d/.test(token));
+  const significantDigits = digitTokens.filter((token) => !/^\(?20\d{2}\)?$/.test(token) && !/^20\d{2}$/.test(token));
+  const anchors = significantDigits.length >= 2
+    ? significantDigits
+    : digitTokens.length >= 2
+      ? digitTokens
+      : tokens;
+  const first = anchors[0];
+  const last = anchors[anchors.length - 1];
+  let start = normalizedBody.indexOf(first);
+  if (start < 0) return null;
+  let end = normalizedBody.indexOf(last, start + first.length);
+  if (end < 0) return null;
+  end = end + last.length;
+
+  // 向左扩展：把 “Revenue US$” 这类非数字前缀也纳入正文切片。
+  const firstAnchorIdx = Math.max(0, tokens.indexOf(first));
+  for (let index = firstAnchorIdx - 1; index >= 0; index -= 1) {
+    const token = tokens[index];
+    const probe = normalizedBody.lastIndexOf(token, start);
+    if (probe < 0 || start - (probe + token.length) > 2) break;
+    start = probe;
+  }
+  // 向右扩展：纳入末尾单位词等。
+  const lastAnchorIdx = Math.max(0, tokens.lastIndexOf(last));
+  for (let index = lastAnchorIdx + 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    const probe = normalizedBody.indexOf(token, end);
+    if (probe < 0 || probe - end > 2) break;
+    end = probe + token.length;
+  }
+
+  const span = normalizedBody.slice(start, end).trim();
+  if (span.length < 20 || span.length > Math.max(normalizedQuote.length * 4, 480)) return null;
+
+  const requiredDigits = significantDigits.length ? significantDigits : digitTokens;
+  if (requiredDigits.length) {
+    const hits = requiredDigits.filter((token) => span.includes(token)).length;
+    if (hits < Math.ceil(requiredDigits.length * 0.7)) return null;
+  }
+
+  const foldedQuote = foldPunctuation(normalizedQuote);
+  const foldedSpan = foldPunctuation(span);
+  if (!foldedQuote || (!foldedSpan.includes(foldedQuote) && !foldedQuote.includes(foldedSpan))) {
+    // 数字锚点命中且跨度合理时也接受；否则要求折叠后互含。
+    if (!requiredDigits.length || requiredDigits.filter((token) => span.includes(token)).length < requiredDigits.length) {
+      return null;
+    }
+  }
+  return span;
+}
+
+export function alignQuoteToBody(quote: string, body: string): { verified: boolean; alignedQuote: string } {
+  const normalizedQuote = normalizeText(quote);
+  const normalizedBody = normalizeText(body);
+  if (!normalizedQuote) return { verified: false, alignedQuote: quote };
+  if (normalizedBody.includes(normalizedQuote)) {
+    return { verified: true, alignedQuote: normalizedQuote };
+  }
+
+  const foldedQuote = foldPunctuation(normalizedQuote);
+  const foldedBody = foldPunctuation(normalizedBody);
+  if (foldedQuote && foldedBody.includes(foldedQuote)) {
+    const recovered = recoverQuoteSpanFromBody(normalizedQuote, normalizedBody);
+    return { verified: true, alignedQuote: recovered || normalizedQuote };
+  }
+
+  const recovered = recoverQuoteSpanFromBody(normalizedQuote, normalizedBody);
+  if (recovered && quoteMatchesBody(recovered, normalizedBody)) {
+    return { verified: true, alignedQuote: recovered };
+  }
+  return { verified: false, alignedQuote: quote };
+}
+
+/** 先精确子串，再标点折叠后子串；仍要求连续命中。 */
+export function quoteMatchesBody(quote: string, body: string): boolean {
+  return alignQuoteToBody(quote, body).verified;
 }

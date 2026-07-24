@@ -328,7 +328,7 @@ describe("v1.3 operational spine", () => {
     expect(editedStructure.method_applications.map((item: any) => item.application_id)).toEqual(
       structure.method_applications.map((item: any) => item.application_id),
     );
-    expect(editedStructure.document_markdown).toContain("研究结构");
+    expect(editedStructure.document_markdown).toContain("研究逻辑");
   });
 
   it("revises Stage01 via NL patch hook and gates Stage01 downstream confirmation", async () => {
@@ -750,6 +750,8 @@ describe("v1.3 operational spine", () => {
       expect.objectContaining({ method_id: "kb03:A02", decision: "retry_after_source_acquisition" }),
     ]);
     const { evidencePreparationSchema } = await import("@/engine/schemas");
+    const { syncStage03ReadableMarkdown } = await import("@/engine/readable_markdown");
+    syncStage03ReadableMarkdown(repaired);
     expect(() => evidencePreparationSchema.parse(repaired)).not.toThrow();
   });
 
@@ -771,7 +773,77 @@ describe("v1.3 operational spine", () => {
     expect(data.method_applications[0].status).toBe("blocked");
   });
 
-  it("renders Stage 05 only from confirmed judgments and discards free-form overclaims", () => {
+  it("aligns Stage05 claims to judgments without flattening a report body into audit-voiced brief", () => {
+    const reportBody = [
+      "# 当前暂不可形成方向判断",
+      "",
+      "## 投资要点",
+      "",
+      "- **价格方向暂不可判断。** 缺少价格序列。",
+      "",
+      "## 核心结论概览",
+      "",
+      "| 项目 | 结论 |",
+      "|---|---|",
+      "| 当前判断 | 暂不可形成方向判断 |",
+      "",
+      "## 市场认知差 / Research Edge",
+      "",
+      "| 参考认识 | 本次差异化判断 | 被低估的机制 | 什么会证伪 | 证据边界 |",
+      "|---|---|---|---|---|",
+      "| 市场预期上行 | 证据不足不能确认 | 公开序列缺失 | 取得连续价格 | 仅限已确认判断 |",
+      "",
+      "## 一、价格证据不足",
+      "",
+      "- 当前暂不可形成方向判断。",
+      "",
+      "## 二、验证窗口",
+      "",
+      "- 取得事实级证据后再判断。",
+      "",
+      "## 投资含义与重点观察",
+      "",
+      "| 对象/环节 | 当前判断 | 关键依据 | 后续观察 | 主要风险 |",
+      "|---|---|---|---|---|",
+      "| 价格 | 暂不可判断 | 证据缺口 | 价格序列 | 外推 |",
+      "",
+      "## 催化、验证与风险",
+      "",
+      "### 未来重点观察",
+      "",
+      "| 时间或频率 | 指标/事件 | 当前基线 | 触发条件 | 对判断的影响 | 首选来源 |",
+      "|---|---|---|---|---|---|",
+      "| 下季度 | 价格 | 未知 | 连续两期 | 改判 | 公司披露 |",
+      "",
+      "### 主要风险",
+      "",
+      "- 缺少价格序列。",
+      "",
+      "## 主要资料来源",
+      "",
+      "- 无",
+    ].join("\n");
+    const data = workflow.normalizeStage05Projection({
+      title: "未经约束的方向标题", executive_points: ["HBM消耗三倍晶圆面积"],
+      report_claims: [{ id: "RC-1", statement: "预计价格上行", judgment_ids: ["J-1"], method_application_ids: ["MA-1"], evidence_draft_ids: [], source_ids: [] }],
+      limitations: ["模型自由限制"], document_markdown: reportBody,
+    }, {
+      overall_boundary: "上游只有证据缺口",
+      judgments: [{ id: "J-1", title: "价格方向", conclusion: "当前暂不可形成方向判断", strength: "J0", decision_status: "indeterminate", uncertainties: ["缺少价格序列"], invalidation_conditions: ["取得事实级证据"] }],
+    }, "价格是否改善？", []);
+    expect(data.report_claims[0].statement).toContain("当前暂不可形成方向判断");
+    expect(data.report_claims[0].statement).not.toMatch(/J0\/indeterminate/);
+    expect(data.document_markdown).toContain("## 投资要点");
+    expect(data.document_markdown).toContain("## 市场认知差 / Research Edge");
+    expect(data.document_markdown).toContain("## 一、价格证据不足");
+    expect(data.document_markdown).not.toContain("研究判断简报");
+    expect(data.document_markdown).not.toContain("<details>");
+    expect(data.document_markdown).not.toContain("审计索引");
+    // 保留模型研报结构，不因对齐 claim 而整篇重写
+    expect(data.document_markdown).toContain("## 一、价格证据不足");
+  });
+
+  it("rebuilds a non-report seed into 05C skeleton without audit voice", () => {
     const data = workflow.normalizeStage05Projection({
       title: "未经约束的方向标题", executive_points: ["HBM消耗三倍晶圆面积"],
       report_claims: [{ id: "RC-1", statement: "预计价格上行", judgment_ids: ["J-1"], method_application_ids: ["MA-1"], evidence_draft_ids: [], source_ids: [] }],
@@ -780,13 +852,14 @@ describe("v1.3 operational spine", () => {
       overall_boundary: "上游只有证据缺口",
       judgments: [{ id: "J-1", title: "价格方向", conclusion: "当前暂不可形成方向判断", strength: "J0", decision_status: "indeterminate", uncertainties: ["缺少价格序列"], invalidation_conditions: ["取得事实级证据"] }],
     }, "价格是否改善？", []);
-    expect(data.report_claims[0].statement).toContain("当前暂不可形成方向判断（J0/indeterminate）");
     expect(data.document_markdown).not.toContain("三倍晶圆面积");
     expect(data.document_markdown).not.toContain("全行业上涨");
-    expect(data.document_markdown).toContain("## 结论先行");
-    expect(data.document_markdown).toContain("## 判断依据与改判条件");
-    expect(data.document_markdown).toContain("**何时改判**");
-    expect(data.document_markdown).toContain("MethodApplication：MA-1");
+    expect(data.document_markdown).toContain("## 投资要点");
+    expect(data.document_markdown).toContain("## 核心结论概览");
+    expect(data.document_markdown).toContain("## 市场认知差 / Research Edge");
+    expect(data.document_markdown).toMatch(/## [一二]、/);
+    expect(data.document_markdown).not.toContain("J0/indeterminate");
+    expect(data.document_markdown).not.toContain("审计索引");
   });
 
   it("requires auditable human resolutions and cannot disguise a gap as supplemented evidence", async () => {
@@ -1069,7 +1142,63 @@ describe("v1.3 operational spine", () => {
     const ruleNames = [...semanticExecution.REQUIRED_RULES];
     const rules = ruleNames.map((rule_ref, index) => ({ id: `RE-${index + 1}`, rule_ref, judgment_id: "J-1", input_refs: ["EV-1"], condition_results: [{ condition_id: "runtime", expression: "verified", input_refs: ["EV-1"], outcome: "pass", rationale: "verified" }], result: "pass", deterministic_result: { engine_version: "runtime-semantic-rules-3.0.0", result: "pass", rationale: "verified", evaluated_at: cutoff } }));
     const stage04 = { method_applications: [executedStructure, executedEvidence, executed], signals: [{ id: "SIG-1", statement: "库存下降构成支持信号", role: "support", evidence_draft_ids: ["EV-1"], judgment_unit_ids: ["JU-1"], target_hypothesis_ids: ["H-1"] }], hypotheses: [{ id: "H-1", statement: "库存处于下降阶段", signal_ids: ["SIG-1"], falsification_conditions: ["库存回升"], time_horizon: "一季度" }], competing_explanations: [{ id: "CE-1", statement: "季节性波动", signal_ids: ["SIG-1"], discriminating_evidence: ["跨季对照"], status: "weakened", elimination_rationale: "部分削弱" }], rule_evaluations: rules, judgments: [{ id: "J-1", judgment_unit_id: "JU-1", title: "库存观察", conclusion: "库存存在下降迹象", rationale: "一组直接来源仅支持 J1", strength: "J1", confidence: "low", decision_status: "supported", conflict_status: "none", not_judgeable_reason: null, scope_ref: "SCOPE-1", cutoff_at: cutoff, conditions: [], supporting_evidence_draft_ids: ["EV-1"], counter_evidence_draft_ids: [], hypothesis_ids: ["H-1"], rule_evaluation_ids: rules.map((rule) => rule.id), method_application_ids: ["MA-PUBLISH"], ontology_node_ids: ["SV-INV"], uncertainties: ["样本短"], invalidation_conditions: ["库存回升"], tracking_signals: ["库存"] }], reasoning_traces: [{ id: "RT-1", judgment_id: "J-1", node_ids: ["SCOPE-1", "JU-1", "EV-1", "SIG-1", "H-1", ...rules.map((rule) => rule.id), "MA-PUBLISH", "J-1"], created_at: cutoff }], overall_boundary: "仅限本范围", document_markdown: "# 判断\n\n当前只有一组直接来源，确定性规则将证据上限限制在 J1；保留季节性竞争解释和库存回升失效条件，不外推为确定趋势。" };
-    const stage05 = { title: "测试报告", executive_points: ["库存存在下降迹象"], report_claims: [{ id: "EX-1", statement: "库存存在下降迹象", judgment_ids: ["J-1"], method_application_ids: ["MA-PUBLISH"], evidence_draft_ids: ["EV-1"], source_ids: [source.id] }], limitations: ["仅一组直接来源"], document_markdown: "# 测试报告\n\n库存存在下降迹象，但当前仅一组直接来源，因此结论保持在 J1 观察层。" };
+    const stage05Body = [
+      "# 库存存在下降迹象",
+      "",
+      "## 投资要点",
+      "",
+      "- **库存存在下降迹象。** 仅一组直接来源，结论保持观察层。",
+      "",
+      "## 核心结论概览",
+      "",
+      "| 项目 | 结论 |",
+      "|---|---|",
+      "| 当前判断 | 库存存在下降迹象 |",
+      "",
+      "## 市场认知差 / Research Edge",
+      "",
+      "| 参考认识 | 本次差异化判断 | 被低估的机制 | 什么会证伪 | 证据边界 |",
+      "|---|---|---|---|---|",
+      "| 库存已企稳 | 仅见下降迹象 | 样本有限 | 库存回升 | 单来源 |",
+      "",
+      "## 一、库存变化",
+      "",
+      "- 库存存在下降迹象。",
+      "",
+      "## 二、证据边界",
+      "",
+      "- 仅一组直接来源。",
+      "",
+      "## 投资含义与重点观察",
+      "",
+      "| 对象/环节 | 当前判断 | 关键依据 | 后续观察 | 主要风险 |",
+      "|---|---|---|---|---|",
+      "| 库存 | 下降迹象 | EV-1 | 下季披露 | 季节性 |",
+      "",
+      "## 催化、验证与风险",
+      "",
+      "### 未来重点观察",
+      "",
+      "| 时间或频率 | 指标/事件 | 当前基线 | 触发条件 | 对判断的影响 | 首选来源 |",
+      "|---|---|---|---|---|---|",
+      "| 下季 | 库存 | 下降迹象 | 回升 | 削弱 | 公司披露 |",
+      "",
+      "### 主要风险",
+      "",
+      "- 仅一组直接来源。",
+      "",
+      "## 主要资料来源",
+      "",
+      `- [${source.title}](${source.url})`,
+    ].join("\n");
+    const stage05 = {
+      title: "测试报告",
+      executive_points: ["库存存在下降迹象"],
+      report_claims: [{ id: "EX-1", statement: "库存存在下降迹象", judgment_ids: ["J-1"], method_application_ids: ["MA-PUBLISH"], evidence_draft_ids: ["EV-1"], source_ids: [source.id] }],
+      limitations: ["仅一组直接来源"],
+      document_markdown: stage05Body,
+      quality_status: "high_quality_pass",
+    };
     const addApproved = (kind: "stage_01"|"stage_02"|"stage_03"|"stage_04"|"stage_05", data: object, model = "producer-model") => {
       const draft = db.createArtifact(run.id, kind, { status: "needs_review", json_content: JSON.stringify(data), markdown_content: (data as any).document_markdown || "", model_name: model });
       const targets = kind === "stage_03" ? (data as any).evidence_drafts || [] : kind === "stage_04" ? (data as any).judgments || [] : [];
@@ -1120,8 +1249,8 @@ describe("v1.3 operational spine", () => {
       status: "needs_review",
       json_content: JSON.stringify({
         ...stage03,
-        sources: [{ ...sourceDraft, content_hash: "f".repeat(64) }],
-        document_markdown: "# 伪造来源测试\n\n该产物故意篡改正文哈希，但保留其余完整字段，用于证明确认流程会和 Source Registry 逐字段核对并拒绝伪造绑定。",
+        sources: [{ ...sourceDraft, url: "https://evil.example/forged", content_hash: "f".repeat(64) }],
+        document_markdown: "# 伪造来源测试\n\n该产物故意改绑到不同 URL 并篡改正文哈希，用于证明确认流程会拒绝与 Source Registry 身份不一致的绑定；同 URL 的冻结字段漂移会在确认前由 Registry 投影回草稿。",
       }),
       markdown_content: stage03.document_markdown,
     });
@@ -1132,9 +1261,11 @@ describe("v1.3 operational spine", () => {
       json_content: JSON.stringify({
         ...stage05,
         report_claims: [{ ...stage05.report_claims[0], evidence_draft_ids: [] }],
-        document_markdown: "# 追溯缺失测试\n\n该表达故意删除事实级 evidence_draft_ids，同时保留来源 ID，用于证明阶段 05 不能绕过 Judgment 的事实路径直接挑选来源。",
+        // 结构达标，专门检验事实级 evidence 追溯门禁（而非结构门禁抢先失败）。
+        document_markdown: stage05Body,
+        quality_status: "high_quality_pass",
       }),
-      markdown_content: stage05.document_markdown,
+      markdown_content: stage05Body,
     });
     expect(() => workflow.approve(untracedExpression.id)).toThrow(/缺少事实级 evidence_draft_ids/);
     const unreviewedJudgment = db.createArtifact(run.id, "stage_04", {

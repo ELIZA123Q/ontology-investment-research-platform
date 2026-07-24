@@ -64,4 +64,18 @@ describe("research_overview", () => {
       cta: "去确认 →",
     });
   });
+
+  it("routes the continue-next-stage action to review scenes instead of stage editors", () => {
+    const overview = buildResearchOverview({
+      runId: "run-next",
+      currentStage: 2,
+      pending: [],
+      deliveryReady: false,
+      judgments: [],
+      evidence: [],
+    });
+
+    expect(overview.primaryAction.href).toBe("/runs/run-next/evidence");
+    expect(overview.primaryAction.eyebrow).toContain("证据");
+  });
 });

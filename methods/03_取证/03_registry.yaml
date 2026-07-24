@@ -1,6 +1,6 @@
 registry_type: evidence_method_registry
 schema_version: 3.2.0
-updated_at: 2026-07-16
+updated_at: 2026-07-23
 
 # 本文件是方法说明与任务编排索引，不是业务参数权威。
 # 角色枚举、完备度↔Q、篮子角色对照一律回指跨阶段门槛合同；正式本体只保留证据约束语义。
@@ -327,12 +327,129 @@ source_guides:
   principles: B00_来源选择与使用边界.md
   general: B01_通用来源速查.md
   semiconductor: B02_半导体来源速查.md
+  mcp_channels: B03_MCP通道注册.md
+
+acquisition_channels:
+  description: >
+    MCP、API、数据库终端和AI工具是获取通道，不是来源生产者。
+    每次MCP调用必须记录Connector名称、上游来源、查询参数、
+    原始响应、字段血缘、权限范围和回放能力。
+    详细映射见 B03_MCP通道注册.md，操作参考见 OPS_MCP查询快速参考.md。
+  channels:
+    - id: cninfo
+      type: mcp
+      producer: 巨潮资讯网
+      covers: [A股公司披露]
+      ops_ref: QP-MCP-01
+    - id: htsc_research_mcp
+      type: mcp
+      producer: 华泰证券研究所
+      covers: [研报辅助, 卖方预期参考]
+      role_note: 专业解释/研究，不替代关键硬事实
+      ops_ref: QP-MCP-02
+    - id: china-policy
+      type: mcp
+      producer: 中央政策数据库
+      covers: [中国法律, 行政法规, 产业政策]
+      ops_ref: QP-MCP-03
+    - id: caixin-news
+      type: mcp
+      producer: 财新传媒
+      covers: [新闻线索]
+      role_note: 新闻/公开叙事，不替代政策/财务/行业状态唯一证据
+      ops_ref: QP-MCP-04
+    - id: jina-reader
+      type: mcp
+      producer: null
+      covers: [网页获取, 搜索辅助]
+      role_note: 纯获取通道，不作任何正式证据
+      ops_ref: QP-MCP-05
+    - id: datayes-stock-info-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [A股公司信息]
+      ops_ref: QP-MCP-06
+    - id: datayes-stock-finoper-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [A股财务三表]
+      ops_ref: QP-MCP-07
+    - id: datayes-stock-mkt-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [A股行情]
+      ops_ref: QP-MCP-08
+    - id: datayes-stock-eqhld-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [A股机构持仓]
+      ops_ref: QP-MCP-09
+    - id: datayes-stock-event-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [A股公司事件]
+      role_note: 事件摘要不等于公告原文
+      ops_ref: QP-MCP-10
+    - id: datayes-macro-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [中国宏观, 全球宏观, 产业运行]
+      ops_ref: QP-MCP-11
+    - id: datayes-index-info-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [指数成分与信息]
+      ops_ref: QP-MCP-12
+    - id: datayes-index-mktanl-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [指数行情与估值]
+      ops_ref: QP-MCP-13
+    - id: datayes-fund-master-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [基金基本信息]
+      ops_ref: QP-MCP-14
+    - id: datayes-fund-perf-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [基金业绩]
+      ops_ref: QP-MCP-14
+    - id: datayes-fund-holding-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [基金持仓]
+      ops_ref: QP-MCP-14
+    - id: datayes-fund-fincap-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [基金财务]
+      ops_ref: QP-MCP-14
+    - id: datayes-fund-analytics-mcp
+      type: mcp
+      producer: 通联数据
+      covers: [基金分析]
+      ops_ref: QP-MCP-14
+    - id: paperclip
+      type: mcp
+      producer: null
+      covers: [文件处理]
+      role_note: 纯工具，不产生金融数据
+      ops_ref: QP-MCP-15
+    - id: hermes-docs
+      type: mcp
+      producer: Hermes
+      covers: [文档检索]
+      role_note: 纯工具辅助
+      ops_ref: QP-MCP-16
 
 runtime_references:
   operations:
     - OPS_通用真实来源查询与回退手册.md
     - OPS_半导体真实来源查询与口径手册.md
     - OPS_地缘规则与冲击查询手册.md
+  mcp_operations:
+    - OPS_MCP查询快速参考.md
 
 runtime_compatibility:
   legacy_snapshot_fields:

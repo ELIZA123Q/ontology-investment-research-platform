@@ -55,6 +55,60 @@ describe("db_read_models", () => {
     expect(sources[0]).not.toHaveProperty("search_excerpt");
   });
 
+  it("does not let a later limited upsert downgrade an already usable source at the same URL", () => {
+    const run = db.createRun("来源不降级", "semiconductor");
+    const first = db.upsertSource(run.id, {
+      url: "https://example.com/home",
+      title: "已核验文章",
+      publisher: "Example",
+      published_at: "2026-01-01",
+      source_type: "disclosure",
+      search_excerpt: "",
+      source_quote: "库存下降",
+      quote_verified: true,
+      usability_status: "usable",
+      retrieval_status: "captured",
+      content_hash: "a".repeat(64),
+      snapshot_text: "库存下降",
+      locator: "quote:库存下降",
+      captured_at: "2026-01-01T00:00:00.000Z",
+      failure_category: "",
+      failure_detail: "",
+      final_url: "https://example.com/home",
+      content_mime: "text/html",
+      http_status: 200,
+    });
+    const second = db.upsertSource(run.id, {
+      url: "https://example.com/home",
+      title: "首页线索",
+      publisher: "Example",
+      published_at: "2026-01-02",
+      source_type: "web_citation",
+      search_excerpt: "",
+      source_quote: "unrelated headline",
+      quote_verified: false,
+      usability_status: "limited",
+      retrieval_status: "limited",
+      content_hash: "b".repeat(64),
+      snapshot_text: "homepage",
+      locator: "quote:unrelated",
+      captured_at: "2026-01-02T00:00:00.000Z",
+      failure_category: "",
+      failure_detail: "原文引用未能在抓取正文中精确定位",
+      final_url: "https://example.com/home",
+      content_mime: "text/html",
+      http_status: 200,
+    });
+    expect(second.id).toBe(first.id);
+    expect(second).toMatchObject({
+      title: "已核验文章",
+      usability_status: "usable",
+      retrieval_status: "captured",
+      quote_verified: 1,
+      source_quote: "库存下降",
+    });
+  });
+
   it("listWorkItemsForReview omits payload_json", () => {
     const run = db.createRun("工作项瘦身", "semiconductor");
     const artifact = db.createArtifact(run.id, "stage_03", { status: "needs_review" });

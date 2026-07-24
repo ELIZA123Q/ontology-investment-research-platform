@@ -38,7 +38,7 @@ const dependencyStages: Partial<Record<ArtifactKind, StageKind[]>> = {
   stage_02: ["stage_01"],
   stage_03: ["stage_01", "stage_02"],
   stage_04: ["stage_02", "stage_03"],
-  stage_05: ["stage_03", "stage_04"],
+  stage_05: ["stage_01", "stage_03", "stage_04"],
   baseline: ["stage_03"],
   independent_review: ["stage_02", "stage_03", "stage_04"],
 };

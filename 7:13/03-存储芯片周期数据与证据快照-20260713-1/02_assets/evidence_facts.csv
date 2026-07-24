@@ -1,0 +1,8 @@
+fact_id,execution_id,statement,fact_type,business_time,normalized_value,unit,fact_confidence,about_instance_refs,status,created_at,notes
+EF-MEM-001,EXEC-MEM-CYCLE-20260713-1,AI需求与HBM供给约束支持结构性偏紧,occurrence,2026-05-28,structural_tightness,enum,high,INST-P-HBM|INST-C-MU,active,2026-07-13T21:06:10+08:00,不外推为统一存储周期
+EF-MEM-002,EXEC-MEM-CYCLE-20260713-1,Micron FQ3 DRAM实现价环比上涨低60%段,measurement,2026-05-28,62.5,percent,medium,INST-P-DRAM|INST-C-MU,active,2026-07-13T21:30:00+08:00,取低60%段中点仅供展示 原始披露为区间语言
+EF-MEM-003,EXEC-MEM-CYCLE-20260713-1,Micron FQ3 NAND实现价环比上涨中80%段,measurement,2026-05-28,85,percent,medium,INST-P-NAND|INST-C-MU,active,2026-07-13T21:30:00+08:00,取中80%段中点仅供展示 原始披露为区间语言
+EF-MEM-004,EXEC-MEM-CYCLE-20260713-1,Micron多年战略客户协议覆盖约20% DRAM量,measurement,2026-06-24,20,percent,high,INST-P-DRAM|INST-C-MU,active,2026-07-13T21:30:00+08:00,单一供应商多年覆盖比例
+EF-MEM-005,EXEC-MEM-CYCLE-20260713-1,Micron多年战略客户协议覆盖约三分之一NAND量,measurement,2026-06-24,33.3,percent,medium,INST-P-NAND|INST-C-MU,active,2026-07-13T21:30:00+08:00,公司原文为a third 数值为近似表达
+EF-MEM-006,EXEC-MEM-CYCLE-20260713-1,TrendForce预计2Q26传统DRAM合约价环比上涨区间中点约60.5%,measurement,2026-06-30,60.5,percent,medium,INST-P-DRAM,active,2026-07-13T21:30:00+08:00,预测值不当作已实现成交价
+EF-MEM-007,EXEC-MEM-CYCLE-20260713-1,TrendForce预计2Q26 NAND Flash合约价环比上涨区间中点约72.5%,measurement,2026-06-30,72.5,percent,medium,INST-P-NAND,active,2026-07-13T21:30:00+08:00,预测值不当作已实现成交价

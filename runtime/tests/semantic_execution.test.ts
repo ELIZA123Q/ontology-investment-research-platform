@@ -77,15 +77,22 @@ describe("formal ontology deterministic execution", () => {
     expect(result.rule_evaluations.every((item: any) => item.deterministic_result.engine_version === "runtime-semantic-rules-3.0.0")).toBe(true);
   });
 
-  it("rejects observations after cutoff or with an inverted validity interval", () => {
-    expect(() => apply(decision(), [fact({
+  it("demotes judgments when observations are after cutoff or validity is inverted", () => {
+    const result = apply(decision(), [fact({
       observed_at: "2026-07-19T00:00:00Z",
       valid_to: "2026-07-16T00:00:00Z",
-    })])).toThrow(/state_time_consistency/);
+    })]);
+    expect(result.judgments[0]).toMatchObject({
+      strength: "J0",
+      decision_status: "indeterminate",
+      supporting_evidence_draft_ids: [],
+    });
+    expect(String(result.judgments[0].not_judgeable_reason)).toMatch(/state_time_consistency|evidence_scope_time_alignment/);
   });
 
-  it("blocks proxy evidence until lag, scope and non-substitution are disclosed", () => {
-    expect(() => apply(decision(), [fact({ directness: "proxy" })])).toThrow(/semiconductor_proxy_disclosure/);
+  it("demotes proxy judgments until lag, scope and non-substitution are disclosed", () => {
+    const blocked = apply(decision(), [fact({ directness: "proxy" })]);
+    expect(blocked.judgments[0].strength).toBe("J0");
     expect(() => apply(decision(), [fact({
       directness: "proxy",
       proxy_disclosure: {
@@ -96,7 +103,7 @@ describe("formal ontology deterministic execution", () => {
     })])).not.toThrow();
   });
 
-  it("rejects a low-stage commercialization fact used for a higher-stage claim", () => {
+  it("demotes a low-stage commercialization fact used for a higher-stage claim", () => {
     const scope = { product_spec_ref: "HBM3E", customer_ref: "客户A", facility_ref: "Fab-1" };
     const judgment = decision({
       title: "量产阶段判断",
@@ -104,11 +111,13 @@ describe("formal ontology deterministic execution", () => {
       claimed_commercialization_stage: "mass_production",
       qualification_claim_scope: scope,
     });
-    expect(() => apply(judgment, [fact({
+    const demoted = apply(judgment, [fact({
       statement: "客户A收到HBM3E样品",
       commercialization_stage: "sample",
       qualification_scope: scope,
-    })])).toThrow(/semiconductor_qualification_stage_alignment/);
+    })]);
+    expect(demoted.judgments[0].strength).toBe("J0");
+    expect(demoted.judgments[0].claimed_commercialization_stage).toBeNull();
     expect(() => apply(judgment, [fact({
       statement: "客户A确认HBM3E进入量产",
       commercialization_stage: "mass_production",
@@ -116,7 +125,7 @@ describe("formal ontology deterministic execution", () => {
     })])).not.toThrow();
   });
 
-  it("rejects capacity or yield evidence whose six-dimensional scope differs from the claim", () => {
+  it("demotes capacity or yield evidence whose six-dimensional scope differs from the claim", () => {
     const claimScope = {
       metric_kind: "yield",
       facility_ref: "Fab-1",
@@ -131,13 +140,25 @@ describe("formal ontology deterministic execution", () => {
       conclusion: "Fab-1 的 HBM3E 量产良率改善",
       semiconductor_claim_scope: claimScope,
     });
-    expect(() => apply(judgment, [fact({
+    const demoted = apply(judgment, [fact({
       statement: "Fab-2 样品良率为80%",
       semiconductor_measurement: { ...claimScope, facility_ref: "Fab-2", batch_stage: "sample" },
-    })])).toThrow(/semiconductor_capacity_yield_scope_alignment/);
+    })]);
+    expect(demoted.judgments[0].strength).toBe("J0");
+    expect(demoted.judgments[0].semiconductor_claim_scope).toBeNull();
     expect(() => apply(judgment, [fact({
       statement: "Fab-1 的 HBM3E 量产良率改善",
       semiconductor_measurement: claimScope,
     })])).not.toThrow();
+  });
+
+  it("does not treat capacity-expansion narrative as a capacity metric claim", () => {
+    const result = apply(decision({
+      title: "高折旧的AI产能扩张归因",
+      conclusion: "尚不能确认高折旧由AI产能扩张单独解释",
+    }), [fact()]);
+    expect(result.judgments[0].strength).toBe("J1");
+    const capacityRule = result.rule_evaluations.find((item: any) => item.rule_ref === "semiconductor_capacity_yield_scope_alignment");
+    expect(capacityRule.result).toBe("pass");
   });
 });

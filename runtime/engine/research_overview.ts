@@ -58,19 +58,21 @@ function nextStage(currentStage: number, runId: string) {
     "裁决结论强度与失效边界",
     "把获准判断表达为报告",
   ];
+  // 主动作落在日常审阅场景；尚无产物时各审阅页会自行转到生成/编辑页。
+  const href = currentStage <= 0
+    ? `/runs/${runId}/stages/1`
+    : currentStage === 1
+      ? `/runs/${runId}/structure`
+      : currentStage === 2
+        ? `/runs/${runId}/evidence`
+        : currentStage === 3
+          ? `/runs/${runId}/judgments`
+          : `/runs/${runId}/report`;
   return {
     eyebrow: `运行到下一个确认点 · ${labels[index]}`,
     title: titles[index],
-    description: "AI 完成本阶段后会停下，等待你人工确认再继续。",
-    href: currentStage <= 0
-      ? `/runs/${runId}/stages/1`
-      : currentStage === 1
-        ? `/runs/${runId}/stages/2`
-        : currentStage === 2
-          ? `/runs/${runId}/stages/3`
-          : currentStage === 3
-            ? `/runs/${runId}/stages/4`
-            : `/runs/${runId}/stages/5`,
+    description: "进入对应工作场景；需要生成或补来源时，再用页内次级入口。",
+    href,
   };
 }
 

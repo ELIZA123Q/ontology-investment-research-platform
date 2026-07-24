@@ -138,6 +138,10 @@ export function methodRoutesForPrompt() {
     default_kb04_method: string;
     allowed_kb04_methods: string[];
     optional_auxiliary_methods: string[];
+    required_preconditions: string[];
+    normal_max_j: string | null;
+    upgrade_to_j4_requires: string[];
+    prohibited_outputs: string[];
   }> = {};
   for (const [judgmentType, route] of Object.entries(routeRegistry.routes || {}) as Array<[string, any]>) {
     routes[judgmentType] = {
@@ -146,10 +150,16 @@ export function methodRoutesForPrompt() {
       default_kb04_method: String(route.default_kb04_method || ""),
       allowed_kb04_methods: [...(route.allowed_kb04_methods || [])].map(String),
       optional_auxiliary_methods: [...(route.optional_auxiliary_methods || [])].map(String),
+      required_preconditions: [...(route.required_preconditions || [])].map(String),
+      normal_max_j: route.normal_max_j == null ? null : String(route.normal_max_j),
+      upgrade_to_j4_requires: [...(route.upgrade_to_j4_requires || [])].map(String),
+      prohibited_outputs: [...(route.prohibited_outputs || [])].map(String),
     };
   }
+  const firstUpgrade = Object.values(routes).find((route) => route.upgrade_to_j4_requires.length)?.upgrade_to_j4_requires || [];
   return {
     global_optional_reasoning_methods: [...(routeRegistry.global_optional_reasoning_methods || [])].map(String),
+    j4_common_requirements: firstUpgrade,
     routes,
   };
 }
@@ -181,7 +191,7 @@ export function defaultMethodIdsForJudgmentType(judgmentType: string) {
   };
 }
 
-export function recallRegisteredMethodCandidates(taskText: string) {
+export function inferJudgmentTypesFromTask(taskText: string): string[] {
   const text = taskText.toLowerCase();
   const types = new Set<string>();
   const matches = (pattern: RegExp) => pattern.test(text);
@@ -195,7 +205,13 @@ export function recallRegisteredMethodCandidates(taskText: string) {
   if (matches(/估值|valuation|multiple|pe\b|pb\b/)) types.add("valuation_impact");
   if (matches(/机制是否|mechanism validation/)) types.add("mechanism_validation");
   if (!types.size || matches(/是否|状态|数值|事实|营收|收入|利润|毛利|state|revenue|financial/)) types.add("state_measurement");
+  return [...types];
+}
 
+export function recallRegisteredMethodCandidates(taskText: string) {
+  const text = taskText.toLowerCase();
+  const types = new Set(inferJudgmentTypesFromTask(taskText));
+  const matches = (pattern: RegExp) => pattern.test(text);
   const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
   const methodIds = new Set<string>(routeRegistry.global_optional_reasoning_methods || []);
   for (const type of types) {

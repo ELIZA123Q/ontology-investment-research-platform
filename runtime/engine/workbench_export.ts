@@ -162,6 +162,7 @@ export function buildWorkbenchManifest(
       "04_judgment.yaml",
       "05_expression.yaml",
       "05_report.md",
+      "05-研究报告.md",
     ],
   };
 }

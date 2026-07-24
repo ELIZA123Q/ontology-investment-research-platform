@@ -80,7 +80,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
           ? "AI 任务已提交，等待继续执行"
           : "后台任务需要你处理",
       description: activeJobReason || (activeNextJob.status === "queued"
-        ? "任务已提交，稍后会自动执行；完成后停在人工确认。"
+        ? "任务已提交，等待 worker 领取。若长时间停在排队，请在本机另开终端执行 npm run worker。"
         : activeNextJob.status === "retrying"
           ? "上次执行中断，将从本阶段起点安全重试。"
           : activeNextJob.status === "running"
@@ -121,7 +121,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
         <span className="section-meta">不属于研究员默认主链</span>
       </summary>
       <div className="grid">
-        <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级</span><h3>本轮实体关系</h3><p>查看业务实体 ER 图；本体网络请到知识库。</p></Link>
+        <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级</span><h3>本轮实体关系</h3><p>实例 ER 与 Action 调试面；日常补证/判断请走上方「证据」「判断」场景，不要从这里重新造证据。</p></Link>
         <Link className="card run-card" href={`/runs/${id}/history`}><span className="card-arrow">↗</span><span className="eyebrow">辅助</span><h3>历史</h3><p>查看本轮产物版本、审阅与增量继承关系。</p></Link>
         <Link className="card run-card" href={`/runs/${id}/compare`}><span className="card-arrow">↗</span><span className="eyebrow">实验</span><h3>A/B 对照</h3><p>{baseline ? "同证据基线已冻结，可开始盲评。" : "冻结证据后生成对照基线并盲评。"}</p></Link>
         <Link className="card run-card" href="/experience"><span className="card-arrow">↗</span><span className="eyebrow">试运行</span><h3>流程体验基线</h3><p>查看真实任务队列与流程体验指标；不用于评价研究员绩效。</p></Link>

@@ -9,6 +9,18 @@ import { ontologyToolDefinitions, runOntologyTool, type OntologyToolName } from 
 import { captureSourceSnapshot } from "../engine/source_snapshot";
 import { resolveModelProvider, type ModelRole, type ResolvedModelProvider } from "./model_provider";
 import type { GenerationProgressEvent } from "../engine/generation_progress";
+import {
+  queryChinaPolicy,
+  queryCninfo,
+  queryDatayesFinoper,
+  queryDatayesStock,
+  queryDatayesMacro,
+  queryDatayesIndex,
+  queryDatayesFund,
+  queryHtscResearch,
+  queryCaixinNews,
+  type McpEvidenceQueryResult,
+} from "./mcp_evidence";
 
 type Citation = { url: string; title: string };
 export type ModelResult<T> = {
@@ -23,12 +35,31 @@ export type ModelResult<T> = {
 export type GenerateOptions = {
   webSearch?: boolean;
   ontologyTools?: boolean;
+  /** 覆盖工具环最大轮次；未设时读 MODEL_TOOL_ROUNDS(_WEB)，再回落默认。 */
+  maxToolRounds?: number;
   runId?: string;
   validateOutput?: (data: unknown) => void;
   /** Soft-normalize near-miss model JSON before schema validation. */
   repairOutput?: (data: unknown) => unknown;
   onProgress?: (progress: GenerationProgressEvent) => void;
 };
+
+/**
+ * 工具环轮次。
+ * 测试友好默认：web=8 / 其他=6（原生产 32/20）。恢复时设
+ * MODEL_TOOL_ROUNDS_WEB=32 MODEL_TOOL_ROUNDS=20，或把下方默认改回。
+ */
+export function resolveMaxToolRounds(options: Pick<GenerateOptions, "webSearch" | "maxToolRounds">): number {
+  if (typeof options.maxToolRounds === "number" && Number.isFinite(options.maxToolRounds) && options.maxToolRounds > 0) {
+    return Math.min(40, Math.max(1, Math.floor(options.maxToolRounds)));
+  }
+  const envName = options.webSearch ? "MODEL_TOOL_ROUNDS_WEB" : "MODEL_TOOL_ROUNDS";
+  const fromEnv = Number(process.env[envName] || process.env.MODEL_MAX_TOOL_ROUNDS || "");
+  if (Number.isFinite(fromEnv) && fromEnv > 0) {
+    return Math.min(40, Math.max(1, Math.floor(fromEnv)));
+  }
+  return options.webSearch ? 8 : 6;
+}
 
 export function accumulateTokenUsage(
   accumulated: unknown,
@@ -83,6 +114,205 @@ const fetchPublicPagesTool = {
   },
 };
 
+const queryCninfoTool = {
+  type: "function" as const,
+  function: {
+    name: "query_cninfo",
+    description: "通过巨潮 cninfo MCP 查询 A 股公司公告/定期报告线索（一手公司披露通道）。返回标题、可选 URL、摘要与留痕 provenance；仍须用 fetch_public_pages 核验公开原文后再写 source_quote。MCP 失败时按 fallback_hint 回退 Bing/公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        stock_code: { type: "string", description: "证券代码，如 000001 或 688981" },
+        category: { type: "string", description: "公告类别（可选）" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        keyword: { type: "string" },
+        tool_name: { type: "string", description: "可选：指定 MCP 工具名；不确定时可先省略以查看 available_tools" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      required: ["stock_code"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryDatayesFinoperTool = {
+  type: "function" as const,
+  function: {
+    name: "query_datayes_finoper",
+    description: "通过通联 datayes-stock-finoper MCP 查询 A 股财务三表（一手结构化财务通道）。若未知 api_name，先不传 api_name 以获取 available_tools[].inputSchema，再带 api_name 重试。返回结构化摘录与 provenance；关键数字须与法定公告交叉核验。失败时回退 cninfo/公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        stock_code: { type: "string", description: "证券代码" },
+        period: { type: "string", description: "报表期，如 2025Q4 / 2024" },
+        statement_type: { type: "string", description: "报表类型：利润表/资产负债表/现金流量表等" },
+        report_type: { type: "string", description: "合并/母公司等口径" },
+        api_name: { type: "string", description: "通联 finoper API 名；未知时先省略以拉取 inputSchema" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      required: ["stock_code"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryChinaPolicyTool = {
+  type: "function" as const,
+  function: {
+    name: "query_china_policy",
+    description: "通过 china-policy MCP 查询中央政策原文线索（一手官方政策通道）。返回标题、可选 URL、摘要与 provenance；须核验原文后再引用。失败时回退政府网/公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        keyword: { type: "string" },
+        query: { type: "string" },
+        domain: { type: "string" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryDatayesStockTool = {
+  type: "function" as const,
+  function: {
+    name: "query_datayes_stock",
+    description: "通过通联数据 MCP 查询 A 股综合数据。data_type: stock_market（行情/K线/技术指标，默认）、stock_info（公司基本信息/股东）、stock_holders（机构持仓）、stock_events（公司事件摘要）。返回结构化数据与 provenance；须与法定公告交叉核验。失败时回退 cninfo/公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        stock_code: { type: "string", description: "证券代码，如 000001 或 688981" },
+        data_type: { type: "string", description: "数据类型：stock_market（行情）、stock_info（公司信息）、stock_holders（机构持仓）、stock_events（公司事件）" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        period: { type: "string" },
+        keyword: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      required: ["stock_code"],
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryDatayesMacroTool = {
+  type: "function" as const,
+  function: {
+    name: "query_macro_data",
+    description: "通过通联数据 MCP 查询宏观经济指标（GDP、CPI、PMI、贸易、工业、消费等）。返回结构化时间序列与 provenance。失败时回退统计局/央行/海关官网或公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        indicator: { type: "string", description: "指标名称，如 GDP、CPI、PMI" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        keyword: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryDatayesIndexTool = {
+  type: "function" as const,
+  function: {
+    name: "query_market_index",
+    description: "通过通联数据 MCP 查询指数数据。data_type: index_market（行情估值/PE/PB，默认）、index_info（成分股与权重）。返回结构化数据与 provenance。失败时回退交易所公开行情或公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        index_code: { type: "string", description: "指数代码" },
+        data_type: { type: "string", description: "数据类型：index_market（行情估值）、index_info（成分权重）" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryDatayesFundTool = {
+  type: "function" as const,
+  function: {
+    name: "query_fund_data",
+    description: "通过通联数据 MCP 查询基金数据。data_type: fund_master（基本信息，默认）、fund_perf（业绩）、fund_holding（持仓）、fund_fincap（财务规模）、fund_analytics（风险分析）。返回结构化数据与 provenance。失败时回退基金公司官网或公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        fund_code: { type: "string", description: "基金代码" },
+        data_type: { type: "string", description: "数据类型：fund_master/fund_perf/fund_holding/fund_fincap/fund_analytics" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryHtscResearchTool = {
+  type: "function" as const,
+  function: {
+    name: "query_research_reports",
+    description: "通过华泰证券研究所 MCP 查询研报、行业观点和估值模型。注意：研报观点不代表事实，必须交叉核验；引用时标记为 public_secondary，不得伪装为一手公司披露。失败时回退公开研报平台或公开网页。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        keyword: { type: "string", description: "搜索关键词" },
+        industry: { type: "string", description: "行业" },
+        stock_code: { type: "string", description: "关联证券代码" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        limit: { type: "integer", description: "返回篇数上限，默认 5" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      additionalProperties: false,
+    },
+  },
+};
+
+const queryCaixinNewsTool = {
+  type: "function" as const,
+  function: {
+    name: "query_caixin_news",
+    description: "通过财新 MCP 查询财经新闻。返回标题、摘要、发布时间。用作线索参考，正式取证仍需核验原始来源。失败时回退公开新闻搜索。",
+    strict: false,
+    parameters: {
+      type: "object",
+      properties: {
+        keyword: { type: "string", description: "搜索关键词" },
+        query: { type: "string", description: "自由查询文本" },
+        start_date: { type: "string" },
+        end_date: { type: "string" },
+        tool_name: { type: "string" },
+        arguments: { type: "object", additionalProperties: true },
+      },
+      additionalProperties: false,
+    },
+  },
+};
+
 function chatOntologyTools() {
   return ontologyToolDefinitions.map((tool) => ({
     type: "function" as const,
@@ -132,14 +362,28 @@ export class DeepSeekClient {
       parameters: schema,
     });
     const tools: any[] = [];
-    if (options.webSearch) tools.push(webSearchTool, fetchPublicPagesTool);
+    if (options.webSearch) {
+      tools.push(
+        queryCninfoTool,
+        queryDatayesFinoperTool,
+        queryDatayesStockTool,
+        queryDatayesMacroTool,
+        queryDatayesIndexTool,
+        queryDatayesFundTool,
+        queryChinaPolicyTool,
+        queryHtscResearchTool,
+        queryCaixinNewsTool,
+        webSearchTool,
+        fetchPublicPagesTool,
+      );
+    }
     if (options.ontologyTools) tools.push(...chatOntologyTools());
     tools.push(submitTool);
 
     const messages: any[] = [
       {
         role: "system",
-        content: `${instructions}\n\n你正在使用 ${this.config.displayName}。最终结果必须是合法 JSON，并通过 ${submitName} 函数提交。不要在普通文本中输出最终结果。Schema 中由 Runtime 回填的 source_id、抓取时间/hash、deterministic_result、冻结产物 hash、reviewer/producer model 等字段必须显式提交 null，不得自行伪造；Runtime 会在保存前覆盖。${options.webSearch ? "需要最新外部事实时，必须先调用 search_public_web；搜索摘要只是候选线索。" : ""}`,
+        content: `${instructions}\n\n你正在使用 ${this.config.displayName}。最终结果必须是合法 JSON，并通过 ${submitName} 函数提交。不要在普通文本中输出最终结果。Schema 中由 Runtime 回填的 source_id、抓取时间/hash、deterministic_result、冻结产物 hash、reviewer/producer model 等字段必须显式提交 null，不得自行伪造；Runtime 会在保存前覆盖。${options.webSearch ? "取证通道优先级：A股公告→query_cninfo（巨潮）；财务三表→query_datayes_finoper（通联）；行情/信息/持仓/事件→query_datayes_stock；宏观→query_macro_data；指数→query_market_index；基金→query_fund_data；政策→query_china_policy；研报→query_research_reports（华泰）；新闻→query_caixin_news（财新）。Bing search_public_web 仅作补充线索。MCP 与搜索摘要都只是候选，须经 fetch_public_pages 或可核验摘录后再写 source_quote；MCP 失败时按 fallback_hint 回退，不得伪装成已核验事实。" : ""}`,
       },
       { role: "user", content: input },
     ];
@@ -153,7 +397,8 @@ export class DeepSeekClient {
     const deadline = Date.now() + generationTimeoutMs;
     // Stage 02/03/04 长跑是常态：工具轮次用满整体预算，不再为“直接 JSON 降级”预留 30% 而提前掐断。
     // 直接 JSON 仅在工具轮次自然结束后、仍有剩余时间时作为结构修复手段，而不是超时逃生舱。
-    const maxRounds = options.webSearch ? 32 : 20;
+    const maxRounds = resolveMaxToolRounds(options);
+    const submitNudgeFrom = Math.max(0, maxRounds - Math.min(3, Math.max(1, Math.ceil(maxRounds / 3))));
     let consecutiveRoundTimeouts = 0;
     const emitProgress = (progress: GenerationProgressEvent) => {
       try { options.onProgress?.(progress); } catch { /* progress must not abort generation */ }
@@ -272,6 +517,24 @@ export class DeepSeekClient {
             result = await searchPublicWeb(args, citations);
           } else if (toolName === "fetch_public_pages") {
             result = await fetchPublicPages(args, citations);
+          } else if (toolName === "query_cninfo") {
+            result = await enrichMcpResult(await queryCninfo(args), citations);
+          } else if (toolName === "query_datayes_finoper") {
+            result = await enrichMcpResult(await queryDatayesFinoper(args), citations);
+          } else if (toolName === "query_china_policy") {
+            result = await enrichMcpResult(await queryChinaPolicy(args), citations);
+          } else if (toolName === "query_datayes_stock") {
+            result = await enrichMcpResult(await queryDatayesStock(args), citations);
+          } else if (toolName === "query_macro_data") {
+            result = await enrichMcpResult(await queryDatayesMacro(args), citations);
+          } else if (toolName === "query_market_index") {
+            result = await enrichMcpResult(await queryDatayesIndex(args), citations);
+          } else if (toolName === "query_fund_data") {
+            result = await enrichMcpResult(await queryDatayesFund(args), citations);
+          } else if (toolName === "query_research_reports") {
+            result = await enrichMcpResult(await queryHtscResearch(args), citations);
+          } else if (toolName === "query_caixin_news") {
+            result = await enrichMcpResult(await queryCaixinNews(args), citations);
           } else if (options.ontologyTools && options.runId) {
             result = runOntologyTool(options.runId, toolName as OntologyToolName, args);
           } else {
@@ -292,7 +555,7 @@ export class DeepSeekClient {
           message: progressMessageForTool(toolName),
         });
       }
-      if (round >= maxRounds - 6) {
+      if (round >= submitNudgeFrom) {
         messages.push({
           role: "user",
           content: `工具调用仅剩 ${maxRounds - round - 1} 轮。停止扩展检索；对未取得可核验正文的要求明确形成 gap，并尽快调用 ${submitName} 提交。`,
@@ -427,6 +690,41 @@ export function parseDirectJson<T>(
   return schema.parse(candidate);
 }
 
+async function enrichMcpResult(result: McpEvidenceQueryResult, citations: Citation[]) {
+  const enrichedResults = [];
+  for (const hit of result.results.slice(0, 6)) {
+    if (hit.url) {
+      citations.push({ url: hit.url, title: hit.title });
+      const retrieved = await retrieveSearchPage(hit.url);
+      enrichedResults.push({
+        ...hit,
+        ...retrieved,
+        authority_type: hit.authority_type,
+        publisher: hit.publisher,
+        mcp_channel: result.channel,
+      });
+    } else {
+      enrichedResults.push({
+        ...hit,
+        retrieval_status: "limited",
+        content_excerpt: hit.raw_excerpt.slice(0, 8_000),
+        locator_hint: "无公开 URL：只能把 MCP 结构化摘录登记为线索/limited，不得假装 quote_verified；优先补公开原文 URL。",
+        mcp_channel: result.channel,
+      });
+    }
+  }
+  return {
+    ok: result.ok,
+    channel: result.channel,
+    error: result.error,
+    fallback_hint: result.fallback_hint,
+    available_tools: result.available_tools,
+    provenance: result.provenance,
+    results: enrichedResults,
+    content_excerpt: result.content_text.slice(0, 8_000),
+  };
+}
+
 async function searchPublicWeb(args: Record<string, unknown>, citations: Citation[]) {
   const queries = Array.isArray(args.queries) ? args.queries.map(String).filter(Boolean).slice(0, 4) : [];
   const limit = Math.min(Math.max(Number(args.limit_per_query || 5), 1), 8);
@@ -496,7 +794,9 @@ async function retrieveSearchPage(url: string) {
       retrieval_status: snapshot.retrieval_status,
       final_url: snapshot.final_url || url,
       content_excerpt: text.slice(0, 8_000),
-      locator_hint: text ? "请从 content_excerpt 中复制一段逐字 source_quote 作为定位" : url,
+      locator_hint: text
+        ? "必须从 content_excerpt 连续复制 ≥20 字作为 source_quote；禁止改写或自行插入逗号"
+        : url,
       content_hash: snapshot.content_hash,
       retrieval_error: snapshot.failure_detail || undefined,
     };
@@ -535,9 +835,24 @@ function dedupeCitations(citations: Citation[]) {
   return [...new Map(citations.map((item) => [item.url, item])).values()];
 }
 
+const MCP_TOOL_NAMES = new Set([
+  "query_cninfo", "query_datayes_finoper", "query_datayes_stock",
+  "query_macro_data", "query_market_index", "query_fund_data",
+  "query_china_policy", "query_research_reports", "query_caixin_news",
+]);
+
 function progressMessageForTool(toolName: string): string {
   if (toolName === "search_public_web") return "已完成公开网页检索";
   if (toolName === "fetch_public_pages") return "已抓取公开页面正文";
+  if (toolName === "query_cninfo") return "已查询巨潮 cninfo MCP";
+  if (toolName === "query_datayes_finoper") return "已查询通联财务 MCP";
+  if (toolName === "query_datayes_stock") return "已查询通联股票 MCP";
+  if (toolName === "query_macro_data") return "已查询通联宏观 MCP";
+  if (toolName === "query_market_index") return "已查询通联指数 MCP";
+  if (toolName === "query_fund_data") return "已查询通联基金 MCP";
+  if (toolName === "query_china_policy") return "已查询中央政策 MCP";
+  if (toolName === "query_research_reports") return "已查询华泰研报 MCP";
+  if (toolName === "query_caixin_news") return "已查询财新新闻 MCP";
   if (toolName.startsWith("query_") || toolName.includes("ontology") || toolName.includes("object")) {
     return `已调用本体工具 ${toolName}`;
   }
@@ -546,7 +861,11 @@ function progressMessageForTool(toolName: string): string {
 
 function summarizeToolTrace(trace: Array<Record<string, unknown>>) {
   const retrievalAudit = trace
-    .filter((item) => item.name === "search_public_web" || item.name === "fetch_public_pages")
+    .filter((item) => (
+      item.name === "search_public_web"
+      || item.name === "fetch_public_pages"
+      || MCP_TOOL_NAMES.has(String(item.name))
+    ))
     .flatMap((item) => {
       const result = item.result && typeof item.result === "object" ? item.result as any : {};
       return (Array.isArray(result.results) ? result.results : []).map((entry: any) => ({
@@ -558,6 +877,9 @@ function summarizeToolTrace(trace: Array<Record<string, unknown>>) {
         final_url: entry.final_url || null,
         content_hash: entry.content_hash || null,
         retrieval_error: entry.retrieval_error || null,
+        mcp_channel: entry.mcp_channel || result.channel || null,
+        authority_type: entry.authority_type || null,
+        provenance_fingerprint: result.provenance?.response_fingerprint || null,
       }));
     })
     .slice(0, 80);
@@ -566,7 +888,12 @@ function summarizeToolTrace(trace: Array<Record<string, unknown>>) {
     tools: trace.map((item) => item.name),
     web_search_calls: trace.filter((item) => item.name === "search_public_web").length,
     public_page_fetch_calls: trace.filter((item) => item.name === "fetch_public_pages").length,
-    ontology_tool_calls: trace.filter((item) => item.name !== "search_public_web" && item.name !== "fetch_public_pages").length,
+    mcp_evidence_calls: trace.filter((item) => MCP_TOOL_NAMES.has(String(item.name))).length,
+    ontology_tool_calls: trace.filter((item) => (
+      item.name !== "search_public_web"
+      && item.name !== "fetch_public_pages"
+      && !MCP_TOOL_NAMES.has(String(item.name))
+    )).length,
     retrieval_audit: retrievalAudit,
   };
 }

@@ -27,6 +27,10 @@
 
 发布闸门另有「独立语义审查」（非研究员交付物）。走完 05 且结构通过，不等于一定 `PUBLISHABLE`。
 
+## 证据闭环与 attempt 归档
+
+新 attempt 不覆盖旧 attempt；历史归档哈希必须可复核。相关校验见 [`requirements_coverage.yaml`](requirements_coverage.yaml) 的 `LOOP-ATTEMPT-001`。
+
 ## 03 快照目录长什么样
 
 ```text

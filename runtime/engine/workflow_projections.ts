@@ -48,7 +48,15 @@ import { syncReviewWorkItems } from "./review_work_items";
 import { classifyRuntimeFailure, compactStructuredArtifact } from "./workflow_support";
 import { normalizeEvidencePreparationNulls, dropIncompleteSources, reconcileMethodEvidenceRefs } from "./evidence_draft_normalize";
 
-import { syncStage02ReadableMarkdown } from "./readable_markdown";
+import { syncStage02ReadableMarkdown, syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "./readable_markdown";
+import { ensureStage01ContractFields } from "./stage01_contract";
+import { ensureStage02DocumentFields } from "./stage02_documents";
+import { ensureStage05DocumentFields } from "./stage05_documents";
+import {
+  buildStage05SkeletonMarkdown,
+  shouldPreserveStage05Markdown,
+  stripInlineAuditDetails,
+} from "./stage05_quality";
 import {
   competingExplanationsForUnit,
   normalizeCompetingExplanations,
@@ -70,39 +78,8 @@ export function normalizeStage01Projection(data: any, question: string) {
   const cutoff = normalizeBusinessCutoff(data?.time_scope?.as_of || question);
   if (cutoff && data?.time_scope) data.time_scope.as_of = cutoff;
   delete data.report_type;
-  const bullets = (values: unknown[]) => values.length ? values.map((value) => `- ${String(value)}`) : ["- 无"];
-  data.document_markdown = [
-    "# 研究任务定义",
-    "",
-    "## 原始问题",
-    "",
-    question,
-    "",
-    "## 规范化问题",
-    "",
-    String(data.normalized_question || ""),
-    "",
-    "## 判断范围",
-    "",
-    `- 核心对象：${String(data.core_object || "")}`,
-    `- 判断动作：${String(data.judgment_action || "")}`,
-    `- 回看期：${String(data.time_scope?.lookback || "")}`,
-    `- 截止时点：${String(data.time_scope?.as_of || "")}`,
-    `- 前瞻期：${String(data.time_scope?.forward || "")}`,
-    `- 正式领域覆盖：${data.domain_supported ? "是" : "否"}`,
-    "",
-    "## 边界",
-    "",
-    ...bullets(data.boundaries || []),
-    "",
-    "## 排除项",
-    "",
-    ...bullets(data.exclusions || []),
-    "",
-    "## 阶段边界",
-    "",
-    "本阶段只冻结问题、时间与范围，不登记事实，不形成方向判断。任何观察、原因或结论都必须在后续阶段由可定位公开来源和事实级证据支持。",
-  ].join("\n");
+  ensureStage01ContractFields(data, question);
+  syncStage01ReadableMarkdown(data, question);
   return data;
 }
 
@@ -336,8 +313,21 @@ export function createControlledStructureProjection(runId: string, raw: Controll
     counter_evidence_directions: counterDirections,
     competing_explanations: competing,
     document_markdown: "placeholder",
+    research_logic_markdown: "placeholder",
+    ontology_view_yaml: "",
+    logic_id: String(previous.logic_id || "RLOG-CONTROLLED"),
+    ontology_view_ref: String(previous.ontology_view_ref || ""),
+    judgment_spine: String(previous.judgment_spine || ""),
+    framework_usage_ref: String(previous.framework_usage_ref || ""),
+    stage_status: "complete",
+    quality_status: "minimum_pass",
+    quality_gate_ref: "",
+    ontology_gap_scan_status: "minor_gap",
+    can_enter_03: true,
   };
+  ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
   syncStage02ReadableMarkdown(data);
+  ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
   schemas.stage_02.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_02", data);
   if (sourceArtifact) return editArtifact(sourceArtifact.id, JSON.stringify(data, null, 2), data.document_markdown);
@@ -492,6 +482,7 @@ export function createEvidenceGapFallback(runId: string, reason: string) {
   if (usableSources.length) throw new Error("当前已有未驳回来源，不能直接降级为全量证据缺口；请重新运行取证或先审阅来源");
   const structure = parseJson<any>(structureArtifact.json_content, {});
   const data = buildEvidenceGapFallback(structure, reason);
+  syncStage03ReadableMarkdown(data, { question: run.question, taskId: runId, structure });
   schemas.stage_03.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_03", data);
   const artifact = createArtifact(runId, "stage_03", {
@@ -681,6 +672,7 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
       ...(unresolvedGaps.length ? ["## 未解决边界", "", ...unresolvedGaps.map((gap) => `- ${gap}`)] : []),
     ].join("\n"),
   };
+  syncStage03ReadableMarkdown(data, { question: run.question, taskId: runId, structure });
   schemas.stage_03.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_03", data);
   const artifact = createArtifact(runId, "stage_03", {
@@ -1005,6 +997,7 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
     ].join("\n"),
   };
   applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
+  syncStage04ReadableMarkdown(data, { question: run.question, taskId: runId });
   schemas.stage_04.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_04", data);
   const artifact = createArtifact(runId, "stage_04", {
@@ -1187,10 +1180,10 @@ export function createJudgmentGapFallback(runId: string, reason: string) {
     throw new Error("上游存在事实级证据，不能使用全量 J0 降级；请重新运行正常裁决");
   }
   const data = buildJudgmentGapFallback(structure, evidence, reason);
+  applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
+  syncStage04ReadableMarkdown(data, { question: run.question, taskId: runId });
   schemas.stage_04.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_04", data);
-  applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
-  schemas.stage_04.parse(data);
   const artifact = createArtifact(runId, "stage_04", {
     status: "needs_review",
     prompt_version: `${PROMPT_VERSION}:explicit-j0-fallback`,
@@ -1213,95 +1206,106 @@ export function createJudgmentGapFallback(runId: string, reason: string) {
   return artifact;
 }
 
-export function normalizeStage05Projection(data: any, stage04: any, question: string, sources: SourceRecord[]) {
+/**
+ * Stage05 投影对齐：校验 claim↔judgment，必要时补齐字段与审计 YAML。
+ * 不得整篇覆盖 LLM/人工研报正文为「研究判断简报」骨架。
+ * options.forceDeterministicSkeleton=true 仅用于 deterministic_projection 草稿路径。
+ */
+export function normalizeStage05Projection(
+  data: any,
+  stage04: any,
+  question: string,
+  sources: SourceRecord[],
+  options: { forceDeterministicSkeleton?: boolean } = {},
+) {
   const judgmentById = new Map<string, any>((stage04.judgments || []).map((item: any) => [String(item.id), item]));
   const sourceById = new Map(sources.map((source) => [source.id, source]));
   for (const claim of data.report_claims || []) {
     const judgments = (claim.judgment_ids || []).map((id: string) => judgmentById.get(String(id))).filter(Boolean);
     if (!judgments.length) throw new Error(`${claim.id} 无法从已确认 Judgment 重建表达`);
+    // 结构化 statement 对齐判断卡；强度编码仅留在字段/审计，不写入读者标题。
     claim.statement = judgments.map((judgment: any) =>
-      `${judgment.title}：${judgment.conclusion}（${judgment.strength}/${judgment.decision_status}）`).join("；");
+      `${judgment.title}：${judgment.conclusion}`).join("；");
   }
-  data.title = `研究判断简报｜${String(question || "未命名研究问题").replace(/\s+/g, " ").trim().slice(0, 80)}`;
-  data.executive_points = (data.report_claims || []).flatMap((claim: any) =>
+
+  const derivedPoints = (data.report_claims || []).flatMap((claim: any) =>
     (claim.judgment_ids || []).map((id: string) => {
       const judgment = judgmentById.get(String(id));
       return judgment ? `${judgment.title}：${judgment.conclusion}` : claim.statement;
     }));
-  data.limitations = [...new Set([
+  const derivedLimitations = [...new Set([
     String(stage04.overall_boundary || "").trim(),
     ...(stage04.judgments || []).flatMap((judgment: any) => [
       ...(judgment.uncertainties || []),
       ...(judgment.invalidation_conditions || []).map((item: string) => `改判条件：${item}`),
     ]),
   ].filter(Boolean))];
+
+  const existingBody = stripInlineAuditDetails(String(data.document_markdown || ""));
+  const preserve = !options.forceDeterministicSkeleton && shouldPreserveStage05Markdown(existingBody);
+
+  // 压平/重建路径：要点与边界必须来自已确认判断，丢弃自由正文越权主张。
+  if (!preserve) {
+    data.executive_points = derivedPoints;
+    data.limitations = derivedLimitations;
+  } else {
+    if (!Array.isArray(data.executive_points) || !data.executive_points.length) {
+      data.executive_points = derivedPoints;
+    }
+    if (!Array.isArray(data.limitations) || !data.limitations.length) {
+      data.limitations = derivedLimitations;
+    }
+  }
+  if (!String(data.title || "").trim() || String(data.title).includes("研究判断简报")) {
+    const primary = (stage04.judgments || [])[0];
+    data.title = primary?.conclusion
+      ? String(primary.conclusion).replace(/\s+/g, " ").trim().slice(0, 80)
+      : String(question || "行业周期判断").replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+
   const usedSourceIds = new Set<string>((data.report_claims || []).flatMap((claim: any) => claim.source_ids || []).map(String));
   const usedSources = [...usedSourceIds].map((id) => sourceById.get(id)).filter(Boolean) as SourceRecord[];
-  const claimMarkdown = (data.report_claims || []).map((claim: any) => {
-    const judgments = (claim.judgment_ids || []).map((id: string) => judgmentById.get(String(id))).filter(Boolean);
-    const claimSources = (claim.source_ids || []).map((id: string) => sourceById.get(String(id))).filter(Boolean) as SourceRecord[];
-    const title = judgments.map((judgment: any) => judgment.title).filter(Boolean).join(" / ") || claim.id;
-    const conclusions = judgments.map((judgment: any) =>
-      `- **${judgment.strength}/${judgment.decision_status}**：${judgment.conclusion}`).join("\n");
-    const evidence = claimSources.length
-      ? claimSources.map((source) => {
-        const quote = String(source.source_quote || "").replace(/\s+/g, " ").trim();
-        const excerpt = quote.length > 500 ? `${quote.slice(0, 500)}…` : quote;
-        return `- [${source.title}](${source.url})${excerpt ? `：“${excerpt}”` : "（已登记来源，正文引文见证据台）"}`;
-      }).join("\n")
-      : "- 当前没有可支撑方向判断的事实级来源；结论保持 J0。";
-    const uncertainties = [...new Set(judgments.flatMap((judgment: any) => judgment.uncertainties || []).map(String).filter(Boolean))];
-    const invalidations = [...new Set(judgments.flatMap((judgment: any) => judgment.invalidation_conditions || []).map(String).filter(Boolean))];
-    return [
-      `### ${title}`,
-      "",
-      "**判断**",
-      "",
-      conclusions || `- ${claim.statement}`,
-      "",
-      "**直接依据**",
-      "",
-      evidence,
-      "",
-      "**当前边界**",
-      "",
-      ...(uncertainties.length ? uncertainties.map((item) => `- ${item}`) : ["- 未登记额外不确定性。"]),
-      "",
-      "**何时改判**",
-      "",
-      ...(invalidations.length ? invalidations.map((item) => `- ${item}`) : ["- 未登记额外改判条件。"]),
-      "",
-      "<details><summary>审计索引</summary>",
-      "",
-      `- ReportClaim：${claim.id}`,
-      `- Judgment：${(claim.judgment_ids || []).join(", ")}`,
-      `- MethodApplication：${(claim.method_application_ids || []).join(", ")}`,
-      `- EvidenceFact：${(claim.evidence_draft_ids || []).length ? claim.evidence_draft_ids.join(", ") : "无（J0 不可判断路径）"}`,
-      `- Source：${(claim.source_ids || []).length ? claim.source_ids.join(", ") : "无（J0 不可判断路径）"}`,
-      "",
-      "</details>",
-    ].join("\n");
-  }).join("\n\n");
-  data.document_markdown = [
-    `# ${data.title}`,
-    "",
-    "## 研究问题",
-    "",
-    question,
-    "",
-    "## 结论先行",
-    "",
-    ...(data.executive_points.length ? data.executive_points.map((item: string) => `- ${item}`) : ["- 当前没有可交付的已确认判断。"]),
-    "",
-    "## 判断依据与改判条件",
-    "",
-    claimMarkdown,
-    "",
-    "## 整体适用边界",
-    "",
-    ...(data.limitations.length ? data.limitations.map((item: string) => `- ${item}`) : ["- 无额外边界记录"]),
-    ...(usedSources.length ? ["", "## 主要资料来源", "", ...usedSources.map((source) => `- [${source.title}](${source.url})`)] : []),
-  ].join("\n");
+  const sourceLines = usedSources.map((source) => `[${source.title}](${source.url})`);
+
+  if (preserve) {
+    data.document_markdown = existingBody;
+  } else {
+    // 重建骨架时丢弃自由叙述标题/要点/限制，只保留判断卡派生内容，防止过声称进入正文。
+    const primary = (stage04.judgments || [])[0];
+    data.title = primary?.conclusion
+      ? String(primary.conclusion).replace(/\s+/g, " ").trim().slice(0, 80)
+      : String(question || "行业周期判断").replace(/\s+/g, " ").trim().slice(0, 80);
+    data.executive_points = derivedPoints;
+    data.limitations = derivedLimitations;
+    data.document_markdown = buildStage05SkeletonMarkdown({
+      title: data.title,
+      question,
+      executivePoints: data.executive_points,
+      limitations: data.limitations,
+      sourceLines,
+      claims: (data.report_claims || []).map((claim: any) => {
+        const judgments = (claim.judgment_ids || []).map((id: string) => judgmentById.get(String(id))).filter(Boolean);
+        const claimSources = (claim.source_ids || []).map((id: string) => sourceById.get(String(id))).filter(Boolean) as SourceRecord[];
+        return {
+          id: String(claim.id),
+          statement: String(claim.statement || ""),
+          judgmentTitles: judgments.map((judgment: any) => judgment.title).filter(Boolean),
+          conclusions: judgments.map((judgment: any) => judgment.conclusion).filter(Boolean),
+          sourceLines: claimSources.map((source) => {
+            const quote = String(source.source_quote || "").replace(/\s+/g, " ").trim();
+            const excerpt = quote.length > 500 ? `${quote.slice(0, 500)}…` : quote;
+            return `[${source.title}](${source.url})${excerpt ? `：“${excerpt}”` : ""}`;
+          }),
+          uncertainties: [...new Set(judgments.flatMap((judgment: any) => judgment.uncertainties || []).map(String).filter(Boolean))],
+          invalidations: [...new Set(judgments.flatMap((judgment: any) => judgment.invalidation_conditions || []).map(String).filter(Boolean))],
+        };
+      }),
+    });
+  }
+
+  // 强制刷新审计投影，确保与 claim 对齐且不含读者面审计腔。
+  data.expression_audit_yaml = "";
+  ensureStage05DocumentFields(data, { question, stage04 });
   return data;
 }
 
@@ -1316,7 +1320,7 @@ export function createStage05DeterministicProjection(runId: string) {
   const stage03 = parseJson<any>(stage03Artifact.json_content, {});
   const evidenceById = new Map<string, any>((stage03.evidence_drafts || []).map((item: any) => [String(item.id), item]));
   const seed = sourceArtifact ? parseJson<any>(sourceArtifact.json_content, {}) : {
-    title: "受控研究判断简报",
+    title: "受控表达草稿",
     executive_points: [],
     report_claims: (stage04.judgments || []).map((judgment: any, index: number) => {
       const evidenceIds = [...new Set([
@@ -1336,11 +1340,13 @@ export function createStage05DeterministicProjection(runId: string) {
     limitations: [],
     document_markdown: "placeholder",
   };
+  // 确定性路径显式生成 05C 骨架草稿；不得当作抹掉模型研报的默认正式路径。
   const data = normalizeStage05Projection(
     seed,
     stage04,
     run.question,
     listSources(runId),
+    { forceDeterministicSkeleton: true },
   );
   schemas.stage_05.parse(data);
   if (sourceArtifact) return editArtifact(sourceArtifact.id, JSON.stringify(data, null, 2), data.document_markdown);

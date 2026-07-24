@@ -546,13 +546,14 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
   const normalized = normalizeUrl(input.url);
   const prior = db.prepare("SELECT * FROM source WHERE run_id=? AND normalized_url=?").get(runId, normalized) as SourceRecord | undefined;
   if (prior) {
-    // Radar discoveries are hypotheses about relevance, not stronger source
-    // registrations.  Keep the event in market_events, but never let its
-    // candidate metadata downgrade an already captured and verified source.
-    if (input.source_type === "market_event_candidate"
-      && prior.usability_status === "usable"
+    const priorUsable = prior.usability_status === "usable"
       && prior.retrieval_status === "captured"
-      && Boolean(prior.quote_verified)) {
+      && Boolean(prior.quote_verified);
+    const nextUsable = (input.usability_status ?? prior.usability_status) === "usable"
+      && (input.retrieval_status ?? prior.retrieval_status) === "captured"
+      && Boolean(input.quote_verified === undefined ? prior.quote_verified : input.quote_verified);
+    // 已核验可用的来源不得被同 URL 的未核验写入降级（含雷达候选与补证后写）。
+    if (priorUsable && !nextUsable) {
       return prior;
     }
     db.prepare(`UPDATE source SET

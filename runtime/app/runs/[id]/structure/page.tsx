@@ -37,13 +37,13 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
       <div>
         <div className="eyebrow">研究结构</div>
         <h1>{run.question}</h1>
-        <p className="muted">问题 → 变量/路径 → 判断单元 → 证据与竞争解释；实体关系见 <Link href={`/runs/${id}/object-set`}>关系图</Link>，本体网络见 <Link href={`/ontology?runId=${id}`}>知识库</Link>。</p>
+        <p className="muted">问题 → 变量/路径 → 判断单元 → 证据与竞争解释。确认后进入证据场景；关系图 / 知识库为进阶查询。</p>
       </div>
       <div className="actions">
         <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
           {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
         </span>
-        <Link className="button-secondary" href={`/runs/${id}/stages/2`}>{artifact ? "高级编辑" : "生成研究结构"}</Link>
+        <Link className="button-secondary" href={`/runs/${id}/stages/2`}>{artifact ? "编辑结构" : "生成研究结构"}</Link>
       </div>
     </div>
     {hasSummary ? (

@@ -70,13 +70,55 @@ function stageProjection(kind: StageKind, data: Record<string, unknown>, runId: 
   return YAML.stringify(projectExpression(data));
 }
 
-function stageFileBase(kind: StageKind): { stage: string; yamlName: string; mdName: string; title: string } {
+function stageFileBase(kind: StageKind): {
+  stage: string;
+  yamlName: string;
+  mdName: string;
+  title: string;
+  companionName?: string;
+  companionTitle?: string;
+  companionField?: string;
+  snapshotName?: string;
+} {
   return {
-    stage_01: { stage: "01", yamlName: "01_task.yaml", mdName: "01_scope.md", title: "研究范围" },
-    stage_02: { stage: "02", yamlName: "02_structure.yaml", mdName: "02_structure.md", title: "研究结构" },
-    stage_03: { stage: "03", yamlName: "03_evidence.yaml", mdName: "03_evidence.md", title: "证据" },
-    stage_04: { stage: "04", yamlName: "04_judgment.yaml", mdName: "04_judgment.md", title: "判断" },
-    stage_05: { stage: "05", yamlName: "05_expression.yaml", mdName: "05_report.md", title: "报告表达" },
+    stage_01: { stage: "01", yamlName: "01_task.yaml", mdName: "01-投研需求说明.md", title: "投研需求说明" },
+    stage_02: {
+      stage: "02",
+      yamlName: "02_structure.yaml",
+      mdName: "02-研究逻辑.md",
+      companionName: "02-本体视图.yaml",
+      companionTitle: "本体视图（YAML）",
+      companionField: "ontology_view_yaml",
+      title: "研究结构",
+    },
+    stage_03: {
+      stage: "03",
+      yamlName: "03_evidence.yaml",
+      mdName: "03-数据与证据准备.md",
+      companionName: "03-语义域与证据域实例清单.yaml",
+      companionTitle: "语义域与证据域实例清单（YAML）",
+      companionField: "instance_manifest_yaml",
+      snapshotName: "03-证据快照摘要.yaml",
+      title: "数据与证据准备",
+    },
+    stage_04: {
+      stage: "04",
+      yamlName: "04_judgment.yaml",
+      mdName: "04-判断简报.md",
+      companionName: "04-推理审计.yaml",
+      companionTitle: "推理审计（YAML）",
+      companionField: "reasoning_audit_yaml",
+      title: "判断简报",
+    },
+    stage_05: {
+      stage: "05",
+      yamlName: "05_expression.yaml",
+      mdName: "05-研究报告.md",
+      companionName: "05-表达审计.yaml",
+      companionTitle: "表达审计（YAML）",
+      companionField: "expression_audit_yaml",
+      title: "研究报告",
+    },
   }[kind];
 }
 
@@ -88,7 +130,7 @@ function buildStageFiles(runId: string, artifacts: Artifact[], kind: StageKind):
   const selected = selectPreferredArtifact(stageArtifacts(artifacts, kind));
   if (!selected) return [];
   const data = parseJson<Record<string, unknown>>(selected.json_content || "{}", {});
-  const { stage, yamlName, mdName, title } = stageFileBase(kind);
+  const { stage, yamlName, mdName, title, companionName, companionTitle, companionField, snapshotName } = stageFileBase(kind);
   const files: FilePayload[] = [];
   files.push({
     entry: {
@@ -135,6 +177,63 @@ function buildStageFiles(runId: string, artifacts: Artifact[], kind: StageKind):
         source: "artifact_markdown",
       },
       content: selected.markdown_content,
+    });
+  }
+  if (companionName && companionField) {
+    const companionYaml = String((data as any)[companionField] || "").trim()
+      || `${companionField}: null\nnote: ${companionField} 尚未写入，请重新生成或保存该阶段。\n`;
+    files.push({
+      entry: {
+        id: artifactFileId(selected, "companion"),
+        file_name: companionName,
+        title: companionTitle || companionName,
+        stage,
+        artifact_id: selected.id,
+        artifact_kind: selected.kind,
+        version: selected.version,
+        status: selected.status,
+        mime: "application/yaml",
+        source: "artifact_json",
+      },
+      content: companionYaml,
+    });
+  }
+  if (kind === "stage_03" && snapshotName) {
+    const snapshot = YAML.stringify({
+      document_type: "evidence_snapshot_summary",
+      snapshot_ref: String((data as any).snapshot_ref || snapshotName),
+      sources_count: Array.isArray((data as any).sources) ? (data as any).sources.length : 0,
+      evidence_draft_count: Array.isArray((data as any).evidence_drafts) ? (data as any).evidence_drafts.length : 0,
+      unresolved_gaps: (data as any).unresolved_gaps || [],
+      evidence_readiness: (data as any).evidence_readiness || null,
+      delivery_readiness: (data as any).delivery_readiness || null,
+      allowed_05_output: (data as any).allowed_05_output || null,
+      coverage: {
+        unit_total: (data as any).coverage_unit_total ?? null,
+        evidence_backed_unit_count: (data as any).evidence_backed_unit_count ?? null,
+        evidence_coverage_rate: (data as any).evidence_coverage_rate ?? null,
+      },
+      source_keys: Array.isArray((data as any).sources)
+        ? (data as any).sources.map((item: any) => item?.source_key).filter(Boolean)
+        : [],
+      evidence_ids: Array.isArray((data as any).evidence_drafts)
+        ? (data as any).evidence_drafts.map((item: any) => item?.id).filter(Boolean)
+        : [],
+    });
+    files.push({
+      entry: {
+        id: artifactFileId(selected, "snapshot"),
+        file_name: snapshotName,
+        title: "证据快照摘要（YAML）",
+        stage,
+        artifact_id: selected.id,
+        artifact_kind: selected.kind,
+        version: selected.version,
+        status: selected.status,
+        mime: "application/yaml",
+        source: "derived_yaml",
+      },
+      content: snapshot,
     });
   }
   return files;
@@ -229,7 +328,7 @@ function buildStageIndexEntries(kind: StageKind, ledger: ArtifactLedgerRow[]): A
     ledger.filter((item) => item.kind === kind).sort((a, b) => b.version - a.version),
   );
   if (!selected) return [];
-  const { stage, yamlName, mdName, title } = stageFileBase(kind);
+  const { stage, yamlName, mdName, title, companionName, companionTitle, snapshotName } = stageFileBase(kind);
   const entries: ArchiveFileEntry[] = [
     {
       id: `${selected.id}:yaml`,
@@ -268,6 +367,34 @@ function buildStageIndexEntries(kind: StageKind, ledger: ArtifactLedgerRow[]): A
       status: selected.status,
       mime: "text/markdown",
       source: "artifact_markdown",
+    });
+  }
+  if (companionName) {
+    entries.push({
+      id: `${selected.id}:companion`,
+      file_name: companionName,
+      title: companionTitle || companionName,
+      stage,
+      artifact_id: selected.id,
+      artifact_kind: selected.kind,
+      version: selected.version,
+      status: selected.status,
+      mime: "application/yaml",
+      source: "artifact_json",
+    });
+  }
+  if (kind === "stage_03" && snapshotName) {
+    entries.push({
+      id: `${selected.id}:snapshot`,
+      file_name: snapshotName,
+      title: "证据快照摘要（YAML）",
+      stage,
+      artifact_id: selected.id,
+      artifact_kind: selected.kind,
+      version: selected.version,
+      status: selected.status,
+      mime: "application/yaml",
+      source: "derived_yaml",
     });
   }
   return entries;

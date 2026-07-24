@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { captureSourceSnapshot, parsePublicDohAnswers } from "@/engine/source_snapshot";
+import { captureSourceSnapshot, parsePublicDohAnswers, quoteMatchesBody } from "@/engine/source_snapshot";
 
 type TestAddress = { address: string; family: 4 | 6 };
 const publicAddress: TestAddress = { address: "93.184.216.34", family: 4 };
@@ -90,5 +90,51 @@ describe("verifiable source snapshots", () => {
     expect(snapshot).toMatchObject({ retrieval_status: "failed", usability_status: "rejected" });
     expect(snapshot.failure_detail).toMatch(/私有网络/);
     expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts quotes that only differ by punctuation or quotes from the body", async () => {
+    const bodyCore = "Revenue US$ 37.4 billion (2025) Operating income US$ 8.3 billion";
+    const body = `<html><body><article>${"pad ".repeat(40)}${bodyCore}${" pad".repeat(40)}</article></body></html>`;
+    const quoteWithComma = "Revenue US$ 37.4 billion (2025), Operating income US$ 8.3 billion";
+    const snapshot = await captureSourceSnapshot({
+      url: "https://example.com/wiki",
+      source_quote: quoteWithComma,
+    }, dependencies(async () => new Response(body, { status: 200, headers: { "content-type": "text/html" } })));
+    expect(snapshot).toMatchObject({ quote_verified: true, usability_status: "usable" });
+    // 对齐后应存正文逐字片段（无自造逗号）
+    expect(snapshot.source_quote).toContain("Revenue US$ 37.4 billion (2025)");
+    expect(snapshot.source_quote).not.toContain("billion (2025), Operating");
+
+    const quotedBody = `<html><body>${"x ".repeat(80)}"experienced sharp HBM price increases"${" y".repeat(80)}</body></html>`;
+    const paraphrasedOpen = await captureSourceSnapshot({
+      url: "https://example.com/hbm",
+      source_quote: "experienced sharp HBM price increases",
+    }, dependencies(async () => new Response(quotedBody, { status: 200, headers: { "content-type": "text/html" } })));
+    expect(paraphrasedOpen).toMatchObject({ quote_verified: true, usability_status: "usable" });
+  });
+
+  it("aligns Micron-style comma-joined table quotes to continuous body text", async () => {
+    const { alignQuoteToBody, recoverQuoteSpanFromBody } = await import("@/engine/source_snapshot");
+    const body = "Revenue US$ 37.4 billion (2025) Operating income US$9.77 billion (2025) Net income US$8.54 billion (2025) Total assets US$82.8 billion (2025)";
+    const quote = "Revenue US$ 37.4 billion (2025), Operating income US$9.77 billion (2025), Net income US$8.54 billion (2025), Total assets US$82.8 billion (2025)";
+    expect(quoteMatchesBody(quote, body)).toBe(true);
+    const aligned = alignQuoteToBody(quote, body);
+    expect(aligned.verified).toBe(true);
+    expect(aligned.alignedQuote).toBe(body);
+    expect(recoverQuoteSpanFromBody(quote, body)).toBe(body);
+  });
+
+  it("still rejects rewritten quotes that are not continuous substrings", async () => {
+    expect(quoteMatchesBody(
+      "DRAM price has risen sharply this quarter",
+      "HBM contract prices increased significantly during the quarter",
+    )).toBe(false);
+    const body = `<html><body>${"available body ".repeat(40)}</body></html>`;
+    const snapshot = await captureSourceSnapshot({
+      url: "https://example.com/source",
+      source_quote: "DRAM price has risen sharply this quarter",
+    }, dependencies(async () => new Response(body, { status: 200, headers: { "content-type": "text/html" } })));
+    expect(snapshot.quote_verified).toBe(false);
+    expect(snapshot.usability_status).toBe("limited");
   });
 });

@@ -1,5 +1,5 @@
 import type { ResearchModelClient } from "../adapters/deepseek";
-import { normalizeUrl, upsertSource } from "../adapters/db";
+import { listSources, normalizeUrl, upsertSource } from "../adapters/db";
 import { mergeStage03Patch, normalizeStage03Patch, objectId, type Stage03Patch } from "./change_set";
 import { captureSourceSnapshot } from "./source_snapshot";
 import { computeSourceCoverage } from "./source_coverage";
@@ -7,20 +7,42 @@ import type { EvidenceRequirementProjection } from "./structure_candidates";
 import type { SourceRecord } from "./types";
 import { controlledEvidencePatchSchema } from "./revise_schemas";
 import { repairEvidencePreparationDraft } from "./workflow_projections";
+import { demoteUnverifiedEvidenceDrafts } from "./evidence_draft_normalize";
 import { schemas } from "./schemas";
 import { promptForEvidenceSupplement } from "./prompts";
 import {
+  evidenceJudgmentTypeCardsForPrompt,
+  evidenceMethodIdsFromApplications,
+  loadSelectedMethodGuidance,
+  mcpChannelHintsForPrompt,
+} from "./method_guidance";
+import {
+  buildCapturePriorityKeys,
   buildSupplementBrief,
   findUnchangedEvidenceIds,
+  orderByCapturePriority,
+  applyRegistryFreezeFields,
+  syncStage03DraftSourcesFromRegistry,
+  dedupeStage03DraftSources,
 } from "./evidence_supplement_pure";
 
 export {
+  buildCapturePriorityKeys,
   buildSupplementBrief,
   buildSupplementCoverage,
   evidenceFingerprint,
   findUnchangedEvidenceIds,
+  orderByCapturePriority,
+  applyRegistryFreezeFields,
+  syncStage03DraftSourcesFromRegistry,
+  dedupeStage03DraftSources,
 } from "./evidence_supplement_pure";
 
+/**
+ * Source Registry 是抓取冻结字段的唯一权威。
+ * 补证/重新取得来源/upsert 拒绝降级后，草稿常残留旧 locator/quote/captured_at，
+ * 确认时会被校验打成「与 Source Registry 不一致」。确认前与抓取后都必须投影回草稿。
+ */
 export function stage03AutoSupplementMaxRounds(): number {
   const raw = process.env.STAGE03_AUTO_SUPPLEMENT_MAX_ROUNDS;
   const parsed = raw ? Number(raw) : 3;
@@ -33,15 +55,21 @@ export async function applyStage03SourceSnapshots(input: {
   affectedRefs: Set<string>;
   existingSources: SourceRecord[];
   maxNewSources?: number;
+  /** 抓取预算按补证优先级消耗；缺省时保持原顺序 */
+  capturePriorityKeys?: string[];
   assertRunning: () => void;
   onCaptureProgress?: (index: number, total: number) => void;
 }) {
   const keyMap = new Map<string, string>();
   const sources = input.data.sources || [];
-  const allCaptureTargets = sources.filter((source: any) => {
+  const allCaptureTargetsRaw = sources.filter((source: any) => {
     if (!source?.source_key || !source?.url) return false;
     if (input.affectedRefs.has(source.source_key)) return true;
     if (source.source_id) {
+      const known = input.existingSources.find((item) => item.id === source.source_id);
+      if (known) {
+        Object.assign(source, applyRegistryFreezeFields(source, known));
+      }
       keyMap.set(source.source_key, source.source_id);
       return false;
     }
@@ -50,11 +78,15 @@ export async function applyStage03SourceSnapshots(input: {
     const existing = input.existingSources.find((item) => item.normalized_url === normalized);
     if (existing) {
       source.source_id = existing.id;
+      Object.assign(source, applyRegistryFreezeFields(source, existing));
       keyMap.set(source.source_key, existing.id);
       return false;
     }
     return true;
   });
+  const allCaptureTargets = input.capturePriorityKeys?.length
+    ? orderByCapturePriority(allCaptureTargetsRaw, input.capturePriorityKeys)
+    : allCaptureTargetsRaw;
   const captureTargets = input.maxNewSources === undefined
     ? allCaptureTargets
     : allCaptureTargets.slice(0, Math.max(0, input.maxNewSources));
@@ -111,15 +143,7 @@ export async function applyStage03SourceSnapshots(input: {
       source_quote: snapshot.source_quote,
       quote_verified: snapshot.quote_verified,
     });
-    Object.assign(source, {
-      source_id: saved.id,
-      captured_at: snapshot.captured_at,
-      content_hash: snapshot.content_hash,
-      final_url: snapshot.final_url,
-      retrieval_status: snapshot.retrieval_status,
-      quote_verified: snapshot.quote_verified,
-      usability_status: snapshot.usability_status,
-    });
+    Object.assign(source, applyRegistryFreezeFields(source, saved));
     keyMap.set(source.source_key, saved.id);
   }
 
@@ -131,7 +155,9 @@ export async function applyStage03SourceSnapshots(input: {
   for (const evidence of input.data.evidence_drafts || []) {
     evidence.source_ids = (evidence.source_keys || []).map((key: string) => keyMap.get(key)).filter(Boolean);
   }
-  return input.data;
+  // 再按当前 Registry 全量投影：覆盖 upsert 拒绝降级返回 prior、以及未重抓的已绑定源。
+  const projected = syncStage03DraftSourcesFromRegistry(input.data, listSources(input.runId));
+  return repairEvidencePreparationDraft(demoteUnverifiedEvidenceDrafts(projected.data));
 }
 
 export async function runEvidenceSupplementRound(input: {
@@ -157,9 +183,14 @@ export async function runEvidenceSupplementRound(input: {
     sources: input.existingSources,
     draftSources: input.baseData.sources || [],
     requirements: input.requirements,
+    methodApplications: input.baseData.method_applications || [],
   });
 
-  input.onProgress?.({ round: 0, message: "正在针对缺口与失败来源生成补证 patch…" });
+  input.onProgress?.({ round: 0, message: "正在按优先级队列针对缺口与失败来源生成补证 patch…" });
+  const judgmentTypes = Array.isArray((input.supplementContext as any)?.judgmentTypes)
+    ? [...(input.supplementContext as any).judgmentTypes].map(String)
+    : [];
+  const kb03Ids = evidenceMethodIdsFromApplications(input.baseData.method_applications || []);
   const result = await input.client.generateStructured(
     "evidence_supplement",
     controlledEvidencePatchSchema,
@@ -172,6 +203,9 @@ export async function runEvidenceSupplementRound(input: {
         evidence_drafts: input.baseData.evidence_drafts || [],
         unresolved_gaps: input.baseData.unresolved_gaps || [],
       },
+      selected_method_guidance: loadSelectedMethodGuidance(kb03Ids),
+      evidence_judgment_type_cards: evidenceJudgmentTypeCardsForPrompt(judgmentTypes),
+      mcp_channel_hints: mcpChannelHintsForPrompt(),
       patch_contract: {
         id_space: "source_key/application_id/evidence_id",
         note: "affected_object_refs 与 upserts/removals 使用同一套稳定业务 ID（如 SRC-09、MA-EV-01、EV-1），不是 registry UUID。新增对象只需出现在 upserts；Runtime 会自动补齐 affected_object_refs。",
@@ -191,7 +225,22 @@ export async function runEvidenceSupplementRound(input: {
   const patch = normalizeStage03Patch(result.data);
   const merged = mergeStage03Patch(input.baseData, patch);
   const repaired = repairEvidencePreparationDraft(merged);
+  // 抓取前先过契约：避免 gap 残留 source_keys / 非法 kind 烧完一轮抓取才失败。
+  const precheck = schemas.stage_03.safeParse(repaired);
+  if (!precheck.success) {
+    throw new Error(JSON.stringify(precheck.error.issues));
+  }
   const affectedRefs = new Set(patch.affected_object_refs);
+  // 合并后按“失败源/返工绑定/单元缺口/其余新线索”重排抓取顺序，预算先喂高优先项。
+  const capturePriorityKeys = buildCapturePriorityKeys({
+    draftSources: repaired.sources || [],
+    evidence: repaired.evidence_drafts || [],
+    failedSourceKeys: brief.failed_sources
+      .map((item) => item.source_key)
+      .filter((key): key is string => Boolean(key)),
+    reworkEvidenceIds: brief.rework_evidence.map((item) => item.evidence_id),
+    gapUnitIds: brief.gap_units.map((item) => item.unit_id),
+  });
   const withSnapshots = await applyStage03SourceSnapshots({
     runId: input.runId,
     data: repaired,
@@ -200,6 +249,7 @@ export async function runEvidenceSupplementRound(input: {
     maxNewSources: input.maxSourceCount === undefined
       ? undefined
       : Math.max(0, input.maxSourceCount - input.existingSources.length),
+    capturePriorityKeys,
     assertRunning: input.assertRunning,
     onCaptureProgress: (index, total) => {
       input.onProgress?.({ round: index, message: `补证来源抓取 ${index}/${total}` });

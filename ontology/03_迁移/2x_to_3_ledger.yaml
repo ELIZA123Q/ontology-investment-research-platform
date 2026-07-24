@@ -4,7 +4,7 @@ status: completed
 migration_mode: direct-to-latest
 source_status: removed_after_migration
 target_ontology_version: 3.0.0
-note: 旧样例及旧本体源文件已完成直接迁移并移除；当前仓库只发布 Ontology 3.0 / Public Contract 1.3 基线，不保留 legacy 样例兼容通道。
+note: 旧样例及旧本体源文件已完成直接迁移并移除；当前仓库只发布 Ontology 3.0 / Public Contract 1.3 基线，不保留 legacy 样例兼容通道。EvidenceRecipe / MatchEvidenceRecipe 等历史类型名仅保留在本账本与领域投影索引中；取证配方权威在 methods/03_取证，不得回写为正式本体方法正文。
 generated_from:
 - embedded_inventory
 current_baseline:

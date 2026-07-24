@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deriveSourceResearchLifecycle, type SourceCoverageSummary, type SourceFactStatus } from "@/engine/source_coverage";
 import type { SourceRecord } from "@/engine/types";
@@ -33,11 +34,11 @@ export function SourceCoveragePanel({
 }) {
   const router = useRouter();
   const boundSourceIdSet = useMemo(() => new Set(boundSourceIds), [boundSourceIds]);
-  const [acquireOpen, setAcquireOpen] = useState(coverage.missing_core_types.length > 0);
+  const unitGapCount = coverage.coverage_gap_count;
+  const [acquireOpen, setAcquireOpen] = useState(unitGapCount > 0);
   const [projectionOpen, setProjectionOpen] = useState(false);
   const [acquireBusy, setAcquireBusy] = useState(false);
   const [acquireMessage, setAcquireMessage] = useState("");
-  const [defaultAuthority, setDefaultAuthority] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [unitRefs, setUnitRefs] = useState<Record<string, string[]>>({});
   const [subjects, setSubjects] = useState<Record<string, string>>({});
@@ -45,16 +46,14 @@ export function SourceCoveragePanel({
   const [directions, setDirections] = useState<Record<string, "support" | "weaken" | "neutral">>({});
   const [projectionBusy, setProjectionBusy] = useState(false);
   const [projectionMessage, setProjectionMessage] = useState("");
-
-  useEffect(() => {
-    if (coverage.missing_core_types[0]) setDefaultAuthority(coverage.missing_core_types[0]);
-  }, [coverage.missing_core_types]);
+  const [projectionReady, setProjectionReady] = useState(false);
 
   const unboundCandidates = useMemo(
     () => sources.filter((source) => !boundSourceIdSet.has(source.id)),
     [sources, boundSourceIdSet],
   );
   const unitTitleById = useMemo(() => new Map(units.map((unit) => [unit.id, unit.title])), [units]);
+  const draftCount = sources.filter((source) => source.fact_status === "draft").length;
 
   function counterStatusLabel(status: SourceCoverageSummary["unit_coverage"][number]["counter_check_status"]) {
     if (status === "observed") return "已有反证 / 削弱事实";
@@ -87,7 +86,7 @@ export function SourceCoveragePanel({
       router.refresh();
       return;
     }
-    setAcquireMessage("来源已核验并进入候选池。请在下方挂到判断单元并生成待审事实草稿。");
+    setAcquireMessage("① 完成：来源已核验。请继续 ② 挂到判断单元。");
     setProjectionOpen(true);
     router.refresh();
   }
@@ -117,7 +116,8 @@ export function SourceCoveragePanel({
       setProjectionMessage(result.error || "生成事实草稿失败");
       return;
     }
-    setProjectionMessage("事实草稿已创建；请到证据审阅页逐条或批量确认。");
+    setProjectionMessage("② 完成：事实草稿已创建。");
+    setProjectionReady(true);
     setSelected({});
     router.refresh();
   }
@@ -125,27 +125,53 @@ export function SourceCoveragePanel({
   return <section className="card source-coverage-panel">
     <div className="panel-title">
       <div>
-        <span>来源覆盖与补充</span>
-        <strong>先看缺什么来源，再补充并挂到判断单元</strong>
+        <span>来源 → 证据</span>
+        <strong>只走这一条主路径</strong>
       </div>
       <div className="coverage-meta">
-        <span>覆盖缺口 {coverage.coverage_gap_count}</span>
-        <span>覆盖率 {(coverage.coverage_rate * 100).toFixed(0)}%</span>
-        <span>核验率 {(coverage.verification_rate * 100).toFixed(0)}%</span>
+        <span>单元缺口 {coverage.coverage_gap_count}（进 04 门槛）</span>
+        <span title="进度指标，不是停补/进 04 门槛">进度覆盖率 {(coverage.coverage_rate * 100).toFixed(0)}%</span>
+        <span title="进度指标，不是停补/进 04 门槛">进度核验率 {(coverage.verification_rate * 100).toFixed(0)}%</span>
         <span>公开二手 {coverage.public_secondary_count}</span>
       </div>
     </div>
-    <p className="muted">核验成功的来源只是候选输入，不会直接变成已确认事实；生成事实草稿后仍须审阅确认。自动补证在覆盖率≥70%且核验率≥50%，或缺口清零时停止（默认最多 3 轮）。</p>
 
-    <div className="authority-coverage-grid">
-      {coverage.authority_coverage.map((cell) => (
-        <div className={`authority-coverage-cell ${cell.present ? "present" : "missing"}`} key={cell.authority_type}>
-          <span className="authority-type">{cell.label}</span>
-          <strong>{cell.present ? `已有 ${cell.usable_count}` : "缺失"}</strong>
-          <small>{cell.bound_count ? `已挂判断 ${cell.bound_count}` : "尚未挂到判断"}</small>
+    <ol className="evidence-main-path" aria-label="证据主路径">
+      <li className={sources.length ? "done" : acquireOpen ? "current" : ""}>
+        <em>1</em>
+        <div>
+          <strong>抓取并核验公开 URL</strong>
+          <small>进入候选池，还不是证据</small>
         </div>
-      ))}
-    </div>
+      </li>
+      <li className={draftCount || projectionReady ? "done" : projectionOpen ? "current" : ""}>
+        <em>2</em>
+        <div>
+          <strong>挂到判断单元，生成事实草稿</strong>
+          <small>绑定对象、观测日与方向</small>
+        </div>
+      </li>
+      <li className={projectionReady || draftCount ? "current" : ""}>
+        <em>3</em>
+        <div>
+          <strong>到证据审阅页批准</strong>
+          <small>逐条或批量确认后才能进判断</small>
+        </div>
+      </li>
+    </ol>
+
+    <p className="muted channel-note">
+      Stage03 生成/补证可由 worker 调用一手 MCP（巨潮 cninfo、通联财务、中央政策）；本页手动步骤仍是贴公开 URL 抓取核验。
+      覆盖率与核验率是<strong>进度指标</strong>：只要仍有单元缺口，系统不会仅凭覆盖率停补。
+    </p>
+
+    {(projectionReady || draftCount > 0) ? (
+      <div className="notice evidence-next-step">
+        <strong>下一步：去证据审阅批准草稿</strong>
+        <p>事实草稿不会自动变成已确认证据。</p>
+        <Link className="button" href={`/runs/${runId}/evidence`}>打开证据审阅 →</Link>
+      </div>
+    ) : null}
 
     {coverage.unit_coverage.length ? <div className="unit-coverage-grid">
       {coverage.unit_coverage.map((unit) => (
@@ -162,6 +188,32 @@ export function SourceCoveragePanel({
           </div>
           <p><b>当前最薄弱环节：</b>{unit.weakest_link}</p>
           <p><b>反证检查：</b>{counterStatusLabel(unit.counter_check_status)}</p>
+          {unit.support_gap_kind === "unverified_bound_sources" && unit.blocked_sources.length ? <div className="unit-gap-actions">
+            <strong>已绑来源未核验</strong>
+            <ul>{unit.blocked_sources.map((blocked) => <li key={blocked.id}>
+              <button type="button" className="linkish" onClick={() => {
+                document.getElementById(`source-row-${blocked.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+              }}>{blocked.title}</button>
+              {blocked.failure_detail ? <small>{blocked.failure_detail}</small> : null}
+            </li>)}</ul>
+            <button type="button" className="button-secondary button-compact" onClick={() => {
+              setAcquireOpen(true);
+              document.getElementById("source-acquire")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}>重新取得来源</button>
+          </div> : null}
+          {unit.support_gap_kind === "no_support_draft" && unit.candidate_sources.length ? <div className="unit-gap-actions">
+            <strong>可挂到本判断的已核验来源</strong>
+            <ul>{unit.candidate_sources.map((candidate) => <li key={candidate.id}>
+              <span>{candidate.title}</span>
+              <button type="button" className="button-secondary button-compact" onClick={() => {
+                setUnitRefs((current) => ({
+                  ...current,
+                  [candidate.id]: [...new Set([...(current[candidate.id] || []), unit.unit_id])],
+                }));
+                preselectSource(candidate.id);
+              }}>挂到本判断</button>
+            </li>)}</ul>
+          </div> : null}
           {unit.requirements.length ? <details>
             <summary>最低证据组合（{unit.requirements.length} 项）</summary>
             <ul>{unit.requirements.map((requirement) => <li key={requirement.id}>
@@ -173,7 +225,7 @@ export function SourceCoveragePanel({
       ))}
     </div> : null}
 
-    {sources.length ? <div className="source-inventory">
+    {sources.length ? <div className="source-inventory" id="source-inventory">
       <header><strong>已登记来源</strong><span>{sources.length} 条</span></header>
       <ul className="source-list">
         {sources.map((source) => {
@@ -184,7 +236,7 @@ export function SourceCoveragePanel({
             quoteVerified: Boolean(source.quote_verified),
             factStatus: source.fact_status,
           });
-          return <li key={source.id}>
+          return <li key={source.id} id={`source-row-${source.id}`}>
             <div className="source-row-head">
               <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
               <span className={`source-research-state state-${lifecycle.stage}`}>{lifecycle.label}</span>
@@ -202,17 +254,21 @@ export function SourceCoveragePanel({
               </span>
             </div>
             {source.failure_detail ? <small className="source-failure-detail">未能继续：{source.failure_detail}</small> : null}
-            {controllable && !bound ? <button type="button" className="button-secondary button-compact" onClick={() => preselectSource(source.id)}>挂到判断单元</button> : null}
+            {controllable && !bound ? <button type="button" className="button-secondary button-compact" onClick={() => preselectSource(source.id)}>② 挂到判断单元</button> : null}
           </li>;
         })}
       </ul>
     </div> : null}
 
-    {unboundCandidates.length ? <p className="muted">另有 {unboundCandidates.length} 条来源尚未挂到任何判断单元，可在下方生成事实草稿。</p> : null}
+    {unboundCandidates.length ? <p className="muted">另有 {unboundCandidates.length} 条来源尚未挂到任何判断单元。</p> : null}
 
     <div className="coverage-actions">
-      <button type="button" className="button-secondary" onClick={() => setAcquireOpen((value) => !value)}>
-        {acquireOpen ? "收起补充来源" : coverage.missing_core_types.length ? `补充缺失来源（缺 ${coverage.missing_core_types.map(authorityTypeLabel).join("、")}）` : "补充来源"}
+      <button type="button" className="button" onClick={() => setAcquireOpen((value) => !value)}>
+        {acquireOpen
+          ? "收起步骤 1"
+          : unitGapCount
+            ? `① 补充来源（${unitGapCount} 个判断仍不足）`
+            : "① 补充来源"}
       </button>
       <button
         type="button"
@@ -221,11 +277,12 @@ export function SourceCoveragePanel({
         disabled={!controlledSources.length && !projectionOpen}
         onClick={() => setProjectionOpen((value) => !value)}
       >
-        {projectionOpen ? "收起事实草稿" : "从已核验来源生成事实草稿"}
+        {projectionOpen ? "收起步骤 2" : "② 生成事实草稿"}
       </button>
+      <Link className="button-secondary" href={`/runs/${runId}/evidence`}>③ 证据审阅</Link>
     </div>
 
-    {acquireOpen ? <form className="source-acquire-form" onSubmit={acquireSource}>
+    {acquireOpen ? <form className="source-acquire-form" id="source-acquire" onSubmit={acquireSource}>
       <div className="source-form-grid">
         <div className="field source-url"><label>公开 URL</label><input name="url" type="url" required /></div>
         <div className="field"><label>来源标题</label><input name="title" required /></div>
@@ -238,7 +295,7 @@ export function SourceCoveragePanel({
         <summary>高级来源字段</summary>
         <div className="source-form-grid">
           <div className="field"><label>来源权威类型</label>
-            <select name="authority_type" defaultValue={defaultAuthority || "company_disclosure"} required>
+            <select name="authority_type" defaultValue="company_disclosure" required>
               {ACQUIRE_AUTHORITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>

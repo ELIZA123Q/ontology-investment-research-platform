@@ -9,6 +9,7 @@ import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
 } from "./structure_candidates";
+import { collectStage02ConsistencyIssues } from "./stage02_documents";
 import {
   controlledScopePatchSchema,
   controlledStructurePatchSchema,
@@ -618,7 +619,16 @@ export async function validateStage02ForApproval(
 
   const scope = parseJson<any>(stage01.json_content, {});
   const structure = structureFromArtifact(stage02);
-  const heuristic = heuristicStructureIssues(structure, scope);
+  const stage02Data = parseJson<any>(stage02.json_content, {});
+  const heuristic = [
+    ...heuristicStructureIssues(structure, scope),
+    ...collectStage02ConsistencyIssues(stage02Data).map((item) => ({
+      severity: item.severity as "error" | "warning",
+      code: item.code,
+      message: item.message,
+      unit_id: undefined as string | undefined,
+    })),
+  ];
 
   let result = options.validationResult;
   if (!result && stage02.model_name === "human-controlled-structure-projection") {

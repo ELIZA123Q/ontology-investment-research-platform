@@ -246,4 +246,41 @@ describe("mergeStage03Patch null-safe", () => {
     }) as any;
     expect(second.evidence_drafts.map((item: any) => item.id)).toEqual(["EV-GAP-02"]);
   });
+
+  it("把事实改成 gap 时即使 omit source_keys 也会清空旧绑定", () => {
+    const base = {
+      sources: [],
+      evidence_drafts: [{
+        id: "EV-1",
+        kind: "fact_draft",
+        statement: "旧主张",
+        direction: "support",
+        source_keys: ["SRC-06"],
+        source_ids: ["uuid-1"],
+        judgment_unit_ids: ["JU-1"],
+      }],
+      method_applications: [],
+      unresolved_gaps: [],
+    };
+    const merged = mergeStage03Patch(base, {
+      affected_object_refs: ["EV-1"],
+      upserts: {
+        evidence_drafts: [{
+          id: "EV-1",
+          kind: "gap",
+          requirement: "取得可核验正文",
+          evidence_role: "support",
+          minimum_independent_sources: 1,
+        }],
+      },
+    }) as any;
+    expect(merged.evidence_drafts[0]).toMatchObject({
+      id: "EV-1",
+      kind: "gap",
+      direction: "unknown",
+      source_keys: [],
+      source_ids: [],
+    });
+    expect(merged.evidence_drafts[0].limitations.some((item: string) => item.includes("SRC-06"))).toBe(true);
+  });
 });

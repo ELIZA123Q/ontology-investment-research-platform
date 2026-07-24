@@ -1,15 +1,10 @@
-import type { AuthorityType, CoreAuthorityType } from "./authority_types";
-import { CORE_AUTHORITY_TYPES, authorityTypeLabel } from "./authority_types";
 import type { EvidenceRequirementProjection } from "./structure_candidates";
 import type { SourceRecord } from "./types";
 
-export type AuthorityCoverageCell = {
-  authority_type: CoreAuthorityType;
-  label: string;
-  required: boolean;
-  present: boolean;
-  usable_count: number;
-  bound_count: number;
+export type UnitGapSourceRef = {
+  id: string;
+  title: string;
+  failure_detail?: string;
 };
 
 export type UnitEvidenceCoverage = {
@@ -34,13 +29,18 @@ export type UnitEvidenceCoverage = {
   counter_check_status: "observed" | "gap" | "not_recorded" | "not_required";
   evidence_ceiling: "J0" | "J1" | "J2" | "J3";
   weakest_link: string;
+  /** 无可用支持事实时的细分原因，便于工作台给出匹配动作。 */
+  support_gap_kind: "none" | "unverified_bound_sources" | "no_support_draft";
+  /** 已绑到本单元但未通过核验的来源。 */
+  blocked_sources: UnitGapSourceRef[];
+  /** 已 usable、尚未挂到本单元的候选来源。 */
+  candidate_sources: UnitGapSourceRef[];
 };
 
 export type SourceCoverageSummary = {
-  authority_coverage: AuthorityCoverageCell[];
-  missing_core_types: CoreAuthorityType[];
   public_secondary_count: number;
   unit_coverage: UnitEvidenceCoverage[];
+  /** 不满足支持证据或独立性的判断单元数；不以权威类型缺席计缺口。 */
   coverage_gap_count: number;
   coverage_rate: number;
   verification_rate: number;
@@ -58,7 +58,7 @@ export const DEFAULT_EVIDENCE_STOP_THRESHOLDS: EvidenceStopThresholds = {
 
 export type EvidenceStopEvaluation = {
   shouldStop: boolean;
-  reason: "coverage_gap_count_zero" | "thresholds_met" | "no_gap_improvement" | "continue";
+  reason: "coverage_gap_count_zero" | "no_gap_improvement" | "continue";
 };
 
 export type SourceFactStatus = "none" | "draft" | "approved";
@@ -124,18 +124,23 @@ function isUsableSource(source: SourceRecord) {
     && Boolean(source.quote_verified);
 }
 
+function toGapSourceRef(source: SourceRecord): UnitGapSourceRef {
+  return {
+    id: source.id,
+    title: source.title || source.url || source.id,
+    failure_detail: source.failure_detail ? String(source.failure_detail) : undefined,
+  };
+}
+
 export function computeSourceCoverage(input: {
   sources: SourceRecord[];
   evidence: EvidenceDraftLike[];
-  boundSourceIds?: Set<string>;
   requirements?: EvidenceRequirementProjection[];
   cutoffMs?: number;
 }): SourceCoverageSummary {
   const { sources, evidence } = input;
-  const boundSourceIds = input.boundSourceIds || new Set(
-    evidence.filter((item) => item.kind !== "gap").flatMap((item) => (item.source_ids || []).map(String)),
-  );
   const cutoffMs = input.cutoffMs;
+  const sourceById = new Map(sources.map((source) => [source.id, source]));
 
   const usableSources = sources.filter((source) => {
     if (!isUsableSource(source)) return false;
@@ -143,21 +148,6 @@ export function computeSourceCoverage(input: {
     return true;
   });
   const usableSourceById = new Map(usableSources.map((source) => [source.id, source]));
-
-  const authority_coverage: AuthorityCoverageCell[] = CORE_AUTHORITY_TYPES.map((authority_type) => {
-    const ofType = usableSources.filter((source) => (source.authority_type || "unknown") === authority_type);
-    const boundOfType = ofType.filter((source) => boundSourceIds.has(source.id));
-    return {
-      authority_type,
-      label: authorityTypeLabel(authority_type),
-      required: true,
-      present: ofType.length > 0,
-      usable_count: ofType.length,
-      bound_count: boundOfType.length,
-    };
-  });
-
-  const missing_core_types = authority_coverage.filter((cell) => !cell.present).map((cell) => cell.authority_type);
   const public_secondary_count = usableSources.filter((source) => source.authority_type === "public_secondary").length;
 
   const requirements = input.requirements || [];
@@ -168,8 +158,8 @@ export function computeSourceCoverage(input: {
 
   const unit_coverage: UnitEvidenceCoverage[] = unitIds.map((unit_id) => {
     const unitDrafts = evidence.filter((item) => (item.judgment_unit_ids || []).includes(unit_id));
-    const usableDrafts = unitDrafts.filter((item) => item.kind !== "gap"
-      && (item.source_ids || []).some((sourceId) => usableSourceById.has(sourceId)));
+    const nonGapDrafts = unitDrafts.filter((item) => item.kind !== "gap");
+    const usableDrafts = nonGapDrafts.filter((item) => (item.source_ids || []).some((sourceId) => usableSourceById.has(sourceId)));
     const supportDrafts = usableDrafts.filter((item) => item.kind !== "conflict" && item.direction !== "weaken" && item.kind !== "counter");
     const counterDrafts = usableDrafts.filter((item) => item.kind === "counter" || item.direction === "weaken");
     const support_draft_count = supportDrafts.length;
@@ -207,15 +197,39 @@ export function computeSourceCoverage(input: {
         : counter_gap_count > 0
           ? "gap"
           : "not_recorded";
-    const weakest_link = !support_draft_count
-      ? "缺少可核验的支持事实"
-      : sourceGroups.size < minimum_independent_sources
-        ? `独立来源组不足（${sourceGroups.size}/${minimum_independent_sources}）`
-        : counterRequired && counter_check_status !== "observed"
-          ? "反证方向尚未形成可核验记录"
-          : gap_count > 0
-            ? `${gap_count} 个证据缺口仍开放`
-            : `证据侧已达到 ${evidence_ceiling}，仍待判断阶段裁决`;
+
+    const boundSourceIds = new Set(nonGapDrafts.flatMap((item) => (item.source_ids || []).map(String)));
+    const blocked_sources: UnitGapSourceRef[] = [];
+    for (const sourceId of boundSourceIds) {
+      if (usableSourceById.has(sourceId)) continue;
+      const source = sourceById.get(sourceId);
+      if (source) blocked_sources.push(toGapSourceRef(source));
+    }
+    const candidate_sources = usableSources
+      .filter((source) => !boundSourceIds.has(source.id))
+      .slice(0, 5)
+      .map(toGapSourceRef);
+
+    let support_gap_kind: UnitEvidenceCoverage["support_gap_kind"] = "none";
+    let weakest_link: string;
+    if (!support_draft_count) {
+      if (nonGapDrafts.length > 0 && blocked_sources.length > 0) {
+        support_gap_kind = "unverified_bound_sources";
+        weakest_link = "已有草稿，但来源引文未核验通过";
+      } else {
+        support_gap_kind = "no_support_draft";
+        weakest_link = "缺少可核验的支持事实";
+      }
+    } else if (sourceGroups.size < minimum_independent_sources) {
+      weakest_link = `独立来源组不足（${sourceGroups.size}/${minimum_independent_sources}）`;
+    } else if (counterRequired && counter_check_status !== "observed") {
+      weakest_link = "反证方向尚未形成可核验记录";
+    } else if (gap_count > 0) {
+      weakest_link = `${gap_count} 个证据缺口仍开放`;
+    } else {
+      weakest_link = `证据侧已达到 ${evidence_ceiling}，仍待判断阶段裁决`;
+    }
+
     return {
       unit_id,
       requirements: unitRequirements.map((item) => ({
@@ -238,17 +252,17 @@ export function computeSourceCoverage(input: {
       counter_check_status,
       evidence_ceiling,
       weakest_link,
+      support_gap_kind,
+      blocked_sources,
+      candidate_sources: support_gap_kind === "no_support_draft" ? candidate_sources : [],
     };
   });
 
-  const unitGapCount = unit_coverage.filter((item) => !item.has_support_evidence || !item.meets_independence).length;
-  const coverage_gap_count = missing_core_types.length + unitGapCount;
-  const coverage_rate = computeCoverageRate(unit_coverage, authority_coverage);
+  const coverage_gap_count = unit_coverage.filter((item) => !item.has_support_evidence || !item.meets_independence).length;
+  const coverage_rate = computeCoverageRate(unit_coverage);
   const verification_rate = computeVerificationRate(sources);
 
   return {
-    authority_coverage,
-    missing_core_types,
     public_secondary_count,
     unit_coverage,
     coverage_gap_count,
@@ -257,16 +271,10 @@ export function computeSourceCoverage(input: {
   };
 }
 
-function computeCoverageRate(
-  unit_coverage: UnitEvidenceCoverage[],
-  authority_coverage: AuthorityCoverageCell[],
-): number {
-  if (unit_coverage.length > 0) {
-    const satisfied = unit_coverage.filter((item) => item.has_support_evidence && item.meets_independence).length;
-    return satisfied / unit_coverage.length;
-  }
-  const present = authority_coverage.filter((item) => item.present).length;
-  return present / CORE_AUTHORITY_TYPES.length;
+function computeCoverageRate(unit_coverage: UnitEvidenceCoverage[]): number {
+  if (unit_coverage.length === 0) return 0;
+  const satisfied = unit_coverage.filter((item) => item.has_support_evidence && item.meets_independence).length;
+  return satisfied / unit_coverage.length;
 }
 
 function computeVerificationRate(sources: SourceRecord[]): number {
@@ -279,20 +287,14 @@ function computeVerificationRate(sources: SourceRecord[]): number {
 export function evaluateEvidenceStopCondition(
   coverage: Pick<SourceCoverageSummary, "coverage_gap_count" | "coverage_rate" | "verification_rate">,
   previousGapCount?: number,
-  thresholds: EvidenceStopThresholds = DEFAULT_EVIDENCE_STOP_THRESHOLDS,
+  _thresholds: EvidenceStopThresholds = DEFAULT_EVIDENCE_STOP_THRESHOLDS,
 ): EvidenceStopEvaluation {
   if (coverage.coverage_gap_count === 0) {
     return { shouldStop: true, reason: "coverage_gap_count_zero" };
   }
-  if (coverage.coverage_rate >= thresholds.coverageRate && coverage.verification_rate >= thresholds.verificationRate) {
-    return { shouldStop: true, reason: "thresholds_met" };
-  }
+  // 覆盖率/核验率只是进度指标，不是进 04 门槛；有单元缺口时不得仅凭阈值停补。
   if (previousGapCount !== undefined && coverage.coverage_gap_count >= previousGapCount) {
     return { shouldStop: true, reason: "no_gap_improvement" };
   }
   return { shouldStop: false, reason: "continue" };
-}
-
-export function suggestAuthorityTypeForGap(missing: CoreAuthorityType[]): AuthorityType | null {
-  return missing[0] || null;
 }

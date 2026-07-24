@@ -35,6 +35,7 @@ import {
   validateJudgmentMethodBindings,
   validateMethodApplications,
 } from "./method_application";
+import { enrichPromptMethodCards } from "./method_guidance";
 import {
   defaultMethodIdsForJudgmentType,
   loadMethodRegistry,
@@ -58,6 +59,11 @@ import {
   syncStage04ReadableMarkdown,
   syncStage05ReadableMarkdown,
 } from "./readable_markdown";
+import { assertStage01ReadyForApproval, ensureStage01ContractFields } from "./stage01_contract";
+import { assertStage02ReadyForApproval, ensureStage02DocumentFields } from "./stage02_documents";
+import { assertStage03ReadyForApproval, ensureStage03DocumentFields } from "./stage03_documents";
+import { assertStage04ReadyForApproval, ensureStage04DocumentFields } from "./stage04_documents";
+import { assertStage05ReadyForApproval, ensureStage05DocumentFields } from "./stage05_documents";
 
 export function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;
@@ -144,15 +150,44 @@ export function validateGeneratedSemanticDraft(runId: string, kind: ArtifactKind
 }
 
 export function validateApproval(artifact: Artifact) {
-  const schema = schemas[artifact.kind as SchemaKind];
-  if (schema) schema.parse(parseJson(artifact.json_content, {}));
   const data: any = parseJson(artifact.json_content, {});
-  if (artifact.kind === "stage_02") {
+  if (artifact.kind === "stage_01") {
+    const run = getRun(artifact.run_id);
+    ensureStage01ContractFields(data, run?.question || String(data.normalized_question || ""));
+    // 确认门禁按补齐后的规范字段判定；不在此处回写产物，避免静默改稿。
+    schemas.stage_01.parse(data);
+    assertStage01ReadyForApproval(data);
+  } else if (artifact.kind === "stage_02") {
+    const run = getRun(artifact.run_id);
+    ensureStage02DocumentFields(data, { question: run?.question, taskId: artifact.run_id });
+    schemas.stage_02.parse(data);
+    assertStage02ReadyForApproval(data);
     validateMethodApplications("stage_02", data.method_applications as MethodApplication[]);
     validateRegisteredMethodApplications(data.method_applications as MethodApplication[]);
     validateMethodRoutes(data.method_applications as MethodApplication[], data.judgment_units || []);
     validateJudgmentCapabilityCoverage(data.method_applications as MethodApplication[], data.judgment_units || []);
     validateOntologyVariableBindings(data.variables || []);
+  } else if (artifact.kind === "stage_03") {
+    const run = getRun(artifact.run_id);
+    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    ensureStage03DocumentFields(data, { question: run?.question, taskId: artifact.run_id, structure });
+    schemas.stage_03.parse(data);
+    assertStage03ReadyForApproval(data);
+  } else if (artifact.kind === "stage_04") {
+    const run = getRun(artifact.run_id);
+    ensureStage04DocumentFields(data, { question: run?.question, taskId: artifact.run_id });
+    schemas.stage_04.parse(data);
+    assertStage04ReadyForApproval(data);
+  } else if (artifact.kind === "stage_05") {
+    const run = getRun(artifact.run_id);
+    const stage04: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
+    ensureStage05DocumentFields(data, { question: run?.question, taskId: artifact.run_id, stage04 });
+    schemas.stage_05.parse(data);
+    // Stage05 确认默认要求研报结构达标（对齐 validate_05 固定节）；minimum_pass 仅可保存草稿，不能作为正式确认。
+    assertStage05ReadyForApproval(data, { requirePublishableStructure: true });
+  } else {
+    const schema = schemas[artifact.kind as SchemaKind];
+    if (schema) schema.parse(data);
   }
   if (artifact.kind === "stage_03") {
     const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
@@ -339,15 +374,28 @@ export function validateApproval(artifact: Artifact) {
   }
 }
 
+export function upstreamJudgmentTypes(upstream: Array<{ json: any }>): string[] {
+  return [...new Set(
+    upstream.flatMap((item) => (item.json?.judgment_units || []).map((unit: any) => String(unit.judgment_type || ""))).filter(Boolean),
+  )];
+}
+
 export function methodCandidatesForPrompt(kind: ArtifactKind, upstream: Array<{ json: any }>, taskText = "") {
-  if (kind === "stage_02") return taskText.trim()
-    ? recallRegisteredMethodCandidates(taskText)
-    : registeredMethodCandidates();
-  if (kind !== "stage_03" && kind !== "stage_04") return [];
-  const inheritedMethodIds = new Set<string>(
-    upstream.flatMap((item) => (item.json?.method_applications || []).map((application: any) => String(application.method_id))),
-  );
-  return registeredMethodCandidates().filter((method) => inheritedMethodIds.has(method.method_id));
+  const judgmentTypes = upstreamJudgmentTypes(upstream);
+  let base;
+  if (kind === "stage_02") {
+    base = taskText.trim()
+      ? recallRegisteredMethodCandidates(taskText)
+      : registeredMethodCandidates();
+  } else if (kind === "stage_03" || kind === "stage_04") {
+    const inheritedMethodIds = new Set<string>(
+      upstream.flatMap((item) => (item.json?.method_applications || []).map((application: any) => String(application.method_id))),
+    );
+    base = registeredMethodCandidates().filter((method) => inheritedMethodIds.has(method.method_id));
+  } else {
+    return [];
+  }
+  return enrichPromptMethodCards(base, judgmentTypes);
 }
 
 export function sourcesForPrompt(kind: ArtifactKind, sources: SourceRecord[], cutoffAt?: string | null) {
@@ -397,9 +445,20 @@ export function syncReadableMarkdownForArtifact(artifact: { id: string; run_id: 
   const run = getRun(artifact.run_id);
   if (artifact.kind === "stage_01") return syncStage01ReadableMarkdown(data, run?.question || "");
   if (artifact.kind === "stage_02") return syncStage02ReadableMarkdown(data);
-  if (artifact.kind === "stage_03") return syncStage03ReadableMarkdown(data);
-  if (artifact.kind === "stage_04") return syncStage04ReadableMarkdown(data);
-  if (artifact.kind === "stage_05") return syncStage05ReadableMarkdown(data, run?.question || "", listSources(artifact.run_id));
+  if (artifact.kind === "stage_03") {
+    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    return syncStage03ReadableMarkdown(data, { question: run?.question, taskId: artifact.run_id, structure });
+  }
+  if (artifact.kind === "stage_04") {
+    return syncStage04ReadableMarkdown(data, { question: run?.question, taskId: artifact.run_id });
+  }
+  if (artifact.kind === "stage_05") {
+    const stage04: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
+    return syncStage05ReadableMarkdown(data, run?.question || "", listSources(artifact.run_id), {
+      taskId: artifact.run_id,
+      stage04,
+    });
+  }
   return String(data.document_markdown || "");
 }
 
@@ -458,6 +517,14 @@ export function editArtifact(
       ? syncReadableMarkdownForArtifact(artifact, data)
       : (markdownContent ?? String(data.document_markdown || ""));
   if (syncedKinds.has(artifact.kind) || preferMarkdown) data.document_markdown = markdown;
+  if (artifact.kind === "stage_05" && preferMarkdown) {
+    const stage04: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
+    ensureStage05DocumentFields(data, {
+      question: getRun(artifact.run_id)?.question,
+      taskId: artifact.run_id,
+      stage04,
+    });
+  }
   if (schema) schema.parse(data);
   const nextJson = JSON.stringify(data, null, 2);
 

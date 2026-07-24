@@ -24,6 +24,8 @@ perturbation_ref: perturbations.yaml
 experiment:
   axes: [R, U, delta, S, C]
   contexts: [A, B, C, D, E]
+  ablation_ladder: [P0, P1, P2, P3]
+  ablation_ref: ablation/
   downstream_tasks: [core_restatement, tracking_plan, information_update, research_questions]
   target_length_policy: system_artifact_plus_or_minus_15_percent
 isolation:

@@ -2,6 +2,16 @@ import { z } from "zod";
 
 const markdown = z.string().min(40);
 const nonEmptyString = z.string().min(1);
+const qualityStatus = z.enum([
+  "draft",
+  "minimum_pass",
+  "high_quality_pass",
+  "return_required",
+  "stop_with_gap_report",
+]);
+const stageStatus = z.enum(["not_started", "in_progress", "complete", "blocked", "returned"]);
+const taskDisposition = z.enum(["accepted", "needs_clarification", "out_of_scope", "split_required"]);
+const ontologyGapScanStatus = z.enum(["no_gap", "minor_gap", "major_gap", "blocking_gap"]);
 const judgmentType = z.enum([
   "state_measurement",
   "trend_direction",
@@ -59,6 +69,113 @@ export const taskDefinitionSchema = z.object({
   exclusions: z.array(z.string()),
   domain_supported: z.boolean(),
   document_markdown: markdown,
+  stage_status: stageStatus,
+  task_disposition: taskDisposition,
+  status_reason: nonEmptyString,
+  quality_status: qualityStatus,
+  quality_gate_ref: nonEmptyString,
+  deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
+  semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
+  return_required: z.boolean(),
+  return_stage: z.string().nullable(),
+  original_input: nonEmptyString,
+  judgment_landing: nonEmptyString,
+  task_type: z.object({
+    primary: nonEmptyString,
+    secondary: z.array(z.string()),
+  }),
+  delivery_archetype: z.object({
+    primary: nonEmptyString,
+    secondary: z.array(z.string()),
+    modules: z.array(z.string()),
+  }),
+  intended_use: z.array(z.string()).min(1),
+  not_allowed_use: z.array(z.string()),
+  main_judgment_axis: z.object({
+    object: nonEmptyString,
+    comparison_scope: nonEmptyString,
+    judgment_action: nonEmptyString,
+    primary_channel: nonEmptyString,
+    key_question: nonEmptyString,
+    expected_05_landing: nonEmptyString,
+    non_core_axes: z.array(z.string()),
+  }),
+  delivery_depth: z.object({
+    conclusion_granularity: nonEmptyString,
+    minimum_delivery: nonEmptyString,
+  }),
+  research_value_gate: z.object({
+    status: z.enum(["pass", "fail", "pending"]),
+    value_level: z.enum(["high", "medium", "low"]),
+    disagreement_or_unknown: nonEmptyString,
+    changing_variable: nonEmptyString,
+    asset_or_decision_impact_path: nonEmptyString,
+    decision_use: nonEmptyString,
+    why_now: nonEmptyString,
+    incremental_question: nonEmptyString,
+    low_value_reason: z.string(),
+  }),
+  overscope_check: z.object({
+    status: z.enum(["pass", "fail", "pending"]),
+    reason: nonEmptyString,
+    broadness_flags: z.array(z.string()),
+    alternative_subquestions: z.array(z.string()),
+    excluded_paths: z.array(z.string()),
+    allowed_secondary_axes: z.array(z.string()),
+  }),
+  needs_split: z.boolean(),
+  split_recommendation: z.string().nullable(),
+  scope_summary: nonEmptyString,
+  input_resolution: z.object({
+    mode: z.enum(["direct_extract", "inherited_context", "user_clarified"]),
+    status: z.enum(["resolved", "pending"]),
+    source_refs: z.array(z.string()).min(1),
+    system_understanding: z.object({
+      core_object: nonEmptyString,
+      judgment_action: nonEmptyString,
+      time_window: nonEmptyString,
+      scope_boundary: nonEmptyString,
+      delivery_landing: nonEmptyString,
+    }),
+    rollback_assumptions: z.array(z.string()),
+    clarifications: z.array(z.object({
+      question_id: nonEmptyString,
+      topic: nonEmptyString,
+      question: nonEmptyString,
+      answer: z.string().nullable(),
+      answered_at: z.string().nullable(),
+    })),
+    unresolved_structural_ambiguities: z.array(z.string()),
+  }),
+}).superRefine((value, context) => {
+  if (value.task_disposition === "needs_clarification") {
+    const unanswered = value.input_resolution.clarifications.filter((item) => !item.answer);
+    const unresolved = value.input_resolution.unresolved_structural_ambiguities;
+    if (!unanswered.length && !unresolved.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["task_disposition"],
+        message: "needs_clarification 必须登记待答澄清或未决结构性歧义",
+      });
+    }
+    if (unanswered.length > 1) {
+      context.addIssue({
+        code: "custom",
+        path: ["input_resolution", "clarifications"],
+        message: "一次只允许一个未回答的澄清问题",
+      });
+    }
+  }
+  if (value.input_resolution.mode === "direct_extract") {
+    const forged = value.input_resolution.clarifications.some((item) => Boolean(item.answer));
+    if (forged) {
+      context.addIssue({
+        code: "custom",
+        path: ["input_resolution", "clarifications"],
+        message: "direct_extract 不得伪造已回答的澄清记录",
+      });
+    }
+  }
 });
 
 export const judgmentStructureSchema = z.object({
@@ -176,8 +293,34 @@ export const judgmentStructureSchema = z.object({
       discriminating_evidence: z.array(z.string().min(1)).min(1),
     }),
   )),
+  // 规范双产物：研究逻辑正文 + 本体视图 YAML；document_markdown 与 research_logic_markdown 保持镜像。
+  research_logic_markdown: markdown,
+  ontology_view_yaml: z.string().min(20),
+  logic_id: nonEmptyString,
+  ontology_view_ref: nonEmptyString,
+  judgment_spine: nonEmptyString,
+  framework_usage_ref: nonEmptyString,
+  stage_status: stageStatus,
+  quality_status: qualityStatus,
+  quality_gate_ref: nonEmptyString,
+  ontology_gap_scan_status: ontologyGapScanStatus,
+  can_enter_03: z.boolean(),
   document_markdown: markdown,
 }).superRefine((value, context) => {
+  if (value.ontology_gap_scan_status === "blocking_gap" && value.can_enter_03) {
+    context.addIssue({
+      code: "custom",
+      path: ["can_enter_03"],
+      message: "blocking_gap 时 can_enter_03 必须为 false",
+    });
+  }
+  if (value.research_logic_markdown.trim() !== value.document_markdown.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["document_markdown"],
+      message: "document_markdown 必须与 research_logic_markdown 保持一致",
+    });
+  }
   const unitIds = new Set(value.judgment_units.map((unit) => unit.id));
   for (const [index, item] of value.competing_explanations.entries()) {
     for (const unitId of item.judgment_unit_ids) {
@@ -302,13 +445,103 @@ const evidenceGapDraft = z.object({
   limitations: z.array(z.string()).min(1),
 });
 
+/** Evidence Summary：趋势/对比/异常与确定性计算输出；LLM 只能引用其中数字。 */
+const evidenceSummarySchema = z.object({
+  id: nonEmptyString,
+  title: nonEmptyString,
+  summary_kind: z.enum(["trend", "distribution", "comparison", "anomaly", "calculation", "other"]).default("other"),
+  metric_refs: z.array(z.string()).default([]),
+  judgment_unit_ids: z.array(z.string()).default([]),
+  statement: nonEmptyString,
+  numeric_values: z.array(z.object({
+    label: nonEmptyString,
+    value: z.union([z.number(), nonEmptyString]),
+    unit: z.string().nullable().default(null),
+    period: z.string().nullable().default(null),
+    source: z.enum(["quote", "calculation", "derived"]).default("quote"),
+    evidence_draft_ids: z.array(z.string()).default([]),
+  })).default([]),
+  evidence_draft_ids: z.array(z.string()).default([]),
+  limitations: z.array(z.string()).default([]),
+});
+
+/** Evidence Bundle：按判断单元组织的支持/反证/缺口，供 04 默认消费。 */
+const evidenceBundleSchema = z.object({
+  judgment_unit_id: nonEmptyString,
+  support_evidence_ids: z.array(z.string()).default([]),
+  counter_evidence_ids: z.array(z.string()).default([]),
+  gap_ids: z.array(z.string()).default([]),
+  summary_ids: z.array(z.string()).default([]),
+  readiness: z.enum(["ready", "partial", "not_ready"]).default("partial"),
+  notes: z.array(z.string()).default([]),
+});
+
 export const evidencePreparationSchema = z.object({
   method_applications: z.array(methodApplicationSchema).min(1),
   sources: z.array(sourceDraft),
   evidence_drafts: z.array(z.discriminatedUnion("kind", [evidenceFactDraft, evidenceGapDraft])).min(1),
+  evidence_summaries: z.array(evidenceSummarySchema).default([]),
+  evidence_bundles: z.array(evidenceBundleSchema).default([]),
   unresolved_gaps: z.array(z.string()),
+  // 规范双产物：数据与证据准备正文 + 跨域实例清单；document_markdown 与 preparation_markdown 镜像。
+  preparation_markdown: markdown,
+  instance_manifest_yaml: z.string().min(20),
+  stage_status: stageStatus,
+  quality_status: qualityStatus,
+  quality_gate_ref: nonEmptyString,
+  deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
+  semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
+  confidence_ceiling: z.enum(["low", "medium", "high"]),
+  coverage_unit_total: z.number().int().nonnegative(),
+  evidence_backed_unit_count: z.number().int().nonnegative(),
+  evidence_coverage_rate: z.number().min(0).max(1),
+  required_coverage_rate: z.number().min(0).max(1),
+  critical_node_gate_status: z.enum(["met", "partial", "not_met"]),
+  judgment_unit_gate_status: z.enum(["met", "partial", "insufficient"]),
+  search_status: z.enum(["not_started", "in_progress", "threshold_met", "source_scarce"]),
+  allowed_05_output: z.enum(["full_report", "bounded_report", "gap_report_only"]),
+  evidence_readiness: z.enum(["ready", "partial", "not_ready"]),
+  delivery_readiness: z.enum(["ready", "partial", "not_ready"]),
+  snapshot_ref: nonEmptyString,
+  return_required: z.boolean(),
+  return_stage: z.string().nullable(),
+  // 供 05 引用的交付素材候选（对齐 04_05_materials 意图；可空数组）。
+  delivery_materials: z.object({
+    chart_candidates: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      evidence_draft_ids: z.array(z.string()).default([]),
+      note: z.string().optional(),
+    })).default([]),
+    table_candidates: z.array(z.object({
+      id: z.string(),
+      title: z.string(),
+      evidence_draft_ids: z.array(z.string()).default([]),
+      note: z.string().optional(),
+    })).default([]),
+    source_annotation_candidates: z.array(z.object({
+      id: z.string(),
+      source_id: z.string().optional(),
+      source_key: z.string().optional(),
+      annotation: z.string(),
+    })).default([]),
+  }).default({ chart_candidates: [], table_candidates: [], source_annotation_candidates: [] }),
   document_markdown: markdown,
 }).superRefine((value, context) => {
+  if (value.preparation_markdown.trim() !== value.document_markdown.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["document_markdown"],
+      message: "document_markdown 必须与 preparation_markdown 保持一致",
+    });
+  }
+  if (value.evidence_readiness === "not_ready" && value.allowed_05_output === "full_report") {
+    context.addIssue({
+      code: "custom",
+      path: ["allowed_05_output"],
+      message: "evidence_readiness=not_ready 时 allowed_05_output 不得为 full_report",
+    });
+  }
   const evidenceIds = new Set(value.evidence_drafts.map((item) => item.id));
   const referencedEvidenceIds = new Set(value.method_applications.flatMap((item) => item.input_evidence_refs));
   for (const [index, application] of value.method_applications.entries()) {
@@ -413,8 +646,45 @@ export const judgmentDecisionSchema = z.object({
     created_at: nonEmptyString,
   })).min(1),
   overall_boundary: nonEmptyString,
+  // 规范双产物：判断简报 + 推理审计 YAML；document_markdown 与 judgment_brief_markdown 镜像。
+  judgment_brief_markdown: markdown,
+  reasoning_audit_yaml: z.string().min(20),
+  stage_status: stageStatus,
+  quality_status: qualityStatus,
+  quality_gate_ref: nonEmptyString,
+  deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
+  semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
+  confidence: z.enum(["low", "medium", "high"]),
+  judgment_level: z.enum(["J0", "J1", "J2", "J3", "J4"]),
+  primary_claim_id: nonEmptyString,
+  audit_ref: nonEmptyString,
+  brief_ref: nonEmptyString,
+  brief_quality_check_result: z.enum(["pass", "fail"]),
+  judgment_as_of: nonEmptyString,
+  // 05 上游供给：对象分化 / 主路径裁决 / 投资命题 / 表达许可分层。
+  object_differentiation: z.string().default(""),
+  primary_path_ruling: z.string().default(""),
+  investment_proposition: z.string().default(""),
+  expression_permission: z.object({
+    allowed_core_claims: z.array(z.string()).default([]),
+    restricted_claims: z.array(z.string()).default([]),
+    max_expression_level: z.enum(["J0", "J1", "J2", "J3", "J4"]).default("J0"),
+    notes: z.string().default(""),
+  }).default({
+    allowed_core_claims: [],
+    restricted_claims: [],
+    max_expression_level: "J0",
+    notes: "",
+  }),
   document_markdown: markdown,
 }).superRefine((value, context) => {
+  if (value.judgment_brief_markdown.trim() !== value.document_markdown.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["document_markdown"],
+      message: "document_markdown 必须与 judgment_brief_markdown 保持一致",
+    });
+  }
   const hypotheses = new Map(value.hypotheses.map((item) => [item.id, item]));
   for (const [index, judgment] of value.judgments.entries()) {
     const explicitJ0Stop = judgment.strength === "J0"
@@ -441,6 +711,24 @@ export const researchExpressionSchema = z.object({
     source_ids: z.array(z.string()),
   })),
   limitations: z.array(z.string()),
+  // 主研报继续用 document_markdown；表达审计 YAML 为配对产物。
+  expression_audit_yaml: z.string().min(20),
+  stage_status: stageStatus,
+  quality_status: qualityStatus,
+  quality_gate_ref: nonEmptyString,
+  deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
+  semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
+  source_04_brief_ref: nonEmptyString,
+  source_04_audit_ref: nonEmptyString,
+  delivery_ref: nonEmptyString,
+  delivery_archetype: z.string().default("industry_cycle_report"),
+  research_edge: z.array(z.object({
+    market_view: z.string(),
+    differentiated_view: z.string(),
+    falsifier: z.string().optional(),
+    evidence_boundary: z.string().optional(),
+  })).default([]),
+  argument_chapters: z.array(z.string()).default([]),
   document_markdown: markdown,
 });
 

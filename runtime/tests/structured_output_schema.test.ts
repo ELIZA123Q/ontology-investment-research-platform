@@ -32,4 +32,23 @@ describe("model structured output schema contract", () => {
     expect(classifyRuntimeFailure(new Error("[structured_schema_contract] stage_02: bad field")))
       .toBe("contract_implementation_error");
   });
+
+  it("does not misclassify Zod enum issues as method_not_applicable", () => {
+    const zodNoise = JSON.stringify([
+      {
+        code: "invalid_value",
+        values: ["pass", "fail", "partial", "not_checked"],
+        path: ["method_applications", 2, "precondition_checks", 1, "result"],
+        message: "Invalid input",
+      },
+      {
+        code: "invalid_value",
+        values: ["capacity", "yield"],
+        path: ["evidence_drafts", 10, "semiconductor_measurement", "metric_kind"],
+        message: "Invalid input",
+      },
+    ]);
+    expect(classifyRuntimeFailure(new Error(zodNoise))).toBe("model_output_error");
+    expect(classifyRuntimeFailure(new Error("方法不适用：前置条件失败"))).toBe("method_not_applicable");
+  });
 });

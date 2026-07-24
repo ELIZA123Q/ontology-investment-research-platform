@@ -8,7 +8,7 @@ export const AUTHORITY_TYPES = [
 
 export type AuthorityType = (typeof AUTHORITY_TYPES)[number];
 
-/** 与半导体 SourceProfile 对齐的三类核心来源权威类型。 */
+/** 对齐半导体 SourceProfile 的三类一手权威角色；仅作标注分类，不作覆盖 checklist。 */
 export const CORE_AUTHORITY_TYPES = [
   "official",
   "company_disclosure",

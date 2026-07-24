@@ -1,5 +1,5 @@
 schema_name: runtime_context_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
 
 stages:
@@ -7,23 +7,40 @@ stages:
     assets:
       - governance/01_架构/00_项目定位与边界.md
       - workflow/stages/01_受理/01_投研判断任务受理与整理规范.md
+      - workflow/stages/01_受理/模板/01_投研需求说明模板.md
   stage_02:
     assets:
       - workflow/stages/02_结构/02_判断结构与本体视图规范.md
+      - workflow/stages/02_结构/02_附录1_框架裁剪与选用细则.md
       - methods/02_判断结构/README.md
   stage_03:
     assets:
       - workflow/stages/03_证据/03_数据与证据准备规范.md
       - methods/03_取证/00_证据质量与结论上限.md
+      - methods/03_取证/B00_来源选择与使用边界.md
+      - methods/03_取证/B01_通用来源速查.md
       - methods/03_取证/B02_半导体来源速查.md
   stage_04:
     assets:
       - workflow/stages/04_判断/04_推理输出规范.md
       - methods/04_裁决/A00_裁决总则.md
       - methods/04_裁决/A00-附录2_反证与竞争解释协议.md
-      - governance/02_合同/judgment_method_routes.yaml
+    # routes 已由 structured input judgment_method_routes 完整注入，避免 knowledge 双份占 token
+    conditional_assets:
+      - when_judgment_types:
+          - transmission_path
+          - mechanism_validation
+          - causal_attribution
+        assets:
+          - methods/04_裁决/A00-附录1_路径与阻断协议.md
   stage_05:
     assets:
       - workflow/stages/05_表达/05_投研表达与交付规范.md
       - delivery/01_标准/05_投研表达标准.md
-      - delivery/02_模板/05C_行业周期判断模板.md
+      - governance/03_校验/00A_高质量产出判别标准.md
+    template_by_archetype:
+      industry_cycle_report: delivery/02_模板/05C_行业周期判断模板.md
+      event_commentary: delivery/02_模板/05A_事件点评模板.md
+      industry_dynamic_commentary: delivery/02_模板/05B_行业动态点评模板.md
+      company_earnings_commentary: delivery/02_模板/05D_公司业绩点评模板.md
+      theme_deep_dive: delivery/02_模板/05E_主题深度研究模板.md

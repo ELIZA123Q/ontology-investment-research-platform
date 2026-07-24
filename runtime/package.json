@@ -3,17 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true next dev --webpack -H 127.0.0.1",
+    "dev": "WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true next dev --webpack -H 127.0.0.1 -p 3000",
     "dev:singleton": "bash scripts/dev-singleton.sh",
     "worker": "NODE_OPTIONS='--conditions=react-server' tsx scripts/research-worker.ts",
     "build": "next build --webpack",
-    "start": "next start -H 127.0.0.1",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "open": "bash scripts/open-workbench.sh",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 200"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@xyflow/react": "^12.11.2",
     "fflate": "^0.8.2",
     "next": "^16.0.0",
