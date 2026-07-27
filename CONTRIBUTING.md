@@ -30,6 +30,7 @@ SQLite 数据库或 `instances/00_本机运行` 下的运行导出。
 
 ```bash
 python3 governance/03_校验/validate_project.py
+python3 governance/03_校验/validate_v3_samples.py
 npm --prefix runtime run typecheck
 npm --prefix runtime test
 npm --prefix runtime run build
@@ -41,6 +42,8 @@ npm --prefix runtime run build
 npm --prefix runtime run lint
 python3 -m pip install ruff && ruff check governance/03_校验 runtime/engine
 ```
+
+废弃关系名守卫（`validate_deprecated_terms.py`）已挂入 `validate_project.py` 主链路，无需单独再跑。
 
 `PROJECT_ENGINEERING_PASS` 只表示合同、代码、样例、真实工作台冻结夹具和 mock 协议烟测通过；
 它不表示正式 R/U/delta/S/C 或研究可靠率已经验证。

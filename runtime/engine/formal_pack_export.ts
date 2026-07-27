@@ -1,5 +1,5 @@
 /**
- * 工作台一键导出 formal_pack（中文命名，对齐 7:13 布局）。
+ * 工作台一键导出 formal_pack（中文命名，对齐 memory-cycle formal_pack 布局）。
  */
 
 import "server-only";
@@ -269,7 +269,7 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
       `package_kind: formal_pack`,
       `layout: ${names.dirName}`,
       "",
-      "本目录由工作台一键导出，文件命名对齐正式中文包（类似 7:13）。",
+      "本目录由工作台一键导出，文件命名对齐正式中文包（见 instances/03_回归/02_memory-cycle-formal-pack）。",
       "发布状态以 `python3 governance/03_校验/validate_run.py <本目录>` 派生为准。",
       "",
       "## 产物",

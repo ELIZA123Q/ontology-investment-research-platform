@@ -19,10 +19,10 @@ import { heuristicResearchValueReview } from "@/engine/research_value_review";
 
 const goldPath = resolve(
   process.cwd(),
-  "../7:13/05-存储芯片周期行业周期判断-20260713-1.md",
+  "../instances/03_回归/02_memory-cycle-formal-pack/05-存储芯片周期行业周期判断-20260715-1.md",
 );
 
-describe("7/13 Stage05 gold structure + density fixture", () => {
+describe("memory-cycle formal_pack Stage05 gold structure + density fixture", () => {
   it("reference industry cycle report contains required fixed sections and argument chapters", () => {
     const body = readFileSync(goldPath, "utf8");
     for (const section of STAGE05_REQUIRED_FIXED_SECTIONS) {
@@ -123,6 +123,20 @@ describe("7/13 Stage05 gold structure + density fixture", () => {
 
   it("gold-shaped package can approve as high_quality", () => {
     const body = readFileSync(goldPath, "utf8");
+    const researchEdge = [{
+      market_view: "普遍认为价格大涨后周期见顶",
+      differentiated_view: "稀缺定价强化期，分产品机制不同",
+      underestimated_mechanism: "HBM 结构性扩张与通用 DRAM 供给约束",
+      falsifier: "价格库存订单供给四类信号共振转弱",
+      evidence_boundary: "公开合约价与样本厂商实现价不可混加",
+    }];
+    const researchValueReview = heuristicResearchValueReview({
+      body,
+      stage01: {
+        normalized_question: "存储芯片周期何时结束：分产品状态与条件式结束窗口",
+      },
+      research_edge: researchEdge,
+    });
     const data = ensureStage05DocumentFields({
       title: "存储芯片周期行业周期判断",
       executive_points: ["稀缺定价强化期"],
@@ -136,13 +150,8 @@ describe("7/13 Stage05 gold structure + density fixture", () => {
       }],
       limitations: ["样本厂商不可外推全行业"],
       document_markdown: body,
-      research_edge: [{
-        market_view: "普遍认为价格大涨后周期见顶",
-        differentiated_view: "稀缺定价强化期，分产品机制不同",
-        underestimated_mechanism: "HBM 结构性扩张与通用 DRAM 供给约束",
-        falsifier: "价格库存订单供给四类信号共振转弱",
-        evidence_boundary: "公开合约价与样本厂商实现价不可混加",
-      }],
+      research_edge: researchEdge,
+      research_value_review: researchValueReview,
       quality_status: "high_quality_pass",
       stage_status: "complete",
       quality_gate_ref: "test",

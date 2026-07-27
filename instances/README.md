@@ -10,7 +10,20 @@
 
 包类型见 [`governance/02_合同/package_kinds.yaml`](../governance/02_合同/package_kinds.yaml)：`formal_pack` / `semantic_fixture` / `workbench_export`。
 
-- **正式交付**：工作台交付台「导出正式发布包」→ `instances/00_本机运行/formal/<主题>-<日期>-<序号>/`（中文命名，对齐 `7:13`）→ `validate_run.py`
+## 存储芯片周期：权威源（勿再复制第三份）
+
+同一课题在仓库里只保留两种包，职责不同，**不是重复数据**：
+
+| 角色 | 路径 | 包类型 | 用途 |
+|------|------|--------|------|
+| 语义黄金样例 | [`02_V3样例/01_memory-cycle-run-002`](02_V3样例/01_memory-cycle-run-002) | `semantic_fixture` | Ontology / 公共合同字段与阶段语义验收（`validate_v3_samples.py`） |
+| 正式包回归 | [`03_回归/02_memory-cycle-formal-pack`](03_回归/02_memory-cycle-formal-pack) | `formal_pack` | 中文正式发布包布局与 `validate_run.py` 黄金回归；Stage05 密度/结构金标也对齐此包 |
+
+根目录旧案例快照 `7:13/`（2026-07-13 存储芯片周期）**已退役删除**。导出文件的中文命名习惯仍可参考该历史布局，但仓库内金标与校验一律以上表两处为准。
+
+## 交付与投影
+
+- **正式交付**：工作台交付台「导出正式发布包」→ `instances/00_本机运行/formal/<主题>-<日期>-<序号>/`（中文命名）→ `validate_run.py`
 - **内部投影**：`exports/<runId>/` 仍为 `workbench_export`，供回归与调试
 
 当前语义黄金样例（`semantic_fixture`，不是 formal_pack）：
@@ -22,4 +35,4 @@
 
 建议阅读顺序：05 研报 → 04 判断 → 需要时再翻 02/03 底稿。
 
-旧样例已直接迁移并由上述两个 run-002 取代；仓库不保留 legacy 副本。run-002 是唯一 **semantic_fixture** 验收基线；`03_回归` 只冻结 `workbench_export` 的真实运行能力。仓库当前仍不附带 in-repo `formal_pack` 黄金包。
+旧样例已直接迁移并由上述两个 run-002 取代；仓库不保留 legacy 副本。run-002 是唯一 **semantic_fixture** 验收基线；`03_回归/02_memory-cycle-formal-pack` 是 in-repo **formal_pack** 黄金包。

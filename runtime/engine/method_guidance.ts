@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import YAML from "yaml";
 import { repositoryPath, repositoryRoot } from "../adapters/repo-paths";
+import { logger } from "../lib/logger";
 import {
   defaultMethodIdsForJudgmentType,
   inferJudgmentTypesFromTask,
@@ -79,9 +80,9 @@ export type ThresholdCapsProjection = {
   invariants: string[];
 };
 
-const BODY_PER_METHOD_CHARS = 32_000;
-const BODY_TOTAL_CHARS = 128_000;
-const STAGE02_MAX_PER_CAPABILITY = 4;
+const BODY_PER_METHOD_CHARS = 14_000;
+const BODY_TOTAL_CHARS = 56_000;
+const STAGE02_MAX_PER_CAPABILITY = 3;
 
 const SECTION_PRIORITY_PATTERN = /停止|边界|不适用|最少必须|output_gate|判断原则|完备度|适用条件|前置条件|质量检[检测查验]|降级|阻断/;
 const METHOD_SECTION_PATTERN = /操作步骤|典型场景|常见错误|分析[步骤流程方法框架]|计算[步骤逻辑方法]|数据[来源采集映射]|关键指标|推理[过程链步骤]|判断[流逻辑步骤]|评估[方法逻辑]|验证[方法步骤]|研究[路线框架方法]|案例|注意事项/;
@@ -136,11 +137,17 @@ function resolveMethodBodyFile(method: RegisteredMethod): string | null {
   if (method.capability_type === "judgment_structure") {
     const found = frameworkMarkdownIndex().get(method.method_id) || null;
     if (!found) {
-      console.warn(`[METHOD:WARN] 方法 ${method.method_id} 无正文文件：file="${method.file}"，frameworkMarkdownIndex中未找到`);
+      logger.warn(
+        "METHOD",
+        `方法 ${method.method_id} 无正文文件：file="${method.file}"，frameworkMarkdownIndex中未找到`,
+      );
     }
     return found;
   }
-  console.warn(`[METHOD:WARN] 方法 ${method.method_id} (capability=${method.capability_type}) 无正文文件：file="${method.file}"`);
+  logger.warn(
+    "METHOD",
+    `方法 ${method.method_id} (capability=${method.capability_type}) 无正文文件：file="${method.file}"`,
+  );
   return null;
 }
 
@@ -471,7 +478,10 @@ export function loadSelectedMethodGuidance(
     used += excerpt.length;
   }
   if (skippedIds.length > 0) {
-    console.warn(`[METHOD:WARN] 跳过无正文的方法 (${skippedIds.length}/${methodIds.length}): ${skippedIds.join(", ")}`);
+    logger.warn(
+      "METHOD",
+      `跳过无正文的方法 (${skippedIds.length}/${methodIds.length}): ${skippedIds.join(", ")}`,
+    );
   }
   return out;
 }
@@ -551,9 +561,13 @@ export function guidanceMethodIdsForStage(
   taskText = "",
 ): string[] {
   if (kind === "stage_02") {
-    return prioritizeMethodIdsForStage02(taskText, candidates, {
+    const prioritized = prioritizeMethodIdsForStage02(taskText, candidates, {
       maxPerCapability: STAGE02_MAX_PER_CAPABILITY,
     });
+    const byId = new Map(candidates.map((item) => [item.method_id, item]));
+    // 02 需要结构方法正文来拆题；取证/裁决候选的合同卡已在
+    // method_candidates + methodDisciplineDigest 中提供，不重复塞完整正文。
+    return prioritized.filter((id) => byId.get(id)?.capability_type === "judgment_structure");
   }
   if (kind === "stage_03") {
     return selectMethodIdsForGuidance(candidates, {

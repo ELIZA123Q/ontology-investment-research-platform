@@ -16,6 +16,7 @@ CHECKS = (
     ("Ontology 3.0 冻结门", [sys.executable, "ontology/01_通用/validate_v3.py"]),
     ("Ontology 3.0 负向回归", [sys.executable, "governance/03_校验/tests/test_ontology_v3.py"]),
     ("直接迁移台账负向回归", [sys.executable, "governance/03_校验/tests/test_migration_ledger.py"]),
+    ("废弃关系名守卫", [sys.executable, "governance/03_校验/validate_deprecated_terms.py"]),
     ("规则唯一权威", [sys.executable, "governance/03_校验/validate_rule_authority.py"]),
     ("规则归属负向回归", [sys.executable, "governance/03_校验/tests/test_rule_authority.py"]),
     ("统一方法资产", [sys.executable, "governance/03_校验/validate_method_assets.py"]),

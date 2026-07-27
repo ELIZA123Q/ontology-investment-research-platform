@@ -1,7 +1,13 @@
 .DS_Store
 __pycache__/
 *.pyc
+
+# Node 依赖与构建缓存（runtime/ 自身 .gitignore 已覆盖其目录，此处覆盖仓库根级散落）
+node_modules/
+**/.vite/
+
 instances/00_本机运行/*
 !instances/00_本机运行/.gitignore
 evaluation/04_报告/*
 !evaluation/04_报告/.gitkeep
+!evaluation/04_报告/2026-07-26_7-13与工作台产出差距审计.md

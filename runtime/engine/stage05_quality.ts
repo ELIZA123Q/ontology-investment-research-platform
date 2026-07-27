@@ -22,8 +22,10 @@ const ARGUMENT_CHAPTER_PATTERN = /^##\s+[一二三四五]、/gm;
 const MIN_ARGUMENT_CHAPTERS = 2;
 const MAX_ARGUMENT_CHAPTERS = 5;
 
-/** high_quality：每个论点章最少正文汉字/字符（对标 7:13 金标密度启发式）。 */
-export const HQ_MIN_ARGUMENT_CHAPTER_CHARS = 280;
+/** high_quality：每个论点章最少正文汉字/字符（对标 memory-cycle formal_pack 密度启发式）。 */
+// 280 字很容易被“结论 + 三句解释”的填表式段落绕过。
+// formal_pack 基准稿最短论点章约为 889 字；500 字保留主题弹性，同时要求完整论证链。
+export const HQ_MIN_ARGUMENT_CHAPTER_CHARS = 500;
 /** high_quality：Research Edge 表格至少实质行数（不含表头）。 */
 export const HQ_MIN_RESEARCH_EDGE_ROWS = 1;
 /** 占位 research_edge 文案（不得标 high_quality）。 */
@@ -266,7 +268,7 @@ function hasExecutableTrackingTable(body: string): boolean {
 }
 
 /**
- * high_quality 额外形态检查（对标 7:13 金标启发式）。
+ * high_quality 额外形态检查（对标 memory-cycle formal_pack 密度启发式）。
  * 不替代完整 00A 语义审查。
  */
 export function collectStage05HighQualityIssues(input: {

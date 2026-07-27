@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, existsSync } from "node:fs";
 import YAML from "yaml";
 import { repositoryPath } from "../adapters/repo-paths";
+import { logger } from "../lib/logger";
 import type { StageKind } from "./types";
 
 const contextRegistryPath = "governance/01_架构/runtime_contexts.yaml";
@@ -89,7 +90,7 @@ export function verifyAllStandardFiles(): {
   for (const [stage, config] of Object.entries(stages)) {
     const stageFiles = config.assets || [];
     const stageMissing: string[] = [];
-    let stageTotal = stageFiles.length;
+    const stageTotal = stageFiles.length;
     let stagePresent = 0;
 
     for (const file of stageFiles) {
@@ -117,27 +118,36 @@ export function loadKnowledge(stage: StageKind, options: LoadKnowledgeOptions = 
     else missingFiles.push(file);
   }
 
-  // 缺失文件时输出警告（运行时环境可能无 stderr，使用一个结构化日志前缀）
+  // 缺失文件时输出警告（运行时环境可能无 stderr，使用统一 logger）
   if (missingFiles.length > 0) {
-    const warnPrefix = `[STANDARDS:WARN] Stage ${stage} 缺失知识文件 (${missingFiles.length}/${files.length}):`;
-    console.warn(`${warnPrefix}\n  ${missingFiles.join("\n  ")}`);
+    logger.warn(
+      "STANDARDS",
+      `Stage ${stage} 缺失知识文件 (${missingFiles.length}/${files.length})`,
+      missingFiles,
+    );
   }
 
   const loaded = loadedFiles.map((file) => ({ file, content: readFileSync(repositoryPath(file), "utf8") }));
   const version = createHash("sha256").update(loaded.map((x) => `${x.file}\0${x.content}`).join("\0")).digest("hex");
   // Bound API cost while retaining headings / 质量门槛 / 停止条件等优先节。
-  const context = loaded.map((x) => `\n## ${x.file}\n${preferQualitySections(x.content, 60_000)}`).join("\n");
+  const context = loaded.map((x) => `\n## ${x.file}\n${prioritizeKnowledgeContent(x.content, 60_000)}`).join("\n");
   return {
     version: `sha256:${version}`,
     context,
     files: loadedFiles,
+    entries: loaded,
     missingFiles,
-    stats: { total: files.length, loaded: loadedFiles.length, missing: missingFiles.length },
+    stats: {
+      total: files.length,
+      loaded: loadedFiles.length,
+      missing: missingFiles.length,
+      omitted_by_budget: 0,
+    },
   };
 }
 
 /** 超长规范优先保留方法指导和质量章节，避免偏向约束性内容。 */
-function preferQualitySections(content: string, maxChars: number): string {
+export function prioritizeKnowledgeContent(content: string, maxChars: number): string {
   if (content.length <= maxChars) return content;
   const parts = content.split(/(?=^#{1,3}\s+)/m);
   if (parts.length < 3) {
