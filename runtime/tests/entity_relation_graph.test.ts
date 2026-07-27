@@ -11,6 +11,9 @@ describe("entity-relation-graph", () => {
         objects: [
           { id: "P-1", type: "Product", properties: { name: "HBM" } },
           { id: "J-1", type: "Judgment", properties: { conclusion: "上行" } },
+          { id: "MA-1", type: "MethodApplication", properties: {} },
+          { id: "RS-1", type: "ResearchScope", properties: {} },
+          { id: "RP-1", type: "ResearchPath", properties: {} },
         ],
         relations: [
           { id: "R-1", type: "productBelongsToSegment", sourceId: "P-1", targetId: "J-1" },

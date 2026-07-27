@@ -15,7 +15,7 @@ import {
 import { generationLeaseMs, researchJobLeaseMs } from "../adapters/model_provider";
 import type { Artifact, ArtifactKind, ResearchJob, StageKind } from "./types";
 import { STAGES } from "./types";
-import { classifyRuntimeFailure, generateArtifact } from "./workflow";
+import { classifyRuntimeFailure, generateArtifact, shouldRetryRuntimeFailure } from "./workflow";
 import { stage03AutoSupplementMaxRounds } from "./evidence_auto_supplement";
 import { budgetViolationMessage, evaluateResearchJobBudget, parseResearchJobBudget } from "./research_job_budget";
 
@@ -225,12 +225,14 @@ export async function executeClaimedGenerationJob(
       elapsedMs: Date.now() - startedMs,
     });
     if (!budgetResult.ok) {
-      // 生成已通过 schema 并进入 needs_review 时，token 超限不应销毁可审阅稿；
-      // 仅登记预算告警，交给研究员决定是否接受或重跑。
       const warning = budgetViolationMessage(budgetResult.violations);
       let priorTool: Record<string, unknown> = {};
       try { priorTool = JSON.parse(artifact.tool_usage || "{}"); } catch { priorTool = {}; }
       updateArtifactIfStatus(artifact.id, "needs_review", {
+        // 预算是在模型完成、产物已通过生成合同后才可准确结算的。
+        // 此时把已付费的完整产物改成 failed 只会诱发重复生成；预算警告
+        // 应作为人工审阅信息保留，不能冒充研究质量结论。
+        status: "needs_review",
         tool_usage: JSON.stringify({
           ...priorTool,
           budget_warning: warning,
@@ -239,6 +241,8 @@ export async function executeClaimedGenerationJob(
         error_message: null,
       });
       return store.finish(job.id, token, {
+        reason: `JOB_BUDGET_EXCEEDED: ${warning}`,
+        failure_category: "budget_exceeded",
         artifact_id: artifact.id,
         artifact_version: artifact.version,
         new_source_count: newSourceCount,
@@ -280,7 +284,7 @@ export async function executeClaimedGenerationJob(
       }, "waiting_for_input");
     }
     return store.fail(job.id, token, error instanceof Error ? error.message : String(error), {
-      retryable: category === "model_output_error" || category === "source_acquisition_failure",
+      retryable: shouldRetryRuntimeFailure(error),
       retryDelayMs: 15_000,
     });
   } finally {

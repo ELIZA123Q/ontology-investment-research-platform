@@ -3,9 +3,12 @@ import { getRun } from "@/adapters/db";
 import { latestArtifactPayload } from "@/adapters/db_read_models";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
 import { buildStructureReviewGraph } from "@/app/lib/structure-graph";
+import { buildStructureStageSummary } from "@/app/lib/researcher-stage-output";
 import { scopeDimensionKeyLabel } from "@/engine/ontology_display_labels";
 import { parseJson } from "@/engine/types";
 import Link from "next/link";
+import { StageApprovalButton } from "@/app/components/stage-approval-button";
+import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";
 
@@ -29,25 +32,30 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
     counter_evidence_directions: data.counter_evidence_directions,
     method_applications: data.method_applications,
   });
+  const unitSummaries = buildStructureStageSummary(data);
 
-  const hasSummary = Boolean(scopeSummary || methodSummary.length);
+  const hasSummary = Boolean(scopeSummary || unitSummaries.length);
 
   return <>
-    <div className="pagehead scene-head">
-      <div>
-        <div className="eyebrow">研究结构</div>
-        <h1>{run.question}</h1>
-        <p className="muted">问题 → 变量/路径 → 判断单元 → 证据与竞争解释。确认后进入证据场景；关系图 / 知识库为进阶查询。</p>
-      </div>
-      <div className="actions">
-        <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
-          {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
-        </span>
-        <Link className="button-secondary" href={`/runs/${id}/stages/2`}>{artifact ? "编辑结构" : "生成研究结构"}</Link>
-      </div>
-    </div>
+    <StageSceneChrome
+      runId={id}
+      stage={2}
+      status={artifact?.status}
+      outputCount={unitSummaries.length}
+      subtitle={run.question}
+      actions={
+        <>
+          <StageApprovalButton runId={id} artifactId={artifact?.id} stage={2} status={artifact?.status} />
+          <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
+            {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
+          </span>
+          <Link className="button-secondary" href={`/runs/${id}/stages/2`}>{artifact ? "编辑结构" : "生成研究结构"}</Link>
+        </>
+      }
+    />
     {hasSummary ? (
-      <section className="structure-review-summary" aria-label="研究范围与方法登记">
+      <>
+      <section className="structure-review-summary" aria-label="研究范围">
         {scopeSummary ? (
           <article className="structure-review-card">
             <span>研究范围</span>
@@ -66,22 +74,55 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
             )}
           </article>
         ) : null}
-        {methodSummary.length ? (
-          <article className="structure-review-card">
-            <span>方法登记</span>
-            <strong>{methodSummary.reduce((sum, group) => sum + group.items.length, 0)} 项已登记</strong>
-            <div className="structure-method-tags">
-              {methodSummary.map((group) => (
-                <span key={group.capability}>
-                  {group.label}
-                  <em>{group.items.length}</em>
-                </span>
-              ))}
+      </section>
+      <section className="stage-unit-list" aria-label="关键判断与必要证据">
+        {unitSummaries.map((unit, index) => (
+          <article className="stage-unit-card" key={unit.id}>
+            <div className="stage-unit-index">{String(index + 1).padStart(2, "0")}</div>
+            <div className="stage-unit-main">
+              <span>关键判断 {index + 1}</span>
+              <h2>{unit.title}</h2>
+              {unit.question && unit.question !== unit.title ? <p>{unit.question}</p> : null}
+              <div className="stage-unit-columns">
+                <div>
+                  <strong>形成判断前必须拿到</strong>
+                  {unit.evidenceRequirements.length ? (
+                    <ul>{unit.evidenceRequirements.slice(0, 5).map((item) => <li key={item}>{item}</li>)}</ul>
+                  ) : <p className="muted">尚未登记必要证据</p>}
+                  {unit.evidenceRequirements.length > 5 ? <small>另有 {unit.evidenceRequirements.length - 5} 项要求</small> : null}
+                </div>
+                <div>
+                  <strong>必须检查的反面情况</strong>
+                  {[...unit.counterEvidence, ...unit.competingExplanations].length ? (
+                    <ul>{[...unit.counterEvidence, ...unit.competingExplanations].slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ul>
+                  ) : <p className="muted">尚未登记反证或竞争解释</p>}
+                </div>
+              </div>
             </div>
           </article>
-        ) : null}
+        ))}
       </section>
+      </>
     ) : null}
-    <ResearchGraphLazy nodes={nodes} edges={edges} emptyMessage="完成阶段 02 后，问题树、变量、传导路径与判断单元会在这里生成。" />
+    <details className="advanced-tools stage-audit-details">
+      <summary>
+        <div>
+          <div className="eyebrow">审计详情</div>
+          <strong>变量、传导路径与方法登记</strong>
+        </div>
+        <span className="section-meta">需要核对系统拆解时展开</span>
+      </summary>
+      {methodSummary.length ? (
+        <div className="structure-method-tags stage-method-summary">
+          {methodSummary.map((group) => (
+            <span key={group.capability}>
+              {group.label}
+              <em>{group.items.length}</em>
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <ResearchGraphLazy nodes={nodes} edges={edges} emptyMessage="完成阶段 02 后，问题树、变量、传导路径与判断单元会在这里生成。" />
+    </details>
   </>;
 }

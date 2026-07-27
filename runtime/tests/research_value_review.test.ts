@@ -25,12 +25,14 @@ describe("research_value_review", () => {
       { quality_status: "high_quality_pass", deterministic_check_status: "checked" },
       {
         status: "fail",
-        checks: [{ id: "has_judgment_value", pass: false, evidence_span: "", note: "无认知差" }],
+        checks: [{ id: "has_judgment_value", pass: false, score: 0, evidence_span: "", note: "无认知差" }],
         retry_count: 1,
+        total_score: 0,
+        pass_threshold: 16,
         mode: "heuristic",
       },
     );
-    expect(data.quality_status).toBe("minimum_pass");
+    expect(data.quality_status).toBe("return_required");
     expect(data.research_value_review.status).toBe("fail");
   });
 });

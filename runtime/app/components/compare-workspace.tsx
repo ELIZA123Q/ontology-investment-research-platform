@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import type { ArtifactPayload } from "@/adapters/db_read_models";
 import { EVALUATION_CRITERIA as criteria } from "@/engine/schemas";
 import { parseJson } from "@/engine/types";
+import { ReportMarkdown } from "@/app/components/report-markdown";
+import { researcherMarkdown } from "@/app/lib/researcher-stage-output";
 
 export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics, canEvaluate }: {
   runId: string;
@@ -22,7 +22,7 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
   }, [runId]);
   const prior: any = parseJson(evaluation?.json_content || "{}", {});
   const [scores, setScores] = useState<Record<string, number>>(prior.scores || {});
-  const [notes, setNotes] = useState(String(prior.notes || ""));
+  const [notes, setNotes] = useState(evaluation ? researcherMarkdown(prior.notes) : String(prior.notes || ""));
   const [evaluator, setEvaluator] = useState(String(prior.evaluator || ""));
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(Boolean(evaluation));
@@ -49,8 +49,8 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
 
   return <>
     <div className="two-col">
-      <section className="card compare-pane"><span className="badge">方案 A</span><article className="markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{a.markdown_content}</ReactMarkdown></article></section>
-      <section className="card compare-pane"><span className="badge">方案 B</span><article className="markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{b.markdown_content}</ReactMarkdown></article></section>
+      <section className="card compare-pane"><span className="badge">方案 A</span><article className="markdown"><ReportMarkdown content={a.markdown_content} readerView /></article></section>
+      <section className="card compare-pane"><span className="badge">方案 B</span><article className="markdown"><ReportMarkdown content={b.markdown_content} readerView /></article></section>
     </div>
     <section className="card" style={{ marginTop: 20 }}>
       <h2>盲评</h2>
@@ -67,17 +67,18 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
       {!canEvaluate && !saved ? <div className="notice">基线和交付报告都必须先确认，才能锁定盲评输入。</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
       {saved ? <>
-        <div className="notice">方案 A 是 {sideA === "baseline" ? "同证据对照基线" : "本体约束研究路径"}；方案 B 是 {sideA === "baseline" ? "本体约束研究路径" : "同证据对照基线"}。该评价已锁定。</div>
+        <div className="notice">方案 A 是 {sideA === "baseline" ? "同证据对照基线" : "结构化研究路径"}；方案 B 是 {sideA === "baseline" ? "结构化研究路径" : "同证据对照基线"}。该评价已锁定。</div>
+        <h3>可核验差异</h3>
         <div className="compare-metrics">
-          {Object.entries(metrics || {}).length ? Object.entries(metrics).map(([key, value]) => (
-            <div key={key}>
-              <span>{metricLabel(key)}</span>
-              <strong>{formatMetricValue(value)}</strong>
+          {comparisonMetricRows(metrics, sideA).map((row) => (
+            <div key={row.label}>
+              <span>{row.label}</span>
+              <strong>A：{row.a} · B：{row.b}</strong>
             </div>
-          )) : <p className="muted">暂无附加确定性指标。</p>}
+          ))}
         </div>
         <details className="source-tech-details">
-          <summary>原始指标 JSON</summary>
+          <summary>审计：原始指标</summary>
           <pre>{JSON.stringify(metrics, null, 2)}</pre>
         </details>
       </> : null}
@@ -85,14 +86,50 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
   </>;
 }
 
-function metricLabel(key: string) {
-  return ({
-    delta: "结论差异",
-    agreement: "一致性",
-    coverage: "覆盖",
-    strength: "强度",
-    confidence: "置信",
-  } as Record<string, string>)[key] || key;
+type MetricRecord = Record<string, unknown>;
+
+function record(value: unknown): MetricRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as MetricRecord : {};
+}
+
+function comparisonMetricRows(metrics: Record<string, unknown>, sideA: "baseline" | "runtime") {
+  const baseline = record(metrics.baseline);
+  const runtime = record(metrics.runtime);
+  const baselineCounter = Number(baseline.counterpoints_count || 0);
+  const runtimeCounter = Number(runtime.counterevidence_fact_count || 0)
+    + Number(runtime.active_competing_explanation_count || 0);
+  const rows = [
+    {
+      label: "可打开的来源",
+      baseline: `${formatMetricValue(baseline.clickable_sources)} 个`,
+      runtime: `${formatMetricValue(runtime.clickable_sources)} 个`,
+    },
+    {
+      label: "有来源支撑的结论",
+      baseline: formatRatio(baseline.supported_claim_ratio),
+      runtime: formatRatio(runtime.supported_claim_ratio),
+    },
+    {
+      label: "已显式记录的反证或竞争解释",
+      baseline: `${formatMetricValue(baselineCounter)} 条`,
+      runtime: `${formatMetricValue(runtimeCounter)} 条`,
+    },
+    {
+      label: "限制与改判边界",
+      baseline: `${formatMetricValue(baseline.limitations_count)} 条`,
+      runtime: `${formatMetricValue(runtime.limitations_count)} 条`,
+    },
+  ];
+  return rows.map((row) => ({
+    label: row.label,
+    a: sideA === "baseline" ? row.baseline : row.runtime,
+    b: sideA === "baseline" ? row.runtime : row.baseline,
+  }));
+}
+
+function formatRatio(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? `${Math.round(number * 100)}%` : "—";
 }
 
 function formatMetricValue(value: unknown) {

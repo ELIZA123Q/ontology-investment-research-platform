@@ -17,7 +17,7 @@ export type RunListItem = {
   updated_at: string;
 };
 
-type SortMode = "updated_desc" | "created_desc" | "status_group";
+type SortMode = "action_priority" | "updated_desc" | "created_desc" | "status_group";
 
 function domainLabel(domain: string) {
   return domain === "semiconductor" ? "半导体" : "通用";
@@ -32,13 +32,35 @@ function buildForest(runs: RunListItem[]) {
     siblings.push(run);
     children.set(run.parent_run_id, siblings);
   }
-  for (const siblings of children.values()) {
-    siblings.sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
-  }
   const roots = runs
-    .filter((run) => !run.parent_run_id || !byId.has(run.parent_run_id))
-    .sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
+    .filter((run) => !run.parent_run_id || !byId.has(run.parent_run_id));
   return { roots, children };
+}
+
+const actionPriority: Record<string, number> = {
+  active: 0,
+  in_progress: 0,
+  blocked: 1,
+  complete: 2,
+  completed: 2,
+  draft: 3,
+  archived: 4,
+};
+
+function nextActionLabel(run: RunListItem) {
+  if (run.status === "complete" || run.status === "completed") return "查看结论";
+  if (run.status === "blocked") return "查看阻断";
+  if (run.current_stage <= 0) return "开始范围";
+  return `继续${["", "结构", "证据", "判断", "交付", "交付"][Math.min(run.current_stage, 5)]}`;
+}
+
+function relativeTime(value: string) {
+  const days = Math.floor((Date.now() - Date.parse(value)) / 86_400_000);
+  if (!Number.isFinite(days) || days < 0) return "刚刚更新";
+  if (days === 0) return "今天更新";
+  if (days === 1) return "昨天更新";
+  if (days < 30) return `${days} 天前更新`;
+  return new Intl.DateTimeFormat("zh-CN", { month: "2-digit", day: "2-digit" }).format(new Date(value));
 }
 
 export function RunList({ runs }: { runs: RunListItem[] }) {
@@ -48,7 +70,7 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
   const [error, setError] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortMode, setSortMode] = useState<SortMode>("updated_desc");
+  const [sortMode, setSortMode] = useState<SortMode>("action_priority");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -69,7 +91,12 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
       if (needle && !run.question.toLowerCase().includes(needle)) return false;
       return true;
     });
-    if (sortMode === "created_desc") {
+    if (sortMode === "action_priority") {
+      next = [...next].sort((a, b) =>
+        (actionPriority[a.status] ?? 9) - (actionPriority[b.status] ?? 9)
+        || Date.parse(b.updated_at) - Date.parse(a.updated_at),
+      );
+    } else if (sortMode === "created_desc") {
       next = [...next].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
     } else if (sortMode === "status_group") {
       next = [...next].sort((a, b) => a.status.localeCompare(b.status) || Date.parse(b.updated_at) - Date.parse(a.updated_at));
@@ -80,6 +107,21 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
   }, [runs, domainFilter, statusFilter, sortMode, query]);
 
   const forest = useMemo(() => buildForest(filtered), [filtered]);
+  const showDormantDirectly = statusFilter === "draft" || query.trim().length > 0;
+
+  function isDormantBranch(run: RunListItem): boolean {
+    const kids = forest.children.get(run.id) || [];
+    return run.status === "draft"
+      && run.current_stage === 0
+      && kids.every(isDormantBranch);
+  }
+
+  const activeRoots = showDormantDirectly
+    ? forest.roots
+    : forest.roots.filter((run) => !isDormantBranch(run));
+  const dormantRoots = showDormantDirectly
+    ? []
+    : forest.roots.filter(isDormantBranch);
 
   async function removeRun(run: RunListItem) {
     setBusyId(run.id);
@@ -106,30 +148,28 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
     return (
       <div key={run.id} className="run-tree-block">
         <article className={`run-row${depth > 0 ? " is-child" : ""}`} style={{ ["--run-depth" as string]: depth }}>
-          <Link className="run-title" href={`/runs/${run.id}`}>
-            <strong>
-              {kids.length ? (
-                <button
-                  type="button"
-                  className="run-tree-toggle"
-                  aria-label={isCollapsed ? "展开增量运行" : "折叠增量运行"}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    setCollapsed((prev) => ({ ...prev, [run.id]: !prev[run.id] }));
-                  }}
-                >
-                  {isCollapsed ? "▸" : "▾"}
-                </button>
-              ) : depth > 0 ? <span className="run-tree-spacer" /> : null}
-              {run.question}
-            </strong>
-            <span>
-              {run.parent_run_id ? "增量运行" : "原始研究"}
-              {" · "}
-              {runStatusLabel(run.status)}
-              {run.descendant_count > 0 ? ` · ${run.descendant_count} 条增量` : ""}
-            </span>
-          </Link>
+          <div className="run-title-group">
+            {kids.length ? (
+              <button
+                type="button"
+                className="run-tree-toggle"
+                aria-label={isCollapsed ? "展开增量研究" : "折叠增量研究"}
+                onClick={() => setCollapsed((prev) => ({ ...prev, [run.id]: !prev[run.id] }))}
+              >
+                {isCollapsed ? "▸" : "▾"}
+              </button>
+            ) : depth > 0 ? <span className="run-tree-spacer" /> : null}
+            <Link className="run-title" href={`/runs/${run.id}`}>
+              <strong>{run.question}</strong>
+              <span>
+                {run.parent_run_id ? "增量研究" : "原始研究"}
+                {" · "}
+                {runStatusLabel(run.status)}
+                {run.descendant_count > 0 ? ` · ${run.descendant_count} 条增量研究` : ""}
+                {` · ${relativeTime(run.updated_at)}`}
+              </span>
+            </Link>
+          </div>
           <span className="domain-label">{domainLabel(run.domain)}</span>
           <div className="run-progress" aria-label={`阶段 ${run.current_stage}/5`}>
             {[1, 2, 3, 4, 5].map((stage) => (
@@ -138,31 +178,19 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
             <span>{run.current_stage}/5</span>
           </div>
           <div className="run-row-actions">
-            {confirmId === run.id ? (
-              <>
-                <button
-                  type="button"
-                  className="button run-delete-confirm"
-                  disabled={busyId === run.id}
-                  onClick={() => removeRun(run)}
-                >
-                  {busyId === run.id ? "删除中…" : run.descendant_count > 0 ? `确认删除（含 ${run.descendant_count} 条增量）` : "确认删除"}
-                </button>
-                <button type="button" className="button-quiet" disabled={busyId === run.id} onClick={() => setConfirmId(null)}>取消</button>
-              </>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="button-quiet run-delete"
-                  disabled={busyId === run.id}
-                  onClick={() => setConfirmId(run.id)}
-                >
-                  删除
-                </button>
-                <Link className="row-arrow" href={`/runs/${run.id}`} aria-label={`进入 ${run.question}`}>→</Link>
-              </>
-            )}
+            <Link className="run-next-action" href={`/runs/${run.id}`} aria-label={`${nextActionLabel(run)}：${run.question}`}>{nextActionLabel(run)} →</Link>
+            <details className="run-more-menu">
+              <summary aria-label={`更多操作：${run.question}`}>•••</summary>
+              <div>
+                {confirmId === run.id ? <>
+                  <p>删除后无法恢复{run.descendant_count > 0 ? `，并会同时删除 ${run.descendant_count} 条增量研究` : ""}。</p>
+                  <button type="button" className="button run-delete-confirm" disabled={busyId === run.id} onClick={() => removeRun(run)}>
+                    {busyId === run.id ? "删除中…" : "确认删除"}
+                  </button>
+                  <button type="button" className="button-quiet" disabled={busyId === run.id} onClick={() => setConfirmId(null)}>取消</button>
+                </> : <button type="button" className="button-quiet run-delete" disabled={busyId === run.id} onClick={() => setConfirmId(run.id)}>删除研究</button>}
+              </div>
+            </details>
           </div>
         </article>
         {!isCollapsed ? kids.map((child) => renderRow(child, depth + 1)) : null}
@@ -194,6 +222,7 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
         <label>
           <span>排序</span>
           <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="排序方式">
+            <option value="action_priority">按下一步优先</option>
             <option value="updated_desc">按最后更新</option>
             <option value="created_desc">按创建时间</option>
             <option value="status_group">按状态分组</option>
@@ -208,9 +237,21 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
           <span>进度</span>
           <span></span>
         </div>
-        {forest.roots.length ? forest.roots.map((run) => renderRow(run, 0)) : (
+        {activeRoots.map((run) => renderRow(run, 0))}
+        {dormantRoots.length ? (
+          <details className="draft-runs">
+            <summary>
+              <span>尚未开始的研究（{dormantRoots.length}）</span>
+              <small>保留草稿，不占用当前推进列表</small>
+            </summary>
+            <div className="draft-runs__list">
+              {dormantRoots.map((run) => renderRow(run, 0))}
+            </div>
+          </details>
+        ) : null}
+        {!forest.roots.length ? (
           <div className="queue-empty" style={{ padding: 24 }}>没有符合筛选条件的研究。</div>
-        )}
+        ) : null}
       </section>
     </>
   );

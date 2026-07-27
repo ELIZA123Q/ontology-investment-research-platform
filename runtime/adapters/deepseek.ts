@@ -35,6 +35,11 @@ export type ModelResult<T> = {
 export type GenerateOptions = {
   webSearch?: boolean;
   ontologyTools?: boolean;
+  /**
+   * 证据补证专用：在至少发生一次 search/fetch/证据 MCP 调用前，
+   * 不向模型暴露 submit 工具，并要求其必须选择一个取证工具。
+   */
+  requireEvidenceAcquisition?: boolean;
   /** 覆盖工具环最大轮次；未设时读 MODEL_TOOL_ROUNDS(_WEB)，再回落默认。 */
   maxToolRounds?: number;
   runId?: string;
@@ -43,6 +48,18 @@ export type GenerateOptions = {
   repairOutput?: (data: unknown) => unknown;
   onProgress?: (progress: GenerationProgressEvent) => void;
 };
+
+export function shouldForceEvidenceAcquisition(
+  options: Pick<GenerateOptions, "requireEvidenceAcquisition">,
+  trace: Array<Record<string, unknown>>,
+): boolean {
+  return options.requireEvidenceAcquisition === true
+    && !trace.some((item) => (
+      item.name === "search_public_web"
+      || item.name === "fetch_public_pages"
+      || MCP_TOOL_NAMES.has(String(item.name))
+    ));
+}
 
 /**
  * 工具环轮次。
@@ -333,8 +350,8 @@ export class DeepSeekClient {
   readonly reasoning: "high" | "max" | null;
   readonly role: ModelRole;
 
-  constructor(role: ModelRole = "producer") {
-    this.config = resolveModelProvider(role);
+  constructor(role: ModelRole = "producer", stage?: string) {
+    this.config = resolveModelProvider(role, stage);
     this.role = role;
     this.provider = this.config.provider;
     this.model = this.config.model;
@@ -423,11 +440,15 @@ export class DeepSeekClient {
       const controller = new AbortController();
       let hardTimer: ReturnType<typeof setTimeout> | undefined;
       try {
+        const forceAcquisition = shouldForceEvidenceAcquisition(options, toolTrace);
+        const roundTools = forceAcquisition
+          ? tools.filter((tool) => String(tool?.function?.name || "") !== submitName)
+          : tools;
         const requestBody: Record<string, unknown> = {
           model: this.model,
           messages,
-          tools,
-          tool_choice: "auto",
+          tools: roundTools,
+          tool_choice: forceAcquisition ? "required" : "auto",
           max_tokens: this.config.maxTokens,
         };
         if (this.config.provider === "deepseek" && this.reasoning) {
@@ -557,11 +578,15 @@ export class DeepSeekClient {
       }
       if (round >= submitNudgeFrom) {
         const calledMcp = toolTrace.some((item) => MCP_TOOL_NAMES.has(String(item.name)));
+        const fetchedPublicOriginal = toolTrace.some((item) =>
+          String(item.name) === "fetch_public_pages"
+          && !String((item.result as any)?.error || "").trim(),
+        );
         messages.push({
           role: "user",
-          content: calledMcp
-            ? `工具调用仅剩 ${maxRounds - round - 1} 轮。停止无节制 Bing 扩检索；对仍无法核验的要求明确登记 gap，并尽快调用 ${submitName} 提交。`
-            : `工具调用仅剩 ${maxRounds - round - 1} 轮。尚未调用一手 MCP（query_cninfo / query_datayes_* / query_china_policy 等）。请先补至少一轮相关 MCP，再对仍无法核验的要求登记 gap，并调用 ${submitName} 提交；Bing 不得代替一手通道。`,
+          content: calledMcp || fetchedPublicOriginal
+            ? `工具调用仅剩 ${maxRounds - round - 1} 轮。停止无节制扩检索；优先冻结已找到的公司披露、监管/政府原文或其他可核验正文，对仍无法核验的要求登记 gap，并尽快调用 ${submitName} 提交。`
+            : `工具调用仅剩 ${maxRounds - round - 1} 轮。尚未取得可核验原文。请按证据需求选择最合适的通道：适合结构化查询时用 MCP，已有公司 IR、监管/政府官网等原文 URL 时直接抓取正文；Bing 只作线索。随后登记剩余 gap 并调用 ${submitName} 提交。`,
         });
       }
     }
@@ -673,8 +698,8 @@ export class ResearchModelClient extends DeepSeekClient {
   }
 }
 
-export function createResearchModelClient(role: ModelRole = "producer"): ResearchModelClient {
-  return new ResearchModelClient(role);
+export function createResearchModelClient(role: ModelRole = "producer", stage?: string): ResearchModelClient {
+  return new ResearchModelClient(role, stage);
 }
 
 export function parseDirectJson<T>(

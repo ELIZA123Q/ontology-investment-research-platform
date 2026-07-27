@@ -53,14 +53,15 @@ npm run build
 - **包类型不要混用**：`instances/02_V3样例` 是 `semantic_fixture` 语义验收基线（`validate_v3_samples.py`）；工作台正式交付走 `formal_pack`（交付台「导出正式发布包」→ `instances/00_本机运行/formal/...` + `validate_run.py`）；紧凑投影 `workbench_export` 仅作内部回归（`validate_workbench_package.py`）。
 - **方法选择与规则应用发生在此**：`runtime/` 编排 01—05、检索并绑定 `methods/` 中的方法。Runtime 3.0 对每个新判断确定性重算并挡门权威表中 9 条 `execution_surface=runtime_semantic_execution` 规则，包括状态时间、代理披露、认证阶段、产能/良率口径和判断引用完整性；关系端点兼容 `semantic_endpoint_compatibility` 由实例图物化时的 `validateRuntimeGraph` 执行。A01/A02/A03 门槛以 `runtime_supported_profile.yaml#executable_method_profile` 为唯一权威。
 - **方法正文注入（生成质量）**：主生成与 Stage03 补证都会注入 `selected_method_guidance`（每方法约 12k、合计约 72k 字符）。Stage02 优先本题路由 default 方法正文；Stage03 只喂 kb03，Stage04 只喂 kb04（含 A00）；长框架按章节摘录保留停止/边界段。01–04 另注入 `00A_runtime_quality_card`；Stage02/03 默认注入附录2（缺口矩阵 / 取数留痕）。
-- **质量假绿防护**：生成后不得无条件盖 `deterministic_check_status=checked`；`research_value_review` 失败或 Stage03 `evidence_quality_gate` 未通过时，禁止 `forceHighQualityTarget` 冲回 `high_quality_pass`。证据门失败写入 `return_required` 并进入确认断言；Stage03 **确认时重算**证据门（含逐 JU 独立性/反证需求），缺 `mcp_channel_usage` 不得确认。独立审阅 `pass` 必须附带五项 `semantic_checks`；正式包禁止把批量 verdict 映射成五项同结果。回归见 `tests/quality_enforcement.test.ts`、`tests/round4_quality_drains.test.ts`。
+- **质量假绿防护**：生成后不得无条件盖 `deterministic_check_status=checked`；`research_value_review` 失败或 Stage03 `evidence_quality_gate` 未通过时，禁止 `forceHighQualityTarget` 冲回 `high_quality_pass`。证据门失败写入 `return_required` 并进入确认断言；Stage03 **确认时重算**证据门（含逐 JU 独立性/反证需求）。`mcp_channel_usage` 只记录获取通道，不充当证据等级：公司 IR、监管/政府官网等公开原文经正文 hash 与逐字引用核验后可以是一手证据。独立审阅 `pass` 必须附带五项 `semantic_checks`；正式包禁止把批量 verdict 映射成五项同结果。回归见 `tests/quality_enforcement.test.ts`、`tests/round4_quality_drains.test.ts`。
+- **Stage03 分批取证**：默认每批处理 2 个 JudgmentUnit、最多 4 批；单元更多时自动并批而不截断。批次使用隔离的 SRC/EV 命名空间，禁止跨批删除或覆盖；每批只替换自身缺口，最终按当前 EvidenceDraft 重算覆盖、summaries、bundles、readiness 与 05 输出上限。余额/鉴权/租约/全局合同错误会立即终止剩余批次，避免已知失败下继续调用。
 - **中间长文保留**：Stage02/03/04 的 `sync*ReadableMarkdown` 在模型稿已达可审阅密度时保留正文，不再用库存清单/简报骨架无条件覆盖。Stage05 对 Research Edge 等节名变体更宽容。补证不得仅因「缺口数未降」早停。见 `tests/remaining_quality_drains.test.ts`。
-- **取证与上游投喂**：Stage03 登记非 gap 却零一手 MCP → `return_required`；临近结束优先催 MCP 而非盲 submit。Stage04/05 上游保留 `preparation_excerpt` 且每 JU 多样本 Record（默认 6）。`sanitizeAuditVoice` 不再全局替换英文 blocked。见 `tests/round3_quality_drains.test.ts`。
+- **取证与上游投喂**：Stage03 的质量看来源生产者、正文抓取、逐字引文、口径、独立性与反证覆盖，不把“一手 MCP 调用次数”当质量代理。Stage04/05 上游保留 `preparation_excerpt` 且每 JU 多样本 Record（默认 6）。`sanitizeAuditVoice` 不再全局替换英文 blocked。见 `tests/round3_quality_drains.test.ts`。
 - **界面分层**：结构/证据/判断页是阶段产物视图；Object Set 页才是实例图查询与 Action 执行面。
 
 ## 操作语义能力（V1.3）
 
-- MethodApplication：02 必须为每个 JudgmentUnit 同时登记结构、取证、裁决三类候选；03 绑定证据并收敛取证方法，04 收敛全部方法为 executed/rejected/blocked/degraded，05 只引用
+- MethodApplication：02 必须为每个 JudgmentUnit 同时登记结构、取证、裁决三类候选，并逐单元绑定竞争解释、反证方向及 `counter` EvidenceRequirement；03 绑定证据并收敛取证方法，04 收敛全部方法为 executed/rejected/blocked/degraded，05 只引用
 - 方法注册校验：运行时解析 `method_assets.yaml`、02/03 注册表和 `judgment_method_routes.yaml`；候选阶段即校验方法 ID、版本、能力类型及判断类型路由，不合法时模型提交与人工确认都会被拒绝
 - 证据三角绑定：03 确认前校验证据草稿、判断单元与 MethodApplication 相互可解析；未绑定方法的非缺口证据不能进入 04
 - Object Set：`GET /api/runs/:id/object-set`，页面 `/runs/:id/object-set`

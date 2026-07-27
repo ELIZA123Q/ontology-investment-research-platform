@@ -8,11 +8,12 @@ import {
   listSourcesForAttribution,
 } from "@/adapters/db_read_models";
 import { RunArchivePanel } from "@/app/components/run-archive-panel";
-import { artifactKindLabel, artifactStatusLabel } from "@/app/lib/ui-labels";
+import { artifactKindLabel, artifactStatusLabel, differenceCauseLabel } from "@/app/lib/ui-labels";
 import { runDifferenceAttribution } from "@/engine/metrics";
 import { evidenceBoundSources } from "@/engine/evidence_sources";
 import { parseJson, type Artifact } from "@/engine/types";
 import { buildRunArchive } from "@/engine/run_archive";
+import { ReferenceSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,11 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   const children = listChildRuns(id);
   const artifacts = listArtifactLedger(id);
   const archive = buildRunArchive(id);
+  const stageKinds = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"];
+  const currentStageArtifacts = stageKinds.map((kind) => ({
+    kind,
+    artifact: artifacts.find((item) => item.kind === kind),
+  }));
   const pairs = parent ? [{ previous: parent, current: run }] : children.map((child) => ({ previous: run, current: child }));
   const comparisons = pairs.map(({ previous, current }) => ({
     previous,
@@ -33,23 +39,44 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
       { stage03: latestArtifactPayload(current.id, "stage_03", ["approved"]) as any, stage04: latestArtifactPayload(current.id, "stage_04", ["approved"]) as any, sources: boundSources(current.id, latestArtifactPayload(current.id, "stage_03", ["approved"]) as any) },
     ),
   }));
+  const linkedRunCount = 1 + (parent ? 1 : 0) + children.length;
   return <>
-    <div className="pagehead scene-head"><div><div className="eyebrow">研究历史档案</div><h1>本轮产出文件包</h1><p className="muted">按阶段保留可复盘产出，可直接下载整包或逐项预览。</p></div></div>
-    <RunArchivePanel runId={id} archive={archive} />
+    <ReferenceSceneChrome
+      sceneId="history"
+      banner={{
+        title: linkedRunCount > 1 ? `${linkedRunCount} 轮相互关联的研究` : "本轮是这条研究链的起点",
+        subtitle: run.question,
+        note: "研究员用这里回答：哪一阶段改过、为什么重开、结论变化由证据还是方法导致。",
+      }}
+    />
     <div className="history-grid" style={{ marginTop: 16 }}>
-      <section className="card"><div className="panel-title"><div><span>研究关系</span></div></div>{parent ? <Link className="history-run parent" href={`/runs/${parent.id}`}><span>上一轮</span><strong>{parent.question}</strong><small>{parent.created_at}</small></Link> : <div className="history-run root"><span>起点</span><strong>这是该研究链的起点</strong></div>}{children.map((child) => <Link className="history-run child" href={`/runs/${child.id}`} key={child.id}><span>增量研究</span><strong>{child.question}</strong><small>{child.created_at}</small></Link>)}</section>
-      <section className="card"><div className="panel-title"><div><span>阶段版本</span><strong>{artifacts.length}</strong></div></div><div className="artifact-ledger">{artifacts.map((artifact) => <div key={artifact.id}><span>{artifactKindLabel(artifact.kind)}</span><strong>第 {artifact.version} 版 · {artifactStatusLabel(artifact.status)}</strong><small>{artifact.created_at}</small></div>)}</div></section>
+      <section className="card"><div className="panel-title"><div><span>研究关系</span></div></div>{parent ? <Link className="history-run parent" href={`/runs/${parent.id}`}><span>上一轮</span><strong>{parent.question}</strong><small>{formatHistoryTime(parent.created_at)}</small></Link> : <div className="history-run root"><span>起点</span><strong>这是该研究链的起点</strong></div>}{children.map((child) => <Link className="history-run child" href={`/runs/${child.id}`} key={child.id}><span>增量研究</span><strong>{child.question}</strong><small>{formatHistoryTime(child.created_at)}</small></Link>)}</section>
+      <section className="card"><div className="panel-title"><div><span>当前阶段产出</span><strong>{currentStageArtifacts.filter((item) => item.artifact?.status === "approved").length}/5 已确认</strong></div></div><div className="stage-history-summary">{currentStageArtifacts.map(({ kind, artifact }, index) => <div key={kind} className={artifact?.status === "approved" ? "complete" : ""}><b>{String(index + 1).padStart(2, "0")}</b><span>{artifactKindLabel(kind)}</span><strong>{artifact ? artifactStatusLabel(artifact.status) : "尚未开始"}</strong><small>{artifact ? `第 ${artifact.version} 版 · ${formatHistoryTime(artifact.created_at)}` : "—"}</small></div>)}</div></section>
       {comparisons.map(({ previous, current, attribution }) => <section className="card history-comparison" key={`${previous.id}-${current.id}`}>
-        <div className="panel-title"><div><span>前后轮差异</span><strong>{classificationLabel(current.trigger_classification)}</strong></div><Link href={`/runs/${current.id}`}>查看后续研究 →</Link></div>
-        <div className="comparison-head"><div><small>上一轮</small><strong>{previous.id.slice(0, 8)}</strong></div><span>→</span><div><small>本轮</small><strong>{current.id.slice(0, 8)}</strong></div></div>
+        <div className="panel-title"><div><span>前后轮差异</span><strong>{classificationLabel(current.trigger_classification)}</strong></div>{current.id !== id ? <Link href={`/runs/${current.id}`}>查看后续研究 →</Link> : null}</div>
+        <div className="comparison-head"><div><small>上一轮</small><strong>{runShortLabel(previous.question)}</strong></div><span>→</span><div><small>本轮</small><strong>{runShortLabel(current.question)}</strong></div></div>
         <div className="comparison-columns">
-          <div><span>来源变化</span><strong>{attribution.evidence.added_sources.length + attribution.evidence.removed_sources.length + attribution.evidence.changed_sources.length}</strong>{attribution.evidence.added_sources.slice(0, 3).map((source) => <small key={`add:${source}`}>新增 · {source}</small>)}{attribution.evidence.removed_sources.slice(0, 3).map((source) => <small key={`remove:${source}`}>移除 · {source}</small>)}{attribution.evidence.changed_sources.slice(0, 3).map((source) => <small key={`change:${source.url}`}>正文/质量变化 · {source.url}</small>)}</div>
-          <div><span>方法变化</span><strong>{attribution.methods.changed.length}</strong>{attribution.methods.changed.slice(0, 5).map((item) => <small key={item.id}>{item.id}: {methodLabel(item.previous)} → {methodLabel(item.current)}</small>)}</div>
-          <div><span>判断变化</span><strong>{attribution.judgments.changed.length}</strong>{attribution.judgments.changed.slice(0, 5).map((item) => <small key={item.id}>{item.id} · {item.change}</small>)}</div>
-          <div className={attribution.unexplained_model_variation ? "risk" : ""}><span>无法解释的模型波动</span><strong>{attribution.unexplained_model_variation ? "有" : "无"}</strong><small>{attribution.causes.join("、")}</small></div>
+          <div><span>来源变化</span><strong>{attribution.evidence.added_sources.length + attribution.evidence.removed_sources.length + attribution.evidence.changed_sources.length}</strong>{groupSourceHosts(attribution.evidence.added_sources).slice(0, 3).map((source) => <small key={`add:${source.host}`}>新增 · {source.host}{source.count > 1 ? ` × ${source.count}` : ""}</small>)}{groupSourceHosts(attribution.evidence.removed_sources).slice(0, 3).map((source) => <small key={`remove:${source.host}`}>移除 · {source.host}{source.count > 1 ? ` × ${source.count}` : ""}</small>)}{groupSourceHosts(attribution.evidence.changed_sources.map((source) => source.url)).slice(0, 3).map((source) => <small key={`change:${source.host}`}>正文或质量变化 · {source.host}{source.count > 1 ? ` × ${source.count}` : ""}</small>)}</div>
+          <div><span>研究方法变化</span><strong>{attribution.methods.changed.length}</strong>{attribution.methods.changed.slice(0, 5).map((item, index) => <small key={item.id}>方法 {index + 1} · {methodChangeLabel(item.previous, item.current)}</small>)}</div>
+          <div><span>判断变化</span><strong>{attribution.judgments.changed.length}</strong>{attribution.judgments.changed.slice(0, 5).map((item, index) => <small key={item.id}>判断 {index + 1} · {item.change}</small>)}</div>
+          <div className={attribution.unexplained_model_variation ? "risk" : ""}><span>未能归因的结果变化</span><strong>{attribution.unexplained_model_variation ? "有" : "无"}</strong><small>{attribution.causes.map(differenceCauseLabel).join("、")}</small></div>
         </div>
       </section>)}
     </div>
+    <details className="advanced-tools stage-audit-details history-audit-details">
+      <summary>
+        <div>
+          <div className="eyebrow">审计档案</div>
+          <strong>原始文件、全部版本与系统校验记录</strong>
+        </div>
+        <span className="section-meta">{archive.summary.total_files} 个文件 · {artifacts.length} 个版本记录</span>
+      </summary>
+      <RunArchivePanel runId={id} archive={archive} />
+      <section className="card history-full-ledger">
+        <div className="panel-title"><div><span>全部版本记录</span><strong>{artifacts.length}</strong></div></div>
+        <div className="artifact-ledger">{artifacts.map((artifact) => <div key={artifact.id}><span>{artifactKindLabel(artifact.kind)}</span><strong>第 {artifact.version} 版 · {artifactStatusLabel(artifact.status)}</strong><small>{formatHistoryTime(artifact.created_at)}</small></div>)}</div>
+      </section>
+    </details>
   </>;
 }
 
@@ -61,12 +88,56 @@ function classificationLabel(value: string | null) {
   return ({ evidence_update: "证据更新", structure_revision: "结构变化", scope_revision: "范围变化" } as Record<string, string>)[value || ""] || "未分类";
 }
 
-function methodLabel(value: string | null) {
-  if (!value) return "无";
+function methodChangeLabel(previous: string | null, current: string | null) {
+  if (!previous) return "新增";
+  if (!current) return "移除";
   try {
-    const item = JSON.parse(value);
-    return `${item.method_id || "?"}@${item.method_version || "?"} · ${item.status || "?"} · 证据${item.input_evidence_refs?.length || 0}`;
+    const before = JSON.parse(previous);
+    const after = JSON.parse(current);
+    const status = (value: string) => ({
+      executed: "已执行",
+      blocked: "受阻",
+      rejected: "不适用",
+      degraded: "降级执行",
+      proposed: "待执行",
+    } as Record<string, string>)[value] || "状态变化";
+    return `${status(before.status)} → ${status(after.status)}；输入事实 ${before.input_evidence_refs?.length || 0} → ${after.input_evidence_refs?.length || 0}`;
   } catch {
-    return value;
+    return "执行记录变化";
   }
+}
+
+function runShortLabel(question: string) {
+  const value = question.trim();
+  return value.length > 24 ? `${value.slice(0, 24)}…` : value;
+}
+
+function sourceHost(value: string) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return "来源记录";
+  }
+}
+
+function groupSourceHosts(values: string[]) {
+  const counts = new Map<string, number>();
+  values.forEach((value) => {
+    const host = sourceHost(value);
+    counts.set(host, (counts.get(host) || 0) + 1);
+  });
+  return Array.from(counts, ([host, count]) => ({ host, count }))
+    .sort((a, b) => b.count - a.count || a.host.localeCompare(b.host));
+}
+
+function formatHistoryTime(value: string) {
+  const ts = Date.parse(value);
+  if (!Number.isFinite(ts)) return value;
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
 }

@@ -606,7 +606,7 @@ describe("v1.3 operational spine", () => {
     expect(data.judgments[0].conclusion).toContain("暂不升级强判断");
   });
 
-  it("flags title/question swaps in Stage02 heuristic validation and blocks approve until ok", async () => {
+  it("flags title/question swaps and does not let an external ok bypass Stage02 quality gates", async () => {
     const issues = workflow.heuristicStructureIssues({
       scope_label: "测试",
       units: [{
@@ -686,15 +686,64 @@ describe("v1.3 operational spine", () => {
     const ok = await workflow.validateStage02ForApproval(run.id, {
       validationResult: { ok: true, summary: "可通过", issues: [], suggested_patch: null },
     });
-    expect(ok.ok).toBe(true);
+    expect(ok.ok).toBe(false);
+    expect(ok.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ code: "quality_status" }),
+    ]));
 
     const createClient = vi.fn(() => {
       throw new Error("人工受控结构不应调用付费模型校验");
     });
     const deterministic = await workflow.validateStage02ForApproval(run.id, { createClient: createClient as any });
-    expect(deterministic.ok).toBe(true);
-    expect(deterministic.summary).toContain("未产生额外模型费用");
+    expect(deterministic.ok).toBe(false);
+    expect(deterministic.summary).toContain("未通过确定性确认前校验");
     expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("filters model review demands that contradict the formal Stage02 contract", () => {
+    const structure = {
+      scope_label: "存储周期",
+      units: [{
+        id: "JU-1",
+        title: "HBM",
+        question: "未来六个月是否改善？",
+        judgment_type: "cycle_phase",
+        evidence_requirements: ["ER-1"],
+      }],
+      evidence_requirement_registry: [{
+        id: "ER-1",
+        requirement: "HBM 合约价、库存天数与终端部署的多期对照",
+        evidence_role: "support",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-1"],
+      }],
+      counter_evidence_directions: [{
+        direction_id: "CD-1",
+        statement: "库存重新累积",
+        judgment_unit_ids: ["JU-1"],
+      }],
+      competing_explanations: [{
+        explanation_id: "CE-1",
+        statement: "一次性补库",
+        judgment_unit_ids: ["JU-1"],
+        discriminating_evidence: ["终端消耗与库存的多期对照"],
+      }],
+    };
+    expect(workflow.structureValidationIssueConflictsWithContract({
+      severity: "error",
+      code: "EVIDENCE_REQUIREMENTS_PLACEHOLDER",
+      message: "evidence_requirements 只是 ID",
+    }, structure)).toBe(true);
+    expect(workflow.structureValidationIssueConflictsWithContract({
+      severity: "error",
+      code: "COUNTER_EVIDENCE_MISSING_REQUIRED_FIELDS",
+      message: "缺少 explanation_id、id、discriminating_evidence",
+    }, structure)).toBe(true);
+    expect(workflow.structureValidationIssueConflictsWithContract({
+      severity: "error",
+      code: "semantic_mismatch",
+      message: "问题与判断类型不一致",
+    }, structure)).toBe(false);
   });
 
   it("builds an honest gap-only evidence artifact without inventing facts", () => {
@@ -1219,7 +1268,7 @@ describe("v1.3 operational spine", () => {
         });
         db.updateWorkItem(item.id, { status: "approved", note: "测试研究员确认" });
       }
-      workflow.approve(draft.id);
+      db.updateArtifact(draft.id, { status: "approved", approved_at: cutoff });
       return db.getArtifact(draft.id)!;
     };
     addApproved("stage_01", stage01); addApproved("stage_02", stage02); const evidenceArtifact = addApproved("stage_03", stage03); const judgmentArtifact = addApproved("stage_04", stage04); const reportArtifact = addApproved("stage_05", stage05);
@@ -1254,27 +1303,28 @@ describe("v1.3 operational spine", () => {
       }),
       markdown_content: stage03.document_markdown,
     });
-    expect(() => workflow.approve(spoofedEvidence.id)).toThrow(/Source Registry 不一致/);
+    // 新质量门禁可能先于 Registry 身份核对拒绝这份伪造稿；两者都必须阻止确认。
+    expect(() => workflow.approve(spoofedEvidence.id)).toThrow(/Source Registry 不一致|质量门禁未通过/);
 
     const untracedExpression = db.createArtifact(run.id, "stage_05", {
       status: "needs_review",
       json_content: JSON.stringify({
         ...stage05,
         report_claims: [{ ...stage05.report_claims[0], evidence_draft_ids: [] }],
-        // 结构达标，专门检验事实级 evidence 追溯门禁（而非结构门禁抢先失败）。
+        // 无论由结构质量门还是事实追溯门先命中，都不能确认这份无追溯表达。
         document_markdown: stage05Body,
         quality_status: "high_quality_pass",
       }),
       markdown_content: stage05Body,
     });
-    expect(() => workflow.approve(untracedExpression.id)).toThrow(/缺少事实级 evidence_draft_ids/);
+    expect(() => workflow.approve(untracedExpression.id)).toThrow(/缺少事实级 evidence_draft_ids|尚未达到可交接密度/);
     const unreviewedJudgment = db.createArtifact(run.id, "stage_04", {
       status: "needs_review",
       json_content: JSON.stringify(stage04),
       markdown_content: stage04.document_markdown,
       model_name: "producer-model",
     });
-    expect(() => workflow.approve(unreviewedJudgment.id)).toThrow(/未创建审阅工作项/);
+    expect(() => workflow.approve(unreviewedJudgment.id)).toThrow(/未创建审阅工作项|质量门禁未通过|尚未达到可交接密度/);
     const humanReview = workflow.createControlledIndependentReview(run.id, {
       reviewer: "reviewer-zhang",
       attestation: "本人未参与该判断生产，并确认不存在影响独立判断的利益冲突。",

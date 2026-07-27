@@ -3,13 +3,11 @@ import { notFound } from "next/navigation";
 import { getRun } from "@/adapters/db";
 import { latestArtifactPayload } from "@/adapters/db_read_models";
 import { parseJson } from "@/engine/types";
+import { StageApprovalButton } from "@/app/components/stage-approval-button";
+import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
+import { formatResearchDate } from "@/app/lib/researcher-stage-output";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(value: string) {
-  if (!value) return "未设定";
-  return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
-}
 
 export default async function ScopePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,21 +31,24 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
   const hasAnyContent = Boolean(coreObject || judgmentAction || asOf || knownFacts.length || userAssumptions.length || hypothesesToVerify.length);
 
   return <>
-    <div className="pagehead scene-head">
-      <div>
-        <div className="eyebrow">研究范围</div>
-        <h1>{run.question}</h1>
-        <p className="muted">确认问题定义、时间边界与前提假设后，进入结构阶段。</p>
-      </div>
-      <div className="actions">
-        <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
-          {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
-        </span>
-        <Link className="button-secondary" href={`/runs/${id}/stages/1`}>
-          {artifact ? "编辑范围" : "生成研究范围"}
-        </Link>
-      </div>
-    </div>
+    <StageSceneChrome
+      runId={id}
+      stage={1}
+      status={artifact?.status}
+      outputCount={hasAnyContent ? 1 : 0}
+      subtitle={run.question}
+      actions={
+        <>
+          <StageApprovalButton runId={id} artifactId={artifact?.id} stage={1} status={artifact?.status} />
+          <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
+            {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
+          </span>
+          <Link className="button-secondary" href={`/runs/${id}/stages/1`}>
+            {artifact ? "编辑范围" : "生成研究范围"}
+          </Link>
+        </>
+      }
+    />
 
     {hasAnyContent ? (
       <section className="structure-review-summary" aria-label="研究范围与前提">
@@ -64,7 +65,7 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
             <span>时间范围</span>
             {asOf ? (
               <dl>
-                <div><dt>截止时点</dt><dd>{formatDate(asOf)}</dd></div>
+                <div><dt>截止时点</dt><dd>{formatResearchDate(asOf)}</dd></div>
               </dl>
             ) : null}
             {lookback ? (
@@ -80,7 +81,7 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
           </article>
         ) : null}
 
-        <article className="structure-review-card">
+        {(knownFacts.length || userAssumptions.length || hypothesesToVerify.length) ? <article className="structure-review-card">
           <span>前提三分法</span>
           <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
             <div>
@@ -120,7 +121,7 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
               ) : <p className="muted">尚未登记</p>}
             </div>
           </div>
-        </article>
+        </article> : null}
       </section>
     ) : (
       <div className="card empty-state">

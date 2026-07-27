@@ -76,10 +76,16 @@ const VARIABLE_CATEGORY_LABELS: Record<string, string> = {
 /** 研究范围维度键：public_contract.yaml scope_graph.dimensions。 */
 const SCOPE_DIMENSION_LABELS: Record<string, string> = {
   object: "对象",
+  objects: "研究对象",
   geography: "地区",
   customer: "客户",
   metric: "指标",
+  indicators: "关键指标",
   time: "时间",
+  period: "统计期间",
+  currency: "币种",
+  as_of: "截止时点",
+  scope: "口径范围",
 };
 
 /** 锚点常见观测 token（非正式对象类型时）。 */

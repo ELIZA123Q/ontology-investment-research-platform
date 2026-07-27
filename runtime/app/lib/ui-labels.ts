@@ -84,6 +84,75 @@ export function researchJobStatusLabel(status: string): string {
   )[status] || status;
 }
 
+export function researchJobIssueMessage(value: unknown): string {
+  const raw = String(value || "").trim();
+  const normalized = raw.toLowerCase();
+  if (!raw) return "";
+  if (/402|insufficient balance|quota|credit balance|余额不足/.test(normalized)) {
+    return "模型服务额度暂时不足，本次生成未完成。已保存的输入和先前版本不会丢失；补充额度后可重新提交。";
+  }
+  if (/worker.*(?:heartbeat|心跳)|心跳超时|lease expired|租约|服务中断|从阶段起点重试/.test(normalized)) {
+    return "上次生成意外中断，已保存的输入和先前版本不会丢失；请重新提交当前阶段。";
+  }
+  if (/terminated|killed|cancelled|canceled|sigkill/.test(normalized)) {
+    return "上次生成已提前结束，已保存的输入和先前版本不会丢失；请重新提交当前阶段。";
+  }
+  if (/job_budget|over.?budget|token.*budget|cost.*budget|预算上限/.test(normalized)) {
+    return "本轮已达到任务预算上限；请先检查现有输出，或收窄研究范围后继续。";
+  }
+  if (/确定性本体规则未通过|未提交合法结构化|invalid_type|too_big|expected (?:array|string|number|object)|method_applications|judgment_reference_integrity|precondition/.test(normalized)) {
+    return "本轮草稿未通过结构与证据规则校验，因此没有进入人工确认。请重新生成；如连续失败，可改用页面中的手动路径。";
+  }
+  if (raw.length > 180 || /deepseek|traceback|syntaxerror|typeerror|zod|json/i.test(raw)) {
+    return "生成任务返回了技术错误，详细日志已保留在审计记录。请重新提交当前阶段。";
+  }
+  return raw;
+}
+
+export function researchJobRecoveryHref(runId: string, stage: string | number): string {
+  const number = typeof stage === "number"
+    ? stage
+    : Number(String(stage).match(/0?([1-5])$/)?.[1] || 1);
+  return `/runs/${runId}/stages/${Math.min(5, Math.max(1, number))}`;
+}
+
+export function latestJobPerRun<T extends { run_id: string; updated_at: string }>(jobs: T[]): T[] {
+  const seen = new Set<string>();
+  return [...jobs]
+    .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at))
+    .filter((job) => {
+      if (seen.has(job.run_id)) return false;
+      seen.add(job.run_id);
+      return true;
+    });
+}
+
+export function latestJobForStage<T extends { stage: string; created_at: string }>(jobs: T[], stage: string): T | undefined {
+  return jobs
+    .filter((job) => job.stage === stage)
+    .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))[0];
+}
+
+export function differenceCauseLabel(cause: string): string {
+  return (
+    {
+      evidence_change: "证据变化",
+      method_change: "研究方法变化",
+      model_change: "生成方式变化",
+      runtime_configuration_change: "运行配置变化",
+      model_variation: "同样输入下的结果波动",
+      no_judgment_change: "判断未变化",
+    } as Record<string, string>
+  )[cause] || "其他变化";
+}
+
+export function sourceTierLabel(tier: string): string {
+  const level = Number(/^S([1-8])$/i.exec(String(tier || ""))?.[1] || 8);
+  if (level <= 3) return "高权威来源";
+  if (level <= 6) return "可用公开来源";
+  return "低权威线索";
+}
+
 export function publishStatusLabel(status: string): string {
   return (
     {
@@ -103,6 +172,7 @@ export function authorityLabel(authority: string): string {
   return (
     {
       approved_graph: "正式关系图",
+      formal: "正式关系图",
       semantic_fixture: "预置样例图",
       provisional: "草稿预览",
       empty: "尚无关系图",
@@ -138,6 +208,10 @@ export function objectTypeLabel(type: string): string {
       ReasoningTrace: "推理留痕",
       BlockingFactor: "阻断因素",
       TrackingSignal: "跟踪信号",
+      MethodApplication: "方法应用",
+      ResearchScope: "研究范围",
+      ResearchPath: "研究路径",
+      StateVariable: "状态变量",
       Industry: "产业",
       ValueChainSegment: "产业链环节",
       Product: "产品",
@@ -155,6 +229,7 @@ export function usabilityLabel(status: string): string {
       candidate: "候选",
       rejected: "已退回",
       blocked: "不可用",
+      limited: "仅作线索",
     } as Record<string, string>
   )[status] || status;
 }
@@ -166,6 +241,7 @@ export function retrievalLabel(status: string): string {
       not_attempted: "尚未抓取",
       failed: "抓取失败",
       pending: "抓取中",
+      limited: "正文不完整",
     } as Record<string, string>
   )[status] || status;
 }
@@ -173,6 +249,7 @@ export function retrievalLabel(status: string): string {
 export function evidenceKindLabel(kind: string): string {
   return (
     {
+      source_claim: "来源事实",
       fact_draft: "事实草稿",
       counter: "反证",
       gap: "缺口",

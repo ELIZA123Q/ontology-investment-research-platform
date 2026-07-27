@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getExperienceCohort, type ExperienceCohortCase } from "@/adapters/experience_cohort";
 import { getWorkbenchDatabaseIdentity } from "@/adapters/db";
+import { researcherLanguage } from "@/app/lib/researcher-stage-output";
 
 export const dynamic = "force-dynamic";
 
@@ -39,11 +40,11 @@ const gainStatusLabels = {
 };
 
 const ontologyContributionLabels = {
-  insufficient_sample: "本体贡献样本不足",
-  execution_incomplete: "缺少本体执行测量",
-  execution_guardrail_failed: "本体执行链不完整",
-  no_observed_benefit: "尚未观察到本体敏感维度改善",
-  ready_for_provisional_contribution_analysis: "可分析本体约束工作流的试运行贡献",
+  insufficient_sample: "结构化流程贡献样本不足",
+  execution_incomplete: "缺少结构化流程执行测量",
+  execution_guardrail_failed: "结构化流程执行链不完整",
+  no_observed_benefit: "尚未观察到关键研究维度改善",
+  ready_for_provisional_contribution_analysis: "可分析结构化研究流程的试运行贡献",
 };
 
 const actionLabels: Record<ExperienceCohortCase["progress"]["state"], string> = {
@@ -76,6 +77,15 @@ function formatRange(metric: { count: number; median: number | null; min: number
   };
 }
 
+function cohortDisplayName(id: string) {
+  return id.includes("SEMI") ? "半导体流程体验基线" : "流程体验基线";
+}
+
+function caseDisplayName(id: string) {
+  const ordinal = id.match(/S0*(\d+)$/i)?.[1];
+  return ordinal ? `体验任务 ${ordinal}` : "体验任务";
+}
+
 export default function ExperienceCohortPage() {
   const cohort = getExperienceCohort();
   const database = getWorkbenchDatabaseIdentity();
@@ -85,6 +95,9 @@ export default function ExperienceCohortPage() {
   const firstPass = summary.primary.first_pass.rate;
   const scoreDelta = summary.quality.paired_score_delta;
   const ontologyDelta = summary.ontology_value.ontology_sensitive_score_delta;
+  const activeCases = cohort.cases.filter((item) => item.status !== "planned");
+  const plannedCases = cohort.cases.filter((item) => item.status === "planned");
+  const hasCompletedResearch = summary.completed_run_count > 0;
   return <>
     <div className="pagehead">
       <div>
@@ -97,79 +110,100 @@ export default function ExperienceCohortPage() {
 
     {!database.cohort_eligible ? <div className="notice error">
       <strong>当前连接临时 QA 数据库，不能登记为正式前瞻样本。</strong>
-      <div>{database.path}</div>
       <div>请切换到持久工作台数据库后再开始案例；此页的计数只代表当前临时库。</div>
+      <details><summary>排查信息</summary><div>{database.path}</div></details>
     </div> : null}
 
     <section className="card cohort-progress">
       <div>
-        <span className="eyebrow">{cohort.cohort_id}</span>
+        <span className="eyebrow">{cohortDisplayName(cohort.cohort_id)}</span>
         <strong>{summary.analysis_ready_count}/{cohort.target_gate}</strong>
         <span>可进入配对分析的完整任务</span>
       </div>
       <div className="cohort-progress-copy">
         <h2>{cohort.baseline_ready ? "已达到试运行分析样本门" : "仍在积累前瞻基线"}</h2>
-        <p className="muted">已登记 {cohort.enrolled_count}/{cohort.cases.length} 题，完成运行 {summary.completed_run_count} 题。只有体验事件、独立审阅和同证据盲评齐全的任务进入上方分子。</p>
+        <p className="muted">已登记 {cohort.enrolled_count}/{cohort.cases.length} 题，完成研究 {summary.completed_run_count} 题。只有体验事件、独立审阅和同证据盲评齐全的任务才计入完整任务。</p>
       </div>
     </section>
 
-    <section className="cohort-summary-grid" aria-label="前瞻体验汇总">
-      <article className="card"><span>首次可用结论</span><strong>{ttfc.value}</strong><small>{ttfc.detail}</small></article>
-      <article className="card"><span>研究员操作负担</span><strong>{actions.value}</strong><small>{actions.detail}</small></article>
-      <article className="card"><span>一次完成率</span><strong>{firstPass === null ? "—" : `${Math.round(firstPass * 100)}%`}</strong><small>{summary.primary.first_pass.eligible ? `${summary.primary.first_pass.passed}/${summary.primary.first_pass.eligible} 题` : "Stage05 确认后进入分母"}</small></article>
-    </section>
+    {hasCompletedResearch ? <>
+      <section className="cohort-summary-grid" aria-label="前瞻体验汇总">
+        <article className="card"><span>首次可用结论</span><strong>{ttfc.value}</strong><small>{ttfc.detail}</small></article>
+        <article className="card"><span>研究员操作负担</span><strong>{actions.value}</strong><small>{actions.detail}</small></article>
+        <article className="card"><span>一次完成率</span><strong>{firstPass === null ? "—" : `${Math.round(firstPass * 100)}%`}</strong><small>{summary.primary.first_pass.eligible ? `${summary.primary.first_pass.passed}/${summary.primary.first_pass.eligible} 题` : "交付确认后进入分母"}</small></article>
+      </section>
 
-    <section className={`card cohort-quality ${summary.quality.guardrail_status}`}>
-      <div>
-        <span className="eyebrow">质量与成本护栏</span>
-        <h2>{gainStatusLabels[summary.workflow_gain_claim_status]}</h2>
-        <p className="muted">即使时间或操作变少，只要独立审阅失败或同证据盲评落后，就不能宣称流程增益。</p>
-      </div>
-      <dl>
-        <div><dt>独立审阅</dt><dd>{summary.quality.independent_review_passed}/{summary.quality.independent_review_measured}</dd></div>
-        <div><dt>同证据盲评</dt><dd>{summary.quality.paired_reviewed}/{summary.measured_completed_count}</dd></div>
-        <div><dt>方案分差中位数</dt><dd>{scoreDelta.median === null ? "—" : `${scoreDelta.median > 0 ? "+" : ""}${scoreDelta.median}`}</dd></div>
-        <div><dt>当前产物 Token</dt><dd>{summary.cost.total_current_artifact_tokens || "—"}</dd></div>
-      </dl>
-    </section>
+      <section className={`card cohort-quality ${summary.quality.guardrail_status}`}>
+        <div>
+          <span className="eyebrow">质量与成本护栏</span>
+          <h2>{gainStatusLabels[summary.workflow_gain_claim_status]}</h2>
+          <p className="muted">即使时间或操作变少，只要独立审阅失败或同证据盲评落后，就不能宣称流程增益。</p>
+        </div>
+        <dl>
+          <div><dt>独立审阅</dt><dd>{summary.quality.independent_review_passed}/{summary.quality.independent_review_measured}</dd></div>
+          <div><dt>同证据盲评</dt><dd>{summary.quality.paired_reviewed}/{summary.measured_completed_count}</dd></div>
+          <div><dt>方案分差中位数</dt><dd>{scoreDelta.median === null ? "—" : `${scoreDelta.median > 0 ? "+" : ""}${scoreDelta.median}`}</dd></div>
+          <div><dt>当前产物 Token</dt><dd>{summary.cost.total_current_artifact_tokens || "—"}</dd></div>
+        </dl>
+      </section>
 
-    <section className="card cohort-ontology-value">
-      <div>
-        <span className="eyebrow">本体价值证据</span>
-        <h2>{ontologyContributionLabels[summary.ontology_value.contribution_status]}</h2>
-        <p className="muted">先确认规则评估、方法留痕与表达追溯真实执行，再看无来源控制、竞争解释、结论边界和可复盘性是否优于同证据直出。该对照衡量“本体约束工作流”的贡献，不把全部差异归因于本体本身。</p>
-      </div>
-      <dl>
-        <div><dt>执行测量完整</dt><dd>{summary.ontology_value.process_measured}/{cohort.target_gate}</dd></div>
-        <div><dt>执行护栏通过</dt><dd>{summary.ontology_value.process_complete}/{cohort.target_gate}</dd></div>
-        <div><dt>本体敏感维度分差</dt><dd>{ontologyDelta.median === null ? "—" : `${ontologyDelta.median > 0 ? "+" : ""}${ontologyDelta.median}`}</dd></div>
-        <div><dt>规则评估数中位数</dt><dd>{summary.ontology_value.rule_evaluation_count.median ?? "—"}</dd></div>
-      </dl>
-    </section>
+      <section className="card cohort-ontology-value">
+        <div>
+          <span className="eyebrow">结构化流程价值证据</span>
+          <h2>{ontologyContributionLabels[summary.ontology_value.contribution_status]}</h2>
+          <p className="muted">先确认约束、方法与追溯真实执行，再比较来源控制、竞争解释、结论边界和可复盘性。这里衡量整套结构化流程，不把全部差异归因于单一能力。</p>
+        </div>
+        <dl>
+          <div><dt>执行测量完整</dt><dd>{summary.ontology_value.process_measured}/{cohort.target_gate}</dd></div>
+          <div><dt>执行护栏通过</dt><dd>{summary.ontology_value.process_complete}/{cohort.target_gate}</dd></div>
+          <div><dt>关键维度分差</dt><dd>{ontologyDelta.median === null ? "—" : `${ontologyDelta.median > 0 ? "+" : ""}${ontologyDelta.median}`}</dd></div>
+          <div><dt>规则评估数中位数</dt><dd>{summary.ontology_value.rule_evaluation_count.median ?? "—"}</dd></div>
+        </dl>
+      </section>
+    </> : <section className="card cohort-no-results">
+      <div className="eyebrow">当前可行动信息</div>
+      <h2>先完成正在推进的任务，再展示效率与质量指标</h2>
+      <p className="muted">目前没有完成态研究。空白中位数、分差和通过率不具备解释价值，因此暂不展示；完成研究主链、独立审阅与同证据盲评后自动出现。</p>
+    </section>}
 
-    <section className="cohort-case-list">
-      {cohort.cases.map((item) => <article className="card cohort-case" key={item.case_id}>
-        <div className="cohort-case-head">
-          <div><span className="eyebrow">{item.case_id}</span><strong>{item.progress.label}</strong></div>
-          <span className={`status ${item.status === "completed" ? "ok" : item.status === "running" ? "running" : ""}`}>{item.information_cutoff} 截止</span>
-        </div>
-        <h3>{item.question}</h3>
-        <p className="muted">{item.decision_context}</p>
-        <div className="cohort-tags">{item.scenarios.map((scenario) => <span key={scenario}>{scenarioLabels[scenario] || scenario}</span>)}</div>
-        <div className="cohort-ontology-tags"><strong>本题检验本体：</strong>{item.ontology_value_hypotheses.map((hypothesis) => <span key={hypothesis}>{ontologyValueLabels[hypothesis] || hypothesis}</span>)}</div>
-        <div className="cohort-checklist" aria-label={`${item.case_id} 完成门槛`}>
-          <span className={item.progress.checklist.research}>研究主链</span>
-          <span className={item.progress.checklist.baseline}>同证据基线</span>
-          <span className={item.progress.checklist.independent_review}>独立审阅</span>
-          <span className={item.progress.checklist.paired_review}>A/B 盲评</span>
-          <span className={item.progress.checklist.experience}>体验事件</span>
-        </div>
-        <p className="cohort-next"><strong>下一步：</strong>{item.progress.detail}</p>
-        <div className="actions">
-          <Link className={item.progress.state === "analysis_ready" ? "button-secondary" : "button"} href={caseActionHref(item)}>{actionLabels[item.progress.state]}</Link>
-          {item.run_id ? <Link className="button-quiet" href={`/runs/${item.run_id}`}>{statusLabels[item.status]}</Link> : null}
-        </div>
-      </article>)}
-    </section>
+    {activeCases.length ? <section className="cohort-active-cases">
+      <div className="section-head"><div><div className="eyebrow">当前任务</div><h2>继续正在推进的体验任务</h2></div><span className="section-meta">{activeCases.length} 项</span></div>
+      <div className="cohort-case-list">{activeCases.map((item) => <ExperienceCaseCard item={item} key={item.case_id} />)}</div>
+    </section> : null}
+
+    {plannedCases.length ? <details className="planned-case-queue">
+      <summary>
+        <div><strong>待开始任务库（{plannedCases.length}）</strong><span>需要新样本时再领取，不占用当前工作面</span></div>
+      </summary>
+      <div className="cohort-case-list">{plannedCases.map((item) => <ExperienceCaseCard item={item} key={item.case_id} />)}</div>
+    </details> : null}
   </>;
+}
+
+function ExperienceCaseCard({ item }: { item: ExperienceCohortCase }) {
+  return <article className="card cohort-case">
+    <div className="cohort-case-head">
+      <div><span className="eyebrow">{caseDisplayName(item.case_id)}</span><strong>{item.progress.label}</strong></div>
+      <span className={`status ${item.status === "completed" ? "ok" : item.status === "running" ? "running" : ""}`}>{item.information_cutoff} 截止</span>
+    </div>
+    <h3>{item.question}</h3>
+    <p className="muted">{item.decision_context}</p>
+    <div className="cohort-tags">{item.scenarios.map((scenario) => <span key={scenario}>{scenarioLabels[scenario] || scenario}</span>)}</div>
+    <details className="cohort-case-method">
+      <summary>查看这项任务检验什么</summary>
+      <div className="cohort-ontology-tags">{item.ontology_value_hypotheses.map((hypothesis) => <span key={hypothesis}>{ontologyValueLabels[hypothesis] || hypothesis}</span>)}</div>
+      <div className="cohort-checklist" aria-label={`${item.case_id} 完成门槛`}>
+        <span className={item.progress.checklist.research}>研究主链</span>
+        <span className={item.progress.checklist.baseline}>同证据基线</span>
+        <span className={item.progress.checklist.independent_review}>独立审阅</span>
+        <span className={item.progress.checklist.paired_review}>A/B 盲评</span>
+        <span className={item.progress.checklist.experience}>体验事件</span>
+      </div>
+    </details>
+    <p className="cohort-next"><strong>下一步：</strong>{researcherLanguage(item.progress.detail)}</p>
+    <div className="actions">
+      <Link className={item.progress.state === "analysis_ready" ? "button-secondary" : "button"} href={caseActionHref(item)}>{actionLabels[item.progress.state]}</Link>
+      {item.run_id ? <Link className="button-quiet" href={`/runs/${item.run_id}`}>{statusLabels[item.status]}</Link> : null}
+    </div>
+  </article>;
 }

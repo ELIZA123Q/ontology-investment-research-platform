@@ -4,6 +4,8 @@ import { latestArtifactMeta, latestArtifactPayload, listWorkItemsForReview } fro
 import { PublishButton } from "@/app/components/publish-button";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { parseJson } from "@/engine/types";
+import { StageApprovalButton } from "@/app/components/stage-approval-button";
+import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
           ? `${blockers.length} 个待办事项仍需处理`
           : "日常交付条件已满足";
   const readinessAction = artifact.status !== "approved"
-    ? { href: `/runs/${id}/stages/5`, label: "确认报告表达 →" }
+    ? null
     : !review || review.status !== "approved" || reviewData.verdict !== "pass"
       ? { href: `/runs/${id}/judgments`, label: "处理独立审阅 →" }
       : blockers.length
@@ -46,28 +48,38 @@ export default async function Report({ params }: { params: Promise<{ id: string 
         : null;
 
   return <>
-    <div className="pagehead scene-head">
-      <div>
-        <div className="eyebrow">交付台</div>
-        <h1>把获准判断交付给读者</h1>
-        <p className="muted">报告不能新增事实或提高结论强度；每条表达都必须回到已审阅判断。</p>
-      </div>
-      <div className="actions">
-        {readinessAction ? (
-          <Link className="button" href={readinessAction.href}>{readinessAction.label}</Link>
-        ) : dailyReady ? (
-          <a className="button-secondary" href={`/api/runs/${id}/report.md`}>导出 Markdown ↓</a>
-        ) : null}
-        <Link className="button-quiet" href={`/runs/${id}/stages/5`}>编辑交付稿</Link>
-      </div>
-    </div>
+    <StageSceneChrome
+      runId={id}
+      stage={5}
+      status={artifact.status}
+      outputCount={dailyReady ? 1 : 0}
+      statusNote={readinessMessage}
+      actions={
+        <>
+          <StageApprovalButton
+            runId={id}
+            artifactId={artifact.id}
+            stage={5}
+            status={artifact.status}
+            canApprove={blockers.length === 0}
+            blockingHint={blockers.length ? `先处理 ${blockers.length} 项待办` : undefined}
+          />
+          {readinessAction ? (
+            <Link className="button" href={readinessAction.href}>{readinessAction.label}</Link>
+          ) : dailyReady ? (
+            <a className="button-secondary" href={`/api/runs/${id}/report.md`}>导出 Markdown ↓</a>
+          ) : null}
+          <Link className="button-quiet" href={`/runs/${id}/stages/5`}>编辑交付稿</Link>
+        </>
+      }
+    />
 
     <section className={`delivery-readiness ${stagesApproved ? "ready" : "blocked"}`}>
       <div>
         <span>{stagesApproved ? "可导出正式包" : "尚未就绪"}</span>
         <strong>
           {stagesApproved
-            ? "01—05 已确认，可一键导出中文命名正式发布包（对齐 7:13 布局）"
+            ? "五个研究阶段均已确认，可导出包含正文、来源与审计记录的正式发布包"
             : readinessMessage}
         </strong>
       </div>
@@ -103,6 +115,6 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       </div>
     </details>
 
-    <article className="card markdown report-document"><ReportMarkdown content={artifact.markdown_content} /></article>
+    <article className="card markdown report-document"><ReportMarkdown content={artifact.markdown_content} readerView /></article>
   </>;
 }

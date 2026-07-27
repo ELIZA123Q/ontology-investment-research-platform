@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { researchJobIssueMessage } from "@/app/lib/ui-labels";
 
 type PrimaryAction = { eyebrow: string; title: string; description: string; href: string; cta?: string };
 
@@ -31,7 +32,7 @@ export function RunPrimaryAction({ runId, action, autoContinue }: {
     } catch (caught) {
       const nextHref = caught && typeof caught === "object" && "nextHref" in caught ? String((caught as any).nextHref || "") : "";
       if (nextHref) router.push(nextHref);
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(researchJobIssueMessage(caught instanceof Error ? caught.message : String(caught)));
     } finally {
       setBusy(false);
     }

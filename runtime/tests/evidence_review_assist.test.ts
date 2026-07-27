@@ -100,7 +100,8 @@ describe("evidence_review_assist", () => {
 
     expect(priorities.map((item) => item.evidence_id)).toEqual(["GAP-1", "GAP-2"]);
     expect(priorities[0]).toMatchObject({ label: "阻断主判断", statement: "需要两条库存序列" });
-    expect(priorities[0]?.reason).toContain("必须维持 J0");
+    expect(priorities[0]?.reason).toContain("必须保持暂不可判断");
+    expect(priorities[0]?.reason).not.toContain("J0");
     expect(priorities[1]?.label).toBe("补充完善");
   });
 });

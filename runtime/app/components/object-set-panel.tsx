@@ -119,28 +119,12 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
 
   return (
     <div className="object-set">
-      <div className="pagehead">
-        <div>
-          <div className="eyebrow">对象操作台</div>
-          <h1>对象查询与写入建议</h1>
-          <p className="muted">
-            这里用于查询对象并提交写入建议；ER 可视图请使用关系图主视图
-            {data?.summary ? ` · ${data.summary}` : ""}
-            {authorityText ? ` · ${authorityText}` : ""}
-            {data?.graph_source ? ` · ${data.graph_source}` : ""}
-          </p>
-        </div>
-        <div className="actions">
-          <Link className="button-secondary" href={`/runs/${runId}`}>
-            ← 返回研究
-          </Link>
-          <button className="button-secondary" disabled={busy} onClick={load}>
-            刷新
-          </button>
-        </div>
-      </div>
-
       <div className="card" style={{ marginBottom: 16 }}>
+        <div className="panel-title">
+          <div><span>对象查询</span><strong>{data?.total_objects || 0}</strong></div>
+          <small>{authorityText || "正在读取关系图"}</small>
+        </div>
+        <p className="muted">按研究对象查询并提出受控写入建议；日常修改判断请返回对应阶段页面。</p>
         <div className="actions" style={{ alignItems: "end" }}>
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
             <label>对象类型</label>
@@ -163,6 +147,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           <button className="button-secondary" disabled={busy || !selected} onClick={propose}>
             对选中对象提出操作建议
           </button>
+          <Link className="button-quiet" href={`/runs/${runId}`}>返回研究</Link>
         </div>
         {data?.provisional_projection ? (
           <div className="notice">{provisionalNote}：{data.provisional_projection.summary}</div>
@@ -219,9 +204,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           {related.length ? (
             <ul className="source-list">
               {related.map((relation) => (
-                <li key={relation.id}>
-                  <code>{relation.type}</code> · {relation.sourceId} → {relation.targetId}
-                </li>
+                <li key={relation.id}>{relationLabel(relation.type)} · {objectName(data?.objects, relation.sourceId)} → {objectName(data?.objects, relation.targetId)}</li>
               ))}
             </ul>
           ) : (
@@ -252,4 +235,24 @@ function objectLabel(object: { id: string; type: string; properties?: Record<str
   const props = object.properties || {};
   const title = String(props.title || props.statement || props.question || props.label || "").trim();
   return title || objectTypeLabel(object.type);
+}
+
+function objectName(
+  objects: ObjectSetResponse["objects"],
+  id: string,
+) {
+  const object = objects?.find((item) => item.id === id);
+  return object ? objectLabel(object) : "关联对象";
+}
+
+function relationLabel(type: string) {
+  return ({
+    supports: "支持",
+    weakens: "削弱",
+    derivedFrom: "来自",
+    basedOn: "依据",
+    targets: "指向",
+    affects: "影响",
+    requires: "需要",
+  } as Record<string, string>)[type] || "相关";
 }

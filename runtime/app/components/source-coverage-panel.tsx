@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { deriveSourceResearchLifecycle, type SourceCoverageSummary, type SourceFactStatus } from "@/engine/source_coverage";
 import type { SourceRecord } from "@/engine/types";
-import { authorityTypeLabel, retrievalLabel, usabilityLabel } from "@/app/lib/ui-labels";
+import { authorityTypeLabel, retrievalLabel, sourceTierLabel, usabilityLabel } from "@/app/lib/ui-labels";
+import { judgmentStrengthLabel, researcherLanguage } from "@/app/lib/researcher-stage-output";
 
 type UnitOption = { id: string; title: string };
 type SourceRow = Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail"> & { fact_status: SourceFactStatus };
@@ -35,7 +36,7 @@ export function SourceCoveragePanel({
   const router = useRouter();
   const boundSourceIdSet = useMemo(() => new Set(boundSourceIds), [boundSourceIds]);
   const unitGapCount = coverage.coverage_gap_count;
-  const [acquireOpen, setAcquireOpen] = useState(unitGapCount > 0);
+  const [acquireOpen, setAcquireOpen] = useState(false);
   const [projectionOpen, setProjectionOpen] = useState(false);
   const [acquireBusy, setAcquireBusy] = useState(false);
   const [acquireMessage, setAcquireMessage] = useState("");
@@ -129,10 +130,10 @@ export function SourceCoveragePanel({
         <strong>只走这一条主路径</strong>
       </div>
       <div className="coverage-meta">
-        <span>单元缺口 {coverage.coverage_gap_count}（进 04 门槛）</span>
-        <span title="进度指标，不是停补/进 04 门槛">进度覆盖率 {(coverage.coverage_rate * 100).toFixed(0)}%</span>
-        <span title="进度指标，不是停补/进 04 门槛">进度核验率 {(coverage.verification_rate * 100).toFixed(0)}%</span>
-        <span>公开二手 {coverage.public_secondary_count}</span>
+        <span>{coverage.coverage_gap_count ? `${coverage.coverage_gap_count} 个判断证据不足` : "全部判断已有最低证据草稿"}</span>
+        <span title="进度指标，不是停止补证或进入判断阶段的门槛">进度覆盖率 {(coverage.coverage_rate * 100).toFixed(0)}%</span>
+        <span title="进度指标，不是停止补证或进入判断阶段的门槛">进度核验率 {(coverage.verification_rate * 100).toFixed(0)}%</span>
+        {coverage.public_secondary_count ? <span>公开二手 {coverage.public_secondary_count}</span> : null}
       </div>
     </div>
 
@@ -154,20 +155,20 @@ export function SourceCoveragePanel({
       <li className={projectionReady || draftCount ? "current" : ""}>
         <em>3</em>
         <div>
-          <strong>到证据审阅页批准</strong>
+          <strong>到证据审阅页确认</strong>
           <small>逐条或批量确认后才能进判断</small>
         </div>
       </li>
     </ol>
 
     <p className="muted channel-note">
-      Stage03 生成/补证可由 worker 调用一手 MCP（巨潮 cninfo、通联财务、中央政策）；本页手动步骤仍是贴公开 URL 抓取核验。
+      自动补证会优先查询已接入的一手数据与官方来源；手动补证可粘贴公开 URL 并核验原文。
       覆盖率与核验率是<strong>进度指标</strong>：只要仍有单元缺口，系统不会仅凭覆盖率停补。
     </p>
 
     {(projectionReady || draftCount > 0) ? (
       <div className="notice evidence-next-step">
-        <strong>下一步：去证据审阅批准草稿</strong>
+        <strong>下一步：去证据审阅确认草稿</strong>
         <p>事实草稿不会自动变成已确认证据。</p>
         <Link className="button" href={`/runs/${runId}/evidence`}>打开证据审阅 →</Link>
       </div>
@@ -178,7 +179,7 @@ export function SourceCoveragePanel({
         <div className={`unit-coverage-card ${unit.has_support_evidence && unit.meets_independence ? "ok" : "warn"}`} key={unit.unit_id}>
           <header>
             <strong>{unitTitleById.get(unit.unit_id) || "未命名判断"}</strong>
-            <span className={`judgment-ceiling ${unit.evidence_ceiling === "J0" ? "blocked" : ""}`}>证据侧上限 {unit.evidence_ceiling}</span>
+            <span className={`judgment-ceiling ${unit.evidence_ceiling === "J0" ? "blocked" : ""}`}>结论强度上限：{judgmentStrengthLabel(unit.evidence_ceiling)}</span>
           </header>
           <div className="unit-coverage-metrics">
             <span>可核验事实 {unit.usable_fact_count}</span>
@@ -186,7 +187,7 @@ export function SourceCoveragePanel({
             <span>反证 {unit.counter_draft_count}</span>
             <span>独立来源组 {unit.independent_source_groups}/{unit.minimum_independent_sources}</span>
           </div>
-          <p><b>当前最薄弱环节：</b>{unit.weakest_link}</p>
+          <p><b>当前最薄弱环节：</b>{researcherLanguage(unit.weakest_link)}</p>
           <p><b>反证检查：</b>{counterStatusLabel(unit.counter_check_status)}</p>
           {unit.support_gap_kind === "unverified_bound_sources" && unit.blocked_sources.length ? <div className="unit-gap-actions">
             <strong>已绑来源未核验</strong>
@@ -225,8 +226,8 @@ export function SourceCoveragePanel({
       ))}
     </div> : null}
 
-    {sources.length ? <div className="source-inventory" id="source-inventory">
-      <header><strong>已登记来源</strong><span>{sources.length} 条</span></header>
+    {sources.length ? <details className="source-inventory" id="source-inventory">
+      <summary><strong>已登记来源</strong><span>{sources.length} 条 · 按需展开核对</span></summary>
       <ul className="source-list">
         {sources.map((source) => {
           const bound = boundSourceIdSet.has(source.id);
@@ -242,7 +243,7 @@ export function SourceCoveragePanel({
               <span className={`source-research-state state-${lifecycle.stage}`}>{lifecycle.label}</span>
             </div>
             <small className="source-provenance-line">
-              {authorityTypeLabel(source.authority_type || "unknown")} · 等级 {source.source_tier || "S8"} · {source.publisher || "未知发布者"} · {source.published_at || "发布日期未知"}
+              {authorityTypeLabel(source.authority_type || "unknown")} · {source.publisher || "未知发布者"} · {source.published_at || "发布日期未知"}
               · {usabilityLabel(source.usability_status || "candidate")} / {retrievalLabel(source.retrieval_status || "not_attempted")}
             </small>
             <div className="source-lifecycle" aria-label={`来源研究状态：${lifecycle.label}`}>
@@ -258,7 +259,7 @@ export function SourceCoveragePanel({
           </li>;
         })}
       </ul>
-    </div> : null}
+    </details> : null}
 
     {unboundCandidates.length ? <p className="muted">另有 {unboundCandidates.length} 条来源尚未挂到任何判断单元。</p> : null}
 
@@ -299,7 +300,7 @@ export function SourceCoveragePanel({
               {ACQUIRE_AUTHORITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
-          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S2">{["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"].map((tier) => <option key={tier}>{tier}</option>)}</select></div>
+          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S2">{["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"].map((tier) => <option key={tier} value={tier}>{tier} · {sourceTierLabel(tier)}</option>)}</select></div>
           <div className="field"><label>独立来源组（可选）</label><input name="source_group" placeholder="默认使用发布者" /></div>
         </div>
       </details>

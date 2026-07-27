@@ -95,6 +95,29 @@ describe("method registry", () => {
     ], units)).toThrow(/不允许用于/);
   });
 
+  it("allows A02 as the required state baseline for cycle-phase A03", () => {
+    const units = [{ id: "JU-CYCLE", judgment_type: "cycle_phase" }];
+    expect(() => validateMethodRoutes([
+      application({
+        application_id: "MA-CYCLE-BASELINE",
+        method_id: "kb03:A02",
+        method_version: "3.2.0",
+        capability_type: "evidence",
+        target_judgment_unit_refs: ["JU-CYCLE"],
+        status: "candidate",
+      }),
+      application({
+        application_id: "MA-CYCLE-PRIMARY",
+        method_id: "kb03:A03",
+        method_version: "3.2.0",
+        capability_type: "evidence",
+        target_judgment_unit_refs: ["JU-CYCLE"],
+        status: "candidate",
+      }),
+    ], units)).not.toThrow();
+    expect(methodRoutesForPrompt().routes.cycle_phase.default_kb03_method).toBe("kb03:A03");
+  });
+
   it("exposes full method routes for prompts", () => {
     const routes = methodRoutesForPrompt();
     expect(routes.routes.transmission_path.allowed_kb03_methods).toEqual(
@@ -152,7 +175,7 @@ describe("method guidance injection", () => {
     expect(guidance[0].excerpt).toMatch(/BF-SD-01|供需/);
   });
 
-  it("prioritizes stage_02 route defaults for cycle/transmission questions", () => {
+  it("routes only structure bodies into stage_02 guidance while keeping cross-stage routes in candidates", () => {
     const cycleTask = "存储芯片库存周期阶段判断";
     const cycleIds = guidanceMethodIdsForStage(
       "stage_02",
@@ -160,13 +183,7 @@ describe("method guidance injection", () => {
       cycleTask,
     );
     const cycle = defaultMethodIdsForJudgmentType("cycle_phase");
-    expect(cycleIds).toEqual(expect.arrayContaining([
-      cycle.judgment_structure,
-      cycle.evidence,
-      cycle.adjudication,
-    ]));
-    expect(cycleIds.filter((id) => id.startsWith("kb03:"))[0]).toBe(cycle.evidence);
-    expect(cycleIds.filter((id) => id.startsWith("kb04:"))[0]).toBe(cycle.adjudication);
+    expect(cycleIds).toEqual([cycle.judgment_structure]);
 
     const pathTask = "管制政策向设备采购的传导路径";
     const pathIds = guidanceMethodIdsForStage(
@@ -175,13 +192,7 @@ describe("method guidance injection", () => {
       pathTask,
     );
     const transmission = defaultMethodIdsForJudgmentType("transmission_path");
-    expect(pathIds).toEqual(expect.arrayContaining([
-      transmission.judgment_structure,
-      transmission.evidence,
-      transmission.adjudication,
-    ]));
-    expect(pathIds.filter((id) => id.startsWith("kb03:"))[0]).toBe(transmission.evidence);
-    expect(pathIds.filter((id) => id.startsWith("kb04:"))[0]).toBe(transmission.adjudication);
+    expect(pathIds).toEqual([transmission.judgment_structure]);
   });
 
   it("filters stage_03 to kb03 and stage_04 to kb04 including A00", () => {
@@ -286,20 +297,20 @@ describe("runtime knowledge contexts", () => {
     expect(registeredFiles("stage_04")).not.toContain("governance/02_合同/judgment_method_routes.yaml");
   });
 
-  it("injects appendix1 only for transmission-like judgment types", () => {
+  it("injects the blocking protocol for all Stage04 judgment types", () => {
     const without = registeredFiles("stage_04", { judgmentTypes: ["trend_direction"] });
     const withPath = registeredFiles("stage_04", { judgmentTypes: ["transmission_path"] });
-    expect(without).not.toContain("methods/04_裁决/A00-附录1_路径与阻断协议.md");
+    expect(without).toContain("methods/04_裁决/A00-附录1_路径与阻断协议.md");
     expect(withPath).toContain("methods/04_裁决/A00-附录1_路径与阻断协议.md");
   });
 
   it("loads only the matching stage_05 archetype template", () => {
     const cycle = registeredFiles("stage_05", { deliveryArchetype: "industry_cycle_report" });
     const event = registeredFiles("stage_05", { deliveryArchetype: "event_commentary" });
-    expect(cycle.filter((file) => file.includes("delivery/02_模板/"))).toEqual([
+    expect(cycle.filter((file) => /delivery\/02_模板\/05[A-E]_/.test(file))).toEqual([
       "delivery/02_模板/05C_行业周期判断模板.md",
     ]);
-    expect(event.filter((file) => file.includes("delivery/02_模板/"))).toEqual([
+    expect(event.filter((file) => /delivery\/02_模板\/05[A-E]_/.test(file))).toEqual([
       "delivery/02_模板/05A_事件点评模板.md",
     ]);
   });

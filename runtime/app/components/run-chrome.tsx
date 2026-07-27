@@ -24,6 +24,6 @@ export function RunChrome({
   return <>
     <RunNav runId={resolvedRunId} active={resolvedActive} />
     {children}
-    <RunRevisePanel runId={resolvedRunId} active={resolvedActive} />
+    {resolvedActive === "overview" ? <RunRevisePanel runId={resolvedRunId} active={resolvedActive} /> : null}
   </>;
 }

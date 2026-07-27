@@ -151,6 +151,20 @@ describe("structure-graph", () => {
     expect(summarizeMethodApplications(undefined)).toEqual([]);
   });
 
+  it("范围摘要把数组和复数技术字段转成研究员可读信息", () => {
+    expect(summarizeResearchScope({
+      id: "SCOPE-1",
+      label: "存储研究",
+      dimensions: {
+        objects: ["DRAM", "NAND"],
+        indicators: ["合约价", "库存"],
+      },
+    })?.dimensions).toEqual([
+      { key: "objects", value: "DRAM、NAND" },
+      { key: "indicators", value: "合约价、库存" },
+    ]);
+  });
+
   it("正式本体状态变量 id 解析为领域中文名，task_local 走本轮变量名", () => {
     const graph = buildStructureReviewGraph({
       question: "折旧影响？",

@@ -9,6 +9,8 @@ const KEYS = [
   "REVIEW_MODEL_PROVIDER",
   "DEEPSEEK_API_KEY",
   "DEEPSEEK_MODEL",
+  "DEEPSEEK_MODEL_STAGE_01",
+  "DEEPSEEK_MODEL_STAGE_05",
   "DEEPSEEK_REVIEW_MODEL",
   "DEEPSEEK_REVIEW_API_KEY",
   "DEEPSEEK_REQUEST_TIMEOUT_MS",
@@ -16,6 +18,7 @@ const KEYS = [
   "RESEARCH_JOB_LEASE_MS",
   "OPENAI_COMPAT_API_KEY",
   "OPENAI_COMPAT_MODEL",
+  "OPENAI_COMPAT_MODEL_STAGE_05",
   "OPENAI_COMPAT_REVIEW_API_KEY",
   "OPENAI_COMPAT_REVIEW_MODEL",
   "OPENAI_COMPAT_BASE_URL",
@@ -68,6 +71,15 @@ describe("resolveModelProvider", () => {
     expect(researchJobLeaseMs()).toBe(60_000);
     process.env.RESEARCH_JOB_LEASE_MS = "1000";
     expect(researchJobLeaseMs()).toBe(1_000);
+  });
+
+  it("routes expensive stages independently from the default producer model", () => {
+    clearKeys();
+    process.env.DEEPSEEK_API_KEY = "sk-deepseek";
+    process.env.DEEPSEEK_MODEL = "deepseek-v4-flash";
+    process.env.DEEPSEEK_MODEL_STAGE_05 = "deepseek-v4-pro";
+    expect(resolveModelProvider("producer", "stage_01").model).toBe("deepseek-v4-flash");
+    expect(resolveModelProvider("producer", "stage_05").model).toBe("deepseek-v4-pro");
   });
 
   it("resolves openai_compatible reviewer independently", () => {

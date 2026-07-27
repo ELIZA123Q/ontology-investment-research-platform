@@ -127,6 +127,32 @@ export function classifyRuntimeFailure(error: unknown): RuntimeFailureCategory {
   return "model_output_error";
 }
 
+/**
+ * 这些错误影响整个供应商/worker/合同，继续跑后续 Stage03 批次只会重复失败或重复计费。
+ * 单批来源稀缺、网页失败和普通模型近失仍允许隔离。
+ */
+export function shouldAbortStage03Batching(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  if (
+    /\b(?:401|402|403|429)\b|insufficient balance|insufficient quota|quota exceeded|billing|payment required|unauthorized|forbidden|authentication|invalid api key/i.test(message)
+    || /GENERATION_LEASE_LOST|JOB_HARD_TIMEOUT|JOB_BUDGET_EXCEEDED|GENERATION_CANCELLED|terminated/i.test(message)
+  ) {
+    return true;
+  }
+  return classifyRuntimeFailure(error) === "contract_implementation_error";
+}
+
+/**
+ * 研究 job 只对局部、可恢复的模型近失或来源获取失败重试。
+ * 供应商余额/鉴权/配额、租约、取消、硬超时和合同实现错误必须一次即停，
+ * 否则同一个付费阶段会在已知不可恢复条件下重复消耗额度。
+ */
+export function shouldRetryRuntimeFailure(error: unknown): boolean {
+  if (shouldAbortStage03Batching(error)) return false;
+  const category = classifyRuntimeFailure(error);
+  return category === "model_output_error" || category === "source_acquisition_failure";
+}
+
 /** 识别 schema.parse / safeParse 抛出的 Zod issues 序列化文本。 */
 function isZodIssuePayload(message: string): boolean {
   if (/"code"\s*:\s*"(invalid_value|invalid_type|invalid_union|too_big|too_small|invalid_enum_value)"/.test(message)) {

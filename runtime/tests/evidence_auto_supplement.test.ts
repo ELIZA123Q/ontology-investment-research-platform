@@ -12,6 +12,13 @@ import {
 } from "@/engine/evidence_supplement_pure";
 import { evaluateEvidenceStopCondition } from "@/engine/source_coverage";
 import type { SourceRecord } from "@/engine/types";
+import {
+  enforceStage03AcquisitionHonesty,
+  isolateStage03BatchPatch,
+  partitionStage03EvidenceBatches,
+  scopeStage03DataForBatch,
+  stage03AcquisitionCallCount,
+} from "@/engine/evidence_auto_supplement";
 
 function source(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {
@@ -38,7 +45,237 @@ function source(overrides: Partial<SourceRecord> = {}): SourceRecord {
   };
 }
 
+describe("Stage03 judgment-unit batching", () => {
+  it("covers every unit without exceeding the configured batch count", () => {
+    const unitIds = Array.from({ length: 9 }, (_, index) => `JU-${index + 1}`);
+    const requirements = unitIds.map((id, index) => ({
+      id: `ER-${index + 1}`,
+      requirement: `requirement ${index + 1}`,
+      evidence_role: "support" as const,
+      minimum_independent_sources: 2,
+      judgment_unit_ids: [id],
+      source: "unit_requirement" as const,
+      source_ref: id,
+    }));
+    const batches = partitionStage03EvidenceBatches({
+      judgmentUnitIds: unitIds,
+      requirements,
+      preferredUnitsPerBatch: 2,
+      maxBatches: 4,
+    });
+    expect(batches).toHaveLength(3);
+    expect(batches.flatMap((batch) => batch.unit_ids)).toEqual(unitIds);
+    expect(batches.flatMap((batch) => batch.requirements.map((item) => item.id))).toEqual(
+      requirements.map((item) => item.id),
+    );
+  });
+
+  it("sends only the target units to a batch while retaining the global merge base", () => {
+    const scoped = scopeStage03DataForBatch({
+      method_applications: [
+        { application_id: "MA-1", target_judgment_unit_refs: ["JU-1"] },
+        { application_id: "MA-2", target_judgment_unit_refs: ["JU-2"] },
+      ],
+      sources: [
+        { source_key: "SRC-1" },
+        { source_key: "SRC-2" },
+      ],
+      evidence_drafts: [
+        { id: "EV-1", judgment_unit_ids: ["JU-1"], source_keys: ["SRC-1"] },
+        { id: "EV-2", judgment_unit_ids: ["JU-2"], source_keys: ["SRC-2"] },
+      ],
+      unresolved_gaps: ["EV-1 missing", "EV-2 missing"],
+    }, ["JU-2"]);
+    expect(scoped.method_applications.map((item: any) => item.application_id)).toEqual(["MA-2"]);
+    expect(scoped.evidence_drafts.map((item: any) => item.id)).toEqual(["EV-2"]);
+    expect(scoped.sources.map((item: any) => item.source_key)).toEqual(["SRC-2"]);
+    expect(scoped.unresolved_gaps).toEqual(["EV-2 missing"]);
+  });
+
+  it("namespaces cross-batch source/evidence collisions and preserves other-unit gaps", () => {
+    const isolated = isolateStage03BatchPatch({
+      baseData: {
+        method_applications: [
+          { application_id: "MA-1", target_judgment_unit_refs: ["JU-1"] },
+          { application_id: "MA-2", target_judgment_unit_refs: ["JU-2"] },
+        ],
+        sources: [{ source_key: "SRC-01" }],
+        evidence_drafts: [
+          { id: "EV-01", judgment_unit_ids: ["JU-1"], source_keys: ["SRC-01"] },
+          { id: "GAP-02", judgment_unit_ids: ["JU-2"], source_keys: [] },
+        ],
+        unresolved_gaps: ["EV-01: JU-1 remains unresolved", "GAP-02: old JU-2 gap"],
+      },
+      patch: {
+        affected_object_refs: ["SRC-01", "EV-01", "MA-2"],
+        upserts: {
+          sources: [{ source_key: "SRC-01", url: "https://example.com/new" }],
+          evidence_drafts: [{
+            id: "EV-01",
+            judgment_unit_ids: ["JU-2"],
+            source_keys: ["SRC-01"],
+          }],
+          method_applications: [{
+            application_id: "MA-2",
+            input_evidence_refs: ["EV-01"],
+          }],
+          unresolved_gaps: ["EV-01: new JU-2 follow-up"],
+        },
+        removals: {},
+      },
+      targetUnitIds: ["JU-2"],
+      namespace: "EB-02",
+    });
+    const sourceKey = String((isolated.upserts.sources[0] as any).source_key);
+    const evidenceId = String((isolated.upserts.evidence_drafts[0] as any).id);
+    expect(sourceKey).not.toBe("SRC-01");
+    expect(evidenceId).not.toBe("EV-01");
+    expect((isolated.upserts.evidence_drafts[0] as any).source_keys).toEqual([sourceKey]);
+    expect((isolated.upserts.method_applications[0] as any).input_evidence_refs).toEqual([evidenceId]);
+    expect(isolated.upserts.unresolved_gaps).toEqual([
+      "EV-01: JU-1 remains unresolved",
+      `${evidenceId}: new JU-2 follow-up`,
+    ]);
+  });
+
+  it("rejects cross-batch removals and evidence leakage", () => {
+    const baseData = {
+      method_applications: [
+        { application_id: "MA-1", target_judgment_unit_refs: ["JU-1"] },
+        { application_id: "MA-2", target_judgment_unit_refs: ["JU-2"] },
+      ],
+      sources: [{ source_key: "SRC-01" }],
+      evidence_drafts: [
+        { id: "EV-01", judgment_unit_ids: ["JU-1"], source_keys: ["SRC-01"] },
+        { id: "GAP-02", judgment_unit_ids: ["JU-2"], source_keys: [] },
+      ],
+      unresolved_gaps: ["EV-01: JU-1 gap", "GAP-02: JU-2 gap"],
+    };
+    expect(() => isolateStage03BatchPatch({
+      baseData,
+      patch: {
+        affected_object_refs: ["EV-01"],
+        upserts: {},
+        removals: { evidence_drafts: ["EV-01"] },
+      },
+      targetUnitIds: ["JU-2"],
+      namespace: "EB-02",
+    })).toThrow(/超出当前 Stage03 批次范围/);
+    expect(() => isolateStage03BatchPatch({
+      baseData,
+      patch: {
+        affected_object_refs: ["EV-NEW"],
+        upserts: {
+          evidence_drafts: [{
+            id: "EV-NEW",
+            judgment_unit_ids: ["JU-1", "JU-2"],
+            source_keys: [],
+          }],
+        },
+        removals: {},
+      },
+      targetUnitIds: ["JU-2"],
+      namespace: "EB-02",
+    })).toThrow(/超出当前 Stage03 批次判断单元范围/);
+  });
+});
+
 describe("evidence_auto_supplement", () => {
+  it("treats zero acquisition calls as gaps instead of model-generated facts", () => {
+    expect(stage03AcquisitionCallCount({
+      web_search_calls: 0,
+      public_page_fetch_calls: 0,
+      mcp_evidence_calls: 0,
+    })).toBe(0);
+    expect(stage03AcquisitionCallCount({ public_page_fetch_calls: 2 })).toBe(2);
+
+    const honest = enforceStage03AcquisitionHonesty({
+      baseData: {
+        sources: [],
+        evidence_drafts: [{
+          id: "GAP-1",
+          statement: "缺口",
+          kind: "gap",
+          direction: "unknown",
+          source_keys: [],
+          source_ids: [],
+          judgment_unit_ids: ["JU-1"],
+          ontology_node_ids: [],
+          requirement: "补正文",
+          evidence_role: "support",
+          minimum_independent_sources: 1,
+          limitations: ["待取证"],
+        }],
+      },
+      patch: {
+        affected_object_refs: ["SRC-NEW", "GAP-1"],
+        upserts: {
+          sources: [{
+            source_key: "SRC-NEW",
+            url: "https://example.com/unfetched",
+            title: "模型记忆",
+          }],
+          evidence_drafts: [{
+            id: "GAP-1",
+            statement: "模型声称价格上涨",
+            kind: "fact_draft",
+            direction: "support",
+            source_keys: ["SRC-NEW"],
+            judgment_unit_ids: ["JU-1"],
+          }],
+          method_applications: [{
+            application_id: "MA-EV-1",
+            status: "executed",
+          }],
+          unresolved_gaps: [],
+        },
+        removals: {},
+        revision_summary: "completed",
+      },
+      toolUsage: {},
+      targetUnitIds: ["JU-1"],
+    });
+    expect(honest.upserts.sources).toEqual([]);
+    expect(honest.upserts.evidence_drafts[0]).toMatchObject({
+      id: "GAP-1",
+      kind: "gap",
+      direction: "unknown",
+      source_keys: [],
+      source_ids: [],
+    });
+    expect((honest.upserts.method_applications[0] as any).status).toBe("blocked");
+    expect(honest.revision_summary).toMatch(/acquisition honesty gate/);
+  });
+
+  it("does not let a no-tool patch overwrite an existing fact", () => {
+    const honest = enforceStage03AcquisitionHonesty({
+      baseData: {
+        evidence_drafts: [{
+          id: "EV-VERIFIED",
+          kind: "fact_draft",
+          statement: "已有事实",
+          judgment_unit_ids: ["JU-1"],
+        }],
+      },
+      patch: {
+        affected_object_refs: ["EV-VERIFIED"],
+        upserts: {
+          evidence_drafts: [{
+            id: "EV-VERIFIED",
+            kind: "fact_draft",
+            statement: "无工具调用的新说法",
+            judgment_unit_ids: ["JU-1"],
+          }],
+        },
+        removals: {},
+      },
+      toolUsage: { web_search_calls: 0 },
+      targetUnitIds: ["JU-1"],
+    });
+    expect(honest.upserts.evidence_drafts).toEqual([]);
+    expect(honest.upserts.unresolved_gaps[0]).toMatch(/忽略对既有事实的修改/);
+  });
+
   it("projects stale draft freeze fields from Source Registry", () => {
     const registry = source({
       id: "uuid-1",
@@ -264,12 +501,15 @@ describe("evaluateEvidenceStopCondition", () => {
     })).toEqual({ shouldStop: true, reason: "coverage_gap_count_zero" });
   });
 
-  it("stops when gap count does not improve", () => {
+  it("continues when gaps do not improve but coverage is still below the floor", () => {
     expect(evaluateEvidenceStopCondition({
       coverage_gap_count: 3,
       coverage_rate: 0.2,
       verification_rate: 0.1,
-    }, 3).shouldStop).toBe(true);
+    }, 3)).toEqual({
+      shouldStop: false,
+      reason: "no_gap_improvement_continue",
+    });
   });
 
   it("injects selected_method_guidance into supplement model payload", async () => {

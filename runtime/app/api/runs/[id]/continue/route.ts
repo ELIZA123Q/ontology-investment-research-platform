@@ -4,12 +4,13 @@ import { listResearchJobsForRun } from "@/adapters/research_jobs";
 import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
 import { STAGES } from "@/engine/types";
 import { workItemHref } from "@/engine/research_overview";
+import { latestJobForStage } from "@/app/lib/ui-labels";
 
 export const runtime = "nodejs";
 export const maxDuration = 3600;
 
 function stageHref(runId: string, stage: number) {
-  if (stage === 1) return `/runs/${runId}/stages/1`;
+  if (stage === 1) return `/runs/${runId}/scope`;
   if (stage === 2) return `/runs/${runId}/structure`;
   if (stage === 3) return `/runs/${runId}/evidence`;
   if (stage === 4) return `/runs/${runId}/judgments`;
@@ -38,9 +39,10 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       return Response.json({ error: "当前阶段已有待确认产物，请先人工确认", next_href: href }, { status: 409 });
     }
 
-    const activeJob = listResearchJobsForRun(id).find((job) =>
-      job.stage === kind && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(job.status),
-    );
+    const latestStageJob = latestJobForStage(listResearchJobsForRun(id), kind);
+    const activeJob = latestStageJob && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(latestStageJob.status)
+      ? latestStageJob
+      : undefined;
     if (activeJob) {
       const needsAttention = activeJob.status === "waiting_for_input" || activeJob.status === "blocked";
       return Response.json({

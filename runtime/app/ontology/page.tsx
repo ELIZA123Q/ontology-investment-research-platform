@@ -8,6 +8,13 @@ import { OntologyCandidateQueue } from "@/app/components/ontology-candidate-queu
 import { buildOntologyNetworkGraph, selectRelevantOntologyNodes } from "@/app/lib/ontology-network-graph";
 import { collectRunOntologyTouchpoints, getRunOntologyResearchValue, listKnowledgeAssets } from "@/engine/knowledge_browser";
 import type { OntologyResearchEffectKind } from "@/engine/ontology_research_value";
+import {
+  judgmentDecisionStatusLabel,
+  judgmentStrengthLabel,
+  researcherLanguage,
+} from "@/app/lib/researcher-stage-output";
+import { actionLabel, runStatusLabel, stageLabel } from "@/app/lib/ui-labels";
+import { ontologyTypeLabel } from "@/engine/ontology_display_labels";
 
 export const dynamic = "force-dynamic";
 
@@ -27,17 +34,17 @@ type TabGuide = {
 const TAB_GROUPS: Array<{ id: OntologyTabGroup; label: string; hint: string; demoted?: boolean }> = [
   { id: "run", label: "看本轮", hint: "核对当前研究用了什么知识" },
   { id: "cross", label: "跨研究", hint: "对齐口径与影响范围" },
-  { id: "governance", label: "治理", hint: "专家维护正式本体", demoted: true },
+  { id: "governance", label: "治理", hint: "专家维护正式知识库", demoted: true },
 ];
 
 const TAB_GUIDE: TabGuide[] = [
   {
     id: "network",
     group: "run",
-    label: "本体网络",
+    label: "研究知识网络",
     blurb: "本轮研究实际用到了哪些类型与规则",
-    answers: "本轮触及了哪些本体节点？",
-    sees: ["默认只显示任务相关子图", "可切换完整网络做排查", "与上方「补全 / 限制 / 关联」对照"],
+    answers: "本轮使用了哪些知识节点与规则？",
+    sees: ["默认只显示研究相关子图", "可切换完整网络做排查", "与上方「补全 / 限制 / 关联」对照"],
     nextUse: "用来核对系统补全与约束是否合理，而不是浏览完整大图。",
   },
   {
@@ -53,10 +60,10 @@ const TAB_GUIDE: TabGuide[] = [
     id: "methods",
     group: "run",
     label: "方法与规范",
-    blurb: "各阶段注入给模型的方法文件（只读摘录）",
-    answers: "模型按什么规范跑各阶段？",
-    sees: ["按阶段列出的方法资产", "文件路径与开头摘录", "运行时注入来源说明"],
-    nextUse: "查方法口径；全文仍在 methods/，此处不做编辑器。",
+    blurb: "各阶段可用的研究方法与规范（只读）",
+    answers: "各阶段有哪些研究方法与规范？",
+    sees: ["按阶段列出研究方法与规范", "每项方法的用途与摘要", "需要排查时再展开原始摘录"],
+    nextUse: "查研究口径；这里只读展示各阶段可选用的方法，不在这里编辑。",
   },
   {
     id: "comparability",
@@ -73,17 +80,17 @@ const TAB_GUIDE: TabGuide[] = [
     label: "研究问题查询",
     blurb: "证据影响哪些判断、变量出现在哪些研究",
     answers: "证据/变量的下游影响是什么？",
-    sees: ["证据 → 判断的正式影响路径", "变量跨研究出现位置", "正式本体与 task_local 区分"],
+    sees: ["证据 → 判断的正式影响路径", "变量跨研究出现位置", "正式知识与本轮候选区分"],
     nextUse: "评估补证与改判的波及面，再回到证据台或判断审阅。",
   },
   {
     id: "governance",
     group: "governance",
-    label: "本体缺口治理",
-    blurb: "专家确认 / 晋升 / 驳回 task_local 候选",
-    answers: "哪些 task_local 该升正式本体？",
-    sees: ["跨 run 频次与复用信号", "确认 / 晋升 / 驳回操作", "追加式决策历史"],
-    nextUse: "晋升只登记进入正式本体变更流程，不会自动改写本体 YAML。",
+    label: "知识缺口治理",
+    blurb: "专家确认、晋升或驳回本轮候选知识",
+    answers: "哪些本轮候选值得进入正式知识库？",
+    sees: ["跨研究频次与复用信号", "确认 / 晋升 / 驳回操作", "追加式决策历史"],
+    nextUse: "晋升只登记进入正式知识库的变更流程，不会自动改写知识库文件。",
   },
 ];
 
@@ -100,6 +107,56 @@ function tabHref(tabId: OntologyTabId, runId?: string): string {
   return `/ontology?tab=${tabId}${runId ? `&runId=${runId}` : ""}`;
 }
 
+function knowledgeSourceLabel(sourceFile: string): string {
+  if (sourceFile.includes("semiconductor")) return "半导体领域知识";
+  if (sourceFile.includes("/rules/")) return "判断与约束规则";
+  if (sourceFile.includes("01_通用")) return "通用研究知识";
+  return "正式知识库";
+}
+
+function knowledgeCategoryLabel(category: string): string {
+  return ({
+    Object: "对象类型",
+    Relation: "关系类型",
+    Rule: "研究规则",
+    Scenario: "研究场景",
+  } as Record<string, string>)[category] || category;
+}
+
+function methodAssetTitle(file: string, title: string): string {
+  const source = `${file} ${title}`;
+  if (/runtime quality card/i.test(source)) return "本阶段质量检查标准";
+  if (/MCP通道注册/i.test(source)) return "数据取得通道与来源边界";
+  if (/MCP查询快速参考/i.test(source)) return "数据查询操作参考";
+  if (/表达审计模板/.test(source)) return "报告表达审计规范";
+  if (/证据/.test(source)) return "证据采集与核验规范";
+  if (/判断/.test(source)) return "判断形成与审阅规范";
+  if (/结构/.test(source)) return "研究结构设计规范";
+  if (/范围/.test(source)) return "研究范围界定规范";
+  if (/交付|报告/.test(source)) return "研究交付规范";
+  return title
+    .replace(/\.(md|ya?ml|json)$/i, "")
+    .replace(/^[A-Z]{1,5}\d*[_-]+/i, "")
+    .replace(/^\d+[A-Z]?[\s_-]+/i, "")
+    .replace(/投研本体框架/g, "研究知识框架")
+    .replace(/领域本体/g, "领域知识")
+    .replace(/[_-]+/g, " ");
+}
+
+type MethodAsset = ReturnType<typeof listKnowledgeAssets>[number];
+
+function groupMethodAssets(assets: MethodAsset[]) {
+  const grouped = new Map<string, { stage: string; title: string; entries: MethodAsset[] }>();
+  for (const asset of assets) {
+    const title = methodAssetTitle(asset.file, asset.title);
+    const key = `${asset.stage}:${title}`;
+    const existing = grouped.get(key);
+    if (existing) existing.entries.push(asset);
+    else grouped.set(key, { stage: asset.stage, title, entries: [asset] });
+  }
+  return Array.from(grouped.values());
+}
+
 export default async function OntologyPage({
   searchParams,
 }: {
@@ -107,28 +164,41 @@ export default async function OntologyPage({
 }) {
   const q = await searchParams;
   const nodes = loadOntology();
+  const nodeLabelById = new Map(nodes.map((node) => [node.id, node.name]));
+  const displayNodeLabel = (id: string) => nodeLabelById.get(id) || ontologyTypeLabel(id);
   const selected = nodes.find((n) => n.id === q.node) || nodes[0];
   const runs = listRuns();
-  const runId = q.runId
-    || runs.find((run) => run.current_stage > 0 && run.status !== "archived")?.id
-    || runs.find((run) => run.status !== "archived")?.id
-    || runs[0]?.id;
+  const statusRank: Record<string, number> = { active: 0, in_progress: 0, blocked: 1, complete: 2, completed: 2 };
+  const researchRuns = runs
+    .filter((run) => run.current_stage > 0 && !["draft", "archived"].includes(run.status))
+    .sort((a, b) => (statusRank[a.status] ?? 9) - (statusRank[b.status] ?? 9) || Date.parse(b.updated_at) - Date.parse(a.updated_at));
+  const runKnowledge = new Map(researchRuns.map((run) => {
+    const touchpoints = collectRunOntologyTouchpoints(run.id);
+    const value = getRunOntologyResearchValue(run.id);
+    return [run.id, { touchpoints, value, score: touchpoints.length + (value?.effects.length || 0) }] as const;
+  }));
+  const defaultKnowledgeRun = researchRuns.find((run) => (runKnowledge.get(run.id)?.score || 0) > 0) || researchRuns[0];
+  const runId = researchRuns.some((run) => run.id === q.runId)
+    ? q.runId
+    : defaultKnowledgeRun?.id;
   const requestedTab = q.tab || "network";
   const tabGuide = TAB_GUIDE.find((item) => item.id === requestedTab) || TAB_GUIDE[0];
   const tab = tabGuide.id;
-  const touched = runId ? collectRunOntologyTouchpoints(runId) : [];
-  const ontologyValue = runId ? getRunOntologyResearchValue(runId) : null;
+  const touched = runId ? runKnowledge.get(runId)?.touchpoints || [] : [];
+  const ontologyValue = runId ? runKnowledge.get(runId)?.value || null : null;
   const allRelevantIds = [...new Set([...touched, ...(ontologyValue?.relevant_node_ids || [])])];
   const showFullNetwork = q.scope === "all" || !runId;
   const visibleNodes = showFullNetwork ? nodes : selectRelevantOntologyNodes(nodes, allRelevantIds);
   const network = buildOntologyNetworkGraph(visibleNodes, allRelevantIds);
   const assets = listKnowledgeAssets();
+  const methodAssetGroups = groupMethodAssets(assets);
+  const methodAssetsByStage = Object.groupBy(methodAssetGroups, (asset) => asset.stage);
   const linked = selected && runId
     ? ontologyInstances(selected.id, runId)
     : { instances: [] as any[], sources: [] as Array<{ id: string; url: string; title: string }>, graph_source: "", executable_actions: [] as string[] };
   const groups = Object.groupBy(nodes, (n) => n.category);
   const comparabilityGroups = tab === "comparability" ? listCrossRunVariableComparability() : [];
-  const queryRunId = runs.some((run) => run.id === q.queryRunId) ? q.queryRunId! : runId;
+  const queryRunId = researchRuns.some((run) => run.id === q.queryRunId) ? q.queryRunId! : runId;
   const evidenceImpactQueries = tab === "queries" && queryRunId ? listEvidenceImpactQueries(queryRunId) : [];
   const variableUsageQueries = tab === "queries" ? listVariableUsageQueries() : [];
   const effectKinds: Array<{ kind: OntologyResearchEffectKind; label: string; description: string }> = [
@@ -144,7 +214,7 @@ export default async function OntologyPage({
           <div className="eyebrow">知识库</div>
           <h1>看懂系统用了什么知识</h1>
           <p className="muted">
-            这里不是新建研究入口，而是回答三类问题：本轮用了什么、跨研究能否对齐、缺口要不要进正式本体。
+            这里不是新建研究入口，而是回答三类问题：本轮用了什么、跨研究能否对齐、知识缺口要不要进入正式库。
           </p>
           {!runId ? (
             <p className="muted ontology-run-hint">当前还没有可高亮的研究；先创建研究后，「看本轮」视图才有任务上下文。</p>
@@ -152,21 +222,21 @@ export default async function OntologyPage({
             <p className="muted ontology-run-hint">切换研究后，「看本轮」相关视图会按该研究高亮与过滤。</p>
           )}
         </div>
-        <form className="ontology-run-switcher">
+        {runId && ["network", "catalog"].includes(tab) ? <form className="ontology-run-switcher">
           <input type="hidden" name="node" value={selected?.id || ""} />
           <input type="hidden" name="tab" value={tab} />
           <label>
             <span>高亮研究</span>
             <select name="runId" defaultValue={runId} onChange={undefined}>
-              {runs.map((r) => (
+              {researchRuns.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.question.slice(0, 36)}
+                  {r.parent_run_id ? "增量" : "原始"} · {runStatusLabel(r.status)} · {r.question.slice(0, 28)}
                 </option>
               ))}
             </select>
           </label>
           <button className="button-secondary">切换</button>
-        </form>
+        </form> : null}
       </div>
 
       <nav className="card ontology-tab-nav" aria-label="知识库能力分组">
@@ -233,11 +303,11 @@ export default async function OntologyPage({
         </div>
       </section>
 
-      {runId && ontologyValue && !["governance", "comparability", "queries"].includes(tab) ? (
+      {runId && ontologyValue && tab === "network" ? (
         <section className="card ontology-value-summary">
           <div className="section-heading">
             <div>
-              <div className="eyebrow">本体在本研究中做了什么</div>
+              <div className="eyebrow">知识库在本研究中做了什么</div>
               <h2>不是展示节点，而是补全口径、限制越界并连接影响路径</h2>
             </div>
             <span className="badge">{ontologyValue.effects.length} 项可追溯作用</span>
@@ -245,21 +315,25 @@ export default async function OntologyPage({
           <div className="ontology-value-grid">
             {effectKinds.map(({ kind, label, description }) => {
               const effects = ontologyValue.effects.filter((effect) => effect.kind === kind);
+              const visibleEffects = effects.filter((effect, index) => {
+                const title = researcherLanguage(effect.title);
+                return effects.findIndex((candidate) => researcherLanguage(candidate.title) === title) === index;
+              });
               return (
                 <article className={`ontology-value-column ${kind}`} key={kind}>
                   <div className="ontology-value-column-head">
-                    <strong>{label} · {effects.length}</strong>
+                    <strong>{label} · {visibleEffects.length} 类</strong>
                     <span>{description}</span>
                   </div>
-                  {effects.slice(0, 4).map((effect) => (
+                  {visibleEffects.slice(0, 4).map((effect) => (
                     <details key={effect.id}>
-                      <summary>{effect.title}</summary>
-                      <p>{effect.explanation}</p>
-                      <small>{effect.result}</small>
+                      <summary>{researcherLanguage(effect.title)}</summary>
+                      <p>{researcherLanguage(effect.explanation)}</p>
+                      <small>{researcherLanguage(effect.result)}</small>
                     </details>
                   ))}
-                  {!effects.length ? <p className="muted">当前阶段尚无可核验记录</p> : null}
-                  {effects.length > 4 ? <p className="muted">另有 {effects.length - 4} 项，可在对象关系与审计产物中追溯。</p> : null}
+                  {!visibleEffects.length ? <p className="muted">当前阶段尚无可核验记录</p> : null}
+                  {effects.length > visibleEffects.length ? <p className="muted">以上作用对应 {effects.length} 条审计记录，重复路径已合并。</p> : null}
                 </article>
               );
             })}
@@ -270,7 +344,7 @@ export default async function OntologyPage({
         <>
           <div className="card ontology-network-scope">
             <div>
-              <strong>{showFullNetwork ? "完整本体网络（高级视图）" : "本研究相关子图"}</strong>
+              <strong>{showFullNetwork ? "完整知识网络（高级视图）" : "本研究相关子图"}</strong>
               <p className="muted">
                 当前显示 {visibleNodes.length}/{nodes.length} 个类型、关系与规则节点。
                 {showFullNetwork ? "完整网络用于治理与排查。" : "默认只保留本轮触及节点及一跳关系端点。"}
@@ -285,15 +359,21 @@ export default async function OntologyPage({
               </Link>
             ) : null}
           </div>
-          <ResearchGraphLazy nodes={network.nodes} edges={network.edges} emptyMessage="当前研究尚未触及可展示的本体节点" />
+          <details className="ontology-network-details" open={showFullNetwork}>
+            <summary>
+              <strong>{showFullNetwork ? "完整知识网络" : "展开本研究相关知识图"}</strong>
+              <span>{network.nodes.length} 个节点 · {network.edges.length} 条关系</span>
+            </summary>
+            <ResearchGraphLazy nodes={network.nodes} edges={network.edges} emptyMessage="当前研究尚未形成可展示的知识关联" />
+          </details>
         </>
       ) : null}
       {tab === "catalog" ? (
         <div className="three-col">
         <aside className="card ontology-list">
           {Object.entries(groups).map(([group, items]) => (
-            <div key={group}>
-              <h3>{group}</h3>
+            <details key={group} open={Boolean(q.node) && selected?.category === group}>
+              <summary><strong>{knowledgeCategoryLabel(group)}</strong><span className="muted"> · {items?.length || 0}</span></summary>
               {items?.map((n) => (
                 <Link
                   className={n.id === selected?.id ? "active" : ""}
@@ -301,40 +381,24 @@ export default async function OntologyPage({
                   key={n.id}
                 >
                   {n.name}
-                  <small className="muted"> · {n.id}</small>
                 </Link>
               ))}
-            </div>
+            </details>
           ))}
         </aside>
         <section className="card">
           {selected && (
             <>
-              <span className="badge">{selected.category}</span>
+              <span className="badge">{knowledgeCategoryLabel(selected.category)}</span>
               <h1>{selected.name}</h1>
-              <code>{selected.id}</code>
               <p>{selected.description || "暂无说明"}</p>
-              <h3>属性</h3>
-              <p>{selected.properties.join("、") || "无"}</p>
-              {selected.write_scope?.length ? (
-                <>
-                  <h3>可写范围</h3>
-                  <p>{selected.write_scope.join("、")}</p>
-                </>
-              ) : null}
-              {selected.function_ref ? (
-                <>
-                  <h3>关联函数</h3>
-                  <p>{selected.function_ref}</p>
-                </>
-              ) : null}
               <h3>关系端点</h3>
               <p>
-                来源：{selected.source_types.join("、") || "—"}
+                起点类型：{selected.source_types.map(displayNodeLabel).join("、") || "—"}
                 <br />
-                目标：{selected.target_types.join("、") || "—"}
+                终点类型：{selected.target_types.map(displayNodeLabel).join("、") || "—"}
               </p>
-              <p className="muted">{selected.source_file}</p>
+              <p className="muted">知识来源：{knowledgeSourceLabel(selected.source_file)}</p>
               {runId ? (
                 <div className="ontology-run-instances">
                   <h3>本研究中的对应实例</h3>
@@ -343,14 +407,22 @@ export default async function OntologyPage({
                       {linked.instances.slice(0, 8).map((instance: any) => (
                         <li key={instance.object.id}>
                           <strong>{instance.label}</strong>
-                          <small className="muted"> · {instance.object.id}</small>
                         </li>
                       ))}
                     </ul>
                   ) : <p className="muted">本轮尚无该类型的实例，不能仅因类型存在就声称已用于研究。</p>}
-                  <p className="muted">可执行操作：{linked.executable_actions.join("、") || "暂无"}</p>
+                  <p className="muted">可用于：{linked.executable_actions.map(actionLabel).join("、") || "暂无直接操作"}</p>
                 </div>
               ) : null}
+              <details>
+                <summary>查看技术定义（审计）</summary>
+                <p><code>{selected.id}</code></p>
+                <h3>登记字段</h3>
+                <p>{selected.properties.join("、") || "无"}</p>
+                {selected.write_scope?.length ? <p>可写范围：{selected.write_scope.join("、")}</p> : null}
+                {selected.function_ref ? <p>关联函数：{selected.function_ref}</p> : null}
+                <p className="muted">{selected.source_file}</p>
+              </details>
             </>
           )}
         </section>
@@ -358,14 +430,27 @@ export default async function OntologyPage({
       ) : null}
       {tab === "methods" ? (
         <section className="card">
-          <h2>方法与规范资产</h2>
-          <p className="muted">来源：runtime_contexts.yaml（模型运行时注入资产）</p>
+          <h2>各阶段可用的方法与规范</h2>
+          <p className="muted">相同用途已合并；先按阶段展开，需要排查时再看底层文件摘录。</p>
           <div className="artifact-ledger">
-            {assets.map((asset) => (
-              <details key={`${asset.stage}:${asset.file}`} style={{ marginBottom: 10 }}>
-                <summary><strong>{asset.stage}</strong> · {asset.title}</summary>
-                <p className="muted">{asset.file}</p>
-                <pre className="json-editor" style={{ whiteSpace: "pre-wrap" }}>{asset.snippet}</pre>
+            {Object.entries(methodAssetsByStage).map(([stage, stageAssets]) => (
+              <details key={stage} style={{ marginBottom: 10 }}>
+                <summary><strong>{stageLabel(stage)}阶段</strong> · {stageAssets?.length || 0} 类方法与规范</summary>
+                {stageAssets?.map((asset) => (
+                  <details key={`${asset.stage}:${asset.title}`} style={{ margin: "10px 0 10px 18px" }}>
+                    <summary>{asset.title}</summary>
+                    <p className="muted">用于{stageLabel(asset.stage)}阶段的生成、核验与人工确认。</p>
+                    <details>
+                      <summary>查看原始方法摘录（审计）</summary>
+                      {asset.entries.map((entry) => (
+                        <div key={entry.file}>
+                          <p className="muted">{entry.file}</p>
+                          <pre className="json-editor" style={{ whiteSpace: "pre-wrap" }}>{entry.snippet}</pre>
+                        </div>
+                      ))}
+                    </details>
+                  </details>
+                ))}
               </details>
             ))}
           </div>
@@ -380,7 +465,7 @@ export default async function OntologyPage({
               <article className="card comparability-group" key={group.ontology_node_id}>
                 <div className="section-heading">
                   <div>
-                    <div className="eyebrow">正式 StateVariable</div>
+                    <div className="eyebrow">正式变量</div>
                     <h2>{group.ontology_label}</h2>
                     <p className="muted">{new Set(group.observations.map((observation) => observation.run_id)).size} 个研究 · {group.observations.length} 个变量实例</p>
                   </div>
@@ -430,7 +515,7 @@ export default async function OntologyPage({
                 <form>
                   <input type="hidden" name="tab" value="queries" />
                   <select name="queryRunId" defaultValue={queryRunId}>
-                    {runs.filter((run) => run.current_stage > 0).map((run) => <option key={run.id} value={run.id}>{run.question.slice(0, 36)}</option>)}
+                    {researchRuns.map((run) => <option key={run.id} value={run.id}>{run.question.slice(0, 36)}</option>)}
                   </select>
                   <button className="button-secondary">切换研究</button>
                 </form>
@@ -442,13 +527,13 @@ export default async function OntologyPage({
                     {result.impacted_judgments.length ? result.impacted_judgments.map((judgment) => (
                       <div className="ontology-impact-result" key={judgment.id}>
                         <strong>{judgment.label}</strong>
-                        <small>{judgment.strength || "未定级"} · {judgment.decision_status || "未裁决"}</small>
-                        <p>影响路径：{judgment.path_labels.join(" → ")}</p>
+                        <small>{judgmentStrengthLabel(judgment.strength)} · {judgmentDecisionStatusLabel(judgment.decision_status)}</small>
+                        <p>影响路径：{judgment.path_labels.map(researcherLanguage).join(" → ")}</p>
                       </div>
-                    )) : <p className="muted">当前实例图中尚无可达 Judgment；可能仍处于结构/证据阶段，或该事实尚未形成信号与假设链。</p>}
+                    )) : <p className="muted">当前研究尚未形成可追溯的下游判断；可能仍处于结构或证据阶段。</p>}
                   </details>
                 ))}
-                {!evidenceImpactQueries.length ? <p className="muted">当前研究还没有已物化的 EvidenceFact。</p> : null}
+                {!evidenceImpactQueries.length ? <p className="muted">当前研究还没有已确认事实。</p> : null}
               </div>
             </article>
             <article className="card ontology-query-section">
@@ -458,7 +543,7 @@ export default async function OntologyPage({
                   <details key={usage.semantic_ref}>
                     <summary>
                       <strong>{usage.label}</strong>
-                      <span>{usage.source === "formal" ? "正式本体" : "task_local"} · {usage.run_count} 个研究</span>
+                      <span>{usage.source === "formal" ? "正式知识" : "本轮候选"} · {usage.run_count} 个研究</span>
                     </summary>
                     <ul className="source-list">
                       {usage.occurrences.slice(0, 10).map((occurrence) => (

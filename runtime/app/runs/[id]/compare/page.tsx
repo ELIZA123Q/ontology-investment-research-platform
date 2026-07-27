@@ -5,8 +5,9 @@ import { BaselineButton } from "@/app/components/baseline-button";
 import { CompareWorkspaceLazy } from "@/app/components/compare-workspace-lazy";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { artifactForWorkspace } from "@/app/lib/client-rows";
-import { researchJobStatusLabel } from "@/app/lib/ui-labels";
+import { latestJobForStage, researchJobIssueMessage, researchJobStatusLabel } from "@/app/lib/ui-labels";
 import { comparisonMetrics } from "@/engine/metrics";
+import { ReferenceSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,10 @@ export default async function Compare({ params }: { params: Promise<{ id: string
   const runtimeRow = latestArtifactPayload(id, "stage_05", ["needs_review", "approved"]);
   const evidenceRow = latestArtifactPayload(id, "stage_03", ["approved"]);
   const evaluationRow = latestArtifactPayload(id, "evaluation", ["approved"]);
-  const baselineJob = listResearchJobsForRun(id).find((job) => job.stage === "baseline"
-    && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(job.status));
+  const latestBaselineJob = latestJobForStage(listResearchJobsForRun(id), "baseline");
+  const baselineJob = latestBaselineJob && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(latestBaselineJob.status)
+    ? latestBaselineJob
+    : undefined;
   const baselineJobInFlight = Boolean(baselineJob && ["queued", "running", "retrying"].includes(baselineJob.status));
   const metrics = baselineRow && runtimeRow
     ? comparisonMetrics(
@@ -38,12 +41,16 @@ export default async function Compare({ params }: { params: Promise<{ id: string
       : "missing";
 
   return <>
-    <div className="pagehead"><div><div className="eyebrow">对照实验</div><h1>同证据直接生成 vs 本体约束研究</h1><p className="muted">先冻结并确认对照基线，再由未参与两份产出的评价人进行盲评。</p><Link className="backlink" href={`/runs/${id}`}>← 返回研究总览</Link></div><BaselineButton runId={id} artifactId={baselineRow?.id} status={baselineStatus} canGenerate={Boolean(evidenceRow)} inFlight={baselineJobInFlight} /></div>
-    {baselineJob && !baselineJobInFlight ? <div className="notice error"><strong>{researchJobStatusLabel(baselineJob.status)}</strong><p>{baselineJob.last_error || "请检查冻结证据或任务状态后重试。"}</p></div> : null}
+    <ReferenceSceneChrome
+      sceneId="compare"
+      actions={<BaselineButton runId={id} artifactId={baselineRow?.id} status={baselineStatus} canGenerate={Boolean(evidenceRow)} inFlight={baselineJobInFlight} />}
+    />
+    <p className="muted" style={{ marginTop: -8 }}><Link className="backlink" href={`/runs/${id}`}>← 返回研究总览</Link></p>
+    {baselineJob && !baselineJobInFlight ? <div className="notice error"><strong>{researchJobStatusLabel(baselineJob.status)}</strong><p>{researchJobIssueMessage(baselineJob.last_error) || "请检查冻结证据或任务状态后重试。"}</p></div> : null}
     {baselineRow?.status === "needs_review" ? <section className="card baseline-review-card">
       <div className="panel-title"><div><span>基线确认</span><strong>待确认</strong></div></div>
       <p>只核查这份草稿是否忠实使用冻结证据、是否误加外部信息。确认者不得担任后续 A/B 盲评评价人。</p>
-      <article className="markdown"><ReportMarkdown content={baselineRow.markdown_content} /></article>
+      <article className="markdown"><ReportMarkdown content={baselineRow.markdown_content} readerView /></article>
     </section> : baseline?.status === "approved" && runtime ? <CompareWorkspaceLazy runId={id} baseline={baseline} runtime={runtime} evaluation={evaluation} metrics={metrics} canEvaluate={runtime.status === "approved"} /> : <div className="card empty-state"><h2>{!evidenceRow ? "先完成并确认证据阶段" : !baseline ? "生成同证据对照基线" : "等待交付报告确认"}</h2><p className="muted">{!evidenceRow ? "对照基线只能使用已冻结、已确认的证据包。" : !baseline ? "点击右上角生成；模型不得搜索或补充证据包外的信息。" : "基线已经确认，交付报告确认后即可开始盲评。"}</p></div>}
   </>;
 }

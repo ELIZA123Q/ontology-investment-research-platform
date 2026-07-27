@@ -47,7 +47,7 @@ export default function RunsPage() {
         <div>
           <div className="eyebrow">研究项目库</div>
           <h1>我的研究</h1>
-          <p className="muted">查看全部研究运行，进入对应问题继续推进或复核判断。</p>
+          <p className="muted">按下一步、状态或更新时间找到研究，继续推进或复核判断。</p>
         </div>
         <div className="actions">
           <Link className="button" href="/runs/new">新建研究</Link>

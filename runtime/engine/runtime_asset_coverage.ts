@@ -107,6 +107,7 @@ export function missingCriticalPaths(
 
 export type InjectedAssetSummary = {
   knowledge_files: string[];
+  ontology_files: string[];
   method_guidance_ids: string[];
   scenario_card_ids: string[];
   structured_keys: string[];
@@ -114,12 +115,14 @@ export type InjectedAssetSummary = {
 
 export function summarizeInjectedAssets(input: {
   knowledge_files?: string[];
+  ontology_files?: string[];
   method_guidance?: Array<{ method_id?: string }>;
   scenario_card_ids?: string[];
   structured_keys?: string[];
 }): InjectedAssetSummary {
   return {
     knowledge_files: [...(input.knowledge_files || [])],
+    ontology_files: [...(input.ontology_files || [])],
     method_guidance_ids: (input.method_guidance || [])
       .map((item) => String(item.method_id || ""))
       .filter(Boolean),

@@ -3,16 +3,21 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, usePathname } from "next/navigation";
+import { RESEARCH_STAGE_JOURNEY } from "@/app/lib/research-journey";
 
-const items = [
+const stageItems = [
   { id: "overview", label: "概览", path: "", stageKind: null },
-  { id: "scope", label: "范围", path: "/scope", stageKind: "stage_01" },
-  { id: "structure", label: "结构", path: "/structure", stageKind: "stage_02" },
-  { id: "evidence", label: "证据", path: "/evidence", stageKind: "stage_03" },
-  { id: "judgment", label: "判断", path: "/judgments", stageKind: "stage_04" },
-  { id: "delivery", label: "交付", path: "/report", stageKind: "stage_05" },
+  ...RESEARCH_STAGE_JOURNEY.map((stage) => ({
+    id: stage.id,
+    label: stage.navLabel,
+    path: stage.reviewPath,
+    stageKind: stage.kind,
+  })),
+];
+
+const referenceItems = [
   { id: "history", label: "历史", path: "/history", stageKind: null },
-  { id: "object-set", label: "关系图", path: "/object-set", stageKind: null },
+  { id: "object-set", label: "关系与审计", path: "/object-set", stageKind: null },
 ] as const;
 
 export type StageNavStatus = "complete" | "needs_review" | "idle";
@@ -55,7 +60,7 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
         const data = await response.json();
         if (cancelled) return;
         const next: Record<string, StageNavStatus> = {};
-        for (const item of items) {
+        for (const item of stageItems) {
           if (!item.stageKind) continue;
           next[item.id] = statusFromSnapshot(data, item.stageKind);
         }
@@ -74,7 +79,7 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
 
   return (
     <nav className="run-scene-nav" aria-label="研究工作场景">
-      {items.map((item) => {
+      {stageItems.map((item) => {
         const status = item.stageKind ? (statuses[item.id] || "idle") : null;
         return (
           <Link
@@ -88,6 +93,21 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
           </Link>
         );
       })}
+      <details className={`run-nav-more${referenceItems.some((item) => item.id === resolvedActive) ? " active" : ""}`}>
+        <summary>复盘与审计</summary>
+        <div className="run-nav-more-menu">
+          {referenceItems.map((item) => (
+            <Link
+              key={item.id}
+              className={resolvedActive === item.id ? "active" : ""}
+              href={`/runs/${resolvedRunId}${item.path}`}
+              prefetch
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      </details>
     </nav>
   );
 }

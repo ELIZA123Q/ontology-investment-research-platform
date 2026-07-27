@@ -74,7 +74,16 @@ export class ResearchJobStore {
   listActive(limit = 20): ResearchJob[] {
     const statuses = ["queued", "running", "retrying", "waiting_for_input", "blocked"] as const;
     return this.connection.prepare(
-      `SELECT * FROM research_jobs WHERE status IN (${placeholders(statuses)}) ORDER BY updated_at DESC LIMIT ?`,
+      `SELECT * FROM (
+        SELECT research_jobs.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY run_id,stage,job_type
+            ORDER BY created_at DESC
+          ) AS latest_rank
+        FROM research_jobs
+      )
+      WHERE latest_rank=1 AND status IN (${placeholders(statuses)})
+      ORDER BY updated_at DESC LIMIT ?`,
     ).all(...statuses, Math.max(1, Math.floor(limit))) as ResearchJob[];
   }
 
@@ -254,6 +263,36 @@ export class ResearchJobStore {
     return this.connection.prepare("SELECT * FROM research_jobs WHERE artifact_id=? ORDER BY created_at DESC LIMIT 1")
       .get(artifactId) as ResearchJob | undefined;
   }
+
+  /**
+   * 兼容旧 worker：历史版本曾在模型已完成后，因事后 token 结算超限把完整产物
+   * 从 needs_review 降成 failed。只有当 job 明确记录 budget_exceeded、产物已由
+   * 合同校验恢复为 needs_review 且绑定一致时，才允许无模型调用地恢复人工审阅。
+   */
+  reopenCompletedBudgetResultForReview(
+    jobId: string,
+    artifactId: string,
+    now = new Date().toISOString(),
+  ): ResearchJob | undefined {
+    return withImmediateTransaction(this.connection, () => {
+      const job = row(this.connection, jobId);
+      if (!job || job.status !== "waiting_for_input" || job.artifact_id !== artifactId) return undefined;
+      let result: Record<string, unknown> = {};
+      try { result = JSON.parse(job.result_json || "{}"); } catch { return undefined; }
+      if (
+        result.failure_category !== "budget_exceeded"
+        || String(result.artifact_id || "") !== artifactId
+      ) return undefined;
+      const artifact = this.connection.prepare(
+        "SELECT status,json_content FROM artifacts WHERE id=? AND run_id=?",
+      ).get(artifactId, job.run_id) as { status: string; json_content: string } | undefined;
+      if (!artifact || artifact.status !== "needs_review" || artifact.json_content.length < 3) return undefined;
+      const updated = this.connection.prepare(`UPDATE research_jobs SET
+        status='waiting_for_review', last_error=NULL, finished_at=NULL, updated_at=?
+        WHERE id=? AND status='waiting_for_input' AND artifact_id=?`).run(now, jobId, artifactId);
+      return Number(updated.changes) === 1 ? row(this.connection, jobId) : undefined;
+    });
+  }
 }
 
 export function getResearchJobStore() {
@@ -274,6 +313,10 @@ export function listActiveResearchJobs(limit = 20) {
 
 export function resolveResearchJobReview(artifactId: string, accepted: boolean) {
   return getResearchJobStore().resolveReviewForArtifact(artifactId, accepted);
+}
+
+export function reopenCompletedBudgetResultForReview(jobId: string, artifactId: string) {
+  return getResearchJobStore().reopenCompletedBudgetResultForReview(jobId, artifactId);
 }
 
 export function cancelResearchJob(jobId: string, reason: string) {

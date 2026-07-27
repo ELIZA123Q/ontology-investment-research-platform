@@ -9,10 +9,19 @@ import {
 import { runDifferenceAttribution } from "@/engine/metrics";
 import { parseJson } from "@/engine/types";
 import { evidenceBoundSources } from "@/engine/evidence_sources";
-import { publishStatusLabel, researchJobStatusLabel, runStatusLabel } from "@/app/lib/ui-labels";
-import { buildResearchOverview, stripInternalReferencePrefix, workItemHref } from "@/engine/research_overview";
+import {
+  differenceCauseLabel,
+  latestJobForStage,
+  researchJobIssueMessage,
+  researchJobRecoveryHref,
+  researchJobStatusLabel,
+  runStatusLabel,
+} from "@/app/lib/ui-labels";
+import { buildResearchOverview, workItemHref } from "@/engine/research_overview";
 import { RunPrimaryAction } from "@/app/components/run-primary-action";
 import { STAGES } from "@/engine/types";
+import { researcherLanguage } from "@/app/lib/researcher-stage-output";
+import { researchStageByKind } from "@/app/lib/research-journey";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +29,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const overview = getRunOverview(id);
   if (!overview) notFound();
-  const { run, manifest, pendingWorkItems: pending, report, independentReview, baseline, evaluation, jobs } = overview;
+  const { run, manifest, pendingWorkItems: pending, report, independentReview, baseline, jobs } = overview;
   const evidenceData: any = parseJson(overview.stage03Json, {});
   const judgmentData: any = parseJson(overview.stage04Json, {});
   const independentReviewData: any = parseJson(independentReview?.json_content || "{}", {});
@@ -64,92 +73,100 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     judgments,
     evidence,
   });
-  const activeNextJob = nextStageKind ? jobs.find((job) =>
-    job.stage === nextStageKind && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(job.status),
-  ) : undefined;
+  const latestNextStageJob = nextStageKind ? latestJobForStage(jobs, nextStageKind) : undefined;
+  const activeNextJob = latestNextStageJob && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(latestNextStageJob.status)
+    ? latestNextStageJob
+    : undefined;
   const activeJobReason = activeNextJob
-    ? String(parseJson<any>(activeNextJob.result_json || "{}", {}).reason || activeNextJob.last_error || "")
+    ? researchJobIssueMessage(parseJson<any>(activeNextJob.result_json || "{}", {}).reason || activeNextJob.last_error)
     : "";
   const primaryAction = pending.length === 0 && activeNextJob
     ? {
       ...researchOverview.primaryAction,
-      eyebrow: `后台任务 · ${researchJobStatusLabel(activeNextJob.status)}`,
+      href: researchJobRecoveryHref(id, activeNextJob.stage),
+      eyebrow: `生成任务 · ${researchJobStatusLabel(activeNextJob.status)}`,
       title: activeNextJob.status === "running"
         ? "AI 正在运行到下一个确认点"
         : activeNextJob.status === "queued" || activeNextJob.status === "retrying"
           ? "AI 任务已提交，等待继续执行"
-          : "后台任务需要你处理",
+          : "生成任务需要你处理",
       description: activeJobReason || (activeNextJob.status === "queued"
-        ? "任务已提交，等待 worker 领取。若长时间停在排队，请在本机另开终端执行 npm run worker。"
+        ? "任务已提交，正在等待执行；若长时间未开始，请联系工作台管理员。"
         : activeNextJob.status === "retrying"
           ? "上次执行中断，将从本阶段起点安全重试。"
           : activeNextJob.status === "running"
             ? "可离开页面；后台完成后会停在人工确认。"
             : "请打开当前阶段检查输入、预算或失败原因。"),
-      cta: "查看状态 →",
+      cta: ["waiting_for_input", "blocked"].includes(activeNextJob.status) ? "处理当前阶段 →" : "查看生成进度 →",
     }
     : researchOverview.primaryAction;
   const constraints = (researchOverview.strongestJudgment?.uncertainties || [])
-    .map(stripInternalReferencePrefix)
+    .map(researcherLanguage)
     .filter(Boolean)
     .slice(0, 2);
+  const pendingGroups = Array.from(pending.reduce((groups, item) => {
+    const current = groups.get(item.stage) || [];
+    current.push(item);
+    groups.set(item.stage, current);
+    return groups;
+  }, new Map<string, typeof pending>()));
+  const showTasks = pending.length > 0;
+  const factCount = evidence.filter((item: any) => item.kind !== "gap" && item.kind !== "conflict").length;
+  const showEvidence = run.current_stage >= 3 || evidence.length > 0 || gaps.length > 0;
+  const overviewClass = showTasks
+    ? "overview-grid"
+    : showEvidence
+      ? "overview-grid no-tasks"
+      : "overview-grid decision-only";
+  const evidenceReadyLine = [
+    `事实 ${factCount}`,
+    `缺口/冲突 ${gaps.length}`,
+    pending.length ? `待处理 ${pending.length}` : null,
+  ].filter(Boolean).join(" · ");
 
   return <>
     <section className="run-summary">
-      <div><div className="eyebrow">{run.parent_run_id ? "增量更新" : "研究任务"} · {run.domain === "semiconductor" ? "半导体" : "其他领域"}</div><h1>{run.question}</h1><div className="run-meta"><span>已完成阶段 {completedStages}/5</span><span>状态 {runStatusLabel(run.status)}</span><span>待处理 {pending.length}</span><span>创建于 {formatRelativeTime(run.created_at)}</span><span>上次更新于 {formatRelativeTime(run.updated_at)}</span>{run.parent_run_id ? <span>继承自上一轮研究</span> : null}{manifest.validation_summary?.publish_status ? <span>{publishStatusLabel(manifest.validation_summary.publish_status)}</span> : null}</div></div>
+      <div><div className="eyebrow">{run.parent_run_id ? "增量更新" : "研究任务"} · {run.domain === "semiconductor" ? "半导体" : "其他领域"}</div><h1>{run.question}</h1><div className="run-meta"><span>已完成阶段 {completedStages}/5</span><span>状态 {runStatusLabel(run.status)}</span>{pending.length ? <span>待处理 {pending.length}</span> : null}<span>更新于 {formatRelativeTime(run.updated_at)}</span>{run.parent_run_id ? <span>继承自上一轮研究</span> : null}</div></div>
       <RunPrimaryAction runId={id} action={primaryAction} autoContinue={pending.length === 0 && run.current_stage < 5 && !awaitingNextStageReview && !activeNextJob} />
     </section>
     {triggerEvent ? <section className="trigger-banner"><div><span>本轮由市场事件触发</span><strong>{triggerEvent.title}</strong><p>{triggerEvent.summary}</p></div><a href={triggerEvent.url} target="_blank" rel="noreferrer">查看来源 ↗</a></section> : null}
 
-    <div className="overview-grid">
+    <div className={overviewClass}>
       <section className="overview-decision">
-        <div className="panel-title"><div><span>研究结论</span><strong>{judgments.length}</strong></div><Link href={`/runs/${id}/judgments`}>查看判断依据 →</Link></div>
-        <article className={`conclusion-summary ${gaps.length ? "constrained" : ""}`}><span>{judgments.length ? (judgments.every((item: any) => String(item.strength || item.level || "J0") === "J0") ? "暂不判断" : "阶段性结论") : "等待判断"}</span><h2>{researchOverview.headline}</h2><p>{researchOverview.explanation}</p>{constraints.length ? <div className="conclusion-constraints"><strong>关键约束</strong>{constraints.map((item) => <small key={item}>{item}</small>)}</div> : null}</article>
+        <div className="panel-title"><div><span>研究结论</span>{judgments.length ? <strong>{judgments.length}</strong> : null}</div><Link href={`/runs/${id}/judgments`}>查看判断依据 →</Link></div>
+        <article className={`conclusion-summary ${gaps.length ? "constrained" : ""}`}><span>{judgments.length ? (judgments.every((item: any) => String(item.strength || item.level || "J0") === "J0") ? "暂不判断" : "阶段性结论") : "等待判断"}</span><h2>{researcherLanguage(researchOverview.headline)}</h2><p>{researcherLanguage(researchOverview.explanation)}</p>{constraints.length ? <div className="conclusion-constraints"><strong>关键约束</strong>{constraints.map((item) => <small key={item}>{item}</small>)}</div> : null}</article>
       </section>
-      <aside className="overview-tasks"><div className="panel-title"><div><span>待我处理</span><strong>{pending.length}</strong></div></div>{pending.length ? pending.slice(0, 8).map((item) => <Link href={workItemHref(item.stage, id)} key={item.id}><span>{sceneLabel(item.stage)}</span><strong>{stripInternalReferencePrefix(item.title)}</strong><small>{stripInternalReferencePrefix(item.reason) || "需要人工确认"}</small></Link>) : <div className="queue-empty">当前没有逐项待办；请按上方主动作处理当前确认点。</div>}</aside>
-      <section className="overview-evidence"><div className="panel-title"><div><span>证据覆盖</span><strong>{evidence.length}</strong></div><Link href={`/runs/${id}/evidence`}>打开证据台 →</Link></div><div className="coverage-metrics"><div><strong>{evidence.filter((item: any) => item.direction === "support").length}</strong><span>支持</span></div><div><strong>{evidence.filter((item: any) => item.kind === "counter" || item.direction === "weaken").length}</strong><span>反证</span></div><div className={gaps.length ? "risk" : ""}><strong>{gaps.length}</strong><span>冲突 / 缺口</span></div></div><p className="muted">证据数量不代表结论强度；关键判断仍受最薄弱环节约束。</p></section>
+      {showTasks ? <aside className="overview-tasks"><div className="panel-title"><div><span>待我处理</span><strong>{pending.length}</strong></div><small>按阶段归并</small></div>{pendingGroups.map(([stage, items]) => <Link href={workItemHref(stage, id)} key={stage}><span>{sceneLabel(stage)}</span><strong>{items.length} 项待处理</strong><small>{stageTaskHint(stage)}</small></Link>)}</aside> : null}
+      {showEvidence ? <section className="overview-evidence"><div className="panel-title"><div><span>证据就绪度</span></div><Link href={`/runs/${id}/evidence`}>打开证据台 →</Link></div><p className="evidence-ready-line">{evidenceReadyLine}</p><p className="muted">证据数量不代表结论强度；关键判断仍受最薄弱环节约束。</p></section> : null}
     </div>
 
-    {previousRun && attribution ? <section className="card attribution-card"><div className="panel-title"><div><span>同题研究差异</span><strong>{attribution.causes.length}</strong></div><Link href={`/runs/${previousRun.id}`}>查看上一轮 →</Link></div><p>主要变化：{attribution.causes.join("、")}</p><div className="run-meta"><span>新增来源 {attribution.evidence.added_sources.length}</span><span>移除来源 {attribution.evidence.removed_sources.length}</span><span>方法变化 {attribution.methods.changed.length}</span><span>判断变化 {attribution.judgments.changed.length}</span></div></section> : null}
-
-    <section className="research-index research-index-compact">
-      <div className="section-head research-index-head">
-        <h2>辅助工具</h2>
-        <Link className="section-meta research-index-link" href={`/runs/${id}/history`}>查看完整历史 →</Link>
-      </div>
-      <div className="research-mini-grid">
-        <Link className="card run-card" href={`/runs/${id}/history`}>
-          <span className="card-arrow">↗</span>
-          <span className="eyebrow">历史档案</span>
-          <h3>产物版本与增量继承</h3>
-          <p>{previousRun ? "含前后轮差异归因与来源变化追溯。" : "按阶段保留可复盘产出。"}</p>
-        </Link>
-        <Link className="card run-card" href={`/runs/${id}/compare`}>
-          <span className="card-arrow">↗</span>
-          <span className="eyebrow">A/B 对照实验</span>
-          <h3>同证据直接生成 vs 本体约束</h3>
-          <p>{baseline ? "同证据基线已冻结，可开始盲评。" : "冻结证据后生成对照基线并盲评。"}</p>
-        </Link>
-      </div>
-    </section>
+    {previousRun && attribution ? <section className="card attribution-card"><div className="panel-title"><div><span>同题研究差异</span><strong>{attribution.causes.length}</strong></div><Link href={`/runs/${previousRun.id}`}>查看上一轮 →</Link></div><p>主要变化：{attribution.causes.map(differenceCauseLabel).join("、")}</p><div className="run-meta"><span>新增来源 {attribution.evidence.added_sources.length}</span><span>移除来源 {attribution.evidence.removed_sources.length}</span><span>方法变化 {attribution.methods.changed.length}</span><span>判断变化 {attribution.judgments.changed.length}</span></div></section> : null}
 
     <details className="advanced-tools">
       <summary>
         <div>
-          <div className="eyebrow">进阶工具</div>
-          <strong>调试与知识查询</strong>
+          <div className="eyebrow">质量验证与高级查询</div>
+          <strong>不影响当前研究结论的附加工具</strong>
         </div>
         <span className="section-meta">不属于研究员默认主链</span>
       </summary>
       <div className="grid">
-        <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级</span><h3>本轮实体关系</h3><p>实例 ER 与 Action 调试面；日常补证/判断请走上方「证据」「判断」场景，不要从这里重新造证据。</p></Link>
+        <Link className="card run-card" href={`/runs/${id}/compare`}><span className="card-arrow">↗</span><span className="eyebrow">质量实验</span><h3>同证据盲评</h3><p>{baseline ? "对照基线已冻结，可比较两种研究流程。" : "证据确认后，可生成不补充外部信息的对照稿。"}</p></Link>
+        <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级查询</span><h3>本轮对象关系</h3><p>核对业务对象与影响路径；日常补证和判断仍使用上方阶段页面。</p></Link>
         <Link className="card run-card" href="/experience"><span className="card-arrow">↗</span><span className="eyebrow">试运行</span><h3>流程体验基线</h3><p>查看真实任务队列与流程体验指标；不用于评价研究员绩效。</p></Link>
       </div>
     </details>
   </>;
 }
 
-function sceneLabel(stage: string) { return ({ stage_01: "范围", stage_02: "结构", stage_03: "证据", stage_04: "判断", stage_05: "交付" } as Record<string, string>)[stage] || stage; }
+function sceneLabel(stage: string) {
+  return researchStageByKind(stage)?.navLabel || stage;
+}
+
+function stageTaskHint(stage: string) {
+  const journey = researchStageByKind(stage);
+  return journey?.confirmation || journey?.output || "完成当前阶段的人工确认";
+}
 
 function formatRelativeTime(value: string) {
   const ts = Date.parse(value);

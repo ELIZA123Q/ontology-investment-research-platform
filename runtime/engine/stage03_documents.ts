@@ -89,7 +89,7 @@ export function projectInstanceManifestYaml(
 /** 原地补齐 Stage03 门禁与双产物字段。 */
 export function ensureStage03DocumentFields(
   data: any,
-  options: { question?: string; taskId?: string; structure?: any } = {},
+  options: { question?: string; taskId?: string; structure?: any; forceProjection?: boolean } = {},
 ): any {
   const next = data && typeof data === "object" ? data : {};
   const drafts = Array.isArray(next.evidence_drafts) ? next.evidence_drafts : [];
@@ -112,39 +112,29 @@ export function ensureStage03DocumentFields(
   next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
   next.semantic_review_status = nonEmpty(next.semantic_review_status, "not_reviewed");
   next.confidence_ceiling = nonEmpty(next.confidence_ceiling, allGap ? "low" : "medium");
-  next.coverage_unit_total = Number.isFinite(Number(next.coverage_unit_total))
-    ? Number(next.coverage_unit_total)
-    : coverageTotal;
-  next.evidence_backed_unit_count = Number.isFinite(Number(next.evidence_backed_unit_count))
-    ? Number(next.evidence_backed_unit_count)
-    : backed;
-  next.evidence_coverage_rate = Number.isFinite(Number(next.evidence_coverage_rate))
-    ? Number(next.evidence_coverage_rate)
-    : Number(rate.toFixed(4));
+  // 覆盖/就绪字段是当前 EvidenceDraft 的确定性投影，不得沿用 gap 底稿或旧补证轮次的缓存值。
+  next.coverage_unit_total = coverageTotal;
+  next.evidence_backed_unit_count = backed;
+  next.evidence_coverage_rate = Number(rate.toFixed(4));
   next.required_coverage_rate = Number.isFinite(Number(next.required_coverage_rate))
     ? Number(next.required_coverage_rate)
     : 0.5;
-  next.critical_node_gate_status = nonEmpty(
-    next.critical_node_gate_status,
-    allGap ? "not_met" : (rate >= next.required_coverage_rate ? "met" : "partial"),
-  );
-  next.judgment_unit_gate_status = nonEmpty(
-    next.judgment_unit_gate_status,
-    allGap ? "insufficient" : (rate >= next.required_coverage_rate ? "met" : "partial"),
-  );
-  next.search_status = nonEmpty(next.search_status, (next.sources || []).length ? "threshold_met" : "source_scarce");
-  next.allowed_05_output = nonEmpty(
-    next.allowed_05_output,
-    allGap ? "gap_report_only" : "full_report",
-  );
-  next.evidence_readiness = nonEmpty(
-    next.evidence_readiness,
-    allGap ? "not_ready" : (rate >= next.required_coverage_rate ? "ready" : "partial"),
-  );
-  next.delivery_readiness = nonEmpty(
-    next.delivery_readiness,
-    next.evidence_readiness === "ready" ? "ready" : "partial",
-  );
+  next.critical_node_gate_status = allGap
+    ? "not_met"
+    : (rate >= next.required_coverage_rate ? "met" : "partial");
+  next.judgment_unit_gate_status = allGap
+    ? "insufficient"
+    : (rate >= next.required_coverage_rate ? "met" : "partial");
+  next.search_status = !(next.sources || []).length
+    ? "source_scarce"
+    : (rate >= next.required_coverage_rate ? "threshold_met" : "in_progress");
+  next.allowed_05_output = allGap
+    ? "gap_report_only"
+    : (rate >= next.required_coverage_rate ? "full_report" : "bounded_report");
+  next.evidence_readiness = allGap
+    ? "not_ready"
+    : (rate >= next.required_coverage_rate ? "ready" : "partial");
+  next.delivery_readiness = next.evidence_readiness === "ready" ? "ready" : "partial";
   next.snapshot_ref = nonEmpty(next.snapshot_ref, "03-证据快照摘要.yaml");
   // 缺口可带边界确认（gap_report_only）；仅当显式要求返工时才置 return_required。
   next.quality_status = nonEmpty(next.quality_status, "minimum_pass");
@@ -173,9 +163,26 @@ export function ensureStage03DocumentFields(
 
   ensureEvidenceCompressionFields(next, options.structure);
 
+  const gateStatus = String(next?.evidence_quality_gate?.quality_status || "");
+  if (next?.evidence_quality_gate?.passed === false || gateStatus === "return_required") {
+    next.evidence_readiness = "not_ready";
+    next.delivery_readiness = "not_ready";
+    next.allowed_05_output = Number(next?.evidence_quality_gate?.total_evidence || 0) > 0
+      ? "bounded_report"
+      : "gap_report_only";
+  } else if (gateStatus === "minimum_pass") {
+    next.evidence_readiness = "partial";
+    next.delivery_readiness = "partial";
+    next.allowed_05_output = "bounded_report";
+  } else if (gateStatus === "high_quality_pass") {
+    next.evidence_readiness = "ready";
+    next.delivery_readiness = "ready";
+    next.allowed_05_output = "full_report";
+  }
+
   const prep = nonEmpty(next.preparation_markdown, nonEmpty(next.document_markdown));
   if (prep) next.preparation_markdown = prep;
-  if (!nonEmpty(next.instance_manifest_yaml)) {
+  if (options.forceProjection || !nonEmpty(next.instance_manifest_yaml)) {
     next.instance_manifest_yaml = projectInstanceManifestYaml(next, options);
   }
   if (nonEmpty(next.preparation_markdown)) {
@@ -293,10 +300,33 @@ export function ensureEvidenceCompressionFields(data: any, structure?: any): voi
     ]),
   ];
 
-  if (!Array.isArray(data.evidence_summaries) || data.evidence_summaries.length === 0) {
-    const nonGap = drafts.filter((d: any) => String(d?.kind) !== "gap");
-    data.evidence_summaries = nonGap.slice(0, 12).map((d: any, index: number) => ({
-      id: `ESUM-${String(index + 1).padStart(2, "0")}`,
+  const nonGap = drafts.filter((d: any) => String(d?.kind) !== "gap");
+  const nonGapIds = new Set(nonGap.map((draft: any) => String(draft?.id || "")).filter(Boolean));
+  const existingSummaries = Array.isArray(data.evidence_summaries) ? data.evidence_summaries : [];
+  const validSummaries = existingSummaries.filter((summary: any) => {
+    const refs = asList(summary?.evidence_draft_ids);
+    return refs.length > 0 && refs.every((ref) => nonGapIds.has(ref));
+  }).map((summary: any) => ({
+    ...summary,
+    evidence_draft_ids: asList(summary?.evidence_draft_ids),
+  }));
+  const summarizedEvidenceIds = new Set(
+    validSummaries.flatMap((summary: any) => asList(summary?.evidence_draft_ids)),
+  );
+  const occupiedSummaryIds = new Set(validSummaries.map((summary: any) => String(summary?.id || "")).filter(Boolean));
+  const addedSummaries = nonGap
+    .filter((draft: any) => !summarizedEvidenceIds.has(String(draft?.id || "")))
+    .slice(0, Math.max(0, 24 - validSummaries.length))
+    .map((d: any, index: number) => {
+      let id = `ESUM-AUTO-${String(index + 1).padStart(2, "0")}`;
+      let suffix = 2;
+      while (occupiedSummaryIds.has(id)) {
+        id = `ESUM-AUTO-${String(index + 1).padStart(2, "0")}-${suffix}`;
+        suffix += 1;
+      }
+      occupiedSummaryIds.add(id);
+      return {
+      id,
       title: nonEmpty(d?.statement, `证据摘要 ${index + 1}`).slice(0, 80),
       summary_kind: String(d?.kind) === "counter" ? "comparison" : "other",
       metric_refs: [],
@@ -305,11 +335,15 @@ export function ensureEvidenceCompressionFields(data: any, structure?: any): voi
       numeric_values: [],
       evidence_draft_ids: [nonEmpty(d?.id)].filter(Boolean),
       limitations: asList(d?.limitations),
-    }));
-  }
+    };
+    });
+  data.evidence_summaries = [...validSummaries, ...addedSummaries];
 
-  if (!Array.isArray(data.evidence_bundles) || data.evidence_bundles.length === 0) {
-    data.evidence_bundles = unitIds.map((unitId) => {
+  const priorBundles = new Map<string, any>(
+    (Array.isArray(data.evidence_bundles) ? data.evidence_bundles : [])
+      .map((bundle: any) => [String(bundle?.judgment_unit_id || ""), bundle]),
+  );
+  data.evidence_bundles = unitIds.map((unitId) => {
       const related = drafts.filter((d: any) => asList(d?.judgment_unit_ids).includes(unitId));
       const support = related.filter((d: any) => {
         const kind = String(d?.kind);
@@ -331,10 +365,9 @@ export function ensureEvidenceCompressionFields(data: any, structure?: any): voi
         gap_ids: gaps.map((d: any) => String(d.id)),
         summary_ids: summaryIds,
         readiness,
-        notes: [],
+        notes: asList(priorBundles.get(unitId)?.notes),
       };
     });
-  }
 }
 
 /** 陈述中的数字是否出现在 quote 或 summary.numeric_values。
@@ -440,11 +473,11 @@ export function collectStage03ConsistencyIssues(data: any): Stage03ConsistencyIs
     issues.push(...collectNumericGroundingWarnings(data));
   }
   const mcpUsage = data?.mcp_channel_usage;
-  if (nonGapCount > 0 && (!mcpUsage || Number(mcpUsage.mcp_evidence_calls || 0) <= 0)) {
+  if (nonGapCount > 0 && !mcpUsage) {
     issues.push({
-      severity: "error",
-      code: "mcp_channel_missing",
-      message: "确认前须至少调用一手 MCP 通道，或将全部非核验主张改为 gap",
+      severity: "warning",
+      code: "acquisition_telemetry_missing",
+      message: "缺少来源取得通道留痕；这不改变来源本身的权威性，但会降低运行回放完整度",
     });
   }
   issues.push(...applyHighQualityGate(collectStage03HighQualityIssues(data), quality));
@@ -489,12 +522,21 @@ export function recomputeStage03EvidenceQualityGate(
     next.quality_status = "return_required";
     next.return_required = true;
     next.deterministic_check_status = "not_checked";
-  } else if (
-    evidenceQuality.qualityStatus === "minimum_pass"
-    && String(next.quality_status || "") === "high_quality_pass"
-  ) {
-    next.quality_status = "minimum_pass";
-    next.deterministic_check_status = "not_checked";
+    next.evidence_readiness = "not_ready";
+    next.delivery_readiness = "not_ready";
+    next.allowed_05_output = evidenceQuality.totalEvidence > 0 ? "bounded_report" : "gap_report_only";
+  } else if (evidenceQuality.qualityStatus === "minimum_pass") {
+    if (String(next.quality_status || "") === "high_quality_pass") {
+      next.quality_status = "minimum_pass";
+      next.deterministic_check_status = "not_checked";
+    }
+    next.evidence_readiness = "partial";
+    next.delivery_readiness = "partial";
+    next.allowed_05_output = "bounded_report";
+  } else if (evidenceQuality.qualityStatus === "high_quality_pass") {
+    next.evidence_readiness = "ready";
+    next.delivery_readiness = "ready";
+    next.allowed_05_output = "full_report";
   }
   return next;
 }

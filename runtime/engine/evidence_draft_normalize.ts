@@ -45,6 +45,9 @@ const AUTHORITY_TYPES = new Set([
 ]);
 
 const SOURCE_TIERS = new Set(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]);
+const METHOD_STATUSES = new Set(["candidate", "selected", "executed", "rejected", "blocked", "degraded"]);
+const EVIDENCE_DIRECTIONS = new Set(["support", "weaken", "neutral", "unknown"]);
+const EVIDENCE_DIRECTNESS = new Set(["direct", "indirect", "proxy"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -100,6 +103,15 @@ export function normalizeMethodApplicationNulls(item: unknown): unknown {
       provenance.stage = "stage_03";
     }
     next.provenance = provenance;
+  }
+  if (!METHOD_STATUSES.has(String(next.status || ""))) {
+    const hasEvidence = Array.isArray(next.input_evidence_refs) && next.input_evidence_refs.length > 0;
+    next.status = next.capability_type === "evidence"
+      ? hasEvidence ? "degraded" : "blocked"
+      : "candidate";
+    const limitations = Array.isArray(next.limitations) ? next.limitations.map(String).filter(Boolean) : [];
+    limitations.push("模型返回了未登记的方法执行状态；Runtime 已按证据可用性保守降级");
+    next.limitations = [...new Set(limitations)];
   }
   return next;
 }
@@ -225,12 +237,29 @@ export function normalizeEvidenceDraftNulls(item: unknown): unknown {
     next.limitations = [...new Set(limitations)];
     next.semiconductor_measurement = null;
   } else {
+    next.direction = coerceEvidenceDirection(next.direction);
+    if (!EVIDENCE_DIRECTNESS.has(String(next.directness || ""))) {
+      next.directness = "proxy";
+      const limitations = Array.isArray(next.limitations) ? next.limitations.map(String).filter(Boolean) : [];
+      limitations.push("模型未提供有效 directness；Runtime 保守标记为 proxy");
+      next.limitations = [...new Set(limitations)];
+    }
+    if (next.valid_to === undefined) next.valid_to = null;
     next.semiconductor_measurement = normalizeSemiconductorMeasurement(
       next.semiconductor_measurement,
       String(next.statement || ""),
     );
   }
   return next;
+}
+
+function coerceEvidenceDirection(raw: unknown): string {
+  const text = String(raw || "").trim().toLowerCase();
+  if (EVIDENCE_DIRECTIONS.has(text)) return text;
+  if (/support|confirm|positive|up|支持|证实|正向/.test(text)) return "support";
+  if (/weaken|contradict|negative|down|反证|削弱|负向/.test(text)) return "weaken";
+  if (/neutral|context|中性|背景/.test(text)) return "neutral";
+  return "unknown";
 }
 
 function coerceMetricKind(raw: unknown, hintText: string): "capacity" | "yield" | null {
@@ -250,7 +279,16 @@ function normalizeSemiconductorMeasurement(value: unknown, hintText: string): un
   if (!isPlainObject(value)) return null;
   const kind = coerceMetricKind(value.metric_kind, hintText);
   if (!kind) return null;
-  return { ...value, metric_kind: kind };
+  return {
+    ...value,
+    metric_kind: kind,
+    facility_ref: value.facility_ref == null ? null : String(value.facility_ref),
+    wafer_size: value.wafer_size == null ? null : String(value.wafer_size),
+    process_or_product_ref: value.process_or_product_ref == null ? null : String(value.process_or_product_ref),
+    batch_stage: value.batch_stage == null ? null : String(value.batch_stage),
+    unit: value.unit == null ? null : String(value.unit),
+    business_time_basis: value.business_time_basis == null ? null : String(value.business_time_basis),
+  };
 }
 
 export function normalizeEvidencePreparationNulls(data: unknown): unknown {
@@ -307,6 +345,98 @@ export function dropIncompleteSources(data: any): any {
   ];
 
   return { ...data, sources: kept, evidence_drafts, unresolved_gaps: unresolved };
+}
+
+/**
+ * 抓取前真实性闸门：
+ * - 非 gap 必须至少绑定一个仍存在的完整候选来源；
+ * - 对有完整来源但缺少纯契约型时态/范围元数据的草稿，使用来源发布日期作为透明 proxy，
+ *   并写入 limitation；不把 proxy 当成事件发生时间；
+ * - 没有完整来源时直接降为 gap，绝不让模型内生知识进入事实层。
+ */
+export function prepareEvidenceForSourceCapture(data: any): any {
+  if (!data || typeof data !== "object" || !Array.isArray(data.evidence_drafts) || !Array.isArray(data.sources)) {
+    return data;
+  }
+  const sourceByKey = new Map<string, any>(
+    data.sources
+      .filter(isCompleteSourceDraft)
+      .map((source: any) => [String(source.source_key), source]),
+  );
+  const demotedIds: string[] = [];
+  const evidence_drafts = data.evidence_drafts.map((draft: any) => {
+    if (!draft || typeof draft !== "object" || draft.kind === "gap") return draft;
+    const priorKeys = Array.isArray(draft.source_keys) ? draft.source_keys.map(String).filter(Boolean) : [];
+    const sourceKeys = priorKeys.filter((key: string) => sourceByKey.has(key));
+    if (!sourceKeys.length) {
+      demotedIds.push(String(draft.id || ""));
+      return normalizeEvidenceDraftNulls({
+        ...draft,
+        kind: "gap",
+        direction: "unknown",
+        source_keys: [],
+        source_ids: [],
+        requirement: nonEmpty(draft.requirement)
+          ? draft.requirement
+          : nonEmpty(draft.statement)
+            ? `取得可定位、可逐字核验的公开正文以支撑：${String(draft.statement).slice(0, 120)}`
+            : `为 ${String(draft.id || "该证据候选")} 补充明确主张与可核验公开正文`,
+        evidence_role: ["support", "counter", "context", "boundary"].includes(String(draft.evidence_role || ""))
+          ? draft.evidence_role
+          : coerceEvidenceDirection(draft.direction) === "weaken" ? "counter" : "support",
+        limitations: [
+          ...(Array.isArray(draft.limitations) ? draft.limitations.map(String).filter(Boolean) : []),
+          priorKeys.length
+            ? `绑定来源 ${priorKeys.join(", ")} 不存在或不满足候选来源完整性合同，抓取前已降为 gap`
+            : "未绑定完整候选来源，抓取前已降为 gap；模型内生知识不得作为事实",
+        ],
+      });
+    }
+
+    const firstSource = sourceByKey.get(sourceKeys[0]);
+    const publishedAt = nonEmpty(draft.published_at)
+      ? String(draft.published_at)
+      : String(firstSource?.published_at || "");
+    const observedAt = nonEmpty(draft.observed_at) ? String(draft.observed_at) : publishedAt;
+    const limitations = Array.isArray(draft.limitations) ? draft.limitations.map(String).filter(Boolean) : [];
+    const proxyFields: string[] = [];
+    if (!nonEmpty(draft.published_at)) proxyFields.push("published_at");
+    if (!nonEmpty(draft.observed_at)) proxyFields.push("observed_at");
+    if (!nonEmpty(draft.valid_from)) proxyFields.push("valid_from");
+    if (!nonEmpty(draft.cutoff_at)) proxyFields.push("cutoff_at");
+    if (!nonEmpty(draft.time_basis)) proxyFields.push("time_basis");
+    if (proxyFields.length) {
+      limitations.push(
+        `缺少 ${proxyFields.join("/")}；Runtime 暂以来源发布日期作 publication-date proxy，不能替代事件发生时间`,
+      );
+    }
+    return normalizeEvidenceDraftNulls({
+      ...draft,
+      source_keys: sourceKeys,
+      ontology_node_ids: Array.isArray(draft.ontology_node_ids) ? draft.ontology_node_ids : [],
+      subject_ref: nonEmpty(draft.subject_ref)
+        ? draft.subject_ref
+        : String((draft.ontology_node_ids || [])[0] || (draft.judgment_unit_ids || [])[0] || ""),
+      scope_ref: nonEmpty(draft.scope_ref)
+        ? draft.scope_ref
+        : String((draft.judgment_unit_ids || [])[0] || ""),
+      published_at: publishedAt,
+      observed_at: observedAt,
+      valid_from: nonEmpty(draft.valid_from) ? draft.valid_from : observedAt,
+      valid_to: draft.valid_to == null ? null : String(draft.valid_to),
+      cutoff_at: nonEmpty(draft.cutoff_at) ? draft.cutoff_at : publishedAt,
+      time_basis: nonEmpty(draft.time_basis) ? draft.time_basis : `publication_date_proxy:${publishedAt}`,
+      limitations: [...new Set(limitations)],
+    });
+  });
+  if (!demotedIds.length) return { ...data, evidence_drafts };
+  const unresolved_gaps = [
+    ...new Set([
+      ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
+      ...demotedIds.filter(Boolean).map((id) => `${id}: 抓取前无完整候选来源，已降为显式缺口`),
+    ]),
+  ];
+  return { ...data, evidence_drafts, unresolved_gaps };
 }
 
 /**

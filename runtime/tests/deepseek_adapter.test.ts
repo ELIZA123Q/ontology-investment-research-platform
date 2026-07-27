@@ -3,7 +3,12 @@ import { z } from "zod";
 
 vi.mock("server-only", () => ({}));
 
-import { accumulateTokenUsage, parseDirectJson, resolveMaxToolRounds } from "@/adapters/deepseek";
+import {
+  accumulateTokenUsage,
+  parseDirectJson,
+  resolveMaxToolRounds,
+  shouldForceEvidenceAcquisition,
+} from "@/adapters/deepseek";
 
 describe("DeepSeek structured-output recovery", () => {
   const schema = z.object({ decision: z.enum(["supported", "indeterminate"]), evidence_ids: z.array(z.string()) });
@@ -59,6 +64,22 @@ describe("DeepSeek structured-output recovery", () => {
       { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
       { input_tokens: 80, output_tokens: 10, total_tokens: 90 },
     )).toEqual({ prompt_tokens: 180, completion_tokens: 30, total_tokens: 210 });
+  });
+
+  it("forces one auditable acquisition call before evidence submission", () => {
+    expect(shouldForceEvidenceAcquisition({ requireEvidenceAcquisition: true }, [])).toBe(true);
+    expect(shouldForceEvidenceAcquisition(
+      { requireEvidenceAcquisition: true },
+      [{ name: "query_object_set" }],
+    )).toBe(true);
+    expect(shouldForceEvidenceAcquisition(
+      { requireEvidenceAcquisition: true },
+      [{ name: "search_public_web" }],
+    )).toBe(false);
+    expect(shouldForceEvidenceAcquisition(
+      { requireEvidenceAcquisition: false },
+      [],
+    )).toBe(false);
   });
 
   it("records onProgress-shaped events into heartbeat payloads", async () => {

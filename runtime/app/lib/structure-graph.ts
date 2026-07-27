@@ -181,9 +181,13 @@ export function summarizeResearchScope(raw: unknown): StructureScopeSummary {
     : {};
   const dimensions = Object.entries(dimensionsRaw).map(([key, value]) => ({
     key,
-    value: typeof value === "string" || typeof value === "number" || typeof value === "boolean"
-      ? String(value)
-      : JSON.stringify(value),
+    value: Array.isArray(value)
+      ? value.map(String).join("、")
+      : typeof value === "string" || typeof value === "number" || typeof value === "boolean"
+        ? String(value)
+        : value && typeof value === "object"
+          ? Object.entries(value as Record<string, unknown>).map(([name, item]) => `${scopeDimensionKeyLabel(name)}：${String(item)}`).join("；")
+          : "未填写",
   }));
   return { id: id || "SCOPE", label: label || id, dimensions };
 }

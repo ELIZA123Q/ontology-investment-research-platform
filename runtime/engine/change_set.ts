@@ -214,6 +214,7 @@ export type Stage03Patch = {
   affected_object_refs: string[];
   upserts: Record<string, unknown[]>;
   removals?: Record<string, string[]>;
+  revision_summary?: string;
 };
 
 export function normalizeStage03Patch(patch: Stage03Patch): Stage03Patch {

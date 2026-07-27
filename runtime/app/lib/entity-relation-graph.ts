@@ -12,6 +12,9 @@ const PROCESS_TYPES = new Set([
   "CompetingExplanation",
   "RuleEvaluation",
   "ReasoningTrace",
+  "MethodApplication",
+  "ResearchScope",
+  "ResearchPath",
 ]);
 
 function toneForType(type: string): ResearchGraphNode["tone"] {

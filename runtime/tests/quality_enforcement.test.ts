@@ -22,8 +22,10 @@ describe("quality enforcement acceptance", () => {
       { quality_status: "high_quality_pass", deterministic_check_status: "checked" },
       {
         status: "fail",
-        checks: [{ id: "has_judgment_value", pass: false, evidence_span: "", note: "无认知差" }],
+        checks: [{ id: "has_judgment_value", pass: false, score: 0, evidence_span: "", note: "无认知差" }],
         retry_count: 1,
+        total_score: 0,
+        pass_threshold: 16,
         mode: "heuristic",
       },
     );
@@ -99,6 +101,53 @@ describe("quality enforcement acceptance", () => {
     expect(codes).toContain("stop_condition_vague");
     expect(codes).toContain("counter_evidence_directions_thin");
     expect(codes).toContain("counter_evidence_role_missing");
+    expect(codes).toContain("competing_explanation_unit_coverage");
+    expect(codes).toContain("counter_direction_unit_coverage");
+    expect(codes).toContain("counter_requirement_unit_coverage");
+  });
+
+  it("stage02 treats per-unit minimum validation conditions as research stop conditions", () => {
+    const logic = [
+      "# 研究逻辑",
+      "选用供需框架并按产品线裁剪，关键单元优先。",
+      "## 最低验证条件",
+      "每个判断单元达到两类独立来源并覆盖主证、反证后停止扩展材料。",
+    ].join("\n").padEnd(820, "机制、边界与区分信号。");
+    const unitIds = ["JU-1", "JU-2"];
+    const issues = collectStage02HighQualityIssues({
+      research_logic_markdown: logic,
+      document_markdown: logic,
+      judgment_spine: "区分 HBM 与通用 DRAM 的需求拉动和供给挤占机制",
+      judgment_units: unitIds.map((id) => ({
+        id,
+        title: id === "JU-1" ? "HBM" : "通用DRAM",
+        question: "未来六个月是否改善",
+      })),
+      competing_explanations: unitIds.map((id) => ({
+        explanation_id: `CE-${id}`,
+        statement: "改善可能只是一次性补库而非终端真实消耗",
+        judgment_unit_ids: [id],
+        discriminating_evidence: ["终端消耗与渠道库存的多期对照"],
+      })),
+      counter_evidence_directions: unitIds.map((id) => ({
+        id: `CD-${id}`,
+        statement: "需求下修且库存重新累积",
+        judgment_unit_ids: [id],
+      })),
+      evidence_requirements: unitIds.flatMap((id) => [
+        { id: `ER-${id}-S`, requirement: "价格与库存序列", evidence_role: "support", judgment_unit_ids: [id] },
+        { id: `ER-${id}-C`, requirement: "需求下修与库存累积", evidence_role: "counter", judgment_unit_ids: [id] },
+      ]),
+      method_applications: [
+        { capability_type: "judgment_structure", method_id: "BF-SD-01" },
+        { capability_type: "evidence", method_id: "kb03:A03" },
+        { capability_type: "adjudication", method_id: "kb04:A03" },
+      ],
+      research_scope: { label: "存储周期 HBM/通用DRAM" },
+      quality_status: "high_quality_pass",
+      deterministic_check_status: "checked",
+    });
+    expect(issues.some((item) => item.code === "stop_condition_section_missing")).toBe(false);
   });
 
   it("01–04 knowledge injects 00A card and key appendices", () => {

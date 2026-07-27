@@ -54,7 +54,7 @@ function demoteExecutedWithoutEvidence(application: Record<string, unknown>): Re
   let alternatives = normalizeAlternatives(application.alternatives, methodId);
   const refs = Array.isArray(application.input_evidence_refs) ? application.input_evidence_refs : [];
   const status = String(application.status || "");
-  const provenance = isPlainObject(application.provenance) ? { ...application.provenance } : {
+  const provenance: Record<string, unknown> = isPlainObject(application.provenance) ? { ...application.provenance } : {
     stage: "stage_04",
     source_application_id: application.application_id || null,
     actor: "model",

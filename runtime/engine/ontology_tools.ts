@@ -36,6 +36,20 @@ import {
 } from "./instance_graph";
 import { parseJson, type StoredActionExecution } from "./types";
 
+export const ONTOLOGY_PROMPT_SOURCE_FILES = [
+  "ontology/01_通用/models/semantic.yaml",
+  "ontology/01_通用/models/judgment.yaml",
+  "ontology/01_通用/models/evidence.yaml",
+  "ontology/01_通用/models/state_event.yaml",
+  "ontology/01_通用/models/scenario.yaml",
+  "ontology/01_通用/models/semiconductor_extension.yaml",
+  "ontology/02_领域/semiconductor/business_instances.yaml",
+] as const;
+
+export function ontologyPromptSourceFiles(): string[] {
+  return [...ONTOLOGY_PROMPT_SOURCE_FILES];
+}
+
 export type OntologyToolName = "query_object_set" | "call_function" | "propose_action";
 
 export const ontologyToolDefinitions = [
@@ -274,11 +288,11 @@ export function ontologyDefinitionSummary(): string {
   const lines: string[] = ["# 本体定义摘要（对象类型、关系类型、规则）"];
 
   const modelFiles = [
-    { path: "ontology/01_通用/models/semantic.yaml", label: "语义模型" },
-    { path: "ontology/01_通用/models/judgment.yaml", label: "判断模型" },
-    { path: "ontology/01_通用/models/evidence.yaml", label: "证据模型" },
-    { path: "ontology/01_通用/models/state_event.yaml", label: "状态事件模型" },
-    { path: "ontology/01_通用/models/scenario.yaml", label: "场景模型" },
+    { path: ONTOLOGY_PROMPT_SOURCE_FILES[0], label: "语义模型" },
+    { path: ONTOLOGY_PROMPT_SOURCE_FILES[1], label: "判断模型" },
+    { path: ONTOLOGY_PROMPT_SOURCE_FILES[2], label: "证据模型" },
+    { path: ONTOLOGY_PROMPT_SOURCE_FILES[3], label: "状态事件模型" },
+    { path: ONTOLOGY_PROMPT_SOURCE_FILES[4], label: "场景模型" },
   ];
 
   for (const { path, label } of modelFiles) {
@@ -338,7 +352,7 @@ export function ontologyDefinitionSummary(): string {
 
   // 加载半导体扩展
   try {
-    const extPath = repositoryPath("ontology/01_通用/models/semiconductor_extension.yaml");
+    const extPath = repositoryPath(ONTOLOGY_PROMPT_SOURCE_FILES[5]);
     const extContent = readFileSync(extPath, "utf8");
     const extParsed = YAML.parse(extContent) as any;
     if (extParsed) {

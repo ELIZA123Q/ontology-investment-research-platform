@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildSemanticRoute, CONTEXT_SLOT_BUDGETS } from "@/engine/context_assembler";
+import {
+  buildSemanticRoute,
+  CONTEXT_SLOT_BUDGETS,
+  loadRoutedKnowledge,
+} from "@/engine/context_assembler";
 import { compactStage03ForUpstream } from "@/engine/workflow_support";
 import { ensureEvidenceCompressionFields, collectNumericGroundingWarnings } from "@/engine/stage03_documents";
 
@@ -26,6 +30,20 @@ describe("context_assembler", () => {
     expect(route.ontology_node_ids).toEqual(expect.arrayContaining(["SV-inventory", "task_local:V-1"]));
     expect(route.competing_explanation_ids).toEqual(["CE-1"]);
     expect(CONTEXT_SLOT_BUDGETS.ontology).toBeGreaterThan(1000);
+  });
+
+  it("keeps content after a standard file's first H2 when the context is budgeted", () => {
+    const routed = loadRoutedKnowledge("stage_05", {
+      deliveryArchetype: "industry_cycle_report",
+      maxTotalChars: 5_000,
+    });
+    expect(routed.context).toContain("## workflow/stages/05_表达/05_投研表达与交付规范.md");
+    expect(routed.context).toContain("## 研究员先看什么");
+    expect(routed.context).toContain("05 回答：");
+    expect(routed.context).toContain("## 9. 质量门槛与返工规则");
+    expect(routed.files).toContain("workflow/stages/05_表达/05_投研表达与交付规范.md");
+    expect(routed.stats.loaded).toBe(routed.files.length);
+    expect(routed.stats.omitted_by_budget).toBeGreaterThan(0);
   });
 });
 

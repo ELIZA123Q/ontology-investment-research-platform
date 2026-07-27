@@ -65,7 +65,7 @@ export function prioritizeEvidenceGaps(input: {
         + (item.evidence_role === "counter" ? 6 : item.evidence_role === "support" ? 5 : 0);
       const statusNote = unresolved ? "尚未完成审阅" : "审阅虽已结束，但证据约束仍然存在";
       const reason = tier === "blocking"
-        ? `${statusNote}；它直接对应 ${unitCount} 个判断单元，补证前相关结论必须维持 J0。`
+        ? `${statusNote}；它直接对应 ${unitCount} 个判断单元，补证前相关结论必须保持暂不可判断。`
         : tier === "limiting"
           ? `${statusNote}；该冲突会限制结论强度，需要保留争议边界。`
           : `${statusNote}；它暂未绑定具体判断单元，可在主判断之后补充。`;
@@ -124,7 +124,7 @@ export function buildEvidenceReviewSuggestions(input: {
 
     if (draft.kind === "gap") {
       const note = padNote(
-        `接受当前证据缺口：${draft.requirement || draft.statement}；结论须维持 J0，不得外推为已证实事实。`,
+        `接受当前证据缺口：${draft.requirement || draft.statement}；结论须保持暂不可判断，不得外推为已证实事实。`,
       );
       return {
         evidence_id: draft.id,

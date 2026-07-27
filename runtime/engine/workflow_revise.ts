@@ -79,7 +79,19 @@ type StructureContractView = {
     evidence_requirements: string[];
   }>;
   counter_evidence_directions: Array<{ direction_id: string; statement: string; judgment_unit_ids: string[] }>;
-  competing_explanations: Array<{ explanation_id: string; statement: string; judgment_unit_ids: string[] }>;
+  competing_explanations: Array<{
+    explanation_id: string;
+    statement: string;
+    judgment_unit_ids: string[];
+    discriminating_evidence: string[];
+  }>;
+  evidence_requirement_registry?: Array<{
+    id: string;
+    requirement: string;
+    evidence_role: string;
+    minimum_independent_sources: number;
+    judgment_unit_ids: string[];
+  }>;
 };
 
 function structureFromArtifact(artifact: Artifact | undefined): StructureContractView {
@@ -99,6 +111,17 @@ function structureFromArtifact(artifact: Artifact | undefined): StructureContrac
     units,
     counter_evidence_directions: normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds }),
     competing_explanations: normalizeCompetingExplanations(data.competing_explanations, { unitIds }),
+    evidence_requirement_registry: Array.isArray(data.evidence_requirements)
+      ? data.evidence_requirements.map((item: any) => ({
+        id: String(item.id || ""),
+        requirement: String(item.requirement || ""),
+        evidence_role: String(item.evidence_role || ""),
+        minimum_independent_sources: Number(item.minimum_independent_sources || 0),
+        judgment_unit_ids: Array.isArray(item.judgment_unit_ids)
+          ? item.judgment_unit_ids.map(String)
+          : [],
+      }))
+      : [],
   };
 }
 
@@ -115,6 +138,9 @@ export function heuristicStructureIssues(structure: StructureContractView | {
     units: structure.units,
     counter_evidence_directions: normalizeCounterEvidenceDirections(structure.counter_evidence_directions, { unitIds: [...unitIds] }),
     competing_explanations: normalizeCompetingExplanations(structure.competing_explanations, { unitIds: [...unitIds] }),
+    evidence_requirement_registry: "evidence_requirement_registry" in structure
+      ? structure.evidence_requirement_registry
+      : [],
   };
   const issues: StructureValidationResult["issues"] = [];
   for (const unit of normalized.units) {
@@ -170,6 +196,43 @@ export function heuristicStructureIssues(structure: StructureContractView | {
   }
   void scope;
   return issues;
+}
+
+function allUnitEvidenceRefsResolve(structure: StructureContractView): boolean {
+  const registry = new Map(
+    (structure.evidence_requirement_registry || [])
+      .filter((item) => item.id && item.requirement.trim())
+      .map((item) => [item.id, item]),
+  );
+  return structure.units.every((unit) =>
+    unit.evidence_requirements.length > 0
+    && unit.evidence_requirements.every((ref) => registry.has(ref)),
+  );
+}
+
+/**
+ * 模型校验意见必须服从 Runtime 正式合同，不能反过来要求不存在的字段。
+ * 只过滤可由当前结构确定性证明为假的意见；真实的语义/边界问题仍保留。
+ */
+export function structureValidationIssueConflictsWithContract(
+  issue: StructureValidationResult["issues"][number],
+  structure: StructureContractView,
+): boolean {
+  const code = String(issue.code || "");
+  const message = String(issue.message || "");
+  if (
+    /EVIDENCE_REQUIREMENTS_PLACEHOLDER/i.test(code)
+    && allUnitEvidenceRefsResolve(structure)
+  ) return true;
+  if (
+    /COUNTER_EVIDENCE_MISSING_REQUIRED_FIELDS/i.test(code)
+    && /(?:explanation_id|discriminating_evidence|(?:^|[^_])id)/i.test(message)
+  ) return true;
+  if (
+    /COMPETING_EXPLANATIONS_MISSING_REQUIRED_FIELDS/i.test(code)
+    && /direction_id/i.test(message)
+  ) return true;
+  return false;
 }
 
 export type ReviseRunStageResult =
@@ -650,6 +713,10 @@ export async function validateStage02ForApproval(
       [
         "你是投研工作台的研究结构确认前校验器。检查当前 Stage02 是否可进入 Stage03。",
         "必须检查：1) 每个单元标题、原子问题、judgment_type 是否一致；2) 是否越出 Stage01 对象/动作/边界；3) 必要证据是否可执行并与问题匹配；4) 反向证据与竞争解释是否空洞或与单元矛盾。",
+        "正式引用合同：units[].evidence_requirements 存放 EvidenceRequirement ID，必须到 current_structure.evidence_requirement_registry 按 id 解析；只要引用可解析且 requirement 具体，就不是占位符。",
+        "正式字段合同：counter_evidence_directions 只要求 direction_id、statement、judgment_unit_ids；不要求 id、explanation_id 或 discriminating_evidence。",
+        "正式字段合同：competing_explanations 只要求 explanation_id、statement、judgment_unit_ids、discriminating_evidence；不要求 id 或 direction_id。",
+        "不得把正式合同未定义的字段当成必填项；suggested_patch 也必须严格服从上述合同。",
         "若存在 error 级问题，ok 必须为 false，并给出可直接落库的 suggested_patch（完整合同字段）。",
         "若仅有轻微 warning 且结构可用，ok 可为 true，suggested_patch 可为 null。",
         "issues.message 使用简洁中文。不要编造证据事实。",
@@ -669,6 +736,18 @@ export async function validateStage02ForApproval(
       }, null, 2),
     );
     result = modelResult.data;
+  }
+
+  const filteredContractNoise = result.issues.filter((issue) =>
+    structureValidationIssueConflictsWithContract(issue, structure));
+  if (filteredContractNoise.length) {
+    result.issues = result.issues.filter((issue) =>
+      !structureValidationIssueConflictsWithContract(issue, structure));
+    if (!result.issues.some((issue) => issue.severity === "error")) {
+      result.ok = true;
+      result.suggested_patch = null;
+      result.summary = `${result.summary}；已由 Runtime 过滤 ${filteredContractNoise.length} 条与正式字段/引用合同冲突的校验噪声`;
+    }
   }
 
   // Merge heuristic errors the model might have missed.

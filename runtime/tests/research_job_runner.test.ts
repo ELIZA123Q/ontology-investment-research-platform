@@ -88,7 +88,7 @@ describe("replayable research job runner", () => {
     });
   });
 
-  it("keeps an over-budget artifact out of human review", async () => {
+  it("keeps an already-paid over-budget artifact reviewable with a budget warning", async () => {
     const now = new Date().toISOString();
     const queued = store.enqueue({
       runId: "run-worker",
@@ -108,8 +108,12 @@ describe("replayable research job runner", () => {
       return { ...artifact, token_usage: JSON.stringify({ total_tokens: 101 }) };
     });
 
-    expect(result).toMatchObject({ id: queued.id, status: "waiting_for_input" });
-    expect(JSON.parse(result!.result_json).reason).toContain("JOB_BUDGET_EXCEEDED");
+    expect(result).toMatchObject({ id: queued.id, status: "waiting_for_review" });
+    expect(JSON.parse(result!.result_json)).toMatchObject({
+      failure_category: "budget_exceeded",
+      artifact_id: artifact.id,
+    });
+    expect(JSON.parse(result!.result_json).budget_warning).toContain("JOB_BUDGET_EXCEEDED");
   });
 
   it("fences a hung execution when the job hard timeout is reached", async () => {

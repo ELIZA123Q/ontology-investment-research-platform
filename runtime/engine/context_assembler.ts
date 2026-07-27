@@ -5,18 +5,23 @@
  */
 
 import { createHash } from "node:crypto";
-import { loadKnowledge, type LoadKnowledgeOptions } from "./knowledge";
+import {
+  loadKnowledge,
+  prioritizeKnowledgeContent,
+  type LoadKnowledgeOptions,
+} from "./knowledge";
 import type { ArtifactKind, StageKind } from "./types";
 
 /** 各槽位默认字符预算（近似 token 控制）。
- *  A2修复：ontology 从 12K 提升到 36K（+24K），从 upstream_json_soft 减 24K 平衡。
- *  实例图摘要 + 本体定义摘要需要更多空间；upstream JSON 可通过 clipUpstreamJsonSoft 进一步压缩。
+ *  标准、方法正文与上游结构化产物分槽限额；同一方法正文不得同时从
+ *  knowledge 与 method_guidance 重复进入。预算目标是保留决胜规则和研究材料，
+ *  而不是把整个仓库塞给模型后依赖注意力碰运气。
  */
 export const CONTEXT_SLOT_BUDGETS = {
-  knowledge: 144_000,
-  ontology: 36_000,
-  method_guidance: 128_000,
-  upstream_json_soft: 96_000,
+  knowledge: 96_000,
+  ontology: 28_000,
+  method_guidance: 56_000,
+  upstream_json_soft: 72_000,
   sources_snapshot: 12_000,
 } as const;
 
@@ -43,6 +48,7 @@ export type AssembledStageContext = {
     files_total: number;
     files_loaded: number;
     files_missing: number;
+    files_omitted_by_budget: number;
     missing_list: string[];
   };
 };
@@ -95,7 +101,7 @@ function clip(text: string, budget: number): string {
  */
 export function clipUpstreamJsonSoft<T>(
   upstream: T,
-  budget = CONTEXT_SLOT_BUDGETS.upstream_json_soft,
+  budget: number = CONTEXT_SLOT_BUDGETS.upstream_json_soft,
 ): { value: T; clipped: boolean; original_chars: number; final_chars: number } {
   const original = JSON.stringify(upstream);
   if (original.length <= budget) {
@@ -189,30 +195,49 @@ export function loadRoutedKnowledge(
   };
   const weightSum = loaded.files.reduce((sum, file) => sum + priorityBoost(file), 0);
   const parts: string[] = [];
+  const includedFiles: string[] = [];
   let used = 0;
-  for (const file of loaded.files) {
+  const entries = Array.isArray((loaded as any).entries)
+    ? (loaded as any).entries as Array<{ file: string; content: string }>
+    : loaded.files.map((file) => ({ file, content: "" }));
+  for (const entry of entries) {
+    const file = entry.file;
     const marker = `\n## ${file}\n`;
-    const start = loaded.context.indexOf(marker);
-    if (start < 0) continue;
-    const next = loaded.context.indexOf("\n## ", start + marker.length);
-    const body = loaded.context.slice(start + marker.length, next < 0 ? undefined : next);
+    // 直接使用按文件保存的正文，不能在拼接字符串里用 "\n## " 找下一个
+    // 文件；规范正文自身也有 H2，旧实现会误把正文第一节当成文件边界，
+    // 导致核心要求只剩导语、看似 loaded 实际未进 prompt。
+    const body = entry.content;
     const OVERHEAD_PER_FILE = 100; // marker (~70) + possible suffix (~19) + margin
     const share = priorityBoost(file) / Math.max(weightSum, 1);
     const perFile = Math.max(4_000, Math.floor(maxTotal * share) - OVERHEAD_PER_FILE);
-    const slice = body.slice(0, perFile);
-    const chunk = `${marker}${slice}${body.length > perFile ? "\n…[file truncated]" : ""}`;
+    const slice = prioritizeKnowledgeContent(body, perFile);
+    const chunk = `${marker}${slice}`;
     if (used + chunk.length > maxTotal) {
       const remain = maxTotal - used;
       if (remain < 2_000) break;
-      parts.push(`${marker}${body.slice(0, Math.max(0, remain - marker.length - 19))}\n…[file truncated]`);
+      parts.push(`${marker}${prioritizeKnowledgeContent(body, Math.max(0, remain - marker.length - 19))}\n…[file truncated]`);
+      includedFiles.push(file);
       break;
     }
     parts.push(chunk);
+    includedFiles.push(file);
     used += chunk.length;
   }
   const context = parts.join("\n");
   const version = createHash("sha256").update(context).digest("hex");
-  return { version: `sha256:${version}`, context, files: loaded.files };
+  return {
+    version: `sha256:${version}`,
+    context,
+    files: includedFiles,
+    registeredFiles: loaded.files,
+    missingFiles: loaded.missingFiles,
+    stats: {
+      total: loaded.stats.total,
+      loaded: includedFiles.length,
+      missing: loaded.stats.missing,
+      omitted_by_budget: Math.max(0, loaded.files.length - includedFiles.length),
+    },
+  };
 }
 
 /**
@@ -240,7 +265,12 @@ export function assembleStageContext(input: {
     : { version: "none", context: "", files: [] as string[] };
 
   const missingList = (knowledge as any).missingFiles || [];
-  const stats = (knowledge as any).stats || { total: knowledge.files.length, loaded: knowledge.files.length, missing: 0 };
+  const stats = (knowledge as any).stats || {
+    total: knowledge.files.length,
+    loaded: knowledge.files.length,
+    missing: 0,
+    omitted_by_budget: 0,
+  };
 
   return {
     semantic_route: route,
@@ -249,11 +279,12 @@ export function assembleStageContext(input: {
     knowledge_context: knowledge.context,
     knowledge_version: knowledge.version,
     budgets: CONTEXT_SLOT_BUDGETS,
-    assembly_note: `上下文按语义路由装配：本体切片 + 任务相关知识文件 + 方法子集；未路由资产不进默认 knowledge。加载: ${stats.loaded}/${stats.total} 文件 (${stats.total - stats.loaded} 缺失)。`,
+    assembly_note: `上下文按语义路由装配：本体切片 + 任务相关知识文件 + 方法子集；未路由资产不进默认 knowledge。进入 prompt: ${stats.loaded}/${stats.total} 文件（缺失 ${stats.missing || 0}，预算省略 ${stats.omitted_by_budget || 0}）。`,
     standards_loading: {
       files_total: stats.total,
       files_loaded: stats.loaded,
-      files_missing: stats.total - stats.loaded,
+      files_missing: stats.missing || 0,
+      files_omitted_by_budget: stats.omitted_by_budget || 0,
       missing_list: missingList,
     },
   };

@@ -10,10 +10,10 @@ import { computeSourceCoverage } from "@/engine/source_coverage";
 import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure, type EvidenceRequirementProjection } from "@/engine/structure_candidates";
 import { STAGES, parseJson } from "@/engine/types";
 import type { SourceRecord } from "@/engine/types";
+import { researchStage } from "@/app/lib/research-journey";
+import { latestJobForStage } from "@/app/lib/ui-labels";
 
 export const dynamic = "force-dynamic";
-
-const names = ["问题定义", "判断结构", "来源收集与证据草稿", "判断裁决", "研究表达"];
 
 function compactScopeSummary(jsonContent: string | undefined) {
   const data = parseJson<any>(jsonContent || "{}", {});
@@ -189,12 +189,14 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
   const n = Number(stage);
   const run = getRun(id);
   if (!run || n < 1 || n > 5) notFound();
+  const journey = researchStage(n)!;
   const kind = STAGES[n - 1];
   const artifactRow = latestArtifactPayload(id, kind);
   const artifact = artifactRow ? artifactForWorkspace(artifactRow) : undefined;
-  const activeJob = listResearchJobsForRun(id).find((job) =>
-    job.stage === kind && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(job.status),
-  );
+  const latestStageJob = latestJobForStage(listResearchJobsForRun(id), kind);
+  const activeJob = latestStageJob && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(latestStageJob.status)
+    ? latestStageJob
+    : undefined;
   const reviewable = latestArtifactMeta(id, kind, ["approved", "needs_review"]);
   const unlocked = n === 1 || Boolean(latestArtifactMeta(id, STAGES[n - 2], ["approved"]));
   const approvedScope = n === 2
@@ -211,33 +213,27 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
     cancelled: "已取消",
     superseded: "已被新版取代",
   } as Record<string, string>)[artifact?.status || ""] || artifact?.status || "尚未开始";
-  const reviewHref = n === 1 ? `/runs/${id}/scope` : n === 2 ? `/runs/${id}/structure` : n === 3 ? `/runs/${id}/evidence` : n === 4 ? `/runs/${id}/judgments` : n === 5 ? `/runs/${id}/report` : null;
+  const reviewHref = `/runs/${id}${journey.reviewPath}`;
 
   return <>
     <div className="pagehead scene-head">
       <div>
-        <div className="eyebrow">阶段编辑 · 第 {n} 阶段 · {statusLabel}</div>
-        <h1>{names[n - 1]}</h1>
+        <div className="eyebrow">修改{journey.navLabel}阶段 · {statusLabel}</div>
+        <h1>{journey.editTitle}</h1>
         <p className="muted">
-          {n === 1
-            ? "编辑研究范围后确认；这是范围阶段的主工作面。"
-            : n === 2
-              ? "生成或手改结构后，请到「结构」场景审阅确认。手改仅限必要证据与反证/竞争。"
-              : n === 3
-                ? "主路径：① 抓取公开 URL → ② 挂到判断单元生成事实草稿 → ③ 回证据审阅批准。模型自动取证为次级入口。"
-                : reviewable
-                  ? "这里是生成与编辑面；日常确认请用上方对应工作场景。"
-                  : "本阶段尚无待审版本：先在此生成，再进入审阅场景。"}
+          {reviewable || n <= 3
+            ? journey.editHint
+            : "本阶段尚无可核对版本：先在这里生成，再回阶段页面确认输出。"}
         </p>
       </div>
       {reviewHref ? (
         reviewable ? (
           <Link className="button" href={reviewHref}>
-            返回审阅 →
+            查看本阶段输出 →
           </Link>
         ) : (
           <span className="button button-muted" aria-disabled="true" title="生成后可进入审阅场景">
-            生成后进入审阅
+            生成后查看输出
           </span>
         )
       ) : null}

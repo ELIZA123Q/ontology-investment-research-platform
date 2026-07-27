@@ -2,6 +2,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+export function packageLabel(path: string) {
+  const normalized = path.toLowerCase();
+  if (normalized.includes("memory-cycle")) return "存储周期研究样例";
+  if (normalized.includes("us-controls-localization")) return "出口管制与国产替代研究样例";
+  const name = path.split("/").filter(Boolean).at(-1) || "预置研究样例";
+  return name.replace(/[-_]+/g, " ");
+}
+
 export function NewRunForm({ initialQuestion = "", experienceCaseId = "" }: { initialQuestion?: string; experienceCaseId?: string }) {
   const [question, setQuestion] = useState(initialQuestion);
   const [domain, setDomain] = useState("semiconductor");
@@ -50,23 +58,28 @@ export function NewRunForm({ initialQuestion = "", experienceCaseId = "" }: { in
       </div>
       {experienceCaseId && <div className="notice">体验基线 {experienceCaseId}：问题已冻结。创建后会从第一步开始记录真实操作，不做历史回填。</div>}
       <div className="field">
-        <label>知识覆盖领域</label>
+        <label>研究领域</label>
         <select value={domain} onChange={(e) => setDomain(e.target.value)}>
           <option value="semiconductor">半导体（正式支持）</option>
           <option value="general">其他领域（知识覆盖不足）</option>
         </select>
       </div>
-      <div className="field">
-        <label>预置样例研究对象（可选）</label>
-        <select value={packagePath} onChange={(e) => setPackagePath(e.target.value)}>
-          <option value="">不使用样例（随研究推进逐步生成）</option>
-          {packages.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-      </div>
+      {packages.length ? (
+        <details className="form-advanced-options">
+          <summary>高级：从预置研究对象开始</summary>
+          <div className="field">
+            <label>预置研究对象</label>
+            <select value={packagePath} onChange={(e) => setPackagePath(e.target.value)}>
+              <option value="">不使用预置对象</option>
+              {packages.map((item) => (
+                <option key={item} value={item}>
+                  {packageLabel(item)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </details>
+      ) : null}
       {domain !== "semiconductor" && <div className="notice">当前只有半导体领域知识库，系统会明确标注覆盖不足。</div>}
       {error && <div className="notice error">{error}</div>}
       <button className="button" disabled={busy}>

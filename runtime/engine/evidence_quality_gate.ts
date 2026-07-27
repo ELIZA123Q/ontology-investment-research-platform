@@ -15,6 +15,7 @@ type EvidenceDraft = {
   directness?: "direct" | "indirect" | "proxy";
   source_ids?: string[];
   direction?: string;
+  evidence_role?: string;
   judgment_unit_ids?: string[];
   scope_ref?: string;
 };
@@ -94,10 +95,21 @@ function countSourceGroups(sources: SourceRecord[]): number {
 
 export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateResult {
   const { evidenceDrafts, sources, judgmentUnits, evidenceRequirements = [] } = input;
-  const sourceMap = new Map(sources.map((s) => [s.id, s]));
+  const usableSourceMap = new Map(
+    sources
+      .filter((source) =>
+        source.usability_status === "usable"
+        && source.retrieval_status === "captured"
+        && source.quote_verified === true,
+      )
+      .map((source) => [source.id, source]),
+  );
 
   // gap 不算「可用证据」；不得用缺口条数抬高质量门槛
-  const usableDrafts = evidenceDrafts.filter((d) => String(d.kind || "") !== "gap");
+  const nonGapDrafts = evidenceDrafts.filter((d) => String(d.kind || "") !== "gap");
+  const usableDrafts = nonGapDrafts.filter((draft) =>
+    (draft.source_ids || []).some((sourceId) => usableSourceMap.has(String(sourceId))),
+  );
   const gapDrafts = evidenceDrafts.filter((d) => String(d.kind || "") === "gap");
   const gapOnlyCount = gapDrafts.length;
 
@@ -115,7 +127,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
   }
 
   const boundSources = [...allSourceIds]
-    .map((sid) => sourceMap.get(sid))
+    .map((sid) => usableSourceMap.get(sid))
     .filter(Boolean) as SourceRecord[];
   const sourceGroups = countSourceGroups(boundSources);
 
@@ -125,6 +137,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
     const juId = String(ju.id || "");
     const juEvidence = usableDrafts.filter((d) => draftBelongsToJudgmentUnit(d, juId));
     const juGaps = gapDrafts.filter((d) => draftBelongsToJudgmentUnit(d, juId));
+    const juCounterGaps = juGaps.filter((d) => String(d.evidence_role || "") === "counter");
     const juRequirements = evidenceRequirements.filter((req) =>
       (Array.isArray(req.judgment_unit_ids) ? req.judgment_unit_ids.map(String) : []).includes(juId),
     );
@@ -138,7 +151,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
       for (const sid of d.source_ids || []) juSources.add(String(sid));
     }
     const juBoundSources = [...juSources]
-      .map((sid) => sourceMap.get(sid))
+      .map((sid) => usableSourceMap.get(sid))
       .filter(Boolean) as SourceRecord[];
     const juSourceGroups = countSourceGroups(juBoundSources);
     const juDirect = juEvidence.filter((d) => d.directness === "direct").length;
@@ -147,19 +160,21 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
       const dir = String(d.direction || "");
       return kind === "counter" || kind === "conflict" || dir === "weaken";
     }).length;
-    const counterSatisfied = juCounter > 0 || juGaps.length > 0;
+    const counterRecorded = juCounter > 0 || juCounterGaps.length > 0;
+    const unresolvedCounter = requiresCounter && juCounter === 0 && juCounterGaps.length > 0;
 
     const missingSupport = juEvidence.length < MIN_EVIDENCE_PER_JU;
     const missingIndependence = juEvidence.length > 0 && juSourceGroups < requiredIndependence;
-    const missingCounter = requiresCounter && !counterSatisfied;
+    const missingCounter = requiresCounter && !counterRecorded;
     const isBlocker = missingSupport || missingIndependence || missingCounter;
-    if (isBlocker || juEvidence.length < 2) {
+    if (isBlocker || juEvidence.length < 2 || unresolvedCounter) {
       const missingParts = [
         missingSupport ? "完全缺失可用证据（gap 不计），无法支撑任何判断" : "",
         missingIndependence
           ? `独立来源组不足（${juSourceGroups}/${requiredIndependence}）`
           : "",
         missingCounter ? "结构要求的反证角色未登记（需 counter/conflict 或显式 gap）" : "",
+        unresolvedCounter ? "反证要求已显式登记为 gap，但尚未取得可核验反证材料" : "",
         !isBlocker ? "可用证据不足 2 条，仅供初步观察" : "",
       ].filter(Boolean);
       gapDetails.push({
@@ -179,13 +194,17 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
 
   // 判断质量状态（条数门槛只看可用证据）
   const hasBlocking = gapDetails.some((d) => d.isBlocking);
+  const hasOpenCounterGap = gapDetails.some((d) =>
+    !d.isBlocking && d.missing.includes("反证要求已显式登记为 gap"),
+  );
   const belowFloor =
     usableDrafts.length < QUALITY_FLOOR_MIN_EVIDENCE || sourceGroups < QUALITY_FLOOR_MIN_GROUPS;
   const meetsHighQuality =
     usableDrafts.length >= HIGH_QUALITY_MIN_EVIDENCE &&
     sourceGroups >= HIGH_QUALITY_MIN_GROUPS &&
     directFacts.length >= HIGH_QUALITY_MIN_DIRECT &&
-    !hasBlocking;
+    !hasBlocking &&
+    !hasOpenCounterGap;
 
   let qualityStatus: EvidenceGateResult["qualityStatus"];
   let summary: string;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { researchJobStatusLabel, stageLabel } from "@/app/lib/ui-labels";
+import { latestJobPerRun, researchJobStatusLabel, stageLabel } from "@/app/lib/ui-labels";
 
 type ActiveJob = {
   id: string;
@@ -41,7 +41,7 @@ export function ActiveJobsIndicator() {
           ...job,
           question: String(runMap.get(job.run_id) || ""),
         }));
-        setJobs(next);
+        setJobs(latestJobPerRun(next));
       } catch {
         // ignore polling errors
       }
@@ -55,11 +55,14 @@ export function ActiveJobsIndicator() {
   }, []);
 
   if (!jobs.length) {
-    return <span className="system-state">研究模型：DeepSeek</span>;
+    return null;
   }
 
-  const primary = jobs[0];
-  const title = primary.question ? truncate(primary.question, 18) : researchJobStatusLabel(primary.status);
+  const inFlightCount = jobs.filter((job) => ["queued", "running", "retrying"].includes(job.status)).length;
+  const attentionCount = jobs.length - inFlightCount;
+  const label = inFlightCount
+    ? `AI 处理中 · ${inFlightCount}${attentionCount ? ` · 待处理 ${attentionCount}` : ""}`
+    : `待处理研究 · ${attentionCount}`;
 
   return (
     <div className={`system-state-menu${open ? " is-open" : ""}`}>
@@ -67,10 +70,10 @@ export function ActiveJobsIndicator() {
         type="button"
         className="system-state is-busy"
         onClick={() => setOpen((value) => !value)}
-        title={primary.last_error || researchJobStatusLabel(primary.status)}
+        title="查看后台研究任务"
       >
         <span className="busy-dot" aria-hidden="true" />
-        AI 运行中{jobs.length > 1 ? ` · ${jobs.length}` : ""} · {title}
+        {label}
       </button>
       {open ? (
         <div className="system-state-dropdown" role="menu">
@@ -89,9 +92,4 @@ export function ActiveJobsIndicator() {
       ) : null}
     </div>
   );
-}
-
-function truncate(value: string, max: number) {
-  const text = value.trim();
-  return text.length > max ? `${text.slice(0, max)}…` : text;
 }

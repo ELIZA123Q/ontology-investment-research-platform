@@ -140,8 +140,8 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
         <section className="run-revise-panel" aria-label="自然语言改稿">
           <header className="run-revise-head">
             <div>
-              <strong>改稿</strong>
-              <span>自然语言修改阶段产物</span>
+              <strong>修改研究</strong>
+              <span>用自然语言调整已形成的阶段产出</span>
             </div>
             <button type="button" className="button-quiet" onClick={() => setOpen(false)}>收起</button>
           </header>
@@ -163,8 +163,8 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
             {targetStage === 1
               ? "例如：把截止时点改到 2025 年底；或排除 AI 应用层公司。"
               : targetStage === 4
-                ? "例如：把 JU-02 结论收紧为暂不可判断；把 EV-3 调整为反证；补一条改判条件。"
-                : "例如：把 JU-03 拆成成本传导与估值影响两个单元；或收紧反证方向。"}
+                ? "例如：把第二项结论收紧为暂不可判断；将某条事实调整为反证；补一条改判条件。"
+                : "例如：把第三项关键判断拆成成本传导与估值影响；或收紧反证方向。"}
             {" "}更多阶段即将开放。
           </p>
           <div className="run-revise-log">
@@ -203,7 +203,7 @@ export function RunRevisePanel({ runId, active }: { runId: string; active: strin
         </section>
       ) : (
         <button type="button" className="run-revise-fab" onClick={() => setOpen(true)}>
-          改稿
+          修改研究
         </button>
       )}
     </div>

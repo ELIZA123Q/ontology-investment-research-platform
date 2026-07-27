@@ -41,11 +41,12 @@ export function stripInternalReferencePrefix(value: unknown): string {
 }
 
 export function workItemHref(stage: string, runId: string): string {
+  if (stage === "stage_01") return `/runs/${runId}/scope`;
   if (stage === "stage_03") return `/runs/${runId}/evidence`;
   if (stage === "stage_04") return `/runs/${runId}/judgments`;
   if (stage === "stage_05") return `/runs/${runId}/report`;
   if (stage === "stage_02") return `/runs/${runId}/structure`;
-  return `/runs/${runId}/stages/1`;
+  return `/runs/${runId}/scope`;
 }
 
 function nextStage(currentStage: number, runId: string) {

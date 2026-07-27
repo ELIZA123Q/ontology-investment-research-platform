@@ -13,6 +13,7 @@ import {
   collectStage02ConsistencyIssues,
   ensureStage02DocumentFields,
   projectOntologyViewYaml,
+  repairStage02GenerationDraft,
 } from "@/engine/stage02_documents";
 import { syncStage01ReadableMarkdown, syncStage02ReadableMarkdown } from "@/engine/readable_markdown";
 
@@ -164,12 +165,12 @@ function baseStage02() {
     counter_evidence_directions: [{
       direction_id: "CD-1",
       statement: "现货价与渠道库存率先转弱",
-      judgment_unit_ids: ["JU-1"],
+      judgment_unit_ids: ["JU-1", "JU-2"],
     }],
     competing_explanations: [{
       explanation_id: "CE-1",
       statement: "仅为季节性补库而非结构性紧缺",
-      judgment_unit_ids: ["JU-1"],
+      judgment_unit_ids: ["JU-1", "JU-2"],
       discriminating_evidence: ["连续两季库存与终端出货对照"],
     }],
     document_markdown: [
@@ -460,6 +461,15 @@ describe("stage01 clarification and quality gates", () => {
 });
 
 describe("stage02 dual documents and gates", () => {
+  it("repairs missing MethodApplication array fields without adding methods", () => {
+    const data = baseStage02();
+    delete data.method_applications[0].counter_example_refs;
+    const methodCount = data.method_applications.length;
+    repairStage02GenerationDraft(data);
+    expect(data.method_applications[0].counter_example_refs).toEqual([]);
+    expect(data.method_applications).toHaveLength(methodCount);
+  });
+
   it("requires research_logic_markdown and ontology_view_yaml", () => {
     const data = baseStage02();
     expect(data.research_logic_markdown.length).toBeGreaterThan(40);
@@ -467,6 +477,16 @@ describe("stage02 dual documents and gates", () => {
     expect(data.document_markdown).toBe(data.research_logic_markdown);
     expect(() => judgmentStructureSchema.parse(data)).not.toThrow();
     expect(() => assertStage02ReadyForApproval(data)).not.toThrow();
+  });
+
+  it("deterministically repairs a model ontology view that omits executable judgment units", () => {
+    const data = baseStage02();
+    data.ontology_view_yaml = "reasoning_view:\n  hypotheses:\n    - linked_judgment_unit: JU-1\n";
+    ensureStage02DocumentFields(data);
+    const issues = collectStage02ConsistencyIssues(data);
+    expect(issues.some((item) => item.code === "unit_missing_in_yaml")).toBe(false);
+    expect(data.ontology_view_yaml).toContain("judgment_units:");
+    expect(data.ontology_view_yaml).toContain("id: JU-2");
   });
 
   it("flags blocking_gap with can_enter_03=true", () => {

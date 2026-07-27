@@ -3,6 +3,11 @@ import "server-only";
 export type ModelRole = "producer" | "reviewer";
 export type ModelProviderId = "deepseek" | "openai_compatible";
 
+function stageModelEnv(prefix: "DEEPSEEK" | "OPENAI_COMPAT", stage?: string): string | undefined {
+  if (!stage || !/^stage_0[1-5]$/.test(stage)) return undefined;
+  return process.env[`${prefix}_MODEL_${stage.toUpperCase()}`];
+}
+
 export type ResolvedModelProvider = {
   provider: ModelProviderId;
   role: ModelRole;
@@ -59,7 +64,7 @@ function required(name: string, value: string | undefined): string {
  * Reviewer may use a different provider via REVIEW_MODEL_PROVIDER so the five-role
  * evaluation isolation requirement is no longer blocked on a single DeepSeek account.
  */
-export function resolveModelProvider(role: ModelRole = "producer"): ResolvedModelProvider {
+export function resolveModelProvider(role: ModelRole = "producer", stage?: string): ResolvedModelProvider {
   const provider = (
     role === "reviewer"
       ? process.env.REVIEW_MODEL_PROVIDER || process.env.RESEARCH_MODEL_PROVIDER
@@ -91,7 +96,7 @@ export function resolveModelProvider(role: ModelRole = "producer"): ResolvedMode
       : process.env.OPENAI_COMPAT_API_KEY || process.env.OPENROUTER_API_KEY;
     const model = role === "reviewer"
       ? process.env.OPENAI_COMPAT_REVIEW_MODEL || process.env.OPENAI_COMPAT_MODEL
-      : process.env.OPENAI_COMPAT_MODEL;
+      : stageModelEnv("OPENAI_COMPAT", stage) || process.env.OPENAI_COMPAT_MODEL;
     const defaultBaseURL = process.env.OPENROUTER_API_KEY && !process.env.OPENAI_COMPAT_API_KEY
       ? "https://openrouter.ai/api/v1"
       : "https://api.openai.com/v1";
@@ -120,7 +125,7 @@ export function resolveModelProvider(role: ModelRole = "producer"): ResolvedMode
     : process.env.DEEPSEEK_API_KEY;
   const model = role === "reviewer"
     ? process.env.DEEPSEEK_REVIEW_MODEL || process.env.DEEPSEEK_MODEL || "deepseek-v4-flash"
-    : process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+    : stageModelEnv("DEEPSEEK", stage) || process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
   return {
     provider: "deepseek",
     role,

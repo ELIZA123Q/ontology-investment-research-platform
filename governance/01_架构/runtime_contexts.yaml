@@ -17,126 +17,34 @@ stages:
       - workflow/stages/02_结构/02_判断结构与本体视图规范.md
       - workflow/stages/02_结构/02_附录1_框架裁剪与选用细则.md
       - workflow/stages/02_结构/02_附录2_本体缺口扫描矩阵与处理细则.md
+      - ontology/01_通用/00_投研本体框架概述.md
+      - ontology/01_通用/01_语义结构域规范.md
+      - ontology/01_通用/02_判断推理域规范.md
+      - ontology/02_领域/semiconductor/00_半导体领域本体概述.md
+      - ontology/02_领域/semiconductor/01_半导体语义结构域说明.md
+      - ontology/02_领域/semiconductor/02_半导体判断推理域说明.md
       - methods/02_判断结构/README.md
       # 研究逻辑输出模板（研究员可读的 02 产物结构参考）
       - workflow/stages/02_结构/模板/02_研究逻辑模板.md
-    conditional_assets:
-      # === 基础框架库（按判断类型条件加载） ===
-      - when_judgment_types:
-          - supply_demand
-          - cycle_phase
-          - state_measurement
-        assets:
-          - methods/02_判断结构/基础框架库/01_供需判断框架.md
-      - when_judgment_types:
-          - policy_impact
-          - mechanism_validation
-        assets:
-          - methods/02_判断结构/基础框架库/02_政策影响框架.md
-      - when_judgment_types:
-          - transmission_path
-          - mechanism_validation
-        assets:
-          - methods/02_判断结构/基础框架库/03_产业链传导框架.md
-      - when_judgment_types:
-          - cycle_phase
-          - trend_direction
-        assets:
-          - methods/02_判断结构/基础框架库/04_价格周期框架.md
-      - when_judgment_types:
-          - impact_realization
-        assets:
-          - methods/02_判断结构/基础框架库/05_公司业绩弹性框架.md
-          - methods/02_判断结构/基础框架库/10_财务报表与盈利质量框架.md
-      - when_judgment_types:
-          - valuation_impact
-        assets:
-          - methods/02_判断结构/基础框架库/06_估值影响框架.md
-      - when_judgment_types:
-          - expectation_gap
-        assets:
-          - methods/02_判断结构/基础框架库/07_预期差判断框架.md
-      - when_judgment_types:
-          - object_differentiation
-        assets:
-          - methods/02_判断结构/基础框架库/08_行业结构与竞争格局框架.md
-          - methods/02_判断结构/基础框架库/13_公司治理与管理层框架.md
-      - when_judgment_types:
-          - impact_realization
-          - object_differentiation
-        assets:
-          - methods/02_判断结构/基础框架库/09_商业模式与收入驱动框架.md
-      - when_judgment_types:
-          - valuation_impact
-          - impact_realization
-        assets:
-          - methods/02_判断结构/基础框架库/11_资本配置与现金回报框架.md
-      - when_judgment_types:
-          - trend_direction
-          - cycle_phase
-        assets:
-          - methods/02_判断结构/基础框架库/12_经营预测与情景分析框架.md
-      - when_judgment_types:
-          - expectation_gap
-          - valuation_impact
-        assets:
-          - methods/02_判断结构/基础框架库/14_风险识别与压力测试框架.md
-      - when_judgment_types:
-          - trend_direction
-          - transmission_path
-        assets:
-          - methods/02_判断结构/基础框架库/15_宏观周期与金融条件传导框架.md
-      # === 半导体行业主框架（按判断类型条件加载） ===
-      - when_judgment_types:
-          - cycle_phase
-          - state_measurement
-          - supply_demand
-        assets:
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/01_IF-SC-01_半导体周期与库存框架.md
-      - when_judgment_types:
-          - transmission_path
-          - mechanism_validation
-        assets:
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/02_IF-LOC-01_外部约束国产替代与供应链韧性框架.md
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/03_IF-APP-01_应用需求与半导体内容量框架.md
-      - when_judgment_types:
-          - state_measurement
-          - supply_demand
-        assets:
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/05_IF-FAB-01_晶圆制造工艺平台与产能框架.md
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/06_IF-PKG-01_封装测试与异构集成框架.md
-      - when_judgment_types:
-          - impact_realization
-          - state_measurement
-        assets:
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/07_IF-EQP-01_半导体设备需求验证与放量框架.md
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/08_IF-MAT-01_半导体材料需求认证与放量框架.md
-      - when_judgment_types:
-          - object_differentiation
-          - impact_realization
-        assets:
-          - methods/02_判断结构/行业框架库/半导体行业/主框架/04_IF-DES-01_芯片设计IP与产品商业化框架.md
+    # 具体基础/行业框架由 method_registry + selected_method_guidance 按任务路由。
+    # 不再同时塞进 knowledge，避免同一方法正文重复两遍导致注意力稀释和超时。
   stage_03:
     assets:
       - governance/03_校验/00A_runtime_quality_card.md
       - workflow/stages/03_证据/03_数据与证据准备规范.md
       - workflow/stages/03_证据/03_附录2_取数留痕与材料处理操作手册.md
+      - ontology/01_通用/03_证据域规范.md
+      - ontology/02_领域/semiconductor/03_半导体证据域说明.md
       - methods/03_取证/00_证据质量与结论上限.md
       - methods/03_取证/B00_来源选择与使用边界.md
       - methods/03_取证/B01_通用来源速查.md
       - methods/03_取证/B02_半导体来源速查.md
       - methods/03_取证/B03_MCP通道注册.md
       - methods/03_取证/OPS_MCP查询快速参考.md
-      # P0修复：加载全部取证方法正文（A01-A09），确保LLM能看到完整的方法步骤和质量要求
-      - methods/03_取证/A01_事实确认.md
-      - methods/03_取证/A02_状态变量测量.md
-      - methods/03_取证/A03_趋势与阶段判断.md
-      - methods/03_取证/A04_机制传导验证.md
-      - methods/03_取证/A05_对象分化比较.md
-      - methods/03_取证/A06_财务影响测算.md
-      - methods/03_取证/A07_市场预期与定价.md
-      - methods/03_取证/A08_反证与竞争解释.md
-      - methods/03_取证/A09_代理指标.md
+      - methods/03_取证/OPS_通用真实来源查询与回退手册.md
+      - methods/03_取证/OPS_半导体真实来源查询与口径手册.md
+      - methods/03_取证/OPS_地缘规则与冲击查询手册.md
+      # A01—A09 只经 selected_method_guidance 按本题 MA 路由，不在 knowledge 重复注入。
       # 附录：证据字段速查、交付素材检查清单
       - workflow/stages/03_证据/03_附录1_证据要求与快照字段参考.md
       - workflow/stages/03_证据/03_附录3_交付素材检查场景参考.md
@@ -146,35 +54,23 @@ stages:
     assets:
       - governance/03_校验/00A_runtime_quality_card.md
       - workflow/stages/04_判断/04_推理输出规范.md
+      - ontology/01_通用/02_判断推理域规范.md
+      - ontology/02_领域/semiconductor/02_半导体判断推理域说明.md
       - methods/04_裁决/A00_裁决总则.md
+      - methods/04_裁决/A00-附录1_路径与阻断协议.md
       - methods/04_裁决/A00-附录2_反证与竞争解释协议.md
       - methods/04_裁决/A00-附录3_改判与版本协议.md
       - methods/04_裁决/A00-附录4_通用认知错误与误用索引.md
-      # P0修复：加载核心裁决方法正文（A01-A04最常用，A07-A10高频）
-      - methods/04_裁决/A01_状态判断.md
-      - methods/04_裁决/A02_趋势判断.md
-      - methods/04_裁决/A03_阶段判断.md
-      - methods/04_裁决/A04_机制判断.md
-      - methods/04_裁决/A05_归因判断.md
-      - methods/04_裁决/A06_传导判断.md
-      - methods/04_裁决/A07_分化判断.md
-      - methods/04_裁决/A08_影响判断.md
+      # A01—A10 只经 selected_method_guidance 按 02 选定 MA 路由，不在 knowledge 重复注入。
       # 判断简报输出模板（04 双产物之一的结构参考）
       - workflow/stages/04_判断/模板/04_判断简报模板.md
-    # routes 已由 structured input judgment_method_routes 完整注入，避免 knowledge 双份占 token
-    conditional_assets:
-      - when_judgment_types:
-          - transmission_path
-          - mechanism_validation
-          - causal_attribution
-        assets:
-          - methods/04_裁决/A00-附录1_路径与阻断协议.md
   stage_05:
     assets:
       - governance/03_校验/00A_runtime_quality_card.md
       - workflow/stages/05_表达/05_投研表达与交付规范.md
       - delivery/01_标准/05_投研表达标准.md
       - governance/03_校验/00A_高质量产出判别标准.md
+      - delivery/02_模板/05_表达审计模板.yaml
     template_by_archetype:
       industry_cycle_report: delivery/02_模板/05C_行业周期判断模板.md
       event_commentary: delivery/02_模板/05A_事件点评模板.md

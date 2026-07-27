@@ -42,7 +42,9 @@ routes:
 
   cycle_phase:
     default_kb03_method: kb03:A03
-    allowed_kb03_methods: [kb03:A03]
+    # A03 的方法合同要求先完成 A02 状态测量。A02 在周期单元中只能作为
+    # prerequisite/baseline，不能替代 A03 的多期趋势与阶段证据准备。
+    allowed_kb03_methods: [kb03:A02, kb03:A03]
     default_kb04_method: kb04:A03
     allowed_kb04_methods: [kb04:A03]
     required_preconditions: [state_and_trend_baseline]

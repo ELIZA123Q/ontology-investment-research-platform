@@ -30,7 +30,7 @@ import {
 const longMd = "# 标题\n\n".padEnd(80, "正文内容足够长以通过 markdown 最小长度约束。");
 
 function publishableStage05Markdown(title = "库存趋势暂不可判断") {
-  const denseGap = "当前缺少可核验的连续库存披露与同口径样本，证据缺口明确，不能把局部线索外推为行业改善结论。".repeat(8);
+  const denseGap = "当前缺少可核验的连续库存披露与同口径样本，证据缺口明确，不能把局部线索外推为行业改善结论。".repeat(12);
   return [
     `# ${title}`,
     "",
@@ -81,6 +81,29 @@ function publishableStage05Markdown(title = "库存趋势暂不可判断") {
     "- 本轮无可用公开来源。",
     "",
   ].join("\n");
+}
+
+function passingResearchValueReview() {
+  return {
+    status: "pass",
+    checks: [
+      "problem_not_swapped",
+      "has_judgment_value",
+      "evidence_not_overreach",
+      "reader_usable",
+      "no_forced_direction",
+    ].map((id) => ({
+      id,
+      pass: true,
+      score: 4,
+      evidence_span: "测试正文",
+      note: "测试通过",
+    })),
+    retry_count: 0,
+    total_score: 20,
+    pass_threshold: 16,
+    mode: "heuristic",
+  };
 }
 
 function ma(stage: "stage_03" | "stage_04", status: "selected" | "blocked" | "executed" = "selected") {
@@ -313,6 +336,7 @@ describe("stage03/04/05 norm density", () => {
         falsifier: "取得连续披露",
         evidence_boundary: "仅公开材料",
       }],
+      research_value_review: passingResearchValueReview(),
     };
     ensureStage05DocumentFields(data, { question: "库存是否改善？" });
     data.quality_status = "high_quality_pass";
@@ -376,6 +400,7 @@ describe("stage03/04/05 norm density", () => {
       falsifier: "取得连续披露",
       evidence_boundary: "仅公开材料",
     }];
+    data.research_value_review = passingResearchValueReview();
     data.expression_audit_yaml = "";
     ensureStage05DocumentFields(data);
     data.quality_status = "high_quality_pass";

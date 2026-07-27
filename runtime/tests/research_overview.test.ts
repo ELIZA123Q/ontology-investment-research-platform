@@ -60,7 +60,7 @@ describe("research_overview", () => {
       eyebrow: "等待人工确认",
       title: "检查范围草稿",
       description: "AI 已完成本阶段；确认或退回后才会继续下一阶段。",
-      href: "/runs/run-recovered/stages/1",
+      href: "/runs/run-recovered/scope",
       cta: "去确认 →",
     });
   });

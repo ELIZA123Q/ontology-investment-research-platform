@@ -101,7 +101,7 @@ describe("critical API routes", () => {
     const first = await continueRoute.POST(request(), context);
     expect(first.status).toBe(202);
     const firstBody = await first.json();
-    expect(firstBody).toMatchObject({ next_href: `/runs/${run.id}/stages/1`, stop_at: "human_review" });
+    expect(firstBody).toMatchObject({ next_href: `/runs/${run.id}/scope`, stop_at: "human_review" });
 
     const second = await continueRoute.POST(request(), context);
     expect(second.status).toBe(202);
@@ -120,7 +120,7 @@ describe("critical API routes", () => {
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
       error: "当前阶段已有待确认产物，请先人工确认",
-      next_href: `/runs/${run.id}/stages/1`,
+      next_href: `/runs/${run.id}/scope`,
     });
     expect(researchJobs.listResearchJobsForRun(run.id)).toHaveLength(0);
   });

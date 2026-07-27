@@ -23,12 +23,27 @@ function asList(value: unknown): string[] {
 }
 
 function highQualityErrors(data: any) {
-  return collectStage05HighQualityIssues({
+  const errors = collectStage05HighQualityIssues({
     body: nonEmpty(data?.document_markdown),
     research_edge: Array.isArray(data?.research_edge) ? data.research_edge : [],
     deterministic_check_status: nonEmpty(data?.deterministic_check_status),
     from_skeleton: Boolean(data?.__from_skeleton) || looksLikeDeterministicSkeleton(nonEmpty(data?.document_markdown)),
   }).filter((item) => item.severity === "error");
+  const review = data?.research_value_review;
+  if (!review || String(review.status || "") !== "pass") {
+    errors.push({
+      severity: "error",
+      code: "research_value_review_failed",
+      message: "研究价值审查未通过：章节齐全、表格齐全不等于对研究员有用",
+    });
+  } else if (Number(review.total_score || 0) < Number(review.pass_threshold || 16)) {
+    errors.push({
+      severity: "error",
+      code: "research_value_score_below_threshold",
+      message: `研究价值得分 ${Number(review.total_score || 0)}/20，低于 ${Number(review.pass_threshold || 16)}/20`,
+    });
+  }
+  return errors;
 }
 
 export function projectExpressionAuditYaml(

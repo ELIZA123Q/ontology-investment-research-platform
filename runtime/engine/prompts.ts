@@ -29,10 +29,11 @@ document_markdown 按投研需求说明模板展开正式正文（含解析、�
   stage_02:`依据已确认的任务定义，从注册资产中选择方法组合，定义判断单元、变量、传导路径、证据要求和竞争解释。
 
 方法选用：先确定每个 JudgmentUnit 的 judgment_type → 查 judgment_method_routes 的允许列表和默认方法 → 核对 method_candidates 的 entry_requires 和适用条件 → 选择最小充分的方法组合。
+周期阶段（cycle_phase）必须以 kb03:A03 作为主取证方法；kb03:A02 仅用于满足 A03 的状态测量前置和建立可比基线，不能单独代替 A03。若同一周期单元同时登记 A02/A03，二者都应指向该 JudgmentUnit，并分别说明 prerequisite 与 primary 的角色。
 
 StateVariable 定义：每个变量给出 name、category、definition 和锚定指标；无法从公开材料确认的维度标记 null，不猜测。运行期观测（如某期营收）用 task_local:<变量ID> 标识，不硬挂邻近本体概念。
 
-每个 JudgmentUnit 登记 judgment_structure、evidence 和 adjudication 的 MA 候选。evidence 的 method_id 必须落在 allowed_kb03_methods，adjudication 必须落在 allowed_kb04_methods。竞争解释给出 discriminating_evidence——可区分主路径与该解释的证据要求，不是已取得事实。
+每个 JudgmentUnit 登记 judgment_structure、evidence 和 adjudication 的 MA 候选。evidence 的 method_id 必须落在 allowed_kb03_methods，adjudication 必须落在 allowed_kb04_methods。每个 JudgmentUnit 都必须至少绑定一条竞争解释、一条可执行反证方向，并把该反证方向投影为 evidence_role=counter 的 EvidenceRequirement；不能用全局一条反证替全部单元过门。竞争解释给出 discriminating_evidence——可区分主路径与该解释的证据要求，不是已取得事实。
 
 产出 research_logic_markdown（含 judgment_spine 展开和竞争解释叙述，不是条目列表）和 ontology_view_yaml。填写 logic_id、can_enter_03、quality_status；有 blocking_gap 时 can_enter_03 为 false。research_logic_markdown 必须足够支撑后续 05C 论点章——对象分化、主路径、证伪条件。
 
@@ -51,9 +52,9 @@ StateVariable 定义：每个变量给出 name、category、definition 和锚定
 
 证据压缩：产出 evidence_drafts（按 source_claim/fact_draft/counter/conflict/gap 分类）、evidence_summaries（趋势/对比/异常摘要，numeric_values 登记可引用数字）、evidence_bundles（按 judgment_unit_id 的 support/counter/gap 分组）。
 
-来源登记：sources 提供 source_key、source_tier、published_at、逐字 source_quote 和 locator。同一 URL 只对应一个 source_key。source_quote 必须从工具返回的 content_excerpt 连续复制（≥20字），陈述中的数字必须能在 source_quote 或 numeric_values 中找到。MCP 失败时登记 gap，不伪装成已核验事实。
+来源登记：sources 提供 source_key、source_tier、published_at、逐字 source_quote 和 locator。同一 URL 只对应一个 source_key。source_quote 必须从工具返回的 content_excerpt 连续复制（≥20字），陈述中的数字必须能在 source_quote 或 numeric_values 中找到。MCP 是获取通道而不是来源等级；公司 IR、监管/政府官网等公开原文经正文抓取与逐字核验后同样可以作为一手证据。任何通道未取得可核验正文时登记 gap，不伪装成已核验事实。
 
-MCP 通道：公司公告优先 query_cninfo，财务优先 query_datayes_finoper，行情/持仓优先 query_datayes_stock，宏观优先 query_macro_data，政策优先 query_china_policy，研报优先 query_research_reports，新闻优先 query_caixin_news。search_public_web 仅作补充线索。
+获取通道：公司公告可优先 query_cninfo 或公司 IR 原文，财务可优先 query_datayes_finoper 并回到法定披露核对，行情/持仓优先 query_datayes_stock，宏观优先 query_macro_data，政策优先 query_china_policy 或政府原文，研报和新闻只能作为观点/线索并交叉核验。search_public_web 仅作发现，fetch_public_pages/等价正文抓取负责核验。质量评价看上游生产者、正文 hash、逐字引用、口径与独立性，不看是否“完成了某个通道动作”。
 
 gap 必须填写 requirement 和 direction:unknown，source_keys 为空数组。所有来源取得失败时 sources 可以为空，但 evidence_drafts 必须全部为 gap。
 
@@ -131,7 +132,7 @@ export function promptForEvidenceSupplement() {
 调度（强制）：
 - 必须严格按 supplement_brief.priority_queue 的 tier 升序处理：1 blocked/orphan → 2 失败来源修复 → 3 单元覆盖/独立性 → 4 才开新线索。
 - 同一 tier 内按数组顺序逐项处理；更高档未覆盖前，禁止仅为 tier=4（open_new_clue）新增无关来源。
-- 单元覆盖缺口优先一手通道：公司公告用 query_cninfo，财务用 query_datayes_finoper，行情/信息/持仓用 query_datayes_stock，宏观用 query_macro_data，指数用 query_market_index，政策用 query_china_policy，研报用 query_research_reports，新闻用 query_caixin_news；Bing search_public_web 仅补充。抓取顺序遵循 capture_priority_keys（一手权威先于 public_secondary）。
+- 单元覆盖缺口优先一手生产者：公司披露/IR、监管与政府原文、统计机构或可信数据生产者。结构化查询适合时使用 query_cninfo / query_datayes_* / query_china_policy 等 MCP；已有权威原文 URL 时直接抓取正文。研报和新闻用于观点或线索，Bing search_public_web 只负责发现。抓取顺序遵循 capture_priority_keys（一手权威先于 public_secondary），不得把“MCP 被调用”本身当成证据质量。
 - revision_summary 需点名本轮实际处理的 priority_queue.refs（或说明为何跳过）。
 
 规则：
@@ -141,6 +142,11 @@ export function promptForEvidenceSupplement() {
 - affected_object_refs 与 upserts/removals 是双记账：模型常只更新 upserts 而漏写新建 SRC。以 upserts/removals 为准；Runtime 提交时会自动并入 affected_object_refs。
 - method_applications / sources / evidence_drafts 禁止用 null 占位必填数组或字符串；无内容用 [] 或明确字符串。
 - 新增来源使用新 SRC-xx source_key，并写入 upserts.sources；补证来源必须提供可逐字核验的 source_quote 与 locator，以及 url/title/published_at/source_tier/source_type。一手 MCP/公司披露/官方来源的 authority_type 应标为 company_disclosure 或 official。
+- 取证真实性是硬约束：本轮若没有实际调用 search_public_web、fetch_public_pages 或证据 MCP，则不得新增 upserts.sources，不得把任何 evidence_draft 写成 source_claim/fact_draft/counter/conflict；只能保留或新增 gap，并把证据方法状态设为 blocked/degraded。Runtime 会按工具轨迹复核，模型常识、记忆和训练数据不算来源。
+- 每条非 gap evidence_draft 必须同时绑定至少一个本轮 upserts.sources 或 current_evidence_draft 中完整可抓取的 source_key；不能只写 source_keys 而不提交来源对象，也不能引用搜索摘要冒充正文。
+- 新建非 gap evidence_draft 必须一次给齐：id、statement、kind、direction（support|weaken|neutral|unknown）、source_keys、source_ids:[]、judgment_unit_ids、ontology_node_ids、subject_ref、time_basis、scope_ref、observed_at、valid_from、valid_to:null、published_at、cutoff_at、directness（direct|indirect|proxy）、limitations、semiconductor_measurement（不用则 null）。缺少事实时间时不要猜测，改为 gap。
+- semiconductor_measurement 非 null 时必须给齐 metric_kind（capacity|yield）以及 facility_ref、wafer_size、process_or_product_ref、batch_stage、unit、business_time_basis；未知字段明确写 null。
+- method_applications.status 只能是 candidate、selected、executed、rejected、blocked、degraded。仅搜索到线索而未取得正文时不得写 executed。
 - 修复失败来源时优先阅读 failed_sources.snapshot_excerpt：从其连续复制 ≥20 字原文作为 source_quote；摘录与主张无关则换 URL，或把绑定证据降为 gap。
 - removals 只能引用 current_evidence_draft 里已存在的稳定 ID；不要发明 EV-GAP-xx。多轮补证若目标已不存在，不要重复删；Runtime 对缺失删除按幂等忽略。
 - 可把无法补证的事实改为 gap，并同步更新 method_applications 状态与 unresolved_gaps。改为 gap 时必须显式写出 kind:"gap"、direction:"unknown"、source_keys:[]、source_ids:[]；省略或 null 不会清空旧绑定。

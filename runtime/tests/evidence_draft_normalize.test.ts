@@ -211,6 +211,7 @@ describe("evidence_draft_normalize", () => {
       "not_checked",
     ]);
     expect(method.precondition_checks[1].reason).toBe("未提供前置条件说明");
+    expect(method.status).toBe("candidate");
 
     const chinese: any = normalizeMethodApplicationNulls({
       application_id: "MA-2",
@@ -232,6 +233,14 @@ describe("evidence_draft_normalize", () => {
       semiconductor_measurement: { metric_kind: "wafer_yield", facility_ref: null },
     });
     expect(yieldDraft.semiconductor_measurement.metric_kind).toBe("yield");
+    expect(yieldDraft.semiconductor_measurement).toMatchObject({
+      facility_ref: null,
+      wafer_size: null,
+      process_or_product_ref: null,
+      batch_stage: null,
+      unit: null,
+      business_time_basis: null,
+    });
 
     const junk: any = normalizeEvidenceDraftNulls({
       id: "EV-X",
@@ -242,6 +251,66 @@ describe("evidence_draft_normalize", () => {
       semiconductor_measurement: { metric_kind: "throughput", facility_ref: null },
     });
     expect(junk.semiconductor_measurement).toBeNull();
+  });
+
+  it("抓取前仅允许绑定完整候选来源的事实，其余透明降为 gap", async () => {
+    const { prepareEvidenceForSourceCapture } = await import("@/engine/evidence_draft_normalize");
+    const prepared: any = prepareEvidenceForSourceCapture({
+      sources: [{
+        source_key: "SRC-OK",
+        url: "https://example.com/a",
+        title: "公告",
+        published_at: "2026-07-01T00:00:00Z",
+        source_tier: "S2",
+        source_type: "disclosure",
+        locator: "第1段",
+        source_quote: "这是可以逐字核验的公开正文。",
+      }],
+      evidence_drafts: [
+        {
+          id: "EV-OK",
+          statement: "公告披露库存下降",
+          kind: "fact_draft",
+          direction: "positive",
+          source_keys: ["SRC-OK"],
+          source_ids: [],
+          judgment_unit_ids: ["JU-1"],
+          ontology_node_ids: [],
+          limitations: [],
+          semiconductor_measurement: { metric_kind: "capacity" },
+        },
+        {
+          id: "EV-NO-SOURCE",
+          statement: "模型记忆中的价格上涨",
+          kind: "source_claim",
+          direction: "support",
+          source_keys: ["SRC-MISSING"],
+          source_ids: [],
+          judgment_unit_ids: ["JU-1"],
+          ontology_node_ids: [],
+          limitations: [],
+        },
+      ],
+      unresolved_gaps: [],
+    });
+    expect(prepared.evidence_drafts[0]).toMatchObject({
+      kind: "fact_draft",
+      direction: "support",
+      subject_ref: "JU-1",
+      scope_ref: "JU-1",
+      published_at: "2026-07-01T00:00:00Z",
+      observed_at: "2026-07-01T00:00:00Z",
+      time_basis: "publication_date_proxy:2026-07-01T00:00:00Z",
+      directness: "proxy",
+    });
+    expect(prepared.evidence_drafts[0].limitations.join(" ")).toMatch(/publication-date proxy/);
+    expect(prepared.evidence_drafts[1]).toMatchObject({
+      kind: "gap",
+      direction: "unknown",
+      source_keys: [],
+      source_ids: [],
+    });
+    expect(prepared.unresolved_gaps[0]).toMatch(/EV-NO-SOURCE/);
   });
 
   it("抓取后无可用 quote 的事实降为 gap", async () => {

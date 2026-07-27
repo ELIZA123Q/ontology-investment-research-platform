@@ -42,6 +42,39 @@ const STATUS_LABELS: Record<CandidateStatus, string> = {
   rejected: "已驳回",
 };
 
+function candidateCategoryLabel(category: string): string {
+  return ({
+    company: "公司",
+    cost: "成本",
+    demand: "需求",
+    economics: "经济",
+    expectation: "预期",
+    financial: "财务",
+    financial_metric: "财务指标",
+    inventory_cycle: "库存周期",
+    market: "市场",
+    operations: "运营",
+    pricing: "定价",
+    supply: "供给",
+  } as Record<string, string>)[category] || "其他研究变量";
+}
+
+function candidateDomainLabel(domain: string): string {
+  return ({
+    semiconductor: "半导体",
+    general: "通用研究",
+  } as Record<string, string>)[domain] || "其他领域";
+}
+
+function candidateKindLabel(kind: string): string {
+  return ({
+    observed: "观测型",
+    observed_or_adjudicated: "观测或裁决型",
+    qualitative_or_derived: "定性或派生型",
+    quantitative: "定量型",
+  } as Record<string, string>)[kind] || "未分类";
+}
+
 export function OntologyCandidateQueue() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selectedKey, setSelectedKey] = useState("");
@@ -58,7 +91,7 @@ export function OntologyCandidateQueue() {
     const json = await response.json();
     setBusy(false);
     if (!response.ok) {
-      setError(json.error || "读取本体候选失败");
+      setError(json.error || "读取候选知识失败");
       return;
     }
     const next = (json.candidates || []) as Candidate[];
@@ -97,7 +130,7 @@ export function OntologyCandidateQueue() {
     const json = await response.json();
     setBusy(false);
     if (!response.ok) {
-      setError(json.error || "保存专家决策失败");
+      setError(json.error || "保存评审决定失败");
       return;
     }
     await load(selected.candidate_key);
@@ -110,19 +143,19 @@ export function OntologyCandidateQueue() {
   return (
     <section className="ontology-governance">
       <div className="ontology-governance-metrics">
-        <article><strong>{candidates.length}</strong><span>当前 task_local 候选</span></article>
+        <article><strong>{candidates.length}</strong><span>当前本轮候选知识</span></article>
         <article><strong>{reusedCount}</strong><span>跨任务重复出现</span></article>
         <article><strong>{pendingCount}</strong><span>等待专家确认</span></article>
         <article><strong>{decidedCount}</strong><span>已有治理决定</span></article>
       </div>
       <div className="ontology-governance-note">
-        <strong>晋升不会自动改写正式本体</strong>
-        <span>这里记录证据频次、专家判断和拟正式 ID；正式 YAML 仍需由本体维护流程单独评审、校验和发布。</span>
+        <strong>登记晋升不会自动改写正式知识库</strong>
+        <span>这里记录出现频次、专家判断和拟正式知识编号；正式知识仍需单独评审、校验和发布。</span>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="ontology-governance-layout">
         <aside className="card ontology-candidate-list">
-          <div className="panel-title"><h3>本体缺口队列</h3><span>{busy ? "更新中" : `${candidates.length} 项`}</span></div>
+          <div className="panel-title"><h3>知识缺口队列</h3><span>{busy ? "更新中" : `${candidates.length} 项`}</span></div>
           {candidates.map((candidate) => (
             <button
               className={candidate.candidate_key === selectedKey ? "active" : ""}
@@ -132,26 +165,25 @@ export function OntologyCandidateQueue() {
             >
               <span className={`candidate-status ${candidate.review.status}`}>{STATUS_LABELS[candidate.review.status]}</span>
               <strong>{candidate.name}</strong>
-              <small>{candidate.run_count} 个研究 · {candidate.occurrence_count} 次出现</small>
+              <small>{candidateCategoryLabel(candidate.category)} · {candidate.run_count} 个研究 · {candidate.occurrence_count} 次出现</small>
             </button>
           ))}
-          {!busy && !candidates.length ? <p className="muted">当前研究产物没有 task_local 候选。</p> : null}
+          {!busy && !candidates.length ? <p className="muted">当前研究没有待治理的本轮候选知识。</p> : null}
         </aside>
         <article className="card ontology-candidate-detail">
           {selected ? (
             <>
               <div className="section-heading">
                 <div>
-                  <div className="eyebrow">候选语义</div>
+                  <div className="eyebrow">候选知识</div>
                   <h2>{selected.name}</h2>
-                  <p className="muted">{selected.category} · {selected.variable_kind} · {selected.candidate_key}</p>
+                  <p className="muted">{candidateCategoryLabel(selected.category)} · {candidateKindLabel(selected.variable_kind)}</p>
                 </div>
                 <span className={`badge candidate-status ${selected.review.status}`}>{STATUS_LABELS[selected.review.status]}</span>
               </div>
               <dl className="candidate-evidence-grid">
                 <div><dt>跨任务频次</dt><dd>{selected.run_count} 个研究 / {selected.occurrence_count} 次</dd></div>
-                <div><dt>覆盖领域</dt><dd>{selected.domains.join("、") || "—"}</dd></div>
-                <div><dt>变量编号</dt><dd>{selected.variable_ids.join("、") || "—"}</dd></div>
+                <div><dt>覆盖领域</dt><dd>{selected.domains.map(candidateDomainLabel).join("、") || "—"}</dd></div>
                 <div><dt>复用判断</dt><dd>{selected.cross_task_reused ? "已跨任务重复，优先评审" : "暂为单任务证据"}</dd></div>
               </dl>
               <h3>出现在哪些研究</h3>
@@ -164,7 +196,7 @@ export function OntologyCandidateQueue() {
               </ul>
               <div className="ontology-review-form">
                 <div className="field">
-                  <label>专家 / 本体维护人</label>
+                  <label>专家 / 知识库维护人</label>
                   <input value={expertName} onChange={(event) => setExpertName(event.target.value)} placeholder="至少 2 个字符" />
                 </div>
                 <div className="field">
@@ -172,15 +204,20 @@ export function OntologyCandidateQueue() {
                   <textarea value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} placeholder="说明稳定性、跨任务价值、边界或驳回原因（至少 8 字）" />
                 </div>
                 <div className="field">
-                  <label>拟正式本体 ID（仅晋升时必填）</label>
-                  <input value={targetId} onChange={(event) => setTargetId(event.target.value)} placeholder="例如 depreciation_intensity" />
+                  <label>拟正式知识编号（仅晋升时必填）</label>
+                  <input value={targetId} onChange={(event) => setTargetId(event.target.value)} placeholder="由知识库维护人填写" />
                 </div>
                 <div className="actions">
-                  <button className="button-secondary" disabled={busy} onClick={() => decide("expert_confirmed")} type="button">确认这是本体缺口</button>
+                  <button className="button-secondary" disabled={busy} onClick={() => decide("expert_confirmed")} type="button">确认这是知识缺口</button>
                   <button className="button" disabled={busy} onClick={() => decide("promoted")} type="button">登记晋升</button>
                   <button className="button-quiet" disabled={busy} onClick={() => decide("rejected")} type="button">驳回候选</button>
                 </div>
               </div>
+              <details>
+                <summary>查看内部标识（审计）</summary>
+                <p className="muted">{selected.candidate_key}</p>
+                <p className="muted">相关变量：{selected.variable_ids.join("、") || "—"}</p>
+              </details>
               <h3>决策历史</h3>
               {selected.review_events.length ? (
                 <div className="candidate-review-history">

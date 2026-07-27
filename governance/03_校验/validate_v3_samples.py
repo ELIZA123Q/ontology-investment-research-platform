@@ -21,6 +21,18 @@ ROOT = Path(__file__).resolve().parents[2]
 SAMPLE_ROOT = ROOT / "instances/02_V3样例"
 DEFAULT_RUNS = (SAMPLE_ROOT / "01_memory-cycle-run-002", SAMPLE_ROOT / "02_us-controls-localization-run-002")
 
+
+def discover_runs() -> tuple[Path, ...]:
+    """自动发现 SAMPLE_ROOT 下所有 V3 run 目录（含 run_manifest.yaml 的子目录）。
+
+    新增样例时无需手工登记即可被校验；若目录为空则回退到 DEFAULT_RUNS。
+    """
+    runs = sorted(
+        sub for sub in SAMPLE_ROOT.iterdir()
+        if sub.is_dir() and (sub / "run_manifest.yaml").is_file()
+    )
+    return tuple(runs) or DEFAULT_RUNS
+
 _incremental_spec = importlib.util.spec_from_file_location(
     "incremental_update_contract_runtime",
     ROOT / "governance/03_校验/incremental_update.py",
@@ -607,7 +619,7 @@ def known_rule_ids() -> set[str]:
 
 
 def main(argv: list[str]) -> int:
-    runs = tuple(Path(arg).resolve() for arg in argv) or DEFAULT_RUNS
+    runs = tuple(Path(arg).resolve() for arg in argv) or discover_runs()
     contract = load(ROOT / "governance/02_合同/public_contract.yaml")
     rules = known_rule_ids()
     errors: list[str] = []

@@ -10,6 +10,7 @@ import {
   requireDeterministicChecked,
   type StageQualityIssue,
 } from "./stage_high_quality";
+import { normalizeMethodApplicationNulls } from "./evidence_draft_normalize";
 
 export const STAGE02_QUALITY_GATE_REF =
   "workflow/stages/02_结构/02_判断结构与本体视图规范.md#7-质量门槛与返工规则";
@@ -154,6 +155,21 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
     next.document_markdown = next.research_logic_markdown;
   }
 
+  // 模型可提出研究内容，但 JSON ↔ 本体视图的执行合同必须由平台确定性治理。
+  // 若模型 YAML 使用了另一套嵌套布局或漏掉执行单元，就从已校验 JSON 重投影；
+  // 原始模型内容仍在 artifact.raw_model_output 中保留审计，不让字段风格差异污染 03。
+  const projectionBlockingCodes = new Set([
+    "ontology_yaml_parse",
+    "unit_missing_in_yaml",
+    "unit_missing_in_json",
+    "can_enter_03_mismatch",
+  ]);
+  const projectionErrors = collectStage02ConsistencyIssues(next)
+    .filter((item) => item.severity === "error" && projectionBlockingCodes.has(item.code));
+  if (projectionErrors.length) {
+    next.ontology_view_yaml = projectOntologyViewYaml(next, options);
+  }
+
   if (nonEmpty(next.quality_status) === "high_quality_pass") {
     const provisional = { ...next, deterministic_check_status: "checked" };
     const hqErrors = collectStage02HighQualityIssues(provisional);
@@ -161,6 +177,21 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
     else next.deterministic_check_status = "checked";
   }
   return next;
+}
+
+/**
+ * 模型补交通常只漏 MethodApplication 的空数组字段。这里仅补合同空值，
+ * 不替模型选择方法、不新增 MA，也不改写研究判断。
+ */
+export function repairStage02GenerationDraft(
+  data: any,
+  options: { question?: string; taskId?: string } = {},
+): any {
+  const next = data && typeof data === "object" ? data : {};
+  if (Array.isArray(next.method_applications)) {
+    next.method_applications = next.method_applications.map(normalizeMethodApplicationNulls);
+  }
+  return ensureStage02DocumentFields(next, options);
 }
 
 export type Stage02ConsistencyIssue = {
@@ -209,6 +240,19 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
       message: "high_quality 要求至少 1 条带可区分证据的竞争解释",
     });
   }
+  const unitsMissingCompetingExplanation = units
+    .map((unit: any) => String(unit?.id || ""))
+    .filter((unitId: string) => unitId && !substantiveCe.some((item: any) =>
+      Array.isArray(item?.judgment_unit_ids)
+      && item.judgment_unit_ids.map(String).includes(unitId),
+    ));
+  if (unitsMissingCompetingExplanation.length) {
+    issues.push({
+      severity: "error",
+      code: "competing_explanation_unit_coverage",
+      message: `high_quality 要求每个判断单元都有可区分的竞争解释；缺少：${unitsMissingCompetingExplanation.join(", ")}`,
+    });
+  }
   const counters = Array.isArray(data?.counter_evidence_directions) ? data.counter_evidence_directions : [];
   const substantiveCd = counters.filter((item: any) => nonEmpty(item?.statement).length >= 8);
   if (!substantiveCd.length) {
@@ -216,6 +260,19 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
       severity: "error",
       code: "counter_evidence_directions_thin",
       message: "high_quality 要求至少 1 条可执行的反证方向（非空 statement）",
+    });
+  }
+  const unitsMissingCounterDirection = units
+    .map((unit: any) => String(unit?.id || ""))
+    .filter((unitId: string) => unitId && !substantiveCd.some((item: any) =>
+      Array.isArray(item?.judgment_unit_ids)
+      && item.judgment_unit_ids.map(String).includes(unitId),
+    ));
+  if (unitsMissingCounterDirection.length) {
+    issues.push({
+      severity: "error",
+      code: "counter_direction_unit_coverage",
+      message: `high_quality 要求每个判断单元都有可执行反证方向；缺少：${unitsMissingCounterDirection.join(", ")}`,
     });
   }
   const ers = Array.isArray(data?.evidence_requirements) ? data.evidence_requirements : [];
@@ -226,11 +283,27 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
       message: "high_quality 要求 evidence_requirements 中至少有 1 条 counter 角色，区分主证与反证",
     });
   }
-  if (!/停止条件/.test(logic)) {
+  const counterErs = ers.filter((item: any) => String(item?.evidence_role) === "counter");
+  const unitsMissingCounterRequirement = units
+    .map((unit: any) => String(unit?.id || ""))
+    .filter((unitId: string) => unitId && !counterErs.some((item: any) =>
+      Array.isArray(item?.judgment_unit_ids)
+      && item.judgment_unit_ids.map(String).includes(unitId),
+    ));
+  if (unitsMissingCounterRequirement.length) {
+    issues.push({
+      severity: "error",
+      code: "counter_requirement_unit_coverage",
+      message: `high_quality 要求每个判断单元都把反证方向投影为 counter EvidenceRequirement；缺少：${unitsMissingCounterRequirement.join(", ")}`,
+    });
+  }
+  // “最低/最小验证条件”本身就是研究停止条件；不得因标题措辞不同把
+  // 已逐判断单元写清证据充分阈值的研究稿误判成返工。
+  if (!/(?:停止条件|最低验证条件|最小验证条件|证据充分条件|结束研究条件)/.test(logic)) {
     issues.push({
       severity: "error",
       code: "stop_condition_section_missing",
-      message: "high_quality 要求研究逻辑写明「停止条件」（最低验证条件，而非材料越多越好）",
+      message: "high_quality 要求研究逻辑写明停止条件或最低验证条件（而非材料越多越好）",
     });
   }
   if (/继续收集更多资料|材料足够多|尽量多收集/.test(logic)) {
@@ -277,14 +350,31 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
   if (/存储|DRAM|NAND|HBM|内存周期/.test(scopeBlob)) {
     const productHints = ["HBM", "DRAM", "NAND", "通用", "消费", "企业级"];
     const covered = productHints.filter((hint) =>
-      units.some((unit: any) => `${unit?.title || ""}${unit?.question || ""}`.includes(hint))
-      || scopeBlob.includes(hint),
+      units.some((unit: any) => `${unit?.title || ""}${unit?.question || ""}`.includes(hint)),
     );
     if (covered.length < 2) {
       issues.push({
         severity: "error",
         code: "memory_cycle_product_split",
         message: "存储周期类 high_quality 须在判断单元中显式区分至少两类产品线",
+      });
+    }
+    const requiredProductSegments = [
+      { id: "HBM", pattern: /HBM/i },
+      { id: "通用DRAM", pattern: /通用\s*DRAM|非\s*HBM\s*DRAM/i },
+      { id: "企业级NAND", pattern: /企业级[^。\n]{0,8}NAND|NAND[^。\n]{0,8}企业级/i },
+      { id: "消费级NAND", pattern: /消费级[^。\n]{0,8}NAND|NAND[^。\n]{0,8}消费级/i },
+    ].filter((segment) => segment.pattern.test(scopeBlob));
+    const missingSegments = requiredProductSegments
+      .filter((segment) => !units.some((unit: any) =>
+        segment.pattern.test(`${unit?.title || ""} ${unit?.question || ""}`),
+      ))
+      .map((segment) => segment.id);
+    if (missingSegments.length) {
+      issues.push({
+        severity: "error",
+        code: "memory_cycle_required_segments_missing",
+        message: `研究范围已明确要求分产品，但判断单元未覆盖：${missingSegments.join("、")}`,
       });
     }
   }

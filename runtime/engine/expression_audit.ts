@@ -473,7 +473,7 @@ export function sanitizeAuditVoice(text: string): string {
   result = result.replace(/RE-SYS-\S+/g, "");
   // 仅当拉丁状态词紧贴中文语境时视为审计腔，避免误伤 English prose
   result = result.replace(
-    /([^\x00-\x7F]|[：:（【[])\s*(supported|indeterminate|blocked)\s*(?=[^\x00-\x7F]|[。．）】\]，,；;]|$)/gi,
+    /([^\p{ASCII}]|[：:（【[])\s*(supported|indeterminate|blocked)\s*(?=[^\p{ASCII}]|[。．）】\]，,；;]|$)/giu,
     (_all, lead: string, word: string) => {
       const key = word.toLowerCase();
       const mapped = key === "supported"

@@ -60,6 +60,27 @@ describe("durable research job leases", () => {
     expect(active[0]).toMatchObject({ run_id: "run-1", stage: "stage_03", status: "queued" });
   });
 
+  it("does not revive an older blocked job after a newer stage job reaches review", () => {
+    const blocked = store.enqueue({
+      runId: "run-1",
+      jobType: "generate_artifact",
+      stage: "stage_03",
+      dedupeKey: "run-1:stage_03:old",
+      now: t0,
+    });
+    connection.prepare("UPDATE research_jobs SET status='blocked' WHERE id=?").run(blocked.id);
+    const review = store.enqueue({
+      runId: "run-1",
+      jobType: "generate_artifact",
+      stage: "stage_03",
+      dedupeKey: "run-1:stage_03:new",
+      now: "2026-07-22T01:00:00.000Z",
+    });
+    connection.prepare("UPDATE research_jobs SET status='waiting_for_review' WHERE id=?").run(review.id);
+
+    expect(store.listActive()).toEqual([]);
+  });
+
   it("allows one worker to claim and extend a fenced lease", () => {
     const queued = store.enqueue({ runId: "run-1", jobType: "generate_artifact", dedupeKey: "claim-once", now: t0 });
     const claimed = store.claimNext({ workerId: "worker-a", leaseMs: 60_000, now: t0 });
@@ -122,5 +143,44 @@ describe("durable research job leases", () => {
     });
     expect(second.id).not.toBe(first.id);
     expect(store.listForRun("run-1")).toHaveLength(2);
+  });
+
+  it("recovers an already-paid budget result only after its artifact is reviewable", () => {
+    const queued = store.enqueue({
+      runId: "run-1",
+      jobType: "generate_artifact",
+      stage: "stage_02",
+      dedupeKey: "budget-recovery",
+      now: t0,
+    });
+    const createdAt = "2026-07-22T00:00:10.000Z";
+    connection.prepare(`INSERT INTO artifacts(
+      id,run_id,kind,version,status,json_content,markdown_content,model_name,prompt_version,knowledge_version,
+      input_context,raw_model_output,response_id,token_usage,tool_usage,error_message,created_at,approved_at
+    ) VALUES(${Array(18).fill("?").join(",")})`).run(
+      "artifact-budget", "run-1", "stage_02", 1, "needs_review", "{\"quality_status\":\"high_quality_pass\"}",
+      "# logic", "mock", "", "", "", "", null, "{}", "{\"budget_warning\":\"over\"}", null, createdAt, null,
+    );
+    connection.prepare(`UPDATE research_jobs SET
+      status='waiting_for_input', artifact_id=?, result_json=?
+      WHERE id=?`).run(
+      "artifact-budget",
+      JSON.stringify({
+        failure_category: "budget_exceeded",
+        artifact_id: "artifact-budget",
+        budget_warning: "over",
+      }),
+      queued.id,
+    );
+
+    expect(store.reopenCompletedBudgetResultForReview(queued.id, "wrong-artifact")).toBeUndefined();
+    expect(store.reopenCompletedBudgetResultForReview(
+      queued.id,
+      "artifact-budget",
+      "2026-07-22T00:00:30.000Z",
+    )).toMatchObject({
+      status: "waiting_for_review",
+      artifact_id: "artifact-budget",
+    });
   });
 });

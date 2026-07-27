@@ -11,6 +11,9 @@ import { buildEvidenceReviewSuggestions } from "@/engine/evidence_review_assist"
 import { projectEvidenceRequirementsFromStructure } from "@/engine/structure_candidates";
 import { parseJson } from "@/engine/types";
 import Link from "next/link";
+import { StageApprovalButton } from "@/app/components/stage-approval-button";
+import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
+import { researcherLanguage } from "@/app/lib/researcher-stage-output";
 
 export const dynamic = "force-dynamic";
 
@@ -34,14 +37,14 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
 
   const units = (structure.judgment_units || []).map((unit: any, index: number) => ({
     id: String(unit.id || unit.judgment_unit_id || `JU-${index + 1}`),
-    title: String(unit.title || unit.statement || unit.question),
-    question: String(unit.question || unit.statement || ""),
+    title: researcherLanguage(unit.title || unit.statement || unit.question),
+    question: researcherLanguage(unit.question || unit.statement || ""),
     ontology_node_ids: Array.isArray(unit.ontology_node_ids) ? unit.ontology_node_ids.map(String) : [],
   }));
 
   const evidence = (evidenceData.evidence_drafts || []).map((item: any, index: number) => ({
     id: String(item.id || item.evidence_id || `EV-${index + 1}`),
-    statement: String(item.statement || ""),
+    statement: researcherLanguage(item.statement || ""),
     kind: String(item.kind || "fact_draft"),
     direction: String(item.direction || "unknown"),
     directness: item.directness ? String(item.directness) : undefined,
@@ -51,8 +54,8 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
       : Array.isArray(item.target_judgment_unit_refs)
         ? item.target_judgment_unit_refs.map(String)
         : [],
-    limitations: Array.isArray(item.limitations) ? item.limitations.map(String) : [],
-    requirement: item.requirement ? String(item.requirement) : undefined,
+    limitations: Array.isArray(item.limitations) ? item.limitations.map(researcherLanguage) : [],
+    requirement: item.requirement ? researcherLanguage(item.requirement) : undefined,
     evidence_role: item.evidence_role ? String(item.evidence_role) : undefined,
     minimum_independent_sources: item.minimum_independent_sources !== undefined ? Number(item.minimum_independent_sources) : undefined,
   }));
@@ -73,26 +76,36 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     requirements,
   });
 
-  const pending = workItems.filter((item) => item.status === "pending");
+  const pending = workItems.filter((item) => item.status === "pending" || item.status === "rework");
   const approved = workItems.filter((item) => item.status === "approved");
   const gapAccepted = workItems.filter((item) => item.kind === "supplement_evidence" && item.status === "approved");
 
   return <>
-    <div className="pagehead scene-head">
-      <div>
-        <div className="eyebrow">证据审阅 · 主路径第 3 步</div>
-        <h1>证据够不够，缺口在哪里？</h1>
-        <p className="muted">在此批准事实、接受缺口或解冲突。缺来源时到「补充来源」完成抓取与挂判断；关系图 / 知识库为进阶查询，不是补证入口。</p>
-      </div>
-      <div className="actions">
-        <div className="run-meta">
-          <span>待审 {pending.length}</span>
-          <span>已确认 {approved.length}</span>
-          <span>缺口已接受 {gapAccepted.length}</span>
-        </div>
-        <Link className="button-secondary" href={`/runs/${id}/stages/3`}>补充来源</Link>
-      </div>
-    </div>
+    <StageSceneChrome
+      runId={id}
+      stage={3}
+      status={evidenceArtifact.status}
+      outputCount={evidence.length}
+      statusNote={pending.length ? `先处理 ${pending.length} 项待审内容。` : "当前证据审阅已完成，可进入判断阶段。"}
+      actions={
+        <>
+          <StageApprovalButton
+            runId={id}
+            artifactId={evidenceArtifact.id}
+            stage={3}
+            status={evidenceArtifact.status}
+            canApprove={pending.length === 0}
+            blockingHint={pending.length ? `先处理 ${pending.length} 项待审或返工内容` : undefined}
+          />
+          <div className="run-meta">
+            <span>待审 {pending.length}</span>
+            <span>已确认 {approved.length}</span>
+            <span>缺口已接受 {gapAccepted.length}</span>
+          </div>
+          <Link className="button-secondary" href={`/runs/${id}/stages/3`}>补充来源</Link>
+        </>
+      }
+    />
 
     {units.length ? <EvidenceBoard
       runId={id}

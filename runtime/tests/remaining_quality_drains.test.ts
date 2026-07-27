@@ -104,6 +104,9 @@ describe("remaining quality drains", () => {
         title: "a",
         publisher: "cninfo",
         source_group: "cninfo",
+        usability_status: "usable",
+        retrieval_status: "captured",
+        quote_verified: true,
       } as any],
       judgmentUnits: [
         { id: "JU-1", judgment_type: "cycle_phase" },

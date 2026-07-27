@@ -50,6 +50,7 @@ import {
   evidenceRoleLabel,
   reviewSuggestionLabel,
   retrievalLabel,
+  sourceTierLabel,
   usabilityLabel,
   workItemStatusLabel,
 } from "@/app/lib/ui-labels";
@@ -104,7 +105,7 @@ export function EvidenceBoard({
   const suggestionMap = useMemo(() => new Map(suggestions.map((item) => [item.evidence_id, item])), [suggestions]);
   const workItem = workItems.find((item) => item.target_id === selectedId && ["evidence_review", "supplement_evidence", "resolve_conflict"].includes(item.kind));
   const terminalReview = workItem && ["approved", "dismissed", "superseded"].includes(workItem.status);
-  const selectedSuggestion = selected ? suggestionMap.get(selected.id) : undefined;
+  const selectedSuggestion = selected && !terminalReview ? suggestionMap.get(selected.id) : undefined;
 
   useEffect(() => {
     if (!selected) {
@@ -220,18 +221,14 @@ export function EvidenceBoard({
     const work = workItems.find((workItem) => workItem.target_id === item.id);
     return !work || work.status === "pending";
   }).length;
-  const approvedCount = evidence.filter((item) => {
-    const work = workItems.find((workItem) => workItem.target_id === item.id);
-    return work?.status === "approved";
-  }).length;
-  const gapAcceptedCount = evidence.filter((item) => {
-    const work = workItems.find((workItem) => workItem.target_id === item.id);
-    return item.kind === "gap" && work?.status === "approved";
-  }).length;
-
   if (!units.length) return <div className="card empty-state"><h2>尚无证据任务</h2><p className="muted">完成结构阶段后，证据要求会按判断单元展开。</p></div>;
 
-  const visibleUnits = unitFilter === "all" ? units : units.filter((unit) => unit.id === unitFilter);
+  const visibleEvidence = unitFilter === "all"
+    ? evidence
+    : evidence.filter((item) => item.judgment_unit_ids.includes(unitFilter));
+  const selectedUnits = selected
+    ? units.filter((unit) => selected.judgment_unit_ids.includes(unit.id))
+    : [];
 
   return <div className="evidence-review-section">
     {gapPriorities.length ? <section className="gap-priority-panel">
@@ -239,12 +236,6 @@ export function EvidenceBoard({
       <div className="gap-priority-list">{gapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={item.evidence_id} onClick={() => setSelectedId(item.evidence_id)} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
     </section> : null}
     <div className="evidence-review-toolbar">
-      <div className="run-meta">
-        <span>待审 {pendingCount}</span>
-        <span>已确认 {approvedCount}</span>
-        <span>缺口已接受 {gapAcceptedCount}</span>
-        <span>已选 {checkedIds.size}</span>
-      </div>
       <div className="review-batch-actions">
         <label className="unit-filter">
           <span>判断单元</span>
@@ -255,41 +246,53 @@ export function EvidenceBoard({
             ))}
           </select>
         </label>
-        <label className="batch-select-all"><input type="checkbox" checked={checkedIds.size > 0 && checkedIds.size === pendingCount} onChange={(event) => toggleAllPending(event.target.checked)} /> 全选待审</label>
-        <button type="button" className="button-secondary" disabled={busy} onClick={() => submitDecisions(buildBatchItems("adopt_high"))}>采纳高置信建议</button>
-        <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept"))}>批量确认</button>
-        <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept_gap"))}>批量接受缺口</button>
-        <button type="button" className="button-quiet" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("rework"))}>批量退回</button>
+        {pendingCount ? <>
+          <span className="section-meta">待审 {pendingCount} · 已选 {checkedIds.size}</span>
+          <label className="batch-select-all"><input type="checkbox" checked={checkedIds.size > 0 && checkedIds.size === pendingCount} onChange={(event) => toggleAllPending(event.target.checked)} /> 全选待审</label>
+          <button type="button" className="button-secondary" disabled={busy} onClick={() => submitDecisions(buildBatchItems("adopt_high"))}>采纳高置信建议</button>
+          <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept"))}>批量确认</button>
+          <button type="button" className="button-secondary" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("accept_gap"))}>批量接受缺口</button>
+          <button type="button" className="button-quiet" disabled={busy || !checkedIds.size} onClick={() => submitDecisions(buildBatchItems("rework"))}>批量退回</button>
+        </> : null}
       </div>
     </div>
 
     <div className="evidence-workspace">
-      <div className="evidence-matrix-wrap">
-        <div className="evidence-matrix" style={{ gridTemplateColumns: `170px repeat(${visibleUnits.length}, minmax(250px, 1fr))` }}>
-          <div className="matrix-corner">证据角色</div>
-          {visibleUnits.map((unit, index) => {
-            const originalIndex = units.findIndex((item) => item.id === unit.id);
-            return <div className="matrix-unit" key={unit.id}><span>关键判断 {originalIndex + 1}</span><strong>{stripInternalReferencePrefix(unit.title)}</strong><small>{stripInternalReferencePrefix(unit.question)}</small></div>;
-          })}
-          {lanes.map((lane) => <div className="matrix-row" key={lane.id} style={{ display: "contents" }}>
-            <div className={`matrix-lane lane-${lane.id}`}>{lane.label}</div>
-            {visibleUnits.map((unit) => <div className="matrix-cell" key={`${lane.id}:${unit.id}`}>
-              {evidence.filter((item) => item.judgment_unit_ids.includes(unit.id) && laneFor(item) === lane.id).map((item) => {
+      <div className="evidence-list-wrap">
+        {lanes.map((lane) => {
+          const laneEvidence = visibleEvidence.filter((item) => laneFor(item) === lane.id);
+          if (!laneEvidence.length) return null;
+          return <section className={`evidence-lane-section lane-${lane.id}`} key={lane.id}>
+            <header><strong>{lane.label}</strong><span>{laneEvidence.length} 项</span></header>
+            <div className="evidence-list">
+              {laneEvidence.map((item) => {
                 const itemWork = workItems.find((work) => work.target_id === item.id);
-                const suggestion = suggestionMap.get(item.id);
-                return <div className={`evidence-card-wrap ${selectedId === item.id ? "selected" : ""}`} key={item.id}>
-                  <label className="evidence-card-check"><input type="checkbox" checked={checkedIds.has(item.id)} onChange={(event) => toggleChecked(item.id, event.target.checked)} /></label>
-                  <button className={`evidence-card lane-${lane.id}`} onClick={() => setSelectedId(item.id)} type="button">
-                    <span>{evidenceKindLabel(item.kind)}</span>
+                const terminal = itemWork && ["approved", "dismissed", "superseded"].includes(itemWork.status);
+                const suggestion = terminal ? undefined : suggestionMap.get(item.id);
+                const relatedUnits = units.filter((unit) => item.judgment_unit_ids.includes(unit.id));
+                return <div className={`evidence-list-card lane-${lane.id} ${selectedId === item.id ? "selected" : ""}`} key={item.id}>
+                  <label className="evidence-card-check" aria-label={`选择 ${stripInternalReferencePrefix(item.statement)}`}><input type="checkbox" checked={checkedIds.has(item.id)} onChange={(event) => toggleChecked(item.id, event.target.checked)} /></label>
+                  <button onClick={() => setSelectedId(item.id)} type="button">
+                    <div className="evidence-list-meta">
+                      <span>{evidenceKindLabel(item.kind)}</span>
+                      <span>{workItemStatusLabel(itemWork?.status || "pending")}</span>
+                      <span>{item.source_ids.length ? `${item.source_ids.length} 个来源` : "尚无来源"}</span>
+                    </div>
                     <strong>{stripInternalReferencePrefix(item.statement)}</strong>
-                    <small>{workItemStatusLabel(itemWork?.status || "pending")} · 来源 {item.source_ids.length}</small>
-                    {suggestion ? <em className={`suggestion-chip confidence-${suggestion.confidence}`}>{reviewSuggestionLabel(suggestion.suggestion)}</em> : null}
+                    <div className="evidence-related-units">
+                      <span>影响</span>
+                      {relatedUnits.length
+                        ? relatedUnits.map((unit) => <em key={unit.id}>{stripInternalReferencePrefix(unit.title)}</em>)
+                        : <em>研究背景</em>}
+                    </div>
+                    {suggestion ? <small className={`suggestion-chip confidence-${suggestion.confidence}`}>{reviewSuggestionLabel(suggestion.suggestion)}</small> : null}
                   </button>
                 </div>;
               })}
-            </div>)}
-          </div>)}
-        </div>
+            </div>
+          </section>;
+        })}
+        {!visibleEvidence.length ? <div className="empty-state"><h2>没有符合筛选条件的证据</h2><p className="muted">切换关键判断查看其他证据。</p></div> : null}
       </div>
       <aside className="evidence-inspector">
         <div className="eyebrow">证据详情</div>
@@ -315,6 +318,11 @@ export function EvidenceBoard({
             {selected.minimum_independent_sources !== undefined ? <div><dt>最低独立来源</dt><dd>{selected.minimum_independent_sources}</dd></div> : null}
           </dl> : null}
 
+          <h3>影响判断</h3>
+          {selectedUnits.length ? <ul className="evidence-related-list">
+            {selectedUnits.map((unit) => <li key={unit.id}>{stripInternalReferencePrefix(unit.title)}</li>)}
+          </ul> : <p className="muted">该项仅作为研究背景，尚未绑定关键判断。</p>}
+
           <h3>来源</h3>
           {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => {
             const source = sourceMap.get(id);
@@ -328,7 +336,7 @@ export function EvidenceBoard({
               <details className="source-tech-details">
                 <summary>技术字段</summary>
                 <small>
-                  {authorityTypeLabel(source.authority_type || "unknown")} · 等级 {source.source_tier || "S8"} · 独立组 {source.source_group || "未登记"}
+                  {authorityTypeLabel(source.authority_type || "unknown")} · {sourceTierLabel(source.source_tier || "S8")} · 独立来源组 {source.source_group || "未登记"}
                   · {usabilityLabel(source.usability_status || "")} / {retrievalLabel(source.retrieval_status || "")}
                   · 引用 {source.quote_verified ? "已验证" : "未验证"}
                 </small>

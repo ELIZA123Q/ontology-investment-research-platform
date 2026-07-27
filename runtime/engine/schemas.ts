@@ -526,18 +526,18 @@ export const evidencePreparationSchema = z.object({
       id: z.string(),
       title: z.string(),
       evidence_draft_ids: z.array(z.string()).default([]),
-      note: z.string().optional(),
+      note: z.string().nullable().default(null),
     })).default([]),
     table_candidates: z.array(z.object({
       id: z.string(),
       title: z.string(),
       evidence_draft_ids: z.array(z.string()).default([]),
-      note: z.string().optional(),
+      note: z.string().nullable().default(null),
     })).default([]),
     source_annotation_candidates: z.array(z.object({
       id: z.string(),
-      source_id: z.string().optional(),
-      source_key: z.string().optional(),
+      source_id: z.string().nullable().default(null),
+      source_key: z.string().nullable().default(null),
       annotation: z.string(),
     })).default([]),
   }).default({ chart_candidates: [], table_candidates: [], source_annotation_candidates: [] }),
@@ -746,9 +746,9 @@ export const researchExpressionSchema = z.object({
   research_edge: z.array(z.object({
     market_view: z.string(),
     differentiated_view: z.string(),
-    underestimated_mechanism: z.string().optional(),
-    falsifier: z.string().optional(),
-    evidence_boundary: z.string().optional(),
+    underestimated_mechanism: z.string().nullable().default(null),
+    falsifier: z.string().nullable().default(null),
+    evidence_boundary: z.string().nullable().default(null),
   })).default([]),
   argument_chapters: z.array(z.string()).default([]),
   research_value_review: z.object({
@@ -756,12 +756,18 @@ export const researchExpressionSchema = z.object({
     checks: z.array(z.object({
       id: z.string(),
       pass: z.boolean(),
+      score: z.number().int().min(0).max(4).default(0),
       evidence_span: z.string().default(""),
       note: z.string().default(""),
     })).default([]),
     retry_count: z.number().int().min(0).default(0),
-    reviewed_at: z.string().optional(),
-  }).optional(),
+    total_score: z.number().int().min(0).max(20).default(0),
+    pass_threshold: z.number().int().min(0).max(20).default(16),
+    reviewed_at: z.string().nullable().default(null),
+    mode: z.enum(["heuristic", "llm", "combined"]).default("heuristic"),
+    reviewer_model: z.string().nullable().default(null),
+    producer_model: z.string().nullable().default(null),
+  }).nullable().default(null),
   expression_permission_summary: z.object({
     allowed_core_claims: z.array(z.string()).default([]),
     restricted_claims: z.array(z.string()).default([]),
@@ -770,7 +776,7 @@ export const researchExpressionSchema = z.object({
     restricted_phrasing: z.array(z.string()).default([]),
     max_expression_level: z.string().default(""),
     notes: z.string().default(""),
-  }).optional(),
+  }).nullable().default(null),
   document_markdown: markdown,
 });
 
@@ -797,9 +803,9 @@ export const evaluationSchema = z.object({
   runtime_report_artifact_id: nonEmptyString,
   frozen_stage03_artifact_id: nonEmptyString,
   frozen_stage03_artifact_hash: z.string().regex(/^[a-f0-9]{64}$/),
-  metrics_version: z.string().optional(),
-  metrics_recomputed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/).optional(),
-  supersedes_evaluation_artifact_id: z.string().optional(),
+  metrics_version: z.string().nullable().optional(),
+  metrics_recomputed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/).nullable().optional(),
+  supersedes_evaluation_artifact_id: z.string().nullable().optional(),
 });
 
 export const EVALUATION_CRITERIA = ["事实与来源可核验性", "无来源主张控制", "反证与竞争解释", "结论边界", "可复盘性", "研究决策帮助"] as const;
@@ -841,7 +847,7 @@ export const independentReviewSchema = z.object({
     ]),
     result: z.enum(["pass", "fail", "needs_human"]),
     reason: nonEmptyString,
-    return_to_stage: z.enum(["02", "03", "04", "05"]).optional(),
+    return_to_stage: z.enum(["02", "03", "04", "05"]).nullable().optional(),
   })).default([]),
 }).superRefine((value, context) => {
   if (value.independence_level === "independent_human") {
