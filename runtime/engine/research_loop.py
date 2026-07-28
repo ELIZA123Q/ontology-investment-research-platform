@@ -80,7 +80,7 @@ RETURN_TO_STAGE = {
 # 这些是控制路由，不是业务分类。它们只判断某个正式本体实例是否已经被 02 冻结结构容纳。
 STRUCTURAL_OBJECT_TYPES = {"StateVariable", "Hypothesis", "Scenario"}
 STRUCTURAL_RELATION_TYPES = {
-    "variableInfluencesVariable",
+    "stateVariableInfluences",
     "hypothesisAbout",
     "hypothesisCompetesWith",
     "hypothesisContradicts",

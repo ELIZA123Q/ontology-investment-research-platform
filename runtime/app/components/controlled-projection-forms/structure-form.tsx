@@ -454,7 +454,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
     {message ? <div className="notice">{message}</div> : null}
     {variant === "fallback" ? (
       <button type="button" className="button" disabled={locked} onClick={submit}>
-        {busy ? "正在保存…" : hasExisting ? "保存研究结构" : "生成待审阅研究结构"}
+        {busy ? "正在保存…" : hasExisting ? "保存研究结构" : "生成待核对研究结构"}
       </button>
     ) : null}
   </div>;

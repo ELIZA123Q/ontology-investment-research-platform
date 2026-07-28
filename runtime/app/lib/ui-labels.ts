@@ -250,10 +250,10 @@ export function evidenceKindLabel(kind: string): string {
   return (
     {
       source_claim: "来源事实",
-      fact_draft: "事实草稿",
+      fact_draft: "待核对事实",
       counter: "反证",
-      gap: "缺口",
-      conflict: "冲突",
+      gap: "尚缺的证据",
+      conflict: "相互矛盾",
       background: "背景",
     } as Record<string, string>
   )[kind] || kind;
@@ -264,7 +264,7 @@ export function workItemKindLabel(kind: string): string {
     {
       evidence_review: "证据审阅",
       judgment_review: "判断确认",
-      gap_acceptance: "接受证据缺口",
+      gap_acceptance: "确认暂缺（限制结论）",
       action_approval: "批准操作建议",
       independent_review: "独立审阅",
     } as Record<string, string>
@@ -272,7 +272,7 @@ export function workItemKindLabel(kind: string): string {
 }
 
 export function verdictLabel(verdict: string): string {
-  return ({ pass: "通过", rework: "需返工" } as Record<string, string>)[verdict] || verdict;
+  return ({ pass: "通过", rework: "退回修改" } as Record<string, string>)[verdict] || verdict;
 }
 
 export function directionLabel(direction: string): string {
@@ -293,9 +293,9 @@ export function confidenceLabel(confidence: string): string {
 export function workItemStatusLabel(status: string): string {
   return (
     {
-      pending: "待审阅",
+      pending: "待核对",
       approved: "已确认",
-      rework: "退回补证",
+      rework: "退回修改",
       dismissed: "已驳回",
       superseded: "已被取代",
     } as Record<string, string>
@@ -339,8 +339,8 @@ export function reviewSuggestionLabel(suggestion: string): string {
   return (
     {
       accept_evidence: "建议确认可用",
-      accept_gap: "建议接受缺口",
-      rework: "建议退回补证",
+      accept_gap: "建议确认暂缺（限制结论）",
+      rework: "建议退回修改",
       review_manually: "建议人工复核",
     } as Record<string, string>
   )[suggestion] || suggestion;

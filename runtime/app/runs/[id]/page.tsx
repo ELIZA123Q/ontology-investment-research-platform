@@ -120,7 +120,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       : "overview-grid decision-only";
   const evidenceReadyLine = [
     `事实 ${factCount}`,
-    `缺口/冲突 ${gaps.length}`,
+    `尚缺/矛盾 ${gaps.length}`,
     pending.length ? `待处理 ${pending.length}` : null,
   ].filter(Boolean).join(" · ");
 

@@ -82,7 +82,7 @@ export function buildJudgmentReviewGraph(input: {
     nodes.push({
       id: item._id,
       label: item.statement,
-      meta: item.kind === "counter" ? "反证" : item.kind === "gap" ? "缺口" : "证据",
+      meta: item.kind === "counter" ? "反证" : item.kind === "gap" ? "尚缺" : "证据",
       tone: item.kind === "counter" || item.direction === "weaken" ? "weaken" : item.kind === "conflict" ? "danger" : item.kind === "gap" ? "unknown" : "support",
       x: 0,
       y: index * 105,

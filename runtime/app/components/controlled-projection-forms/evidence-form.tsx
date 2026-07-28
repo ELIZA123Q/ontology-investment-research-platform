@@ -49,15 +49,15 @@ export function ControlledEvidenceProjectionForm({ runId, units, sources }: {
     const result = await response.json();
     setBusy(false);
     if (!response.ok) {
-      setMessage(result.error || "生成事实草稿失败");
+      setMessage(result.error || "生成待核对事实失败");
       return;
     }
-    setMessage("事实草稿已创建；来源原文未被改写。请逐条审阅后再确认证据。");
+    setMessage("待核对事实已创建；来源原文未被改写。请逐条审阅后再确认证据。");
     router.refresh();
   }
 
   return <section className="card source-acquisition">
-    <div className="panel-title"><div><span>模型取证失败时的手动路径</span><strong>把已核验来源登记为事实草稿</strong></div><button type="button" className="button-secondary" onClick={() => setOpen((value) => !value)}>{open ? "收起" : "建立事实草稿"}</button></div>
+    <div className="panel-title"><div><span>模型取证失败时的手动路径</span><strong>把已核验来源登记为待核对事实</strong></div><button type="button" className="button-secondary" onClick={() => setOpen((value) => !value)}>{open ? "收起" : "建立待核对事实"}</button></div>
     <p className="muted">这里只允许选择已抓取、已核验逐字引文的来源；系统会复核发布日期、内容指纹和截止时间。候选不会直接变成已确认事实，生成后仍须逐条人工批准。</p>
     {open ? <div>
       {!sources.length ? <div className="notice">当前没有「可用 + 已抓取正文 + 引文已核验」的来源。请先在上方取得并核验公开来源。</div> : sources.map((source) => <div className="card" key={source.id} style={{ marginTop: 12 }}>
@@ -75,7 +75,7 @@ export function ControlledEvidenceProjectionForm({ runId, units, sources }: {
         </div> : null}
       </div>)}
       {message ? <div className="notice">{message}</div> : null}
-      <button type="button" className="button" disabled={busy || !sources.length} onClick={submit}>{busy ? "正在按规则校验…" : "生成待审阅事实草稿"}</button>
+      <button type="button" className="button" disabled={busy || !sources.length} onClick={submit}>{busy ? "正在按规则校验…" : "生成待核对事实"}</button>
     </div> : null}
   </section>;
 }

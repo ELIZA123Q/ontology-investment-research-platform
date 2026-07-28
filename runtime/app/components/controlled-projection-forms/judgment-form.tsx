@@ -443,6 +443,6 @@ function JudgmentFormBody({
       </div>;
     })}
     {message ? <div className="notice">{message}</div> : null}
-    {variant === "fallback" ? <button type="button" className="button" disabled={busy || locked || !units.length || !evidence.length} onClick={() => void onSubmit()}>{busy ? "正在执行规则与方法…" : "生成待审阅判断草稿"}</button> : null}
+    {variant === "fallback" ? <button type="button" className="button" disabled={busy || locked || !units.length || !evidence.length} onClick={() => void onSubmit()}>{busy ? "正在执行规则与方法…" : "生成待核对判断草稿"}</button> : null}
   </div>;
 }

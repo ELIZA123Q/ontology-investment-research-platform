@@ -27,7 +27,7 @@ export function SourceAcquisitionForm({ runId }: { runId: string }) {
       router.refresh();
       return;
     }
-    setMessage("来源正文、逐字引用与内容指纹已核验；它仍只是证据阶段的候选输入。可在下方手动路径中挂到判断单元并生成待审阅事实草稿。");
+    setMessage("来源正文、逐字引用与内容指纹已核验；它仍只是证据阶段的候选输入。可在下方手动路径中挂到判断单元并生成待核对事实。");
     router.refresh();
   }
 

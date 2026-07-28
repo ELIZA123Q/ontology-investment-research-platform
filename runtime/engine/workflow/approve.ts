@@ -111,6 +111,7 @@ import {
   validateGeneratedSemanticDraft,
   validateOntologyVariableBindings,
   editArtifact,
+  recomputeStage04DeterministicRules,
 } from "../workflow_shared";
 import {
   createControlledEvidenceProjection,
@@ -148,6 +149,18 @@ export function approve(id: string) {
         updateArtifact(artifact.id, { json_content: JSON.stringify(synced.data, null, 2) });
         artifact = getArtifact(id)!;
       }
+    }
+    if (artifact.kind === "stage_04") {
+      // 确认前按当前证据与来源重算正式规则，禁止信任可编辑的 deterministic_result。
+      const recomputed = recomputeStage04DeterministicRules(
+        artifact.run_id,
+        parseJson(artifact.json_content, {}),
+      );
+      updateArtifact(artifact.id, {
+        json_content: JSON.stringify(recomputed, null, 2),
+        markdown_content: String(recomputed.document_markdown || artifact.markdown_content || ""),
+      });
+      artifact = getArtifact(id)!;
     }
     validateApproval(artifact);
     assertArtifactReviewComplete(artifact);

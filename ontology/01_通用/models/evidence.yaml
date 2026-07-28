@@ -99,8 +99,8 @@ rules:
     counter_conditions: [scope_mismatch, future_data, undisclosed_proxy]
     failure_result: unusable_or_caveated
     priority: blocking
-    test_case_role: design_intent
-    test_cases: [{id: EVI-R-01-P, input: {subject_aligned: true, scope_aligned: true, time_aligned: true, unit_aligned: true, proxy_disclosed: false}, expected: pass}, {id: EVI-R-01-N, input: {subject_aligned: false, scope_aligned: false, time_aligned: false, unit_aligned: false, proxy_disclosed: false}, expected: reject}]
+    test_case_role: executable
+    test_cases: [{id: EVI-R-01-P, input: {subject_time_scope_unit_aligned: true, proxy_disclosed: false, scope_mismatch: false, future_data: false, undisclosed_proxy: false}, expected: pass}, {id: EVI-R-01-N, input: {scope_mismatch: true, subject_time_scope_unit_aligned: false, proxy_disclosed: false}, expected: reject}]
   no_direct_evidence_to_judgment:
     metadata: {id: no_direct_evidence_to_judgment, namespace: core.evidence, label_zh: 禁止证据直达判断, label_en: No direct evidence to judgment, aliases: [], definition: 证据只能直接支持观测、事件、信号或假设，不能越过推理步骤直接生成判断。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [事实支持信号后形成判断], counter_examples: [事实直接支持最终判断]}
     rule_class: evidence_constraint
@@ -112,5 +112,5 @@ rules:
     counter_conditions: [target_type_is_Judgment]
     failure_result: reject
     priority: blocking
-    test_case_role: design_intent
+    test_case_role: executable
     test_cases: [{id: EVI-R-02-P, input: {source_type: EvidenceFact, target_type: Signal, intermediates: [Signal, Hypothesis, JudgmentUnit]}, expected: pass}, {id: EVI-R-02-N, input: {source_type: EvidenceFact, target_type: Judgment, intermediates: []}, expected: reject}]

@@ -9,7 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const { id, artifactId } = await params;
     const artifact = getArtifact(artifactId);
     if (!artifact || artifact.run_id !== id) {
-      return Response.json({ error: "产物不存在" }, { status: 404 });
+      return Response.json({ error: "本阶段结果不存在" }, { status: 404 });
     }
     if (artifact.kind !== "stage_02") {
       return Response.json({ error: "当前仅支持 Stage02 确认前校验" }, { status: 501 });

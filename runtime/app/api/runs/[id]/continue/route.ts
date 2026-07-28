@@ -36,7 +36,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     const href = stageHref(id, nextStage);
     const awaitingReview = latestArtifact(id, kind, ["needs_review"]);
     if (awaitingReview) {
-      return Response.json({ error: "当前阶段已有待确认产物，请先人工确认", next_href: href }, { status: 409 });
+      return Response.json({ error: "当前阶段已有待确认结果，请先人工确认", next_href: href }, { status: 409 });
     }
 
     const latestStageJob = latestJobForStage(listResearchJobsForRun(id), kind);

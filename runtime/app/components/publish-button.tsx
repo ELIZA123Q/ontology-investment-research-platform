@@ -30,7 +30,7 @@ export function PublishButton({ runId, disabled = false }: { runId: string; disa
     } else if (d.validate_ok) {
       setMessage(`已导出正式包：${rel}（状态 ${status || "STAGE_READY"}；尚需补齐正式校验项）`);
     } else {
-      setMessage(`已导出正式包：${rel}，正式校验未通过（${status || "RETURN_REQUIRED"}）。请按提示返工后重试。`);
+      setMessage(`已导出正式包：${rel}，正式校验未通过（${status || "RETURN_REQUIRED"}）。请按提示退回修改后重试。`);
     }
     router.refresh();
   }

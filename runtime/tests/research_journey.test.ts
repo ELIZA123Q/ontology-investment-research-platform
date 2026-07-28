@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   RESEARCH_STAGE_JOURNEY,
   formatJourneyOutput,
+  journeyApproveLabel,
+  journeyNextHref,
   researchStage,
   validateJourney,
 } from "@/app/lib/research-journey";
@@ -27,8 +29,10 @@ describe("researcher journey contract", () => {
       expect(stage.outputNote.length).toBeGreaterThan(8);
       expect(stage.confirmation).toMatch(/[？?]$/);
       expect(stage.nextStep.label.length).toBeGreaterThan(2);
-      expect(stage.navLabel).not.toMatch(/Stage|stage_|J[0-4]|JSON|YAML/);
-      expect(stage.editTitle).not.toMatch(/Stage|stage_|J[0-4]|JSON|YAML/);
+      expect(stage.navLabel).not.toMatch(/Stage|stage_|J[0-4]|JSON|YAML|闸门|缺口/);
+      expect(stage.editTitle).not.toMatch(/Stage|stage_|J[0-4]|JSON|YAML|闸门|缺口/);
+      expect(stage.scenarioQuestion).not.toMatch(/闸门|缺口/);
+      expect(stage.confirmation).not.toMatch(/闸门|缺口/);
     }
   });
 
@@ -37,7 +41,7 @@ describe("researcher journey contract", () => {
       navLabel: "证据",
       editTitle: "证据准备",
       reviewPath: "/evidence",
-      scenarioQuestion: "证据够不够，缺口在哪里？",
+      scenarioQuestion: "证据够不够，还有哪些关键材料没拿到？",
       nextStep: { pathSuffix: "/judgments" },
     });
   });
@@ -51,5 +55,12 @@ describe("researcher journey contract", () => {
     const plain = researchStage(1)!;
     expect(formatJourneyOutput(plain, { count: 1 })).toBe("可执行、可证伪的研究问题");
     expect(formatJourneyOutput(plain, { count: 0 })).toBe("等待收敛研究问题");
+  });
+
+  it("builds post-confirm hrefs and approve labels from the journey", () => {
+    expect(journeyNextHref("run-1", 1)).toBe("/runs/run-1/structure");
+    expect(journeyNextHref("run-1", 5)).toBe("/runs/run-1");
+    expect(journeyApproveLabel(1)).toContain("确认范围");
+    expect(journeyApproveLabel(5)).toBe("确认交付");
   });
 });

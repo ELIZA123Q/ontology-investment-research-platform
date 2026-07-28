@@ -16,7 +16,7 @@ ontology_deltas:
   - delta_id: "DELTA-01"
     operation: "<instantiate | revise | relate | retire>"
     resource_kind: "<object | relation>"
-    ontology_ref: "<如 Observation、Signal、variableInfluencesVariable>"
+    ontology_ref: "<如 Observation、Signal、stateVariableInfluences>"
     object_ref: "<本次实例或关系实例引用>"
     prior_object_ref: null
     evidence_refs: []

@@ -152,6 +152,21 @@ export function validateGeneratedSemanticDraft(runId: string, kind: ArtifactKind
   }
 }
 
+
+/** 按当前 Stage02/03 与来源注册表重算 Stage04 正式规则；覆盖可编辑的 deterministic_result。 */
+export function recomputeStage04DeterministicRules(runId: string, data: any) {
+  const evidence: any = parseJson(latestArtifact(runId, "stage_03", ["approved"])?.json_content || "{}", {});
+  const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+  applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
+  for (const judgment of data.judgments || []) {
+    if (judgment.strength) judgment.level = judgment.strength;
+    else if (judgment.level) judgment.strength = judgment.level;
+  }
+  const run = getRun(runId);
+  syncStage04ReadableMarkdown(data, { question: run?.question, taskId: runId });
+  return data;
+}
+
 export function validateApproval(artifact: Artifact) {
   const data: any = parseJson(artifact.json_content, {});
   if (artifact.kind === "stage_01") {
@@ -183,6 +198,7 @@ export function validateApproval(artifact: Artifact) {
     assertStage03ReadyForApproval(data);
   } else if (artifact.kind === "stage_04") {
     const run = getRun(artifact.run_id);
+    recomputeStage04DeterministicRules(artifact.run_id, data);
     ensureStage04DocumentFields(data, { question: run?.question, taskId: artifact.run_id });
     schemas.stage_04.parse(data);
     assertStage04ReadyForApproval(data);
@@ -585,6 +601,9 @@ export function editArtifact(
         };
       });
     }
+  }
+  if (artifact.kind === "stage_04") {
+    recomputeStage04DeterministicRules(artifact.run_id, data);
   }
   const schema = schemas[artifact.kind as SchemaKind];
   const syncedKinds = new Set(["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]);

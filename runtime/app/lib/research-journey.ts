@@ -29,7 +29,7 @@ export type ResearchReferenceScene = {
   hint: string;
 };
 
-const JARGON_PATTERN = /Stage|stage_|J[0-4]|JSON|YAML/;
+const JARGON_PATTERN = /Stage|stage_|J[0-4]|JSON|YAML|闸门|缺口/;
 
 export const RESEARCH_STAGE_JOURNEY: readonly ResearchStageJourney[] = [
   {
@@ -71,13 +71,13 @@ export const RESEARCH_STAGE_JOURNEY: readonly ResearchStageJourney[] = [
     navLabel: "证据",
     editTitle: "证据准备",
     reviewPath: "/evidence",
-    scenarioQuestion: "证据够不够，缺口在哪里？",
-    scenarioHint: "围绕关键判断确认事实、接受缺口或解决冲突；证据数量本身不等于结论强度。",
-    editHint: "取得公开来源、形成事实草稿并挂到关键判断；最终确认仍在证据页完成。",
-    output: "{count} 项不重复的事实、反证、冲突或缺口",
-    outputFallback: "等待形成可核验事实与缺口",
+    scenarioQuestion: "证据够不够，还有哪些关键材料没拿到？",
+    scenarioHint: "围绕要回答的判断核对事实、确认暂缺或理清相互矛盾；证据数量本身不等于结论强度。",
+    editHint: "取得公开来源、形成待核对事实并挂到关键判断；最终确认仍在证据页完成。",
+    output: "{count} 项不重复的事实、反证、相互矛盾或尚缺的证据",
+    outputFallback: "等待形成可核验事实与尚缺项",
     outputNote: "每项证据同时标明影响哪些关键判断、来源状态与人工确认结果。",
-    confirmation: "事实是否忠实于原文，缺口是否被正确保留？",
+    confirmation: "事实是否忠实于原文，尚缺的证据是否被清楚标明？",
     nextStep: { label: "进入判断 →", pathSuffix: "/judgments" },
   },
   {
@@ -147,6 +147,21 @@ export function researchReferenceScene(id: ResearchReferenceScene["id"]) {
   return RESEARCH_REFERENCE_SCENES.find((item) => item.id === id);
 }
 
+/** After confirming stage N, go to the next review scene (stage 5 → overview). */
+export function journeyNextHref(runId: string, stage: number): string {
+  const journey = researchStage(stage);
+  if (!journey) return `/runs/${runId}`;
+  return `/runs/${runId}${journey.nextStep.pathSuffix}`;
+}
+
+export function journeyApproveLabel(stage: number): string {
+  const journey = researchStage(stage);
+  if (!journey) return "确认并继续";
+  if (stage >= 5) return "确认交付";
+  const next = journey.nextStep.label.replace(/→\s*$/, "").trim();
+  return `确认${journey.navLabel}，${next}`;
+}
+
 /** Replace `{count}` when provided; otherwise use outputFallback if template needs a count. */
 export function formatJourneyOutput(
   journey: Pick<ResearchStageJourney, "output" | "outputFallback">,
@@ -201,8 +216,13 @@ export function validateJourney(): string[] {
       ["navLabel", stage.navLabel],
       ["editTitle", stage.editTitle],
       ["scenarioQuestion", stage.scenarioQuestion],
+      ["scenarioHint", stage.scenarioHint],
+      ["editHint", stage.editHint],
       ["output", stage.output],
       ["outputFallback", stage.outputFallback],
+      ["outputNote", stage.outputNote],
+      ["confirmation", stage.confirmation],
+      ["nextStep.label", stage.nextStep.label],
     ] as const) {
       if (JARGON_PATTERN.test(value)) errors.push(`stage ${stage.stage}: ${name} contains internal jargon`);
     }

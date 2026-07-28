@@ -58,7 +58,7 @@ export function SourceCoveragePanel({
 
   function counterStatusLabel(status: SourceCoverageSummary["unit_coverage"][number]["counter_check_status"]) {
     if (status === "observed") return "已有反证 / 削弱事实";
-    if (status === "gap") return "反证缺口已登记";
+    if (status === "gap") return "反证暂缺已登记";
     if (status === "not_recorded") return "反证尚未登记";
     return "本单元未要求反证";
   }
@@ -114,10 +114,10 @@ export function SourceCoveragePanel({
     const result = await response.json();
     setProjectionBusy(false);
     if (!response.ok) {
-      setProjectionMessage(result.error || "生成事实草稿失败");
+      setProjectionMessage(result.error || "生成待核对事实失败");
       return;
     }
-    setProjectionMessage("② 完成：事实草稿已创建。");
+    setProjectionMessage("② 完成：待核对事实已创建。");
     setProjectionReady(true);
     setSelected({});
     router.refresh();
@@ -148,7 +148,7 @@ export function SourceCoveragePanel({
       <li className={draftCount || projectionReady ? "done" : projectionOpen ? "current" : ""}>
         <em>2</em>
         <div>
-          <strong>挂到判断单元，生成事实草稿</strong>
+          <strong>挂到判断单元，生成待核对事实</strong>
           <small>绑定对象、观测日与方向</small>
         </div>
       </li>
@@ -163,13 +163,13 @@ export function SourceCoveragePanel({
 
     <p className="muted channel-note">
       自动补证会优先查询已接入的一手数据与官方来源；手动补证可粘贴公开 URL 并核验原文。
-      覆盖率与核验率是<strong>进度指标</strong>：只要仍有单元缺口，系统不会仅凭覆盖率停补。
+      覆盖率与核验率是<strong>进度指标</strong>：只要仍有单元尚缺项，系统不会仅凭覆盖率停补。
     </p>
 
     {(projectionReady || draftCount > 0) ? (
       <div className="notice evidence-next-step">
         <strong>下一步：去证据审阅确认草稿</strong>
-        <p>事实草稿不会自动变成已确认证据。</p>
+        <p>待核对事实不会自动变成已确认证据。</p>
         <Link className="button" href={`/runs/${runId}/evidence`}>打开证据审阅 →</Link>
       </div>
     ) : null}
@@ -251,7 +251,7 @@ export function SourceCoveragePanel({
               <span className={lifecycle.bodyCaptured ? "done" : ""}><i>2</i>正文</span>
               <span className={lifecycle.quoteVerified ? "done" : ""}><i>3</i>引文</span>
               <span className={lifecycle.evidenceFact ? "done" : lifecycle.factDraft ? "pending" : ""}>
-                <i>4</i>{lifecycle.factDraft ? "事实待审" : "事实"}
+                <i>4</i>{lifecycle.factDraft ? "事实待核对" : "事实"}
               </span>
             </div>
             {source.failure_detail ? <small className="source-failure-detail">未能继续：{source.failure_detail}</small> : null}
@@ -278,7 +278,7 @@ export function SourceCoveragePanel({
         disabled={!controlledSources.length && !projectionOpen}
         onClick={() => setProjectionOpen((value) => !value)}
       >
-        {projectionOpen ? "收起步骤 2" : "② 生成事实草稿"}
+        {projectionOpen ? "收起步骤 2" : "② 生成待核对事实"}
       </button>
       <Link className="button-secondary" href={`/runs/${runId}/evidence`}>③ 证据审阅</Link>
     </div>
@@ -324,7 +324,7 @@ export function SourceCoveragePanel({
         </div> : null}
       </div>)}
       {projectionMessage ? <div className="notice">{projectionMessage}</div> : null}
-      <button type="button" className="button" disabled={projectionBusy} onClick={submitProjection}>{projectionBusy ? "正在按规则校验…" : "生成待审阅事实草稿"}</button>
+      <button type="button" className="button" disabled={projectionBusy} onClick={submitProjection}>{projectionBusy ? "正在按规则校验…" : "生成待核对事实"}</button>
     </div> : null}
   </section>;
 }

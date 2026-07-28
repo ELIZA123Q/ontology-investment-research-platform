@@ -26,6 +26,7 @@ object_types:
       facility_kind: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [wafer_fab, packaging, testing, mask, material, equipment, integrated], description: 设施类型。}
       region_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: Region, description: 设施所在地区。}
       lifecycle_stage: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [planned, under_construction, pilot, operating, suspended, retired], description: 设施生命周期阶段。}
+      capacity_scope_summary: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未冻结产能口径简述。, description: 用于研究的设施产能口径简述。}
     constraints: {unique: [name, region_ref], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   WaferFab:
     extends: ManufacturingFacility
@@ -74,6 +75,8 @@ object_types:
     attributes:
       name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 芯片名称。}
       chip_category: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [logic, memory, analog, power, rf, optoelectronic, sensor, discrete, mixed_signal, other], description: 芯片功能类别。}
+      process_node_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要制程节点。, reference_target: ProcessNode, description: 主要制程节点引用（可选）。}
+      primary_application_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要应用锚点。, reference_target: Application, description: 主要应用锚点（可选）。}
     constraints: {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   ProcessNode:
     extends: Technology
@@ -190,10 +193,10 @@ evidence_constraints:
     counter_conditions: [proxy_treated_as_direct_evidence]
     failure_result: downgrade_or_reject
     priority: blocking
-    test_case_role: design_intent
+    test_case_role: executable
     test_cases:
-      - {id: SEMI-PROXY-P, input: {proxy_used: true, lag_disclosed: true, scope_disclosed: true, direct_evidence_limit_disclosed: true}, expected: pass}
-      - {id: SEMI-PROXY-N, input: {proxy_used: true, lag_disclosed: false, proxy_treated_as_direct: true}, expected: reject}
+      - {id: SEMI-PROXY-P, input: {proxy_lag_scope_and_non_substitution_disclosed: true, proxy_treated_as_direct_evidence: false}, expected: pass}
+      - {id: SEMI-PROXY-N, input: {proxy_treated_as_direct_evidence: true, proxy_lag_scope_and_non_substitution_disclosed: false}, expected: reject}
   semiconductor_qualification_stage_alignment:
     metadata: {id: semiconductor_qualification_stage_alignment, namespace: semiconductor, label_zh: 认证商业化阶段对齐, label_en: Semiconductor qualification stage alignment, aliases: [], definition: 送样、评估、认证、定点、试产、量产和复购必须按同一对象与规格分层，低阶段证据不得支持高阶段判断。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [认证通过只支持qualification], counter_examples: [送样直接写成规模量产]}
     rule_class: evidence_constraint
@@ -205,10 +208,10 @@ evidence_constraints:
     counter_conditions: [intent_treated_as_order, sample_treated_as_mass_production, qualification_scope_mismatch]
     failure_result: downgrade_or_block
     priority: blocking
-    test_case_role: design_intent
+    test_case_role: executable
     test_cases:
-      - {id: SEMI-STAGE-P, input: {evidence_stage: mass_production, claimed_stage: qualification, scope_aligned: true}, expected: pass}
-      - {id: SEMI-STAGE-N, input: {evidence_stage: sample, claimed_stage: mass_production, scope_aligned: false}, expected: reject}
+      - {id: SEMI-STAGE-P, input: {evidence_stage_gte_claimed_stage: true, product_spec_and_customer_scope_aligned: true, intent_treated_as_order: false, sample_treated_as_mass_production: false, qualification_scope_mismatch: false}, expected: pass}
+      - {id: SEMI-STAGE-N, input: {sample_treated_as_mass_production: true, evidence_stage_gte_claimed_stage: false, product_spec_and_customer_scope_aligned: false}, expected: reject}
   semiconductor_capacity_yield_scope_alignment:
     metadata: {id: semiconductor_capacity_yield_scope_alignment, namespace: semiconductor, label_zh: 产能良率口径对齐, label_en: Semiconductor capacity and yield scope alignment, aliases: [], definition: 产能和良率证据必须同时对齐设施、晶圆尺寸、制程或产品、批次阶段、单位和业务时间。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [同产线同产品量产良率可比], counter_examples: [样品良率外推全厂有效产能]}
     rule_class: evidence_constraint
@@ -220,7 +223,7 @@ evidence_constraints:
     counter_conditions: [nameplate_as_effective_capacity, sample_yield_as_mass_production_yield, scope_or_unit_mismatch]
     failure_result: downgrade_or_reject
     priority: blocking
-    test_case_role: design_intent
+    test_case_role: executable
     test_cases:
-      - {id: SEMI-CAP-YIELD-P, input: {facility_match: true, product_match: true, batch_match: true, unit_match: true, time_match: true}, expected: pass}
-      - {id: SEMI-CAP-YIELD-N, input: {facility_match: false, sample_yield_used_for_mass_production: true}, expected: reject}
+      - {id: SEMI-CAP-YIELD-P, input: {facility_wafer_process_product_batch_unit_and_time_aligned: true, nameplate_as_effective_capacity: false, sample_yield_as_mass_production_yield: false, scope_or_unit_mismatch: false}, expected: pass}
+      - {id: SEMI-CAP-YIELD-N, input: {scope_or_unit_mismatch: true, facility_wafer_process_product_batch_unit_and_time_aligned: false}, expected: reject}

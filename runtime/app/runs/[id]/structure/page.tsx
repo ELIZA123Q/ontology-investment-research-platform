@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getRun } from "@/adapters/db";
 import { latestArtifactPayload } from "@/adapters/db_read_models";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
@@ -17,7 +17,8 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
   const run = getRun(id);
   if (!run) notFound();
   const artifact = latestArtifactPayload(id, "stage_02", ["approved", "needs_review"]);
-  const data: any = parseJson(artifact?.json_content || "{}", {});
+  if (!artifact) redirect(`/runs/${id}/stages/2`);
+  const data: any = parseJson(artifact.json_content || "{}", {});
   const { nodes, edges, scopeSummary, methodSummary } = buildStructureReviewGraph({
     question: data.questions?.[0]?.statement || run.question,
     inherited: Boolean(run.parent_run_id),
@@ -40,16 +41,16 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
     <StageSceneChrome
       runId={id}
       stage={2}
-      status={artifact?.status}
+      status={artifact.status}
       outputCount={unitSummaries.length}
       subtitle={run.question}
       actions={
         <>
-          <StageApprovalButton runId={id} artifactId={artifact?.id} stage={2} status={artifact?.status} />
-          <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
-            {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
+          <StageApprovalButton runId={id} artifactId={artifact.id} stage={2} status={artifact.status} />
+          <span className={`badge ${artifact.status === "approved" ? "" : "warn"}`}>
+            {artifact.status === "approved" ? "已确认" : artifact.status === "needs_review" ? "待确认" : artifact.status || "尚未开始"}
           </span>
-          <Link className="button-secondary" href={`/runs/${id}/stages/2`}>{artifact ? "编辑结构" : "生成研究结构"}</Link>
+          <Link className="button-secondary" href={`/runs/${id}/stages/2`}>编辑结构</Link>
         </>
       }
     />

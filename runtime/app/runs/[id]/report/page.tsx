@@ -35,7 +35,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
     : !review || review.status !== "approved"
       ? "独立审阅尚未确认"
       : reviewData.verdict !== "pass"
-        ? "独立审阅要求返工"
+        ? "独立审阅要求退回修改"
         : blockers.length
           ? `${blockers.length} 个待办事项仍需处理`
           : "日常交付条件已满足";

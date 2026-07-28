@@ -64,7 +64,7 @@ export function StageSceneChrome({
 
       <section className={`stage-confirm-gate${awaitingConfirm ? " pending" : ""}`}>
         <div>
-          <span>确认闸门</span>
+          <span>本阶段确认问题</span>
           <strong>{journey.confirmation}</strong>
           <small>{awaitingConfirm ? "确认前请先回答这个问题。" : status === "approved" ? "本阶段已确认。" : "生成可核对版本后，在此回答确认问题。"}</small>
         </div>

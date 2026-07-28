@@ -519,6 +519,63 @@ button.linkish { appearance: none; border: 0; padding: 0; background: none; colo
 .projection-card { margin-top: 10px; padding: 14px; }
 .button-compact { margin-top: 8px; padding: 6px 10px; font-size: 11px; }
 .evidence-review-section { margin-top: 16px; }
+.supplement-result-panel {
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  border: 1px solid #b8dcd5;
+  border-radius: 14px;
+  background: #f3faf8;
+  display: grid;
+  gap: 10px;
+}
+.supplement-result-panel.empty {
+  border-color: #dfc89f;
+  background: #fffaf1;
+}
+.supplement-result-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.supplement-result-head > div { display: grid; gap: 4px; }
+.supplement-result-head span {
+  color: var(--green);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.supplement-result-panel.empty .supplement-result-head span { color: var(--amber); }
+.supplement-result-head strong { font-size: 15px; line-height: 1.35; }
+.supplement-result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.supplement-result-meta li {
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(255,255,255,.72);
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.change-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.change-badge.added { background: #dff3ee; color: var(--green); }
+.change-badge.changed { background: #fff1d6; color: #8a6114; }
+.evidence-list-card.change-added { box-shadow: inset 3px 0 var(--green); }
+.evidence-list-card.change-changed { box-shadow: inset 3px 0 var(--amber); }
 .evidence-review-toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .review-batch-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .batch-select-all { font-size: 11px; color: var(--muted); }

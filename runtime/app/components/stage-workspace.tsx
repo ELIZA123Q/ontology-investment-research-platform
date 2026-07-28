@@ -37,8 +37,9 @@ import {
   researcherLanguage,
   researcherMarkdown,
 } from "@/app/lib/researcher-stage-output";
-import { formatJourneyOutput, researchStage } from "@/app/lib/research-journey";
+import { formatJourneyOutput, journeyApproveLabel, journeyNextHref, researchStage } from "@/app/lib/research-journey";
 import { ReportMarkdown } from "@/app/components/report-markdown";
+import type { EvidenceSupplementSummary } from "@/engine/evidence_supplement_diff";
 
 export type { ApprovedScopeSummary };
 
@@ -103,6 +104,7 @@ export function StageWorkspace({
   approvedScope,
   sourceCoverage,
   judgmentProjection,
+  supplementSummary,
 }: {
   runId: string;
   question: string;
@@ -113,6 +115,7 @@ export function StageWorkspace({
   approvedScope?: ApprovedScopeSummary;
   sourceCoverage?: Stage3SourceCoverageProps;
   judgmentProjection?: Stage4JudgmentProps;
+  supplementSummary?: EvidenceSupplementSummary;
 }) {
   const router = useRouter();
   const scopeFormRef = useRef<ControlledScopeProjectionFormHandle>(null);
@@ -249,6 +252,24 @@ export function StageWorkspace({
     finally { setBusy(false); }
   }
 
+  async function approveAndContinue() {
+    if (!artifact) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error || "确认失败");
+      router.push(journeyNextHref(runId, stage));
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveJson() {
     const d = await call(`/api/runs/${runId}/artifacts/${artifact!.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ json_content: json, markdown_content: md }) });
     if (d) { setJson(d.json_content); setMd(d.markdown_content); }
@@ -321,6 +342,7 @@ export function StageWorkspace({
         throw new Error(approvedBody.error || "确认失败");
       }
       setValidation(null);
+      router.push(journeyNextHref(runId, stage));
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -414,8 +436,8 @@ export function StageWorkspace({
   const approveLabel = needsClarification
     ? "请先完成澄清"
     : !densityReady
-      ? "本稿尚未达到可交接密度"
-      : "确认并进入下一阶段";
+      ? "还不够完整，暂不能确认"
+      : journeyApproveLabel(stage);
 
   return <>
     <div className="workspace-toolbar">
@@ -427,33 +449,69 @@ export function StageWorkspace({
         {activeJob && (jobInFlight || activeJob.status === "waiting_for_input") ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/jobs/${activeJob.id}/cancel`, { method: "POST" })}>取消生成任务</button> : artifact?.status === "running" ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button> : null}
         {stage === 1 ? <>
           <button className="button-secondary" disabled={!formEditable || needsClarification} onClick={saveScope}>{busy ? "正在保存…" : artifact ? "保存研究范围" : "建立研究范围"}</button>
-          {artifact?.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>{approveLabel}</button> : null}
+          {artifact?.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={approveAndContinue}>{approveLabel}</button> : null}
         </> : stage === 2 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveStructure}>{busy ? "正在保存…" : artifact ? "保存研究结构" : "建立研究结构"}</button>
-          {artifact?.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={confirmStage02}>{busy ? "正在校验…" : "确认并进入下一阶段"}</button> : null}
+          {artifact?.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={confirmStage02}>{busy ? "正在校验…" : journeyApproveLabel(2)}</button> : null}
         </> : stage === 3 ? <>
-          <details className="toolbar-more">
-            <summary>自动补证（可选）</summary>
-            <p className="muted">系统会优先查询权威与一手来源，失败时再查公开网页；任何结果仍须核验原文并由研究员确认后才能进入判断。</p>
-            <button className="button-quiet" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("regenerate")}>{artifact ? "重新生成整包证据" : "让模型自动取证"}</button>
-            {artifact ? <button className="button-quiet" disabled={busy || !unlocked || artifact?.status === "running" || jobInFlight} onClick={() => generateStage03("evidence_supplement")}>按缺口补充取证</button> : null}
-            {artifact?.status === "failed" ? (
-              <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/03/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_gap_fallback", reason: "公开来源取得或模型结构化提交失败，人工选择登记显式证据缺口" }) })}>登记为显式证据缺口</button>
-            ) : null}
-          </details>
+          {!artifact ? (
+            <button
+              className="button"
+              disabled={busy || !unlocked || jobInFlight}
+              title="优先查权威与一手来源；结果仍须核验原文并由研究员确认"
+              onClick={() => generateStage03("regenerate")}
+            >
+              让模型自动取证
+            </button>
+          ) : (
+            <>
+              <button
+                className="button"
+                disabled={busy || !unlocked || artifact.status === "running" || jobInFlight}
+                title="只补当前尚缺项，不整包重跑；结果仍须核验原文"
+                onClick={() => generateStage03("evidence_supplement")}
+              >
+                按尚缺项补充取证
+              </button>
+              <button
+                className="button-secondary"
+                disabled={busy || !unlocked || artifact.status === "running" || jobInFlight}
+                title="整包重跑证据准备；已有草稿会生成新版本"
+                onClick={() => generateStage03("regenerate")}
+              >
+                重新生成整包证据
+              </button>
+            </>
+          )}
+          {artifact?.status === "failed" ? (
+            <button
+              className="button-secondary"
+              disabled={busy}
+              onClick={() => call(`/api/runs/${runId}/stages/03/generate`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  mode: "explicit_gap_fallback",
+                  reason: "公开来源取得或模型结构化提交失败，人工选择登记尚缺的证据",
+                }),
+              })}
+            >
+              登记为尚缺的证据
+            </button>
+          ) : null}
         </> : stage === 4 ? <>
           <button className="button-secondary" disabled={!formEditable || !judgmentProjection} onClick={saveJudgment}>{busy ? "正在保存…" : "保存推理逻辑"}</button>
           {artifact?.status === "needs_review" ? (
-            <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>确认并进入下一阶段</button>
+            <button className={approveClass} disabled={busy || !canApprove} onClick={approveAndContinue}>{journeyApproveLabel(4)}</button>
           ) : null}
         </> : artifact && artifact.status !== "failed" ? <>
           <button className="button-secondary" disabled={busy} onClick={saveMarkdown}>保存可读稿</button>
-          {artifact.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" })}>{approveLabel}</button> : null}
+          {artifact.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={approveAndContinue}>{approveLabel}</button> : null}
         </> : null}
         {stage === 4 && artifact?.status === "failed" ? (
           <details className="toolbar-more">
             <summary>更多</summary>
-            <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成" }) })}>生成「暂不可判断」结论</button>
+            <button className="button-quiet" disabled={busy} onClick={() => call(`/api/runs/${runId}/stages/04/generate`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "explicit_j0_fallback", reason: "上游只有研究员确认的尚缺证据，且模型裁决未在硬时限内完成" }) })}>生成「暂不可判断」结论</button>
           </details>
         ) : null}
         {stage !== 3 && artifact && artifact.status !== "failed" ? (
@@ -678,12 +736,27 @@ export function StageWorkspace({
       <section className="card editor-panel">
         <div className="panel-head"><h2>本阶段交接</h2><span>去{journey?.navLabel || "证据"}页完成确认</span></div>
         <div className="stage-editor-summary-list">
+          {supplementSummary ? (
+            <article className={`stage-editor-summary-card${supplementSummary.zero_material_change ? " supplement-empty" : ""}`}>
+              <span>本轮补证结果{artifact?.version ? ` · 第 ${artifact.version} 版` : ""}</span>
+              <h3>{supplementSummary.headline}</h3>
+              {supplementSummary.detail_lines.length ? (
+                <ul>{supplementSummary.detail_lines.map((line) => <li key={line}>{line}</li>)}</ul>
+              ) : null}
+              <p className="muted">
+                {supplementSummary.zero_material_change
+                  ? "未取到新材料时，请再补一轮或到证据页接受尚缺并限制结论。"
+                  : "请到证据页核对「本轮新增/变更」条目；未改动项若上一版已确认会自动继承。"}
+              </p>
+              <Link className="button" href={`/runs/${runId}/evidence`}>查看补证变更 →</Link>
+            </article>
+          ) : null}
           <article className="stage-editor-summary-card">
             <span>本阶段输出</span>
-            <h3>{(journey?.output.replace(/\{count\}\s*项\s*/g, "").trim()) || "可核验事实、反证与明确缺口"}</h3>
+            <h3>{(journey?.output.replace(/\{count\}\s*项\s*/g, "").trim()) || "可核验事实、反证与尚缺的证据"}</h3>
             <p>当前覆盖 {sourceCoverage?.coverage.unit_coverage.length || 0} 个关键判断；仍有 {sourceCoverage?.coverage.coverage_gap_count || 0} 个判断未达到最低证据要求。</p>
             <strong>研究员需要确认</strong>
-            <p>{journey?.confirmation || "逐项核对原文、口径、时间与局限；事实草稿只有在证据页确认后，才会进入判断阶段。"}</p>
+            <p>{journey?.confirmation || "逐项核对原文、口径、时间与局限；待核对事实只有在证据页确认后，才会进入判断阶段。"}</p>
             <Link className="button" href={`/runs/${runId}${journey?.reviewPath || "/evidence"}`}>打开{journey?.navLabel || "证据"}审阅 →</Link>
           </article>
         </div>

@@ -2,6 +2,12 @@
 # 分区注释仅便于浏览，不改变 schema。
 # 资产边界：type: EvidenceRecipe 条目仅为领域索引/投影（指向 methods/03_取证 策略正文），
 # 取证配方的权威定义在 methods/03_取证（A0x + 03_registry），不得将本文件当作方法正文权威。
+# 影子类型契约（参数图非正式本体 Object/Relation）：
+# - 本文件中的 EvidenceProfile / PropagationTemplate / ProxyIndicator / ScenarioTemplate / SourceProfile / EvidenceRecipe
+#   / JudgmentLevelCriterionTemplate / BusinessScenarioTag 等，仅作为“业务参数图”节点/模板被 Runtime 只读合并到任务视图。
+# - 它们不得被当作正式 ontology/01_通用/models 中的 active object_types 或 relation_types 来物化进实例图投影。
+# - 若研究需要进入正式推理闭环（EvidenceFact→Signal→Hypothesis→Judgment 等），应通过任务候选（如 task_local）晋升或投影，
+#   显式落到正式本体所允许的对象/关系上；不得用参数图影子类型伪装为正式类型。
 schema_name: semiconductor_domain_business_instances
 schema_version: 1.1.0
 depends_on:

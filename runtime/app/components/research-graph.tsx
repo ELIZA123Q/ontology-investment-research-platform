@@ -198,7 +198,7 @@ export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessa
         <dl>
           {detailEntries(selected.details).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{formatValue(value)}</dd></div>)}
         </dl>
-        {selectedWorkItem ? <div className="graph-review-actions"><div><span>{selectedWorkItem.kind}</span><strong>{selectedWorkItem.title}</strong><small>{selectedWorkItem.reason || `退回 ${selectedWorkItem.stage}`}</small></div><div className="field"><label>人工裁决记录</label><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="说明证据上限、竞争解释和结论边界的核对结果" /></div><div className="review-actions"><button className="button" disabled={busy} onClick={() => decide("approved")}>确认裁决</button><button className="button-secondary" disabled={busy} onClick={() => decide("rework")}>退回返工</button></div>{error ? <div className="notice error">{error}</div> : null}</div> : null}
+        {selectedWorkItem ? <div className="graph-review-actions"><div><span>{selectedWorkItem.kind}</span><strong>{selectedWorkItem.title}</strong><small>{selectedWorkItem.reason || `退回 ${selectedWorkItem.stage}`}</small></div><div className="field"><label>人工裁决记录</label><textarea value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="说明证据上限、竞争解释和结论边界的核对结果" /></div><div className="review-actions"><button className="button" disabled={busy} onClick={() => decide("approved")}>确认裁决</button><button className="button-secondary" disabled={busy} onClick={() => decide("rework")}>退回修改</button></div>{error ? <div className="notice error">{error}</div> : null}</div> : null}
       </> : <p className="muted">点击节点查看详情；选中后仅高亮相邻节点与连线。</p>}
     </aside>
   </div>;

@@ -9,7 +9,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     const { id, artifactId } = await params;
     const artifact = getArtifact(artifactId);
     if (!artifact || artifact.run_id !== id) {
-      return Response.json({ error: "产物不存在" }, { status: 404 });
+      return Response.json({ error: "本阶段结果不存在" }, { status: 404 });
     }
     if (artifact.kind === "stage_02") {
       const validation = await validateStage02ForApproval(id);

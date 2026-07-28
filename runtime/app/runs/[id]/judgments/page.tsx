@@ -46,7 +46,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
       statusNote={pendingJudgmentCount ? `仍有 ${pendingJudgmentCount} 项判断等待人工确认。` : "判断已形成，可继续核对边界或进入交付。"}
       actions={
         <>
-          <StageApprovalButton runId={id} artifactId={artifact.id} stage={4} status={artifact.status} canApprove={pendingJudgmentCount === 0} blockingHint={pendingJudgmentCount ? `先处理 ${pendingJudgmentCount} 项待确认判断` : undefined} />
+          <StageApprovalButton runId={id} artifactId={artifact.id} stage={4} status={artifact.status} canApprove={pendingJudgmentCount === 0} blockingHint={pendingJudgmentCount ? `先处理 ${pendingJudgmentCount} 项待核对判断` : undefined} />
           {artifact.status === "approved" ? <IndependentReviewButton runId={id} completed={Boolean(reviewArtifact)} /> : null}
           <Link className="button-secondary" href={`/runs/${id}/stages/4`}>编辑判断</Link>
         </>
@@ -89,7 +89,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
         ))}
       </section>
     ) : <div className="card empty-state"><h2>尚未形成判断</h2><p className="muted">{emptyReason || "请先完成证据确认。"}</p></div>}
-    {reviewArtifact ? <section className={`review-strip ${review.verdict === "rework" ? "review-rework" : "review-pass"}`}><div><span>独立审阅 · {review.verdict === "pass" ? "通过" : review.verdict === "rework" ? "需返工" : review.verdict}</span><strong>{(review.issues || []).length ? `${review.issues.length} 项问题需要处理` : "结论强度、证据边界与推理链未发现实质问题"}</strong></div><small>审阅记录已冻结</small></section> : null}
+    {reviewArtifact ? <section className={`review-strip ${review.verdict === "rework" ? "review-rework" : "review-pass"}`}><div><span>独立审阅 · {review.verdict === "pass" ? "通过" : review.verdict === "rework" ? "退回修改" : review.verdict}</span><strong>{(review.issues || []).length ? `${review.issues.length} 项问题需要处理` : "结论强度、证据边界与推理链未发现实质问题"}</strong></div><small>审阅记录已冻结</small></section> : null}
     <details className="advanced-tools stage-audit-details" open={pendingJudgmentCount > 0}>
       <summary>
         <div>

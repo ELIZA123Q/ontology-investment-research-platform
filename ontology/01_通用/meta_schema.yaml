@@ -51,7 +51,7 @@ rule_contract:
   negative_expected_values: [reject, fail, invalid, block, downgrade_or_reject]
   rules:
     - test_case_role=design_intent 表示用例是设计意图与边界说明，冻结门只做结构检查，不由 Runtime 执行。
-    - test_case_role=executable 预留给已接线的可跑 fixture；当前正式规则均为 design_intent。
+    - test_case_role=executable 表示冻结门用 `rule_interpreter` 按 condition/counter_conditions 断言正反例；Runtime 对深公理亦用同一谓词语义判定。
 
 scenario_contract:
   required: [metadata, scope_dimensions, required_object_types, required_relation_types, required_state_types, required_evidence_types, required_judgment_types, entry_conditions, completion_conditions, invalidation_conditions, update_triggers]

@@ -151,6 +151,28 @@ export function latestArtifactPayload(
   return latestArtifactPayloadCached(runId, kind, statuses?.length ? statuses.join(",") : "");
 }
 
+const previousArtifactPayloadCached = cache(function previousArtifactPayloadCached(
+  runId: string,
+  kind: ArtifactKind,
+  beforeVersion: number,
+): ArtifactPayload | undefined {
+  if (!Number.isFinite(beforeVersion) || beforeVersion <= 1) return undefined;
+  return getWorkbenchDb().prepare(
+    `SELECT ${ARTIFACT_PAYLOAD_COLUMNS} FROM artifacts
+     WHERE run_id=? AND kind=? AND version < ?
+     ORDER BY version DESC LIMIT 1`,
+  ).get(runId, kind, beforeVersion) as ArtifactPayload | undefined;
+});
+
+/** 同一 kind 在指定版本之前的最近一版（用于补证 diff）。 */
+export function previousArtifactPayload(
+  runId: string,
+  kind: ArtifactKind,
+  beforeVersion: number,
+): ArtifactPayload | undefined {
+  return previousArtifactPayloadCached(runId, kind, beforeVersion);
+}
+
 const latestArtifactMetaCached = cache(function latestArtifactMetaCached(
   runId: string,
   kind: ArtifactKind,

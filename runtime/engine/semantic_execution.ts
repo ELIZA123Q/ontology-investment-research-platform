@@ -1,5 +1,9 @@
 import "server-only";
 
+import { readFileSync } from "node:fs";
+import YAML from "yaml";
+import { repositoryPath } from "../adapters/repo-paths";
+import { decideFromRuleDef, formalRuleDef } from "./ontology_rule_defs";
 import type { SourceRecord } from "./types";
 
 type EvidenceDraft = {
@@ -52,21 +56,32 @@ type RuleEvaluation = {
   deterministic_result?: { engine_version: string; result: RuleResult; rationale: string; evaluated_at: string };
 };
 
-export const ENGINE_VERSION = "runtime-semantic-rules-3.0.0";
+export const ENGINE_VERSION = "runtime-semantic-rules-3.1.0";
+
+/** 从规则权威表派生：blocking + runtime_semantic_execution。本体 YAML 为定义源，本表为执行面权威。 */
+export function loadBlockingSemanticRuleIds(): string[] {
+  const registry = YAML.parse(
+    readFileSync(repositoryPath("governance/02_合同/rule_authority_registry.yaml"), "utf8"),
+  ) as {
+    formal_ontology_rules?: Record<string, { execution_surface?: string; blocking?: boolean }>;
+  };
+  return Object.entries(registry.formal_ontology_rules || {})
+    .filter(([, rule]) =>
+      rule?.execution_surface === "runtime_semantic_execution" && rule?.blocking === true)
+    .map(([id]) => id)
+    .sort();
+}
+
 /** Runtime 确定性重算并挡门的正式规则。关系端点兼容见 graph_contract.validateRuntimeGraph。 */
-export const REQUIRED_RULES = [
-  "evidence_scope_time_alignment",
-  "no_direct_evidence_to_judgment",
-  "judgment_reference_integrity",
-  "judgment_evidence_threshold",
-  "judgment_status_consistency",
-  "state_time_consistency",
-  "semiconductor_proxy_disclosure",
-  "semiconductor_qualification_stage_alignment",
-  "semiconductor_capacity_yield_scope_alignment",
-] as const;
+export const REQUIRED_RULES: readonly string[] = loadBlockingSemanticRuleIds();
+
 const LEVEL = { J0: 0, J1: 1, J2: 2, J3: 3, J4: 4 } as const;
 type JudgmentLevel = keyof typeof LEVEL;
+
+/** Runtime 产物常用 strength；正式本体属性为 level。读取时兼容两者。 */
+export function judgmentStrength(judgment: any): string {
+  return String(judgment?.strength || judgment?.level || "");
+}
 type EvidenceGrade = "Q0" | "Q1" | "Q2" | "Q3" | "Q4";
 type CounterevidenceResult = "cleared" | "weakened" | "contested" | "decisive" | "not_checked" | "not_applicable";
 type PathReadinessStatus = "ready" | "restricted" | "blocked" | "not_applicable";
@@ -302,8 +317,11 @@ export function applyDeterministicRuleEvaluations(
   const evidenceMap = new Map(evidenceDrafts.map((evidence) => [evidence.id, evidence]));
 
   const materialize = () => {
+    const priorById = new Map<string, RuleEvaluation>(
+      ((data.rule_evaluations || []) as RuleEvaluation[]).map((item) => [String(item.id), item]),
+    );
     const retained = ((data.rule_evaluations || []) as RuleEvaluation[])
-      .filter((item) => !REQUIRED_RULES.includes(item.rule_ref as typeof REQUIRED_RULES[number]));
+      .filter((item) => !REQUIRED_RULES.includes(String(item.rule_ref)));
     const generated: RuleEvaluation[] = [];
     for (const judgment of data.judgments || []) {
       const judgmentId = String(judgment.id || judgment.judgment_id || "");
@@ -328,16 +346,26 @@ export function applyDeterministicRuleEvaluations(
         });
         ruleIds.push(id);
       }
-      judgment.rule_evaluation_ids = [
-        ...new Set([...(judgment.rule_evaluation_ids || []).filter((id: string) => !String(id).startsWith("RE-SYS-")), ...ruleIds]),
-      ];
+      // 正式规则一律以 RE-SYS 为准；剔除伪造/陈旧的同名规则评估引用。
+      const retainedRefs = (judgment.rule_evaluation_ids || []).filter((id: string) => {
+        if (String(id).startsWith("RE-SYS-")) return false;
+        const prior = priorById.get(String(id));
+        return Boolean(prior) && !REQUIRED_RULES.includes(String(prior!.rule_ref));
+      });
+      judgment.rule_evaluation_ids = [...new Set([...retainedRefs, ...ruleIds])];
     }
     data.rule_evaluations = [...retained, ...generated];
     const generatedIds = new Set(generated.map((item) => item.id));
     for (const trace of data.reasoning_traces || []) {
       const judgmentId = String(trace.judgment_id || trace.judgment_ref || "");
       const ids = generated.filter((item) => item.judgment_id === judgmentId).map((item) => item.id);
-      trace.node_ids = [...new Set([...(trace.node_ids || trace.node_refs || []), ...ids])];
+      const kept = (trace.node_ids || trace.node_refs || []).filter((id: string) => {
+        if (generatedIds.has(String(id))) return true;
+        if (String(id).startsWith("RE-SYS-")) return false;
+        const prior = priorById.get(String(id));
+        return !prior || !REQUIRED_RULES.includes(String(prior.rule_ref));
+      });
+      trace.node_ids = [...new Set([...kept, ...ids])];
       if (trace.node_refs) trace.node_refs = trace.node_ids;
     }
     for (const judgment of data.judgments || []) {
@@ -356,6 +384,11 @@ export function applyDeterministicRuleEvaluations(
   assertDeterministicRuleResults(data);
   // A2: 确定性 confidence 计算 — 权重不依赖 AI 模型自由裁量
   applyDeterministicConfidence(data, evidenceDrafts, sources);
+  // 正式本体属性为 level；Runtime 产物常用 strength。重算后双向对齐。
+  for (const judgment of data.judgments || []) {
+    if (judgment.strength) judgment.level = judgment.strength;
+    else if (judgment.level) judgment.strength = judgment.level;
+  }
   return data;
 }
 
@@ -407,6 +440,7 @@ function demoteJudgmentsForBlockingRules(data: any, blocked: Map<string, RuleEva
     judgment.scope_ref = String(judgment.scope_ref || scopeRef);
     judgment.hypothesis_ids = hypothesisIds;
     judgment.strength = "J0";
+    judgment.level = "J0";
     judgment.confidence = "low";
     judgment.decision_status = "indeterminate";
     judgment.conflict_status = judgment.conflict_status === "unresolved" ? "unresolved" : "none";
@@ -447,7 +481,7 @@ export function assertDeterministicRuleResults(data: any) {
 }
 
 function computeRule(
-  rule: typeof REQUIRED_RULES[number],
+  rule: string,
   judgment: any,
   data: any,
   evidence: Map<string, EvidenceDraft>,
@@ -546,10 +580,11 @@ function computeRule(
     const { maxLevel, reasons: capReasons } = deriveMaxJudgmentLevel(evidenceGrade, counterevidenceResult, pathReadiness);
 
     const ceiling = LEVEL[maxLevel];
-    const requested = LEVEL[judgment.strength as keyof typeof LEVEL] ?? -1;
+    const requestedStrength = judgmentStrength(judgment);
+    const requested = LEVEL[requestedStrength as keyof typeof LEVEL] ?? -1;
     const failed = requested < 0 || requested > ceiling;
 
-    const rationale = `请求 ${judgment.strength}；上限 ${maxLevel} (证据=${evidenceGrade} 反证=${counterevidenceResult} 路径=${pathReadiness})；事实 ${facts.length}、独立来源组 ${sourceGroups.size}、S1-S6 来源组 ${qualifiedGroups.size}、S1-S3 来源组 ${highTierGroups.size}、直接事实 ${directFacts}、反证 ${counterCount}、未决解释 ${unresolved ? "是" : "否"}；${capReasons.join("；")}`;
+    const rationale = `请求 ${requestedStrength}；上限 ${maxLevel} (证据=${evidenceGrade} 反证=${counterevidenceResult} 路径=${pathReadiness})；事实 ${facts.length}、独立来源组 ${sourceGroups.size}、S1-S6 来源组 ${qualifiedGroups.size}、S1-S3 来源组 ${highTierGroups.size}、直接事实 ${directFacts}、反证 ${counterCount}、未决解释 ${unresolved ? "是" : "否"}；${capReasons.join("；")}`;
     return resultOf(failed ? "fail" : "pass", inputRefs, rationale, [
       condition("status_derivation_matrix", "evidence_grade × counterevidence × path_readiness → max J (120 组合)", inputRefs, failed ? "fail" : "pass", rationale),
       condition("independent_sources", "independent_source_groups determine evidence grade", inputRefs, sourceGroups.size ? "pass" : "fail", `独立来源组 ${sourceGroups.size}`),
@@ -692,6 +727,157 @@ function computeRule(
     ]);
   }
 
+  if (rule === "expectation_projection_integrity") {
+    const unitId = String(judgment.judgment_unit_id || "");
+    const unit = (structure.judgment_units || []).find((item: any) =>
+      String(item.id || item.judgment_unit_id || "") === unitId) || {};
+    const judgmentType = String(unit.judgment_type || judgment.judgment_type || "").trim();
+    const gaps = Array.isArray(data.expectation_gaps) ? data.expectation_gaps : [];
+    const impacts = Array.isArray(data.asset_impacts) ? data.asset_impacts : [];
+    const linkedGaps = gaps.filter((item: any) =>
+      String(item.judgment_ref || item.judgment_id || "") === judgmentId
+      || (Array.isArray(judgment.expectation_gap_ids) && judgment.expectation_gap_ids.map(String).includes(String(item.id))));
+    const linkedImpacts = impacts.filter((item: any) =>
+      (Array.isArray(item.source_judgment_refs) ? item.source_judgment_refs : [])
+        .map(String).includes(judgmentId)
+      || (Array.isArray(judgment.asset_impact_ids) && judgment.asset_impact_ids.map(String).includes(String(item.id))));
+    if (!["expectation_gap", "valuation_impact"].includes(judgmentType)) {
+      return resultOf("pass", [judgmentId], "当前判断类型不要求预期差或资产影响投影", [
+        condition("projection_applicable", "judgment_type requires ExpectationGap or AssetImpact", [judgmentId], "pass", `judgment_type=${judgmentType || "unset"}`),
+      ]);
+    }
+    if (isIndeterminateStop(judgment) && !facts.length) {
+      return resultOf("pass", [judgmentId], "暂不可判断且无支持事实，跳过投影完整性校验", [
+        condition("projection_required", "projection objects present for judgment type", [judgmentId], "pass", "J0 停止路径"),
+      ]);
+    }
+    if (judgmentType === "expectation_gap") {
+      const outcome: RuleResult = linkedGaps.length ? "pass" : "fail";
+      const rationale = linkedGaps.length
+        ? `expectation_gap 判断已绑定 ${linkedGaps.length} 个 ExpectationGap`
+        : "expectation_gap 类判断缺少 ExpectationGap 投影对象";
+      return resultOf(outcome, [judgmentId, ...linkedGaps.map((item: any) => String(item.id))], rationale, [
+        condition("expectation_gap_relation_present", "expectation_gap_type_requires_gap_relation", [judgmentId], outcome, rationale),
+      ]);
+    }
+    const outcome: RuleResult = linkedImpacts.length ? "pass" : "fail";
+    const rationale = linkedImpacts.length
+      ? `valuation_impact 判断已绑定 ${linkedImpacts.length} 个 AssetImpact`
+      : "valuation_impact 类判断缺少 AssetImpact 投影对象";
+    return resultOf(outcome, [judgmentId, ...linkedImpacts.map((item: any) => String(item.id))], rationale, [
+      condition("asset_impact_relation_present", "valuation_impact_type_requires_asset_projection", [judgmentId], outcome, rationale),
+    ]);
+  }
+
+  if (rule === "value_chain_propagation_consistency") {
+    const unitId = String(judgment.judgment_unit_id || "");
+    const unit = (structure.judgment_units || []).find((item: any) =>
+      String(item.id || item.judgment_unit_id || "") === unitId) || {};
+    const judgmentType = String(unit.judgment_type || judgment.judgment_type || "").trim();
+    const propagationTypes = new Set(["transmission_path", "mechanism_validation", "impact_realization"]);
+    const paths = (structure.paths || []).filter((item: any) => (item.variable_ids || []).length >= 2);
+    const edges = [
+      ...(Array.isArray(structure.influence_edges) ? structure.influence_edges : []),
+      ...(Array.isArray(structure.state_variable_influences) ? structure.state_variable_influences : []),
+      ...(Array.isArray(data.influence_edges) ? data.influence_edges : []),
+    ];
+    const incompleteEdge = edges.some((edge: any) => !String(edge.mechanism || "").trim() || !String(edge.sign || "").trim());
+    const pairSigns = new Map<string, Set<string>>();
+    for (const edge of edges) {
+      const key = `${String(edge.source || edge.from || "")}->${String(edge.target || edge.to || "")}`;
+      if (!key.replace("->", "")) continue;
+      const signs = pairSigns.get(key) || new Set<string>();
+      signs.add(String(edge.sign || ""));
+      pairSigns.set(key, signs);
+    }
+    const signConflict = [...pairSigns.values()].some((signs) => signs.size > 1);
+    const propagationTypeWithoutPath = propagationTypes.has(judgmentType) && !paths.length && !isIndeterminateStop(judgment);
+    const facts = {
+      propagation_type_without_path: propagationTypeWithoutPath,
+      path_variables_unlinked: incompleteEdge,
+      influence_sign_conflict: signConflict,
+      non_propagation_type_or_path_consistent:
+        !propagationTypes.has(judgmentType) || (!propagationTypeWithoutPath && !incompleteEdge && !signConflict),
+    };
+    const def = formalRuleDef(rule);
+    const outcome: RuleResult = def ? decideFromRuleDef(def, facts) : (facts.non_propagation_type_or_path_consistent ? "pass" : "fail");
+    const rationale = outcome === "pass"
+      ? (propagationTypes.has(judgmentType) ? `传导类判断路径一致（paths=${paths.length}, edges=${edges.length}）` : "非传导类判断，跳过路径约束")
+      : [
+        facts.propagation_type_without_path ? "传导类判断缺少≥2变量路径" : null,
+        facts.path_variables_unlinked ? "影响边缺少 mechanism/sign" : null,
+        facts.influence_sign_conflict ? "同端点影响方向冲突" : null,
+      ].filter(Boolean).join("；");
+    return resultOf(outcome, [judgmentId], rationale, [
+      condition("non_propagation_type_or_path_consistent", def?.condition || rule, [judgmentId], outcome, rationale),
+    ]);
+  }
+
+  if (rule === "valuation_hypothesis_level_coupling") {
+    const unitId = String(judgment.judgment_unit_id || "");
+    const unit = (structure.judgment_units || []).find((item: any) =>
+      String(item.id || item.judgment_unit_id || "") === unitId) || {};
+    const judgmentType = String(unit.judgment_type || judgment.judgment_type || "").trim();
+    const impacts = Array.isArray(data.asset_impacts) ? data.asset_impacts : [];
+    const linkedImpacts = impacts.filter((item: any) =>
+      (Array.isArray(item.source_judgment_refs) ? item.source_judgment_refs : [])
+        .map(String).includes(judgmentId)
+      || (Array.isArray(judgment.asset_impact_ids) && judgment.asset_impact_ids.map(String).includes(String(item.id))));
+    const valuationRelevant = judgmentType === "valuation_impact"
+      || linkedImpacts.some((item: any) => String(item.impact_channel || "") === "valuation_multiple");
+    const strength = judgmentStrength(judgment);
+    const hasBridge = (Array.isArray(judgment.conditions) ? judgment.conditions : [])
+      .map(String).some((item) => item.trim().length > 0)
+      || linkedImpacts.some((item: any) =>
+        (Array.isArray(item.conditions) ? item.conditions : []).map(String).some((text: string) => text.trim().length > 0));
+    const activeCompetition = (data.competing_explanations || []).some((item: any) =>
+      item.status === "active" || item.status === "unknown");
+    const facts = {
+      valuation_j3_without_assumption_bridge: valuationRelevant && ["J3", "J4"].includes(strength) && !hasBridge && !isIndeterminateStop(judgment),
+      valuation_j4_with_active_competition: valuationRelevant && strength === "J4" && activeCompetition,
+      non_valuation_type_or_level_coupled: !valuationRelevant
+        || (!((["J3", "J4"].includes(strength) && !hasBridge) || (strength === "J4" && activeCompetition)))
+        || isIndeterminateStop(judgment),
+    };
+    const def = formalRuleDef(rule);
+    const outcome: RuleResult = def ? decideFromRuleDef(def, facts) : (facts.non_valuation_type_or_level_coupled ? "pass" : "fail");
+    const rationale = outcome === "pass"
+      ? (valuationRelevant ? `估值类判断等级与假设桥一致（${strength}）` : "非估值类判断，跳过等级挂钩")
+      : [
+        facts.valuation_j3_without_assumption_bridge ? "估值 J3+ 缺少显式假设桥/成立条件" : null,
+        facts.valuation_j4_with_active_competition ? "估值 J4 仍存在 active 竞争解释" : null,
+      ].filter(Boolean).join("；");
+    return resultOf(outcome, [judgmentId], rationale, [
+      condition("non_valuation_type_or_level_coupled", def?.condition || rule, [judgmentId], outcome, rationale),
+    ]);
+  }
+
+  if (rule === "risk_exposure_blocking_linkage") {
+    const unitId = String(judgment.judgment_unit_id || "");
+    const blocks = (Array.isArray(data.blocking_factors) ? data.blocking_factors : []).filter((item: any) => {
+      const status = String(item.status || "active");
+      if (status !== "active") return false;
+      if (String(item.judgment_unit_id || "") === unitId) return true;
+      return (Array.isArray(item.judgment_unit_ids) ? item.judgment_unit_ids : []).map(String).includes(unitId);
+    });
+    const strength = judgmentStrength(judgment);
+    const activeBlockWithSupportedHighJ = blocks.length > 0
+      && judgment.decision_status === "supported"
+      && ["J2", "J3", "J4"].includes(strength);
+    const facts = {
+      active_block_with_supported_high_j: activeBlockWithSupportedHighJ,
+      no_active_block_or_status_aligned: !activeBlockWithSupportedHighJ,
+    };
+    const def = formalRuleDef(rule);
+    const outcome: RuleResult = def ? decideFromRuleDef(def, facts) : (facts.no_active_block_or_status_aligned ? "pass" : "fail");
+    const rationale = outcome === "pass"
+      ? (blocks.length ? "存在阻断因素且判断状态/等级已对齐" : "无 active 阻断因素")
+      : `存在 ${blocks.length} 个 active 阻断因素，但判断仍为 supported ${strength}`;
+    return resultOf(outcome, [judgmentId, ...blocks.map((item: any) => String(item.id || ""))], rationale, [
+      condition("no_active_block_or_status_aligned", def?.condition || rule, [judgmentId], outcome, rationale),
+    ]);
+  }
+
   const statusErrors: string[] = [];
   const relevantSignalIds = new Set<string>((judgment.hypothesis_ids || []).flatMap((hypothesisId: string) =>
     ((data.hypotheses || []).find((item: any) => String(item.id) === String(hypothesisId))?.signal_ids || []).map(String)));
@@ -701,8 +887,9 @@ function computeRule(
   if (judgment.conflict_status === "unresolved" && judgment.decision_status === "supported") statusErrors.push("未决冲突不能标记 supported");
   if (judgment.conflict_status === "decisive" && !["blocked", "indeterminate", "invalidated"].includes(judgment.decision_status)) statusErrors.push("决定性反证必须阻断或判为不可判断");
   if (["blocked", "indeterminate"].includes(judgment.decision_status) && !String(judgment.not_judgeable_reason || "").trim()) statusErrors.push("阻断/不可判断缺少原因");
-  if (judgment.strength === "J0" && !["blocked", "indeterminate", "contested"].includes(judgment.decision_status)) statusErrors.push("J0 状态不一致");
-  if (activeCompetition && ["J3", "J4"].includes(judgment.strength)) statusErrors.push("竞争解释未排除但判断过强");
+  const strength = judgmentStrength(judgment);
+  if (strength === "J0" && !["blocked", "indeterminate", "contested"].includes(judgment.decision_status)) statusErrors.push("J0 状态不一致");
+  if (activeCompetition && ["J3", "J4"].includes(strength)) statusErrors.push("竞争解释未排除但判断过强");
   return resultOf(statusErrors.length ? "fail" : "pass", [judgmentId, ...inputRefs], statusErrors.length ? statusErrors.join("；") : "判断等级、冲突和不可判断状态一致",
     [condition("status_consistency", "conflict and decision status are coherent", [judgmentId, ...inputRefs], statusErrors.length ? "fail" : "pass", statusErrors.length ? statusErrors.join("；") : "状态一致")]);
 }
@@ -787,7 +974,7 @@ function qualificationScopesMatch(left: QualificationScope, right: Qualification
 }
 
 function isIndeterminateStop(judgment: any) {
-  return judgment.strength === "J0"
+  return judgmentStrength(judgment) === "J0"
     && ["blocked", "indeterminate", "contested"].includes(String(judgment.decision_status || ""))
     && Boolean(String(judgment.not_judgeable_reason || "").trim());
 }

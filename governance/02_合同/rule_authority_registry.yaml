@@ -50,10 +50,30 @@ formal_ontology_rules:
     rule_class: state_consistency
     execution_surface: runtime_semantic_execution
     blocking: true
+  expectation_projection_integrity:
+    source_ref: ontology/01_通用/models/judgment.yaml#rules
+    rule_class: semantic_constraint
+    execution_surface: runtime_semantic_execution
+    blocking: true
+  valuation_hypothesis_level_coupling:
+    source_ref: ontology/01_通用/models/judgment.yaml#rules
+    rule_class: evidence_constraint
+    execution_surface: runtime_semantic_execution
+    blocking: true
+  risk_exposure_blocking_linkage:
+    source_ref: ontology/01_通用/models/judgment.yaml#rules
+    rule_class: state_consistency
+    execution_surface: runtime_semantic_execution
+    blocking: true
   semantic_endpoint_compatibility:
     source_ref: ontology/01_通用/models/semantic.yaml#rules
     rule_class: semantic_constraint
     execution_surface: runtime_graph_contract
+    blocking: true
+  value_chain_propagation_consistency:
+    source_ref: ontology/01_通用/models/semantic.yaml#rules
+    rule_class: semantic_constraint
+    execution_surface: runtime_semantic_execution
     blocking: true
   state_time_consistency:
     source_ref: ontology/01_通用/models/state_event.yaml#rules

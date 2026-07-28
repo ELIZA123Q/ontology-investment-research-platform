@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return Response.json(createControlledJudgmentProjection(id, body.judgments || []));
     }
     if (kind === "stage_04" && body.mode === "explicit_j0_fallback") {
-      return Response.json(createJudgmentGapFallback(id, String(body.reason || "上游只有经人工接受的证据缺口，且模型裁决未在硬时限内完成")));
+      return Response.json(createJudgmentGapFallback(id, String(body.reason || "上游只有研究员确认的尚缺证据，且模型裁决未在硬时限内完成")));
     }
     if (kind === "stage_05" && body.mode === "deterministic_projection") {
       return Response.json(createStage05DeterministicProjection(id));

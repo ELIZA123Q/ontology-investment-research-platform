@@ -1,27 +1,37 @@
 """Shared Runtime REQUIRED_RULES + deterministic_result assertions.
 
-Aligned with runtime/engine/semantic_execution.ts REQUIRED_RULES and
-assertDeterministicRuleResults. Validators assert presence and consistency;
-they do not re-implement computeRule.
+REQUIRED_RULES 从 rule_authority_registry 派生（blocking + runtime_semantic_execution），
+与 runtime/engine/semantic_execution.ts 同源。Validators 断言存在与一致性，不重实现 computeRule。
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-ENGINE_VERSION = "runtime-semantic-rules-3.0.0"
+import yaml
+
+ROOT = Path(__file__).resolve().parents[2]
+REGISTRY = ROOT / "governance/02_合同/rule_authority_registry.yaml"
+
+ENGINE_VERSION = "runtime-semantic-rules-3.1.0"
 LEGACY_ENGINE_VERSION = "runtime-semantic-rules-2.0.0"
-REQUIRED_RULES = frozenset({
-    "evidence_scope_time_alignment",
-    "no_direct_evidence_to_judgment",
-    "judgment_reference_integrity",
-    "judgment_evidence_threshold",
-    "judgment_status_consistency",
-    "state_time_consistency",
-    "semiconductor_proxy_disclosure",
-    "semiconductor_qualification_stage_alignment",
-    "semiconductor_capacity_yield_scope_alignment",
-})
+PRIOR_ENGINE_VERSION = "runtime-semantic-rules-3.0.0"
+
+
+def load_blocking_semantic_rule_ids() -> frozenset[str]:
+    registry = yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
+    rules = registry.get("formal_ontology_rules") or {}
+    return frozenset(
+        rule_id
+        for rule_id, meta in rules.items()
+        if isinstance(meta, dict)
+        and meta.get("execution_surface") == "runtime_semantic_execution"
+        and meta.get("blocking") is True
+    )
+
+
+REQUIRED_RULES = load_blocking_semantic_rule_ids()
 LEGACY_REQUIRED_RULES = frozenset({
     "evidence_scope_time_alignment",
     "no_direct_evidence_to_judgment",
@@ -29,6 +39,24 @@ LEGACY_REQUIRED_RULES = frozenset({
     "judgment_evidence_threshold",
     "judgment_status_consistency",
 })
+PRIOR_REQUIRED_RULES = frozenset(
+    rule_id
+    for rule_id in REQUIRED_RULES
+    if rule_id not in {
+        "value_chain_propagation_consistency",
+        "valuation_hypothesis_level_coupling",
+        "risk_exposure_blocking_linkage",
+    }
+)
+KNOWN_ENGINE_VERSIONS = {ENGINE_VERSION, PRIOR_ENGINE_VERSION, LEGACY_ENGINE_VERSION}
+
+
+def required_rules_for_engines(engine_versions: set[str]) -> frozenset[str]:
+    if ENGINE_VERSION in engine_versions:
+        return REQUIRED_RULES
+    if PRIOR_ENGINE_VERSION in engine_versions:
+        return PRIOR_REQUIRED_RULES
+    return LEGACY_REQUIRED_RULES
 
 
 def _rule_id(item: dict[str, Any]) -> str:
@@ -63,7 +91,7 @@ def assert_required_deterministic_rules(
         for item in evaluations.values()
         if isinstance(item.get("deterministic_result"), dict)
     }
-    document_required_rules = REQUIRED_RULES if ENGINE_VERSION in document_engine_versions else LEGACY_REQUIRED_RULES
+    document_required_rules = required_rules_for_engines(document_engine_versions)
 
     for rule_id, evaluation in evaluations.items():
         rule_ref = str(evaluation.get("rule_ref") or "")
@@ -74,7 +102,7 @@ def assert_required_deterministic_rules(
         if not isinstance(deterministic, dict):
             errors.append(f"{prefix}rule evaluation {rule_id} 缺少 deterministic_result")
             continue
-        if deterministic.get("engine_version") not in {ENGINE_VERSION, LEGACY_ENGINE_VERSION}:
+        if deterministic.get("engine_version") not in KNOWN_ENGINE_VERSIONS:
             errors.append(f"{prefix}rule evaluation {rule_id} 缺少可验证 Runtime 确定性结果")
         elif deterministic.get("result") != evaluation.get("result"):
             errors.append(f"{prefix}rule evaluation {rule_id} 声明结果与 deterministic_result 不一致")
@@ -97,8 +125,8 @@ def assert_required_deterministic_rules(
             if rule and isinstance(rule.get("deterministic_result"), dict)
         }
         if ENGINE_VERSION in engine_versions and LEGACY_ENGINE_VERSION in engine_versions:
-            errors.append(f"{prefix}judgment {jid} 混用了 Runtime 2.0 与 3.0 确定性规则结果")
-        required_rules = REQUIRED_RULES if ENGINE_VERSION in engine_versions else LEGACY_REQUIRED_RULES
+            errors.append(f"{prefix}judgment {jid} 混用了 Runtime 2.0 与 3.x 确定性规则结果")
+        required_rules = required_rules_for_engines(engine_versions)
         if not required_rules.issubset(rule_names):
             errors.append(
                 f"{prefix}judgment {jid} 缺少 Runtime 确定性规则: "

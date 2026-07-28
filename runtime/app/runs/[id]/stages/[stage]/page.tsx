@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRun } from "@/adapters/db";
-import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview } from "@/adapters/db_read_models";
+import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview, previousArtifactPayload } from "@/adapters/db_read_models";
 import { StageWorkspaceLazy } from "@/app/components/stage-workspace-lazy";
 import { listResearchJobsForRun } from "@/adapters/research_jobs";
 import type { Stage3SourceCoverageProps, Stage4JudgmentProps } from "@/app/components/stage-workspace";
 import { artifactForWorkspace } from "@/app/lib/client-rows";
 import { computeSourceCoverage } from "@/engine/source_coverage";
+import { buildEvidenceSupplementSummary } from "@/engine/evidence_supplement_diff";
 import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure, type EvidenceRequirementProjection } from "@/engine/structure_candidates";
 import { STAGES, parseJson } from "@/engine/types";
 import type { SourceRecord } from "@/engine/types";
@@ -204,6 +205,19 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
     : undefined;
   const sourceCoverage = n === 3 ? buildStage3SourceCoverage(id) : undefined;
   const judgmentProjection = n === 4 ? buildStage4JudgmentProjection(id) : undefined;
+  const supplementSummary = n === 3 && artifactRow
+    ? (() => {
+      const current = parseJson<any>(artifactRow.json_content || "{}", {});
+      const previousRaw = previousArtifactPayload(id, "stage_03", artifactRow.version)?.json_content || "{}";
+      const previous = parseJson<any>(previousRaw, {});
+      const hasPrevious = previousRaw.trim() !== "{}" && Object.keys(previous || {}).length > 0;
+      const summary = buildEvidenceSupplementSummary({
+        current,
+        previous: hasPrevious ? previous : null,
+      });
+      return summary.visible && artifactRow.status === "needs_review" ? summary : undefined;
+    })()
+    : undefined;
   const statusLabel = ({
     draft: "草稿",
     running: "生成中",
@@ -255,6 +269,7 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
       approvedScope={approvedScope}
       sourceCoverage={sourceCoverage}
       judgmentProjection={judgmentProjection}
+      supplementSummary={supplementSummary}
     />
   </>;
 }

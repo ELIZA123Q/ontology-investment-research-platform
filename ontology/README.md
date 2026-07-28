@@ -18,9 +18,9 @@
 
 正式本体回答“有什么、如何关联、哪些稳定约束成立”。方法选择、方法执行、API、任务调度、权限、Saga 和性能均不属于正式本体。
 
-`metadata.status=draft` 的类型已定义但未纳入当前 Runtime 实例图投影（含资本市场对象、`ResearchScenario` 实例化路径）。任务里的 `research_scenario` 只引用 `scenario_types` 枚举。
+`metadata.status=draft` 的类型已定义但未纳入当前 Runtime 实例图投影（含 `ResearchScenario` 实例化路径）。资本市场骨架（`Asset` / `Listing` 等）与判断后投影（`MarketExpectation` / `ExpectationGap` / `AssetImpact`）已为 `active`；后续扩大须先完成规则 SSOT（见路线图 P1）。任务里的 `research_scenario` 只引用 `scenario_types` 枚举。
 
-正式规则的执行面见 [`governance/02_合同/rule_authority_registry.yaml`](../governance/02_合同/rule_authority_registry.yaml)：`judgment_reference_integrity` 由 Runtime 重算；`semantic_endpoint_compatibility` 只在实例图物化时由 `validateRuntimeGraph` 执行；标为 `unimplemented` 的规则不得宣称为已挡门。
+正式规则的执行面见 [`governance/02_合同/rule_authority_registry.yaml`](../governance/02_合同/rule_authority_registry.yaml)：`runtime_semantic_execution` + `blocking` 派生 Runtime `REQUIRED_RULES`；`semantic_endpoint_compatibility` 只在实例图物化时由 `validateRuntimeGraph` 执行；标为 `unimplemented` 的规则不得宣称为已挡门。
 
 领域业务参数实例（证据画像、状态变量、传导模板等）仍在 `02_领域/semiconductor/business_instances.yaml`。
 

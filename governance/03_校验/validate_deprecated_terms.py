@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEPRECATED_RELATIONS: dict[str, str] = {
     "factSupportedByClaim": "factDerivedFromClaim",
     "assessmentEvaluatesEvidence": "assessmentEvaluatesFact",
+    "variableInfluencesVariable": "stateVariableInfluences",
 }
 
 # 仅检查数据/代码类文件，避免在散文 Markdown 上误报。

@@ -38,6 +38,7 @@ let cached: {
   objectDefinitions: Map<string, ObjectDefinition>;
   relationTypes: Map<string, RelationDefinition>;
   runtimeRequired: Map<string, string[]>;
+  parentsOf: Map<string, string[]>;
 } | null = null;
 
 function catalog() {
@@ -45,6 +46,7 @@ function catalog() {
   const objectTypes = new Set<string>([...BUSINESS_PARAMETER_OBJECT_TYPES, ...TASK_VIEW_OBJECT_TYPES]);
   const objectDefinitions = new Map<string, ObjectDefinition>();
   const relationTypes = new Map<string, RelationDefinition>(Object.entries(BUSINESS_PARAMETER_RELATIONS));
+  const parentsOf = new Map<string, string[]>();
   for (const file of MODEL_FILES) {
     const document = YAML.parse(readFileSync(repositoryPath("ontology", "01_通用", "models", file), "utf8")) as any;
     for (const [id, definition] of Object.entries<any>(document.object_types || {})) {
@@ -52,6 +54,8 @@ function catalog() {
       if ((definition?.metadata?.status || "active") === "active") {
         objectTypes.add(id);
         objectDefinitions.set(id, { attributes: definition.attributes || definition.properties || {} });
+        const parents = [definition.extends, definition.projects_to].filter((value: unknown) => typeof value === "string" && value);
+        if (parents.length) parentsOf.set(id, parents.map(String));
       }
     }
     // scenario_types 是 catalog_only 任务枚举，不得写入 business_instance_graph
@@ -71,16 +75,30 @@ function catalog() {
     runtimeRequired.set(id, definition.required_properties || []);
   }
   for (const [id, definition] of Object.entries(profile.runtime_relation_types || {})) relationTypes.set(id, definition);
-  cached = { objectTypes, objectDefinitions, relationTypes, runtimeRequired };
+  cached = { objectTypes, objectDefinitions, relationTypes, runtimeRequired, parentsOf };
   return cached;
 }
 
-function endpointMatches(actual: string, allowed: string[]) {
-  return allowed.includes(actual) || (actual === "Company" && allowed.includes("Organization"));
+function ancestors(type: string, parentsOf: Map<string, string[]>) {
+  const found = new Set<string>();
+  const pending = [type];
+  while (pending.length) {
+    const current = pending.pop()!;
+    if (found.has(current)) continue;
+    found.add(current);
+    for (const parent of parentsOf.get(current) || []) pending.push(parent);
+  }
+  return found;
+}
+
+function endpointMatches(actual: string, allowed: string[], parentsOf: Map<string, string[]>) {
+  if (!allowed.length) return true;
+  const actualAncestors = ancestors(actual, parentsOf);
+  return allowed.some((item) => actualAncestors.has(item));
 }
 
 export function validateRuntimeGraph(graph: BusinessInstanceGraph): BusinessInstanceGraph {
-  const { objectTypes, objectDefinitions, relationTypes, runtimeRequired } = catalog();
+  const { objectTypes, objectDefinitions, relationTypes, runtimeRequired, parentsOf } = catalog();
   if (graph.schema_name !== "ontology_business_instance_graph" || graph.schema_version !== "1.0.0") {
     throw new Error("实例图必须使用 ontology_business_instance_graph 1.0.0");
   }
@@ -97,7 +115,7 @@ export function validateRuntimeGraph(graph: BusinessInstanceGraph): BusinessInst
     objects.set(object.id, object);
   }
   const relationIds = new Set<string>();
-  for (const relation of graph.relations) validateRelation(relation, objects, relationTypes, relationIds);
+  for (const relation of graph.relations) validateRelation(relation, objects, relationTypes, relationIds, parentsOf);
   validateSemanticClosure(graph, objects);
   return graph;
 }
@@ -161,7 +179,7 @@ function validateSemanticClosure(graph: BusinessInstanceGraph, objects: Map<stri
   }
 }
 
-function validateRelation(relation: GraphRelation, objects: Map<string, GraphObject>, definitions: Map<string, RelationDefinition>, ids: Set<string>) {
+function validateRelation(relation: GraphRelation, objects: Map<string, GraphObject>, definitions: Map<string, RelationDefinition>, ids: Set<string>, parentsOf: Map<string, string[]>) {
   if (!relation.id || ids.has(relation.id)) throw new Error(`实例图关系 ID 为空或重复: ${relation.id || "<empty>"}`);
   ids.add(relation.id);
   if (RETIRED_RELATIONS.has(relation.type)) throw new Error(`${relation.id} 使用了已退役关系 ${relation.type}`);
@@ -170,8 +188,8 @@ function validateRelation(relation: GraphRelation, objects: Map<string, GraphObj
   const source = objects.get(relation.sourceId);
   const target = objects.get(relation.targetId);
   if (!source || !target) throw new Error(`${relation.id} 存在悬空端点`);
-  if (definition.source_types?.length && !endpointMatches(source.type, definition.source_types)) throw new Error(`${relation.id} 源端 ${source.type} 不符合 ${relation.type} 定义域`);
-  if (definition.target_types?.length && !endpointMatches(target.type, definition.target_types)) throw new Error(`${relation.id} 目标端 ${target.type} 不符合 ${relation.type} 值域`);
+  if (definition.source_types?.length && !endpointMatches(source.type, definition.source_types, parentsOf)) throw new Error(`${relation.id} 源端 ${source.type} 不符合 ${relation.type} 定义域`);
+  if (definition.target_types?.length && !endpointMatches(target.type, definition.target_types, parentsOf)) throw new Error(`${relation.id} 目标端 ${target.type} 不符合 ${relation.type} 值域`);
   validateFields(`${relation.id}.properties`, relation.properties || {}, definition.attributes || {});
   if (((source.type === "EvidenceClaim" || source.type === "EvidenceFact") && target.type === "Judgment")
     || ((target.type === "EvidenceClaim" || target.type === "EvidenceFact") && source.type === "Judgment")) {

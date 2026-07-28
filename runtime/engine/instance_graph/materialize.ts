@@ -553,6 +553,45 @@ export function materializeStageIntoGraph(
       }
     }
     addObjects(stageJson.rule_evaluations, "RuleEvaluation", ["rule_evaluation_id", "id"], "rule_evaluations");
+    addObjects(stageJson.market_expectations, "MarketExpectation", ["id"], "market_expectations");
+    addObjects(stageJson.expectation_gaps, "ExpectationGap", ["id"], "expectation_gaps");
+    addObjects(stageJson.asset_impacts, "AssetImpact", ["id"], "asset_impacts");
+    for (const gap of (Array.isArray(stageJson.expectation_gaps) ? stageJson.expectation_gaps as any[] : [])) {
+      const gapId = String(gap.id || "");
+      if (!gapId) continue;
+      if (gap.judgment_ref) {
+        slice.relations.push({
+          id: `REL-${gapId}-JUDGMENT-${gap.judgment_ref}`,
+          type: "expectationGapBasedOnJudgment",
+          sourceId: gapId,
+          targetId: String(gap.judgment_ref),
+          properties: {},
+        });
+      }
+      if (gap.market_expectation_ref) {
+        slice.relations.push({
+          id: `REL-${gapId}-EXPECTATION-${gap.market_expectation_ref}`,
+          type: "expectationGapComparesExpectation",
+          sourceId: gapId,
+          targetId: String(gap.market_expectation_ref),
+          properties: {},
+        });
+      }
+    }
+    for (const impact of (Array.isArray(stageJson.asset_impacts) ? stageJson.asset_impacts as any[] : [])) {
+      const impactId = String(impact.id || "");
+      if (!impactId) continue;
+      for (const judgmentId of impact.source_judgment_refs || []) {
+        slice.relations.push({
+          id: `REL-${impactId}-JUDGMENT-${judgmentId}`,
+          type: "assetImpactBasedOnJudgment",
+          sourceId: impactId,
+          targetId: String(judgmentId),
+          properties: {},
+        });
+      }
+    }
+
     for (const [index, trace] of ((stageJson.reasoning_traces as any[]) || []).entries()) {
       slice.objects.push({
         id: String(trace.trace_id || trace.id || `RT-${index + 1}`),
@@ -636,6 +675,7 @@ export function materializeStageIntoGraph(
       "ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event",
       "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
       "CompetingExplanation", "BlockingFactor", "RuleEvaluation",
+      "MarketExpectation", "ExpectationGap", "AssetImpact",
     ]);
     for (const trace of (stageJson.reasoning_traces as any[]) || []) {
       const traceId = String(trace.trace_id || trace.id);

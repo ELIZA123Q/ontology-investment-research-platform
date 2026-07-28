@@ -28,6 +28,9 @@ describe("researcher-facing status labels", () => {
 
   it("uses research language for provenance and change attribution", () => {
     expect(evidenceKindLabel("source_claim")).toBe("来源事实");
+    expect(evidenceKindLabel("gap")).toBe("尚缺的证据");
+    expect(evidenceKindLabel("conflict")).toBe("相互矛盾");
+    expect(evidenceKindLabel("fact_draft")).toBe("待核对事实");
     expect(sourceTierLabel("S2")).toBe("高权威来源");
     expect(sourceTierLabel("S5")).toBe("可用公开来源");
     expect(sourceTierLabel("S8")).toBe("低权威线索");

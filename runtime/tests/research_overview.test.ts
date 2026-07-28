@@ -16,7 +16,8 @@ describe("research_overview", () => {
     });
 
     expect(overview.headline).toBe("当前证据不足，暂不形成方向判断");
-    expect(overview.explanation).toContain("2 个判断单元均停在 J0");
+    expect(overview.explanation).toContain("2 个判断单元均停在暂不可判断");
+    expect(overview.explanation).toContain("相互矛盾或尚缺的证据");
     expect(overview.primaryAction.href).toBe("/runs/run-1/report");
     expect(overview.primaryAction.title).toBe("检查报告并导出交付");
   });

@@ -24,6 +24,7 @@ MODEL_FILES = ("semantic.yaml", "state_event.yaml", "evidence.yaml", "judgment.y
 EXTENSION = MODEL_DIR / "semiconductor_extension.yaml"
 PUBLIC_CONTRACT = ROOT / "governance/02_合同/public_contract.yaml"
 MIGRATION_LEDGER = ROOT / "ontology/03_迁移/2x_to_3_ledger.yaml"
+RULE_REGISTRY = ROOT / "governance/02_合同/rule_authority_registry.yaml"
 PSEUDO_TYPES = {
     "core_object",
     "stable_rule",
@@ -37,6 +38,13 @@ SEMVER_RE = re.compile(r"^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9
 ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]*$")
 POSITIVE_RESULTS = {"pass", "allow", "valid", "success"}
 NEGATIVE_RESULTS = {"reject", "fail", "invalid", "block", "downgrade_or_reject"}
+
+# P1：YAML condition/counter_conditions 驱动的 fixture 解释器
+import sys as _sys
+
+if str(CORE_DIR) not in _sys.path:
+    _sys.path.insert(0, str(CORE_DIR))
+from rule_interpreter import assert_executable_rule_fixtures  # noqa: E402
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -487,6 +495,7 @@ def validate_bundle(
                 allowed_roles = set(rule_contract.get("test_case_role_values") or ["design_intent", "executable"])
                 if role not in allowed_roles:
                     errors.append(f"{name}:{resource_id} rule test_case_role must be one of {sorted(allowed_roles)}")
+                errors.extend(assert_executable_rule_fixtures(name, resource_id, resource))
 
         for scenario_id, scenario in (schema.get("scenario_types") or {}).items():
             missing_scenario = sorted(set(scenario_contract.get("required") or []) - set(scenario))
@@ -683,9 +692,63 @@ def validate_migration_ledger(
     return errors
 
 
+def validate_rule_registry_parity(
+    models: dict[str, dict[str, Any]],
+    extension: dict[str, Any],
+) -> list[str]:
+    """P1 防漂移：交叉校验 YAML 模型规则定义 ↔ rule_authority_registry.yaml 执行面声明。
+
+    确保：
+    1. 每条 YAML 模型里的正式规则（rules / evidence_constraints）都在 registry 里登记
+    2. registry 里每条 runtime_semantic_execution 规则在 YAML 模型里有定义
+    """
+    errors: list[str] = []
+
+    # 收集 YAML 模型中的所有规则 ID
+    yaml_rule_ids: set[str] = set()
+    for schema in {**models, "semiconductor": extension}.values():
+        for section in ("rules", "evidence_constraints"):
+            block = schema.get(section) or {}
+            if isinstance(block, dict):
+                yaml_rule_ids.update(block.keys())
+
+    # 加载 registry
+    if not RULE_REGISTRY.exists():
+        errors.append("rule_authority_registry.yaml is missing — cannot verify rule parity")
+        return errors
+    registry = load_yaml(RULE_REGISTRY)
+    registry_rules = registry.get("formal_ontology_rules") or {}
+    if not isinstance(registry_rules, dict):
+        errors.append("rule_authority_registry.yaml formal_ontology_rules must be a mapping")
+        return errors
+
+    registry_rule_ids = set(registry_rules.keys())
+
+    # YAML → registry: 每条 YAML 规则都应在 registry 登记
+    missing_in_registry = sorted(yaml_rule_ids - registry_rule_ids)
+    for rule_id in missing_in_registry:
+        errors.append(f"rule_parity: YAML rule '{rule_id}' not registered in rule_authority_registry")
+
+    # registry → YAML: 每条 registry 规则都应在 YAML 有定义
+    missing_in_yaml = sorted(registry_rule_ids - yaml_rule_ids)
+    for rule_id in missing_in_yaml:
+        errors.append(f"rule_parity: registry rule '{rule_id}' has no YAML definition in models")
+
+    # runtime_semantic_execution 规则必须有 YAML 定义
+    for rule_id, rule in registry_rules.items():
+        if not isinstance(rule, dict):
+            continue
+        surface = rule.get("execution_surface")
+        if surface == "runtime_semantic_execution" and rule_id not in yaml_rule_ids:
+            errors.append(f"rule_parity: '{rule_id}' declares runtime_semantic_execution but has no YAML definition")
+
+    return errors
+
+
 def main() -> int:
     models, extension, meta = load_default_bundle()
     errors = validate_bundle(models, extension, meta)
+    errors.extend(validate_rule_registry_parity(models, extension))
     if not MIGRATION_LEDGER.exists():
         errors.append("migration ledger is missing")
     else:
@@ -697,7 +760,13 @@ def main() -> int:
         return 1
     object_count = sum(len(model.get("object_types") or {}) for model in models.values()) + len(extension.get("object_types") or {})
     relation_count = sum(len(model.get("relation_types") or {}) for model in models.values()) + len(extension.get("relation_types") or {})
-    print(f"ONTOLOGY_V3_PASS: five models + semiconductor extension; objects={object_count}, relations={relation_count}")
+    exec_count = 0
+    for schema in {**models, "semiconductor": extension}.values():
+        for section in ("rules", "evidence_constraints"):
+            for rule in (schema.get(section) or {}).values():
+                if isinstance(rule, dict) and rule.get("test_case_role") == "executable":
+                    exec_count += 1
+    print(f"ONTOLOGY_V3_PASS: five models + semiconductor extension; objects={object_count}, relations={relation_count}, executable_rules={exec_count}")
     return 0
 
 

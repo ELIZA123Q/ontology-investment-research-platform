@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getRun } from "@/adapters/db";
 import { latestArtifactPayload } from "@/adapters/db_read_models";
 import { parseJson } from "@/engine/types";
@@ -15,7 +15,8 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
   if (!run) notFound();
 
   const artifact = latestArtifactPayload(id, "stage_01", ["approved", "needs_review"]);
-  const data: any = parseJson(artifact?.json_content || "{}", {});
+  if (!artifact) redirect(`/runs/${id}/stages/1`);
+  const data: any = parseJson(artifact.json_content || "{}", {});
 
   const coreObject = String(data.core_object || "").trim();
   const judgmentAction = String(data.judgment_action || "").trim();
@@ -34,18 +35,16 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
     <StageSceneChrome
       runId={id}
       stage={1}
-      status={artifact?.status}
+      status={artifact.status}
       outputCount={hasAnyContent ? 1 : 0}
       subtitle={run.question}
       actions={
         <>
-          <StageApprovalButton runId={id} artifactId={artifact?.id} stage={1} status={artifact?.status} />
-          <span className={`badge ${artifact?.status === "approved" ? "" : "warn"}`}>
-            {artifact?.status === "approved" ? "已确认" : artifact?.status === "needs_review" ? "待确认" : artifact?.status || "尚未开始"}
+          <StageApprovalButton runId={id} artifactId={artifact.id} stage={1} status={artifact.status} />
+          <span className={`badge ${artifact.status === "approved" ? "" : "warn"}`}>
+            {artifact.status === "approved" ? "已确认" : artifact.status === "needs_review" ? "待确认" : artifact.status || "尚未开始"}
           </span>
-          <Link className="button-secondary" href={`/runs/${id}/stages/1`}>
-            {artifact ? "编辑范围" : "生成研究范围"}
-          </Link>
+          <Link className="button-secondary" href={`/runs/${id}/stages/1`}>编辑范围</Link>
         </>
       }
     />

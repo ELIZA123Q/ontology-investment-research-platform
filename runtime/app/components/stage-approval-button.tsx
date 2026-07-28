@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { researchJobIssueMessage } from "@/app/lib/ui-labels";
-import { researchStage } from "@/app/lib/research-journey";
+import { journeyApproveLabel, journeyNextHref, researchStage } from "@/app/lib/research-journey";
 
 export function StageApprovalButton({
   runId,
@@ -34,7 +34,7 @@ export function StageApprovalButton({
       const response = await fetch(`/api/runs/${runId}/artifacts/${artifactId}/approve`, { method: "POST" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "当前阶段暂时不能确认");
-      router.push(`/runs/${runId}`);
+      router.push(journeyNextHref(runId, stage));
       router.refresh();
     } catch (caught) {
       setError(researchJobIssueMessage(caught instanceof Error ? caught.message : caught));
@@ -45,7 +45,7 @@ export function StageApprovalButton({
 
   return <div className="stage-approval-inline">
     <button className="button" type="button" disabled={busy || !canApprove} onClick={approve}>
-      {busy ? "正在确认…" : `确认${journey.navLabel}并继续`}
+      {busy ? "正在确认…" : journeyApproveLabel(stage)}
     </button>
     {!canApprove && blockingHint ? <small>{blockingHint}</small> : null}
     {error ? <small className="run-primary-action-error">{error}</small> : null}

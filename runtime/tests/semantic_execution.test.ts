@@ -72,9 +72,9 @@ function apply(data: any, evidence: any[]) {
 describe("formal ontology deterministic execution", () => {
   it("executes every runtime semantic rule for each judgment", () => {
     const result = apply(decision(), [fact()]);
-    expect(REQUIRED_RULES).toHaveLength(9);
+    expect(REQUIRED_RULES).toHaveLength(13);
     expect(result.rule_evaluations.map((item: any) => item.rule_ref).sort()).toEqual([...REQUIRED_RULES].sort());
-    expect(result.rule_evaluations.every((item: any) => item.deterministic_result.engine_version === "runtime-semantic-rules-3.0.0")).toBe(true);
+    expect(result.rule_evaluations.every((item: any) => item.deterministic_result.engine_version === "runtime-semantic-rules-3.1.0")).toBe(true);
   });
 
   it("demotes judgments when observations are after cutoff or validity is inverted", () => {
@@ -161,4 +161,100 @@ describe("formal ontology deterministic execution", () => {
     const capacityRule = result.rule_evaluations.find((item: any) => item.rule_ref === "semiconductor_capacity_yield_scope_alignment");
     expect(capacityRule.result).toBe("pass");
   });
+
+  it("reads ontology level as strength and demotes expectation_gap without projection", () => {
+    const withLevel = apply(decision({ strength: undefined, level: "J1" }), [fact()]);
+    expect(withLevel.judgments[0].strength).toBe("J1");
+    expect(withLevel.judgments[0].level).toBe("J1");
+    expect(REQUIRED_RULES).toContain("expectation_projection_integrity");
+
+    const missingGap = applyDeterministicRuleEvaluations(
+      {
+        ...decision({ strength: "J2" }),
+        expectation_gaps: [],
+        asset_impacts: [],
+      },
+      [fact()],
+      [source()],
+      { judgment_units: [{ id: "JU-1", judgment_type: "expectation_gap" }] },
+    );
+    expect(missingGap.judgments[0].strength).toBe("J0");
+    expect(String(missingGap.judgments[0].not_judgeable_reason)).toMatch(/expectation_projection_integrity/);
+    expect(missingGap.judgments[0].level).toBe("J0");
+  });
+
+  it("passes expectation_gap when ExpectationGap projection is bound", () => {
+    const result = applyDeterministicRuleEvaluations(
+      {
+        ...decision({ strength: "J1" }),
+        expectation_gaps: [{
+          id: "EG-1",
+          statement: "一致预期偏乐观",
+          judgment_ref: "J-1",
+          market_expectation_ref: "ME-1",
+        }],
+        market_expectations: [{ id: "ME-1", statement: "市场预期价格继续下行" }],
+      },
+      [fact()],
+      [source()],
+      { judgment_units: [{ id: "JU-1", judgment_type: "expectation_gap" }] },
+    );
+    const rule = result.rule_evaluations.find((item: any) => item.rule_ref === "expectation_projection_integrity");
+    expect(rule.result).toBe("pass");
+    expect(result.judgments[0].strength).not.toBe("J0");
+  });
+
+  it("enforces value-chain, valuation-level and blocking-linkage deep axioms", () => {
+    const missingPath = applyDeterministicRuleEvaluations(
+      decision({ strength: "J2" }),
+      [fact()],
+      [source()],
+      { judgment_units: [{ id: "JU-1", judgment_type: "transmission_path" }], paths: [] },
+    );
+    expect(missingPath.judgments[0].strength).toBe("J0");
+    expect(String(missingPath.judgments[0].not_judgeable_reason)).toMatch(/value_chain_propagation_consistency/);
+
+    const withPath = applyDeterministicRuleEvaluations(
+      decision({ strength: "J1" }),
+      [fact()],
+      [source()],
+      {
+        judgment_units: [{ id: "JU-1", judgment_type: "transmission_path" }],
+        paths: [{ id: "P-1", statement: "产能→价格", variable_ids: ["V-1", "V-2"] }],
+      },
+    );
+    const pathRule = withPath.rule_evaluations.find((item: any) => item.rule_ref === "value_chain_propagation_consistency");
+    expect(pathRule.result).toBe("pass");
+
+    const valuationFail = applyDeterministicRuleEvaluations(
+      decision({ strength: "J3", conditions: [] }),
+      [fact()],
+      [source()],
+      { judgment_units: [{ id: "JU-1", judgment_type: "valuation_impact" }] },
+    );
+    expect(valuationFail.judgments[0].strength).toBe("J0");
+    expect(String(valuationFail.judgments[0].not_judgeable_reason)).toMatch(/valuation_hypothesis_level_coupling/);
+
+    const valuationPass = applyDeterministicRuleEvaluations(
+      decision({ strength: "J3", conditions: ["假设桥：倍数回到历史中枢"] }),
+      [fact()],
+      [source()],
+      { judgment_units: [{ id: "JU-1", judgment_type: "valuation_impact" }] },
+    );
+    const valuationRule = valuationPass.rule_evaluations.find((item: any) => item.rule_ref === "valuation_hypothesis_level_coupling");
+    expect(valuationRule.result).toBe("pass");
+
+    const blocked = applyDeterministicRuleEvaluations(
+      {
+        ...decision({ strength: "J2", decision_status: "supported" }),
+        blocking_factors: [{ id: "BF-1", status: "active", judgment_unit_id: "JU-1" }],
+      },
+      [fact()],
+      [source()],
+      { judgment_units: [{ id: "JU-1", judgment_type: "state_assessment" }] },
+    );
+    expect(blocked.judgments[0].strength).toBe("J0");
+    expect(String(blocked.judgments[0].not_judgeable_reason)).toMatch(/risk_exposure_blocking_linkage/);
+  });
 });
+
