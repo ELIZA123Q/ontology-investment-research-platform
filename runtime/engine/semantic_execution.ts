@@ -4,6 +4,11 @@ import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { repositoryPath } from "../adapters/repo-paths";
 import { decideFromRuleDef, formalRuleDef } from "./ontology_rule_defs";
+import {
+  ONTOLOGY_JUDGMENT_LEVELS,
+  type OntologyConfidenceLevel,
+  type OntologyJudgmentLevel,
+} from "./ontology_vocabulary.generated";
 import type { SourceRecord } from "./types";
 
 type EvidenceDraft = {
@@ -75,8 +80,10 @@ export function loadBlockingSemanticRuleIds(): string[] {
 /** Runtime 确定性重算并挡门的正式规则。关系端点兼容见 graph_contract.validateRuntimeGraph。 */
 export const REQUIRED_RULES: readonly string[] = loadBlockingSemanticRuleIds();
 
-const LEVEL = { J0: 0, J1: 1, J2: 2, J3: 3, J4: 4 } as const;
-type JudgmentLevel = keyof typeof LEVEL;
+const LEVEL = Object.fromEntries(
+  ONTOLOGY_JUDGMENT_LEVELS.map((level, index) => [level, index]),
+) as Record<OntologyJudgmentLevel, number>;
+type JudgmentLevel = OntologyJudgmentLevel;
 
 /** Runtime 产物常用 strength；正式本体属性为 level。读取时兼容两者。 */
 export function judgmentStrength(judgment: any): string {
@@ -135,7 +142,7 @@ export function deriveMaxJudgmentLevel(
   const counterevidenceCap = LEVEL[COUNTEREVIDENCE_CAPS[counterevidenceResult]];
   const pathCap = LEVEL[PATH_READINESS_CAPS[pathReadiness]];
   const max = Math.min(evidenceCap, counterevidenceCap, pathCap);
-  const levelKeys = Object.keys(LEVEL) as JudgmentLevel[];
+  const levelKeys = ONTOLOGY_JUDGMENT_LEVELS;
   const maxLevel = levelKeys.find((k) => LEVEL[k] === max) || "J0";
 
   const reasons: string[] = [];
@@ -208,7 +215,7 @@ function pathStatusToReadiness(status: string): PathReadinessStatus {
  *   Q4 → high (充分证据且无决定性冲突)
  *   有冲突 → 降一级 (high→medium, medium→low, low 不变)
  */
-export type ConfidenceLevel = "low" | "medium" | "high";
+export type ConfidenceLevel = OntologyConfidenceLevel;
 
 export function calculateConfidence(params: {
   evidenceGrade: EvidenceGrade;
@@ -316,6 +323,32 @@ export function applyDeterministicRuleEvaluations(
   const sourceMap = new Map(sources.map((source) => [source.id, source]));
   const evidenceMap = new Map(evidenceDrafts.map((evidence) => [evidence.id, evidence]));
 
+  // 先把模型请求强度收敛到证据上限，再执行状态一致性等其它规则。
+  // 否则“请求 J3、上限 J1”会先触发 high-J consistency fail，继而被误判为
+  // 实质阻断并清空事实链，失去本可交付的 J1 观察。
+  for (const judgment of data.judgments || []) {
+    const computed = computeRule(
+      "judgment_evidence_threshold",
+      judgment,
+      data,
+      evidenceMap,
+      sourceMap,
+      structure,
+    );
+    if (computed.result !== "fail") continue;
+    const match = /上限\s+(J[0-4])/.exec(computed.rationale);
+    const ceiling = match?.[1] as JudgmentLevel | undefined;
+    if (!ceiling || !Object.hasOwn(LEVEL, ceiling) || LEVEL[ceiling] <= 0) continue;
+    const requested = judgmentStrength(judgment);
+    judgment.strength = ceiling;
+    judgment.level = ceiling;
+    judgment.not_judgeable_reason = null;
+    judgment.rationale = [
+      `Runtime 按证据、反证与路径状态将原请求 ${requested} 收敛至 ${ceiling}；保留可核验事实链，不把强度降级误写成无判断。`,
+      String(judgment.rationale || "").trim(),
+    ].filter(Boolean).join(" ");
+  }
+
   const materialize = () => {
     const priorById = new Map<string, RuleEvaluation>(
       ((data.rule_evaluations || []) as RuleEvaluation[]).map((item) => [String(item.id), item]),
@@ -402,7 +435,20 @@ function collectBlockingRuleEvaluations(data: any, generated: RuleEvaluation[]) 
   return byJudgment;
 }
 
-/** 确定性规则 fail/blocked 时，把对应 Judgment 降为 J0，避免整阶段因上游近失证据直接崩溃。 */
+function thresholdCeiling(evaluation: RuleEvaluation): JudgmentLevel | null {
+  if (evaluation.rule_ref !== "judgment_evidence_threshold") return null;
+  const match = /上限\s+(J[0-4])/.exec(String(evaluation.deterministic_result?.rationale || ""));
+  const level = match?.[1] as JudgmentLevel | undefined;
+  return level && Object.hasOwn(LEVEL, level) ? level : null;
+}
+
+/**
+ * 正式规则 fail/blocked 的处置：
+ * - 证据等级只限制强度时，收敛到可支持的上限并保留事实链；
+ * - 口径、时间、引用等实质阻断仍降为 J0，并清空越界事实绑定。
+ *
+ * “请求 J3、证据只支持 J2”是可用的受限判断，不应被错误处理成“完全不可判断”。
+ */
 function demoteJudgmentsForBlockingRules(data: any, blocked: Map<string, RuleEvaluation[]>, structure: any = {}) {
   const unitIds = (structure.judgment_units || []).map((item: any) => String(item.id || "")).filter(Boolean);
   const scopeRef = String(structure.research_scope?.id || unitIds[0] || "SCOPE-UNKNOWN");
@@ -411,6 +457,19 @@ function demoteJudgmentsForBlockingRules(data: any, blocked: Map<string, RuleEva
     const judgmentId = String(judgment.id || judgment.judgment_id || "");
     const blockers = blocked.get(judgmentId);
     if (!blockers?.length) continue;
+    const substantiveBlockers = blockers.filter((item) => item.rule_ref !== "judgment_evidence_threshold");
+    const ceiling = blockers.map(thresholdCeiling).find((item): item is JudgmentLevel => Boolean(item));
+    if (!substantiveBlockers.length && ceiling && LEVEL[ceiling] > 0) {
+      const requested = judgmentStrength(judgment);
+      judgment.strength = ceiling;
+      judgment.level = ceiling;
+      judgment.not_judgeable_reason = null;
+      judgment.rationale = [
+        `Runtime 按证据、反证与路径状态将原请求 ${requested} 收敛至 ${ceiling}；保留可核验事实链，不把强度降级误写成无判断。`,
+        String(judgment.rationale || "").trim(),
+      ].filter(Boolean).join(" ");
+      continue;
+    }
     const reasons = blockers.map((item) => `${item.rule_ref}: ${item.deterministic_result?.rationale || item.result}`);
     let unitId = String(judgment.judgment_unit_id || "");
     if (!unitIds.includes(unitId)) {
@@ -700,14 +759,14 @@ function computeRule(
     }
     const claimScope = semiconductorMeasurement(judgment.semiconductor_claim_scope);
     const claimedKind = claimScope?.metric_kind || detectSemiconductorMetricKind(`${judgment.title || ""} ${judgment.conclusion || ""}`);
+    if (!claimedKind) {
+      return resultOf("pass", [judgmentId], "判断本身没有产能或良率度量主张，本规则不适用", [
+        condition("capacity_or_yield_claim_present", "capacity or yield metric claim is present", [judgmentId], "pass", "未发现度量主张"),
+      ]);
+    }
     const supportingIds = new Set((judgment.supporting_evidence_draft_ids || []).map(String));
     const relevantFacts = facts.filter((fact) => supportingIds.has(fact.id)
       && (fact.semiconductor_measurement || detectSemiconductorMetricKind(String((fact as any).statement || ""))));
-    if (!claimedKind && !relevantFacts.length) {
-      return resultOf("pass", [judgmentId], "没有产能或良率主张，本规则不适用", [
-        condition("capacity_or_yield_claim_present", "capacity or yield claim is present", [judgmentId], "pass", "未发现产能或良率主张"),
-      ]);
-    }
     const incomplete = relevantFacts.filter((fact) => !semiconductorMeasurement(fact.semiconductor_measurement));
     if (!claimScope || !relevantFacts.length || incomplete.length) {
       const refs = uniqueStrings([judgmentId, ...relevantFacts.map((fact) => fact.id)]);
@@ -827,7 +886,7 @@ function computeRule(
       || linkedImpacts.some((item: any) => String(item.impact_channel || "") === "valuation_multiple");
     const strength = judgmentStrength(judgment);
     const hasBridge = (Array.isArray(judgment.conditions) ? judgment.conditions : [])
-      .map(String).some((item) => item.trim().length > 0)
+      .map(String).some((item: string) => item.trim().length > 0)
       || linkedImpacts.some((item: any) =>
         (Array.isArray(item.conditions) ? item.conditions : []).map(String).some((text: string) => text.trim().length > 0));
     const activeCompetition = (data.competing_explanations || []).some((item: any) =>
@@ -878,20 +937,41 @@ function computeRule(
     ]);
   }
 
-  const statusErrors: string[] = [];
-  const relevantSignalIds = new Set<string>((judgment.hypothesis_ids || []).flatMap((hypothesisId: string) =>
-    ((data.hypotheses || []).find((item: any) => String(item.id) === String(hypothesisId))?.signal_ids || []).map(String)));
-  const activeCompetition = (data.competing_explanations || []).some((item: any) =>
-    (item.status === "active" || item.status === "unknown")
-    && (item.signal_ids || []).some((id: string) => relevantSignalIds.has(String(id))));
-  if (judgment.conflict_status === "unresolved" && judgment.decision_status === "supported") statusErrors.push("未决冲突不能标记 supported");
-  if (judgment.conflict_status === "decisive" && !["blocked", "indeterminate", "invalidated"].includes(judgment.decision_status)) statusErrors.push("决定性反证必须阻断或判为不可判断");
-  if (["blocked", "indeterminate"].includes(judgment.decision_status) && !String(judgment.not_judgeable_reason || "").trim()) statusErrors.push("阻断/不可判断缺少原因");
-  const strength = judgmentStrength(judgment);
-  if (strength === "J0" && !["blocked", "indeterminate", "contested"].includes(judgment.decision_status)) statusErrors.push("J0 状态不一致");
-  if (activeCompetition && ["J3", "J4"].includes(strength)) statusErrors.push("竞争解释未排除但判断过强");
-  return resultOf(statusErrors.length ? "fail" : "pass", [judgmentId, ...inputRefs], statusErrors.length ? statusErrors.join("；") : "判断等级、冲突和不可判断状态一致",
-    [condition("status_consistency", "conflict and decision status are coherent", [judgmentId, ...inputRefs], statusErrors.length ? "fail" : "pass", statusErrors.length ? statusErrors.join("；") : "状态一致")]);
+  if (rule === "judgment_status_consistency") {
+    const relevantSignalIds = new Set<string>((judgment.hypothesis_ids || []).flatMap((hypothesisId: string) =>
+      ((data.hypotheses || []).find((item: any) => String(item.id) === String(hypothesisId))?.signal_ids || []).map(String)));
+    const activeCompetition = (data.competing_explanations || []).some((item: any) =>
+      (item.status === "active" || item.status === "unknown")
+      && (item.signal_ids || []).some((id: string) => relevantSignalIds.has(String(id))));
+    const strength = judgmentStrength(judgment);
+    const hasReason = Boolean(String(judgment.not_judgeable_reason || "").trim());
+    const facts = {
+      supported_with_unresolved_conflict: judgment.conflict_status === "unresolved" && judgment.decision_status === "supported",
+      blocked_without_reason: judgment.decision_status === "blocked" && !hasReason,
+      indeterminate_without_reason: judgment.decision_status === "indeterminate" && !hasReason,
+      unresolved_conflict_implies_contested: !(judgment.conflict_status === "unresolved" && judgment.decision_status === "supported"),
+      decisive_conflict_implies_blocked_or_indeterminate: !(judgment.conflict_status === "decisive"
+        && !["blocked", "indeterminate", "invalidated"].includes(judgment.decision_status)),
+      blocked_or_indeterminate_has_reason: !(["blocked", "indeterminate"].includes(judgment.decision_status) && !hasReason),
+      j0_status_inconsistent: strength === "J0" && !["blocked", "indeterminate", "contested"].includes(judgment.decision_status),
+      high_j_with_active_competition: activeCompetition && ["J3", "J4"].includes(strength),
+    };
+    const def = formalRuleDef(rule);
+    let outcome: RuleResult = def ? decideFromRuleDef(def, facts) : "fail";
+    // Runtime 扩展：YAML 尚未登记的 J0 / 竞争解释过强
+    if (facts.j0_status_inconsistent || facts.high_j_with_active_competition) outcome = "fail";
+    const statusErrors = [
+      facts.supported_with_unresolved_conflict ? "未决冲突不能标记 supported" : null,
+      !facts.decisive_conflict_implies_blocked_or_indeterminate ? "决定性反证必须阻断或判为不可判断" : null,
+      facts.blocked_without_reason || facts.indeterminate_without_reason ? "阻断/不可判断缺少原因" : null,
+      facts.j0_status_inconsistent ? "J0 状态不一致" : null,
+      facts.high_j_with_active_competition ? "竞争解释未排除但判断过强" : null,
+    ].filter(Boolean) as string[];
+    return resultOf(outcome, [judgmentId, ...inputRefs], statusErrors.length ? statusErrors.join("；") : "判断等级、冲突和不可判断状态一致",
+      [condition("status_consistency", def?.condition || rule, [judgmentId, ...inputRefs], outcome, statusErrors.length ? statusErrors.join("；") : "状态一致")]);
+  }
+
+  throw new Error(`未实现的正式本体规则: ${rule}`);
 }
 
 function resultOf(result: RuleResult, inputRefs: string[], rationale: string, conditions: RuleEvaluation["condition_results"]) {
@@ -980,16 +1060,14 @@ function isIndeterminateStop(judgment: any) {
 }
 
 function detectSemiconductorMetricKind(text: string): SemiconductorMetricKind | null {
-  if (/良率|\byield\b/i.test(text)) return "yield";
-  // 「产能扩张」是因果叙事常见词，不等于产能/良率度量主张；避免误触发六维口径挡门。
-  if (/产能扩张|capacity expansion/i.test(text)
-    && !/产能利用率|名义产能|有效产出|nameplate capacity|effective capacity/i.test(text)) {
-    return null;
+  // 该正式规则约束 CapacityMetric / YieldMetric 的可比口径，不约束“扩产、
+  // 产能分配、资源挤占”这类定性机制叙事。只有明确度量主张才触发六维门禁。
+  if (/良率(?:为|达到|提升至|下降至|改善了|下降了|\s*[0-9])|\byield(?:\s+rate)?\s*(?:of|was|is|at|=|:|\d)/i.test(text)) {
+    return "yield";
   }
-  if (/产能利用率|名义产能|有效产出|nameplate capacity|effective capacity|\bcapacity\b/i.test(text)) {
+  if (/产能利用率|名义产能|有效产能|有效产出|月产能|晶圆\/月|片\/月|nameplate capacity|effective capacity|capacity utilization|wafers per month|\bkwpm\b/i.test(text)) {
     return "capacity";
   }
-  if (/产能/i.test(text)) return "capacity";
   return null;
 }
 

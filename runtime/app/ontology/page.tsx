@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { loadOntology, ontologyInstances } from "@/adapters/ontology";
-import { listRuns } from "@/adapters/db";
+import { listArtifacts, listRuns } from "@/adapters/db";
 import { listCrossRunVariableComparability } from "@/adapters/variable_comparability";
 import { listEvidenceImpactQueries, listVariableUsageQueries } from "@/adapters/ontology_research_queries";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
@@ -15,6 +15,9 @@ import {
 } from "@/app/lib/researcher-stage-output";
 import { actionLabel, runStatusLabel, stageLabel } from "@/app/lib/ui-labels";
 import { ontologyTypeLabel } from "@/engine/ontology_display_labels";
+import { loadOntologyCatalog } from "@/engine/ontology_catalog";
+import { loadDataMappingRegistry } from "@/engine/data_mapping_profiles";
+import { affectedRunsByOntologyFingerprint } from "@/engine/ontology_impact";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +92,7 @@ const TAB_GUIDE: TabGuide[] = [
     label: "知识缺口治理",
     blurb: "专家确认、晋升或驳回本轮候选知识",
     answers: "哪些本轮候选值得进入正式知识库？",
-    sees: ["跨研究频次与复用信号", "确认 / 晋升 / 驳回操作", "追加式决策历史"],
+    sees: ["统一语义目录、数据映射与运行基线状态", "跨研究频次与复用信号", "确认 / 晋升 / 驳回操作"],
     nextUse: "晋升只登记进入正式知识库的变更流程，不会自动改写知识库文件。",
   },
 ];
@@ -168,6 +171,12 @@ export default async function OntologyPage({
   const displayNodeLabel = (id: string) => nodeLabelById.get(id) || ontologyTypeLabel(id);
   const selected = nodes.find((n) => n.id === q.node) || nodes[0];
   const runs = listRuns();
+  const ontologyCatalog = loadOntologyCatalog();
+  const mappingRegistry = loadDataMappingRegistry();
+  const affectedLegacyRuns = affectedRunsByOntologyFingerprint(
+    runs.flatMap((run) => listArtifacts(run.id)),
+    ontologyCatalog.fingerprint,
+  );
   const statusRank: Record<string, number> = { active: 0, in_progress: 0, blocked: 1, complete: 2, completed: 2 };
   const researchRuns = runs
     .filter((run) => run.current_stage > 0 && !["draft", "archived"].includes(run.status))
@@ -456,7 +465,63 @@ export default async function OntologyPage({
           </div>
         </section>
       ) : null}
-      {tab === "governance" ? <OntologyCandidateQueue /> : null}
+      {tab === "governance" ? (
+        <>
+          <section className="card">
+            <div className="section-heading">
+              <div>
+                <div className="eyebrow">统一语义基础设施</div>
+                <h2>本体是对象、关系、约束与数据映射的唯一语义入口</h2>
+                <p className="muted">
+                  这里显示当前正式基线及其消费状态；研究方法和流程仍由各自模块执行，不写进本体。
+                </p>
+              </div>
+              <span className="badge">{ontologyCatalog.fingerprint.slice(0, 19)}…</span>
+            </div>
+            <div className="ontology-value-grid">
+              <article className="ontology-value-column completion">
+                <div className="ontology-value-column-head">
+                  <strong>正式语义目录</strong>
+                  <span>全系统统一定义</span>
+                </div>
+                <p>
+                  {ontologyCatalog.object_types.size} 类对象 · {ontologyCatalog.relation_types.size} 类关系 ·
+                  {" "}{ontologyCatalog.rules.size} 项稳定约束 · {ontologyCatalog.scenario_types.size} 类研究场景
+                </p>
+                <small>Runtime、Schema、图合同与查询均从同一目录读取。</small>
+              </article>
+              <article className="ontology-value-column connection">
+                <div className="ontology-value-column-head">
+                  <strong>外部数据映射</strong>
+                  <span>版本化字段血缘</span>
+                </div>
+                <p>
+                  {mappingRegistry.profiles.filter((profile) => profile.status === "active").length}
+                  /{mappingRegistry.required_connectors.length} 个运行通道已登记
+                </p>
+                <small>
+                  {mappingRegistry.profiles.map((profile) =>
+                    `${profile.connector} → ${profile.target_mappings.map((mapping) => ontologyTypeLabel(mapping.target_type)).join(" / ")}`,
+                  ).join("；")}
+                </small>
+              </article>
+              <article className={`ontology-value-column ${affectedLegacyRuns.length ? "constraint" : "completion"}`}>
+                <div className="ontology-value-column-head">
+                  <strong>运行基线一致性</strong>
+                  <span>按 semantic_context 指纹识别</span>
+                </div>
+                <p>{affectedLegacyRuns.length ? `${affectedLegacyRuns.length} 个运行仍绑定旧本体` : "未发现绑定旧本体指纹的运行"}</p>
+                <small>
+                  {affectedLegacyRuns.length
+                    ? "这些运行需要影响审阅或按需重算；系统不会静默改写历史结论。"
+                    : "没有发现需要迁移的已指纹化阶段产物。"}
+                </small>
+              </article>
+            </div>
+          </section>
+          <OntologyCandidateQueue />
+        </>
+      ) : null}
       {tab === "comparability" ? (
         <section className="ontology-comparability">
           {comparabilityGroups.map((group) => {

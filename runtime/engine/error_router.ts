@@ -119,7 +119,7 @@ export const ERROR_ROUTES: Record<ReturnStage, ErrorRoute[]> = {
       pattern: /证据不足|证据缺失|no_evidence|empty_evidence/,
       returnTo: "03",
       ruleId: "03.validator.insufficient",
-      fixHint: "至少 1 条证据/JU，考虑使用 MCP 数据源或公开检索补充",
+      fixHint: "至少 1 条证据/JU，优先主源（公司 IR/监管官网等公开原文），按注册通道或 Web 回退获取并核验",
     },
   ],
   "04": [

@@ -11,6 +11,7 @@ import {
 } from "@/app/lib/researcher-stage-output";
 import type { ApprovedScopeSummary, EvidenceOption, MethodApplicationOption, SourceOption, UnitOption } from "./types";
 import { asItemList, lines } from "./helpers";
+import { ONTOLOGY_JUDGMENT_TYPES } from "@/engine/ontology_vocabulary.generated";
 
 type StructureUnitDraft = {
   id: string;
@@ -27,18 +28,21 @@ type StructureCandidateDraft = {
   discriminating_evidence: string[];
 };
 
-const JUDGMENT_TYPE_OPTIONS = [
-  ["state_measurement", "状态测量"],
-  ["trend_direction", "趋势方向"],
-  ["cycle_phase", "周期阶段"],
-  ["mechanism_validation", "机制验证"],
-  ["causal_attribution", "原因归因"],
-  ["transmission_path", "传导路径"],
-  ["object_differentiation", "对象分化"],
-  ["impact_realization", "影响兑现"],
-  ["expectation_gap", "预期差"],
-  ["valuation_impact", "估值影响"],
-] as const;
+const JUDGMENT_TYPE_LABELS: Record<string, string> = {
+  state_measurement: "状态测量",
+  trend_direction: "趋势方向",
+  cycle_phase: "周期阶段",
+  mechanism_validation: "机制验证",
+  causal_attribution: "原因归因",
+  transmission_path: "传导路径",
+  object_differentiation: "对象分化",
+  impact_realization: "影响兑现",
+  expectation_gap: "预期差",
+  valuation_impact: "估值影响",
+};
+const JUDGMENT_TYPE_OPTIONS = ONTOLOGY_JUDGMENT_TYPES.map(
+  (value) => [value, JUDGMENT_TYPE_LABELS[value] || value] as const,
+);
 
 function emptyStructureUnit(index = 0, existingIds: string[] = []): StructureUnitDraft {
   let n = index + 1;

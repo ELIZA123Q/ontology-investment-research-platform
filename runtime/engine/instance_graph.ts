@@ -11,4 +11,5 @@ export * from "./instance_graph/types";
 export * from "./instance_graph/load";
 export * from "./instance_graph/projection";
 export * from "./instance_graph/materialize";
+export * from "./instance_graph/authority";
 export * from "./instance_graph/trace";

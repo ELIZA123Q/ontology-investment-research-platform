@@ -128,11 +128,15 @@ export function loadKnowledge(stage: StageKind, options: LoadKnowledgeOptions = 
   }
 
   const loaded = loadedFiles.map((file) => ({ file, content: readFileSync(repositoryPath(file), "utf8") }));
-  const version = createHash("sha256").update(loaded.map((x) => `${x.file}\0${x.content}`).join("\0")).digest("hex");
+  // source_version：全文哈希，用于溯源；version 与此相同（未截断路由时）。
+  // loadRoutedKnowledge 会另算注入内容哈希作为 knowledge_version。
+  const sourceDigest = createHash("sha256").update(loaded.map((x) => `${x.file}\0${x.content}`).join("\0")).digest("hex");
+  const source_version = `sha256:${sourceDigest}`;
   // Bound API cost while retaining headings / 质量门槛 / 停止条件等优先节。
   const context = loaded.map((x) => `\n## ${x.file}\n${prioritizeKnowledgeContent(x.content, 60_000)}`).join("\n");
   return {
-    version: `sha256:${version}`,
+    version: source_version,
+    source_version,
     context,
     files: loadedFiles,
     entries: loaded,

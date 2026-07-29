@@ -1,16 +1,12 @@
 import { z } from "zod";
 import { modelOptional } from "./model_schema_helpers";
-
-const JUDGMENT_TYPES = [
-  "state_measurement", "trend_direction", "cycle_phase", "mechanism_validation", "causal_attribution",
-  "transmission_path", "object_differentiation", "impact_realization", "expectation_gap", "valuation_impact",
-] as const;
+import { ONTOLOGY_JUDGMENT_TYPES } from "./ontology_vocabulary.generated";
 
 export const structureUnitSchema = z.object({
   id: modelOptional(z.string()),
   title: z.string().min(1),
   question: z.string().min(1),
-  judgment_type: z.enum(JUDGMENT_TYPES),
+  judgment_type: z.enum(ONTOLOGY_JUDGMENT_TYPES),
   evidence_requirements: z.array(z.string().min(1)).min(1),
 });
 

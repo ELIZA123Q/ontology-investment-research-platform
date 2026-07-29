@@ -92,6 +92,30 @@ describe("durable research job leases", () => {
     expect(store.heartbeat(queued.id, "wrong-token", 60_000, "2026-07-22T00:00:40.000Z")).toBeUndefined();
   });
 
+  it("claims only the explicitly authorized job in one-shot mode", () => {
+    const older = store.enqueue({
+      runId: "run-1", jobType: "generate_artifact", dedupeKey: "older-job", now: t0,
+    });
+    const authorized = store.enqueue({
+      runId: "run-1", jobType: "generate_artifact", dedupeKey: "authorized-job",
+      now: "2026-07-22T00:00:01.000Z",
+    });
+    const claimed = store.claimById(authorized.id, {
+      workerId: "one-shot-worker",
+      leaseMs: 60_000,
+      now: "2026-07-22T00:00:01.000Z",
+      jobTypes: ["generate_artifact"],
+    });
+    expect(claimed).toMatchObject({ id: authorized.id, status: "running", worker_id: "one-shot-worker" });
+    expect(store.get(older.id)).toMatchObject({ status: "queued", attempt: 0 });
+    expect(store.claimById(older.id, {
+      workerId: "wrong-type",
+      leaseMs: 60_000,
+      now: "2026-07-22T00:00:01.000Z",
+      jobTypes: ["not-generate"],
+    })).toBeUndefined();
+  });
+
   it("reclaims an expired lease and prevents the old worker from writing back", () => {
     const queued = store.enqueue({ runId: "run-1", jobType: "generate_artifact", dedupeKey: "fenced", now: t0 });
     const first = store.claimNext({ workerId: "worker-old", leaseMs: 60_000, now: t0 })!;

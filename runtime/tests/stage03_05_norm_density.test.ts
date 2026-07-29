@@ -296,8 +296,9 @@ describe("stage03/04/05 norm density", () => {
     data.primary_path_ruling = "证据不足，维持不可判断";
     data.investment_proposition = "等待可核验库存披露后再更新假设；改判条件为连续两季同口径改善";
     data.expression_permission = {
-      allowed_core_claims: ["暂不可判断"],
-      allowed_mechanisms: [],
+      allowed_core_claims: [],
+      restricted_claims: ["J-1"],
+      allowed_mechanisms: ["仅允许表达当前证据不足及停止理由"],
       prohibited_claims: ["确定见顶"],
       restricted_phrasing: ["不得写成已确认"],
       max_expression_level: "J0",
@@ -311,6 +312,35 @@ describe("stage03/04/05 norm density", () => {
     data.reasoning_audit_yaml = data.reasoning_audit_yaml.replaceAll("J-1", "J-MISSING");
     expect(collectStage04ConsistencyIssues(data).some((item) => item.code === "judgment_missing_in_audit")).toBe(true);
     expect(() => assertStage04ReadyForApproval(data)).toThrow(/推理审计/);
+  });
+
+  it("fails stage04 when narrative permissions exceed deterministic Judgment authority", () => {
+    const data: any = leanStage04();
+    syncStage04ReadableMarkdown(data, { question: "库存是否改善？" });
+    data.judgment_brief_markdown = "# 判断简报\n\n".padEnd(820, "对象分化、主路径与改判条件。");
+    data.document_markdown = data.judgment_brief_markdown;
+    data.object_differentiation = "库存对象单独观察，不做行业均值替代";
+    data.primary_path_ruling = "证据不足，维持不可判断";
+    data.investment_proposition = "等待可核验库存披露后再更新；改判条件为连续两季改善";
+    data.quality_status = "high_quality_pass";
+    data.deterministic_check_status = "checked";
+    data.brief_quality_check_result = "pass";
+    data.judgment_level = "J2";
+    data.expression_permission = {
+      allowed_core_claims: ["库存已改善"],
+      restricted_claims: [],
+      allowed_mechanisms: ["库存下降"],
+      prohibited_claims: ["确定见顶"],
+      restricted_phrasing: ["不得写成已确认"],
+      max_expression_level: "J3",
+      notes: "错误抬升",
+    };
+    const codes = collectStage04ConsistencyIssues(data).map((item) => item.code);
+    expect(codes).toEqual(expect.arrayContaining([
+      "judgment_level_mismatch",
+      "expression_level_overreach",
+      "allowed_claim_not_authorized",
+    ]));
   });
 
   it("fails stage05 when expression audit misses report_claims", () => {
@@ -346,6 +376,48 @@ describe("stage03/04/05 norm density", () => {
     data.expression_audit_yaml = data.expression_audit_yaml.replace("RC-01", "RC-XX");
     expect(collectStage05ConsistencyIssues(data).some((item) => item.code === "claim_missing_in_audit")).toBe(true);
     expect(() => assertStage05ReadyForApproval(data)).toThrow(/表达审计/);
+  });
+
+  it("reprojects the Stage05 claim register instead of leaking Stage04 claim ids", () => {
+    const data: any = {
+      title: "研究报告",
+      executive_points: ["暂不可判断"],
+      report_claims: [{
+        id: "RC-01",
+        statement: "库存趋势暂不可判断",
+        judgment_ids: ["J-1"],
+        method_application_ids: ["MA-A03-01"],
+        evidence_draft_ids: [],
+        source_ids: [],
+      }],
+      limitations: ["证据不足"],
+      document_markdown: publishableStage05Markdown(),
+      quality_status: "high_quality_pass",
+      deterministic_check_status: "checked",
+      research_edge: [{
+        market_view: "库存已改善",
+        differentiated_view: "证据不足不能确认改善",
+        underestimated_mechanism: "口径与样本缺口",
+        falsifier: "取得连续披露",
+        evidence_boundary: "仅公开材料",
+      }],
+      research_value_review: passingResearchValueReview(),
+      expression_audit_yaml: [
+        "document_type: expression_audit",
+        "claim_expression_register:",
+        "  - expression_id: EX-01",
+        "    claim_id: C-01",
+        "    judgment_ids: [J-1]",
+        "    intensity_lifted: false",
+      ].join("\n"),
+    };
+    ensureStage05DocumentFields(data, {
+      question: "库存是否改善？",
+      stage04: { claims: [{ id: "C-01", judgment_id: "J-1" }] },
+    });
+    expect(data.expression_audit_yaml).toContain("claim_id: RC-01");
+    expect(data.expression_audit_yaml).not.toContain("claim_id: C-01");
+    expect(collectStage05ConsistencyIssues(data).some((item) => item.code === "claim_missing_in_audit")).toBe(false);
   });
 
   it("rejects intensity_lifted in expression audit", () => {

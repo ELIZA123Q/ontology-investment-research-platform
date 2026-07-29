@@ -48,14 +48,15 @@ for (const f of ontFiles) {
   if (checkExists(repoPath(f), f)) ontOk++;
 }
 
+const ontologyModelRegistry = YAML.parse(
+  readFileSync(repoPath("ontology/01_通用/model_registry.yaml"), "utf8"),
+) as Record<string, unknown>;
 const requiredOntYaml = [
   "ontology/01_通用/meta_schema.yaml",
-  "ontology/01_通用/models/semantic.yaml",
-  "ontology/01_通用/models/state_event.yaml",
-  "ontology/01_通用/models/evidence.yaml",
-  "ontology/01_通用/models/judgment.yaml",
-  "ontology/01_通用/models/scenario.yaml",
-  "ontology/01_通用/models/semiconductor_extension.yaml",
+  "ontology/01_通用/model_registry.yaml",
+  ...(Array.isArray(ontologyModelRegistry.model_files)
+    ? ontologyModelRegistry.model_files.map((file) => `ontology/01_通用/${String(file)}`)
+    : []),
 ];
 console.log("\n  关键本体模型文件:");
 for (const f of requiredOntYaml) {

@@ -342,11 +342,11 @@ export function syncStage03ReadableMarkdown(
 
 export function syncStage04ReadableMarkdown(
   data: any,
-  options: { question?: string; taskId?: string } = {},
+  options: { question?: string; taskId?: string; forceProjection?: boolean } = {},
 ): string {
   ensureStage04DocumentFields(data, options);
   const existing = String(data.judgment_brief_markdown || data.document_markdown || "").trim();
-  if (shouldPreserveStage04Markdown(existing)) {
+  if (!options.forceProjection && shouldPreserveStage04Markdown(existing)) {
     data.judgment_brief_markdown = existing;
     data.document_markdown = existing;
     ensureStage04DocumentFields(data, options);

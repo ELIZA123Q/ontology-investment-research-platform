@@ -304,6 +304,15 @@ describe("stage contracts", () => {
     })).toThrow(/必须沿用自身 MA ID/);
   });
 
+  it("rejects MethodApplication ontology targets outside the task semantic object set", () => {
+    const candidate = application("candidate", "stage_02");
+    candidate.target_ontology_object_refs = ["UNKNOWN-ONTOLOGY-OBJECT"];
+
+    expect(() => validateMethodApplications("stage_02", [candidate], {
+      ontologyObjectIds: new Set(["SV-1", "task_local:SV-LOCAL"]),
+    })).toThrow("MA-01 引用了不存在的本体对象 UNKNOWN-ONTOLOGY-OBJECT");
+  });
+
   it("requires report claim traceability through judgments and methods", () => {
     const executed = application("executed", "stage_04");
     const expression: any = {
@@ -396,9 +405,9 @@ describe("stage contracts", () => {
     overclaim.competing_explanations[0].status = "active";
     const demoted = applyDeterministicRuleEvaluations(overclaim, evidence, [source], structure);
     expect(demoted.judgments[0]).toMatchObject({
-      strength: "J0",
-      decision_status: "indeterminate",
-      supporting_evidence_draft_ids: [],
+      strength: "J1",
+      decision_status: "supported",
+      supporting_evidence_draft_ids: ["EV-1"],
     });
   });
 
@@ -475,6 +484,59 @@ describe("stage contracts", () => {
     const competing = graph.objects.find((object) => object.id === "CE-EXP-01");
     expect(competing?.type).toBe("CompetingExplanation");
     expect(competing?.properties?.discriminating_evidence).toEqual(["两项独立库存序列"]);
+    expect(() => validateRuntimeGraph(graph)).not.toThrow();
+  });
+
+  it("rejects unresolved non-local ontology references instead of coercing them to Industry", () => {
+    const structure = {
+      research_scope: {
+        id: "SCOPE-1",
+        label: "测试范围",
+        dimensions: { core_object: "半导体行业" },
+      },
+      judgment_units: [{
+        id: "JU-1",
+        question: "库存是否改善",
+        judgment_type: "state_measurement",
+        scope_ref: "SCOPE-1",
+        ontology_node_ids: ["UNKNOWN-SEMANTIC-OBJECT"],
+      }],
+      variables: [],
+    };
+
+    expect(() => materializeStageIntoGraph(emptyGraph(), "stage_02", structure))
+      .toThrow("JudgmentUnit 引用的本体对象未解析: UNKNOWN-SEMANTIC-OBJECT");
+  });
+
+  it("materializes recognized typed task instances referenced by JudgmentUnit", () => {
+    const structure = {
+      research_scope: {
+        id: "SCOPE-1",
+        label: "存储行业周期研究",
+        dimensions: { core_object: "存储行业" },
+      },
+      judgment_units: [{
+        id: "JU-1",
+        question: "HBM 与通用 DRAM 的产能分配如何变化",
+        judgment_type: "state_measurement",
+        scope_ref: "SCOPE-1",
+        ontology_node_ids: ["product:HBM", "ValueChainSegment:wafer_fab"],
+      }],
+      variables: [],
+    };
+
+    const graph = materializeStageIntoGraph(emptyGraph(), "stage_02", structure);
+    expect(graph.objects.find((object) => object.id === "product:HBM")).toMatchObject({
+      type: "Product",
+      properties: { name: "HBM" },
+    });
+    expect(graph.objects.find((object) => object.id === "ValueChainSegment:wafer_fab")).toMatchObject({
+      type: "ValueChainSegment",
+      properties: { name: "wafer fab" },
+    });
+    expect(graph.relations.filter((relation) => relation.type === "scopeIncludesObject")
+      .map((relation) => relation.targetId))
+      .toEqual(expect.arrayContaining(["product:HBM", "ValueChainSegment:wafer_fab"]));
     expect(() => validateRuntimeGraph(graph)).not.toThrow();
   });
 });

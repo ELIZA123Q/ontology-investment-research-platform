@@ -8,6 +8,7 @@ import { loadGraphForRun } from "@/engine/instance_graph";
 import { formalStateVariableDisplayNames, ontologyTypeLabel } from "@/engine/ontology_display_labels";
 import { deriveOntologyResearchValue } from "@/engine/ontology_research_value";
 import { parseJson } from "@/engine/types";
+import { approvedSemanticDataIfPresent } from "@/engine/semantic_reads";
 
 export type KnowledgeAsset = {
   stage: string;
@@ -47,8 +48,10 @@ export function listKnowledgeAssets(): KnowledgeAsset[] {
 
 export function collectRunOntologyTouchpoints(runId: string): string[] {
   const ids = new Set<string>();
-  const stage02 = latestArtifact(runId, "stage_02", ["approved", "needs_review"]);
-  const data = parseJson<Record<string, any>>(stage02?.json_content || "{}", {});
+  const draft = latestArtifact(runId, "stage_02", ["needs_review"]);
+  const data = draft
+    ? parseJson<Record<string, any>>(draft.json_content, {})
+    : approvedSemanticDataIfPresent(runId, "stage_02") || {};
   for (const unit of data.judgment_units || []) {
     for (const item of unit.ontology_node_ids || []) ids.add(String(item));
   }
@@ -62,13 +65,17 @@ export function collectRunOntologyTouchpoints(runId: string): string[] {
 }
 
 export function getRunOntologyResearchValue(runId: string) {
-  const stage02 = latestArtifact(runId, "stage_02", ["approved", "needs_review"]);
-  const stage04 = latestArtifact(runId, "stage_04", ["approved", "needs_review"]);
+  const stage02Draft = latestArtifact(runId, "stage_02", ["needs_review"]);
+  const stage04Draft = latestArtifact(runId, "stage_04", ["needs_review"]);
   const graph = loadGraphForRun(runId, getRun(runId)?.package_path).graph;
   const formalVariableNames = formalStateVariableDisplayNames();
   return deriveOntologyResearchValue({
-    structure: parseJson(stage02?.json_content || "{}", {}),
-    judgment: parseJson(stage04?.json_content || "{}", {}),
+    structure: stage02Draft
+      ? parseJson(stage02Draft.json_content, {})
+      : approvedSemanticDataIfPresent(runId, "stage_02") || {},
+    judgment: stage04Draft
+      ? parseJson(stage04Draft.json_content, {})
+      : approvedSemanticDataIfPresent(runId, "stage_04") || {},
     graph,
     labelForOntologyRef: (ref) => formalVariableNames.get(ref) || ontologyTypeLabel(ref),
   });

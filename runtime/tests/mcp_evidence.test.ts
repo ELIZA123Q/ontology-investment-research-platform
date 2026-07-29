@@ -36,6 +36,12 @@ describe("mcp_evidence adapter", () => {
     expect(result.provenance?.connector).toBe("cninfo");
     expect(result.provenance?.upstream_producer).toBe("巨潮资讯网");
     expect(result.provenance?.runtime_wired).toBe(true);
+    expect(result.provenance).toMatchObject({
+      mapping_profile_id: "cninfo_source_document",
+      mapping_profile_version: "1.0.0",
+      mapping_status: "registered",
+      ontology_target_types: ["SourceDocument"],
+    });
     expect(result.provenance?.query_parameters).toMatchObject({
       channel: "cninfo",
       arguments: expect.objectContaining({ stock_code: "688981" }),
@@ -53,6 +59,7 @@ describe("mcp_evidence adapter", () => {
     expect(result.error).toMatch(/stdio spawn failed/);
     expect(result.fallback_hint).toMatch(/cninfo|公开网页/);
     expect(result.provenance?.connector).toBe("datayes-stock-finoper-mcp");
+    expect(result.provenance?.mapping_profile_id).toBe("datayes_finoper_observation");
   });
 
   it("lists datayes tool schemas when api_name is missing", async () => {
@@ -86,5 +93,9 @@ describe("mcp_evidence adapter", () => {
     expect(result.ok).toBe(true);
     expect(result.results[0]?.authority_type).toBe("official");
     expect(result.provenance?.access_scope).toBe("public");
+    expect(result.provenance).toMatchObject({
+      mapping_profile_id: "china_policy_document_event",
+      ontology_target_types: ["SourceDocument", "Event"],
+    });
   });
 });

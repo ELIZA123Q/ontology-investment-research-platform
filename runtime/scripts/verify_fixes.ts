@@ -29,8 +29,13 @@ async function main() {
   console.log(JSON.stringify(CONTEXT_SLOT_BUDGETS, null, 2));
   const ontologyBudget = (CONTEXT_SLOT_BUDGETS as Record<string, number>).ontology;
   const upstreamBudget = (CONTEXT_SLOT_BUDGETS as Record<string, number>).upstream_json_soft;
-  console.log(`\nontology 预算: ${ontologyBudget?.toLocaleString()} chars (期望: 36,000, 旧值: 12,000)`);
-  console.log(`upstream_json_soft 预算: ${upstreamBudget?.toLocaleString()} chars (期望: 96,000, 旧值: 120,000)`);
+  console.log(`\nontology 预算: ${ontologyBudget?.toLocaleString()} chars (期望: ${CONTEXT_SLOT_BUDGETS.ontology.toLocaleString()})`);
+  console.log(`upstream_json_soft 预算: ${upstreamBudget?.toLocaleString()} chars (期望: ${CONTEXT_SLOT_BUDGETS.upstream_json_soft.toLocaleString()})`);
+  console.log(`method_guidance 预算: ${CONTEXT_SLOT_BUDGETS.method_guidance.toLocaleString()} chars`);
+  console.log(`knowledge 预算: ${CONTEXT_SLOT_BUDGETS.knowledge.toLocaleString()} chars`);
+  if (ontologyBudget !== CONTEXT_SLOT_BUDGETS.ontology) {
+    throw new Error(`ontology 预算漂移: ${ontologyBudget} !== ${CONTEXT_SLOT_BUDGETS.ontology}`);
+  }
 
   header("2. Prompt 模板增强验证 (B1)");
   const stagePrompts: Record<string, { lines: number; chars: number }> = {};
@@ -110,7 +115,7 @@ async function main() {
   console.log(`digest 占比: ${((digest.length / systemPrompt.length) * 100).toFixed(1)}%`);
 
   header("总结");
-  console.log("✅ A2 预算: ontology 36K (was 12K), upstream 96K (was 120K)");
+  console.log(`✅ A2 预算: ontology ${CONTEXT_SLOT_BUDGETS.ontology / 1000}K, upstream ${CONTEXT_SLOT_BUDGETS.upstream_json_soft / 1000}K, method_guidance ${CONTEXT_SLOT_BUDGETS.method_guidance / 1000}K`);
   console.log(`✅ B1 Prompt: stage_02 = ${stagePrompts.stage_02.lines} 行 (was ~8 行)`);
   console.log(`✅ A1 知识库: Stage02 条件加载 ${knowledge.files.length} 个文件 (was ${knowledgeAll.files.length} 全量)`);
   console.log(`✅ C1 方法纪律摘要: ${digest.length.toLocaleString()} chars 注入 system prompt`);

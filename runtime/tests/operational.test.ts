@@ -49,6 +49,22 @@ describe("v1.3 operational spine", () => {
       "2026 DRAM NAND inventory pricing cycle",
       { title: "Micron DRAM and NAND pricing update", summary: "Memory inventory conditions" },
     )).toBe(true);
+    expect(deepseek.searchResultIsRelevant(
+      "site:trendforce.com DRAM contract price inventory 2026",
+      {
+        title: "Dynamic random-access memory",
+        summary: "DRAM inventory",
+        url: "https://en.wikipedia.org/wiki/Dynamic_random-access_memory",
+      },
+    )).toBe(false);
+    expect(deepseek.searchResultIsRelevant(
+      "site:trendforce.com DRAM contract price inventory 2026",
+      {
+        title: "DRAM Contract Price",
+        summary: "DRAM inventory and contract pricing",
+        url: "https://www.trendforce.com/price/dram/dram_contract",
+      },
+    )).toBe(true);
 
     const run = db.createRun("来源边界测试", "semiconductor");
     const bound = db.upsertSource(run.id, {
@@ -69,6 +85,56 @@ describe("v1.3 operational spine", () => {
     expect(evidenceSources.evidenceBoundSources(db.listSources(run.id), evidence).map((source) => source.id)).toEqual([bound.id]);
     expect(db.quarantineUnboundWebCitations(run.id, evidenceSources.evidenceBoundSourceIds(evidence))).toBe(1);
     expect(db.listSources(run.id).find((source) => source.id === candidate.id)?.usability_status).toBe("rejected");
+  });
+
+  it("parses DuckDuckGo HTML fallback into canonical public result URLs", () => {
+    const html = `
+      <div class="result results_links results_links_deep web-result ">
+        <div class="links_main links_deep result__body">
+          <h2 class="result__title">
+            <a rel="nofollow" class="result__a"
+              href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fnews.samsung.com%2Fglobal%2Fsamsung%2Dships%2Dhbm4&amp;rut=abc">
+              Samsung Ships Industry-First Commercial <b>HBM4</b>
+            </a>
+          </h2>
+          <span>&nbsp; &nbsp; 2026-02-12T00:00:00.0000000</span>
+          <a class="result__snippet" href="#">Samsung began <b>mass production</b> &amp; commercial shipments.</a>
+          <div class="clear"></div>
+        </div>
+      </div>`;
+    expect(deepseek.parseDuckDuckGoHtml(html)).toEqual([{
+      title: "Samsung Ships Industry-First Commercial HBM4",
+      url: "https://news.samsung.com/global/samsung-ships-hbm4",
+      summary: "Samsung began mass production & commercial shipments.",
+      published_at: "2026-02-12T00:00:00.0000000",
+    }]);
+  });
+
+  it("parses Brave HTML fallback when anonymous DuckDuckGo search is challenged", () => {
+    const html = `
+      <div class="snippet" data-pos="0" data-type="web">
+        <div class="result-content">
+          <a href="https://news.samsung.com/global/samsung-ships-hbm4"
+             target="_self" class="result-link l1">
+            <div class="site-name-wrapper">news.samsung.com</div>
+            <div class="title search-snippet-title" title="Samsung Ships Commercial HBM4">
+              Samsung Ships Commercial HBM4
+            </div>
+          </a>
+          <div class="generic-snippet">
+            <div class="content desktop-default-regular">
+              <span>February 13, 2026 -</span>
+              Samsung began <strong>mass production</strong> &amp; shipments.
+            </div>
+          </div>
+        </div>
+      </div>`;
+    expect(deepseek.parseBraveHtml(html)).toEqual([{
+      title: "Samsung Ships Commercial HBM4",
+      url: "https://news.samsung.com/global/samsung-ships-hbm4",
+      summary: "February 13, 2026 - Samsung began mass production & shipments.",
+      published_at: "February 13, 2026",
+    }]);
   });
 
   it("classifies model timeouts honestly and prevents duplicate live generations", async () => {
@@ -272,6 +338,10 @@ describe("v1.3 operational spine", () => {
     expect(workflow.normalizeBusinessCutoff("as of 2025-01-16, public only")).toBe("2025-01-16T23:59:59.999+08:00");
     expect(workflow.normalizeBusinessCutoff("以2025年上半年公开信息为限")).toBe("2025-06-30T23:59:59.999+08:00");
     expect(workflow.normalizeBusinessCutoff("截至2025年2月")).toBe("2025-02-28T23:59:59.999+08:00");
+    expect(workflow.normalizeBusinessCutoff(
+      "截至2026年7月",
+      new Date("2026-07-28T03:00:00.000Z"),
+    )).toBe("2026-07-28T23:59:59.999+08:00");
   });
 
   it("creates Stage01 and Stage02 controlled projections from a blank run without inventing facts or ontology nodes", () => {
@@ -890,6 +960,42 @@ describe("v1.3 operational spine", () => {
     expect(data.document_markdown).not.toContain("审计索引");
     // 保留模型研报结构，不因对齐 claim 而整篇重写
     expect(data.document_markdown).toContain("## 一、价格证据不足");
+  });
+
+  it("does not cite degraded Stage04 methods as executed Stage05 report methods", () => {
+    const data = workflow.normalizeStage05Projection({
+      title: "方法追溯",
+      executive_points: ["方法追溯"],
+      report_claims: [{
+        id: "RC-1",
+        statement: "原始表述",
+        judgment_ids: ["J-1"],
+        method_application_ids: ["MA-EXEC", "MA-DEGRADED"],
+        evidence_draft_ids: [],
+        source_ids: [],
+      }],
+      limitations: [],
+      document_markdown: "# 短稿",
+    }, {
+      overall_boundary: "仅限方向判断",
+      judgments: [{
+        id: "J-1",
+        title: "价格方向",
+        conclusion: "当前暂不可形成方向判断",
+        strength: "J0",
+        decision_status: "indeterminate",
+        method_application_ids: ["MA-EXEC", "MA-DEGRADED"],
+        uncertainties: ["缺少价格序列"],
+        invalidation_conditions: ["取得事实级证据"],
+      }],
+      method_applications: [
+        { application_id: "MA-EXEC", status: "executed" },
+        { application_id: "MA-DEGRADED", status: "degraded" },
+      ],
+    }, "价格是否改善？", []);
+    expect(data.report_claims[0].method_application_ids).toEqual(["MA-EXEC"]);
+    expect(data.expression_audit_yaml).toContain("MA-EXEC");
+    expect(data.expression_audit_yaml).not.toContain("MA-DEGRADED");
   });
 
   it("rebuilds a non-report seed into 05C skeleton without audit voice", () => {

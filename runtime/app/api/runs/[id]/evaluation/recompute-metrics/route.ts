@@ -3,6 +3,7 @@ import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAtte
 import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/engine/metrics";
 import { evaluationSchema } from "@/engine/schemas";
 import { parseJson } from "@/engine/types";
+import { loadApprovedSemanticSnapshot } from "@/engine/semantic_reads";
 
 export const runtime = "nodejs";
 
@@ -12,9 +13,9 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     const prior = latestArtifact(runId, "evaluation", ["approved"]);
     const baseline = latestArtifact(runId, "baseline", ["approved"]);
     const report = latestArtifact(runId, "stage_05", ["approved"]);
-    const stage03 = latestArtifact(runId, "stage_03", ["approved"]);
-    const stage04 = latestArtifact(runId, "stage_04", ["approved"]);
-    if (!prior || !baseline || !report || !stage03 || !stage04) throw new Error("缺少已批准的评价或冻结输入，不能重算指标");
+    const stage03 = loadApprovedSemanticSnapshot(runId, "stage_03").artifact;
+    const stage04 = loadApprovedSemanticSnapshot(runId, "stage_04").artifact;
+    if (!prior || !baseline || !report) throw new Error("缺少已批准的评价或冻结输入，不能重算指标");
     const priorData = evaluationSchema.parse(parseJson(prior.json_content, {}));
     const stage03Hash = createHash("sha256").update(stage03.json_content).digest("hex");
     if (priorData.baseline_artifact_id !== baseline.id

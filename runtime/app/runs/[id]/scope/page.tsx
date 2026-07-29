@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getRun } from "@/adapters/db";
 import { latestArtifactPayload } from "@/adapters/db_read_models";
 import { parseJson } from "@/engine/types";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
-import { formatResearchDate } from "@/app/lib/researcher-stage-output";
+import { StageStatusBadge } from "@/app/components/stage-status-badge";
+import { EmptyState } from "@/app/components/empty-state";
+import { buildScopeResearcherView } from "@/app/lib/researcher-stage-output";
+import { journeyEditHref } from "@/app/lib/research-journey";
 
 export const dynamic = "force-dynamic";
 
@@ -15,119 +18,111 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
   if (!run) notFound();
 
   const artifact = latestArtifactPayload(id, "stage_01", ["approved", "needs_review"]);
-  if (!artifact) redirect(`/runs/${id}/stages/1`);
+  if (!artifact) {
+    return (
+      <EmptyState
+        title="尚未生成研究范围"
+        description="先进入范围编辑页收敛研究对象、判断动作、时间口径与边界，再回到此处审阅确认。"
+        actionHref={journeyEditHref(id, 1)}
+        actionLabel="生成研究范围 →"
+      />
+    );
+  }
   const data: any = parseJson(artifact.json_content || "{}", {});
-
-  const coreObject = String(data.core_object || "").trim();
-  const judgmentAction = String(data.judgment_action || "").trim();
-  const timeScope = data.time_scope || {};
-  const asOf = String(timeScope.as_of || "").trim();
-  const lookback = String(timeScope.lookback || "").trim();
-  const forward = String(timeScope.forward || "").trim();
-
-  const knownFacts = Array.isArray(data.known_facts) ? data.known_facts : [];
-  const userAssumptions = Array.isArray(data.user_assumptions) ? data.user_assumptions : [];
-  const hypothesesToVerify = Array.isArray(data.hypotheses_to_verify) ? data.hypotheses_to_verify : [];
-
-  const hasAnyContent = Boolean(coreObject || judgmentAction || asOf || knownFacts.length || userAssumptions.length || hypothesesToVerify.length);
+  const view = buildScopeResearcherView(data, {
+    artifactStatus: artifact.status,
+    fallbackQuestion: run.question,
+  });
+  const section = (key: string) => view.sections.find((item) => item.id === key);
 
   return <>
     <StageSceneChrome
       runId={id}
       stage={1}
       status={artifact.status}
-      outputCount={hasAnyContent ? 1 : 0}
+      outputCount={view.outputCount}
       subtitle={run.question}
       actions={
         <>
           <StageApprovalButton runId={id} artifactId={artifact.id} stage={1} status={artifact.status} />
-          <span className={`badge ${artifact.status === "approved" ? "" : "warn"}`}>
-            {artifact.status === "approved" ? "已确认" : artifact.status === "needs_review" ? "待确认" : artifact.status || "尚未开始"}
-          </span>
-          <Link className="button-secondary" href={`/runs/${id}/stages/1`}>编辑范围</Link>
+          <StageStatusBadge status={artifact.status} />
+          <Link className="button-secondary" href={journeyEditHref(id, 1)}>修改范围</Link>
         </>
       }
     />
 
-    {hasAnyContent ? (
+    {view.outputCount ? (
       <section className="structure-review-summary" aria-label="研究范围与前提">
-        {(coreObject || judgmentAction) ? (
-          <article className="structure-review-card">
-            <span>核心判断</span>
-            {coreObject ? <strong>{coreObject}</strong> : null}
-            {judgmentAction ? <p>{judgmentAction}</p> : null}
-          </article>
-        ) : null}
+        <article className="structure-review-card">
+          <span>规范化研究问题</span>
+          <strong>{section("question")?.body}</strong>
+          <p>{view.summary}</p>
+        </article>
 
-        {(asOf || lookback || forward) ? (
-          <article className="structure-review-card">
-            <span>时间范围</span>
-            {asOf ? (
-              <dl>
-                <div><dt>截止时点</dt><dd>{formatResearchDate(asOf)}</dd></div>
-              </dl>
-            ) : null}
-            {lookback ? (
-              <dl>
-                <div><dt>回顾期</dt><dd>{lookback}</dd></div>
-              </dl>
-            ) : null}
-            {forward ? (
-              <dl>
-                <div><dt>展望期</dt><dd>{forward}</dd></div>
-              </dl>
-            ) : null}
-          </article>
-        ) : null}
+        <article className="structure-review-card">
+          <span>核心判断</span>
+          {section("object")?.body ? <strong>{section("object")?.body}</strong> : null}
+          {section("action")?.body ? <p>{section("action")?.body}</p> : null}
+        </article>
 
-        {(knownFacts.length || userAssumptions.length || hypothesesToVerify.length) ? <article className="structure-review-card">
-          <span>前提三分法</span>
-          <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
+        <article className="structure-review-card">
+          <span>时间口径</span>
+          {section("time")?.items?.length ? (
+            <dl>
+              {section("time")!.items!.map((item) => {
+                const [label, ...rest] = item.split("：");
+                return (
+                  <div key={item}>
+                    <dt>{label}</dt>
+                    <dd>{rest.join("：")}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          ) : <p className="muted">尚未登记</p>}
+        </article>
+
+        <article className="structure-review-card">
+          <span>边界与排除</span>
+          <div className="premise-grid">
             <div>
-              <strong>已知事实</strong>
-              <strong style={{ marginLeft: 8, color: "var(--muted)", fontWeight: 400 }}>{knownFacts.length} 项</strong>
-              {knownFacts.length ? (
-                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                  {knownFacts.slice(0, 5).map((fact: any, i: number) => (
-                    <li key={i} style={{ marginBottom: 4 }}>{String(fact.statement || fact)}</li>
-                  ))}
-                  {knownFacts.length > 5 ? <li className="muted">另有 {knownFacts.length - 5} 项</li> : null}
-                </ul>
-              ) : <p className="muted">尚未登记</p>}
+              <strong>研究边界</strong>
+              {section("boundaries")?.items?.length
+                ? <ul>{section("boundaries")!.items!.slice(0, 6).map((item) => <li key={item}>{item}</li>)}</ul>
+                : <p className="muted">尚未登记</p>}
             </div>
             <div>
-              <strong>用户假设</strong>
-              <strong style={{ marginLeft: 8, color: "var(--muted)", fontWeight: 400 }}>{userAssumptions.length} 项</strong>
-              {userAssumptions.length ? (
-                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                  {userAssumptions.slice(0, 5).map((assumption: any, i: number) => (
-                    <li key={i} style={{ marginBottom: 4 }}>{String(assumption.statement || assumption)}</li>
-                  ))}
-                  {userAssumptions.length > 5 ? <li className="muted">另有 {userAssumptions.length - 5} 项</li> : null}
-                </ul>
-              ) : <p className="muted">尚未登记</p>}
-            </div>
-            <div>
-              <strong>待验证假设</strong>
-              <strong style={{ marginLeft: 8, color: "var(--muted)", fontWeight: 400 }}>{hypothesesToVerify.length} 项</strong>
-              {hypothesesToVerify.length ? (
-                <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
-                  {hypothesesToVerify.slice(0, 5).map((hypothesis: any, i: number) => (
-                    <li key={i} style={{ marginBottom: 4 }}>{String(hypothesis.statement || hypothesis)}</li>
-                  ))}
-                  {hypothesesToVerify.length > 5 ? <li className="muted">另有 {hypothesesToVerify.length - 5} 项</li> : null}
-                </ul>
-              ) : <p className="muted">尚未登记</p>}
+              <strong>不研究事项</strong>
+              {section("exclusions")?.items?.length
+                ? <ul>{section("exclusions")!.items!.slice(0, 6).map((item) => <li key={item}>{item}</li>)}</ul>
+                : <p className="muted">尚未登记</p>}
             </div>
           </div>
-        </article> : null}
+          {section("delivery")?.body ? <p><strong>交付落点</strong><br />{section("delivery")?.body}</p> : null}
+        </article>
+
+        <article className="structure-review-card">
+          <span>前提三分法</span>
+          <div className="premise-grid">
+            {(["known", "assumptions", "hypotheses"] as const).map((key) => (
+              <div key={key}>
+                <strong>{section(key)?.label}</strong>
+                <span className="muted"> {section(key)?.body}</span>
+                {section(key)?.items?.length
+                  ? <ul>{section(key)!.items!.slice(0, 5).map((item) => <li key={item}>{item}</li>)}</ul>
+                  : <p className="muted">尚未登记</p>}
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
     ) : (
-      <div className="card empty-state">
-        <h2>尚未生成研究范围</h2>
-        <p className="muted">点击右上角按钮进入范围编辑器，完成问题定义与边界设定后再回到此处审阅确认。</p>
-        <Link className="button" href={`/runs/${id}/stages/1`}>生成研究范围 →</Link>
-      </div>
+      <EmptyState
+        title="范围草稿还不完整"
+        description="请回到编辑页补齐规范化问题、边界与排除项后再确认。"
+        actionHref={journeyEditHref(id, 1)}
+        actionLabel="继续编辑范围 →"
+      />
     )}
   </>;
 }

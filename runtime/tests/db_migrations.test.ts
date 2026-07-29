@@ -86,4 +86,49 @@ describe("database migrations", () => {
     expect((connection.prepare("SELECT status FROM artifacts WHERE id='artifact-orphan'").get() as any).status).toBe("failed");
     connection.close();
   });
+
+  it("preserves an expired Stage03 artifact only when a retryable job has a batch checkpoint", () => {
+    const connection = new DatabaseSync(":memory:");
+    connection.exec("PRAGMA foreign_keys = ON");
+    runDatabaseMigrations(connection);
+    const now = "2026-07-28T00:00:00.000Z";
+    for (const runId of ["run-checkpoint", "run-plain"]) {
+      connection.prepare(
+        "INSERT INTO research_runs(id,question,domain,current_stage,status,manifest_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+      ).run(runId, "recovery", "semiconductor", 2, "active", "{}", now, now);
+    }
+    const checkpointJson = JSON.stringify({
+      stage03_batch_checkpoint: {
+        version: 1,
+        mode: "regenerate",
+        status: "in_progress",
+        planned_batch_ids: ["EB-01"],
+        batches: [{ batch_id: "EB-01", target_unit_ids: ["JU-01"], status: "in_progress" }],
+        updated_at: now,
+      },
+    });
+    connection.prepare(
+      "INSERT INTO artifacts(id,run_id,kind,version,status,json_content,created_at) VALUES(?,?,?,?,?,?,?)",
+    ).run("artifact-checkpoint", "run-checkpoint", "stage_03", 1, "running", checkpointJson, now);
+    connection.prepare(
+      "INSERT INTO artifacts(id,run_id,kind,version,status,json_content,created_at) VALUES(?,?,?,?,?,?,?)",
+    ).run("artifact-plain", "run-plain", "stage_03", 1, "running", "{}", now);
+    const insertJob = connection.prepare(`INSERT INTO research_jobs(
+      id,run_id,job_type,stage,artifact_id,status,dedupe_key,lease_token,worker_id,lease_expires_at,heartbeat_at,
+      attempt,max_attempts,available_at,input_hash,queued_at,created_at,updated_at
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    insertJob.run(
+      "job-checkpoint", "run-checkpoint", "generate_artifact", "stage_03", "artifact-checkpoint", "running", "checkpoint",
+      "old-token", "dead-worker", "2026-07-28T00:00:30.000Z", now, 1, 3, now, "sha256:test", now, now, now,
+    );
+    insertJob.run(
+      "job-plain", "run-plain", "generate_artifact", "stage_03", "artifact-plain", "running", "plain",
+      "old-token", "dead-worker", "2026-07-28T00:00:30.000Z", now, 1, 3, now, "sha256:test", now, now, now,
+    );
+
+    expect(recoverOrphanedRunningArtifacts(connection, "2026-07-28T00:01:00.000Z")).toBe(1);
+    expect((connection.prepare("SELECT status FROM artifacts WHERE id='artifact-checkpoint'").get() as any).status).toBe("running");
+    expect((connection.prepare("SELECT status FROM artifacts WHERE id='artifact-plain'").get() as any).status).toBe("failed");
+    connection.close();
+  });
 });

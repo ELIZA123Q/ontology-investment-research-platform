@@ -31,6 +31,7 @@ export function researcherLanguage(value: unknown): string {
     .replace(/\bCD-[A-Za-z0-9._-]+\b/gi, "反证方向")
     .replace(/\bMA-[A-Za-z0-9._-]+\b/gi, "方法应用")
     .replace(/\b(?:EX|RC)-[A-Za-z0-9._-]+\b/gi, "研究结论")
+    .replace(/\bJ-[A-Za-z0-9._-]+\b/gi, "判断")
     .replace(/\bRS-[A-Za-z0-9._-]+\b/gi, "研究范围")
     .replace(/\b(?:RQ|Q)-[A-Za-z0-9._-]+\b/gi, "研究问题")
     .replace(/\bSRC-[A-Za-z0-9._-]+\b/gi, "来源")
@@ -45,12 +46,26 @@ export function researcherLanguage(value: unknown): string {
     .replace(/标记为\s*gap/gi, "登记为尚缺的证据")
     .replace(/\bgap\b/gi, "尚缺的证据")
     .replace(/本次本次自动检索/g, "本次自动检索")
+    .replace(/(?:获批事实|已批准事实)/g, "已确认事实")
     .replace(/本次证据收集阶段面临本次自动检索/g, "本次证据收集受自动检索")
     .replace(/标记为缺口[（(]证据缺口[）)]/g, "登记为尚缺的证据")
     .replace(/证据缺口/g, "尚缺的证据")
     .replace(/\bStage[\s_-]*0?([1-5])\b/gi, (_, stage) => (
       { "1": "范围阶段", "2": "结构阶段", "3": "证据阶段", "4": "判断阶段", "5": "交付阶段" } as Record<string, string>
     )[stage] || `第${stage}阶段`)
+    .replace(/\bevidence_scope_time_alignment\b/g, "证据范围与时间一致性")
+    .replace(/\bstate_time_consistency\b/g, "状态与时间一致性")
+    .replace(/\bno_direct_evidence_to_judgment\b/g, "证据需经过推理再形成判断")
+    .replace(/\bjudgment_reference_integrity\b/g, "判断引用完整性")
+    .replace(/\bjudgment_evidence_threshold\b/g, "判断证据门槛")
+    .replace(/\bjudgment_status_consistency\b/g, "判断强度与状态一致性")
+    .replace(/\bexpectation_projection_integrity\b/g, "预期差映射完整性")
+    .replace(/\bvaluation_hypothesis_level_coupling\b/g, "估值假设与判断强度匹配")
+    .replace(/\brisk_exposure_blocking_linkage\b/g, "风险暴露与阻断条件关联")
+    .replace(/\bvalue_chain_propagation_consistency\b/g, "产业链传导一致性")
+    .replace(/\bsemiconductor_proxy_disclosure\b/g, "半导体代理证据披露")
+    .replace(/\bsemiconductor_qualification_stage_alignment\b/g, "半导体验证阶段口径一致性")
+    .replace(/\bsemiconductor_capacity_yield_scope_alignment\b/g, "半导体产能良率口径一致性")
     .replace(/\bsource_group\b/gi, "来源组")
     .replace(/\bJ[0-4]\b/g, (strength) => judgmentStrengthLabel(strength))
     .replace(/方向的\s*方向观察/g, "方向观察")
@@ -359,4 +374,253 @@ export function prepareReaderReportMarkdown(content: string): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** UI 层统一推进状态：折叠四套运行状态为研究员可操作信息。 */
+export type ResearcherProceedState = {
+  canProceed: boolean;
+  blockingReasons: string[];
+  attentionItems: string[];
+  statusLabel: string;
+};
+
+export type ResearcherStageView = {
+  stage: number;
+  title: string;
+  summary: string;
+  outputCount: number;
+  proceed: ResearcherProceedState;
+  sections: Array<{
+    id: string;
+    label: string;
+    body: string;
+    items?: string[];
+  }>;
+  auditRefs: string[];
+};
+
+export function buildProceedState(input: {
+  artifactStatus?: string | null;
+  pendingCount?: number;
+  blockingReasons?: string[];
+  attentionItems?: string[];
+}): ResearcherProceedState {
+  const pending = Number(input.pendingCount || 0);
+  const blocking = [...(input.blockingReasons || [])];
+  if (pending > 0) blocking.push(`仍有 ${pending} 项待人工确认`);
+  if (input.artifactStatus === "failed") blocking.push("本阶段生成失败，需重新生成或登记尚缺");
+  if (input.artifactStatus === "running") blocking.push("模型仍在生成中");
+  const canProceed = input.artifactStatus === "needs_review" && blocking.length === 0;
+  const statusLabel = (
+    {
+      approved: "已确认",
+      needs_review: canProceed ? "待确认" : "待处理",
+      running: "生成中",
+      failed: "失败",
+      draft: "草稿",
+    } as Record<string, string>
+  )[String(input.artifactStatus || "")] || "未开始";
+  return {
+    canProceed,
+    blockingReasons: blocking,
+    attentionItems: input.attentionItems || [],
+    statusLabel,
+  };
+}
+
+export function buildScopeResearcherView(
+  data: UnknownRecord,
+  options: { artifactStatus?: string | null; fallbackQuestion?: string } = {},
+): ResearcherStageView {
+  const summary = buildScopeStageSummary(data, options.fallbackQuestion);
+  const premises = {
+    known: displayStrings(data.known_facts).length
+      || statementRecords(data.known_facts).map((item) => researcherLanguage(item.statement)).filter(Boolean).length,
+    assumptions: displayStrings(data.user_assumptions).length
+      || statementRecords(data.user_assumptions).map((item) => researcherLanguage(item.statement)).filter(Boolean).length,
+    hypotheses: displayStrings(data.hypotheses_to_verify).length
+      || statementRecords(data.hypotheses_to_verify).map((item) => researcherLanguage(item.statement)).filter(Boolean).length,
+  };
+  const knownItems = statementRecords(data.known_facts).map((item) => researcherLanguage(item.statement || item)).filter(Boolean);
+  const assumptionItems = statementRecords(data.user_assumptions).map((item) => researcherLanguage(item.statement || item)).filter(Boolean);
+  const hypothesisItems = statementRecords(data.hypotheses_to_verify).map((item) => researcherLanguage(item.statement || item)).filter(Boolean);
+  const blocking: string[] = [];
+  if (!summary.question) blocking.push("尚未形成规范化研究问题");
+  if (!summary.boundaries.length && !summary.exclusions.length) blocking.push("边界与排除项仍不完整");
+  return {
+    stage: 1,
+    title: summary.question || "研究范围",
+    summary: [summary.coreObject, summary.judgmentAction].filter(Boolean).join(" · ") || "等待收敛研究问题",
+    outputCount: summary.question ? 1 : 0,
+    proceed: buildProceedState({ artifactStatus: options.artifactStatus, blockingReasons: blocking }),
+    sections: [
+      { id: "question", label: "规范化研究问题", body: summary.question || "尚未形成" },
+      { id: "object", label: "研究对象", body: summary.coreObject || "尚未登记" },
+      { id: "action", label: "要做的判断", body: summary.judgmentAction || "尚未登记" },
+      {
+        id: "time",
+        label: "时间口径",
+        body: summary.timeScope.map((item) => `${item.label}：${item.value}`).join("；") || "尚未登记",
+        items: summary.timeScope.map((item) => `${item.label}：${item.value}`),
+      },
+      { id: "boundaries", label: "研究边界", body: `${summary.boundaries.length} 项`, items: summary.boundaries },
+      { id: "exclusions", label: "不研究事项", body: `${summary.exclusions.length} 项`, items: summary.exclusions },
+      { id: "known", label: "已知事实", body: `${premises.known || knownItems.length} 项`, items: knownItems },
+      { id: "assumptions", label: "用户假设", body: `${premises.assumptions || assumptionItems.length} 项`, items: assumptionItems },
+      { id: "hypotheses", label: "待验证假设", body: `${premises.hypotheses || hypothesisItems.length} 项`, items: hypothesisItems },
+      { id: "delivery", label: "交付落点", body: summary.reportType || researcherLanguage(data.delivery_depth?.minimum_delivery) || "尚未登记" },
+    ],
+    auditRefs: ["document_markdown", "input_resolution", "research_value_gate"],
+  };
+}
+
+export function buildStructureResearcherView(
+  data: UnknownRecord,
+  options: { artifactStatus?: string | null } = {},
+): ResearcherStageView {
+  const units = buildStructureStageSummary(data).map((unit) => ({
+    ...unit,
+    priorityTier: researcherLanguage((records(data.judgment_units).find((item) => recordId(item) === unit.id) || {}).priority_tier),
+    decisionRole: researcherLanguage((records(data.judgment_units).find((item) => recordId(item) === unit.id) || {}).decision_role),
+    decisionWeight: (records(data.judgment_units).find((item) => recordId(item) === unit.id) || {}).decision_weight,
+    candidateClaim: researcherLanguage((records(data.judgment_units).find((item) => recordId(item) === unit.id) || {}).candidate_claim),
+  }));
+  return {
+    stage: 2,
+    title: `${units.length} 个关键判断`,
+    summary: units.map((unit) => unit.title).slice(0, 3).join("；") || "等待形成关键判断",
+    outputCount: units.length,
+    proceed: buildProceedState({
+      artifactStatus: options.artifactStatus,
+      blockingReasons: units.some((unit) => !unit.evidenceRequirements.length)
+        ? ["部分关键判断尚未登记必要证据"]
+        : [],
+    }),
+    sections: units.map((unit, index) => ({
+      id: unit.id,
+      label: `关键判断 ${index + 1}`,
+      body: unit.question || unit.title,
+      items: [
+        unit.candidateClaim ? `候选主张：${unit.candidateClaim}` : "",
+        unit.decisionRole ? `决策角色：${unit.decisionRole}` : "",
+        typeof unit.decisionWeight === "number" ? `决策权重：${unit.decisionWeight}` : "",
+        unit.priorityTier ? `优先级：${unit.priorityTier}` : "",
+        ...unit.evidenceRequirements.map((item) => `必要证据：${item}`),
+        ...unit.counterEvidence.map((item) => `反证：${item}`),
+        ...unit.competingExplanations.map((item) => `竞争解释：${item}`),
+      ].filter(Boolean),
+    })),
+    auditRefs: ["research_logic_markdown", "ontology_view_yaml", "method_applications"],
+  };
+}
+
+export type EvidenceReadinessView = {
+  judgmentReadyLabel: string;
+  deliveryReadyLabel: string;
+  factCount: number;
+  gapCount: number;
+  conflictCount: number;
+  note: string;
+};
+
+export function buildEvidenceReadinessView(data: UnknownRecord): EvidenceReadinessView {
+  const drafts = records(data.evidence_drafts);
+  const facts = drafts.filter((item) => !["gap", "conflict"].includes(String(item.kind || "")));
+  const gaps = drafts.filter((item) => String(item.kind) === "gap");
+  const conflicts = drafts.filter((item) => String(item.kind) === "conflict");
+  const evidenceReadiness = String(data.evidence_readiness?.status || data.evidence_readiness || "");
+  const deliveryReadiness = String(data.delivery_readiness?.status || data.delivery_readiness || "");
+  return {
+    judgmentReadyLabel: evidenceReadiness
+      ? researcherLanguage(evidenceReadiness)
+      : (gaps.length || conflicts.length ? "可形成有边界的弱判断" : facts.length ? "具备判断材料" : "尚不足以下判断"),
+    deliveryReadyLabel: deliveryReadiness
+      ? researcherLanguage(deliveryReadiness)
+      : (facts.length ? "素材可支撑有边界报告" : "交付素材未就绪"),
+    factCount: facts.length,
+    gapCount: gaps.length,
+    conflictCount: conflicts.length,
+    note: "证据数量不等于判断强度；结论强度仍受最薄弱环节与本体约束限制。",
+  };
+}
+
+export function buildJudgmentResearcherView(
+  data: UnknownRecord,
+  evidenceDrafts: unknown,
+  options: { artifactStatus?: string | null; pendingCount?: number } = {},
+): ResearcherStageView {
+  const judgments = buildJudgmentStageSummary(data, evidenceDrafts);
+  return {
+    stage: 4,
+    title: `${judgments.length} 项研究判断`,
+    summary: judgments[0]?.conclusion || "尚未形成研究判断",
+    outputCount: judgments.length,
+    proceed: buildProceedState({
+      artifactStatus: options.artifactStatus,
+      pendingCount: options.pendingCount,
+    }),
+    sections: judgments.map((judgment, index) => ({
+      id: judgment.id,
+      label: `判断 ${index + 1}`,
+      body: `${judgment.conclusion}（${judgment.strengthLabel} · ${judgment.statusLabel}）`,
+      items: [
+        judgment.rationale ? `依据说明：${judgment.rationale}` : "",
+        ...judgment.evidence.map((item) => `关键依据：${item}`),
+        ...judgment.competingExplanations.map((item) => `竞争解释：${item}`),
+        ...judgment.uncertainties.map((item) => `不确定性：${item}`),
+        ...judgment.invalidationConditions.map((item) => `改判条件：${item}`),
+        ...judgment.trackingSignals.map((item) => `跟踪信号：${item}`),
+      ].filter(Boolean),
+    })),
+    auditRefs: ["judgment_brief_markdown", "reasoning_audit_yaml", "claims", "rule_evaluations"],
+  };
+}
+
+export function buildDeliveryResearcherView(
+  data: UnknownRecord,
+  options: {
+    artifactStatus?: string | null;
+    reviewPassed?: boolean;
+    pendingCount?: number;
+    stagesApproved?: boolean;
+  } = {},
+): ResearcherStageView {
+  const claims = records(data.report_claims);
+  const blocking: string[] = [];
+  if (options.artifactStatus !== "approved") blocking.push("报告表达尚未确认");
+  if (!options.reviewPassed) blocking.push("独立审阅尚未通过");
+  if (options.pendingCount) blocking.push(`仍有 ${options.pendingCount} 项待办`);
+  if (!options.stagesApproved) blocking.push("五个研究阶段尚未全部确认");
+  return {
+    stage: 5,
+    title: researcherLanguage(data.title) || "研究判断报告",
+    summary: displayStrings(data.executive_points).slice(0, 2).join("；") || "面向读者的研究稿",
+    outputCount: claims.length || (String(data.document_markdown || "").trim() ? 1 : 0),
+    proceed: buildProceedState({
+      artifactStatus: options.artifactStatus,
+      pendingCount: options.pendingCount,
+      blockingReasons: blocking.filter((item) => !item.includes("待办") || !options.pendingCount),
+    }),
+    sections: [
+      {
+        id: "executive",
+        label: "核心要点",
+        body: `${displayStrings(data.executive_points).length} 条`,
+        items: displayStrings(data.executive_points),
+      },
+      {
+        id: "limitations",
+        label: "限制与边界",
+        body: `${displayStrings(data.limitations).length} 条`,
+        items: displayStrings(data.limitations),
+      },
+      {
+        id: "claims",
+        label: "报告主张",
+        body: `${claims.length} 条`,
+        items: claims.map((item) => researcherLanguage(item.statement)),
+      },
+    ],
+    auditRefs: ["expression_audit_yaml", "research_value_review"],
+  };
 }

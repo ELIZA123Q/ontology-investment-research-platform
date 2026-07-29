@@ -7,6 +7,7 @@ import { deriveSourceResearchLifecycle, type SourceCoverageSummary, type SourceF
 import type { SourceRecord } from "@/engine/types";
 import { authorityTypeLabel, retrievalLabel, sourceTierLabel, usabilityLabel } from "@/app/lib/ui-labels";
 import { judgmentStrengthLabel, researcherLanguage } from "@/app/lib/researcher-stage-output";
+import { ONTOLOGY_SOURCE_TIERS } from "@/engine/ontology_vocabulary.generated";
 
 type UnitOption = { id: string; title: string };
 type SourceRow = Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail"> & { fact_status: SourceFactStatus };
@@ -300,7 +301,7 @@ export function SourceCoveragePanel({
               {ACQUIRE_AUTHORITY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </div>
-          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S2">{["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"].map((tier) => <option key={tier} value={tier}>{tier} · {sourceTierLabel(tier)}</option>)}</select></div>
+          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S2">{ONTOLOGY_SOURCE_TIERS.map((tier) => <option key={tier} value={tier}>{tier} · {sourceTierLabel(tier)}</option>)}</select></div>
           <div className="field"><label>独立来源组（可选）</label><input name="source_group" placeholder="默认使用发布者" /></div>
         </div>
       </details>

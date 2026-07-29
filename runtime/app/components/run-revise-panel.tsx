@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const STAGE_OPTIONS = [
-  { value: 1, label: "01 问题定义", supported: true },
-  { value: 2, label: "02 判断结构", supported: true },
-  { value: 4, label: "04 判断裁决", supported: true },
+  { value: 1, label: "范围", supported: true },
+  { value: 2, label: "结构", supported: true },
+  { value: 4, label: "判断", supported: true },
 ] as const;
 
 function defaultStageForActive(active: string) {

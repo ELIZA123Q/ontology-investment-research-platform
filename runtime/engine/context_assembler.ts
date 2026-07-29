@@ -35,14 +35,27 @@ export type SemanticRoute = {
   adjudication_method_ids: string[];
 };
 
+/** 单文件实际注入审计：loaded 仅当正文真正进入 prompt。 */
+export type KnowledgeFileInjection = {
+  file: string;
+  included_chars: number;
+  truncated: boolean;
+  omitted_reason: string | null;
+  content_hash: string;
+  loaded: boolean;
+};
+
 export type AssembledStageContext = {
   semantic_route: SemanticRoute;
   ontology_object_set: string;
   knowledge_files: string[];
   knowledge_context: string;
   knowledge_version: string;
+  /** 源文件全文哈希（截断前），用于溯源；与 knowledge_version（注入内容哈希）不同。 */
+  knowledge_source_version: string;
   budgets: typeof CONTEXT_SLOT_BUDGETS;
   assembly_note: string;
+  file_injections: KnowledgeFileInjection[];
   /** 标准加载统计 */
   standards_loading: {
     files_total: number;
@@ -176,6 +189,21 @@ export function clipUpstreamJsonSoft<T>(
   };
 }
 
+function contentDigest(text: string): string {
+  return createHash("sha256").update(text).digest("hex").slice(0, 16);
+}
+
+function emptyInjection(file: string, reason: string): KnowledgeFileInjection {
+  return {
+    file,
+    included_chars: 0,
+    truncated: false,
+    omitted_reason: reason,
+    content_hash: "",
+    loaded: false,
+  };
+}
+
 /** 按任务相关判断类型加载知识；超出预算则优先保留规范/短卡，再截断附录。 */
 export function loadRoutedKnowledge(
   kind: StageKind,
@@ -183,59 +211,138 @@ export function loadRoutedKnowledge(
 ) {
   const maxTotal = options.maxTotalChars ?? CONTEXT_SLOT_BUDGETS.knowledge;
   const loaded = loadKnowledge(kind, options);
-  if (loaded.context.length <= maxTotal) return loaded;
-
-  const priorityBoost = (file: string): number => {
-    if (/00A_runtime_quality_card|投研判断任务受理|判断结构与本体视图|数据与证据准备|推理输出规范|投研表达/.test(file)) {
-      return 2.5;
-    }
-    if (/00A_高质量|A00_裁决总则|B0[0-4]_|OPS_MCP|附录[1-4]/.test(file)) return 1.8;
-    if (/模板|README/.test(file)) return 1.0;
-    return 1;
-  };
-  const weightSum = loaded.files.reduce((sum, file) => sum + priorityBoost(file), 0);
-  const parts: string[] = [];
-  const includedFiles: string[] = [];
-  let used = 0;
-  const entries = Array.isArray((loaded as any).entries)
-    ? (loaded as any).entries as Array<{ file: string; content: string }>
+  const entries = Array.isArray(loaded.entries)
+    ? loaded.entries
     : loaded.files.map((file) => ({ file, content: "" }));
-  for (const entry of entries) {
-    const file = entry.file;
-    const marker = `\n## ${file}\n`;
-    // 直接使用按文件保存的正文，不能在拼接字符串里用 "\n## " 找下一个
-    // 文件；规范正文自身也有 H2，旧实现会误把正文第一节当成文件边界，
-    // 导致核心要求只剩导语、看似 loaded 实际未进 prompt。
-    const body = entry.content;
-    const OVERHEAD_PER_FILE = 100; // marker (~70) + possible suffix (~19) + margin
-    const share = priorityBoost(file) / Math.max(weightSum, 1);
-    const perFile = Math.max(4_000, Math.floor(maxTotal * share) - OVERHEAD_PER_FILE);
-    const slice = prioritizeKnowledgeContent(body, perFile);
-    const chunk = `${marker}${slice}`;
-    if (used + chunk.length > maxTotal) {
-      const remain = maxTotal - used;
-      if (remain < 2_000) break;
-      parts.push(`${marker}${prioritizeKnowledgeContent(body, Math.max(0, remain - marker.length - 19))}\n…[file truncated]`);
+  const sourceVersion = loaded.source_version || loaded.version;
+
+  const buildInjectionsWithinBudget = (
+    maxChars: number,
+  ): {
+    context: string;
+    files: string[];
+    injections: KnowledgeFileInjection[];
+    omittedByBudget: number;
+  } => {
+    const priorityBoost = (file: string): number => {
+      if (/00A_runtime_quality_card|投研判断任务受理|判断结构与本体视图|数据与证据准备|推理输出规范|投研表达/.test(file)) {
+        return 2.5;
+      }
+      if (/00A_高质量|A00_裁决总则|B0[0-4]_|OPS_MCP|附录[1-4]/.test(file)) return 1.8;
+      if (/模板|README/.test(file)) return 1.0;
+      return 1;
+    };
+    const weightSum = entries.reduce((sum, entry) => sum + priorityBoost(entry.file), 0);
+    const parts: string[] = [];
+    const includedFiles: string[] = [];
+    const injections: KnowledgeFileInjection[] = [];
+    let used = 0;
+    let stoppedByBudget = false;
+
+    for (const entry of entries) {
+      const file = entry.file;
+      const marker = `\n## ${file}\n`;
+      // 直接使用按文件保存的正文，不能在拼接字符串里用 "\n## " 找下一个
+      // 文件；规范正文自身也有 H2，旧实现会误把正文第一节当成文件边界，
+      // 导致核心要求只剩导语、看似 loaded 实际未进 prompt。
+      const body = entry.content;
+      if (!body.trim()) {
+        injections.push(emptyInjection(file, "empty_body"));
+        continue;
+      }
+      if (stoppedByBudget || used >= maxChars) {
+        injections.push(emptyInjection(file, "omitted_by_budget"));
+        continue;
+      }
+      const OVERHEAD_PER_FILE = 100;
+      const share = priorityBoost(file) / Math.max(weightSum, 1);
+      const perFile = Math.max(4_000, Math.floor(maxChars * share) - OVERHEAD_PER_FILE);
+      const remain = maxChars - used;
+      if (remain < 2_000) {
+        stoppedByBudget = true;
+        injections.push(emptyInjection(file, "omitted_by_budget"));
+        continue;
+      }
+      const allowBody = Math.min(perFile, Math.max(0, remain - marker.length - 19));
+      const slice = prioritizeKnowledgeContent(body, allowBody);
+      if (!slice.trim()) {
+        injections.push(emptyInjection(file, "zero_body_after_budget"));
+        continue;
+      }
+      const truncated = slice.length < body.length;
+      const chunk = truncated
+        ? `${marker}${slice}\n…[file truncated]`
+        : `${marker}${slice}`;
+      if (used + chunk.length > maxChars) {
+        const tightAllow = Math.max(0, maxChars - used - marker.length - 19);
+        if (tightAllow < 500) {
+          stoppedByBudget = true;
+          injections.push(emptyInjection(file, "omitted_by_budget"));
+          continue;
+        }
+        const tightSlice = prioritizeKnowledgeContent(body, tightAllow);
+        if (!tightSlice.trim()) {
+          stoppedByBudget = true;
+          injections.push(emptyInjection(file, "zero_body_after_budget"));
+          continue;
+        }
+        parts.push(`${marker}${tightSlice}\n…[file truncated]`);
+        includedFiles.push(file);
+        injections.push({
+          file,
+          included_chars: tightSlice.length,
+          truncated: true,
+          omitted_reason: null,
+          content_hash: contentDigest(tightSlice),
+          loaded: true,
+        });
+        stoppedByBudget = true;
+        used = maxChars;
+        continue;
+      }
+      parts.push(chunk);
       includedFiles.push(file);
-      break;
+      injections.push({
+        file,
+        included_chars: slice.length,
+        truncated,
+        omitted_reason: null,
+        content_hash: contentDigest(slice),
+        loaded: true,
+      });
+      used += chunk.length;
     }
-    parts.push(chunk);
-    includedFiles.push(file);
-    used += chunk.length;
-  }
-  const context = parts.join("\n");
-  const version = createHash("sha256").update(context).digest("hex");
+
+    for (const missing of loaded.missingFiles || []) {
+      injections.push(emptyInjection(missing, "missing_file"));
+    }
+
+    return {
+      context: parts.join("\n"),
+      files: includedFiles,
+      injections,
+      omittedByBudget: injections.filter((item) => item.omitted_reason === "omitted_by_budget").length,
+    };
+  };
+
+  // 统一走预算装配：即使总长未超限，也按文件记账，避免假 loaded。
+  const routed = buildInjectionsWithinBudget(maxTotal);
+  const trulyLoaded = routed.injections.filter((item) => item.loaded);
+  const version = createHash("sha256").update(routed.context).digest("hex");
   return {
     version: `sha256:${version}`,
-    context,
-    files: includedFiles,
+    source_version: sourceVersion,
+    context: routed.context,
+    files: trulyLoaded.map((item) => item.file),
+    entries: loaded.entries,
     registeredFiles: loaded.files,
     missingFiles: loaded.missingFiles,
+    file_injections: routed.injections,
     stats: {
       total: loaded.stats.total,
-      loaded: includedFiles.length,
+      loaded: trulyLoaded.length,
       missing: loaded.stats.missing,
-      omitted_by_budget: Math.max(0, loaded.files.length - includedFiles.length),
+      omitted_by_budget: routed.omittedByBudget,
     },
   };
 }
@@ -262,15 +369,31 @@ export function assembleStageContext(input: {
         : undefined,
       maxTotalChars: CONTEXT_SLOT_BUDGETS.knowledge,
     })
-    : { version: "none", context: "", files: [] as string[] };
+    : {
+      version: "none",
+      source_version: "none",
+      context: "",
+      files: [] as string[],
+      file_injections: [] as KnowledgeFileInjection[],
+      missingFiles: [] as string[],
+      stats: { total: 0, loaded: 0, missing: 0, omitted_by_budget: 0 },
+    };
 
-  const missingList = (knowledge as any).missingFiles || [];
-  const stats = (knowledge as any).stats || {
+  const missingList = knowledge.missingFiles || [];
+  const stats = knowledge.stats || {
     total: knowledge.files.length,
     loaded: knowledge.files.length,
     missing: 0,
     omitted_by_budget: 0,
   };
+  const fileInjections = knowledge.file_injections || knowledge.files.map((file) => ({
+    file,
+    included_chars: 0,
+    truncated: false,
+    omitted_reason: null as string | null,
+    content_hash: "",
+    loaded: true,
+  }));
 
   return {
     semantic_route: route,
@@ -278,8 +401,10 @@ export function assembleStageContext(input: {
     knowledge_files: knowledge.files,
     knowledge_context: knowledge.context,
     knowledge_version: knowledge.version,
+    knowledge_source_version: knowledge.source_version || knowledge.version,
     budgets: CONTEXT_SLOT_BUDGETS,
-    assembly_note: `上下文按语义路由装配：本体切片 + 任务相关知识文件 + 方法子集；未路由资产不进默认 knowledge。进入 prompt: ${stats.loaded}/${stats.total} 文件（缺失 ${stats.missing || 0}，预算省略 ${stats.omitted_by_budget || 0}）。`,
+    assembly_note: `上下文按语义路由装配：本体切片 + 任务相关知识文件 + 方法子集；未路由资产不进默认 knowledge。进入 prompt: ${stats.loaded}/${stats.total} 文件（缺失 ${stats.missing || 0}，预算省略 ${stats.omitted_by_budget || 0}）。loaded 仅计实际有正文进入 prompt 的文件。`,
+    file_injections: fileInjections,
     standards_loading: {
       files_total: stats.total,
       files_loaded: stats.loaded,

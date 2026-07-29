@@ -1,6 +1,7 @@
 import { normalizeAuthorityType } from "./authority_types";
+import { ONTOLOGY_SOURCE_TIERS } from "./ontology_vocabulary.generated";
 
-const SOURCE_TIERS = new Set(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]);
+const SOURCE_TIERS = new Set<string>(ONTOLOGY_SOURCE_TIERS);
 
 export type SourceAcquisitionInput = {
   url: string;

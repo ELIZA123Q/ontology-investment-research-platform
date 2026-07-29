@@ -7,7 +7,7 @@ import {
   evidenceChangeBadge,
   evidenceChangeIds,
   type EvidenceSupplementSummary,
-} from "@/engine/evidence_supplement_diff";
+} from "@/engine/evidence_supplement_view";
 import { stripInternalReferencePrefix } from "@/engine/research_overview";
 
 type ClientSource = {
@@ -82,6 +82,15 @@ const lanes = [
   { id: "gap", label: "尚缺的证据" },
 ];
 
+type ExtraGapPriority = {
+  evidence_id: string;
+  tier: "blocking" | "limiting" | "supplementary";
+  label: "阻断主判断" | "限制判断强度" | "补充完善";
+  statement: string;
+  reason: string;
+  score: number;
+};
+
 export function EvidenceBoard({
   runId,
   units,
@@ -91,6 +100,8 @@ export function EvidenceBoard({
   suggestions,
   supplementSummary = null,
   artifactVersion,
+  extraGapPriorities = [],
+  ontologyPrecheckHints = [],
 }: {
   runId: string;
   units: Unit[];
@@ -100,9 +111,16 @@ export function EvidenceBoard({
   suggestions: EvidenceReviewSuggestion[];
   supplementSummary?: EvidenceSupplementSummary | null;
   artifactVersion?: number;
+  /** EvidenceProfile / 本体预检等只读缺口提示（不写入产物） */
+  extraGapPriorities?: ExtraGapPriority[];
+  ontologyPrecheckHints?: string[];
 }) {
   const router = useRouter();
-  const gapPriorities = useMemo(() => prioritizeEvidenceGaps({ evidence, workItems }), [evidence, workItems]);
+  const gapPriorities = useMemo(() => {
+    const base = prioritizeEvidenceGaps({ evidence, workItems });
+    return [...extraGapPriorities, ...base]
+      .sort((a, b) => b.score - a.score || a.evidence_id.localeCompare(b.evidence_id));
+  }, [evidence, workItems, extraGapPriorities]);
   const changeIds = useMemo(() => evidenceChangeIds(supplementSummary), [supplementSummary]);
   const [selectedId, setSelectedId] = useState(gapPriorities[0]?.evidence_id || evidence[0]?.id || "");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
@@ -278,9 +296,15 @@ export function EvidenceBoard({
         </p>
       </section>
     ) : null}
+    {ontologyPrecheckHints.length ? <section className="gap-priority-panel ontology-precheck-panel">
+      <div className="gap-priority-head"><div><span>本体口径预警</span><strong>将在判断确认时挡门的 {Math.min(3, ontologyPrecheckHints.length)} 项</strong></div><small>Stage03 预检为非权威提示；不改写判断，Stage04 仍按正式规则重算</small></div>
+      <ul className="gap-priority-list">{ontologyPrecheckHints.slice(0, 3).map((hint) => <li key={hint}><small>{hint}</small></li>)}</ul>
+    </section> : null}
     {gapPriorities.length ? <section className="gap-priority-panel">
-      <div className="gap-priority-head"><div><span>优先处理</span><strong>先处理最影响判断的 {Math.min(3, gapPriorities.length)} 项尚缺证据</strong></div><small>排序依据：判断绑定、矛盾程度、独立来源要求与审阅状态</small></div>
-      <div className="gap-priority-list">{gapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={item.evidence_id} onClick={() => setSelectedId(item.evidence_id)} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
+      <div className="gap-priority-head"><div><span>优先处理</span><strong>先处理最影响判断的 {Math.min(3, gapPriorities.length)} 项尚缺证据</strong></div><small>排序依据：证据剖面最低要求、判断绑定、矛盾程度、独立来源要求与审阅状态</small></div>
+      <div className="gap-priority-list">{gapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={item.evidence_id} onClick={() => {
+        if (!item.evidence_id.startsWith("PROFILE:")) setSelectedId(item.evidence_id);
+      }} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
     </section> : null}
     <div className="evidence-review-toolbar">
       <div className="review-batch-actions">

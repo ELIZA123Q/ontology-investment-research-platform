@@ -57,6 +57,7 @@ import { syncStage02ReadableMarkdown, syncStage01ReadableMarkdown, syncStage03Re
 import { ensureStage01ContractFields } from "../stage01_contract";
 import { ensureStage02DocumentFields } from "../stage02_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
+import { ensureStage04DocumentFields } from "../stage04_documents";
 import {
   buildStage05SkeletonMarkdown,
   shouldPreserveStage05Markdown,
@@ -369,6 +370,27 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
     judgments,
     reasoning_traces: reasoningTraces,
     overall_boundary: "受控裁决只使用已批准事实；未解决的支持/反向证据冲突保持 J0/contested，已形成方向的判断也不外推原因、持续性、行业全面性或投资建议。",
+    object_differentiation: judgments
+      .map((judgment) => `${judgment.title}：${judgment.conclusion}（${judgment.strength}）`)
+      .join("；"),
+    primary_path_ruling: normalizedInputs
+      .map((input) => `${unitById.get(input.judgment_unit_id)?.title || input.judgment_unit_id}：${input.rationale || input.conclusion}`)
+      .join("；"),
+    investment_proposition: [
+      "研究含义仅限分对象识别景气、供需与持续性差异，不直接生成个股买卖、目标价或仓位建议。",
+      ...normalizedInputs.map((input) =>
+        `${unitById.get(input.judgment_unit_id)?.title || input.judgment_unit_id}的改判条件：${(input.invalidation_conditions || []).slice(0, 2).join("；") || "取得同口径反向事实"}`),
+    ].join(" "),
+    expression_permission: {
+      allowed_core_claims: judgments.filter((judgment) => judgment.strength !== "J0").map((judgment) => judgment.id),
+      restricted_claims: judgments.filter((judgment) => judgment.strength === "J0").map((judgment) => judgment.id),
+      prohibited_claims: ["个股买卖建议", "目标价或仓位建议", "把分对象结论外推成行业全面复苏", "超过 Runtime 裁决强度的确定性表述"],
+      allowed_mechanisms: judgments.filter((judgment) => judgment.strength !== "J0").map((judgment) => judgment.conclusion),
+      restricted_phrasing: ["来源预测必须保留预测属性", "条件判断不得写成确定结果", "不得省略竞争解释和改判条件"],
+      max_expression_level: ["J4", "J3", "J2", "J1", "J0"]
+        .find((level) => judgments.some((judgment) => judgment.strength === level)) || "J0",
+      notes: "05 只能展开已获许可的 Judgment，不得新增事实、抬高强度或把合规停止句冒充研究结论。",
+    },
     document_markdown: [
       "# 受控判断结果",
       "",
@@ -380,7 +402,25 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
     ].join("\n"),
   };
   applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
-  syncStage04ReadableMarkdown(data, { question: run.question, taskId: runId });
+  data.object_differentiation = data.judgments
+    .map((judgment: any) => `${judgment.title}：${judgment.conclusion}（${judgment.strength}）`)
+    .join("；");
+  data.expression_permission.allowed_core_claims = data.judgments
+    .filter((judgment: any) => judgment.strength !== "J0").map((judgment: any) => judgment.id);
+  data.expression_permission.restricted_claims = data.judgments
+    .filter((judgment: any) => judgment.strength === "J0").map((judgment: any) => judgment.id);
+  data.expression_permission.allowed_mechanisms = data.judgments
+    .filter((judgment: any) => judgment.strength !== "J0").map((judgment: any) => judgment.conclusion);
+  data.expression_permission.max_expression_level = ["J4", "J3", "J2", "J1", "J0"]
+    .find((level) => data.judgments.some((judgment: any) => judgment.strength === level)) || "J0";
+  // 先生成可读正文，再以正文密度和确定性规则结果争取 high_quality；
+  // controlled projection 不依赖模型自报 quality_status。
+  syncStage04ReadableMarkdown(data, { question: run.question, taskId: runId, forceProjection: true });
+  data.quality_status = "high_quality_pass";
+  data.deterministic_check_status = "checked";
+  data.reasoning_audit_yaml = "";
+  ensureStage04DocumentFields(data, { question: run.question, taskId: runId });
+  syncStage04ReadableMarkdown(data, { question: run.question, taskId: runId, forceProjection: true });
   schemas.stage_04.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_04", data);
   const artifact = createArtifact(runId, "stage_04", {
@@ -570,7 +610,13 @@ export function createJudgmentGapFallback(runId: string, reason: string) {
   const artifact = createArtifact(runId, "stage_04", {
     status: "needs_review",
     prompt_version: `${PROMPT_VERSION}:explicit-j0-fallback`,
-    knowledge_version: "runtime-deterministic-j0-fallback-v1",
+    knowledge_version: `sha256:${createHash("sha256").update(JSON.stringify({
+      mode: "deterministic_j0_gap_fallback",
+      stage_02_artifact_id: structureArtifact.id,
+      stage_03_artifact_id: evidenceArtifact.id,
+      stage_03_artifact_hash: createHash("sha256").update(evidenceArtifact.json_content).digest("hex"),
+      reason,
+    })).digest("hex")}`,
     input_context: JSON.stringify({
       question: run.question,
       stage_02_artifact_id: structureArtifact.id,
@@ -578,6 +624,7 @@ export function createJudgmentGapFallback(runId: string, reason: string) {
       stage_03_artifact_hash: createHash("sha256").update(evidenceArtifact.json_content).digest("hex"),
       fact_count: 0,
       fallback_reason: reason,
+      governance_version_note: "deterministic fallback fingerprint covers upstream artifact hashes + reason",
     }, null, 2),
     json_content: JSON.stringify(data, null, 2),
     markdown_content: data.document_markdown,

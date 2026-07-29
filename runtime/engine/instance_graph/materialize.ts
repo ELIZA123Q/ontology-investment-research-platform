@@ -3,24 +3,14 @@ import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructur
 import { extractGraph } from "./load";
 import { mergeGraphs } from "./projection";
 import { emptyGraph, type BusinessInstanceGraph } from "./types";
-const SCOPE_MEMBER_TYPES = new Set([
-  "Organization",
-  "Company",
-  "Industry",
-  "ValueChainSegment",
-  "Product",
-  "Technology",
-  "Region",
-  "Metric",
-  "Application",
-  "Material",
-  "ProcessStep",
-  "PolicyInstrument",
-  "Asset",
-  "FinancialInstrument",
-  "TradingVenue",
-  "Listing",
-]);
+import { loadOntologyCatalog } from "../ontology_catalog";
+
+const SCOPE_MEMBER_TYPES = new Set(
+  loadOntologyCatalog().relation_types.get("scopeIncludesObject")?.target_types || [],
+);
+const TRACE_NODE_TARGET_TYPES = new Set(
+  loadOntologyCatalog().relation_types.get("traceIncludesNode")?.target_types || [],
+);
 
 /** 仅靠 name 即可满足必填字段的成员类型；新建时其它类型回落到 Industry。 */
 const SCOPE_MEMBER_TYPES_NAME_ONLY = new Set([
@@ -36,6 +26,30 @@ const SCOPE_MEMBER_TYPES_NAME_ONLY = new Set([
   "ProcessStep",
   "Asset",
 ]);
+
+const SCOPE_MEMBER_TYPE_BY_PREFIX = new Map(
+  [...SCOPE_MEMBER_TYPES_NAME_ONLY]
+    .filter((type) => SCOPE_MEMBER_TYPES.has(type))
+    .map((type) => [type.toLowerCase(), type]),
+);
+
+/**
+ * Stage02 可以引用任务内的业务实例（例如 product:HBM），而不应把这些实例
+ * 混同为正式本体 schema node。只有关系端点正式允许、且仅靠 name 即可形成
+ * 合法实例的类型才可在运行时确定性物化；未知 ID 继续由 authority gate 拒绝。
+ */
+function parseTypedScopeMemberRef(objectId: string): { type: string; name: string } | null {
+  const separator = objectId.indexOf(":");
+  if (separator <= 0 || separator === objectId.length - 1) return null;
+  const type = SCOPE_MEMBER_TYPE_BY_PREFIX.get(objectId.slice(0, separator).toLowerCase());
+  const localId = objectId.slice(separator + 1);
+  if (!type || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(localId)) return null;
+  return {
+    type,
+    name: localId.replace(/[_-]+/g, " "),
+  };
+}
+
 export function materializeStageIntoGraph(
   current: BusinessInstanceGraph,
   stageKind: string,
@@ -43,7 +57,10 @@ export function materializeStageIntoGraph(
 ): BusinessInstanceGraph {
   const embedded = extractGraph(stageJson);
   if (embedded?.objects.length) {
-    return mergeGraphs({ ...current, authority: "business_parameters" }, embedded);
+    return mergeGraphs(
+      { ...current, authority: "business_parameters" },
+      markStageProjection(embedded, stageKind),
+    );
   }
 
   const slice = emptyGraph();
@@ -129,6 +146,14 @@ export function materializeStageIntoGraph(
             };
           }
         } else {
+          if (dimension === "judgment_unit_ontology_node") {
+            const typedInstance = parseTypedScopeMemberRef(objectId);
+            if (!typedInstance) {
+              throw new Error(`JudgmentUnit 引用的本体对象未解析: ${objectId}`);
+            }
+            preferredType = typedInstance.type;
+            name = typedInstance.name;
+          }
           const type = SCOPE_MEMBER_TYPES_NAME_ONLY.has(preferredType) ? preferredType : "Industry";
           slice.objects.push({
             id: objectId,
@@ -671,12 +696,6 @@ export function materializeStageIntoGraph(
         });
       }
     }
-    const traceNodeTargetTypes = new Set([
-      "ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event",
-      "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
-      "CompetingExplanation", "BlockingFactor", "RuleEvaluation",
-      "MarketExpectation", "ExpectationGap", "AssetImpact",
-    ]);
     for (const trace of (stageJson.reasoning_traces as any[]) || []) {
       const traceId = String(trace.trace_id || trace.id);
       const judgmentId = String(trace.judgment_ref || trace.judgment_id);
@@ -689,7 +708,7 @@ export function materializeStageIntoGraph(
       });
       for (const [sequence, nodeId] of ((trace.node_refs || trace.node_ids || []) as string[]).entries()) {
         const target = [...current.objects, ...slice.objects].find((object) => object.id === String(nodeId));
-        if (!target || !traceNodeTargetTypes.has(target.type)) continue;
+        if (!target || !TRACE_NODE_TARGET_TYPES.has(target.type)) continue;
         slice.relations.push({
           id: `REL-${traceId}-NODE-${sequence + 1}-${nodeId}`,
           type: "traceIncludesNode",
@@ -700,5 +719,31 @@ export function materializeStageIntoGraph(
       }
     }
   }
-  return mergeGraphs({ ...current, authority: "business_parameters" }, slice);
+  return mergeGraphs(
+    { ...current, authority: "business_parameters" },
+    markStageProjection(slice, stageKind),
+  );
+}
+
+function markStageProjection(graph: BusinessInstanceGraph, stageKind: string): BusinessInstanceGraph {
+  return {
+    ...graph,
+    objects: graph.objects.map((object) => ({
+      ...object,
+      properties: { ...(object.properties || {}) },
+      projection: {
+        ...(object.projection || {}),
+        stage: stageKind,
+        origin: "stage_projection",
+      },
+    })),
+    relations: graph.relations.map((relation) => ({
+      ...relation,
+      properties: {
+        ...(relation.properties || {}),
+        projection_stage: stageKind,
+        projection_origin: "stage_projection",
+      },
+    })),
+  };
 }

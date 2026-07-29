@@ -24,6 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN">
       <body>
+        <a className="skip-link" href="#main-content">跳到主内容</a>
         <header className="topbar">
           <Link href="/" className="brand">
             <span className="brandmark">OR</span>
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </nav>
           <ActiveJobsIndicator />
         </header>
-        <main>{children}</main>
+        <main id="main-content">{children}</main>
       </body>
     </html>
   );

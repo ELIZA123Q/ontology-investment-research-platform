@@ -87,10 +87,29 @@ export function normalizeStage05Projection(
   options: { forceDeterministicSkeleton?: boolean } = {},
 ) {
   const judgmentById = new Map<string, any>((stage04.judgments || []).map((item: any) => [String(item.id), item]));
+  const methodStatusById = new Map<string, string>(
+    (stage04.method_applications || []).map((item: any) => [
+      String(item.application_id || item.id || ""),
+      String(item.status || ""),
+    ]),
+  );
   const sourceById = new Map(sources.map((source) => [source.id, source]));
   for (const claim of data.report_claims || []) {
     const judgments = (claim.judgment_ids || []).map((id: string) => judgmentById.get(String(id))).filter(Boolean);
     if (!judgments.length) throw new Error(`${claim.id} 无法从已确认 Judgment 重建表达`);
+    if (methodStatusById.size) {
+      // Stage04 可保留 degraded/blocked 方法作为研究过程审计，但 Stage05 只能把
+      // 实际 executed 的方法列为报告依据，禁止“方法被路由过”冒充“方法已执行”。
+      claim.method_application_ids = [...new Set(
+        judgments
+          .flatMap((judgment: any) => judgment.method_application_ids || [])
+          .map(String)
+          .filter((id: string) => methodStatusById.get(id) === "executed"),
+      )];
+      if (!claim.method_application_ids.length) {
+        throw new Error(`${claim.id} 没有可用于正式表达的 executed MethodApplication`);
+      }
+    }
     // 结构化 statement 对齐判断卡；强度编码仅留在字段/审计，不写入读者标题。
     claim.statement = judgments.map((judgment: any) =>
       `${judgment.title}：${judgment.conclusion}`).join("；");
@@ -235,4 +254,3 @@ export function createStage05DeterministicProjection(runId: string) {
     tool_usage: JSON.stringify({ deterministic_projection: true, report_claim_count: data.report_claims.length }),
   });
 }
-

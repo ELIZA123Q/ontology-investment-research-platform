@@ -925,6 +925,49 @@ def _gate_04_to_05(artifacts: RunArtifacts, items: list[ReworkItem]) -> list[str
             if kind in artifacts.delivery.name and primary != mapped:
                 errors.append(f"05 文件名原型与 01 delivery_archetype.primary 不一致: {primary} vs {mapped}")
                 _append_rework(items, rule_id="05.archetype", message=errors[-1], return_to="01", affected_stage="05")
+
+    # 研究价值硬门：正式发布链对齐 Runtime Stage05 research_value_review。
+    # 工作台 artifact 字段或表达审计中若声明失败，不得 PUBLISHABLE。
+    audit_doc = load_yaml_file(artifacts.audit) if artifacts.audit else {}
+    review = audit_doc.get("research_value_review") if isinstance(audit_doc, dict) else None
+    if isinstance(review, dict):
+        status = str(review.get("status") or "")
+        if status and status != "pass":
+            errors.append(f"05 research_value_review.status={status}，研究价值未通过不得发布")
+            _append_rework(
+                items,
+                rule_id="05.research_value_review",
+                message=errors[-1],
+                return_to="05",
+                affected_stage="05",
+            )
+        total = review.get("total_score")
+        threshold = review.get("pass_threshold", 16)
+        if isinstance(total, (int, float)) and total < threshold:
+            errors.append(
+                f"05 research_value_review.total_score={total} < pass_threshold={threshold}"
+            )
+            _append_rework(
+                items,
+                rule_id="05.research_value_score",
+                message=errors[-1],
+                return_to="05",
+                affected_stage="05",
+            )
+
+    # 03 交付许可：gap_report_only 不得作为完整研报发布。
+    if artifacts.preparation is not None:
+        prep_meta, _ = parse_markdown(artifacts.preparation)
+        allowed = str(prep_meta.get("allowed_05_output") or "")
+        if allowed == "gap_report_only":
+            errors.append("03 allowed_05_output=gap_report_only，不得发布完整 05 研报")
+            _append_rework(
+                items,
+                rule_id="03.allowed_05_output",
+                message=errors[-1],
+                return_to="03",
+                affected_stage="05",
+            )
     return errors
 
 

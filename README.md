@@ -38,13 +38,13 @@
 
 ## 可用金融数据源
 
-**工作台可以走 MCP 取数**：Stage03 模型生成 / 补证时，worker 会优先调用已接入的一手通道（巨潮 `cninfo`、通联财务 `datayes-stock-finoper-mcp`、中央政策 `china-policy`），失败再回退 Bing / 公开网页。实现见 `runtime/adapters/mcp_evidence.ts`。
+**工作台可以走 MCP 取数**：Stage03 模型生成 / 补证时，worker 可调用已接入的 18 个证据通道，覆盖巨潮、中央政策、通联股票/指数/基金/宏观、华泰智研、财新与网页读取；单个通道失败时按其回退提示转向可核验原文或公开网页。实际接线清单以 `runtime/adapters/mcp_evidence.ts#EVIDENCE_MCP_CHANNELS` 为准。
 
 这不等于「页面上有个 MCP 按钮」：
 - **模型自动取证**：后台调 MCP（需本机配置 `~/.workbuddy/mcp.json` 且 `npm run worker` 在跑）
 - **研究员手动补证**：在证据编辑页贴公开 URL 抓取核验
 
-核心原则不变：**MCP 是获取通道，不是来源生产者**——返回的是线索/摘录，写正式证据前仍须核验可核对原文。B03 注册表里其余通道（行情、基金、华泰研报等）目前主要给外部 Agent 用，尚未全部接到 Runtime。
+核心原则不变：**MCP 是获取通道，不是来源生产者**——返回的是线索/摘录，写正式证据前仍须核验可核对原文。18 个 Runtime 通道都必须在 `governance/02_合同/ontology_data_mapping_profiles.yaml` 中拥有 active 映射；接线、必需映射与 active Profile 三组清单不一致时语义审计失败。
 
 | 类别 | 覆盖 | 入口文件 |
 |------|------|----------|
@@ -113,9 +113,15 @@ MCP 不可用时回退链：`OPS_MCP` → `OPS_通用` / `OPS_半导体` / `OPS_
 | `semantic_fixture` | V3 黄金样例 | `validate_v3_samples.py` |
 | `workbench_export` | 工作台导出（紧凑文件名） | `validate_workbench_package.py` |
 
+新生成的 `formal_pack` 必须包含 `semantic_context.yaml` 与
+`business_instance_graph.yaml`。`run_manifest.yaml` 绑定两者哈希及当前正式本体
+内容指纹；任一阶段存在未解析语义引用、旧本体基线或正式图投影不一致时不可发布。
+历史 `fixture` 只读回归不要求补写这两项资产。
+
 ```bash
 python3 governance/03_校验/validate_project.py
 python3 governance/03_校验/validate_v3_samples.py
+npm --prefix runtime run ontology:audit
 ```
 
 校验通过只说明写法与引用合规，**不代替**你对数据真伪和研究价值的判断。

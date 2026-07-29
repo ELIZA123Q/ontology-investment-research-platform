@@ -21,6 +21,7 @@ import {
   type StructureValidationResult,
   type StructureValidationResultInput,
 } from "./revise_schemas";
+import { ONTOLOGY_JUDGMENT_TYPES } from "./ontology_vocabulary.generated";
 
 export {
   controlledScopePatchSchema,
@@ -33,11 +34,6 @@ export {
   type StructureValidationResult,
   type StructureValidationResultInput,
 } from "./revise_schemas";
-
-const JUDGMENT_TYPES = [
-  "state_measurement", "trend_direction", "cycle_phase", "mechanism_validation", "causal_attribution",
-  "transmission_path", "object_differentiation", "impact_realization", "expectation_gap", "valuation_impact",
-] as const;
 
 const STAGE_LABELS: Record<number, string> = {
   1: "问题定义",
@@ -152,7 +148,7 @@ export function heuristicStructureIssues(structure: StructureContractView | {
         message: `${unit.id || "判断单元"} 缺少标题或原子判断问题`,
       });
     }
-    if (!JUDGMENT_TYPES.includes(unit.judgment_type as typeof JUDGMENT_TYPES[number])) {
+    if (!ONTOLOGY_JUDGMENT_TYPES.includes(unit.judgment_type as typeof ONTOLOGY_JUDGMENT_TYPES[number])) {
       issues.push({
         severity: "error",
         unit_id: unit.id || undefined,
@@ -431,7 +427,7 @@ async function reviseStage02(
           exclusions: scope.exclusions,
         },
         current_structure: currentStructure,
-        allowed_judgment_types: JUDGMENT_TYPES,
+        allowed_judgment_types: ONTOLOGY_JUDGMENT_TYPES,
       }, null, 2),
     );
     patch = result.data;
@@ -732,7 +728,7 @@ export async function validateStage02ForApproval(
         },
         current_structure: structure,
         heuristic_issues: heuristic,
-        allowed_judgment_types: JUDGMENT_TYPES,
+        allowed_judgment_types: ONTOLOGY_JUDGMENT_TYPES,
       }, null, 2),
     );
     result = modelResult.data;

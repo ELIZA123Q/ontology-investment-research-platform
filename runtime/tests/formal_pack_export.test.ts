@@ -4,6 +4,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildFormalPackNames, formalThemeSlug } from "../engine/formal_pack_naming";
+import { formalStageHash } from "../engine/formal_pack_hash";
 import { projectFormalSnapshot, SNAPSHOT_CSV_LAYOUT } from "../engine/formal_snapshot_project";
 import {
   buildQualityRetryNotes,
@@ -36,6 +37,29 @@ describe("formal pack naming", () => {
 
   it("slugs theme from core object", () => {
     expect(formalThemeSlug({ core_object: "全球存储芯片中的 HBM、DRAM" })).toContain("存储");
+  });
+});
+
+describe("formal pack manifest hashes", () => {
+  it("matches the Python formal validator for files and directories", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "formal-hash-"));
+    tempDirs.push(root);
+    writeFileSync(path.join(root, "01-a.md"), "alpha\n", "utf8");
+    mkdirSync(path.join(root, "03-snapshot"), { recursive: true });
+    writeFileSync(path.join(root, "03-snapshot", "b.csv"), "x,y\n1,2\n", "utf8");
+    const tsHash = formalStageHash(root, ["01-a.md", "03-snapshot"]);
+    const repoRoot = path.resolve(__dirname, "../..");
+    const py = [
+      "from pathlib import Path",
+      "import sys",
+      `sys.path.insert(0, str(Path(${JSON.stringify(repoRoot)}) / 'governance' / '03_校验'))`,
+      "from validate_run import _stage_hash",
+      `root=Path(${JSON.stringify(root)})`,
+      "print(_stage_hash([root/'01-a.md', root/'03-snapshot'], root))",
+    ].join(";");
+    const result = spawnSync("python3", ["-c", py], { encoding: "utf8", cwd: repoRoot });
+    expect(result.status).toBe(0);
+    expect(String(result.stdout || "").trim()).toBe(tsHash);
   });
 });
 

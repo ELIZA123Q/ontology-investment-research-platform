@@ -66,6 +66,65 @@ describe("round4 quality drains", () => {
     expect(recomputed.allowed_05_output).toBe("bounded_report");
   });
 
+  it("promotes a fully revalidated Stage03 instead of preserving stale minimum_pass", () => {
+    const sources = ["g1", "g2", "g3", "g1", "g2"].map((group, index) => ({
+      id: `SRC-${index + 1}`,
+      url: `https://${group}.example/${index + 1}`,
+      title: `source ${index + 1}`,
+      publisher: group,
+      source_group: group,
+      usability_status: "usable",
+      retrieval_status: "captured",
+      quote_verified: 1,
+    })) as any;
+    const evidence = sources.map((source: any, index: number) => ({
+      id: `EV-${index + 1}`,
+      kind: index === 4 ? "counter" : "fact_draft",
+      direction: index === 4 ? "weaken" : "support",
+      statement: `可核验陈述 ${index + 1}`,
+      judgment_unit_ids: ["JU-1"],
+      source_ids: [source.id],
+      source_keys: [source.id],
+      directness: "direct",
+      limitations: [],
+    }));
+    const recomputed = recomputeStage03EvidenceQualityGate({
+      evidence_drafts: evidence,
+      sources: evidence.map((item: any) => ({
+        source_key: item.source_keys[0],
+        source_id: item.source_ids[0],
+      })),
+      preparation_markdown: "# 数据与证据准备\n\n".padEnd(900, "证据覆盖、反证、来源上限与交付边界。"),
+      document_markdown: "# 数据与证据准备\n\n".padEnd(900, "证据覆盖、反证、来源上限与交付边界。"),
+      quality_status: "minimum_pass",
+      deterministic_check_status: "not_checked",
+      mcp_channel_usage: { controlled_projection: true },
+    }, {
+      structure: {
+        judgment_units: [{ id: "JU-1", judgment_type: "cycle_phase" }],
+        evidence_requirements: [
+          {
+            id: "ER-S",
+            evidence_role: "support",
+            minimum_independent_sources: 2,
+            judgment_unit_ids: ["JU-1"],
+          },
+          {
+            id: "ER-C",
+            evidence_role: "counter",
+            minimum_independent_sources: 2,
+            judgment_unit_ids: ["JU-1"],
+          },
+        ],
+      },
+      sources,
+    });
+    expect(recomputed.evidence_quality_gate.quality_status).toBe("high_quality_pass");
+    expect(recomputed.quality_status).toBe("high_quality_pass");
+    expect(recomputed.deterministic_check_status).toBe("checked");
+    expect(recomputed.return_required).toBe(false);
+  });
+
   it("recomputes coverage, summaries, and bundles after a gap baseline gains facts", () => {
     const structure = {
       judgment_units: [

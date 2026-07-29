@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { repositoryPath } from "../adapters/repo-paths";
+import { loadOntologyCatalog } from "./ontology_catalog";
 
 /** 判断类型中文：与 judgment.yaml allowed_values 及 methods/02_判断结构/README §3.1 对齐。 */
 const JUDGMENT_TYPE_LABELS: Record<string, string> = {
@@ -97,15 +98,6 @@ const ANCHOR_TOKEN_LABELS: Record<string, string> = {
   price: "价格",
 };
 
-const ONTOLOGY_MODEL_FILES = [
-  "ontology/01_通用/models/semantic.yaml",
-  "ontology/01_通用/models/state_event.yaml",
-  "ontology/01_通用/models/evidence.yaml",
-  "ontology/01_通用/models/judgment.yaml",
-  "ontology/01_通用/models/scenario.yaml",
-  "ontology/01_通用/models/semiconductor_extension.yaml",
-];
-
 let cachedFormalStateVariableNames: Map<string, string> | undefined;
 let cachedOntologyTypeLabels: Map<string, string> | undefined;
 
@@ -132,18 +124,16 @@ function labelFromRecord(raw: unknown): string {
 function loadOntologyTypeLabels(): Map<string, string> {
   if (cachedOntologyTypeLabels) return cachedOntologyTypeLabels;
   cachedOntologyTypeLabels = new Map();
-  for (const file of ONTOLOGY_MODEL_FILES) {
-    try {
-      const doc = YAML.parse(readFileSync(repositoryPath(file), "utf8")) || {};
-      for (const group of ["object_types", "relation_types", "scenario_types"] as const) {
-        for (const [id, raw] of Object.entries<unknown>(doc[group] || {})) {
-          const label = labelFromRecord(raw);
-          if (label) cachedOntologyTypeLabels.set(id, label);
-        }
+  try {
+    const catalog = loadOntologyCatalog();
+    for (const definitions of [catalog.object_types, catalog.relation_types, catalog.scenario_types]) {
+      for (const [id, raw] of definitions) {
+        const label = labelFromRecord(raw);
+        if (label) cachedOntologyTypeLabels.set(id, label);
       }
-    } catch {
-      // 缺文件时跳过
     }
+  } catch {
+    // 缺文件时跳过
   }
   return cachedOntologyTypeLabels;
 }

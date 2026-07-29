@@ -162,6 +162,27 @@ describe("formal ontology deterministic execution", () => {
     expect(capacityRule.result).toBe("pass");
   });
 
+  it("does not treat capacity allocation or crowding-out mechanisms as capacity metric claims", () => {
+    const result = apply(decision({
+      title: "HBM 对通用 DRAM 的资源挤占",
+      conclusion: "供应商继续把产能分配向 HBM 倾斜，但挤占幅度尚不可量化",
+    }), [fact({ statement: "supplier reallocates production capacity toward HBM" })]);
+    expect(result.judgments[0].strength).toBe("J1");
+    const capacityRule = result.rule_evaluations.find((item: any) => item.rule_ref === "semiconductor_capacity_yield_scope_alignment");
+    expect(capacityRule.result).toBe("pass");
+  });
+
+  it("clamps an overclaim to the evidence ceiling without erasing its fact chain", () => {
+    const result = apply(decision({ strength: "J3" }), [fact()]);
+    expect(result.judgments[0]).toMatchObject({
+      strength: "J1",
+      decision_status: "supported",
+      supporting_evidence_draft_ids: ["EV-1"],
+      not_judgeable_reason: null,
+    });
+    expect(String(result.judgments[0].rationale)).toMatch(/收敛至 J1/);
+  });
+
   it("reads ontology level as strength and demotes expectation_gap without projection", () => {
     const withLevel = apply(decision({ strength: undefined, level: "J1" }), [fact()]);
     expect(withLevel.judgments[0].strength).toBe("J1");
@@ -226,19 +247,40 @@ describe("formal ontology deterministic execution", () => {
     const pathRule = withPath.rule_evaluations.find((item: any) => item.rule_ref === "value_chain_propagation_consistency");
     expect(pathRule.result).toBe("pass");
 
+    const valuationSources = [1, 2, 3].map((index) => ({
+      ...source(),
+      id: `SRC-${index}`,
+      source_group: `independent-${index}`,
+    }));
+    const valuationFacts = valuationSources.map((item, index) => fact({
+      id: `EV-${index + 1}`,
+      source_ids: [item.id],
+    }));
+    const valuationBase = {
+      ...decision({ strength: "J3", conditions: [] }),
+      signals: [{ id: "S-1", evidence_draft_ids: valuationFacts.map((item) => item.id), target_hypothesis_ids: ["H-1"] }],
+      asset_impacts: [{
+        id: "AI-1",
+        source_judgment_refs: ["J-1"],
+        conditions: [],
+      }],
+    };
+    valuationBase.judgments[0].supporting_evidence_draft_ids = valuationFacts.map((item) => item.id);
     const valuationFail = applyDeterministicRuleEvaluations(
-      decision({ strength: "J3", conditions: [] }),
-      [fact()],
-      [source()],
+      valuationBase,
+      valuationFacts,
+      valuationSources,
       { judgment_units: [{ id: "JU-1", judgment_type: "valuation_impact" }] },
     );
     expect(valuationFail.judgments[0].strength).toBe("J0");
     expect(String(valuationFail.judgments[0].not_judgeable_reason)).toMatch(/valuation_hypothesis_level_coupling/);
 
+    const valuationPassInput: any = structuredClone(valuationBase);
+    valuationPassInput.judgments[0].conditions = ["假设桥：倍数回到历史中枢"];
     const valuationPass = applyDeterministicRuleEvaluations(
-      decision({ strength: "J3", conditions: ["假设桥：倍数回到历史中枢"] }),
-      [fact()],
-      [source()],
+      valuationPassInput,
+      valuationFacts,
+      valuationSources,
       { judgment_units: [{ id: "JU-1", judgment_type: "valuation_impact" }] },
     );
     const valuationRule = valuationPass.rule_evaluations.find((item: any) => item.rule_ref === "valuation_hypothesis_level_coupling");
@@ -253,8 +295,9 @@ describe("formal ontology deterministic execution", () => {
       [source()],
       { judgment_units: [{ id: "JU-1", judgment_type: "state_assessment" }] },
     );
-    expect(blocked.judgments[0].strength).toBe("J0");
-    expect(String(blocked.judgments[0].not_judgeable_reason)).toMatch(/risk_exposure_blocking_linkage/);
+    expect(blocked.judgments[0].strength).toBe("J1");
+    const blockingRule = blocked.rule_evaluations.find((item: any) => item.rule_ref === "risk_exposure_blocking_linkage");
+    expect(blockingRule.result).toBe("pass");
+    expect(blockingRule.deterministic_result.rationale).toMatch(/状态\/等级已对齐/);
   });
 });
-

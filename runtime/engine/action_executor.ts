@@ -11,6 +11,13 @@ import {
 } from "./instance_graph";
 import { validateRuntimeGraph } from "./graph_contract";
 import { ENGINE_VERSION as SEMANTIC_ENGINE_VERSION, REQUIRED_RULES } from "./semantic_execution";
+import { ONTOLOGY_JUDGMENT_LEVELS } from "./ontology_vocabulary.generated";
+import { loadOntologyCatalog } from "./ontology_catalog";
+import { assertFormalRelationChoice } from "./ontology_relation_options";
+
+const TRACE_NODE_TYPES = new Set(
+  loadOntologyCatalog().relation_types.get("traceIncludesNode")?.target_types || [],
+);
 
 export type ActionTypeDef = {
   id: string;
@@ -321,7 +328,7 @@ export function proposeAction(
   const functionResult = action.function_ref
     ? callFunction(action.function_ref, parameters, graph)
     : {};
-  const planned = planWrites(action, parameters, functionResult, graph);
+  const planned = markActionProjection(planWrites(action, parameters, functionResult, graph));
   assertWriteScope(action, planned.objects, planned.relations);
   validateRuntimeGraph(applyPlannedWrites(graph, planned.objects, planned.relations));
 
@@ -366,13 +373,14 @@ export function executeAction(
     assertPreconditions(action, parameters, graph);
     const proposal = options.requireProposal || proposeAction(actionId, parameters, graph);
     if (proposal.action_id !== actionId) throw new Error("提案 Action 与执行 Action 不一致");
-    assertWriteScope(action, proposal.planned_writes.objects, proposal.planned_writes.relations);
+    const planned = markActionProjection(proposal.planned_writes);
+    assertWriteScope(action, planned.objects, planned.relations);
 
     const next = cloneGraph(graph);
     const objectIds = new Set(next.objects.map((object) => object.id));
     const relationIds = new Set(next.relations.map((relation) => relation.id));
 
-    for (const object of proposal.planned_writes.objects) {
+    for (const object of planned.objects) {
       if (objectIds.has(object.id)) {
         next.objects = next.objects.map((existing) => (existing.id === object.id ? object : existing));
       } else {
@@ -380,7 +388,7 @@ export function executeAction(
         objectIds.add(object.id);
       }
     }
-    for (const relation of proposal.planned_writes.relations) {
+    for (const relation of planned.relations) {
       if (!objectIds.has(relation.sourceId) || !objectIds.has(relation.targetId)) {
         throw new Error(`关系 ${relation.id} 指向不存在的对象`);
       }
@@ -400,8 +408,8 @@ export function executeAction(
       status: "executed",
       parameters,
       function_result: proposal.function_result,
-      written_object_ids: proposal.planned_writes.objects.map((object) => object.id),
-      written_relation_ids: proposal.planned_writes.relations.map((relation) => relation.id),
+      written_object_ids: planned.objects.map((object) => object.id),
+      written_relation_ids: planned.relations.map((relation) => relation.id),
       graph: next,
       audit: {
         action_id: actionId,
@@ -445,6 +453,7 @@ const SUPPORTED_ACTIONS = new Set([
   "FormHypothesis",
   "FormJudgment",
   "RecordReasoningTrace",
+  "LinkOntologyObjects",
 ]);
 
 function assertSupportedAction(actionId: string) {
@@ -463,6 +472,19 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
       || parameters.quoteVerified !== true || !/^[a-f0-9]{64}$/.test(String(parameters.contentHash || ""))) {
       throw new Error("RegisterSource 仅允许写入已抓取且原文定位验证通过的来源");
     }
+  }
+  if (action.id === "LinkOntologyObjects") {
+    const sourceId = String(parameters.sourceId || "").trim();
+    const relationType = String(parameters.relationType || "").trim();
+    const targetId = String(parameters.targetId || "").trim();
+    if (!sourceId || !relationType || !targetId) {
+      throw new Error("LinkOntologyObjects 需要 sourceId、relationType 与 targetId");
+    }
+    if (parameters.properties !== undefined
+      && (!parameters.properties || typeof parameters.properties !== "object" || Array.isArray(parameters.properties))) {
+      throw new Error("LinkOntologyObjects.properties 必须是对象");
+    }
+    assertFormalRelationChoice(graph, sourceId, relationType, targetId);
   }
   if (action.id === "ExtractClaim") {
     const sourceRef = String(parameters.sourceRef || "").trim();
@@ -507,7 +529,9 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
     const statement = String(parameters.statement || "").trim();
     if (!statement) throw new Error("FormJudgment 需要 statement");
     const level = String(parameters.judgmentLevel || "");
-    if (!["J0", "J1", "J2", "J3", "J4"].includes(level)) throw new Error("FormJudgment 需要合法 judgmentLevel");
+    if (!ONTOLOGY_JUDGMENT_LEVELS.includes(level as typeof ONTOLOGY_JUDGMENT_LEVELS[number])) {
+      throw new Error("FormJudgment 需要合法 judgmentLevel");
+    }
     const indeterminate = level === "J0" && ["blocked", "indeterminate", "contested"].includes(String(parameters.decisionStatus));
     if (level === "J0" && (!indeterminate || !String(parameters.notJudgeableReason || "").trim())) {
       throw new Error("J0 必须标记 blocked/indeterminate/contested 并给出 notJudgeableReason");
@@ -574,7 +598,7 @@ function assertPreconditions(action: ActionTypeDef, parameters: Record<string, u
       throw new Error(`判断 ${judgmentRef} 不存在`);
     }
     const nodeRefs = asStringArray(parameters.inputRefs);
-    requireObjects(graph, nodeRefs, ["ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event", "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis", "CompetingExplanation", "BlockingFactor", "RuleEvaluation"], "推理节点");
+    requireObjects(graph, nodeRefs, [...TRACE_NODE_TYPES], "推理节点");
     if (!nodeRefs.some((id) => graph.objects.find((object) => object.id === id)?.type === "RuleEvaluation")) {
       throw new Error("RecordReasoningTrace 至少包含一个 RuleEvaluation 节点");
     }
@@ -835,14 +859,9 @@ function planWrites(
       ...asStringArray(parameters.methodApplicationRefs),
       judgmentRef,
     ])];
-    const traceRelationTargetTypes = new Set([
-      "ResearchScope", "JudgmentUnit", "Observation", "StateSnapshot", "StateChange", "Event",
-      "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
-      "CompetingExplanation", "BlockingFactor", "RuleEvaluation",
-    ]);
     const relationNodeRefs = nodeRefs.filter((ref) => {
       const target = graph.objects.find((object) => object.id === ref);
-      return target && traceRelationTargetTypes.has(target.type);
+      return target && TRACE_NODE_TYPES.has(target.type);
     });
     return {
       objects: [{
@@ -869,6 +888,24 @@ function planWrites(
     };
   }
 
+  if (action.id === "LinkOntologyObjects") {
+    const sourceId = String(parameters.sourceId);
+    const relationType = String(parameters.relationType);
+    const targetId = String(parameters.targetId);
+    return {
+      objects: [],
+      relations: [{
+        id: String(parameters.relationId || `REL-${hashShort(`${sourceId}:${relationType}:${targetId}`)}`),
+        type: relationType,
+        sourceId,
+        targetId,
+        properties: parameters.properties && typeof parameters.properties === "object"
+          ? { ...(parameters.properties as Record<string, unknown>) }
+          : {},
+      }],
+    };
+  }
+
   return { objects: [], relations: [] };
 }
 
@@ -878,8 +915,34 @@ function assertWriteScope(action: ActionTypeDef, objects: GraphObject[], relatio
     if (!scope.has(object.type)) throw new Error(`对象类型 ${object.type} 超出 write_scope`);
   }
   for (const relation of relations) {
+    if (action.id === "LinkOntologyObjects") {
+      if (!loadOntologyCatalog().relation_types.has(relation.type)) {
+        throw new Error(`关系类型 ${relation.type} 不属于正式本体`);
+      }
+      continue;
+    }
     if (!scope.has(relation.type)) throw new Error(`关系类型 ${relation.type} 超出 write_scope`);
   }
+}
+
+function markActionProjection(writes: { objects: GraphObject[]; relations: GraphRelation[] }) {
+  return {
+    objects: writes.objects.map((object) => ({
+      ...object,
+      properties: { ...(object.properties || {}) },
+      projection: {
+        ...(object.projection || {}),
+        origin: "action",
+      },
+    })),
+    relations: writes.relations.map((relation) => ({
+      ...relation,
+      properties: {
+        ...(relation.properties || {}),
+        projection_origin: "action",
+      },
+    })),
+  };
 }
 
 function cloneGraph(graph: BusinessInstanceGraph): BusinessInstanceGraph {

@@ -3,6 +3,7 @@ import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAtte
 import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/engine/metrics";
 import { EVALUATION_CRITERIA, evaluationSchema, evaluationSubmissionSchema } from "@/engine/schemas";
 import { parseJson } from "@/engine/types";
+import { loadApprovedSemanticSnapshot } from "@/engine/semantic_reads";
 
 export const runtime = "nodejs";
 
@@ -23,9 +24,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     const baseline = latestArtifact(runId, "baseline", ["approved"]);
     const report = latestArtifact(runId, "stage_05", ["approved"]);
-    const stage03 = latestArtifact(runId, "stage_03", ["approved"]);
-    const stage04 = latestArtifact(runId, "stage_04", ["approved"]);
-    if (!baseline || !report || !stage03 || !stage04) throw new Error("基线、证据、判断与报告都必须先确认");
+    const stage03 = loadApprovedSemanticSnapshot(runId, "stage_03").artifact;
+    const stage04 = loadApprovedSemanticSnapshot(runId, "stage_04").artifact;
+    if (!baseline || !report) throw new Error("基线、证据、判断与报告都必须先确认");
     if (latestArtifact(runId, "evaluation", ["approved"])) {
       throw new Error("盲评身份已揭示，当前输入组合不得重评；若产物改变，请重新生成并确认上游阶段");
     }

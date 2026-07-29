@@ -154,6 +154,36 @@ export function journeyNextHref(runId: string, stage: number): string {
   return `/runs/${runId}${journey.nextStep.pathSuffix}`;
 }
 
+/** 审阅页路径（RunNav / 确认门主入口）。 */
+export function journeyReviewHref(runId: string, stage: number): string {
+  const journey = researchStage(stage);
+  if (!journey) return `/runs/${runId}`;
+  return `/runs/${runId}${journey.reviewPath}`;
+}
+
+/** 编辑/生成页路径。 */
+export function journeyEditHref(runId: string, stage: number): string {
+  return `/runs/${runId}/stages/${stage}`;
+}
+
+/**
+ * 后台任务跳转：生成中 → 编辑页；待确认/受阻 → 审阅页。
+ */
+export function journeyJobHref(
+  runId: string,
+  stage: string | number,
+  jobStatus?: string | null,
+): string {
+  const number = typeof stage === "number"
+    ? stage
+    : Number(String(stage).match(/0?([1-5])$/)?.[1] || 0);
+  if (!number) return `/runs/${runId}`;
+  if (["queued", "running", "retrying"].includes(String(jobStatus || ""))) {
+    return journeyEditHref(runId, number);
+  }
+  return journeyReviewHref(runId, number);
+}
+
 export function journeyApproveLabel(stage: number): string {
   const journey = researchStage(stage);
   if (!journey) return "确认并继续";

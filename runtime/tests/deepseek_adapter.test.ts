@@ -6,7 +6,10 @@ vi.mock("server-only", () => ({}));
 import {
   accumulateTokenUsage,
   parseDirectJson,
+  resolveDeepSeekThinkingConfig,
+  resolveStructuredToolMode,
   resolveMaxToolRounds,
+  shouldEnableProviderReasoning,
   shouldForceEvidenceAcquisition,
 } from "@/adapters/deepseek";
 
@@ -80,6 +83,21 @@ describe("DeepSeek structured-output recovery", () => {
       { requireEvidenceAcquisition: false },
       [],
     )).toBe(false);
+    expect(resolveStructuredToolMode(
+      { requireEvidenceAcquisition: true },
+      [],
+    )).toEqual({ forceAcquisition: true, toolChoice: "auto" });
+  });
+
+  it("turns off DeepSeek thinking for tool-first acquisition without changing other rounds", () => {
+    expect(shouldEnableProviderReasoning("deepseek", "high", {})).toBe(true);
+    expect(shouldEnableProviderReasoning("deepseek", "high", { disableReasoning: true })).toBe(false);
+    expect(shouldEnableProviderReasoning("deepseek", null, {})).toBe(false);
+    expect(shouldEnableProviderReasoning("openai_compatible", null, { disableReasoning: true })).toBe(false);
+    expect(resolveDeepSeekThinkingConfig("deepseek", "high", { disableReasoning: true }))
+      .toEqual({ extraBody: { thinking: { type: "disabled" } } });
+    expect(resolveDeepSeekThinkingConfig("deepseek", "high", {}))
+      .toEqual({ reasoningEffort: "high", extraBody: { thinking: { type: "enabled" } } });
   });
 
   it("records onProgress-shaped events into heartbeat payloads", async () => {

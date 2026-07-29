@@ -2,10 +2,7 @@
  * P1：从本体 models/*.yaml 加载正式规则定义，并用 condition/counter_conditions 做谓词判定。
  * Runtime 分支只负责算出谓词事实；通过/失败由 YAML 条件驱动，避免双源漂移。
  */
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import YAML from "yaml";
-import { repositoryPath } from "../adapters/repo-paths";
+import { loadOntologyCatalog } from "./ontology_catalog";
 
 export type FormalRuleDef = {
   id: string;
@@ -14,15 +11,6 @@ export type FormalRuleDef = {
   preconditions: string[];
   test_case_role?: string;
 };
-
-const MODEL_FILES = [
-  "semantic.yaml",
-  "state_event.yaml",
-  "evidence.yaml",
-  "judgment.yaml",
-  "scenario.yaml",
-  "semiconductor_extension.yaml",
-] as const;
 
 let cachedRules: Map<string, FormalRuleDef> | null = null;
 
@@ -84,27 +72,18 @@ export function decideFromRuleDef(
 export function loadFormalOntologyRules(): Map<string, FormalRuleDef> {
   if (cachedRules) return cachedRules;
   const rules = new Map<string, FormalRuleDef>();
-  const modelDir = repositoryPath("ontology", "01_通用", "models");
-  for (const file of MODEL_FILES) {
-    const raw = YAML.parse(readFileSync(path.join(modelDir, file), "utf8")) as Record<string, any>;
-    for (const section of ["rules", "evidence_constraints"] as const) {
-      const block = raw?.[section] || {};
-      for (const [id, value] of Object.entries(block)) {
-        if (!value || typeof value !== "object") continue;
-        const item = value as Record<string, unknown>;
-        rules.set(id, {
-          id,
-          condition: String(item.condition || ""),
-          counter_conditions: Array.isArray(item.counter_conditions)
-            ? item.counter_conditions.map(String)
-            : [],
-          preconditions: Array.isArray(item.preconditions)
-            ? item.preconditions.map(String)
-            : [],
-          test_case_role: item.test_case_role ? String(item.test_case_role) : undefined,
-        });
-      }
-    }
+  for (const [id, item] of loadOntologyCatalog().rules) {
+    rules.set(id, {
+      id,
+      condition: String(item.condition || ""),
+      counter_conditions: Array.isArray(item.counter_conditions)
+        ? item.counter_conditions.map(String)
+        : [],
+      preconditions: Array.isArray(item.preconditions)
+        ? item.preconditions.map(String)
+        : [],
+      test_case_role: item.test_case_role ? String(item.test_case_role) : undefined,
+    });
   }
   cachedRules = rules;
   return rules;

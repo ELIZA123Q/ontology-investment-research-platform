@@ -16,6 +16,7 @@ describe("round3 quality drains", () => {
     expect(shouldAbortStage03Batching(new Error("402 Insufficient Balance"))).toBe(true);
     expect(shouldAbortStage03Batching(new Error("GENERATION_LEASE_LOST"))).toBe(true);
     expect(shouldAbortStage03Batching(new Error("[structured_schema_contract] invalid"))).toBe(true);
+    expect(shouldAbortStage03Batching(new Error("400 Thinking mode does not support this tool_choice"))).toBe(true);
     expect(shouldAbortStage03Batching(new Error("某个公开网页抓取失败"))).toBe(false);
   });
 
@@ -23,6 +24,7 @@ describe("round3 quality drains", () => {
     expect(shouldRetryRuntimeFailure(new Error("402 Insufficient Balance"))).toBe(false);
     expect(shouldRetryRuntimeFailure(new Error("401 invalid api key"))).toBe(false);
     expect(shouldRetryRuntimeFailure(new Error("[structured_schema_contract] invalid"))).toBe(false);
+    expect(shouldRetryRuntimeFailure(new Error("400 Thinking mode does not support this tool_choice"))).toBe(false);
     expect(shouldRetryRuntimeFailure(new Error("GENERATION_LEASE_LOST"))).toBe(false);
     expect(shouldRetryRuntimeFailure(new Error("模型返回了不合法 JSON"))).toBe(true);
     expect(shouldRetryRuntimeFailure(new Error("某个公开网页抓取失败"))).toBe(true);

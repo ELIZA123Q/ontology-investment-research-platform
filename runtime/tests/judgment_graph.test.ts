@@ -73,7 +73,8 @@ describe("judgment-graph", () => {
     expect(graph.nodes.map((node) => node.id)).toEqual(
       expect.arrayContaining(["EV-1", "S-1", "H-1", "RE-1", "J-1", "RT-1", "CE-1"]),
     );
-    expect(graph.nodes.find((node) => node.id === "RE-1")?.meta).toBe("规则评估 · pass");
+    expect(graph.nodes.find((node) => node.id === "RE-1")?.meta).toBe("规则评估 · 通过");
+    expect(graph.nodes.find((node) => node.id === "RE-1")?.label).toBe("证据范围与时间一致性");
     expect(graph.nodes.find((node) => node.id === "RT-1")?.meta).toBe("推理留痕");
     expect(graph.edges).toEqual(expect.arrayContaining([
       expect.objectContaining({ source: "RE-1", target: "J-1", label: "规则评估" }),
@@ -83,12 +84,13 @@ describe("judgment-graph", () => {
     ]));
     const traceDetails = graph.nodes.find((node) => node.id === "RT-1")?.details as Record<string, unknown>;
     expect(traceDetails["追溯顺序"]).toEqual([
-      "EV-1: 库存连续两周下降",
-      "S-1: 库存下降支持趋势改善",
-      "H-1: 库存去化代表需求改善",
-      "RE-1: evidence_scope_time_alignment",
-      "J-1: 库存去化方向成立",
+      "库存连续两周下降",
+      "库存下降支持趋势改善",
+      "库存去化代表需求改善",
+      "证据范围与时间一致性",
+      "库存去化方向成立",
     ]);
+    expect(traceDetails["链路节点"]).toBe("5 项");
   });
 
   it("阻断信号与 blocked 判断状态显式呈现", () => {
@@ -129,10 +131,11 @@ describe("judgment-graph", () => {
     const blockedJudgment = graph.nodes.find((node) => node.id === "J-BLOCK");
     expect(blockSignal?.meta).toBe("阻断信号");
     expect(blockSignal?.tone).toBe("danger");
-    expect(blockedJudgment?.meta).toBe("判断 · J0 · blocked");
+    expect(blockedJudgment?.meta).toBe("判断 · 暂不可判断 · 判断受阻");
     expect(blockedJudgment?.tone).toBe("danger");
     expect(blockedJudgment?.details).toMatchObject({
-      判断状态: "blocked",
+      判断状态: "判断受阻",
+      冲突状态: "存在决定性冲突",
       不可判断原因: "决定性反证成立",
     });
   });
@@ -158,6 +161,6 @@ describe("judgment-graph", () => {
       },
       evidenceDrafts: [],
     });
-    expect(graph.emptyReason).toBe("阶段 04 已有判断，但尚未形成信号、假设或规则评估链。");
+    expect(graph.emptyReason).toBe("判断阶段已有结论，但尚未形成信号、假设或规则评估链。");
   });
 });

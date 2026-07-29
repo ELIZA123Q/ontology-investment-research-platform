@@ -15,6 +15,8 @@ const KEYS = [
   "DEEPSEEK_REVIEW_API_KEY",
   "DEEPSEEK_REQUEST_TIMEOUT_MS",
   "DEEPSEEK_GENERATION_TIMEOUT_MS",
+  "DEEPSEEK_MAX_TOKENS",
+  "DEEPSEEK_MAX_TOKENS_STAGE_03",
   "RESEARCH_JOB_LEASE_MS",
   "OPENAI_COMPAT_API_KEY",
   "OPENAI_COMPAT_MODEL",
@@ -80,6 +82,16 @@ describe("resolveModelProvider", () => {
     process.env.DEEPSEEK_MODEL_STAGE_05 = "deepseek-v4-pro";
     expect(resolveModelProvider("producer", "stage_01").model).toBe("deepseek-v4-flash");
     expect(resolveModelProvider("producer", "stage_05").model).toBe("deepseek-v4-pro");
+  });
+
+  it("caps Stage03 paid patch output unless an explicit stage override is configured", () => {
+    clearKeys();
+    process.env.DEEPSEEK_API_KEY = "sk-deepseek";
+    process.env.DEEPSEEK_MAX_TOKENS = "32768";
+    expect(resolveModelProvider("producer", "stage_03").maxTokens).toBe(12_000);
+    expect(resolveModelProvider("producer", "stage_04").maxTokens).toBe(32_768);
+    process.env.DEEPSEEK_MAX_TOKENS_STAGE_03 = "16000";
+    expect(resolveModelProvider("producer", "stage_03").maxTokens).toBe(16_000);
   });
 
   it("resolves openai_compatible reviewer independently", () => {

@@ -18,9 +18,15 @@ import {
   runStatusLabel,
 } from "@/app/lib/ui-labels";
 import { buildResearchOverview, workItemHref } from "@/engine/research_overview";
+import {
+  buildOntologyContributionSummary,
+} from "@/engine/ontology_contribution_summary";
+import { getRunOntologyResearchValue } from "@/engine/knowledge_browser";
+import { precheckStage03OntologyConstraints } from "@/engine/ontology_stage03_precheck";
 import { RunPrimaryAction } from "@/app/components/run-primary-action";
+import { OntologyContributionPanel } from "@/app/components/ontology-contribution-panel";
 import { STAGES } from "@/engine/types";
-import { researcherLanguage } from "@/app/lib/researcher-stage-output";
+import { buildEvidenceReadinessView, researcherLanguage } from "@/app/lib/researcher-stage-output";
 import { researchStageByKind } from "@/app/lib/research-journey";
 
 export const dynamic = "force-dynamic";
@@ -83,7 +89,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const primaryAction = pending.length === 0 && activeNextJob
     ? {
       ...researchOverview.primaryAction,
-      href: researchJobRecoveryHref(id, activeNextJob.stage),
+      href: researchJobRecoveryHref(id, activeNextJob.stage, activeNextJob.status),
       eyebrow: `生成任务 · ${researchJobStatusLabel(activeNextJob.status)}`,
       title: activeNextJob.status === "running"
         ? "AI 正在运行到下一个确认点"
@@ -104,6 +110,19 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     .map(researcherLanguage)
     .filter(Boolean)
     .slice(0, 2);
+  const structureData: any = parseJson(latestArtifactPayload(id, "stage_02", ["approved", "needs_review"])?.json_content || "{}", {});
+  const ontologyPrecheck = precheckStage03OntologyConstraints({
+    evidence_drafts: evidence,
+    sources: listSourcesForAttribution(id) as any,
+    default_scope_ref: String(structureData.scope_ref || ""),
+    cutoff_at: String((parseJson(latestArtifactPayload(id, "stage_01", ["approved"])?.json_content || "{}", {}) as any).time_scope?.as_of || ""),
+  });
+  const ontologyContribution = buildOntologyContributionSummary({
+    researchValue: getRunOntologyResearchValue(id),
+    precheck: run.current_stage >= 3 ? ontologyPrecheck : null,
+    judgments,
+    limit: 4,
+  });
   const pendingGroups = Array.from(pending.reduce((groups, item) => {
     const current = groups.get(item.stage) || [];
     current.push(item);
@@ -113,14 +132,12 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
   const showTasks = pending.length > 0;
   const factCount = evidence.filter((item: any) => item.kind !== "gap" && item.kind !== "conflict").length;
   const showEvidence = run.current_stage >= 3 || evidence.length > 0 || gaps.length > 0;
-  const overviewClass = showTasks
-    ? "overview-grid"
-    : showEvidence
-      ? "overview-grid no-tasks"
-      : "overview-grid decision-only";
+  const overviewClass = "overview-grid";
+  const readiness = buildEvidenceReadinessView(evidenceData);
   const evidenceReadyLine = [
-    `事实 ${factCount}`,
-    `尚缺/矛盾 ${gaps.length}`,
+    readiness.judgmentReadyLabel,
+    `事实 ${readiness.factCount}`,
+    `尚缺/矛盾 ${readiness.gapCount + readiness.conflictCount}`,
     pending.length ? `待处理 ${pending.length}` : null,
   ].filter(Boolean).join(" · ");
 
@@ -135,9 +152,20 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       <section className="overview-decision">
         <div className="panel-title"><div><span>研究结论</span>{judgments.length ? <strong>{judgments.length}</strong> : null}</div><Link href={`/runs/${id}/judgments`}>查看判断依据 →</Link></div>
         <article className={`conclusion-summary ${gaps.length ? "constrained" : ""}`}><span>{judgments.length ? (judgments.every((item: any) => String(item.strength || item.level || "J0") === "J0") ? "暂不判断" : "阶段性结论") : "等待判断"}</span><h2>{researcherLanguage(researchOverview.headline)}</h2><p>{researcherLanguage(researchOverview.explanation)}</p>{constraints.length ? <div className="conclusion-constraints"><strong>关键约束</strong>{constraints.map((item) => <small key={item}>{item}</small>)}</div> : null}</article>
+        <OntologyContributionPanel summary={ontologyContribution} />
       </section>
-      {showTasks ? <aside className="overview-tasks"><div className="panel-title"><div><span>待我处理</span><strong>{pending.length}</strong></div><small>按阶段归并</small></div>{pendingGroups.map(([stage, items]) => <Link href={workItemHref(stage, id)} key={stage}><span>{sceneLabel(stage)}</span><strong>{items.length} 项待处理</strong><small>{stageTaskHint(stage)}</small></Link>)}</aside> : null}
-      {showEvidence ? <section className="overview-evidence"><div className="panel-title"><div><span>证据就绪度</span></div><Link href={`/runs/${id}/evidence`}>打开证据台 →</Link></div><p className="evidence-ready-line">{evidenceReadyLine}</p><p className="muted">证据数量不代表结论强度；关键判断仍受最薄弱环节约束。</p></section> : null}
+      {showTasks ? <aside className="overview-tasks"><div className="panel-title"><div><span>待我处理</span><strong>{pending.length}</strong></div><small>按阶段归并</small></div>{pendingGroups.map(([stage, items]) => <Link href={workItemHref(stage, id)} key={stage}><span>{sceneLabel(stage)}</span><strong>{items.length} 项待处理</strong><small>{stageTaskHint(stage)}</small></Link>)}</aside> : (
+        <aside className="overview-tasks overview-tasks-empty">
+          <div className="panel-title"><div><span>待我处理</span><strong>0</strong></div></div>
+          <p className="muted">当前没有需要人工确认的事项；可继续推进下一阶段。</p>
+        </aside>
+      )}
+      {showEvidence ? <section className="overview-evidence"><div className="panel-title"><div><span>证据就绪度</span></div><Link href={`/runs/${id}/evidence`}>打开证据台 →</Link></div><p className="evidence-ready-line">{evidenceReadyLine}</p><p className="muted">{readiness.note}</p></section> : (
+        <section className="overview-evidence overview-evidence-empty">
+          <div className="panel-title"><div><span>证据就绪度</span></div></div>
+          <p className="muted">进入证据阶段后，这里会摘要判断就绪度与尚缺项。</p>
+        </section>
+      )}
     </div>
 
     {previousRun && attribution ? <section className="card attribution-card"><div className="panel-title"><div><span>同题研究差异</span><strong>{attribution.causes.length}</strong></div><Link href={`/runs/${previousRun.id}`}>查看上一轮 →</Link></div><p>主要变化：{attribution.causes.map(differenceCauseLabel).join("、")}</p><div className="run-meta"><span>新增来源 {attribution.evidence.added_sources.length}</span><span>移除来源 {attribution.evidence.removed_sources.length}</span><span>方法变化 {attribution.methods.changed.length}</span><span>判断变化 {attribution.judgments.changed.length}</span></div></section> : null}

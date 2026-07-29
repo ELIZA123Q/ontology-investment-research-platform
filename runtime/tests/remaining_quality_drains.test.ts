@@ -119,6 +119,31 @@ describe("remaining quality drains", () => {
     expect(result.gapDetails.some((item) => item.judgmentUnitId === "JU-2" && item.isBlocking)).toBe(true);
   });
 
+  it("accepts SQLite integer booleans for persisted quote verification", () => {
+    const result = evaluateEvidenceQuality({
+      evidenceDrafts: [{
+        id: "EV-SQLITE",
+        kind: "fact_draft",
+        directness: "direct",
+        source_ids: ["s-sqlite"],
+        judgment_unit_ids: ["JU-1"],
+      }],
+      sources: [{
+        id: "s-sqlite",
+        url: "https://example.com/sqlite",
+        title: "Persisted source",
+        publisher: "Example",
+        source_group: "example",
+        usability_status: "usable",
+        retrieval_status: "captured",
+        quote_verified: 1,
+      } as any],
+      judgmentUnits: [{ id: "JU-1", judgment_type: "state" }],
+    });
+    expect(result.totalEvidence).toBe(1);
+    expect(result.gapDetails.find((item) => item.judgmentUnitId === "JU-1")?.isBlocking).not.toBe(true);
+  });
+
   it("does not early-stop evidence supplement when gaps stagnate and coverage is low", () => {
     const stop = evaluateEvidenceStopCondition(
       { coverage_gap_count: 3, coverage_rate: 0.2, verification_rate: 0.1 },

@@ -176,6 +176,31 @@ export class ResearchJobStore {
     });
   }
 
+  /** One-shot execution path: claim only the explicitly authorized job. */
+  claimById(id: string, options: ClaimOptions): ResearchJob | undefined {
+    const now = options.now || new Date().toISOString();
+    return withImmediateTransaction(this.connection, () => {
+      this.recoverExpiredLeases(now);
+      const candidate = row(this.connection, id);
+      if (!candidate
+        || !(CLAIMABLE_STATUSES as readonly string[]).includes(candidate.status)
+        || candidate.available_at > now
+        || candidate.attempt >= candidate.max_attempts
+        || options.jobTypes?.length && !options.jobTypes.includes(candidate.job_type)) {
+        return undefined;
+      }
+      const token = randomUUID();
+      const expiresAt = leaseExpiry(now, options.leaseMs);
+      const result = this.connection.prepare(`UPDATE research_jobs SET
+        status='running', lease_token=?, worker_id=?, lease_expires_at=?, heartbeat_at=?,
+        attempt=attempt+1, started_at=COALESCE(started_at,?), updated_at=?
+        WHERE id=? AND status IN (${placeholders(CLAIMABLE_STATUSES)})`).run(
+        token, options.workerId, expiresAt, now, now, now, id, ...CLAIMABLE_STATUSES,
+      );
+      return Number(result.changes) === 1 ? row(this.connection, id) : undefined;
+    });
+  }
+
   heartbeat(id: string, leaseToken: string, leaseMs: number, now = new Date().toISOString()): ResearchJob | undefined {
     const result = this.connection.prepare(`UPDATE research_jobs SET
       heartbeat_at=?, lease_expires_at=?, updated_at=?

@@ -155,18 +155,33 @@ export function normalizeCounterEvidenceDirections(
 
 /** 从 JU 必要证据字符串 + 反向证据方向投影为本体 EvidenceRequirement。 */
 export function projectEvidenceRequirementsFromStructure(input: {
-  units: Array<{ id: string; evidence_requirements?: unknown[] }>;
+  units: Array<{ id: string; title?: string; question?: string; evidence_requirements?: unknown[] }>;
   counter_evidence_directions?: unknown;
 }): EvidenceRequirementProjection[] {
   const result: EvidenceRequirementProjection[] = [];
   const seen = new Set<string>();
+  const counters = normalizeCounterEvidenceDirections(input.counter_evidence_directions, {
+    unitIds: (input.units || []).map((unit) => String(unit.id || "")).filter(Boolean),
+  });
+  const unitsWithExplicitCounter = new Set(counters.flatMap((counter) => counter.judgment_unit_ids.map(String)));
   for (const unit of input.units || []) {
     const unitId = String(unit.id || "").trim();
     if (!unitId) continue;
     const requirements = Array.isArray(unit.evidence_requirements) ? unit.evidence_requirements : [];
     requirements.forEach((item, index) => {
-      const requirement = String(item || "").trim();
-      if (!requirement) return;
+      const rawRequirement = String(item || "").trim();
+      if (!rawRequirement) return;
+      const referenceOnly = /^(?:ER|REQ)[-_][A-Z0-9_-]+$/i.test(rawRequirement);
+      const referencedRole = /counter|反证|反向/i.test(rawRequirement) ? "counter" as const : "support" as const;
+      // Stage02 模型偶尔只输出 ER-xxx-counter 引用；若已有对象化
+      // counter_evidence_direction，则跳过占位引用，避免同一反证被投影两次。
+      if (referenceOnly && referencedRole === "counter" && unitsWithExplicitCounter.has(unitId)) return;
+      const decisionQuestion = String(unit.question || unit.title || unitId).trim();
+      const requirement = referenceOnly
+        ? referencedRole === "counter"
+          ? `取得足以证伪或区分「${decisionQuestion}」的反向数据、替代解释与边界条件`
+          : `取得能直接回答「${decisionQuestion}」的价格、库存、供给约束与需求变化时序数据`
+        : rawRequirement;
       let id = `ER-${unitId}-${String(index + 1).padStart(2, "0")}`;
       let n = 1;
       while (seen.has(id)) {
@@ -177,16 +192,13 @@ export function projectEvidenceRequirementsFromStructure(input: {
       result.push({
         id,
         requirement,
-        evidence_role: "support",
+        evidence_role: referencedRole,
         minimum_independent_sources: 1,
         judgment_unit_ids: [unitId],
         source: "unit_requirement",
       });
     });
   }
-  const counters = normalizeCounterEvidenceDirections(input.counter_evidence_directions, {
-    unitIds: (input.units || []).map((unit) => String(unit.id || "")).filter(Boolean),
-  });
   for (const counter of counters) {
     let id = `ER-${counter.direction_id}`;
     let n = 1;
@@ -206,6 +218,45 @@ export function projectEvidenceRequirementsFromStructure(input: {
     });
   }
   return result;
+}
+
+/**
+ * Stage02 顶层 EvidenceRequirement 是可执行对象；JudgmentUnit 内只保存引用或兼容旧稿的短句。
+ * 只有顶层对象缺失/损坏/指向已删除单元时才允许重新投影，避免 03 把 ER-* 引用当成检索正文。
+ */
+export function resolveEvidenceRequirementsFromStructure(input: {
+  units: Array<{ id: string; title?: string; question?: string; evidence_requirements?: unknown[] }>;
+  evidence_requirements?: unknown;
+  counter_evidence_directions?: unknown;
+}): EvidenceRequirementProjection[] {
+  const unitIds = new Set((input.units || []).map((unit) => String(unit.id || "")).filter(Boolean));
+  const topLevel = Array.isArray(input.evidence_requirements) ? input.evidence_requirements : [];
+  const valid = topLevel.length > 0 && topLevel.every((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+    const record = item as Record<string, unknown>;
+    const refs = Array.isArray(record.judgment_unit_ids) ? record.judgment_unit_ids.map(String).filter(Boolean) : [];
+    return Boolean(String(record.id || "").trim())
+      && String(record.requirement || "").trim().length >= 8
+      && ["support", "counter", "context", "boundary"].includes(String(record.evidence_role || ""))
+      && Number.isFinite(Number(record.minimum_independent_sources))
+      && refs.length > 0
+      && refs.every((id) => unitIds.has(id));
+  });
+  if (valid) {
+    return topLevel.map((item: any) => ({
+      id: String(item.id),
+      requirement: String(item.requirement),
+      evidence_role: item.evidence_role,
+      minimum_independent_sources: Math.max(0, Math.floor(Number(item.minimum_independent_sources))),
+      judgment_unit_ids: item.judgment_unit_ids.map(String),
+      source: item.source === "counter_direction" ? "counter_direction" : "unit_requirement",
+      ...(item.source_ref ? { source_ref: String(item.source_ref) } : {}),
+    }));
+  }
+  return projectEvidenceRequirementsFromStructure({
+    units: input.units,
+    counter_evidence_directions: input.counter_evidence_directions,
+  });
 }
 
 /** Stage02 CE 中绑定到指定 JU 的候选；未绑定（待归属）不自动进入任何 JU。 */

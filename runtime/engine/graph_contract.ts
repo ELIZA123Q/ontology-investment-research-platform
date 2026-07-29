@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { repositoryPath } from "../adapters/repo-paths";
 import type { BusinessInstanceGraph, GraphObject, GraphRelation } from "./instance_graph";
+import { activeOntologyObjects, activeOntologyRelations } from "./ontology_catalog";
 
 type FieldDefinition = { type?: string; required?: boolean; allowed_values?: string[]; cardinality?: string };
 type ObjectDefinition = { attributes?: Record<string, FieldDefinition> };
@@ -13,7 +14,6 @@ type RuntimeProfile = {
   runtime_relation_types?: Record<string, RelationDefinition>;
 };
 
-const MODEL_FILES = ["semantic.yaml", "state_event.yaml", "evidence.yaml", "judgment.yaml", "scenario.yaml", "semiconductor_extension.yaml"];
 const BUSINESS_PARAMETER_OBJECT_TYPES = new Set([
   "EvidenceProfile", "EvidenceRecipe", "SourceProfile", "ProxyIndicator", "PropagationTemplate",
   "ScenarioTemplate", "BusinessScenarioTag", "JudgmentLevelCriterionTemplate",
@@ -47,26 +47,22 @@ function catalog() {
   const objectDefinitions = new Map<string, ObjectDefinition>();
   const relationTypes = new Map<string, RelationDefinition>(Object.entries(BUSINESS_PARAMETER_RELATIONS));
   const parentsOf = new Map<string, string[]>();
-  for (const file of MODEL_FILES) {
-    const document = YAML.parse(readFileSync(repositoryPath("ontology", "01_通用", "models", file), "utf8")) as any;
-    for (const [id, definition] of Object.entries<any>(document.object_types || {})) {
-      // draft = 已定义但未纳入当前运行投影；不得写入 business_instance_graph
-      if ((definition?.metadata?.status || "active") === "active") {
-        objectTypes.add(id);
-        objectDefinitions.set(id, { attributes: definition.attributes || definition.properties || {} });
-        const parents = [definition.extends, definition.projects_to].filter((value: unknown) => typeof value === "string" && value);
-        if (parents.length) parentsOf.set(id, parents.map(String));
-      }
-    }
-    // scenario_types 是 catalog_only 任务枚举，不得写入 business_instance_graph
-    for (const [id, definition] of Object.entries<any>(document.relation_types || {})) {
-      if ((definition?.metadata?.status || "active") !== "active") continue;
-      relationTypes.set(id, {
-        source_types: definition.source_types || [],
-        target_types: definition.target_types || [],
-        attributes: definition.attributes || definition.properties || {},
-      });
-    }
+  for (const definition of activeOntologyObjects()) {
+    const id = definition.id;
+    objectTypes.add(id);
+    objectDefinitions.set(id, { attributes: definition.attributes || definition.properties || {} });
+    const parents = [definition.extends, definition.projects_to]
+      .filter((value: unknown) => typeof value === "string" && value)
+      .map(String);
+    if (parents.length) parentsOf.set(id, parents);
+  }
+  // scenario_types 是 catalog_only 任务枚举，不得写入 business_instance_graph
+  for (const definition of activeOntologyRelations()) {
+    relationTypes.set(definition.id, {
+      source_types: definition.source_types || [],
+      target_types: definition.target_types || [],
+      attributes: definition.attributes || definition.properties || {},
+    });
   }
   const profile = YAML.parse(readFileSync(repositoryPath("governance", "02_合同", "runtime_supported_profile.yaml"), "utf8")) as RuntimeProfile;
   const runtimeRequired = new Map<string, string[]>();

@@ -126,34 +126,41 @@ export function heuristicResearchValueReview(input: {
   const argumentChapters = (body.match(/^##\s+[一二三四五]、/gm) || []).length;
   const mechanismSignals = (body.match(/→|传导|驱动|导致|因此|机制|挤出|约束/g) || []).length;
   const sourceAnchors = (body.match(/https?:\/\/|material-refs:|source-annotation-refs:/g) || []).length;
+  const competingSignals = (body.match(/竞争解释|反证|对立解释|备择解释|无法排除|仍可能/g) || []).length;
   const thinChapters = collectStage05HighQualityIssues({
     body,
     research_edge: edges,
     deterministic_check_status: "checked",
   }).some((item) => item.code === "argument_chapter_thin" || item.code === "argument_chapter_ungrounded");
   // 有节名/关键词但无实质 Research Edge、或论点章过薄 → 仍判无判断价值
+  // 竞争解释/反证与实质 Edge、论点密度并列为硬信号；纯字数不单独给分。
   const judgmentValueScore = [
     hasEdgeSection && substantive,
     !thinChapters && argumentChapters >= 2,
     mechanismSignals >= 4,
     sourceAnchors >= 2,
+    competingSignals >= 1,
   ].filter(Boolean).length;
   checks.push({
     id: "has_judgment_value",
-    score: judgmentValueScore,
-    pass: judgmentValueScore >= 3,
+    score: Math.min(4, judgmentValueScore),
+    pass: judgmentValueScore >= 3 && substantive && !thinChapters,
     evidence_span: substantive && !thinChapters
-      ? "research_edge substantive + argument density"
+      ? `research_edge + arguments + competing=${competingSignals}`
       : thinChapters
         ? "argument chapters thin"
-        : hasEdgeSection
-          ? "Research Edge section only"
-          : "",
-    note: substantive && !thinChapters
-      ? "存在实质认知差与可审阅论点章"
-      : thinChapters
-        ? "论点章过薄或未 grounding，材料堆砌不等于判断价值"
-        : "缺少实质 Research Edge（禁止仅靠关键词/节名交差）",
+        : !substantive
+          ? "placeholder research edge"
+          : hasEdgeSection
+            ? "Research Edge section only"
+            : "",
+    note: substantive && !thinChapters && competingSignals >= 1
+      ? "存在实质认知差、可审阅论点章与竞争解释/反证处理"
+      : substantive && !thinChapters
+        ? "有实质 Edge 与论点章，但竞争解释/反证表述偏弱"
+        : thinChapters
+          ? "论点章过薄或未 grounding，材料堆砌不等于判断价值"
+          : "缺少实质 Research Edge（禁止仅靠关键词/节名交差）",
   });
 
   const overreach = Boolean(input.intensity_lifted)
@@ -187,15 +194,19 @@ export function heuristicResearchValueReview(input: {
     research_edge: edges,
     deterministic_check_status: "checked",
   }).some((item) => item.code === "argument_chapter_thin" || item.code === "argument_chapter_ungrounded");
-  const forcedDirection = hqThin && /全面看多|确定反转|周期已结束/.test(body);
+  const actionableAdvice =
+    /配置上|仓位建议|目标价|买入评级|卖出评级|投资者(?:需|应)|应警惕[^。；\n]{0,24}(?:公司|厂商|标的)|(?:估值|板块)[^。；\n]{0,32}(?:溢价|见顶风险)/.test(body);
+  const forcedDirection = actionableAdvice || (hqThin && /全面看多|确定反转|周期已结束/.test(body));
   const honestGap = /暂不可判断|证据不足|缺口|验证窗口|方向性解释/.test(body);
   checks.push({
     id: "no_forced_direction",
-    score: forcedDirection && !honestGap ? 0 : honestGap ? 4 : 3,
-    pass: !forcedDirection || honestGap,
-    evidence_span: forcedDirection ? "薄弱论证+强方向" : honestGap ? "有边界/缺口表述" : "未见硬撑",
-    note: forcedDirection && !honestGap
-      ? "论证偏薄却给出强方向，疑似硬撑"
+    score: actionableAdvice ? 0 : forcedDirection && !honestGap ? 0 : honestGap ? 4 : 3,
+    pass: !actionableAdvice && (!forcedDirection || honestGap),
+    evidence_span: actionableAdvice ? "出现配置/评级/投资者行动或个股估值式建议" : forcedDirection ? "薄弱论证+强方向" : honestGap ? "有边界/缺口表述" : "未见硬撑",
+    note: actionableAdvice
+      ? "免责声明不能抵消正文中的投资行动或个股估值建议"
+      : forcedDirection && !honestGap
+        ? "论证偏薄却给出强方向，疑似硬撑"
       : "未见明显硬撑方向",
   });
 

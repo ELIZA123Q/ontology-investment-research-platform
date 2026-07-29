@@ -33,6 +33,7 @@ ownership:
     - incremental_update_contract
     - rule_usage_contract
     - replay_contract
+    - semantic_baseline_contract
   formal_ontology:
     - object_types
     - relation_types
@@ -157,6 +158,46 @@ evidence_wave_classifications:
   - presentation_revision
   - no_semantic_delta
 stage_attempt_states: [pending, committed, superseded]
+
+# 语义基线不承载研究逻辑；它证明正式结果使用了哪个本体内容基线、
+# 围绕哪些语义对象组织，以及阶段投影是否与正式实例图一致。
+semantic_baseline_contract:
+  schema_name: controlled_research_semantic_baseline
+  schema_version: 1.0.0
+  canonical_file: semantic_context.yaml
+  instance_graph_file: business_instance_graph.yaml
+  required_for_run_modes: [production]
+  fixture_compatibility: 历史 fixture 可无语义基线只读回归；不得以 fixture 身份生成新生产结果。
+  required_stages: [stage_01, stage_02, stage_03, stage_04, stage_05]
+  required_context_fields:
+    - schema_version
+    - stage
+    - ontology_versions
+    - ontology_fingerprint
+    - declared_object_ids
+    - referenced_semantic_ids
+    - resolved_semantic_ids
+    - task_local_ids
+    - unresolved_semantic_ids
+    - reference_coverage
+    - resolution_status
+  identity:
+    ontology_fingerprint_algorithm: sha256_over_ordered_ontology_model_paths_and_bytes
+    model_registry_ref: ontology/01_通用/model_registry.yaml#model_files
+  set_rules:
+    - referenced_semantic_ids 必须由 resolved_semantic_ids 与 unresolved_semantic_ids 无交集地完整划分。
+    - task_local_ids 必须是 resolved_semantic_ids 的子集，且全部使用 task_local:* 命名空间。
+    - 所有 ID 列表必须去重并按字典序排序，禁止靠顺序掩盖语义漂移。
+  derived_rules:
+    - reference_coverage 必须等于 resolved / referenced；无引用时为 1。
+    - resolution_status 只能由引用集合派生为 complete、partial 或 not_applicable。
+  production_publish_rules:
+    - 五阶段 ontology_fingerprint 必须完全一致并等于当前正式本体内容指纹。
+    - 五阶段 ontology_versions 必须等于当前正式本体模型版本集合。
+    - unresolved_semantic_ids 必须全部为空，Stage02—05 引用解析率必须为 100%。
+    - Stage02—04 已批准产物必须通过正式实例图投影指纹读取门，禁止 legacy fallback。
+    - run_manifest 必须同时绑定 semantic_context.yaml 与 business_instance_graph.yaml 的内容哈希。
+    - 实例图必须声明 ontology_authority_graph_v1，并包含 Stage02—04 全部投影指纹。
 
 scope_graph:
   schema_version: 1.0.0

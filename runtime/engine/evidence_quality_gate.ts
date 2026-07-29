@@ -100,7 +100,9 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
       .filter((source) =>
         source.usability_status === "usable"
         && source.retrieval_status === "captured"
-        && source.quote_verified === true,
+        // SQLite stores booleans as 0/1. Strict `=== true` silently erased
+        // every genuinely verified persisted source from the quality gate.
+        && Boolean(source.quote_verified),
       )
       .map((source) => [source.id, source]),
   );
@@ -186,7 +188,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
         isBlocking: isBlocker,
         missing: missingParts.join("；") || "证据薄弱",
         suggestion: isBlocker
-          ? `JU-${juId}: ${missingParts[0]}；建议优先使用 ${ju.judgment_type ? methodForType(ju.judgment_type) : "MCP 数据源"}`
+          ? `JU-${juId}: ${missingParts[0]}；建议优先按 ${ju.judgment_type ? methodForType(ju.judgment_type) : "B01/B03 推荐主源"} 取公开原文，经注册通道或 Web 回退获取并核验`
           : `JU-${juId}: 补充 1 条验证性证据增加来源多样性`,
       });
     }
@@ -270,7 +272,8 @@ function methodForType(judgmentType: string): string {
 /**
  * 来源权威性等级 — 对标 governance/02_合同/judgment_threshold_policy.yaml
  * authoritative: 官方披露/监管文件/经审计的年报
- * verified: 权威第三方/MCP 数据源/认证机构
+ * verified: 权威第三方/经核验的一手公开原文生产者/认证机构
+ * （MCP 是获取通道，不是来源等级）
  * public: 公开媒体/一般网络来源
  * unverified: 未验证来源/匿名/传闻
  */

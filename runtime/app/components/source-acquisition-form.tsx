@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { sourceTierLabel } from "@/app/lib/ui-labels";
+import { ONTOLOGY_SOURCE_TIERS } from "@/engine/ontology_vocabulary.generated";
 
 export function SourceAcquisitionForm({ runId }: { runId: string }) {
   const router = useRouter();
@@ -49,7 +50,7 @@ export function SourceAcquisitionForm({ runId }: { runId: string }) {
       <details className="source-tech-details">
         <summary>高级来源字段</summary>
         <div className="source-form-grid">
-          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S1">{["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"].map((tier) => <option key={tier} value={tier}>{tier} · {sourceTierLabel(tier)}</option>)}</select></div>
+          <div className="field"><label>来源等级</label><select name="source_tier" defaultValue="S1">{ONTOLOGY_SOURCE_TIERS.map((tier) => <option key={tier} value={tier}>{tier} · {sourceTierLabel(tier)}</option>)}</select></div>
           <div className="field"><label>独立来源组（可选）</label><input name="source_group" placeholder="默认使用发布者" /></div>
         </div>
       </details>

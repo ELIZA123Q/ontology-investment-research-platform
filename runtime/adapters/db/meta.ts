@@ -1,7 +1,7 @@
 import "server-only";
 import { getWorkbenchDb } from "./connection";
 import { getRun } from "./runs";
-import { listArtifacts, createArtifact } from "./artifacts";
+import { listArtifacts, createArtifact, supersedeOtherArtifactAttempts } from "./artifacts";
 import { listSources } from "./sources";
 import { listMarketEvents, listEventImpacts } from "./market_events"; import { listWorkItems } from "./work_items";
 import { supersedeWorkItemsForArtifact } from "./work_items";
@@ -29,6 +29,7 @@ export function saveInstanceGraph(
     markdown_content: note,
     approved_at: new Date().toISOString(),
   });
+  supersedeOtherArtifactAttempts(runId, "instance_graph", artifact.id);
   supersedeWorkItemsForArtifact(runId, "instance_graph", artifact.id, artifact.version, {
     includeApproved: true,
     excludeWorkItemId: options.preserveActionWorkItemId,

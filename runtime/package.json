@@ -14,7 +14,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 122",
     "verify:standards": "node --experimental-strip-types scripts/verify_standards.ts",
-    "audit:research-quality": "node --experimental-strip-types scripts/audit-research-quality.ts"
+    "audit:research-quality": "node --experimental-strip-types scripts/audit-research-quality.ts",
+    "ontology:sync": "node --experimental-strip-types scripts/generate-ontology-vocabulary.ts",
+    "ontology:check": "node --experimental-strip-types scripts/generate-ontology-vocabulary.ts --check",
+    "ontology:impact": "node --import tsx scripts/analyze-ontology-impact.ts --git-base HEAD",
+    "ontology:audit": "node --experimental-strip-types scripts/audit-semantic-single-source.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

@@ -77,6 +77,12 @@ export function mergeGraphs(base: BusinessInstanceGraph, incoming: BusinessInsta
     authority: "business_parameters",
     objects: base.objects.map((object) => ({ ...object, properties: { ...(object.properties || {}) } })),
     relations: base.relations.map((relation) => ({ ...relation, properties: { ...(relation.properties || {}) } })),
+    projection_fingerprints: (base.projection_fingerprints || incoming.projection_fingerprints)
+      ? {
+          ...(base.projection_fingerprints || {}),
+          ...(incoming.projection_fingerprints || {}),
+        }
+      : undefined,
   };
   const objectIds = new Set(next.objects.map((object) => object.id));
   const relationIds = new Set(next.relations.map((relation) => relation.id));

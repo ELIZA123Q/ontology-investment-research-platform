@@ -9,13 +9,17 @@ import {
   evidenceFingerprint,
   findUnchangedEvidenceIds,
   orderByCapturePriority,
+  selectEvidenceSnapshotExcerpt,
 } from "@/engine/evidence_supplement_pure";
 import { evaluateEvidenceStopCondition } from "@/engine/source_coverage";
 import type { SourceRecord } from "@/engine/types";
 import {
   enforceStage03AcquisitionHonesty,
+  buildStage03AcquisitionQueries,
   isolateStage03BatchPatch,
+  materializeFrozenStage03CandidateDrafts,
   partitionStage03EvidenceBatches,
+  selectFrozenStage03CandidateSources,
   scopeStage03DataForBatch,
   stage03AcquisitionCallCount,
 } from "@/engine/evidence_auto_supplement";
@@ -181,6 +185,207 @@ describe("Stage03 judgment-unit batching", () => {
 });
 
 describe("evidence_auto_supplement", () => {
+  it("reuses only relevant captured registry sources and diversifies publishers first", () => {
+    const candidates = selectFrozenStage03CandidateSources({
+      sources: [
+        source({
+          id: "samsung-hbm",
+          publisher: "Samsung",
+          source_group: "samsung.com",
+          title: "HBM4 mass production",
+          snapshot_text: "HBM4 mass production capacity yield demand shipment ".repeat(20),
+        }),
+        source({
+          id: "micron-hbm",
+          publisher: "Micron",
+          source_group: "micron.com",
+          title: "HBM and DRAM results",
+          snapshot_text: "HBM DRAM demand inventory pricing supply capacity ".repeat(20),
+        }),
+        source({
+          id: "micron-second",
+          publisher: "Micron",
+          source_group: "micron.com",
+          title: "Second Micron HBM release",
+          snapshot_text: "HBM demand capacity shipment ".repeat(20),
+        }),
+        source({
+          id: "irrelevant",
+          publisher: "Other",
+          source_group: "other.com",
+          title: "Smartphone camera",
+          snapshot_text: "camera pixel photography ".repeat(20),
+        }),
+        source({
+          id: "rejected",
+          publisher: "TrendForce",
+          source_group: "trendforce.com",
+          title: "HBM price inventory",
+          snapshot_text: "HBM price inventory demand supply ".repeat(20),
+          usability_status: "rejected",
+        }),
+      ],
+      requirements: [{
+        id: "ER-HBM",
+        requirement: "取得 HBM 价格、库存、需求、供给与产能证据",
+        evidence_role: "support",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-HBM"],
+        source: "unit_requirement",
+      }],
+      maxCandidates: 3,
+    });
+
+    expect(candidates.map((item) => item.id)).toEqual([
+      "micron-hbm",
+      "samsung-hbm",
+      "micron-second",
+    ]);
+    expect(candidates.map((item) => item.id)).not.toContain("rejected");
+    expect(candidates.map((item) => item.id)).not.toContain("irrelevant");
+  });
+
+  it("materializes frozen registry candidates as complete stable SourceDrafts before the model runs", () => {
+    const registry = source({
+      id: "392fc308-792e-4906-9869-30db0589dd71",
+      title: "Micron Fiscal Q3 2026 Results",
+      snapshot_text: [
+        "Skip to main navigation Part number look up Firmware downloads.",
+        "Micron announced fiscal third quarter 2026 revenue of $41.46 billion.",
+        "Data center demand remained strong while supply stayed constrained.",
+      ].join(" "),
+      usability_status: "limited",
+      retrieval_status: "limited",
+      quote_verified: false,
+    });
+    const drafts = materializeFrozenStage03CandidateDrafts({
+      sources: [registry],
+      requirements: [{
+        id: "ER-1",
+        requirement: "取得数据中心需求与供给证据",
+        evidence_role: "support",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-1"],
+        source: "unit_requirement",
+      }],
+      maxQuoteChars: 500,
+    });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]).toMatchObject({
+      source_id: registry.id,
+      source_key: "SRC-R-392FC308",
+      source_tier: "S2",
+      source_type: "disclosure",
+      quote_verified: false,
+    });
+    expect(drafts[0].source_quote).toContain("revenue of $41.46 billion");
+    expect(drafts[0].locator).toBeTruthy();
+
+    const reused = materializeFrozenStage03CandidateDrafts({
+      sources: [{ ...registry, source_quote: "Previously verified exact quote with sufficient length.", quote_verified: true }],
+      existingDraftSources: [{ source_id: registry.id, source_key: "SRC-EXISTING" }],
+    });
+    expect(reused[0]).toMatchObject({
+      source_key: "SRC-EXISTING",
+      source_quote: "Previously verified exact quote with sufficient length.",
+      quote_verified: true,
+    });
+  });
+
+  it("selects the evidence-dense continuous window instead of navigation boilerplate", () => {
+    const navigation = "Popular Keywords Shopping List View Cart Sign In DRAM NAND Price ".repeat(80);
+    const evidence = [
+      "Key Highlights",
+      "Supplier inventory fell to multi-quarter lows while enterprise demand accelerated.",
+      "Contract pricing increased during the quarter and capacity remained constrained.",
+      "Consumer shipments weakened, providing a counter-signal for the next quarter.",
+    ].join(" ");
+    const excerpt = selectEvidenceSnapshotExcerpt({
+      snapshotText: `${navigation} ${evidence} footer`,
+      title: "NAND Flash Market Bulletin",
+      requirements: [{
+        id: "ER-1",
+        requirement: "取得NAND库存、合约价、企业与消费需求的正反证",
+        evidence_role: "support",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-1"],
+        source: "unit_requirement",
+      }],
+      maxChars: 800,
+    });
+    expect(excerpt).toContain("Supplier inventory fell");
+    expect(excerpt).toContain("Consumer shipments weakened");
+    expect(excerpt).not.toMatch(/^Popular Keywords Shopping List/);
+  });
+
+  it("builds a balanced support/counter acquisition plan instead of spending both queries on one side", () => {
+    const queries = buildStage03AcquisitionQueries({
+      question: "存储周期判断",
+      targetUnitIds: ["JU-1"],
+      requirements: [
+        {
+          id: "ER-SUPPORT",
+          requirement: "取得价格与库存时序",
+          evidence_role: "support",
+          minimum_independent_sources: 1,
+          judgment_unit_ids: ["JU-1"],
+          source: "unit_requirement",
+        },
+        {
+          id: "ER-COUNTER",
+          requirement: "验证库存重新累积的反向情形",
+          evidence_role: "counter",
+          minimum_independent_sources: 1,
+          judgment_unit_ids: ["JU-1"],
+          source: "counter_direction",
+        },
+        {
+          id: "ER-COUNTER-2",
+          requirement: "验证需求不及预期",
+          evidence_role: "counter",
+          minimum_independent_sources: 1,
+          judgment_unit_ids: ["JU-1"],
+          source: "counter_direction",
+        },
+      ],
+      maxQueries: 2,
+    });
+    expect(queries).toHaveLength(2);
+    expect(queries[0]).toMatch(/pricing.*inventory/);
+    expect(queries[1]).toMatch(/inventory/);
+  });
+
+  it("allocates support and counter queries to every unit in a two-unit batch", () => {
+    const requirement = (
+      id: string,
+      text: string,
+      role: "support" | "counter",
+      unitId: string,
+    ) => ({
+      id,
+      requirement: text,
+      evidence_role: role,
+      minimum_independent_sources: 2,
+      judgment_unit_ids: [unitId],
+      source: role === "counter" ? "counter_direction" as const : "unit_requirement" as const,
+    });
+    const queries = buildStage03AcquisitionQueries({
+      question: "存储周期",
+      targetUnitIds: ["JU-1", "JU-2"],
+      requirements: [
+        requirement("ER-1-S", "HBM价格库存主证", "support", "JU-1"),
+        requirement("ER-1-C", "HBM需求转弱反证", "counter", "JU-1"),
+        requirement("ER-2-S", "通用DRAM价格库存主证", "support", "JU-2"),
+        requirement("ER-2-C", "通用DRAM库存累积反证", "counter", "JU-2"),
+      ],
+    });
+    expect(queries).toHaveLength(4);
+    expect(queries[0]).toMatch(/HBM4.*mass production/);
+    expect(queries[1]).toMatch(/HBM.*demand.*inventory/);
+    expect(queries[2]).toMatch(/DRAM.*supply.*inventory/);
+    expect(queries[3]).toMatch(/DRAM.*contract price.*inventory/);
+  });
+
   it("treats zero acquisition calls as gaps instead of model-generated facts", () => {
     expect(stage03AcquisitionCallCount({
       web_search_calls: 0,
@@ -274,6 +479,53 @@ describe("evidence_auto_supplement", () => {
     });
     expect(honest.upserts.evidence_drafts).toEqual([]);
     expect(honest.upserts.unresolved_gaps[0]).toMatch(/忽略对既有事实的修改/);
+  });
+
+  it("without model tool calls, only accepts sources from the Runtime pre-acquisition boundary", () => {
+    const honest = enforceStage03AcquisitionHonesty({
+      baseData: { sources: [], evidence_drafts: [] },
+      patch: {
+        affected_object_refs: ["SRC-ALLOWED", "SRC-INVENTED", "EV-1", "EV-2"],
+        upserts: {
+          sources: [
+            { source_key: "SRC-ALLOWED", url: "https://example.com/allowed", title: "allowed" },
+            { source_key: "SRC-INVENTED", url: "https://example.com/invented", title: "invented" },
+          ],
+          evidence_drafts: [
+            {
+              id: "EV-1",
+              kind: "fact_draft",
+              direction: "support",
+              statement: "来自 Runtime 候选",
+              source_keys: ["SRC-ALLOWED"],
+              judgment_unit_ids: ["JU-1"],
+            },
+            {
+              id: "EV-2",
+              kind: "fact_draft",
+              direction: "support",
+              statement: "来自边界外来源",
+              source_keys: ["SRC-INVENTED"],
+              judgment_unit_ids: ["JU-1"],
+            },
+          ],
+        },
+        removals: {},
+      },
+      toolUsage: { runtime_preacquired_sources: 1 },
+      runtimeAcquiredSourceUrls: ["https://example.com/allowed"],
+      targetUnitIds: ["JU-1"],
+    });
+
+    expect(honest.upserts.sources.map((item: any) => item.source_key)).toEqual(["SRC-ALLOWED"]);
+    expect(honest.upserts.evidence_drafts[0]).toMatchObject({ id: "EV-1", kind: "fact_draft" });
+    expect(honest.upserts.evidence_drafts[1]).toMatchObject({
+      id: "EV-2",
+      kind: "gap",
+      source_keys: [],
+      source_ids: [],
+    });
+    expect(honest.upserts.unresolved_gaps.join(" ")).toMatch(/不在 Runtime 确定性预取集合|已降级为 gap/);
   });
 
   it("projects stale draft freeze fields from Source Registry", () => {

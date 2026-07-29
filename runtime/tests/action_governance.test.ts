@@ -55,7 +55,15 @@ describe("approved and idempotent Action execution", () => {
     expect(first.status).toBe("executed");
     expect(second.execution_id).toBe(first.execution_id);
     expect(first.graph_version_after).toBe(2);
-    expect(db.latestArtifact(run.id, "instance_graph", ["approved"])?.version).toBe(2);
+    const latestGraph = db.latestArtifact(run.id, "instance_graph", ["approved"]);
+    expect(latestGraph?.version).toBe(2);
+    expect(db.listArtifacts(run.id).filter((artifact) =>
+      artifact.kind === "instance_graph" && artifact.status === "approved",
+    )).toHaveLength(1);
+    const latestGraphPayload = JSON.parse(latestGraph!.json_content);
+    expect(latestGraphPayload.business_instance_graph.objects.find(
+      (object: any) => object.id === registered.id,
+    )?.projection?.origin).toBe("action");
     expect(db.getWorkItem(proposal.work_item_id)?.resolution).toBe("executed");
     expect(db.listArtifacts(run.id).filter((artifact) => artifact.kind === "action_audit").length).toBe(2);
   });
@@ -122,5 +130,60 @@ describe("approved and idempotent Action execution", () => {
     expect(db.getWorkItem(created.proposal.work_item_id)?.status).toBe("superseded");
     expect(db.getActionProposal(created.proposal.id)?.status).toBe("superseded");
     expect(() => tools.executeApprovedAction(run.id, created.proposal.id, 1)).toThrow(/尚未通过人工批准/);
+  });
+
+  it("creates only endpoint-compatible formal relations through an approved proposal", () => {
+    const run = db.createRun("正式本体关系提案测试", "semiconductor");
+    db.saveInstanceGraph(run.id, {
+      authority_contract: "ontology_authority_graph_v1",
+      business_instance_graph: {
+        schema_name: "ontology_business_instance_graph",
+        schema_version: "1.0.0",
+        authority: "business_parameters",
+        objects: [
+          { id: "COMPANY-1", type: "Company", properties: { name: "测试公司" } },
+          { id: "PRODUCT-1", type: "Product", properties: { name: "测试产品" } },
+          { id: "REGION-1", type: "Region", properties: { name: "测试地区" } },
+        ],
+        relations: [],
+      },
+    });
+    expect(() => tools.createStoredActionProposal(run.id, "LinkOntologyObjects", {
+      sourceId: "COMPANY-1",
+      relationType: "produces",
+      targetId: "REGION-1",
+      properties: {},
+    })).toThrow(/目标对象.*不符合|端点类型/);
+
+    const created = tools.createStoredActionProposal(run.id, "LinkOntologyObjects", {
+      sourceId: "COMPANY-1",
+      relationType: "produces",
+      targetId: "PRODUCT-1",
+      properties: {},
+    });
+    expect(created.proposal_detail.planned_writes.relations).toEqual([
+      expect.objectContaining({
+        type: "produces",
+        sourceId: "COMPANY-1",
+        targetId: "PRODUCT-1",
+      }),
+    ]);
+    db.updateWorkItem(created.proposal.work_item_id, { status: "approved", note: "人工确认公司生产该产品" });
+    const executed = tools.executeApprovedAction(
+      run.id,
+      created.proposal.id,
+      created.proposal.expected_graph_version,
+    );
+    expect(executed.status).toBe("executed");
+    const latest = db.latestArtifact(run.id, "instance_graph", ["approved"]);
+    const payload = JSON.parse(latest!.json_content);
+    expect(payload.business_instance_graph.relations).toEqual([
+      expect.objectContaining({
+        type: "produces",
+        sourceId: "COMPANY-1",
+        targetId: "PRODUCT-1",
+        properties: expect.objectContaining({ projection_origin: "action" }),
+      }),
+    ]);
   });
 });

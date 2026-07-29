@@ -3,7 +3,10 @@ import {
   RESEARCH_STAGE_JOURNEY,
   formatJourneyOutput,
   journeyApproveLabel,
+  journeyEditHref,
+  journeyJobHref,
   journeyNextHref,
+  journeyReviewHref,
   researchStage,
   validateJourney,
 } from "@/app/lib/research-journey";
@@ -60,6 +63,10 @@ describe("researcher journey contract", () => {
   it("builds post-confirm hrefs and approve labels from the journey", () => {
     expect(journeyNextHref("run-1", 1)).toBe("/runs/run-1/structure");
     expect(journeyNextHref("run-1", 5)).toBe("/runs/run-1");
+    expect(journeyReviewHref("run-1", 3)).toBe("/runs/run-1/evidence");
+    expect(journeyEditHref("run-1", 3)).toBe("/runs/run-1/stages/3");
+    expect(journeyJobHref("run-1", "stage_02", "running")).toBe("/runs/run-1/stages/2");
+    expect(journeyJobHref("run-1", "stage_02", "waiting_for_input")).toBe("/runs/run-1/structure");
     expect(journeyApproveLabel(1)).toContain("确认范围");
     expect(journeyApproveLabel(5)).toBe("确认交付");
   });

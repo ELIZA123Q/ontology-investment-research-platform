@@ -26,6 +26,7 @@ import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
   projectEvidenceRequirementsFromStructure,
+  resolveEvidenceRequirementsFromStructure,
 } from "./structure_candidates";
 import { ontologyContextForPrompt } from "./ontology_tools";
 import { emptyGraph, loadDomainBusinessGraph, loadGraphForRun, markReachableDownstreamStale, materializeStageIntoGraph } from "./instance_graph";
@@ -67,6 +68,11 @@ import { assertStage05ReadyForApproval, ensureStage05DocumentFields } from "./st
 import { checkDerivedFields, checkCrossStageReferences, computeBindingHash, type OutputQualityReport } from "./output_contract";
 import { routeError, buildReworkReport, type ReturnStage, type ErrorContext } from "./error_router";
 import { validateSemanticReview, SEMANTIC_REVIEW_CHECKS } from "./semantic_review";
+import {
+  approvedSemanticData,
+  approvedSemanticDataIfPresent,
+  loadApprovedSemanticSnapshot,
+} from "./semantic_reads";
 
 export function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;
@@ -103,9 +109,24 @@ export function validateOntologyVariableBindings(variables: any[]) {
   }
 }
 
+export function stage02OntologyObjectIds(data: any): Set<string> {
+  return new Set<string>([
+    ...(loadDomainBusinessGraph()?.objects || []).map((object) => String(object.id)),
+    ...((data?.ontology_instances || []) as any[]).map((item) => String(item?.id || "")),
+    ...((data?.variables || []) as any[]).flatMap((item) => [
+      String(item?.id || ""),
+      String(item?.ontology_node_id || ""),
+    ]),
+    ...((data?.judgment_units || []) as any[]).flatMap((item) =>
+      Array.isArray(item?.ontology_node_ids) ? item.ontology_node_ids.map(String) : []),
+  ].filter(Boolean));
+}
+
 export function validateGeneratedSemanticDraft(runId: string, kind: ArtifactKind, data: any) {
   if (kind === "stage_02") {
-    validateMethodApplications("stage_02", data.method_applications || []);
+    validateMethodApplications("stage_02", data.method_applications || [], {
+      ontologyObjectIds: stage02OntologyObjectIds(data),
+    });
     validateRegisteredMethodApplications(data.method_applications || []);
     validateMethodRoutes(data.method_applications || [], data.judgment_units || []);
     validateJudgmentCapabilityCoverage(data.method_applications || [], data.judgment_units || []);
@@ -113,7 +134,7 @@ export function validateGeneratedSemanticDraft(runId: string, kind: ArtifactKind
     return;
   }
   if (kind === "stage_03") {
-    const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+    const structure: any = approvedSemanticData(runId, "stage_02");
     const evidenceIds = new Set<string>((data.evidence_drafts || []).map((item: any) => String(item.id)));
     validateMethodApplications("stage_03", data.method_applications || [], {
       prior: structure.method_applications || [],
@@ -130,8 +151,8 @@ export function validateGeneratedSemanticDraft(runId: string, kind: ArtifactKind
     return;
   }
   if (kind === "stage_04") {
-    const evidence: any = parseJson(latestArtifact(runId, "stage_03", ["approved"])?.json_content || "{}", {});
-    const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+    const evidence: any = approvedSemanticData(runId, "stage_03");
+    const structure: any = approvedSemanticData(runId, "stage_02");
     const evidenceIds = new Set<string>((evidence.evidence_drafts || []).map((item: any) => String(item.id)));
     const judgmentIds = new Set<string>((data.judgments || []).map((item: any) => String(item.id)));
     const signalIds = new Set<string>((data.signals || []).map((item: any) => String(item.id)));
@@ -149,14 +170,47 @@ export function validateGeneratedSemanticDraft(runId: string, kind: ArtifactKind
     validateJudgmentCapabilityCoverage(data.method_applications || [], structure.judgment_units || []);
     validateJudgmentMethodBindings(data.judgments || [], data.method_applications || []);
     validateReasoningTraceBindings(data, evidenceIds, data.method_applications || []);
+    return;
+  }
+  if (kind === "stage_05") {
+    const evidence: any = approvedSemanticData(runId, "stage_03");
+    const judgment: any = approvedSemanticData(runId, "stage_04");
+    const allowed = String(evidence?.allowed_05_output || "");
+    const maxLevel = String(
+      judgment?.expression_permission?.max_expression_level
+      || judgment?.judgment_level
+      || "J0",
+    );
+    const body = String(data?.document_markdown || "");
+    if (allowed === "gap_report_only") {
+      const directional = /全面看多|全面看空|确定反转|周期已结束|目标价|买入评级|卖出评级|确定性见顶/.test(body);
+      const looksFullReport = /##\s*投资要点/.test(body)
+        && /Research Edge|市场认知差/.test(body)
+        && (body.match(/^##\s+[一二三四五]、/gm) || []).length >= 2
+        && body.length >= 6_000
+        && !/缺口说明|证据不足|暂不可判断|补证建议/.test(body);
+      if (directional || looksFullReport) {
+        throw new Error(
+          "allowed_05_output=gap_report_only：禁止将缺口包装为完整研究报告或方向性洞见；仅允许缺口说明、补证建议与停止理由",
+        );
+      }
+    }
+    const J_RANK: Record<string, number> = { J0: 0, J1: 1, J2: 2, J3: 3, J4: 4 };
+    const maxRank = J_RANK[maxLevel] ?? 0;
+    if (maxRank <= 0 && /目标价|买入评级|卖出评级|确定性见顶|周期已确认反转/.test(body)) {
+      throw new Error(`expression_permission.max_expression_level=${maxLevel}：正文越权使用高强度方向性措辞`);
+    }
+    if (Array.isArray(data.expressions) && data.expressions.length) {
+      validateExpressionMethodBindings(data.expressions, judgment.method_applications || []);
+    }
   }
 }
 
 
 /** 按当前 Stage02/03 与来源注册表重算 Stage04 正式规则；覆盖可编辑的 deterministic_result。 */
 export function recomputeStage04DeterministicRules(runId: string, data: any) {
-  const evidence: any = parseJson(latestArtifact(runId, "stage_03", ["approved"])?.json_content || "{}", {});
-  const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
+  const evidence: any = approvedSemanticData(runId, "stage_03");
+  const structure: any = approvedSemanticData(runId, "stage_02");
   applyDeterministicRuleEvaluations(data, evidence.evidence_drafts || [], listSources(runId), structure);
   for (const judgment of data.judgments || []) {
     if (judgment.strength) judgment.level = judgment.strength;
@@ -180,14 +234,16 @@ export function validateApproval(artifact: Artifact) {
     ensureStage02DocumentFields(data, { question: run?.question, taskId: artifact.run_id });
     schemas.stage_02.parse(data);
     assertStage02ReadyForApproval(data);
-    validateMethodApplications("stage_02", data.method_applications as MethodApplication[]);
+    validateMethodApplications("stage_02", data.method_applications as MethodApplication[], {
+      ontologyObjectIds: stage02OntologyObjectIds(data),
+    });
     validateRegisteredMethodApplications(data.method_applications as MethodApplication[]);
     validateMethodRoutes(data.method_applications as MethodApplication[], data.judgment_units || []);
     validateJudgmentCapabilityCoverage(data.method_applications as MethodApplication[], data.judgment_units || []);
     validateOntologyVariableBindings(data.variables || []);
   } else if (artifact.kind === "stage_03") {
     const run = getRun(artifact.run_id);
-    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    const structure: any = approvedSemanticData(artifact.run_id, "stage_02");
     ensureStage03DocumentFields(data, { question: run?.question, taskId: artifact.run_id, structure });
     // 确认时重算证据门，防止手工编辑省略/伪造 gate 绕过生成期门禁
     Object.assign(data, recomputeStage03EvidenceQualityGate(data, {
@@ -204,7 +260,7 @@ export function validateApproval(artifact: Artifact) {
     assertStage04ReadyForApproval(data);
   } else if (artifact.kind === "stage_05") {
     const run = getRun(artifact.run_id);
-    const stage04: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
+    const stage04: any = approvedSemanticData(artifact.run_id, "stage_04");
     ensureStage05DocumentFields(data, { question: run?.question, taskId: artifact.run_id, stage04 });
     schemas.stage_05.parse(data);
     // Stage05 确认默认要求研报结构达标（对齐 validate_05 固定节）；minimum_pass 仅可保存草稿，不能作为正式确认。
@@ -214,7 +270,7 @@ export function validateApproval(artifact: Artifact) {
     if (schema) schema.parse(data);
   }
   if (artifact.kind === "stage_03") {
-    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    const structure: any = approvedSemanticData(artifact.run_id, "stage_02");
     const evidenceIds = new Set<string>((data.evidence_drafts || []).map((item: any) => String(item.id)));
     const judgmentUnitIds = new Set<string>((structure.judgment_units || []).map((item: any) => String(item.id)));
     validateMethodApplications("stage_03", data.method_applications as MethodApplication[], {
@@ -297,8 +353,8 @@ export function validateApproval(artifact: Artifact) {
     }
   }
   if (artifact.kind === "stage_04") {
-    const upstream: any = parseJson(latestArtifact(artifact.run_id, "stage_03", ["approved"])?.json_content || "{}", {});
-    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    const upstream: any = approvedSemanticData(artifact.run_id, "stage_03");
+    const structure: any = approvedSemanticData(artifact.run_id, "stage_02");
     const ids = new Set<string>((upstream.evidence_drafts || []).map((x: any) => String(x.id)));
     const judgmentIds = new Set<string>((data.judgments || []).map((item: any) => String(item.id)));
     const signalIds = new Set<string>((data.signals || []).map((item: any) => String(item.id)));
@@ -324,8 +380,8 @@ export function validateApproval(artifact: Artifact) {
     }
   }
   if (artifact.kind === "stage_05") {
-    const upstream: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
-    const evidenceStage: any = parseJson(latestArtifact(artifact.run_id, "stage_03", ["approved"])?.json_content || "{}", {});
+    const upstream: any = approvedSemanticData(artifact.run_id, "stage_04");
+    const evidenceStage: any = approvedSemanticData(artifact.run_id, "stage_03");
     const ids = new Set((upstream.judgments || []).map((x: any) => x.id));
     const sourceIds = evidenceBoundSourceIds(evidenceStage);
     validateExpressionMethodBindings(data.report_claims || [], upstream.method_applications || [], upstream.judgments || []);
@@ -348,13 +404,14 @@ export function validateApproval(artifact: Artifact) {
     }
   }
   if (artifact.kind === "baseline") {
-    const current = latestArtifact(artifact.run_id, "stage_03", ["approved"]);
-    if (!current) throw new Error("基线失去已确认的冻结证据包");
+    const { artifact: current, data: currentData } = loadApprovedSemanticSnapshot(
+      artifact.run_id,
+      "stage_03",
+    );
     const expectedHash = createHash("sha256").update(current.json_content).digest("hex");
     if (data.frozen_stage03_artifact_id !== current.id || data.frozen_stage03_artifact_hash !== expectedHash) {
       throw new Error("同证据基线与当前 stage_03 冻结证据不一致");
     }
-    const currentData = parseJson<any>(current.json_content, {});
     const boundIds = evidenceBoundSourceIds(currentData);
     const frozenByKey = new Map(
       (currentData.sources || [])
@@ -389,16 +446,13 @@ export function validateApproval(artifact: Artifact) {
     // 2. 跨阶段引用完整性
     const upstreamData: Record<string, unknown> = {};
     if (stageNum === "03" || stageNum === "04" || stageNum === "05") {
-      const stage02 = latestArtifact(artifact.run_id, "stage_02", ["approved"]);
-      if (stage02) upstreamData.stage_02 = parseJson(stage02.json_content, {});
+      upstreamData.stage_02 = approvedSemanticData(artifact.run_id, "stage_02");
     }
     if (stageNum === "04" || stageNum === "05") {
-      const stage03 = latestArtifact(artifact.run_id, "stage_03", ["approved"]);
-      if (stage03) upstreamData.stage_03 = parseJson(stage03.json_content, {});
+      upstreamData.stage_03 = approvedSemanticData(artifact.run_id, "stage_03");
     }
     if (stageNum === "05") {
-      const stage04 = latestArtifact(artifact.run_id, "stage_04", ["approved"]);
-      if (stage04) upstreamData.stage_04 = parseJson(stage04.json_content, {});
+      upstreamData.stage_04 = approvedSemanticData(artifact.run_id, "stage_04");
     }
 
     const brokenRefs = checkCrossStageReferences(dataObj, artifact.kind, upstreamData);
@@ -418,8 +472,7 @@ export function validateApproval(artifact: Artifact) {
     (dataObj as any).binding_hash = bindingHash;
   }
   if (artifact.kind === "independent_review") {
-    const current = latestArtifact(artifact.run_id, "stage_04", ["approved"]);
-    if (!current) throw new Error("独立审阅失去已确认的 stage_04");
+    const { artifact: current } = loadApprovedSemanticSnapshot(artifact.run_id, "stage_04");
     const expectedHash = createHash("sha256").update(current.json_content).digest("hex");
     if (data.reviewed_stage04_artifact_id !== current.id || data.reviewed_stage04_artifact_hash !== expectedHash) {
       throw new Error("独立审阅不对应当前 stage_04 内容");
@@ -504,24 +557,44 @@ export function sourceForFrozenBaseline(source: SourceRecord) {
   return { ...source, snapshot_text: source.source_quote || "" };
 }
 
-export function normalizeBusinessCutoff(value?: string | null) {
+function clampCutoffToAvailableDay(cutoff: string, now: Date): string {
+  const cutoffTime = Date.parse(cutoff);
+  if (!Number.isFinite(cutoffTime) || cutoffTime <= now.getTime()) return cutoff;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const valueOf = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value || "";
+  return `${valueOf("year")}-${valueOf("month")}-${valueOf("day")}T23:59:59.999+08:00`;
+}
+
+export function normalizeBusinessCutoff(value?: string | null, now = new Date()) {
   const raw = String(value || "").trim();
   if (!raw) return null;
   const date = raw.match(/(20\d{2})[-/]([01]?\d)[-/]([0-3]?\d)/)
     || raw.match(/(20\d{2})年([01]?\d)月([0-3]?\d)日/);
   if (date) {
     const [, year, month, day] = date;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T23:59:59.999+08:00`;
+    return clampCutoffToAvailableDay(
+      `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T23:59:59.999+08:00`,
+      now,
+    );
   }
   const half = raw.match(/(20\d{2})年(上|下)半年/);
-  if (half) return `${half[1]}-${half[2] === "上" ? "06-30" : "12-31"}T23:59:59.999+08:00`;
+  if (half) return clampCutoffToAvailableDay(
+    `${half[1]}-${half[2] === "上" ? "06-30" : "12-31"}T23:59:59.999+08:00`,
+    now,
+  );
   const quarter = raw.match(/(20\d{2})年?第?([一二三四1-4])季度|(?:^|\D)(20\d{2})Q([1-4])/i);
   if (quarter) {
     const year = quarter[1] || quarter[3];
     const token = quarter[2] || quarter[4];
     const index = ({ 一: 1, 二: 2, 三: 3, 四: 4 } as Record<string, number>)[token] || Number(token);
     const ends = ["03-31", "06-30", "09-30", "12-31"];
-    return `${year}-${ends[index - 1]}T23:59:59.999+08:00`;
+    return clampCutoffToAvailableDay(`${year}-${ends[index - 1]}T23:59:59.999+08:00`, now);
   }
   const monthOnly = raw.match(/(20\d{2})年([01]?\d)月(?![0-3]?\d日)/);
   if (monthOnly) {
@@ -529,10 +602,15 @@ export function normalizeBusinessCutoff(value?: string | null) {
     const month = Number(monthOnly[2]);
     if (month >= 1 && month <= 12) {
       const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
-      return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T23:59:59.999+08:00`;
+      return clampCutoffToAvailableDay(
+        `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T23:59:59.999+08:00`,
+        now,
+      );
     }
   }
-  return Number.isFinite(Date.parse(raw)) ? new Date(raw).toISOString() : null;
+  return Number.isFinite(Date.parse(raw))
+    ? clampCutoffToAvailableDay(new Date(raw).toISOString(), now)
+    : null;
 }
 
 export function syncReadableMarkdownForArtifact(artifact: { id: string; run_id: string; kind: string }, data: any): string {
@@ -540,14 +618,14 @@ export function syncReadableMarkdownForArtifact(artifact: { id: string; run_id: 
   if (artifact.kind === "stage_01") return syncStage01ReadableMarkdown(data, run?.question || "");
   if (artifact.kind === "stage_02") return syncStage02ReadableMarkdown(data);
   if (artifact.kind === "stage_03") {
-    const structure: any = parseJson(latestArtifact(artifact.run_id, "stage_02", ["approved"])?.json_content || "{}", {});
+    const structure: any = approvedSemanticData(artifact.run_id, "stage_02");
     return syncStage03ReadableMarkdown(data, { question: run?.question, taskId: artifact.run_id, structure });
   }
   if (artifact.kind === "stage_04") {
     return syncStage04ReadableMarkdown(data, { question: run?.question, taskId: artifact.run_id });
   }
   if (artifact.kind === "stage_05") {
-    const stage04: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
+    const stage04: any = approvedSemanticDataIfPresent(artifact.run_id, "stage_04") || {};
     return syncStage05ReadableMarkdown(data, run?.question || "", listSources(artifact.run_id), {
       taskId: artifact.run_id,
       stage04,
@@ -574,8 +652,9 @@ export function editArtifact(
     const unitIds = (data.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean);
     data.competing_explanations = normalizeCompetingExplanations(data.competing_explanations, { unitIds });
     data.counter_evidence_directions = normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds });
-    data.evidence_requirements = projectEvidenceRequirementsFromStructure({
+    data.evidence_requirements = resolveEvidenceRequirementsFromStructure({
       units: data.judgment_units || [],
+      evidence_requirements: data.evidence_requirements,
       counter_evidence_directions: data.counter_evidence_directions,
     });
     if (!Array.isArray(data.questions) || !data.questions.length) {
@@ -615,7 +694,7 @@ export function editArtifact(
       : (markdownContent ?? String(data.document_markdown || ""));
   if (syncedKinds.has(artifact.kind) || preferMarkdown) data.document_markdown = markdown;
   if (artifact.kind === "stage_05" && preferMarkdown) {
-    const stage04: any = parseJson(latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}", {});
+    const stage04: any = approvedSemanticDataIfPresent(artifact.run_id, "stage_04") || {};
     ensureStage05DocumentFields(data, {
       question: getRun(artifact.run_id)?.question,
       taskId: artifact.run_id,

@@ -22,6 +22,7 @@ from research_contract import (  # noqa: E402
     public_contract,
 )
 from semantic_review import validate_independent_semantic_review  # noqa: E402
+from validate_semantic_baseline import validate_semantic_baseline  # noqa: E402
 from validate_publish import RunArtifacts, discover_artifacts, validate_publish  # noqa: E402
 from validator_utils import artifact_sha256, load_yaml_file, parse_markdown  # noqa: E402
 from research_loop import (  # noqa: E402
@@ -99,6 +100,8 @@ def manifest_binding_hash(manifest: dict[str, Any]) -> str:
     }
     if manifest_version in SUPPORTED_MANIFEST_SCHEMA_VERSIONS:
         payload["reasoning_loop"] = manifest.get("reasoning_loop")
+        if manifest.get("semantic_baseline") is not None:
+            payload["semantic_baseline"] = manifest.get("semantic_baseline")
     return canonical_sha256(payload)
 
 
@@ -716,6 +719,22 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
     statuses, manifest_issues, actual_hashes = _manifest_validation(manifest, artifacts)
     recorded_contract_version = str((manifest.get("versions") or {}).get("contract", ""))
     expected_versions = current_versions(recorded_contract_version)
+    semantic_baseline_status = "missing"
+    semantic_baseline_details: dict[str, Any] | None = None
+    try:
+        semantic_baseline_details = validate_semantic_baseline(artifacts.run_dir, manifest)
+        semantic_baseline_status = str(semantic_baseline_details["status"])
+    except Exception as exc:
+        semantic_baseline_status = "invalid"
+        _mark_with_downstream(statuses, "stage_02", "revalidation_required")
+        manifest_issues.append({
+            "issue_id": "SEMANTIC-BASELINE",
+            "detected_at_stage": "stage_02",
+            "rule_id": "semantic_baseline.contract",
+            "return_to_stage": "stage_02",
+            "reason": str(exc),
+            "severity": "blocking",
+        })
     chain_result = validate_publish(artifacts, through="05")
     stage_pass = all(item.get("status") == "pass" for item in chain_result.get("stages", {}).values())
     quality_pass = stage_pass and all(
@@ -777,7 +796,11 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
     for stage, status in statuses.items():
         manifest["stages"][stage]["validity_status"] = status
         manifest["stages"][stage]["stage_status"] = _stage_status(stage, artifacts)
-    manifest["validation_summary"] = {**outcome, "contract_version": expected_versions["contract"]}
+    manifest["validation_summary"] = {
+        **outcome,
+        "contract_version": expected_versions["contract"],
+        "semantic_baseline_status": semantic_baseline_status,
+    }
     if write_manifest:
         _write_manifest(manifest_path, manifest)
     return {
@@ -789,6 +812,8 @@ def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[st
         "publish_status": outcome["publish_status"],
         "semantic_review_status": semantic_status,
         "semantic_review": semantic_details,
+        "semantic_baseline_status": semantic_baseline_status,
+        "semantic_baseline": semantic_baseline_details,
         "judgment_level": judgment_level,
         "directional_conclusion_available": directional,
         "validity_statuses": statuses,

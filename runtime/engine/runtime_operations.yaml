@@ -124,6 +124,21 @@ actions:
     function_ref: null
     logic_refs: []
     write_scope: [ReasoningTrace, reasoningTraceForJudgment, traceIncludesNode]
+  LinkOntologyObjects:
+    name: 建立本体关系
+    description: 在两个既有对象之间建立一条由正式本体定义、端点兼容且通过完整图合同的关系。
+    target_types: [ontology_object]
+    parameters: [sourceId, relationType, targetId, properties]
+    audit_preconditions: [源对象与目标对象存在, 关系来自正式本体目录, 端点类型兼容, 关系属性满足正式定义]
+    effects: [create_selected_formal_relation]
+    outputs: [ontology_relation]
+    formal_rule_refs: [semantic_endpoint_compatibility, no_direct_evidence_to_judgment]
+    method_refs: []
+    governance_rule_refs: [GOV-ACTION-APPROVAL-001]
+    runtime_rule_refs: [RT-OPERATION-REGISTRY-001]
+    function_ref: null
+    logic_refs: []
+    write_scope: [ontology_relation_selected_at_runtime]
 
 functions:
   ExtractClaims:

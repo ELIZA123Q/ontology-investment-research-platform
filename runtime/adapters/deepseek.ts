@@ -40,6 +40,11 @@ export type GenerateOptions = {
    * 不向模型暴露 submit 工具，并要求其必须选择一个取证工具。
    */
   requireEvidenceAcquisition?: boolean;
+  /**
+   * 工具路由/来源采集阶段不启用 thinking。复杂推理留在结构化归纳与判断阶段，
+   * 避免模型在调用搜索工具前长时间消耗推理 token。
+   */
+  disableReasoning?: boolean;
   /** 覆盖工具环最大轮次；未设时读 MODEL_TOOL_ROUNDS(_WEB)，再回落默认。 */
   maxToolRounds?: number;
   runId?: string;
@@ -59,6 +64,39 @@ export function shouldForceEvidenceAcquisition(
       || item.name === "fetch_public_pages"
       || MCP_TOOL_NAMES.has(String(item.name))
     ));
+}
+
+export function resolveStructuredToolMode(
+  options: Pick<GenerateOptions, "requireEvidenceAcquisition">,
+  trace: Array<Record<string, unknown>>,
+): { forceAcquisition: boolean; toolChoice: "auto" } {
+  return {
+    forceAcquisition: shouldForceEvidenceAcquisition(options, trace),
+    // DeepSeek thinking mode explicitly rejects "required".
+    toolChoice: "auto",
+  };
+}
+
+export function shouldEnableProviderReasoning(
+  provider: ResolvedModelProvider["provider"],
+  reasoning: ResolvedModelProvider["reasoningEffort"],
+  options: Pick<GenerateOptions, "disableReasoning">,
+): boolean {
+  return provider === "deepseek" && Boolean(reasoning) && options.disableReasoning !== true;
+}
+
+export function resolveDeepSeekThinkingConfig(
+  provider: ResolvedModelProvider["provider"],
+  reasoning: ResolvedModelProvider["reasoningEffort"],
+  options: Pick<GenerateOptions, "disableReasoning">,
+): { reasoningEffort?: "high" | "max"; extraBody?: { thinking: { type: "enabled" | "disabled" } } } {
+  if (provider !== "deepseek") return {};
+  if (options.disableReasoning === true) {
+    return { extraBody: { thinking: { type: "disabled" } } };
+  }
+  return reasoning
+    ? { reasoningEffort: reasoning, extraBody: { thinking: { type: "enabled" } } }
+    : { extraBody: { thinking: { type: "disabled" } } };
 }
 
 /**
@@ -360,7 +398,9 @@ export class DeepSeekClient {
       apiKey: this.config.apiKey,
       baseURL: this.config.baseURL,
       timeout: this.config.requestTimeoutMs,
-      maxRetries: 1,
+      // A timeout may happen after the provider has already consumed tokens.
+      // Paid research retries belong at the persisted batch/job layer.
+      maxRetries: 0,
     });
   }
 
@@ -416,7 +456,6 @@ export class DeepSeekClient {
     // 直接 JSON 仅在工具轮次自然结束后、仍有剩余时间时作为结构修复手段，而不是超时逃生舱。
     const maxRounds = resolveMaxToolRounds(options);
     const submitNudgeFrom = Math.max(0, maxRounds - Math.min(3, Math.max(1, Math.ceil(maxRounds / 3))));
-    let consecutiveRoundTimeouts = 0;
     const emitProgress = (progress: GenerationProgressEvent) => {
       try { options.onProgress?.(progress); } catch { /* progress must not abort generation */ }
     };
@@ -440,7 +479,7 @@ export class DeepSeekClient {
       const controller = new AbortController();
       let hardTimer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const forceAcquisition = shouldForceEvidenceAcquisition(options, toolTrace);
+        const { forceAcquisition, toolChoice } = resolveStructuredToolMode(options, toolTrace);
         const roundTools = forceAcquisition
           ? tools.filter((tool) => String(tool?.function?.name || "") !== submitName)
           : tools;
@@ -448,13 +487,14 @@ export class DeepSeekClient {
           model: this.model,
           messages,
           tools: roundTools,
-          tool_choice: forceAcquisition ? "required" : "auto",
+          // DeepSeek thinking mode 不支持 tool_choice=required。取证首轮通过
+          // “隐藏 submit 工具 + auto + 无调用时继续催取证”实现，不发送不兼容参数。
+          tool_choice: toolChoice,
           max_tokens: this.config.maxTokens,
         };
-        if (this.config.provider === "deepseek" && this.reasoning) {
-          requestBody.reasoning_effort = this.reasoning;
-          requestBody.extra_body = { thinking: { type: "enabled" } };
-        }
+        const thinking = resolveDeepSeekThinkingConfig(this.config.provider, this.reasoning, options);
+        if (thinking.reasoningEffort) requestBody.reasoning_effort = thinking.reasoningEffort;
+        if (thinking.extraBody) requestBody.extra_body = thinking.extraBody;
         response = await Promise.race([
           this.client.chat.completions.create(requestBody as any, { timeout: requestBudgetMs, signal: controller.signal }),
           new Promise<never>((_, reject) => {
@@ -464,20 +504,15 @@ export class DeepSeekClient {
             }, requestBudgetMs);
           }),
         ]);
-        consecutiveRoundTimeouts = 0;
       } catch (error) {
         if (/timed?\s*out|timeout|abort/i.test(error instanceof Error ? `${error.name} ${error.message}` : String(error))) {
-          consecutiveRoundTimeouts += 1;
           lastSubmitError = `工具模式第 ${round + 1} 轮超时`;
-          // 单轮变慢不视为失败：有剩余预算时继续催提交，连续超时两次才退出工具环。
-          if (consecutiveRoundTimeouts < 2 && deadline - Date.now() > Math.min(30_000, this.config.requestTimeoutMs / 2)) {
-            messages.push({
-              role: "user",
-              content: `上一轮模型请求超时。不要因耗时放弃；请立即调用 ${submitName} 提交当前可核验结果；证据不足时明确登记 gap，禁止继续无节制扩展检索。`,
-            });
-            continue;
-          }
-          break;
+          // Never retry or fall through to direct JSON after a provider
+          // timeout: the timed-out request may already have been billed.
+          throw new Error(
+            `MODEL_TIMEOUT_NO_REPLAY: ${this.config.displayName} 第 ${round + 1} 轮超过硬时限 ${requestBudgetMs}ms；禁止自动重试或直接 JSON 补交`,
+            { cause: error },
+          );
         }
         throw error;
       } finally {
@@ -491,7 +526,13 @@ export class DeepSeekClient {
       messages.push(message);
       const calls: any[] = message.tool_calls || [];
       if (!calls.length) {
-        messages.push({ role: "user", content: `不要输出普通文本。请立即调用 ${submitName} 提交符合 schema 的 JSON。` });
+        const forceAcquisition = shouldForceEvidenceAcquisition(options, toolTrace);
+        messages.push({
+          role: "user",
+          content: forceAcquisition
+            ? "不要输出普通文本，也不要凭模型记忆生成事实。请先调用 search_public_web、fetch_public_pages 或适用的证据 MCP 取得可审计来源；若通道失败，也必须通过工具结果留痕。"
+            : `不要输出普通文本。请立即调用 ${submitName} 提交符合 schema 的 JSON。`,
+        });
         continue;
       }
 
@@ -753,19 +794,83 @@ async function enrichMcpResult(result: McpEvidenceQueryResult, citations: Citati
   };
 }
 
-async function searchPublicWeb(args: Record<string, unknown>, citations: Citation[]) {
+export async function searchPublicWeb(args: Record<string, unknown>, citations: Citation[]) {
   const queries = Array.isArray(args.queries) ? args.queries.map(String).filter(Boolean).slice(0, 4) : [];
   const limit = Math.min(Math.max(Number(args.limit_per_query || 5), 1), 8);
-  const groups = await Promise.all(queries.map(async (query) => {
-    const url = `https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`;
-    const response = await fetch(url, { headers: { "user-agent": "OntologyResearchWorkbench/1.0" }, signal: AbortSignal.timeout(15000) });
-    if (!response.ok) throw new Error(`公开检索失败 (${response.status})`);
-    const xml = await response.text();
-    const items = parseRss(xml)
-      .filter((item) => searchResultIsRelevant(query, item))
-      .slice(0, Math.min(limit, 5));
-    return Promise.all(items.map(async (item) => ({ ...item, query, ...(await retrieveSearchPage(item.url)) })));
-  }));
+  const groups: Array<Array<PublicSearchItem & Record<string, unknown>>> = [];
+  // Execute provider fallbacks per query instead of bursting four anonymous
+  // search requests at once. Public HTML endpoints rate-limit bursts much more
+  // aggressively than ordinary researcher-paced queries.
+  for (const query of queries) {
+    const resultLimit = Math.min(limit, 5);
+    let items: PublicSearchItem[] = [];
+    let backend = "bing_rss";
+    let bingFailure = "";
+    try {
+      const url = `https://www.bing.com/search?format=rss&q=${encodeURIComponent(query)}`;
+      const response = await fetch(url, {
+        headers: { "user-agent": "OntologyResearchWorkbench/1.0" },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const xml = await response.text();
+      items = parseRss(xml).filter((item) => searchResultIsRelevant(query, item)).slice(0, resultLimit);
+    } catch (error) {
+      bingFailure = error instanceof Error ? error.message : String(error);
+    }
+    // Bing RSS is intentionally retained as the cheap first path, but it
+    // frequently returns an empty feed for site-scoped evidence queries even
+    // when authoritative results exist. DuckDuckGo's public HTML endpoint is a
+    // deterministic search fallback, not a hand-seeded source catalogue.
+    if (!items.length) {
+      backend = "duckduckgo_html";
+      try {
+        const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url, {
+          headers: {
+            "user-agent": "Mozilla/5.0 (compatible; OntologyResearchWorkbench/1.0)",
+            "accept-language": "en-US,en;q=0.8",
+          },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const html = await response.text();
+        items = parseDuckDuckGoHtml(html)
+          .filter((item) => searchResultIsRelevant(query, item))
+          .slice(0, resultLimit);
+        if (!items.length) {
+          throw new Error(/anomaly\.js|challenge-form|bots use DuckDuckGo/i.test(html) ? "challenge" : "empty");
+        }
+      } catch (error) {
+        backend = "brave_html";
+        const url = `https://search.brave.com/search?q=${encodeURIComponent(query)}&source=web`;
+        const response = await fetch(url, {
+          headers: {
+            "user-agent": "Mozilla/5.0 (compatible; OntologyResearchWorkbench/1.0)",
+            "accept-language": "en-US,en;q=0.8",
+          },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (!response.ok) {
+          throw new Error(
+            `公开检索失败（Bing RSS: ${bingFailure || "empty"}；`
+            + `DuckDuckGo HTML: ${error instanceof Error ? error.message : String(error)}；`
+            + `Brave HTML: HTTP ${response.status}）`,
+          );
+        }
+        const html = await response.text();
+        items = parseBraveHtml(html)
+          .filter((item) => searchResultIsRelevant(query, item))
+          .slice(0, resultLimit);
+      }
+    }
+    groups.push(await Promise.all(items.map(async (item) => ({
+      ...item,
+      query,
+      search_backend: backend,
+      ...(await retrieveSearchPage(item.url)),
+    }))));
+  }
   const results = groups.flat();
   for (const result of results) citations.push({ url: result.url, title: result.title });
   return { results };
@@ -784,6 +889,7 @@ async function fetchPublicPages(args: Record<string, unknown>, citations: Citati
 const SEARCH_STOP_WORDS = new Set([
   "about", "after", "before", "current", "data", "evidence", "future", "latest", "market", "news",
   "official", "price", "report", "research", "trend", "update", "whether", "with", "year",
+  "site", "com", "earnings", "outlook", "risk",
   "截至", "未来", "是否", "形成", "可持续", "方向", "判断", "验证", "最新", "报告", "数据", "市场",
 ]);
 
@@ -800,8 +906,17 @@ function queryTokens(value: string) {
 
 export function searchResultIsRelevant(
   query: string,
-  result: { title?: string; summary?: string },
+  result: { title?: string; summary?: string; url?: string },
 ) {
+  const scopedHost = query.match(/\bsite:([a-z0-9.-]+)/i)?.[1]?.toLowerCase().replace(/^www\./, "");
+  if (scopedHost) {
+    try {
+      const resultHost = new URL(String(result.url || "")).hostname.toLowerCase().replace(/^www\./, "");
+      if (resultHost !== scopedHost && !resultHost.endsWith(`.${scopedHost}`)) return false;
+    } catch {
+      return false;
+    }
+  }
   const tokens = queryTokens(query);
   if (!tokens.length) return true;
   const haystack = `${result.title || ""} ${result.summary || ""}`.toLowerCase();
@@ -833,8 +948,15 @@ async function retrieveSearchPage(url: string) {
   }
 }
 
+type PublicSearchItem = {
+  title: string;
+  url: string;
+  summary: string;
+  published_at: string | null;
+};
+
 function parseRss(xml: string) {
-  const items: Array<{ title: string; url: string; summary: string; published_at: string | null }> = [];
+  const items: PublicSearchItem[] = [];
   for (const match of xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)) {
     const body = match[1];
     const title = xmlField(body, "title");
@@ -848,6 +970,83 @@ function parseRss(xml: string) {
     });
   }
   return items;
+}
+
+export function parseDuckDuckGoHtml(html: string): PublicSearchItem[] {
+  const items: PublicSearchItem[] = [];
+  for (const match of html.matchAll(
+    /<div[^>]+class=["'][^"']*\bresult\b[^"']*\bweb-result\b[^"']*["'][^>]*>([\s\S]*?)<div[^>]+class=["']clear["'][^>]*>\s*<\/div>/gi,
+  )) {
+    const body = match[1];
+    const anchor = body.match(/<a[^>]+class=["'][^"']*\bresult__a\b[^"']*["'][^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/i)
+      || body.match(/<a[^>]+href=["']([^"']+)["'][^>]+class=["'][^"']*\bresult__a\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+    if (!anchor) continue;
+    const url = decodeDuckDuckGoResultUrl(anchor[1]);
+    const title = htmlText(anchor[2]);
+    if (!url || !title) continue;
+    const snippet = body.match(/<a[^>]+class=["'][^"']*\bresult__snippet\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/i);
+    const published = body.match(/<span>\s*&nbsp;\s*&nbsp;\s*([^<]+)<\/span>/i);
+    items.push({
+      title,
+      url,
+      summary: htmlText(snippet?.[1] || ""),
+      published_at: htmlText(published?.[1] || "") || null,
+    });
+  }
+  return [...new Map(items.map((item) => [item.url, item])).values()];
+}
+
+export function parseBraveHtml(html: string): PublicSearchItem[] {
+  const anchors = [...html.matchAll(
+    /<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]+class=["'][^"']*\bl1\b[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi,
+  )];
+  const items: PublicSearchItem[] = [];
+  for (let index = 0; index < anchors.length; index += 1) {
+    const match = anchors[index];
+    const start = (match.index || 0) + match[0].length;
+    const end = anchors[index + 1]?.index ?? Math.min(html.length, start + 8_000);
+    const tail = html.slice(start, end);
+    const titleAttribute = match[2].match(/<div[^>]+class=["'][^"']*\btitle\b[^"']*["'][^>]+title=["']([^"']+)["']/i)?.[1];
+    const titleNode = match[2].match(/<div[^>]+class=["'][^"']*\btitle\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1];
+    const title = htmlText(titleAttribute || titleNode || "");
+    const url = decodeHtml(match[1]);
+    if (!title || !url) continue;
+    const summaryNode = tail.match(/<div[^>]+class=["'][^"']*\bcontent\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i)?.[1];
+    const summary = htmlText(summaryNode || "");
+    const dateText = summary.match(/^([A-Z][a-z]+ \d{1,2}, 20\d{2})\s*-\s*/)?.[1] || null;
+    items.push({ title, url, summary, published_at: dateText });
+  }
+  return [...new Map(items.map((item) => [item.url, item])).values()];
+}
+
+function decodeDuckDuckGoResultUrl(rawHref: string) {
+  const href = decodeHtml(rawHref);
+  try {
+    const parsed = new URL(href, "https://duckduckgo.com");
+    const target = parsed.hostname.endsWith("duckduckgo.com")
+      ? parsed.searchParams.get("uddg") || ""
+      : parsed.toString();
+    const resolved = new URL(target);
+    return resolved.protocol === "http:" || resolved.protocol === "https:" ? resolved.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function htmlText(value: string) {
+  return decodeHtml(value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal: string) => String.fromCodePoint(Number.parseInt(decimal, 10)));
 }
 
 function xmlField(body: string, tag: string) {

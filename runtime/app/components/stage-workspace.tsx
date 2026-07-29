@@ -37,9 +37,9 @@ import {
   researcherLanguage,
   researcherMarkdown,
 } from "@/app/lib/researcher-stage-output";
-import { formatJourneyOutput, journeyApproveLabel, journeyNextHref, researchStage } from "@/app/lib/research-journey";
+import { formatJourneyOutput, journeyReviewHref, researchStage } from "@/app/lib/research-journey";
 import { ReportMarkdown } from "@/app/components/report-markdown";
-import type { EvidenceSupplementSummary } from "@/engine/evidence_supplement_diff";
+import type { EvidenceSupplementSummary } from "@/engine/evidence_supplement_view";
 
 export type { ApprovedScopeSummary };
 
@@ -252,22 +252,19 @@ export function StageWorkspace({
     finally { setBusy(false); }
   }
 
-  async function approveAndContinue() {
-    if (!artifact) return;
-    setBusy(true);
+  async function saveScope() {
     setError("");
-    try {
-      const response = await fetch(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "确认失败");
-      router.push(journeyNextHref(runId, stage));
-      router.refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
+    await scopeFormRef.current?.save();
+  }
+
+  async function saveStructure() {
+    setError("");
+    await structureFormRef.current?.save();
+  }
+
+  async function saveJudgment() {
+    setError("");
+    await judgmentFormRef.current?.save();
   }
 
   async function saveJson() {
@@ -288,22 +285,7 @@ export function StageWorkspace({
     }
   }
 
-  async function saveScope() {
-    setError("");
-    await scopeFormRef.current?.save();
-  }
-
-  async function saveStructure() {
-    setError("");
-    await structureFormRef.current?.save();
-  }
-
-  async function saveJudgment() {
-    setError("");
-    await judgmentFormRef.current?.save();
-  }
-
-  async function confirmStage02() {
+  async function validateStructureBeforeReview() {
     if (!artifact) return;
     setBusy(true);
     setError("");
@@ -328,21 +310,7 @@ export function StageWorkspace({
         setError("确认前校验未通过：请审阅下方问题，采纳建议或返回修改。不可强制跳过。");
         return;
       }
-      const approved = await fetch(`/api/runs/${runId}/artifacts/${artifact.id}/approve`, { method: "POST" });
-      const approvedBody = await approved.json();
-      if (!approved.ok) {
-        if (approvedBody.validation) {
-          setValidation({
-            ok: false,
-            summary: approvedBody.validation.summary || "结构校验未通过",
-            issues: approvedBody.validation.issues || [],
-            suggested_patch: approvedBody.validation.suggested_patch || null,
-          });
-        }
-        throw new Error(approvedBody.error || "确认失败");
-      }
-      setValidation(null);
-      router.push(journeyNextHref(runId, stage));
+      router.push(journeyReviewHref(runId, 2));
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -417,12 +385,6 @@ export function StageWorkspace({
     || artifact.status !== "needs_review"
     || qualityStatus === "high_quality_pass"
     || needsClarification;
-  const canApprove = Boolean(
-    artifact
-    && artifact.status === "needs_review"
-    && !needsClarification
-    && densityReady,
-  );
   const canGenerate = unlocked && !busy && artifact?.status !== "running" && !jobInFlight && !needsClarification;
   const generateLabel = busy || artifact?.status === "running" || jobInFlight
     ? "模型正在工作…"
@@ -432,12 +394,12 @@ export function StageWorkspace({
         ? (stage === 3 ? "重新生成" : "生成新版本")
         : "生成本阶段 →";
   const generateClass = artifact ? "button-secondary" : "button";
-  const approveClass = canApprove ? "button" : "button-secondary";
-  const approveLabel = needsClarification
+  const reviewHref = journeyReviewHref(runId, stage);
+  const reviewCta = needsClarification
     ? "请先完成澄清"
     : !densityReady
-      ? "还不够完整，暂不能确认"
-      : journeyApproveLabel(stage);
+      ? "还不够完整，暂不能审阅确认"
+      : `去${journey?.navLabel || "本阶段"}页确认 →`;
 
   return <>
     <div className="workspace-toolbar">
@@ -449,10 +411,10 @@ export function StageWorkspace({
         {activeJob && (jobInFlight || activeJob.status === "waiting_for_input") ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/jobs/${activeJob.id}/cancel`, { method: "POST" })}>取消生成任务</button> : artifact?.status === "running" ? <button className="button-quiet" onClick={() => call(`/api/runs/${runId}/artifacts/${artifact.id}/cancel`, { method: "POST" })}>取消本次生成</button> : null}
         {stage === 1 ? <>
           <button className="button-secondary" disabled={!formEditable || needsClarification} onClick={saveScope}>{busy ? "正在保存…" : artifact ? "保存研究范围" : "建立研究范围"}</button>
-          {artifact?.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={approveAndContinue}>{approveLabel}</button> : null}
+          {artifact?.status === "needs_review" ? <Link className={densityReady && !needsClarification ? "button" : "button-secondary"} href={reviewHref}>{reviewCta}</Link> : null}
         </> : stage === 2 ? <>
           <button className="button-secondary" disabled={!formEditable} onClick={saveStructure}>{busy ? "正在保存…" : artifact ? "保存研究结构" : "建立研究结构"}</button>
-          {artifact?.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={confirmStage02}>{busy ? "正在校验…" : journeyApproveLabel(2)}</button> : null}
+          {artifact?.status === "needs_review" ? <button className={densityReady ? "button" : "button-secondary"} disabled={busy || !densityReady} onClick={validateStructureBeforeReview}>{busy ? "正在校验…" : "校验并去结构页确认 →"}</button> : null}
         </> : stage === 3 ? <>
           {!artifact ? (
             <button
@@ -481,6 +443,7 @@ export function StageWorkspace({
               >
                 重新生成整包证据
               </button>
+              <Link className="button" href={reviewHref}>打开证据审阅 →</Link>
             </>
           )}
           {artifact?.status === "failed" ? (
@@ -502,11 +465,11 @@ export function StageWorkspace({
         </> : stage === 4 ? <>
           <button className="button-secondary" disabled={!formEditable || !judgmentProjection} onClick={saveJudgment}>{busy ? "正在保存…" : "保存推理逻辑"}</button>
           {artifact?.status === "needs_review" ? (
-            <button className={approveClass} disabled={busy || !canApprove} onClick={approveAndContinue}>{journeyApproveLabel(4)}</button>
+            <Link className={densityReady ? "button" : "button-secondary"} href={reviewHref}>{reviewCta}</Link>
           ) : null}
         </> : artifact && artifact.status !== "failed" ? <>
           <button className="button-secondary" disabled={busy} onClick={saveMarkdown}>保存可读稿</button>
-          {artifact.status === "needs_review" ? <button className={approveClass} disabled={busy || !canApprove} onClick={approveAndContinue}>{approveLabel}</button> : null}
+          {artifact.status === "needs_review" ? <Link className={densityReady ? "button" : "button-secondary"} href={reviewHref}>{reviewCta}</Link> : null}
         </> : null}
         {stage === 4 && artifact?.status === "failed" ? (
           <details className="toolbar-more">
@@ -913,14 +876,14 @@ export function StageWorkspace({
 }
 
 function prevStageHref(runId: string, stage: number) {
-  if (stage <= 2) return `/runs/${runId}/stages/1`;
-  if (stage === 3) return `/runs/${runId}/structure`;
-  if (stage === 4) return `/runs/${runId}/evidence`;
-  return `/runs/${runId}/judgments`;
+  if (stage <= 2) return journeyReviewHref(runId, 1);
+  if (stage === 3) return journeyReviewHref(runId, 2);
+  if (stage === 4) return journeyReviewHref(runId, 3);
+  return journeyReviewHref(runId, 4);
 }
 
 function jobRecoveryHref(runId: string, stage: number, status: string) {
-  if (status === "waiting_for_input" && stage === 3) return `/runs/${runId}/evidence`;
-  if (status === "waiting_for_input" && stage >= 4) return `/runs/${runId}/stages/${stage - 1}`;
+  if (status === "waiting_for_input" && stage === 3) return journeyReviewHref(runId, 3);
+  if (status === "waiting_for_input" && stage >= 4) return journeyReviewHref(runId, stage - 1);
   return `/runs/${runId}/stages/${stage}`;
 }

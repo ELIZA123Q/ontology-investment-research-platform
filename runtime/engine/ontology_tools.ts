@@ -35,14 +35,10 @@ import {
   type ObjectSetQuery,
 } from "./instance_graph";
 import { parseJson, type StoredActionExecution } from "./types";
+import { ONTOLOGY_MODEL_FILES } from "./ontology_catalog";
 
 export const ONTOLOGY_PROMPT_SOURCE_FILES = [
-  "ontology/01_通用/models/semantic.yaml",
-  "ontology/01_通用/models/judgment.yaml",
-  "ontology/01_通用/models/evidence.yaml",
-  "ontology/01_通用/models/state_event.yaml",
-  "ontology/01_通用/models/scenario.yaml",
-  "ontology/01_通用/models/semiconductor_extension.yaml",
+  ...ONTOLOGY_MODEL_FILES.map((file) => `ontology/01_通用/models/${file}`),
   "ontology/02_领域/semiconductor/business_instances.yaml",
 ] as const;
 

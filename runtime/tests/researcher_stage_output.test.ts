@@ -3,6 +3,9 @@ import {
   buildJudgmentStageSummary,
   buildScopeStageSummary,
   buildStructureStageSummary,
+  buildScopeResearcherView,
+  buildJudgmentResearcherView,
+  buildEvidenceReadinessView,
   formatResearchDate,
   prepareReaderReportMarkdown,
   researcherLanguage,
@@ -134,6 +137,12 @@ describe("researcher stage output", () => {
       .toBe("仅形成两个历史营收同比方向观察");
     expect(researcherLanguage("增速比较（C-3，由 C-1 与 C-2 推导）"))
       .toBe("增速比较（由上述两项数据计算）");
+    expect(researcherLanguage("evidence_scope_time_alignment：通过"))
+      .toBe("证据范围与时间一致性：通过");
+    expect(researcherLanguage("judgment_evidence_threshold 与 judgment_status_consistency"))
+      .toBe("判断证据门槛 与 判断强度与状态一致性");
+    expect(researcherLanguage("已批准事实支持 J-CONTROLLED-01"))
+      .toBe("已确认事实支持 判断");
   });
 
   it("preserves markdown structure while translating each readable line", () => {
@@ -179,5 +188,44 @@ describe("researcher stage output", () => {
     expect(rendered).toContain("库存回升则改判");
     expect(rendered).toContain("参照 来源 和 计算结果，维持方向观察");
     expect(rendered).not.toMatch(/EX-01|J-01|MA-01|EV-01|SRC-|C-01/);
+  });
+
+  it("builds a researcher view with proceed state for scope and judgments", () => {
+    const scope = buildScopeResearcherView({
+      normalized_question: "库存是否改善？",
+      core_object: "DRAM",
+      judgment_action: "判断方向",
+      time_scope: { lookback: "12m", as_of: "2026-07", forward: "6m" },
+      boundaries: ["全球"],
+      exclusions: ["个股"],
+      known_facts: ["价格已回升"],
+    }, { artifactStatus: "needs_review" });
+    expect(scope.outputCount).toBe(1);
+    expect(scope.proceed.canProceed).toBe(true);
+    expect(scope.sections.find((item) => item.id === "boundaries")?.items).toEqual(["全球"]);
+
+    const readiness = buildEvidenceReadinessView({
+      evidence_drafts: [
+        { id: "EV-1", kind: "fact_draft" },
+        { id: "GAP-1", kind: "gap" },
+      ],
+    });
+    expect(readiness.factCount).toBe(1);
+    expect(readiness.gapCount).toBe(1);
+    expect(readiness.note).toContain("不等于判断强度");
+
+    const judgments = buildJudgmentResearcherView({
+      judgments: [{
+        id: "J-1",
+        title: "库存",
+        conclusion: "改善中",
+        strength: "J1",
+        decision_status: "supported",
+        supporting_evidence_draft_ids: ["EV-1"],
+        invalidation_conditions: ["库存回升"],
+      }],
+    }, [{ id: "EV-1", statement: "库存环比下降" }], { artifactStatus: "needs_review", pendingCount: 1 });
+    expect(judgments.proceed.canProceed).toBe(false);
+    expect(judgments.proceed.blockingReasons[0]).toContain("待人工确认");
   });
 });

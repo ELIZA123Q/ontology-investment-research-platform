@@ -54,6 +54,128 @@ function uniquePreserveOrder(values: string[]): string[] {
   return out;
 }
 
+export function selectEvidenceSnapshotExcerpt(input: {
+  snapshotText: string;
+  title?: string;
+  requirements?: EvidenceRequirementProjection[];
+  maxChars?: number;
+}) {
+  const text = String(input.snapshotText || "");
+  const maxChars = Math.max(400, Math.min(8_000, Math.floor(input.maxChars || 2_400)));
+  if (text.length <= maxChars) return text;
+  const stop = new Set([
+    "about", "after", "before", "company", "global", "industry", "latest", "market",
+    "news", "report", "reports", "research", "results", "technology", "with",
+  ]);
+  const titleTokens = (String(input.title || "").toLowerCase().match(/[a-z][a-z0-9-]{3,}/g) || [])
+    .filter((token) => !stop.has(token));
+  const requirementText = (input.requirements || []).map((item) => item.requirement).join(" ");
+  const mappedFocus = ([
+    [/库存/i, "inventory"],
+    [/价格|报价|涨价|跌幅/i, "price"],
+    [/合约/i, "contract"],
+    [/需求|出货|部署|订单/i, "demand"],
+    [/供给|产能|投片|产出/i, "supply"],
+    [/良率/i, "yield"],
+    [/封装/i, "packaging"],
+    [/客户/i, "customer"],
+    [/企业级/i, "enterprise"],
+    [/消费级|手机|PC|笔记本/i, "consumer"],
+    [/HBM/i, "hbm"],
+    [/DRAM/i, "dram"],
+    [/NAND/i, "nand"],
+    [/SSD/i, "ssd"],
+    [/UFS/i, "ufs"],
+    [/手机/i, "smartphone"],
+    [/PC|笔记本/i, "pc"],
+  ] as Array<[RegExp, string]>).flatMap(([pattern, token]) => pattern.test(requirementText) ? [token] : []);
+  const focusTokens = uniquePreserveOrder([
+    ...titleTokens,
+    ...mappedFocus,
+    "inventory", "price", "pricing", "contract", "demand", "supply", "capacity",
+    "shipment", "shipments", "revenue", "yield", "quarter",
+  ]);
+  const bodyAnchors = [
+    /Last Modified\s+20\d{2}-\d{2}-\d{2}/i,
+    /Press Release PDF Version/i,
+    /Samsung Electronics,\s+a global/i,
+    /Press Center Home Press Center/i,
+    /\bBOISE,\s+Idaho\b/i,
+  ].flatMap((pattern) => {
+    const match = pattern.exec(text);
+    return match?.index === undefined ? [] : [match.index];
+  });
+  const bodyStart = bodyAnchors.length ? Math.min(...bodyAnchors) : 0;
+  const bodyEndCandidates = [
+    /\bSpotlight Report\b/i,
+    /\bPress Resources Press Releases Products\b/i,
+  ].flatMap((pattern) => {
+    const match = pattern.exec(text.slice(bodyStart + 200));
+    return match?.index === undefined ? [] : [bodyStart + 200 + match.index];
+  });
+  const bodyEnd = bodyEndCandidates.length ? Math.min(...bodyEndCandidates) : text.length;
+  const stride = Math.max(300, Math.floor(maxChars / 4));
+  let bestStart = bodyStart;
+  let bestScore = Number.NEGATIVE_INFINITY;
+  for (let start = bodyStart; start < bodyEnd; start += stride) {
+    const window = text.slice(start, Math.min(start + maxChars, bodyEnd));
+    const haystack = window.toLowerCase();
+    let score = 0;
+    for (const token of focusTokens) {
+      const weight = mappedFocus.includes(token) ? 4 : titleTokens.includes(token) ? 3 : 1;
+      const count = haystack.split(token).length - 1;
+      score += Math.min(count, 5) * weight;
+    }
+    if (/key highlights|business outlook|news summary|reported|announced|quarterly|q[1-4]\s*20\d{2}/i.test(window)) score += 8;
+    if (/\b(?:revenue|shipments?|inventory|contract price|capacity|yield)\b.{0,80}(?:%|billion|million|quarter|year-over-year)/i.test(window)) {
+      score += 12;
+    }
+    const navigationMarkers = [
+      /popular keywords/i,
+      /shopping list/i,
+      /view cart/i,
+      /sign in/i,
+      /main navigation/i,
+      /skip to main navigation/i,
+      /part number look up/i,
+      /power calculators/i,
+      /firmware downloads/i,
+      /software\s*&\s*drivers/i,
+      /selected topics membership/i,
+      /customer support page/i,
+      /media inquiries/i,
+      /\bsitemap\b/i,
+      /download files/i,
+      /copied to clipboard/i,
+      /copyright©/i,
+    ];
+    score -= navigationMarkers.filter((pattern) => pattern.test(window)).length * 16;
+    // Later windows win ties so a repeated page title after navigation is
+    // preferred over the <title>/menu copy at the top of the snapshot.
+    if (score >= bestScore) {
+      bestScore = score;
+      bestStart = start;
+    }
+  }
+  // Sliding windows can land halfway through the first useful sentence when a
+  // long navigation block precedes the article. If a nearby article-body
+  // marker exists, backtrack to it so the quote candidate remains continuous
+  // and intelligible rather than returning only the tail of the evidence.
+  const anchorSearchStart = Math.max(0, bestStart - maxChars);
+  const anchorContext = text.slice(anchorSearchStart, bestStart + Math.min(400, maxChars));
+  const anchors = [...anchorContext.matchAll(
+    /key highlights|business outlook|news summary|press release|financial results|reported|announced/gi,
+  )];
+  const lastAnchor = anchors.at(-1);
+  if (lastAnchor?.index !== undefined) {
+    const anchoredStart = anchorSearchStart + lastAnchor.index;
+    if (Math.abs(bestStart - anchoredStart) <= maxChars / 2) {
+      bestStart = anchoredStart;
+    }
+  }
+  return text.slice(bestStart, Math.min(bestStart + maxChars, bodyEnd));
+}
+
 export function evidenceFingerprint(draft: EvidenceDraftLike): string {
   return createHash("sha256").update(JSON.stringify({
     statement: draft.statement,
@@ -422,7 +544,12 @@ export function buildSupplementBrief(input: {
     .filter((source) => !isUsableSource(source))
     .map((source) => {
       const snapshot = String(source.snapshot_text || "");
-      const excerpt = snapshot.slice(0, 1200);
+      const excerpt = selectEvidenceSnapshotExcerpt({
+        snapshotText: snapshot,
+        title: source.title,
+        requirements: input.requirements,
+        maxChars: 2_400,
+      });
       return {
         id: source.id,
         source_key: sourceKeyById.get(source.id) || sourceKeyByUrl.get(source.url) || null,

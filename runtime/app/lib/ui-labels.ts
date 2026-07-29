@@ -1,5 +1,7 @@
 /** 研究员可见文案：内部枚举/代号 → 中文。 */
 
+import { journeyJobHref } from "@/app/lib/research-journey";
+
 export function stageLabel(stage: string | number): string {
   const key = typeof stage === "number" ? `stage_0${stage}` : stage;
   return (
@@ -109,11 +111,8 @@ export function researchJobIssueMessage(value: unknown): string {
   return raw;
 }
 
-export function researchJobRecoveryHref(runId: string, stage: string | number): string {
-  const number = typeof stage === "number"
-    ? stage
-    : Number(String(stage).match(/0?([1-5])$/)?.[1] || 1);
-  return `/runs/${runId}/stages/${Math.min(5, Math.max(1, number))}`;
+export function researchJobRecoveryHref(runId: string, stage: string | number, jobStatus?: string | null): string {
+  return journeyJobHref(runId, stage, jobStatus);
 }
 
 export function latestJobPerRun<T extends { run_id: string; updated_at: string }>(jobs: T[]): T[] {
@@ -187,6 +186,7 @@ export function actionLabel(actionId: string): string {
       AssessEvidenceForUse: "评估证据是否可用",
       FormJudgment: "形成判断",
       RecordReasoningTrace: "记录推理过程",
+      LinkOntologyObjects: "建立本体关系",
       UpdateTrackingSignal: "更新跟踪信号",
       InvalidateJudgment: "标记判断失效",
     } as Record<string, string>

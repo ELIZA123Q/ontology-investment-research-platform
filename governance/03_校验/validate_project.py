@@ -27,6 +27,7 @@ CHECKS = (
     ("02—05 规范模板负向回归", [sys.executable, "governance/03_校验/tests/test_stage_assets.py"]),
     ("包类型识别负向回归", [sys.executable, "governance/03_校验/tests/test_package_kind.py"]),
     ("工作台导出包负向回归", [sys.executable, "governance/03_校验/tests/test_workbench_package.py"]),
+    ("正式包语义基线负向回归", [sys.executable, "governance/03_校验/tests/test_semantic_baseline.py"]),
     (
         "真实工作台链冻结回归",
         [

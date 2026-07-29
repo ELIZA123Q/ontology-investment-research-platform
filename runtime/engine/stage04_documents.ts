@@ -1,6 +1,7 @@
 /** Stage04 双产物（判断简报.md + 推理审计.yaml）与确认门禁。 */
 
 import YAML from "yaml";
+import { projectClaimsFromJudgments } from "./artifact_read_adapter";
 import {
   applyHighQualityGate,
   bodyMeetsMinDensity,
@@ -99,13 +100,16 @@ export function ensureStage04DocumentFields(
   const levels = judgments.map((item: any) => String(item?.strength || "J0"));
   const maxLevel = ["J4", "J3", "J2", "J1", "J0"].find((level) => levels.includes(level)) || "J0";
 
+  // Public Contract Claim (C-nn)：始终由 judgments 投影，避免与 judgment id 混用。
+  next.claims = projectClaimsFromJudgments(judgments);
+
   next.stage_status = nonEmpty(next.stage_status, "complete");
   next.quality_gate_ref = nonEmpty(next.quality_gate_ref, STAGE04_QUALITY_GATE_REF);
   next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
   next.semantic_review_status = nonEmpty(next.semantic_review_status, "not_reviewed");
   next.confidence = nonEmpty(next.confidence, primary?.confidence || "low");
   next.judgment_level = nonEmpty(next.judgment_level, maxLevel);
-  next.primary_claim_id = nonEmpty(next.primary_claim_id, primary?.id || "J-PRIMARY");
+  next.primary_claim_id = nonEmpty(next.primary_claim_id, next.claims[0]?.id || primary?.id || "C-01");
   next.audit_ref = nonEmpty(next.audit_ref, "04-推理审计.yaml");
   next.brief_ref = nonEmpty(next.brief_ref, "04-判断简报.md");
   next.brief_quality_check_result = nonEmpty(next.brief_quality_check_result, "pass");
@@ -308,6 +312,49 @@ export function collectStage04ConsistencyIssues(data: any): Stage04ConsistencyIs
     }
   }
   const jsonIds = new Set(asList((data?.judgments || []).map((item: any) => item?.id)));
+  const levelRank: Record<string, number> = { J0: 0, J1: 1, J2: 2, J3: 3, J4: 4 };
+  const judgments = Array.isArray(data?.judgments) ? data.judgments : [];
+  const actualMaxLevel = ["J4", "J3", "J2", "J1", "J0"]
+    .find((level) => judgments.some((item: any) => String(item?.strength || item?.level || "J0") === level)) || "J0";
+  if (nonEmpty(data?.judgment_level) !== actualMaxLevel) {
+    issues.push({
+      severity: "error",
+      code: "judgment_level_mismatch",
+      message: `顶层 judgment_level=${nonEmpty(data?.judgment_level)} 与 Judgment 实际上限 ${actualMaxLevel} 不一致`,
+    });
+  }
+  const permissionLevel = nonEmpty(data?.expression_permission?.max_expression_level, "J0");
+  if ((levelRank[permissionLevel] ?? 99) > (levelRank[actualMaxLevel] ?? 0)) {
+    issues.push({
+      severity: "error",
+      code: "expression_level_overreach",
+      message: `05 表达上限 ${permissionLevel} 超过已裁决 Judgment 上限 ${actualMaxLevel}`,
+    });
+  }
+  const nonJ0Ids = new Set(judgments
+    .filter((item: any) => String(item?.strength || item?.level || "J0") !== "J0")
+    .map((item: any) => String(item.id)));
+  const j0Ids = new Set(judgments
+    .filter((item: any) => String(item?.strength || item?.level || "J0") === "J0")
+    .map((item: any) => String(item.id)));
+  const invalidAllowed = asList(data?.expression_permission?.allowed_core_claims)
+    .filter((id) => !nonJ0Ids.has(id));
+  if (invalidAllowed.length) {
+    issues.push({
+      severity: "error",
+      code: "allowed_claim_not_authorized",
+      message: `allowed_core_claims 必须引用非 J0 Judgment ID，当前非法项：${invalidAllowed.join("、")}`,
+    });
+  }
+  const invalidRestricted = asList(data?.expression_permission?.restricted_claims)
+    .filter((id) => !j0Ids.has(id));
+  if (invalidRestricted.length) {
+    issues.push({
+      severity: "error",
+      code: "restricted_claim_not_j0",
+      message: `restricted_claims 必须引用 J0 Judgment ID，当前非法项：${invalidRestricted.join("、")}`,
+    });
+  }
   if (parsed?.judgment_unit_gate_results) {
     const auditIds = new Set(asList(parsed.judgment_unit_gate_results.map((item: any) => item?.judgment_id)));
     for (const id of jsonIds) {
@@ -319,6 +366,28 @@ export function collectStage04ConsistencyIssues(data: any): Stage04ConsistencyIs
         });
       }
     }
+    const strengthById = new Map(judgments.map((item: any) => [
+      String(item.id),
+      String(item.strength || item.level || "J0"),
+    ]));
+    for (const item of parsed.judgment_unit_gate_results) {
+      const id = String(item?.judgment_id || "");
+      if (strengthById.has(id) && String(item?.strength || "") !== strengthById.get(id)) {
+        issues.push({
+          severity: "error",
+          code: "audit_strength_mismatch",
+          message: `推理审计中的 ${id} 强度与正式 Judgment 不一致`,
+        });
+      }
+    }
+  }
+  if (parsed?.overall_judgment?.judgment_level
+    && String(parsed.overall_judgment.judgment_level) !== actualMaxLevel) {
+    issues.push({
+      severity: "error",
+      code: "audit_overall_level_mismatch",
+      message: `推理审计总强度 ${parsed.overall_judgment.judgment_level} 与 Judgment 实际上限 ${actualMaxLevel} 不一致`,
+    });
   }
   if (String(data?.brief_quality_check_result) !== "pass") {
     issues.push({ severity: "error", code: "brief_quality", message: "brief_quality_check_result 必须为 pass" });

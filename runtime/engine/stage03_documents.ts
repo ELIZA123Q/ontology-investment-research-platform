@@ -537,6 +537,15 @@ export function recomputeStage03EvidenceQualityGate(
     next.evidence_readiness = "ready";
     next.delivery_readiness = "ready";
     next.allowed_05_output = "full_report";
+    next.return_required = false;
+    // 证据门按当前 Registry 重算通过后，再以完整 HQ 合同闭环校验。
+    // 不能让历史 minimum_pass 缓存永久压住真实高质量证据，也不能仅凭
+    // 条数直接升级。
+    ensureEvidenceCompressionFields(next, structure);
+    next.quality_status = "high_quality_pass";
+    next.deterministic_check_status = "checked";
+    const highQualityIssues = collectStage03HighQualityIssues(next);
+    if (highQualityIssues.length) downgradeIfHighQualityFails(next, highQualityIssues);
   }
   return next;
 }

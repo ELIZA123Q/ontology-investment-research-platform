@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { latestJobPerRun, researchJobStatusLabel, stageLabel } from "@/app/lib/ui-labels";
+import { journeyJobHref } from "@/app/lib/research-journey";
 
 type ActiveJob = {
   id: string;
@@ -15,18 +16,10 @@ type ActiveJob = {
   question?: string;
 };
 
-function stageHref(runId: string, stage: string) {
-  if (stage === "stage_01") return `/runs/${runId}/stages/1`;
-  if (stage === "stage_02") return `/runs/${runId}/structure`;
-  if (stage === "stage_03") return `/runs/${runId}/evidence`;
-  if (stage === "stage_04") return `/runs/${runId}/judgments`;
-  if (stage === "stage_05") return `/runs/${runId}/report`;
-  return `/runs/${runId}`;
-}
-
 export function ActiveJobsIndicator() {
   const [jobs, setJobs] = useState<ActiveJob[]>([]);
   const [open, setOpen] = useState(false);
+  const menuId = useId();
 
   useEffect(() => {
     let cancelled = false;
@@ -71,17 +64,20 @@ export function ActiveJobsIndicator() {
         className="system-state is-busy"
         onClick={() => setOpen((value) => !value)}
         title="查看后台研究任务"
+        aria-expanded={open}
+        aria-controls={menuId}
       >
         <span className="busy-dot" aria-hidden="true" />
-        {label}
+        <span className="system-state-label">{label}</span>
       </button>
       {open ? (
-        <div className="system-state-dropdown" role="menu">
+        <div id={menuId} className="system-state-dropdown" role="menu">
           {jobs.map((job) => (
             <Link
               key={job.id}
-              href={stageHref(job.run_id, job.stage)}
+              href={journeyJobHref(job.run_id, job.stage, job.status)}
               className="system-state-item"
+              role="menuitem"
               onClick={() => setOpen(false)}
             >
               <strong>{job.question || job.run_id.slice(0, 8)}</strong>

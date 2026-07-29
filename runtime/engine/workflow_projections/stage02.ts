@@ -22,6 +22,7 @@ import { loadKnowledge } from "../knowledge";
 import { createResearchModelClient } from "../../adapters/deepseek";
 import { promptFor, PROMPT_VERSION } from "../prompts";
 import { schemas, type SchemaKind } from "../schemas";
+import { ONTOLOGY_JUDGMENT_TYPES } from "../ontology_vocabulary.generated";
 import { ontologyContextForPrompt } from "../ontology_tools";
 import { emptyGraph, loadDomainBusinessGraph, loadGraphForRun, markReachableDownstreamStale, materializeStageIntoGraph } from "../instance_graph";
 import {
@@ -165,10 +166,7 @@ export function createControlledStructureProjection(runId: string, raw: Controll
     input.scope_label || previous.research_scope?.label || derivedScopeLabel || "",
   ).trim();
   if (!scopeLabel) throw new Error("无法从 Stage01 推导研究范围标签；请先确认阶段 01");
-  const allowedTypes = new Set([
-    "state_measurement", "trend_direction", "cycle_phase", "mechanism_validation", "causal_attribution",
-    "transmission_path", "object_differentiation", "impact_realization", "expectation_gap", "valuation_impact",
-  ]);
+  const allowedTypes = new Set<string>(ONTOLOGY_JUDGMENT_TYPES);
   const scopeId = String(previous.research_scope?.id || "SCOPE-CONTROLLED");
   const seen = new Set<string>();
   const units = input.units.map((unit, index) => {

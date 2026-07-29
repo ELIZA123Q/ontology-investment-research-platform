@@ -275,6 +275,19 @@ def _validate_expression_audit(
     if edge_check.get("result") != "pass":
         fail("research_edge_check.result 必须为 pass")
 
+    # 研究价值硬门（与 Runtime research_value_review 对齐）：若审计携带该字段则必须 pass。
+    research_value = audit.get("research_value_review")
+    if isinstance(research_value, dict):
+        if str(research_value.get("status") or "") != "pass":
+            fail("research_value_review.status 必须为 pass（研究价值硬门）")
+        total = research_value.get("total_score")
+        threshold = research_value.get("pass_threshold", 16)
+        if isinstance(total, (int, float)) and isinstance(threshold, (int, float)) and total < threshold:
+            fail(f"research_value_review.total_score={total} < pass_threshold={threshold}")
+        quality = str(metadata.get("quality_status") or "")
+        if quality == "return_required":
+            fail("quality_status=return_required 时不得发布（研究价值或上游门禁失败）")
+
     source_metadata = source_audit.get("metadata", {})
     if not same_ref(metadata["source_04_brief_ref"], source_metadata.get("brief_ref")):
         fail("05 audit.metadata.source_04_brief_ref 必须与 04 审计 brief_ref 一致")

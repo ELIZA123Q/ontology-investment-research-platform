@@ -39,22 +39,28 @@ npm run open
 npm run typecheck
 npm test
 npm run build
+npm run ontology:check   # 正式枚举投影是否漂移
+npm run ontology:audit   # 模型入口、外部映射与关键语义读取是否仍为单一来源
+npm run ontology:impact  # 对比 Git HEAD，列出语义变更的下游消费面与必跑回归
 ```
 
 ## 你需要知道的边界
 
 - 正式支持半导体；其他领域会提示知识覆盖不足。
 - 搜索结果只是线索，不会因模型返回 citation 就写成正式来源；Runtime 会抓取正文、计算正文 SHA-256 并校验逐字引用定位，失败的来源不得冒充可用证据。
-- **证据主路径（日常）**：抓取公开 URL → 挂到判断单元并生成事实草稿 → 在证据审阅页批准。Stage03 模型生成/补证可走一手 MCP（巨潮 cninfo、通联财务、中央政策），失败回退 Bing/公开网页；Object Set Action 仍为进阶入口。
-- **MCP 在工作台内怎么用**：worker 跑 Stage03 时通过 `mcp_evidence.ts` 调用已配置的 MCP（读 `MCP_CONFIG_PATH` 或 `~/.workbuddy/mcp.json`）。MCP 返回的是线索/摘录，写正式 `source_quote` 前仍须 `fetch_public_pages` 或可核验原文。B03 里尚未接入 Runtime 的通道仍可给外部 Agent 用。
+- **证据主路径（日常）**：抓取公开 URL → 挂到判断单元并生成事实草稿 → 在证据审阅页批准。Stage03 模型生成/补证可走 18 个已接入 MCP 通道，失败时按通道回退提示转向可核验原文或公开网页；Object Set Action 仍为进阶入口。
+- **MCP 在工作台内怎么用**：worker 跑 Stage03 时通过 `mcp_evidence.ts` 调用已配置的 MCP（读 `MCP_CONFIG_PATH` 或 `~/.workbuddy/mcp.json`）。MCP 返回的是线索/摘录，写正式 `source_quote` 前仍须 `fetch_public_pages` 或可核验原文。`EVIDENCE_MCP_CHANNELS`、映射注册表 `required_connectors` 与 active Profile 必须 18/18/18 完全一致。
 - Stage04、05、同证据基线、父子差异和导出包只使用已获批 Stage03 `evidence_drafts.source_ids` 实际绑定的来源；雷达线索、检索候选和失败抓取仅保留审计。
-- 运行记录是事实来源；Markdown 是可编辑展示层。
+- Stage02—04 的唯一当前语义权威是已提交的 `instance_graph`；阶段 JSON 是带产物指纹的不可变历史快照/编辑投影，Markdown 是展示层。现代正式图与阶段快照指纹不一致时读取会被拒绝。
+- 全部 18 个 Stage03 通道的返回值都通过 `ontology_data_mapping_profiles.yaml` 声明版本化字段血缘与目标本体对象；连接器返回最多形成 SourceDocument、Observation 或 Event 候选，不能直接生成 EvidenceFact、Signal 或 Judgment。
 - 新建运行维护 `run_manifest` 1.3.0 摘要；既有 1.2.0 本机运行只读兼容。确认阶段产物时写入 attempt/hash。
 - **包类型不要混用**：`instances/02_V3样例` 是 `semantic_fixture` 语义验收基线（`validate_v3_samples.py`）；工作台正式交付走 `formal_pack`（交付台「导出正式发布包」→ `instances/00_本机运行/formal/...` + `validate_run.py`）；紧凑投影 `workbench_export` 仅作内部回归（`validate_workbench_package.py`）。
-- **方法选择与规则应用发生在此**：`runtime/` 编排 01—05、检索并绑定 `methods/` 中的方法。Runtime 3.0 对每个新判断确定性重算并挡门权威表中 9 条 `execution_surface=runtime_semantic_execution` 规则，包括状态时间、代理披露、认证阶段、产能/良率口径和判断引用完整性；关系端点兼容 `semantic_endpoint_compatibility` 由实例图物化时的 `validateRuntimeGraph` 执行。A01/A02/A03 门槛以 `runtime_supported_profile.yaml#executable_method_profile` 为唯一权威。
-- **方法正文注入（生成质量）**：主生成与 Stage03 补证都会注入 `selected_method_guidance`（每方法约 12k、合计约 72k 字符）。Stage02 优先本题路由 default 方法正文；Stage03 只喂 kb03，Stage04 只喂 kb04（含 A00）；长框架按章节摘录保留停止/边界段。01–04 另注入 `00A_runtime_quality_card`；Stage02/03 默认注入附录2（缺口矩阵 / 取数留痕）。
+- **方法选择与规则应用发生在此**：`runtime/` 编排 01—05、检索并绑定 `methods/` 中的方法。Runtime 3.0 对每个新判断确定性重算并挡门权威表中 **13** 条 `execution_surface=runtime_semantic_execution` 规则（含状态时间、代理披露、认证阶段、产能/良率口径、判断引用完整性，以及价值链传导/估值挂钩/风险阻断等公理）；关系端点兼容 `semantic_endpoint_compatibility` 由实例图物化时的 `validateRuntimeGraph` 执行（正式规则合计 **14**）。A01/A02/A03 门槛以 `runtime_supported_profile.yaml#executable_method_profile` 为唯一权威。数字以 `governance/02_合同/rule_authority_registry.yaml` 与 `REQUIRED_RULES` 为准，见 `governance/04_路线图/2026-07-28_本体支撑约束再评估与优化账本.md`。
+- **方法正文注入（生成质量）**：主生成与 Stage03 补证都会注入 `selected_method_guidance`（预算与 `CONTEXT_SLOT_BUDGETS.method_guidance` 单源，默认 56k）。Stage02 优先本题路由结构方法正文；Stage03 只喂 kb03，Stage04 只喂 kb04（含 A00）；同一 method_id/内容哈希去重。A01–A09/A10 不进 knowledge 白名单。01–04 另注入 `00A_runtime_quality_card`。
+- **治理指纹**：产物 `knowledge_version` 列为兼容别名，内容为组合 `governance_version`（knowledge 源/注入 + ontology 切片 + method guidance）。`input_context.context_assembly` 含 `file_injections` 与三库明细。
 - **质量假绿防护**：生成后不得无条件盖 `deterministic_check_status=checked`；`research_value_review` 失败或 Stage03 `evidence_quality_gate` 未通过时，禁止 `forceHighQualityTarget` 冲回 `high_quality_pass`。证据门失败写入 `return_required` 并进入确认断言；Stage03 **确认时重算**证据门（含逐 JU 独立性/反证需求）。`mcp_channel_usage` 只记录获取通道，不充当证据等级：公司 IR、监管/政府官网等公开原文经正文 hash 与逐字引用核验后可以是一手证据。独立审阅 `pass` 必须附带五项 `semantic_checks`；正式包禁止把批量 verdict 映射成五项同结果。回归见 `tests/quality_enforcement.test.ts`、`tests/round4_quality_drains.test.ts`。
-- **Stage03 分批取证**：默认每批处理 2 个 JudgmentUnit、最多 4 批；单元更多时自动并批而不截断。批次使用隔离的 SRC/EV 命名空间，禁止跨批删除或覆盖；每批只替换自身缺口，最终按当前 EvidenceDraft 重算覆盖、summaries、bundles、readiness 与 05 输出上限。余额/鉴权/租约/全局合同错误会立即终止剩余批次，避免已知失败下继续调用。
+- **Stage03 分批取证**：默认每批处理 2 个 JudgmentUnit、最多 4 批；单元更多时自动并批而不截断。批次使用隔离的 SRC/EV 命名空间，禁止跨批删除或覆盖；每批只替换自身缺口，最终按当前 EvidenceDraft 重算覆盖、summaries、bundles、readiness 与 05 输出上限。余额/鉴权/租约/全局合同错误会立即终止剩余批次，避免已知失败下继续调用。系统失败写入 `failure_step` 且 `research_complete=false`，不得伪装为研究完成。
+- **全缺口快路径**：Stage03 全 gap / `gap_report_only` 时 Stage04 自动确定性 J0（不调模型）；Stage05 不得把缺口包装为完整研报或方向性洞见。
 - **中间长文保留**：Stage02/03/04 的 `sync*ReadableMarkdown` 在模型稿已达可审阅密度时保留正文，不再用库存清单/简报骨架无条件覆盖。Stage05 对 Research Edge 等节名变体更宽容。补证不得仅因「缺口数未降」早停。见 `tests/remaining_quality_drains.test.ts`。
 - **取证与上游投喂**：Stage03 的质量看来源生产者、正文抓取、逐字引文、口径、独立性与反证覆盖，不把“一手 MCP 调用次数”当质量代理。Stage04/05 上游保留 `preparation_excerpt` 且每 JU 多样本 Record（默认 6）。`sanitizeAuditVoice` 不再全局替换英文 blocked。见 `tests/round3_quality_drains.test.ts`。
 - **界面分层**：结构/证据/判断页是阶段产物视图；Object Set 页才是实例图查询与 Action 执行面。
@@ -66,7 +72,7 @@ npm run build
 - 证据三角绑定：03 确认前校验证据草稿、判断单元与 MethodApplication 相互可解析；未绑定方法的非缺口证据不能进入 04
 - Object Set：`GET /api/runs/:id/object-set`，页面 `/runs/:id/object-set`
 - Action：`RegisterSource` → `ExtractClaim` → `NormalizeClaim` → `AssessEvidenceForUse` → `FormHypothesis` → `FormJudgment` → `RecordReasoningTrace`
-- 确认 stage_02/03/04 时物化唯一 `instance_graph`；草稿投影不再 silent 冒充权威图
+- 确认 stage_02/03/04 前先按 02→03→04 连续重放并校验候选图；确认与新图提交在同一事务完成，旧正式图自动废止，草稿投影不再 silent 冒充权威图
 - 独立审阅：确认 04 后可使用与生产不同的审阅模型（`REVIEW_MODEL_PROVIDER` + `DEEPSEEK_REVIEW_MODEL` 或 `OPENAI_COMPAT_REVIEW_MODEL`）；也可由未参与 Stage04 生产的人类登记结构化审阅。人类路径强制冻结 Stage04 artifact/hash、审阅者标识和至少 20 字独立性/利益冲突声明，自审不能通过。相同模型的分离调用只能用于返工提示，不能通过交付门。
 - **模型隔离：** 若日后有第二供应商，可用 `REVIEW_MODEL_PROVIDER=openai_compatible` 满足 `formal_full` 的五互异 `model_id` 要求；仅 DeepSeek 时可用评测 `single_vendor` 档案，但单一 `model_id` 只能做 `pipeline_only` 冒烟，至少两个互异 `model_id` 才具备供应商内比较资格。
 - 同证据基线：确认 03 后冻结证据哈希，基线不联网、不得引用证据包外来源，在 A/B 页面盲评。盲评必须记录评价人和依据，揭示 A/B 身份后不可重评。

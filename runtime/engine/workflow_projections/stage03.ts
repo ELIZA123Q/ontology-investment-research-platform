@@ -234,18 +234,29 @@ export function createEvidenceGapFallback(runId: string, reason: string) {
   const artifact = createArtifact(runId, "stage_03", {
     status: "needs_review",
     prompt_version: `${PROMPT_VERSION}:explicit-gap-fallback`,
-    knowledge_version: "runtime-deterministic-gap-fallback-v1",
+    knowledge_version: `sha256:${createHash("sha256").update(JSON.stringify({
+      mode: "deterministic_gap_fallback",
+      stage_02_artifact_id: structureArtifact.id,
+      stage_02_artifact_hash: createHash("sha256").update(structureArtifact.json_content).digest("hex"),
+      reason,
+    })).digest("hex")}`,
     input_context: JSON.stringify({
       question: run.question,
       stage_02_artifact_id: structureArtifact.id,
       stage_02_artifact_hash: createHash("sha256").update(structureArtifact.json_content).digest("hex"),
       usable_source_count: 0,
       fallback_reason: reason,
+      governance_version_note: "deterministic gap fallback fingerprint covers upstream structure hash + reason",
     }, null, 2),
     json_content: JSON.stringify(data, null, 2),
     markdown_content: data.document_markdown,
     model_name: "runtime-deterministic-gap-fallback",
-    tool_usage: JSON.stringify({ degraded: true, failure_category: "model_output_error", reason }),
+    tool_usage: JSON.stringify({
+      degraded: true,
+      failure_category: "model_output_error",
+      research_complete: false,
+      reason,
+    }),
     error_message: `[model_output_error] ${reason}；已降级为显式证据缺口，尚未确认`,
   });
   syncReviewWorkItems(artifact, data);

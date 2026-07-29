@@ -391,8 +391,16 @@ export function recoverOrphanedRunningArtifacts(connection: DatabaseSync, now = 
     WHERE status='running' AND NOT EXISTS (
       SELECT 1 FROM research_jobs job
       WHERE job.artifact_id=artifacts.id
-        AND job.status='running'
-        AND job.lease_expires_at > ?
+        AND (
+          (job.status='running' AND job.lease_expires_at > ?)
+          OR (
+            artifacts.kind='stage_03'
+            AND job.status IN ('running','retrying')
+            AND job.attempt < job.max_attempts
+            AND json_valid(artifacts.json_content)
+            AND json_type(artifacts.json_content, '$.stage03_batch_checkpoint')='object'
+          )
+        )
     )`).run(now);
   return Number(result.changes);
 }

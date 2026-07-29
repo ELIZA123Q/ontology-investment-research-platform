@@ -110,23 +110,23 @@ MCP通道正常 → 通过MCP获取 → 完整留痕
 |---------|---------|----------|----------------|------|
 | `cninfo` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接（`query_cninfo`） | stdio/npx；Stage03 工具链 |
 | `china-policy` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接（`query_china_policy`） | stdio/npx；Stage03 工具链 |
-| `htsc_research_mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `caixin-news` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | SSE；第二批 |
-| `jina-reader` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-stock-info-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
+| `htsc_research_mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `caixin-news` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | SSE；Stage03 工具链 |
+| `jina-reader` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-stock-info-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
 | `datayes-stock-finoper-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接（`query_datayes_finoper`） | streamablehttp；Stage03 工具链 |
-| `datayes-stock-mkt-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-stock-eqhld-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-stock-event-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-macro-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-index-info-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-index-mktanl-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-fund-master-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-fund-perf-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-fund-holding-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-fund-fincap-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
-| `datayes-fund-analytics-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；第二批 |
+| `datayes-stock-mkt-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-stock-eqhld-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-stock-event-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-macro-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-index-info-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-index-mktanl-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-fund-master-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-fund-perf-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-fund-holding-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-fund-fincap-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
+| `datayes-fund-analytics-mcp` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ✅ 已接 | streamablehttp；Stage03 工具链 |
 | `paperclip` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | stdio/python；工具辅助 |
 | `hermes-docs` | `~/.workbuddy/mcp.json` | ✅ 已安装 | ❌ 未接 | streamablehttp；文档辅助 |
 
-Runtime 适配层：`runtime/adapters/mcp_evidence.ts`（配置路径可用 `MCP_CONFIG_PATH` 覆盖）。MCP 故障时 Stage03 回退 `search_public_web` / `fetch_public_pages`，并诚实登记 gap。
+Runtime 适配层：`runtime/adapters/mcp_evidence.ts`（配置路径可用 `MCP_CONFIG_PATH` 覆盖）。18 个证据通道的机器权威清单为 `EVIDENCE_MCP_CHANNELS`；它必须与 `governance/02_合同/ontology_data_mapping_profiles.yaml` 的 `required_connectors` 和 active Profile 一致。MCP 故障时 Stage03 按通道回退提示转向可核验原文或公开网页，并诚实登记 gap。

@@ -15,6 +15,7 @@ export type MethodApplicationValidationContext = {
   signalIds?: Set<string>;
   evidenceDrafts?: Array<{ id: string; source_ids?: string[]; source_keys?: string[] }>;
   sourceGroupById?: Map<string, string>;
+  ontologyObjectIds?: Set<string>;
 };
 
 type ExecutableMethodProfile = Record<string, {
@@ -140,6 +141,14 @@ export function validateMethodApplications(
     }
     if (!application.target_judgment_unit_refs.length) {
       throw new Error(`${application.application_id} 必须绑定至少一个判断单元`);
+    }
+    if (context.ontologyObjectIds) {
+      assertRefsExist(
+        application,
+        application.target_ontology_object_refs,
+        context.ontologyObjectIds,
+        "本体对象",
+      );
     }
     if (stage !== "stage_04" && application.status === "executed") {
       throw new Error(`${application.application_id} 只能在 stage_04 确认 executed`);

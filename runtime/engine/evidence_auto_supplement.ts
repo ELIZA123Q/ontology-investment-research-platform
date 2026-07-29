@@ -25,6 +25,7 @@ import {
   loadSelectedMethodGuidance,
   mcpChannelHintsForPrompt,
 } from "./method_guidance";
+import { CONTEXT_SLOT_BUDGETS } from "./context_assembler";
 import {
   buildCapturePriorityKeys,
   buildSupplementBrief,
@@ -33,6 +34,7 @@ import {
   applyRegistryFreezeFields,
   syncStage03DraftSourcesFromRegistry,
   dedupeStage03DraftSources,
+  selectEvidenceSnapshotExcerpt,
 } from "./evidence_supplement_pure";
 
 export {
@@ -45,6 +47,7 @@ export {
   applyRegistryFreezeFields,
   syncStage03DraftSourcesFromRegistry,
   dedupeStage03DraftSources,
+  selectEvidenceSnapshotExcerpt,
 } from "./evidence_supplement_pure";
 
 /**
@@ -107,11 +110,381 @@ export function stage03EvidenceBatchConfig() {
 export function stage03AcquisitionCallCount(toolUsage: unknown): number {
   if (!toolUsage || typeof toolUsage !== "object" || Array.isArray(toolUsage)) return 0;
   const usage = toolUsage as Record<string, unknown>;
-  return ["web_search_calls", "public_page_fetch_calls", "mcp_evidence_calls"]
+  return ["web_search_calls", "public_page_fetch_calls", "mcp_evidence_calls", "runtime_preacquired_sources"]
     .reduce((sum, key) => {
       const value = Number(usage[key] || 0);
       return sum + (Number.isFinite(value) && value > 0 ? value : 0);
     }, 0);
+}
+
+function stage03ModelAcquisitionCallCount(toolUsage: unknown): number {
+  if (!toolUsage || typeof toolUsage !== "object" || Array.isArray(toolUsage)) return 0;
+  const usage = toolUsage as Record<string, unknown>;
+  return ["web_search_calls", "public_page_fetch_calls", "mcp_evidence_calls"]
+    .reduce((sum, key) => sum + Math.max(0, Number(usage[key] || 0) || 0), 0);
+}
+
+export function buildStage03AcquisitionQueries(input: {
+  question: string;
+  requirements?: EvidenceRequirementProjection[];
+  targetUnitIds?: string[];
+  maxQueries?: number;
+}): string[] {
+  const target = new Set((input.targetUnitIds || []).map(String));
+  const requirements = (input.requirements || [])
+    .filter((item) => !target.size || item.judgment_unit_ids.some((id) => target.has(String(id))))
+    .sort((a, b) => a.id.localeCompare(b.id));
+  const question = String(input.question || "").replace(/\s+/g, " ").trim().slice(0, 180);
+  const maxQueries = Math.max(1, Math.min(4, Math.floor(input.maxQueries || 4)));
+  const support = requirements.filter((item) => item.evidence_role !== "counter");
+  const counter = requirements.filter((item) => item.evidence_role === "counter");
+  const balanced = [
+    support[0],
+    ...(maxQueries > 1 ? [counter[0]] : []),
+    ...support.slice(1),
+    ...counter.slice(1),
+  ].filter((item): item is EvidenceRequirementProjection => Boolean(item));
+  const queries = balanced.map((item) => {
+    const requirement = item.requirement.replace(/\s+/g, " ").trim().slice(0, 180);
+    const translated = semiconductorSearchKeywords(requirement, item.evidence_role);
+    // 顶层 EvidenceRequirement 是研究语言，不是检索语言。半导体场景优先压缩为
+    // 英文产品/指标词，保留年份和一手/行业来源提示；未命中词典时才回退中文。
+    return translated || `${requirement} 数据 原文`.trim().slice(0, 240);
+  });
+  if (!queries.length && question) queries.push(`${question} 数据 原文`);
+  return [...new Set(queries)].slice(0, maxQueries);
+}
+
+export function semiconductorSearchKeywords(
+  requirement: string,
+  role: EvidenceRequirementProjection["evidence_role"] = "support",
+): string {
+  const text = String(requirement || "");
+  const isDisplacement = /转换|挤占|挤压|晶圆面积占比|HBM晶圆投片/i.test(text);
+  const product = /企业级\s*(?:SSD|NAND)|enterprise/i.test(text)
+    ? "enterprise SSD NAND"
+    : /消费级\s*(?:SSD|NAND)|客户端\s*SSD|UFS|client/i.test(text)
+      ? "client SSD NAND UFS"
+      : /通用\s*DRAM|非\s*HBM\s*DRAM/i.test(text)
+        ? "conventional DRAM"
+        : isDisplacement && /HBM/i.test(text) && /DRAM/i.test(text)
+          ? "HBM DRAM"
+        : /HBM/i.test(text)
+          ? "HBM"
+          : /DRAM/i.test(text)
+            ? "DRAM"
+            : /NAND|SSD/i.test(text) ? "NAND SSD" : "";
+  const terms: string[] = [];
+  const add = (term: string) => {
+    if (term && !terms.includes(term)) terms.push(term);
+  };
+  const mappings: Array<[RegExp, string]> = [
+    [/合约价/i, "contract price"],
+    [/现货价/i, "spot price"],
+    [/报价|价格|涨价|跌幅/i, "pricing"],
+    [/库存天数|库存/i, "inventory"],
+    [/渠道/i, "channel inventory"],
+    [/客户/i, "customer inventory"],
+    [/AI\s*系统|AI\s*服务器|加速卡/i, "AI server accelerator shipments"],
+    [/终端出货|PC|手机|笔记本/i, "PC smartphone shipments"],
+    [/资本开支|数据中心/i, "data center capex"],
+    [/晶圆投片|晶圆投入|晶圆面积|晶圆厂/i, "wafer allocation"],
+    [/产能利用率|有效产出|产能/i, "capacity utilization"],
+    [/良率/i, "yield"],
+    [/封装|CoWoS/i, "advanced packaging capacity"],
+    [/代际切换|层数|die|世代/i, "generation transition die density"],
+    [/减产/i, "production cuts"],
+    [/需求下修|需求持续低迷|需求转弱|部署受限/i, "demand slowdown"],
+    [/订单|覆盖期|长协/i, "orders"],
+    [/转换|挤占|挤压/i, "capacity conversion displacement"],
+    [/促销/i, "promotion"],
+  ];
+  for (const [pattern, term] of mappings) {
+    if (pattern.test(text)) add(term);
+  }
+  if (!product && !terms.length) return "";
+  const preferredSite = product === "HBM DRAM"
+    ? role === "support" ? "site:investors.micron.com" : "site:trendforce.com"
+    : product.startsWith("HBM")
+    ? role === "support" ? "site:news.samsung.com" : "site:trendforce.com"
+    : product.startsWith("conventional DRAM") || product === "DRAM"
+      ? role === "support" ? "site:investors.micron.com" : "site:trendforce.com"
+      : product.startsWith("enterprise")
+        ? role === "support" ? "site:investor.sandisk.com" : "site:trendforce.com"
+        : product.startsWith("client")
+          ? role === "support" ? "site:trendforce.com" : "site:counterpointresearch.com"
+          : role === "support" ? "site:investors.micron.com" : "site:trendforce.com";
+  const hasPricing = terms.some((term) => ["contract price", "spot price", "pricing"].includes(term));
+  const hasInventory = terms.some((term) => term.includes("inventory"));
+  const hasDemand = terms.some((term) =>
+    ["demand slowdown", "AI server accelerator shipments", "PC smartphone shipments", "data center capex", "orders"].includes(term),
+  );
+  const hasCapacity = terms.some((term) =>
+    ["wafer allocation", "capacity utilization", "yield", "advanced packaging capacity", "capacity conversion displacement"].includes(term),
+  );
+  // 搜索引擎对把整个 EvidenceRequirement 塞进 query 的召回很差。
+  // 这里保留产品、来源、年份和至多两个判别维度；详细指标仍留在
+  // EvidenceRequirement 与模型取证 brief 中，不因压缩检索式而丢失。
+  const dimensions = [
+    ...(hasPricing ? ["pricing"] : []),
+    ...(hasInventory ? ["inventory"] : []),
+    ...(hasDemand ? [role === "counter" ? "demand slowdown" : "demand"] : []),
+    ...(hasCapacity ? ["capacity"] : []),
+  ].slice(0, 2);
+  const canonical = product === "HBM DRAM"
+    ? ["HBM", "DRAM", "wafer", "capacity"]
+    : product.startsWith("HBM")
+      ? role === "support" ? ["HBM4", "mass production"] : ["HBM", "demand", "inventory"]
+      : product.startsWith("conventional DRAM")
+        ? role === "support" ? ["DRAM", "supply", "inventory"] : ["DRAM", "contract price", "inventory"]
+        : product === "DRAM"
+          ? [
+              "DRAM",
+              terms.includes("contract price") ? "contract price" : hasPricing ? "pricing" : "supply",
+              hasInventory ? "inventory" : role === "counter" ? "demand slowdown" : "demand",
+            ]
+        : product.startsWith("enterprise")
+          ? role === "support" ? ["enterprise SSD", "demand"] : ["enterprise SSD", "inventory"]
+          : product.startsWith("client")
+            ? role === "support" ? ["client SSD", "NAND", "price"] : ["smartphone", "PC", "demand"]
+            : dimensions;
+  return [...new Set([preferredSite, ...canonical, "2026"])]
+    .join(" ")
+    .slice(0, 180);
+}
+
+function governedDiscoveredSource(url: string): {
+  sourceTier: "S2" | "S4";
+  authorityType: "company_disclosure" | "industry_provider";
+  sourceType: "company_disclosure" | "industry_research";
+} | undefined {
+  let host = "";
+  try { host = new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return undefined; }
+  const companyHosts = [
+    "investors.micron.com",
+    "news.samsung.com",
+    "news.skhynix.com",
+    "news.skhynix.com.cn",
+    "investor.sandisk.com",
+  ];
+  if (companyHosts.some((candidate) => host === candidate || host.endsWith(`.${candidate}`))) {
+    return { sourceTier: "S2", authorityType: "company_disclosure", sourceType: "company_disclosure" };
+  }
+  const industryHosts = ["trendforce.com", "counterpointresearch.com"];
+  if (industryHosts.some((candidate) => host === candidate || host.endsWith(`.${candidate}`))) {
+    return { sourceTier: "S4", authorityType: "industry_provider", sourceType: "industry_research" };
+  }
+  return undefined;
+}
+
+export function selectFrozenStage03CandidateSources(input: {
+  sources: SourceRecord[];
+  requirements?: EvidenceRequirementProjection[];
+  maxCandidates?: number;
+}) {
+  const requirementText = (input.requirements || []).map((item) => item.requirement).join(" ");
+  const primaryProductTokens = [
+    ...(/HBM/i.test(requirementText) ? ["hbm"] : []),
+    ...(/通用\s*DRAM|非\s*HBM\s*DRAM|DRAM/i.test(requirementText) ? ["dram"] : []),
+    ...(/NAND|SSD|UFS/i.test(requirementText) ? ["nand", "ssd", "ufs"] : []),
+  ];
+  const segmentTokens = [
+    ...(/企业级/i.test(requirementText) ? ["enterprise", "datacenter"] : []),
+    ...(/消费级|客户端/i.test(requirementText) ? ["client", "consumer"] : []),
+    ...(/手机/i.test(requirementText) ? ["smartphone", "mobile"] : []),
+    ...(/PC|笔记本/i.test(requirementText) ? ["pc", "notebook"] : []),
+  ];
+  const evidenceTokens = [
+    ...(/库存/i.test(requirementText) ? ["inventory"] : []),
+    ...(/价格|报价|合约价|现货价/i.test(requirementText) ? ["price", "pricing", "contract", "spot"] : []),
+    ...(/需求|出货|部署|订单/i.test(requirementText) ? ["demand", "shipment", "shipments", "orders"] : []),
+    ...(/供给|产能|投片|产出|挤占|转换/i.test(requirementText) ? ["supply", "capacity", "wafer", "output"] : []),
+    ...(/良率/i.test(requirementText) ? ["yield"] : []),
+  ];
+  const scored = input.sources
+    .filter((source) => source.usability_status !== "rejected")
+    .filter((source) => String(source.snapshot_text || "").length >= 200)
+    .map((source) => {
+      const relevantWindow = selectEvidenceSnapshotExcerpt({
+        snapshotText: source.snapshot_text || "",
+        title: source.title,
+        requirements: input.requirements,
+        maxChars: 5_000,
+      });
+      const haystack = `${source.title} ${source.search_excerpt} ${relevantWindow}`.toLowerCase();
+      const primaryProductScore = primaryProductTokens.reduce(
+        (sum, token) => sum + Math.min(5, haystack.split(token).length - 1) * 8,
+        0,
+      );
+      const segmentScore = segmentTokens.reduce(
+        (sum, token) => sum + Math.min(5, haystack.split(token).length - 1) * 3,
+        0,
+      );
+      const evidenceScore = evidenceTokens.reduce(
+        (sum, token) => sum + Math.min(5, haystack.split(token).length - 1) * 2,
+        0,
+      );
+      const tierBonus = source.source_tier === "S2" ? 5 : source.source_tier === "S4" ? 3 : 0;
+      return {
+        source,
+        primaryProductScore,
+        score: primaryProductScore + segmentScore + evidenceScore + tierBonus,
+      };
+    })
+    // 来源等级只能给“已命中本批研究对象”的候选加权，不能让一个完全
+    // 无关但等级高的页面挤进付费模型上下文。
+    .filter((item) => item.primaryProductScore > 0)
+    .sort((left, right) => right.score - left.score || left.source.id.localeCompare(right.source.id));
+  const maxCandidates = Math.max(1, Math.min(10, Math.floor(input.maxCandidates || 6)));
+  const selected: SourceRecord[] = [];
+  const groups = new Set<string>();
+  for (const item of scored) {
+    const group = String(item.source.source_group || item.source.publisher || item.source.normalized_url);
+    if (groups.has(group)) continue;
+    selected.push(item.source);
+    groups.add(group);
+    if (selected.length >= maxCandidates) return selected;
+  }
+  for (const item of scored) {
+    if (selected.includes(item.source)) continue;
+    selected.push(item.source);
+    if (selected.length >= maxCandidates) break;
+  }
+  return selected;
+}
+
+export function materializeFrozenStage03CandidateDrafts(input: {
+  sources: SourceRecord[];
+  requirements?: EvidenceRequirementProjection[];
+  existingDraftSources?: any[];
+  maxQuoteChars?: number;
+}) {
+  const existingBySourceId = new Map(
+    (input.existingDraftSources || [])
+      .filter((source: any) => source?.source_id && source?.source_key)
+      .map((source: any) => [String(source.source_id), source]),
+  );
+  return input.sources.flatMap((source) => {
+    if (!source.published_at || !source.source_tier || !source.source_type) return [];
+    const prior = existingBySourceId.get(source.id);
+    const sourceKey = String(prior?.source_key || `SRC-R-${source.id.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase()}`);
+    const selectedQuote = source.quote_verified && String(source.source_quote || "").trim()
+      ? String(source.source_quote).trim()
+      : selectEvidenceSnapshotExcerpt({
+        snapshotText: source.snapshot_text || "",
+        title: source.title,
+        requirements: input.requirements,
+        maxChars: input.maxQuoteChars || 1_200,
+      }).trim();
+    if (selectedQuote.length < 20) return [];
+    return [{
+      source_id: source.id,
+      source_key: sourceKey,
+      url: source.url,
+      title: source.title,
+      publisher: source.publisher,
+      published_at: source.published_at,
+      source_tier: source.source_tier,
+      authority_type: source.authority_type || "unknown",
+      source_type: source.source_type,
+      search_excerpt: source.search_excerpt || "",
+      locator: source.locator || source.final_url || source.url,
+      source_quote: selectedQuote,
+      captured_at: source.captured_at || null,
+      content_hash: source.content_hash || null,
+      final_url: source.final_url || source.url,
+      retrieval_status: source.retrieval_status || null,
+      quote_verified: Boolean(source.quote_verified),
+    }];
+  });
+}
+
+export async function preAcquireStage03CandidateSources(input: {
+  runId: string;
+  question: string;
+  requirements?: EvidenceRequirementProjection[];
+  targetUnitIds?: string[];
+  existingSources: SourceRecord[];
+  maxSourceCount?: number;
+  search?: (
+    args: Record<string, unknown>,
+    citations: Array<{ url: string; title: string }>,
+  ) => Promise<{ results: Array<Record<string, unknown>> }>;
+}) {
+  const queries = buildStage03AcquisitionQueries(input);
+  const activeExistingSourceCount = input.existingSources.filter((source) => source.usability_status !== "rejected").length;
+  const availableBudget = input.maxSourceCount === undefined
+    ? 4
+    : Math.max(0, input.maxSourceCount - activeExistingSourceCount);
+  const sourceBudget = Math.min(4, availableBudget);
+  if (!queries.length || sourceBudget < 1) {
+    return { queries, sources: [] as SourceRecord[], error: sourceBudget < 1 ? "来源预算已用尽" : "" };
+  }
+  try {
+    const search = input.search || (await import("../adapters/deepseek")).searchPublicWeb;
+    const discovered = await search(
+      { queries, limit_per_query: Math.min(2, sourceBudget) },
+      [],
+    );
+    const priorUrls = new Set(input.existingSources.map((source) => source.normalized_url));
+    const sources: SourceRecord[] = [];
+    const discoveredResults = discovered.results || [];
+    const firstByQuery = new Map<string, Record<string, unknown>>();
+    for (const result of discoveredResults) {
+      const query = String(result.query || "");
+      if (queries.includes(query) && !firstByQuery.has(query)) firstByQuery.set(query, result);
+    }
+    const selectedFirsts = queries
+      .map((query) => firstByQuery.get(query))
+      .filter((item): item is Record<string, unknown> => Boolean(item));
+    const diversifiedResults = [
+      ...selectedFirsts,
+      ...discoveredResults.filter((item) => !selectedFirsts.includes(item)),
+    ];
+    for (const result of diversifiedResults) {
+      if (sources.length >= sourceBudget) break;
+      let normalizedUrl = "";
+      try { normalizedUrl = normalizeUrl(String(result.url || "")); } catch { continue; }
+      if (!normalizedUrl || priorUrls.has(normalizedUrl)) continue;
+      const governed = governedDiscoveredSource(normalizedUrl);
+      if (!governed) continue;
+      priorUrls.add(normalizedUrl);
+      let publisher = "公开网页";
+      try { publisher = new URL(normalizedUrl).hostname.replace(/^www\./, ""); } catch { /* keep fallback */ }
+      const excerpt = String(result.content_excerpt || "");
+      const captured = excerpt.length > 0 && String(result.retrieval_status || "") !== "failed";
+      sources.push(upsertSource(input.runId, {
+        url: normalizedUrl,
+        title: String(result.title || normalizedUrl),
+        publisher,
+        published_at: result.published_at ? String(result.published_at) : null,
+        source_type: governed.sourceType,
+        source_tier: governed.sourceTier,
+        authority_type: governed.authorityType,
+        search_excerpt: String(result.summary || ""),
+        locator: String(result.locator_hint || result.final_url || normalizedUrl),
+        captured_at: new Date().toISOString(),
+        content_hash: String(result.content_hash || ""),
+        usability_status: captured ? "limited" : "rejected",
+        failure_category: captured ? "" : "source_acquisition_failure",
+        failure_detail: String(result.retrieval_error || (captured ? "候选正文待逐字摘录核验" : "候选正文抓取失败")),
+        final_url: String(result.final_url || normalizedUrl),
+        content_mime: "text/html",
+        http_status: null,
+        retrieval_status: captured ? "limited" : "failed",
+        snapshot_text: excerpt,
+        source_quote: "",
+        quote_verified: false,
+      }));
+    }
+    return { queries, sources, error: "" };
+  } catch (error) {
+    return {
+      queries,
+      sources: [] as SourceRecord[],
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 /**
@@ -123,9 +496,62 @@ export function enforceStage03AcquisitionHonesty(input: {
   baseData: any;
   toolUsage: unknown;
   targetUnitIds?: string[];
+  runtimeAcquiredSourceUrls?: string[];
 }): Stage03Patch {
   const normalized = normalizeStage03Patch(structuredClone(input.patch));
-  if (stage03AcquisitionCallCount(input.toolUsage) > 0) return normalized;
+  if (stage03ModelAcquisitionCallCount(input.toolUsage) > 0) return normalized;
+  const runtimeUrls = new Set((input.runtimeAcquiredSourceUrls || []).flatMap((url) => {
+    try { return [normalizeUrl(String(url))]; } catch { return []; }
+  }));
+  if (runtimeUrls.size) {
+    const allowedBaseKeys = new Set(
+      (Array.isArray(input.baseData?.sources) ? input.baseData.sources : [])
+        .map((source: any) => String(source?.source_key || ""))
+        .filter(Boolean),
+    );
+    const allowedRuntimeSources = (normalized.upserts.sources || []).filter((source: any) => {
+      try { return runtimeUrls.has(normalizeUrl(String(source?.url || ""))); } catch { return false; }
+    });
+    const allowedKeys = new Set([
+      ...allowedBaseKeys,
+      ...allowedRuntimeSources.map((source: any) => String(source?.source_key || "")).filter(Boolean),
+    ]);
+    const removedKeys = (normalized.upserts.sources || [])
+      .map((source: any) => String(source?.source_key || ""))
+      .filter((key: string) => key && !allowedKeys.has(key));
+    const runtimeGaps: string[] = removedKeys.map((key: string) =>
+      `${key}: 模型未调用额外取证工具，该来源不在 Runtime 确定性预取集合中，已拒绝登记`,
+    );
+    normalized.upserts.sources = allowedRuntimeSources;
+    normalized.upserts.evidence_drafts = (normalized.upserts.evidence_drafts || []).map((item: any) => {
+      if (item?.kind === "gap") return item;
+      const sourceKeys = (Array.isArray(item?.source_keys) ? item.source_keys : [])
+        .map(String)
+        .filter((key: string) => allowedKeys.has(key));
+      if (sourceKeys.length) return { ...item, source_keys: sourceKeys };
+      runtimeGaps.push(`${String(item?.id || "EvidenceDraft")}: 未绑定 Runtime 预取或既有来源，已降级为 gap`);
+      return normalizeEvidenceDraftNulls({
+        ...item,
+        kind: "gap",
+        direction: "unknown",
+        source_keys: [],
+        source_ids: [],
+        limitations: [
+          ...(Array.isArray(item?.limitations) ? item.limitations.map(String) : []),
+          "模型未调用额外取证工具，且未绑定 Runtime 确定性预取来源",
+        ],
+      });
+    });
+    normalized.upserts.unresolved_gaps = [
+      ...new Set([...(normalized.upserts.unresolved_gaps || []).map(String), ...runtimeGaps]),
+    ];
+    normalized.revision_summary = [
+      String(normalized.revision_summary || "").trim(),
+      "Runtime acquisition honesty gate：本批只允许既有来源与确定性预取候选；模型未调用工具时不得扩展来源边界。",
+    ].filter(Boolean).join(" ");
+    normalized.affected_object_refs = expandAffectedObjectRefs(normalized);
+    return normalized;
+  }
 
   const baseEvidence = new Map<string, any>(
     (Array.isArray(input.baseData?.evidence_drafts) ? input.baseData.evidence_drafts : [])
@@ -448,6 +874,9 @@ export async function applyStage03SourceSnapshots(input: {
       const known = input.existingSources.find((item) => item.id === source.source_id);
       if (known) {
         Object.assign(source, applyRegistryFreezeFields(source, known));
+        keyMap.set(source.source_key, source.source_id);
+        return Boolean(source.source_quote)
+          && !(known.usability_status === "usable" && known.retrieval_status === "captured" && Boolean(known.quote_verified));
       }
       keyMap.set(source.source_key, source.source_id);
       return false;
@@ -459,17 +888,24 @@ export async function applyStage03SourceSnapshots(input: {
       source.source_id = existing.id;
       Object.assign(source, applyRegistryFreezeFields(source, existing));
       keyMap.set(source.source_key, existing.id);
-      return false;
+      return Boolean(source.source_quote)
+        && !(existing.usability_status === "usable" && existing.retrieval_status === "captured" && Boolean(existing.quote_verified));
     }
     return true;
   });
   const allCaptureTargets = input.capturePriorityKeys?.length
     ? orderByCapturePriority(allCaptureTargetsRaw, input.capturePriorityKeys)
     : allCaptureTargetsRaw;
-  const captureTargets = input.maxNewSources === undefined
-    ? allCaptureTargets
-    : allCaptureTargets.slice(0, Math.max(0, input.maxNewSources));
-  const deferredTargets = allCaptureTargets.slice(captureTargets.length);
+  const existingNormalizedUrls = new Set(input.existingSources.map((source) => source.normalized_url));
+  const recaptureTargets = allCaptureTargets.filter((source: any) => {
+    try { return Boolean(source.source_id) || existingNormalizedUrls.has(normalizeUrl(source.url)); } catch { return Boolean(source.source_id); }
+  });
+  const newTargets = allCaptureTargets.filter((source: any) => !recaptureTargets.includes(source));
+  const allowedNewTargets = input.maxNewSources === undefined
+    ? newTargets
+    : newTargets.slice(0, Math.max(0, input.maxNewSources));
+  const captureTargets = [...recaptureTargets, ...allowedNewTargets];
+  const deferredTargets = newTargets.slice(allowedNewTargets.length);
 
   if (deferredTargets.length) {
     for (const source of deferredTargets) {
@@ -561,18 +997,46 @@ export async function runEvidenceSupplementRound(input: {
       item.judgment_unit_ids.some((id) => targetSet.has(String(id))),
     )
     : input.requirements;
+  input.onProgress?.({ round: 0, message: "Runtime 正在按 EvidenceRequirement 预取并冻结候选来源…" });
+  const runtimeAcquisition = await preAcquireStage03CandidateSources({
+    runId: input.runId,
+    question: String((input.supplementContext as any)?.question || ""),
+    requirements: scopedRequirements,
+    targetUnitIds,
+    existingSources: input.existingSources,
+    maxSourceCount: input.maxSourceCount,
+  });
+  input.assertRunning();
+  const sourcesAfterRuntimeAcquisition = listSources(input.runId);
+  const frozenCandidates = selectFrozenStage03CandidateSources({
+    sources: sourcesAfterRuntimeAcquisition,
+    requirements: scopedRequirements,
+    maxCandidates: 6,
+  });
+  const frozenDraftSources = materializeFrozenStage03CandidateDrafts({
+    sources: frozenCandidates,
+    requirements: scopedRequirements,
+    existingDraftSources: input.baseData.sources || [],
+  });
+  const workingBase = dedupeStage03DraftSources({
+    ...input.baseData,
+    sources: [
+      ...(Array.isArray(input.baseData.sources) ? input.baseData.sources : []),
+      ...frozenDraftSources,
+    ],
+  }).data;
   const scopedBase = targetSet.size
-    ? scopeStage03DataForBatch(input.baseData, targetUnitIds)
-    : input.baseData;
+    ? scopeStage03DataForBatch(workingBase, targetUnitIds)
+    : workingBase;
   const brief = buildSupplementBrief({
     coverage: computeSourceCoverage({
-      sources: input.existingSources,
+      sources: sourcesAfterRuntimeAcquisition,
       evidence: scopedBase.evidence_drafts || [],
       requirements: scopedRequirements,
       cutoffMs: input.cutoffMs,
     }),
     evidence: scopedBase.evidence_drafts || [],
-    sources: input.existingSources,
+    sources: sourcesAfterRuntimeAcquisition,
     draftSources: scopedBase.sources || [],
     requirements: scopedRequirements,
     methodApplications: scopedBase.method_applications || [],
@@ -603,18 +1067,46 @@ export async function runEvidenceSupplementRound(input: {
         evidence_drafts: scopedBase.evidence_drafts || [],
         unresolved_gaps: scopedBase.unresolved_gaps || [],
       },
-      selected_method_guidance: loadSelectedMethodGuidance(kb03Ids),
+      selected_method_guidance: loadSelectedMethodGuidance(kb03Ids, {
+        totalChars: CONTEXT_SLOT_BUDGETS.method_guidance,
+      }),
       evidence_judgment_type_cards: evidenceJudgmentTypeCardsForPrompt(judgmentTypes),
       mcp_channel_hints: mcpChannelHintsForPrompt(),
       patch_contract: {
         id_space: "source_key/application_id/evidence_id",
         note: "affected_object_refs 与 upserts/removals 使用同一套稳定业务 ID（如 SRC-09、MA-EV-01、EV-1），不是 registry UUID。新增对象只需出现在 upserts；Runtime 会自动补齐 affected_object_refs。",
       },
+      runtime_acquired_candidates: frozenCandidates.map((source) => ({
+        source_id: source.id,
+        source_key: frozenDraftSources.find((draft: any) => draft.source_id === source.id)?.source_key,
+        url: source.url,
+        title: source.title,
+        publisher: source.publisher,
+        published_at: source.published_at,
+        search_excerpt: source.search_excerpt,
+        source_quote: frozenDraftSources.find((draft: any) => draft.source_id === source.id)?.source_quote,
+        content_hash: source.content_hash,
+        retrieval_status: source.retrieval_status,
+        instruction: "该候选已由 Runtime 物化进 current_evidence_draft.sources。直接绑定既有 source_key；不要重复 upsert 来源，也不得改写 source_quote。",
+      })),
+      runtime_acquisition_trace: {
+        deterministic_queries: runtimeAcquisition.queries,
+        registered_candidate_count: runtimeAcquisition.sources.length,
+        registry_reused_candidate_count: frozenCandidates.filter((source) =>
+          !runtimeAcquisition.sources.some((candidate) => candidate.id === source.id),
+        ).length,
+        error: runtimeAcquisition.error || null,
+      },
       ...input.supplementContext,
     }, null, 2),
     {
-      webSearch: true,
-      requireEvidenceAcquisition: true,
+      // 冻结候选已足够时只保留结构化 submit 工具；禁止模型重复搜索并在
+      // 每轮重放整份上下文。只有无候选时才开放取证工具。
+      webSearch: frozenDraftSources.length === 0,
+      requireEvidenceAcquisition: frozenCandidates.length === 0,
+      // 本轮目标是调用工具取得并冻结来源，不是形成最终判断。关闭 thinking
+      // 可显著降低“检索前长思考”，推理质量由后续证据结构化/Stage04 承担。
+      disableReasoning: true,
       // 本批目标和本体节点已由 Stage02 固定；关闭 ontology 工具避免在取证环空转。
       ontologyTools: false,
       maxToolRounds: input.maxToolRounds || 8,
@@ -624,7 +1116,7 @@ export async function runEvidenceSupplementRound(input: {
         const normalized = normalizeStage03Patch(data as Stage03Patch);
         return targetSet.size
           ? isolateStage03BatchPatch({
-            baseData: input.baseData,
+            baseData: workingBase,
             patch: normalized,
             targetUnitIds,
             namespace: input.idNamespace || "BATCH",
@@ -635,20 +1127,30 @@ export async function runEvidenceSupplementRound(input: {
   );
   input.assertRunning();
 
+  const combinedToolUsage = {
+    ...(result.toolUsage && typeof result.toolUsage === "object" ? result.toolUsage as Record<string, unknown> : {}),
+    runtime_preacquired_sources: frozenCandidates.length,
+    runtime_acquisition_queries: runtimeAcquisition.queries,
+    ...(runtimeAcquisition.error ? { runtime_acquisition_error: runtimeAcquisition.error } : {}),
+  };
   const patch = enforceStage03AcquisitionHonesty({
     patch: normalizeStage03Patch(result.data),
-    baseData: input.baseData,
-    toolUsage: result.toolUsage,
+    baseData: workingBase,
+    toolUsage: combinedToolUsage,
     targetUnitIds,
+    runtimeAcquiredSourceUrls: frozenCandidates.map((source) => source.url),
   });
-  const merged = mergeStage03Patch(input.baseData, patch);
+  const merged = mergeStage03Patch(workingBase, patch);
   const repaired = repairEvidencePreparationDraft(merged);
   // 抓取前先过契约：避免 gap 残留 source_keys / 非法 kind 烧完一轮抓取才失败。
   const precheck = schemas.stage_03.safeParse(repaired);
   if (!precheck.success) {
     throw new Error(JSON.stringify(precheck.error.issues));
   }
-  const affectedRefs = new Set(patch.affected_object_refs);
+  const affectedRefs = new Set([
+    ...patch.affected_object_refs,
+    ...frozenDraftSources.map((source: any) => String(source.source_key)),
+  ]);
   // 合并后按“失败源/返工绑定/单元缺口/其余新线索”重排抓取顺序，预算先喂高优先项。
   const capturePriorityKeys = buildCapturePriorityKeys({
     draftSources: repaired.sources || [],
@@ -663,10 +1165,14 @@ export async function runEvidenceSupplementRound(input: {
     runId: input.runId,
     data: repaired,
     affectedRefs,
-    existingSources: input.existingSources,
+    existingSources: sourcesAfterRuntimeAcquisition,
     maxNewSources: input.maxSourceCount === undefined
       ? undefined
-      : Math.max(0, input.maxSourceCount - input.existingSources.length),
+      : Math.max(
+        0,
+        input.maxSourceCount
+          - sourcesAfterRuntimeAcquisition.filter((source) => source.usability_status !== "rejected").length,
+      ),
     capturePriorityKeys,
     assertRunning: input.assertRunning,
     onCaptureProgress: (index, total) => {
@@ -678,8 +1184,8 @@ export async function runEvidenceSupplementRound(input: {
     data: withSnapshots,
     patch,
     usage: result.usage,
-    toolUsage: result.toolUsage,
-    unchangedEvidenceIds: findUnchangedEvidenceIds(input.baseData.evidence_drafts || [], withSnapshots.evidence_drafts || []),
+    toolUsage: combinedToolUsage,
+    unchangedEvidenceIds: findUnchangedEvidenceIds(workingBase.evidence_drafts || [], withSnapshots.evidence_drafts || []),
   };
 }
 

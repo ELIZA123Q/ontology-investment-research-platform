@@ -19,6 +19,7 @@ import {
 } from "../adapters/db";
 import { parseJson, type ImpactClassification, type ImpactDirection, type MarketEvent } from "./types";
 import { radarOutputSchema, type MarketEventDraft } from "./radar_schema";
+import { approvedSemanticDataIfPresent } from "./semantic_reads";
 
 export type { MarketEventDraft } from "./radar_schema";
 
@@ -66,8 +67,7 @@ export class DeepSeekMarketEventProvider implements MarketEventProvider {
 
 export function radarRunContexts(): RadarRunContext[] {
   return listRuns().slice(0, 12).map((run) => {
-    const artifact = latestArtifact(run.id, "stage_04", ["approved", "needs_review"]);
-    const data: any = parseJson(artifact?.json_content || "{}", {});
+    const data: any = approvedSemanticDataIfPresent(run.id, "stage_04") || {};
     return {
       run_id: run.id,
       question: run.question,

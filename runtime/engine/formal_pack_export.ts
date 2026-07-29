@@ -3,7 +3,6 @@
  */
 
 import "server-only";
-import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -14,8 +13,15 @@ import { evidenceBoundSources } from "./evidence_sources";
 import { parseManifest } from "./manifest";
 import { parseJson } from "./types";
 import { buildFormalPackNames, formalDateStamp, formalThemeSlug } from "./formal_pack_naming";
+import { formalArtifactSha256, formalStageHash } from "./formal_pack_hash";
 import { projectFormalSnapshot } from "./formal_snapshot_project";
 import { mapIndependentReviewToSemanticYaml } from "./formal_semantic_review";
+import {
+  buildProductionSemanticBaseline,
+  FORMAL_INSTANCE_GRAPH_FILE,
+  SEMANTIC_BASELINE_FILE,
+} from "./semantic_baseline";
+import type { StageKind } from "./types";
 
 export type FormalPackExportResult = {
   export_dir: string;
@@ -25,10 +31,6 @@ export type FormalPackExportResult = {
 };
 
 export { mapIndependentReviewToSemanticYaml } from "./formal_semantic_review";
-
-function sha256Text(text: string): string {
-  return `sha256:${createHash("sha256").update(text).digest("hex")}`;
-}
 
 function nextSeqForTheme(formalRoot: string, theme: string, date: string): number {
   if (!existsSync(formalRoot)) return 1;
@@ -78,6 +80,22 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
       throw new Error(`阶段 ${label} 尚未达到可交接密度，不能导出正式包`);
     }
   }
+  const stageArtifacts = {
+    stage_01: s01,
+    stage_02: s02,
+    stage_03: s03,
+    stage_04: s04,
+    stage_05: s05,
+  } satisfies Record<StageKind, typeof s01>;
+  const stageData = {
+    stage_01: d01,
+    stage_02: d02,
+    stage_03: d03,
+    stage_04: d04,
+    stage_05: d05,
+  } satisfies Record<StageKind, Record<string, unknown>>;
+  // 在创建导出目录前完成语义基线与实例图快照门，失败时不留下半成品正式包。
+  const semantic = buildProductionSemanticBaseline(runId, stageArtifacts, stageData);
 
   const theme = formalThemeSlug({
     core_object: d01.core_object || d01.main_judgment_axis?.object,
@@ -148,13 +166,15 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
   writeFileSync(path.join(exportDir, names.stage04AuditYaml), stage04Audit, "utf8");
   writeFileSync(path.join(exportDir, names.stage05ReportMd), stage05Report, "utf8");
   writeFileSync(path.join(exportDir, names.stage05AuditYaml), stage05Audit, "utf8");
+  writeFileSync(path.join(exportDir, FORMAL_INSTANCE_GRAPH_FILE), YAML.stringify(semantic.graphPayload), "utf8");
+  writeFileSync(path.join(exportDir, SEMANTIC_BASELINE_FILE), YAML.stringify(semantic.baseline), "utf8");
 
   const stageHashes = {
-    stage_01: sha256Text(stage01Md),
-    stage_02: sha256Text(`${stage02Logic}\n${stage02View}`),
-    stage_03: sha256Text(`${stage03Prep}\n${stage03Manifest}\n${names.stage03SnapshotDir}`),
-    stage_04: sha256Text(`${stage04Brief}\n${stage04Audit}`),
-    stage_05: sha256Text(`${stage05Report}\n${stage05Audit}`),
+    stage_01: formalStageHash(exportDir, [names.stage01Md]),
+    stage_02: formalStageHash(exportDir, [names.stage02LogicMd, names.stage02ViewYaml]),
+    stage_03: formalStageHash(exportDir, [names.stage03PrepMd, names.stage03SnapshotDir, names.stage03ManifestYaml]),
+    stage_04: formalStageHash(exportDir, [names.stage04BriefMd, names.stage04AuditYaml]),
+    stage_05: formalStageHash(exportDir, [names.stage05ReportMd, names.stage05AuditYaml]),
   };
 
   const review = latestArtifact(runId, "independent_review", ["approved"]);
@@ -185,6 +205,8 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     names.stage05ReportMd,
     names.stage05AuditYaml,
     names.stage05SemanticReviewYaml,
+    FORMAL_INSTANCE_GRAPH_FILE,
+    SEMANTIC_BASELINE_FILE,
     "run_manifest.yaml",
     "README.md",
   ];
@@ -193,16 +215,35 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     schema_name: "controlled_research_run_manifest",
     schema_version: "1.3.0",
     task_id: String(d01.task_id || `JTASK-${runId}`),
-    run_id: `EXEC-${runId}`,
-    parent_run_id: run.parent_run_id || null,
+    run_id: String(d03.execution_id || d04.execution_id || `EXEC-${runId}`),
+    parent_run: null,
+    run_mode: "production",
+    producer_id: String(s04.model_name || "workbench-producer"),
     workbench_run_id: runId,
+    workbench_parent_run_id: run.parent_run_id || null,
     package_kind: "formal_pack",
     versions: {
       contract: contractVersion,
       ontology: "3.0.0",
+      ontology_reasoning: "3.0.0",
       kb02: "2.0.0",
-      kb03: "3.1.0",
+      kb03: "3.2.0",
       kb04: "1.0.0",
+      stage_01_schema: "1.5.0",
+      stage_02_logic_schema: "1.2.0",
+      stage_02_view_schema: "3.0.0",
+      stage_03_schema: "3.0.0",
+      stage_04_brief_schema: "3.0.0",
+      stage_04_audit_schema: "5.0.0",
+      stage_05_audit_schema: "3.0.0",
+      semantic_review_schema: "1.0.0",
+    },
+    semantic_baseline: {
+      artifact: SEMANTIC_BASELINE_FILE,
+      hash: formalArtifactSha256(path.join(exportDir, SEMANTIC_BASELINE_FILE)),
+      ontology_fingerprint: semantic.baseline.ontology_fingerprint,
+      instance_graph_artifact: FORMAL_INSTANCE_GRAPH_FILE,
+      instance_graph_hash: formalArtifactSha256(path.join(exportDir, FORMAL_INSTANCE_GRAPH_FILE)),
     },
     stages: {
       stage_01: {
@@ -213,6 +254,8 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
         validity_status: "current",
         attempt: 1,
         supersedes_attempt: null,
+        attempt_history: [],
+        pending_attempt: null,
       },
       stage_02: {
         artifact: [names.stage02LogicMd, names.stage02ViewYaml],
@@ -222,6 +265,8 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
         validity_status: "current",
         attempt: 1,
         supersedes_attempt: null,
+        attempt_history: [],
+        pending_attempt: null,
       },
       stage_03: {
         artifact: [names.stage03PrepMd, names.stage03SnapshotDir, names.stage03ManifestYaml],
@@ -231,6 +276,8 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
         validity_status: "current",
         attempt: 1,
         supersedes_attempt: null,
+        attempt_history: [],
+        pending_attempt: null,
       },
       stage_04: {
         artifact: [names.stage04BriefMd, names.stage04AuditYaml],
@@ -240,6 +287,8 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
         validity_status: "current",
         attempt: 1,
         supersedes_attempt: null,
+        attempt_history: [],
+        pending_attempt: null,
       },
       stage_05: {
         artifact: [names.stage05ReportMd, names.stage05AuditYaml, names.stage05SemanticReviewYaml],
@@ -249,7 +298,21 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
         validity_status: "current",
         attempt: 1,
         supersedes_attempt: null,
+        attempt_history: [],
+        pending_attempt: null,
       },
+    },
+    reasoning_loop: {
+      mode: "ontology_evidence_wave",
+      latest_wave_ref: null,
+      latest_wave_hash: null,
+      latest_plan_hash: null,
+      loop_state_ref: null,
+      loop_state_hash: null,
+      classification: "no_semantic_delta",
+      pending_stage_attempts: [],
+      structural_checkpoint_required: false,
+      converged: true,
     },
     validation_issues: [],
     validation_summary: {

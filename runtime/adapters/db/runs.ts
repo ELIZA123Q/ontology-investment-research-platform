@@ -6,7 +6,7 @@ import { db, withImmediateTransaction } from "./connection";
 import { createChildManifest, createEmptyManifest, parseManifest, recordApprovedStage } from "../../engine/manifest";
 import { latestArtifact, createArtifact } from "./artifacts";
 import { listSources, upsertSource } from "./sources";
-import { extractGraph } from "../../engine/instance_graph";
+import { buildAuthorityGraphCandidate, extractGraph } from "../../engine/instance_graph";
 import { evidenceBoundSourceIds } from "../../engine/evidence_sources";
 import { saveInstanceGraph } from "./meta";
 function mapRun(row: any): ResearchRun {
@@ -283,11 +283,37 @@ export function createChildRun(
   }
   if (parentGraph) {
     const inheritedPayload = remapStableReferences(JSON.parse(parentGraph.json_content), inheritedSourceIdMap);
-    saveInstanceGraph(
-      child.id,
-      inheritedPayload,
-      `inherited snapshot from ${parent.id}; source registry IDs remapped to this run; unaffected objects remain current until replaced by an approved ChangeSet`,
-    );
+    if ((inheritedPayload as Record<string, unknown>).authority_contract === "ontology_authority_graph_v1") {
+      const inheritedGraph = extractGraph(inheritedPayload);
+      const childStructure = latestArtifact(child.id, "stage_02", ["approved"]);
+      if (!childStructure) throw new Error("现代权威图的证据更新子运行缺少继承后的 Stage02，无法重建正式图");
+      const childGraph = buildAuthorityGraphCandidate([{
+        kind: "stage_02",
+        artifact_id: childStructure.id,
+        artifact_version: childStructure.version,
+        data: JSON.parse(childStructure.json_content),
+      }], inheritedGraph);
+      saveInstanceGraph(
+        child.id,
+        {
+          authority_contract: "ontology_authority_graph_v1",
+          provisional: false,
+          inherited_from_run_id: parent.id,
+          materialized_from: "stage_02",
+          materialized_from_artifact_id: childStructure.id,
+          materialized_from_artifact_version: childStructure.version,
+          business_instance_graph: childGraph,
+        },
+        `rebuilt from inherited child Stage02; only explicit Action overlay is retained from ${parent.id}`,
+      );
+    } else {
+      // 历史图没有阶段投影指纹，继续显式兼容复制；不得给它补写现代权威声明。
+      saveInstanceGraph(
+        child.id,
+        inheritedPayload,
+        `legacy inherited snapshot from ${parent.id}; source registry IDs remapped without claiming modern projection authority`,
+      );
+    }
   }
   updateRun(child.id, {
     current_stage: latestArtifact(child.id, "stage_02", ["approved"]) ? 2 : latestArtifact(child.id, "stage_01", ["approved"]) ? 1 : 0,

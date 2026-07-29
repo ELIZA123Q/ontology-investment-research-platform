@@ -7,6 +7,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { dataMappingProfileForConnector } from "../engine/data_mapping_profiles";
 
 /** Stage03 全量接入的一手通道（方法层 B03 已注册）。 */
 export const EVIDENCE_MCP_CHANNELS = [
@@ -49,6 +50,10 @@ export type McpCallProvenance = {
   query_parameters: Record<string, unknown>;
   tool_name: string | null;
   response_fingerprint: string;
+  mapping_profile_id: string | null;
+  mapping_profile_version: string | null;
+  mapping_status: "registered" | "unregistered";
+  ontology_target_types: string[];
   field_lineage_note: string;
   access_scope: "public" | "authorized" | "unknown";
   replayability: "replayable" | "time_sensitive" | "non_replayable" | "unknown";
@@ -453,6 +458,18 @@ function hitsFromText(
   }];
 }
 
+function mappingProvenance(connector: string) {
+  const profile = dataMappingProfileForConnector(connector);
+  return {
+    mapping_profile_id: profile?.id || null,
+    mapping_profile_version: profile?.version || null,
+    mapping_status: profile ? "registered" as const : "unregistered" as const,
+    ontology_target_types: profile
+      ? [...new Set(profile.target_mappings.map((mapping) => mapping.target_type))]
+      : [],
+  };
+}
+
 /**
  * 调用一手证据 MCP。失败时返回 ok:false + fallback_hint，不抛到模型环外。
  * 密钥只读自 MCP_CONFIG_PATH / ~/.workbuddy/mcp.json，不写入仓库。
@@ -532,6 +549,7 @@ export async function queryEvidenceMcp(input: {
           query_parameters: queryParameters,
           tool_name: toolName,
           response_fingerprint: fingerprint(contentText),
+          ...mappingProvenance(channel),
           field_lineage_note: "MCP 原始 content；字段血缘待人工核验后写入 EvidenceFact",
           access_scope: meta?.access_scope || "unknown",
           replayability: "time_sensitive",
@@ -568,6 +586,7 @@ export async function queryEvidenceMcp(input: {
         query_parameters: queryParameters,
         tool_name: toolName,
         response_fingerprint: fingerprint(contentText || called.structured),
+        ...mappingProvenance(channel),
         field_lineage_note: "MCP 原始 content；关键字段写入证据前需映射到上游响应路径",
         access_scope: meta?.access_scope || "unknown",
         replayability: "time_sensitive",
@@ -588,6 +607,7 @@ export async function queryEvidenceMcp(input: {
         query_parameters: queryParameters,
         tool_name: input.tool_name || null,
         response_fingerprint: fingerprint(String(error)),
+        ...mappingProvenance(channel),
         field_lineage_note: "调用失败，无可用字段血缘",
         access_scope: meta?.access_scope || "unknown",
         replayability: "unknown",

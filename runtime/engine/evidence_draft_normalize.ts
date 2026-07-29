@@ -1,3 +1,5 @@
+import { ONTOLOGY_ENUMS, ONTOLOGY_SOURCE_TIERS } from "./ontology_vocabulary.generated";
+
 /**
  * 模型常把“未改 / 不确定”写成 null 或 ""。Stage03 契约里大量字段是必填数组/非空字符串，
  * null/空串不能进 Zod。这里只做无害兜底：空数组、空串、最小 provenance、丢掉残缺来源、
@@ -44,10 +46,10 @@ const AUTHORITY_TYPES = new Set([
   "unknown",
 ]);
 
-const SOURCE_TIERS = new Set(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]);
+const SOURCE_TIERS = new Set<string>(ONTOLOGY_SOURCE_TIERS);
 const METHOD_STATUSES = new Set(["candidate", "selected", "executed", "rejected", "blocked", "degraded"]);
 const EVIDENCE_DIRECTIONS = new Set(["support", "weaken", "neutral", "unknown"]);
-const EVIDENCE_DIRECTNESS = new Set(["direct", "indirect", "proxy"]);
+const EVIDENCE_DIRECTNESS = new Set<string>(ONTOLOGY_ENUMS["EvidenceAssessment.directness"]);
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

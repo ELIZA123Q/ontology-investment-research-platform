@@ -105,6 +105,95 @@ export function compactStage03ForUpstream(value: unknown, samplePerUnit = 6): un
   return data;
 }
 
+/**
+ * Stage05 只需要“可表达的判断”，不需要再次读取逐规则执行明细、
+ * reasoning trace、审计 YAML 或 Stage04 自身语义上下文。
+ */
+export function compactStage04ForStage05(value: unknown): unknown {
+  const base = compactStructuredArtifact(value) as Record<string, unknown> | unknown;
+  if (!base || typeof base !== "object" || Array.isArray(base)) return base;
+  const data = { ...(base as Record<string, unknown>) };
+  delete data.rule_evaluations;
+  delete data.reasoning_traces;
+  delete data.reasoning_audit_yaml;
+  delete data.judgment_brief_markdown;
+  delete data.semantic_context;
+
+  if (Array.isArray(data.method_applications)) {
+    data.method_applications = (data.method_applications as any[]).map((item) => ({
+      application_id: item.application_id,
+      method_id: item.method_id,
+      capability_type: item.capability_type,
+      target_judgment_unit_refs: item.target_judgment_unit_refs,
+      status: item.status,
+      input_evidence_refs: item.input_evidence_refs,
+      output_judgment_refs: item.output_judgment_refs,
+      execution_summary: item.execution_summary,
+      limitations: item.limitations,
+    }));
+  }
+  if (Array.isArray(data.signals)) {
+    data.signals = (data.signals as any[]).map((item) => ({
+      id: item.id,
+      statement: item.statement,
+      role: item.role,
+      evidence_draft_ids: item.evidence_draft_ids,
+      judgment_unit_ids: item.judgment_unit_ids,
+      target_hypothesis_ids: item.target_hypothesis_ids,
+    }));
+  }
+  if (Array.isArray(data.hypotheses)) {
+    data.hypotheses = (data.hypotheses as any[]).map((item) => ({
+      id: item.id,
+      statement: item.statement,
+      falsification_conditions: item.falsification_conditions,
+      time_horizon: item.time_horizon,
+      judgment_unit_ids: item.judgment_unit_ids,
+    }));
+  }
+  if (Array.isArray(data.competing_explanations)) {
+    data.competing_explanations = (data.competing_explanations as any[]).map((item) => ({
+      id: item.id,
+      statement: item.statement,
+      status: item.status,
+      elimination_rationale: item.elimination_rationale,
+      discriminating_evidence: item.discriminating_evidence,
+      judgment_unit_ids: item.judgment_unit_ids,
+    }));
+  }
+  if (Array.isArray(data.judgments)) {
+    data.judgments = (data.judgments as any[]).map((item) => ({
+      id: item.id,
+      judgment_unit_id: item.judgment_unit_id,
+      title: item.title,
+      conclusion: item.conclusion,
+      rationale: item.rationale,
+      strength: item.strength,
+      confidence: item.confidence,
+      decision_status: item.decision_status,
+      conditions: item.conditions,
+      supporting_evidence_draft_ids: item.supporting_evidence_draft_ids,
+      counter_evidence_draft_ids: item.counter_evidence_draft_ids,
+      method_application_ids: item.method_application_ids,
+      uncertainties: item.uncertainties,
+      invalidation_conditions: item.invalidation_conditions,
+      tracking_signals: item.tracking_signals,
+    }));
+  }
+  data.stage04_compression = {
+    mode: "stage05_judgment_handoff",
+    omitted: [
+      "rule_evaluations",
+      "reasoning_traces",
+      "reasoning_audit_yaml",
+      "judgment_brief_markdown",
+      "semantic_context",
+    ],
+    note: "05 读取判断、证据/方法绑定、竞争解释、证伪与表达许可；完整确定性审计保留在已批准 Stage04。",
+  };
+  return data;
+}
+
 
 export function classifyRuntimeFailure(error: unknown): RuntimeFailureCategory {
   const message = error instanceof Error ? error.message : String(error);
@@ -122,6 +211,7 @@ export function classifyRuntimeFailure(error: unknown): RuntimeFailureCategory {
   if (/web_search|fetch_public|query_cninfo|query_datayes|query_china_policy|mcp|来源取得|网页抓取|Bing/i.test(message)) return "source_acquisition_failure";
   if (
     /structured_schema_contract|optional\(\) without \.nullable\(\)|Zod field at/i.test(message)
+    || /thinking mode.*(?:does not support|unsupported).*tool_choice|tool_choice.*(?:does not support|unsupported)/i.test(message)
     || /schema|contract|合同|不存在的判断|未绑定|结构校验|validation|确定性本体规则|直接连接|端点类型/i.test(message)
   ) return "contract_implementation_error";
   return "model_output_error";

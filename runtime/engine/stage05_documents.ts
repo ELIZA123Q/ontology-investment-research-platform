@@ -22,9 +22,14 @@ function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
 }
 
+export function hasTradingAdviceOverreach(body: string): boolean {
+  return /配置上|仓位建议|目标价|买入评级|卖出评级|投资者(?:需|应)|应警惕[^。；\n]{0,24}(?:公司|厂商|标的)|(?:估值|板块)[^。；\n]{0,32}(?:溢价|见顶风险)/.test(body);
+}
+
 function highQualityErrors(data: any) {
+  const body = nonEmpty(data?.document_markdown);
   const errors = collectStage05HighQualityIssues({
-    body: nonEmpty(data?.document_markdown),
+    body,
     research_edge: Array.isArray(data?.research_edge) ? data.research_edge : [],
     deterministic_check_status: nonEmpty(data?.deterministic_check_status),
     from_skeleton: Boolean(data?.__from_skeleton) || looksLikeDeterministicSkeleton(nonEmpty(data?.document_markdown)),
@@ -43,6 +48,13 @@ function highQualityErrors(data: any) {
       message: `研究价值得分 ${Number(review.total_score || 0)}/20，低于 ${Number(review.pass_threshold || 16)}/20`,
     });
   }
+  if (hasTradingAdviceOverreach(body)) {
+    errors.push({
+      severity: "error",
+      code: "trading_advice_overreach",
+      message: "正文出现配置、评级、目标价、投资者行动或个股估值溢价式建议；行业研究含义不得越过 Stage04 表达许可",
+    });
+  }
   return errors;
 }
 
@@ -52,6 +64,7 @@ export function projectExpressionAuditYaml(
 ): string {
   const claims = Array.isArray(data?.report_claims) ? data.report_claims : [];
   const body = nonEmpty(data?.document_markdown);
+  const tradingAdviceOverreach = hasTradingAdviceOverreach(body);
   const structureOk = hasPublishableStage05Structure(body);
   const hqErrors = highQualityErrors(data);
   const quality = nonEmpty(data?.quality_status, structureOk && !hqErrors.length ? "high_quality_pass" : "minimum_pass");
@@ -71,16 +84,24 @@ export function projectExpressionAuditYaml(
       normalized_question: nonEmpty(options.question),
       note: "工作台确认不等于 PUBLISHABLE；正式发布仍须通过 governance validate_05_outputs / validate_run。",
     },
-    claim_expression_register: claims.map((claim: any, index: number) => ({
-      expression_id: `EX-${String(index + 1).padStart(2, "0")}`,
-      claim_id: nonEmpty(claim?.id),
-      statement: nonEmpty(claim?.statement),
-      judgment_ids: asList(claim?.judgment_ids),
-      method_application_ids: asList(claim?.method_application_ids),
-      evidence_draft_ids: asList(claim?.evidence_draft_ids),
-      source_ids: asList(claim?.source_ids),
-      intensity_lifted: false,
-    })),
+    claim_expression_register: claims.map((claim: any, index: number) => {
+      const judgmentIds = asList(claim?.judgment_ids);
+      const stage04Claims = Array.isArray(options.stage04?.claims) ? options.stage04.claims : [];
+      const mappedClaim = stage04Claims.find((item: any) => judgmentIds.includes(String(item?.judgment_id || "")))
+        || stage04Claims[index];
+      return {
+        expression_id: `EX-${String(index + 1).padStart(2, "0")}`,
+        // 表达审计登记的是 Stage05 report_claim，而不是其上游 Stage04 claim。
+        // 上游 claim 只用于补充映射，不得覆盖当前交付物的主键。
+        claim_id: nonEmpty(claim?.id || claim?.claim_id || mappedClaim?.id),
+        statement: nonEmpty(claim?.statement),
+        judgment_ids: judgmentIds,
+        method_application_ids: asList(claim?.method_application_ids),
+        evidence_draft_ids: asList(claim?.evidence_draft_ids),
+        source_ids: asList(claim?.source_ids),
+        intensity_lifted: false,
+      };
+    }),
     research_edge_check: {
       status: body.includes("市场认知差 / Research Edge") || body.includes("Research Edge")
         ? (Array.isArray(data?.research_edge) && data.research_edge.some((edge: any) => !isPlaceholderResearchEdge(edge))
@@ -94,11 +115,11 @@ export function projectExpressionAuditYaml(
     },
     research_value_review: data?.research_value_review || null,
     high_risk_section_coverage: {
-      trading_advice: "absent",
+      trading_advice: tradingAdviceOverreach ? "present" : "absent",
       price_target: "absent",
     },
     overall_check: {
-      result: "pass",
+      result: tradingAdviceOverreach || hqErrors.length ? "fail" : "pass",
       notes: "表达审计由执行字段投影；确认时校验 EX 与 report_claims 对齐、不抬强度、正文无高可见审计腔；high_quality 另验密度与 Research Edge。",
     },
   };
@@ -199,32 +220,30 @@ export function ensureStage05DocumentFields(
     if (headings.length) next.argument_chapters = headings;
   }
 
-  if (!nonEmpty(next.expression_audit_yaml)) {
-    next.expression_audit_yaml = projectExpressionAuditYaml(next, options);
-  } else {
-    try {
-      const parsed = YAML.parse(next.expression_audit_yaml);
-      if (parsed?.metadata) {
-        parsed.metadata.quality_status = next.quality_status;
-        parsed.metadata.deterministic_check_status = next.deterministic_check_status;
-        parsed.research_edge_check = {
-          status: nonEmpty(next.document_markdown).includes("Research Edge")
-            ? (Array.isArray(next.research_edge) && next.research_edge.some((edge: any) => !isPlaceholderResearchEdge(edge))
-              ? "substantive"
-              : "present")
-            : "missing",
-        };
-        parsed.structure_check = {
-          publishable_shape: structureOk,
-          high_quality_shape: highQualityErrors(next).length === 0,
-        };
-        if (next.research_value_review) parsed.research_value_review = next.research_value_review;
-        next.expression_audit_yaml = YAML.stringify(parsed);
-      }
-    } catch {
-      next.expression_audit_yaml = projectExpressionAuditYaml(next, options);
-    }
+  // 审计属于结构化字段的确定性投影。每次保存都重建可派生部分，避免
+  // report_claim 改名/重排后，旧 Claim Register 仍“形式通过、链路失联”。
+  // 若旧审计已标记 intensity_lifted=true，则保留该风险标记，不能借重建洗掉。
+  const canonicalAudit = YAML.parse(projectExpressionAuditYaml(next, options));
+  try {
+    const existingAudit = YAML.parse(nonEmpty(next.expression_audit_yaml));
+    const existingRegister = Array.isArray(existingAudit?.claim_expression_register)
+      ? existingAudit.claim_expression_register
+      : [];
+    canonicalAudit.claim_expression_register = canonicalAudit.claim_expression_register.map((item: any) => {
+      const matched = existingRegister.find((old: any) => {
+        if (nonEmpty(old?.claim_id) === nonEmpty(item?.claim_id)) return true;
+        const oldJudgments = asList(old?.judgment_ids).sort().join("|");
+        const newJudgments = asList(item?.judgment_ids).sort().join("|");
+        return Boolean(oldJudgments) && oldJudgments === newJudgments;
+      });
+      return matched?.intensity_lifted === true
+        ? { ...item, intensity_lifted: true }
+        : item;
+    });
+  } catch {
+    // 空白或损坏的旧审计直接由当前结构化字段恢复。
   }
+  next.expression_audit_yaml = YAML.stringify(canonicalAudit);
   if (!nonEmpty(next.document_markdown)) {
     next.document_markdown = `# ${nonEmpty(next.title, "研究报告")}\n\n尚无正式交付正文，请生成或保存后再确认。`;
   }

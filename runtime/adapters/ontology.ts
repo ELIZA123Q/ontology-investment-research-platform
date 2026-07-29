@@ -1,10 +1,8 @@
 import "server-only";
-import { readFileSync } from "node:fs";
-import YAML from "yaml";
 import { getRun } from "./db";
-import { repositoryPath } from "./repo-paths";
 import { loadGraphForRun, queryObjectSet } from "../engine/instance_graph";
 import { listActionTypes } from "../engine/action_executor";
+import { loadOntologyCatalog } from "../engine/ontology_catalog";
 
 export type OntologyNode = {
   id: string;
@@ -22,45 +20,32 @@ export type OntologyNode = {
   rule_refs?: string[];
 };
 
-const ontologyFiles = [
-  "ontology/01_通用/models/semantic.yaml",
-  "ontology/01_通用/models/state_event.yaml",
-  "ontology/01_通用/models/evidence.yaml",
-  "ontology/01_通用/models/judgment.yaml",
-  "ontology/01_通用/models/scenario.yaml",
-  "ontology/01_通用/models/semiconductor_extension.yaml",
-];
-
 export function loadOntology() {
   const nodes = new Map<string, OntologyNode>();
-  for (const file of ontologyFiles) {
-    const doc = YAML.parse(readFileSync(repositoryPath(file), "utf8")) || {};
-    for (const [group, category] of [
-      ["object_types", "Object"],
-      ["relation_types", "Relation"],
-      ["rules", "Rule"],
-      ["scenario_types", "Scenario"],
-      ["evidence_constraints", "Rule"],
-    ] as const) {
-      for (const [id, raw] of Object.entries<any>(doc[group] || {})) {
-        const prior = nodes.get(id);
+  const catalog = loadOntologyCatalog();
+  for (const [definitions, category] of [
+    [catalog.object_types, "Object"],
+    [catalog.relation_types, "Relation"],
+    [catalog.rules, "Rule"],
+    [catalog.scenario_types, "Scenario"],
+  ] as const) {
+      for (const [id, raw] of definitions) {
         nodes.set(id, {
           id,
-          name: raw.name || raw.metadata?.label_zh || raw.label_zh || id,
+          name: String(raw.name || raw.metadata?.label_zh || raw.label_zh || id),
           category,
-          description: raw.description || raw.metadata?.definition || prior?.description || "",
+          description: String(raw.description || raw.metadata?.definition || ""),
           properties: Object.keys(raw.attributes || raw.properties || {}),
-          source_file: file,
-          source_types: raw.source_types || prior?.source_types || [],
-          target_types: raw.target_types || prior?.target_types || [],
-          write_scope: raw.write_scope || prior?.write_scope,
-          function_ref: raw.function_ref || prior?.function_ref,
-          parameters: raw.parameters || prior?.parameters,
-          logic_refs: raw.logic_refs || prior?.logic_refs,
-          rule_refs: raw.rule_refs || prior?.rule_refs,
+          source_file: raw.source_file,
+          source_types: raw.source_types || [],
+          target_types: raw.target_types || [],
+          write_scope: raw.write_scope as string[] | undefined,
+          function_ref: raw.function_ref as string | undefined,
+          parameters: raw.parameters as string[] | undefined,
+          logic_refs: raw.logic_refs as string[] | undefined,
+          rule_refs: raw.rule_refs as string[] | undefined,
         });
       }
-    }
   }
   return [...nodes.values()].sort((a, b) => a.category.localeCompare(b.category) || a.id.localeCompare(b.id));
 }

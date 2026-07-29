@@ -8,6 +8,26 @@ function stageModelEnv(prefix: "DEEPSEEK" | "OPENAI_COMPAT", stage?: string): st
   return process.env[`${prefix}_MODEL_${stage.toUpperCase()}`];
 }
 
+export function resolveProviderMaxTokens(
+  prefix: "DEEPSEEK" | "OPENAI_COMPAT",
+  stage: string | undefined,
+  fallback: number,
+): number {
+  const stageValue = stage && /^stage_0[1-5]$/.test(stage)
+    ? process.env[`${prefix}_MAX_TOKENS_${stage.toUpperCase()}`]
+    : undefined;
+  const globalValue = process.env[`${prefix}_MAX_TOKENS`];
+  const parsed = Number(stageValue || globalValue || fallback);
+  const bounded = Number.isFinite(parsed)
+    ? Math.min(65_536, Math.max(1_024, Math.floor(parsed)))
+    : fallback;
+  // Stage03 now works in two-JU patches. A 12k completion is ample for the
+  // source/evidence patch and prevents a malformed tool call from consuming a
+  // full 32k paid completion. Operators can override explicitly per stage.
+  if (stage === "stage_03" && !stageValue) return Math.min(bounded, 12_000);
+  return bounded;
+}
+
 export type ResolvedModelProvider = {
   provider: ModelProviderId;
   role: ModelRole;
@@ -113,7 +133,7 @@ export function resolveModelProvider(role: ModelRole = "producer", stage?: strin
       baseURL: process.env.OPENAI_COMPAT_BASE_URL || defaultBaseURL,
       requestTimeoutMs,
       generationTimeoutMs,
-      maxTokens: Number(process.env.OPENAI_COMPAT_MAX_TOKENS || 16384),
+      maxTokens: resolveProviderMaxTokens("OPENAI_COMPAT", stage, 16_384),
       reasoningEffort: null,
       displayName: process.env.OPENAI_COMPAT_DISPLAY_NAME
         || (process.env.OPENROUTER_API_KEY ? "OpenRouter" : "OpenAI-compatible"),
@@ -134,7 +154,7 @@ export function resolveModelProvider(role: ModelRole = "producer", stage?: strin
     baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com",
     requestTimeoutMs,
     generationTimeoutMs,
-    maxTokens: Number(process.env.DEEPSEEK_MAX_TOKENS || 32768),
+    maxTokens: resolveProviderMaxTokens("DEEPSEEK", stage, 32_768),
     reasoningEffort: process.env.DEEPSEEK_REASONING_EFFORT === "max" ? "max" : "high",
     displayName: "DeepSeek",
   };

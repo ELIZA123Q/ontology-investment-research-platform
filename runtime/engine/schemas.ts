@@ -1,5 +1,12 @@
 import { z } from "zod";
 import { isHumanClarificationQuestion } from "./stage01_contract";
+import {
+  ONTOLOGY_CONFIDENCE_LEVELS,
+  ONTOLOGY_ENUMS,
+  ONTOLOGY_JUDGMENT_LEVELS,
+  ONTOLOGY_JUDGMENT_TYPES,
+  ONTOLOGY_SOURCE_TIERS,
+} from "./ontology_vocabulary.generated";
 
 const markdown = z.string().min(40);
 const nonEmptyString = z.string().min(1);
@@ -13,18 +20,7 @@ const qualityStatus = z.enum([
 const stageStatus = z.enum(["not_started", "in_progress", "complete", "blocked", "returned"]);
 const taskDisposition = z.enum(["accepted", "needs_clarification", "out_of_scope", "split_required"]);
 const ontologyGapScanStatus = z.enum(["no_gap", "minor_gap", "major_gap", "blocking_gap"]);
-const judgmentType = z.enum([
-  "state_measurement",
-  "trend_direction",
-  "cycle_phase",
-  "mechanism_validation",
-  "causal_attribution",
-  "transmission_path",
-  "object_differentiation",
-  "impact_realization",
-  "expectation_gap",
-  "valuation_impact",
-]);
+const judgmentType = z.enum(ONTOLOGY_JUDGMENT_TYPES);
 
 export const methodApplicationSchema = z.object({
   application_id: z.string().regex(/^MA-[A-Z0-9_-]+$/),
@@ -208,6 +204,12 @@ export const judgmentStructureSchema = z.object({
     scope_ref: nonEmptyString,
     ontology_node_ids: z.array(z.string()),
     evidence_requirements: z.array(z.string()),
+    // Public Contract 1.3 / 02 规范可选字段；缺省由投影或只读适配器补齐。
+    candidate_claim: z.string().nullable().optional(),
+    content_hash: z.string().nullable().optional(),
+    priority_tier: z.enum(["critical", "important", "supporting", "optional"]).nullable().optional(),
+    decision_weight: z.number().min(0).max(1).nullable().optional(),
+    decision_role: z.enum(["primary", "supporting", "boundary", "watch"]).nullable().optional(),
   })).min(1),
   variables: z.array(z.object({
     id: nonEmptyString,
@@ -233,12 +235,12 @@ export const judgmentStructureSchema = z.object({
     statement: nonEmptyString.nullable().optional(),
     question: nonEmptyString.nullable().optional(),
     scope_ref: z.string().nullable().optional(),
-    failure_route: z.enum(["stop", "downgrade", "competing_explanation", "return_to_structure"]).nullable().optional(),
+    failure_route: z.enum(ONTOLOGY_ENUMS["ResearchQuestion.failure_route"]).nullable().optional(),
   }).refine((item) => Boolean(item.statement || item.question), { message: "研究问题缺少 statement/question" })).default([]),
   evidence_requirements: z.array(z.object({
     id: nonEmptyString,
     requirement: nonEmptyString,
-    evidence_role: z.enum(["support", "counter", "context", "boundary"]),
+    evidence_role: z.enum(ONTOLOGY_ENUMS["EvidenceRequirement.evidence_role"]),
     minimum_independent_sources: z.number().int().nonnegative(),
     judgment_unit_ids: z.array(z.string()).default([]),
     source: z.enum(["unit_requirement", "counter_direction"]).nullable().optional(),
@@ -382,7 +384,7 @@ const sourceDraft = z.object({
   title: nonEmptyString,
   publisher: z.string(),
   published_at: nonEmptyString,
-  source_tier: z.enum(["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8"]),
+  source_tier: z.enum(ONTOLOGY_SOURCE_TIERS),
   authority_type: z.enum(["official", "company_disclosure", "industry_provider", "public_secondary", "unknown"]).default("unknown"),
   source_type: nonEmptyString,
   search_excerpt: z.string(),
@@ -433,7 +435,7 @@ const evidenceFactDraft = z.object({
   valid_to: z.string().nullable().default(null),
   published_at: nonEmptyString,
   cutoff_at: nonEmptyString,
-  directness: z.enum(["direct", "indirect", "proxy"]),
+  directness: z.enum(ONTOLOGY_ENUMS["EvidenceAssessment.directness"]),
   limitations: z.array(z.string()),
   proxy_disclosure: z.object({
     lag: z.string().nullable(),
@@ -455,7 +457,7 @@ const evidenceGapDraft = z.object({
   judgment_unit_ids: z.array(z.string()).min(1),
   ontology_node_ids: z.array(z.string()),
   requirement: nonEmptyString,
-  evidence_role: z.enum(["support", "counter", "context", "boundary"]),
+  evidence_role: z.enum(ONTOLOGY_ENUMS["EvidenceRequirement.evidence_role"]),
   minimum_independent_sources: z.number().int().nonnegative(),
   limitations: z.array(z.string()).min(1),
 });
@@ -506,7 +508,7 @@ export const evidencePreparationSchema = z.object({
   quality_gate_ref: nonEmptyString,
   deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
   semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
-  confidence_ceiling: z.enum(["low", "medium", "high"]),
+  confidence_ceiling: z.enum(ONTOLOGY_CONFIDENCE_LEVELS),
   coverage_unit_total: z.number().int().nonnegative(),
   evidence_backed_unit_count: z.number().int().nonnegative(),
   evidence_coverage_rate: z.number().min(0).max(1),
@@ -585,7 +587,7 @@ export const judgmentDecisionSchema = z.object({
   signals: z.array(z.object({
     id: nonEmptyString,
     statement: nonEmptyString,
-    role: z.enum(["support", "weaken", "block", "context"]),
+    role: z.enum(ONTOLOGY_ENUMS["Signal.role"]),
     evidence_draft_ids: z.array(z.string()).min(1),
     judgment_unit_ids: z.array(z.string()).min(1),
     target_hypothesis_ids: z.array(z.string()).min(1),
@@ -616,13 +618,13 @@ export const judgmentDecisionSchema = z.object({
       condition_id: nonEmptyString,
       expression: nonEmptyString,
       input_refs: z.array(z.string()).min(1),
-      outcome: z.enum(["pass", "fail", "contested", "blocked"]),
+      outcome: z.enum(ONTOLOGY_ENUMS["RuleEvaluation.result"]),
       rationale: nonEmptyString,
     })).min(1),
-    result: z.enum(["pass", "fail", "contested", "blocked"]),
+    result: z.enum(ONTOLOGY_ENUMS["RuleEvaluation.result"]),
     deterministic_result: z.object({
       engine_version: nonEmptyString,
-      result: z.enum(["pass", "fail", "contested", "blocked"]),
+      result: z.enum(ONTOLOGY_ENUMS["RuleEvaluation.result"]),
       rationale: nonEmptyString,
       evaluated_at: nonEmptyString,
     }).nullable(),
@@ -633,10 +635,10 @@ export const judgmentDecisionSchema = z.object({
     title: nonEmptyString,
     conclusion: nonEmptyString,
     rationale: nonEmptyString,
-    strength: z.enum(["J0", "J1", "J2", "J3", "J4"]),
-    confidence: z.enum(["low", "medium", "high"]),
-    decision_status: z.enum(["draft", "supported", "contested", "blocked", "indeterminate", "invalidated"]),
-    conflict_status: z.enum(["none", "unresolved", "resolved", "decisive"]),
+    strength: z.enum(ONTOLOGY_JUDGMENT_LEVELS),
+    confidence: z.enum(ONTOLOGY_CONFIDENCE_LEVELS),
+    decision_status: z.enum(ONTOLOGY_ENUMS["Judgment.decision_status"]),
+    conflict_status: z.enum(ONTOLOGY_ENUMS["Judgment.conflict_status"]),
     not_judgeable_reason: z.string().nullable().default(null),
     scope_ref: nonEmptyString,
     cutoff_at: nonEmptyString,
@@ -654,6 +656,16 @@ export const judgmentDecisionSchema = z.object({
     qualification_claim_scope: qualificationScope.nullable().optional(),
     semiconductor_claim_scope: semiconductorMeasurement.nullable().optional(),
   })).min(1),
+  // Public Contract Claim (C-nn)：由 judgments 确定性投影；旧产物缺省由 ensureStage04 / 只读适配器补齐。
+  claims: z.array(z.object({
+    id: nonEmptyString,
+    judgment_id: nonEmptyString,
+    statement: nonEmptyString,
+    strength: z.enum(ONTOLOGY_JUDGMENT_LEVELS),
+    evidence_refs: z.array(z.string()).default([]),
+    method_application_ids: z.array(z.string()).default([]),
+    scope_ref: z.string().default(""),
+  })).default([]),
   reasoning_traces: z.array(z.object({
     id: nonEmptyString,
     judgment_id: nonEmptyString,
@@ -666,7 +678,7 @@ export const judgmentDecisionSchema = z.object({
     subject_ref: nonEmptyString,
     metric_ref: z.string().nullable().optional(),
     horizon: nonEmptyString,
-    consensus_basis: z.enum(["sell_side_consensus", "buy_side_positioning", "market_implied", "mixed", "other"]),
+    consensus_basis: z.enum(ONTOLOGY_ENUMS["MarketExpectation.consensus_basis"]),
     scope_ref: nonEmptyString,
     as_of: nonEmptyString,
     source_refs: z.array(z.string()).min(1),
@@ -674,8 +686,8 @@ export const judgmentDecisionSchema = z.object({
   expectation_gaps: z.array(z.object({
     id: nonEmptyString,
     statement: nonEmptyString,
-    direction: z.enum(["positive", "negative", "mixed", "none", "indeterminate"]),
-    gap_kind: z.enum(["level_gap", "slope_gap", "timing_gap", "condition_gap", "mixed"]),
+    direction: z.enum(ONTOLOGY_ENUMS["ExpectationGap.direction"]),
+    gap_kind: z.enum(ONTOLOGY_ENUMS["ExpectationGap.gap_kind"]),
     judgment_ref: nonEmptyString,
     market_expectation_ref: nonEmptyString,
     basis_refs: z.array(z.string()).min(1),
@@ -686,8 +698,8 @@ export const judgmentDecisionSchema = z.object({
     statement: nonEmptyString,
     source_judgment_refs: z.array(z.string()).min(1),
     target_object_ref: nonEmptyString,
-    impact_channel: z.enum(["revenue", "margin", "cashflow", "valuation_multiple", "cost_of_capital", "liquidity", "mixed", "other"]),
-    direction: z.enum(["positive", "negative", "mixed", "neutral", "indeterminate"]),
+    impact_channel: z.enum(ONTOLOGY_ENUMS["AssetImpact.impact_channel"]),
+    direction: z.enum(ONTOLOGY_ENUMS["AssetImpact.direction"]),
     time_horizon: nonEmptyString,
     conditions: z.array(z.string()).min(1),
     limitations: z.array(z.string()).default([]),
@@ -701,8 +713,8 @@ export const judgmentDecisionSchema = z.object({
   quality_gate_ref: nonEmptyString,
   deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
   semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
-  confidence: z.enum(["low", "medium", "high"]),
-  judgment_level: z.enum(["J0", "J1", "J2", "J3", "J4"]),
+  confidence: z.enum(ONTOLOGY_CONFIDENCE_LEVELS),
+  judgment_level: z.enum(ONTOLOGY_JUDGMENT_LEVELS),
   primary_claim_id: nonEmptyString,
   audit_ref: nonEmptyString,
   brief_ref: nonEmptyString,
@@ -718,7 +730,7 @@ export const judgmentDecisionSchema = z.object({
     prohibited_claims: z.array(z.string()).default([]),
     allowed_mechanisms: z.array(z.string()).default([]),
     restricted_phrasing: z.array(z.string()).default([]),
-    max_expression_level: z.enum(["J0", "J1", "J2", "J3", "J4"]).default("J0"),
+    max_expression_level: z.enum(ONTOLOGY_JUDGMENT_LEVELS).default("J0"),
     notes: z.string().default(""),
   }).default({
     allowed_core_claims: [],

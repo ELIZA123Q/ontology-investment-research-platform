@@ -23,7 +23,9 @@ describe("researcher-facing status labels", () => {
   it("turns technical job failures into an actionable recovery path", () => {
     expect(researchJobIssueMessage("402 Insufficient Balance")).toContain("模型服务额度暂时不足");
     expect(researchJobIssueMessage("DeepSeek 未提交合法结构化结果；invalid_type")).not.toMatch(/DeepSeek|invalid_type/);
-    expect(researchJobRecoveryHref("run-1", "stage_04")).toBe("/runs/run-1/stages/4");
+    expect(researchJobRecoveryHref("run-1", "stage_04")).toBe("/runs/run-1/judgments");
+    expect(researchJobRecoveryHref("run-1", "stage_04", "running")).toBe("/runs/run-1/stages/4");
+    expect(researchJobRecoveryHref("run-1", "stage_03", "waiting_for_input")).toBe("/runs/run-1/evidence");
   });
 
   it("uses research language for provenance and change attribution", () => {

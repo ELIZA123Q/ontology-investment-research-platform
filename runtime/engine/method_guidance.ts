@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import YAML from "yaml";
 import { repositoryPath, repositoryRoot } from "../adapters/repo-paths";
 import { logger } from "../lib/logger";
+import { CONTEXT_SLOT_BUDGETS } from "./context_assembler";
 import {
   defaultMethodIdsForJudgmentType,
   inferJudgmentTypesFromTask,
@@ -44,6 +46,7 @@ export type MethodGuidanceExcerpt = {
   excerpt: string;
   truncated: boolean;
   excerpt_mode: "full" | "sections";
+  content_hash?: string;
 };
 
 /** 行业场景卡：不进 method_registry，按任务关键词命中后注入 guidance。 */
@@ -80,9 +83,30 @@ export type ThresholdCapsProjection = {
   invariants: string[];
 };
 
-const BODY_PER_METHOD_CHARS = 14_000;
-const BODY_TOTAL_CHARS = 56_000;
+/** 与 CONTEXT_SLOT_BUDGETS.method_guidance 单源绑定，避免改预算时漂移。 */
+export const BODY_TOTAL_CHARS = CONTEXT_SLOT_BUDGETS.method_guidance;
+export const BODY_PER_METHOD_CHARS = Math.min(14_000, Math.floor(BODY_TOTAL_CHARS / 4));
 const STAGE02_MAX_PER_CAPABILITY = 3;
+
+function excerptHash(excerpt: string): string {
+  return createHash("sha256").update(excerpt).digest("hex").slice(0, 16);
+}
+
+/** 按 method_id + 内容哈希去重，保证同一方法正文每阶段最多注入一次。 */
+export function dedupeMethodGuidance(items: MethodGuidanceExcerpt[]): MethodGuidanceExcerpt[] {
+  const seenIds = new Set<string>();
+  const seenHashes = new Set<string>();
+  const out: MethodGuidanceExcerpt[] = [];
+  for (const item of items) {
+    const hash = item.content_hash || excerptHash(item.excerpt);
+    if (seenIds.has(item.method_id)) continue;
+    if (seenHashes.has(hash)) continue;
+    seenIds.add(item.method_id);
+    seenHashes.add(hash);
+    out.push({ ...item, content_hash: hash });
+  }
+  return out;
+}
 
 const SECTION_PRIORITY_PATTERN = /停止|边界|不适用|最少必须|output_gate|判断原则|完备度|适用条件|前置条件|质量检[检测查验]|降级|阻断/;
 const METHOD_SECTION_PATTERN = /操作步骤|典型场景|常见错误|分析[步骤流程方法框架]|计算[步骤逻辑方法]|数据[来源采集映射]|关键指标|推理[过程链步骤]|判断[流逻辑步骤]|评估[方法逻辑]|验证[方法步骤]|研究[路线框架方法]|案例|注意事项/;
@@ -436,10 +460,11 @@ export function loadScenarioCardGuidance(
       excerpt,
       truncated,
       excerpt_mode,
+      content_hash: excerptHash(excerpt),
     });
     used += excerpt.length;
   }
-  return out;
+  return dedupeMethodGuidance(out);
 }
 
 export function loadSelectedMethodGuidance(
@@ -474,6 +499,7 @@ export function loadSelectedMethodGuidance(
       excerpt,
       truncated,
       excerpt_mode,
+      content_hash: excerptHash(excerpt),
     });
     used += excerpt.length;
   }
@@ -483,7 +509,7 @@ export function loadSelectedMethodGuidance(
       `跳过无正文的方法 (${skippedIds.length}/${methodIds.length}): ${skippedIds.join(", ")}`,
     );
   }
-  return out;
+  return dedupeMethodGuidance(out);
 }
 
 export function judgmentThresholdCapsForPrompt(): ThresholdCapsProjection {
@@ -604,29 +630,47 @@ export function buildStageGenerationGuidance(input: {
   );
   const totalChars = input.totalChars ?? BODY_TOTAL_CHARS;
   // Stage02：场景卡优先占预算，保证分产品/生产者纪律进入裁剪上下文。
+  const scenarioBudgetCap = Math.min(16_000, totalChars);
   const scenarioGuidance = input.kind === "stage_02"
     ? loadScenarioCardGuidance(input.taskText || "", {
       perCardChars: input.perMethodChars,
-      totalChars: Math.min(16_000, totalChars),
+      totalChars: scenarioBudgetCap,
     })
     : [];
   const scenarioUsed = scenarioGuidance.reduce((sum, item) => sum + item.excerpt.length, 0);
+  const methodBudget = Math.max(0, totalChars - scenarioUsed);
   const methodGuidance = loadSelectedMethodGuidance(methodIds, {
-    perMethodChars: input.perMethodChars,
-    totalChars: Math.max(4_000, totalChars - scenarioUsed),
+    perMethodChars: input.perMethodChars ?? Math.min(BODY_PER_METHOD_CHARS, Math.max(500, methodBudget)),
+    totalChars: methodBudget,
   });
-  const selected = [...scenarioGuidance, ...methodGuidance];
+  // 场景卡与方法正文合并后再去重，防止同文件经两条路径重复注入。
+  const selected = dedupeMethodGuidance([...scenarioGuidance, ...methodGuidance]);
   let used = 0;
   const clipped: MethodGuidanceExcerpt[] = [];
   for (const item of selected) {
     if (used >= totalChars) break;
-    clipped.push(item);
-    used += item.excerpt.length;
+    const remain = totalChars - used;
+    if (item.excerpt.length <= remain) {
+      clipped.push(item);
+      used += item.excerpt.length;
+      continue;
+    }
+    if (remain < 200) break;
+    clipped.push({
+      ...item,
+      excerpt: `${item.excerpt.slice(0, remain - 1)}…`,
+      truncated: true,
+      content_hash: undefined,
+    });
+    used = totalChars;
+    break;
   }
   return {
     method_ids: methodIds,
     scenario_card_ids: scenarioGuidance.map((item) => item.method_id),
     selected_method_guidance: clipped,
+    guidance_chars: used,
+    guidance_budget: totalChars,
   };
 }
 

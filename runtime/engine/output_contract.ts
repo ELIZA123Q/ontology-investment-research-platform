@@ -107,47 +107,47 @@ export type StageDefectReport = {
  * 来源: governance/02_合同/public_contract.yaml 主链定义
  */
 export const CROSS_STAGE_REFERENCE_RULES = {
-  // Stage02 → Stage01
+  // Stage02 → Stage01（范围边界由 scope_ref / time_scope 承接；问题树在 02 内自洽）
   "02_to_01": {
     checks: [
-      { source: "judgment_units[].question_refs[]", target: "questions[].id", stage: "stage_01" },
-      { source: "variables[].ontology_node_refs[]", target: "ontology.objects[].id", stage: "stage_01" },
+      { source: "judgment_units[].scope_ref", target: "research_scope.id", stage: "stage_02" },
     ],
   },
   // Stage03 → Stage02
   "03_to_02": {
     checks: [
-      { source: "evidence_drafts[].scope_ref[]", target: "judgment_units[].id", stage: "stage_02" },
-      { source: "evidence_requirements[].requirement_id", target: "evidence_requirements[].requirement_id", stage: "stage_02" },
+      { source: "evidence_drafts[].judgment_unit_ids[]", target: "judgment_units[].id", stage: "stage_02" },
+      { source: "evidence_requirements[].id", target: "evidence_requirements[].id", stage: "stage_02" },
       { source: "method_applications[].application_id", target: "method_applications[].application_id", stage: "stage_02" },
     ],
   },
   // Stage04 → Stage03
   "04_to_03": {
     checks: [
-      { source: "signals[].evidence_refs[]", target: "evidence_drafts[].id", stage: "stage_03" },
-      { source: "judgments[].evidence_refs[]", target: "evidence_drafts[].id", stage: "stage_03" },
+      { source: "signals[].evidence_draft_ids[]", target: "evidence_drafts[].id", stage: "stage_03" },
+      { source: "judgments[].supporting_evidence_draft_ids[]", target: "evidence_drafts[].id", stage: "stage_03" },
       { source: "method_applications[].input_evidence_refs[]", target: "evidence_drafts[].id", stage: "stage_03" },
     ],
   },
   // Stage04 → Stage02
   "04_to_02": {
     checks: [
-      { source: "judgments[].judgment_unit_ref", target: "judgment_units[].id", stage: "stage_02" },
-      { source: "signals[].variable_ref[]", target: "variables[].id", stage: "stage_02" },
+      { source: "judgments[].judgment_unit_id", target: "judgment_units[].id", stage: "stage_02" },
+      { source: "claims[].judgment_id", target: "judgments[].id", stage: "stage_04" },
     ],
   },
-  // Stage05 → Stage04
+  // Stage05 → Stage04（运行真源为 report_claims；合同层 EX 由其投影）
   "05_to_04": {
     checks: [
-      { source: "expressions[].claim_ref", target: "claims[].id", stage: "stage_04" },
-      { source: "expressions[].judgment_ref[]", target: "judgments[].id", stage: "stage_04" },
+      { source: "report_claims[].judgment_ids[]", target: "judgments[].id", stage: "stage_04" },
+      { source: "report_claims[].method_application_ids[]", target: "method_applications[].application_id", stage: "stage_04" },
     ],
   },
   // Stage05 → Stage03
   "05_to_03": {
     checks: [
-      { source: "source_lines[].source_ref[]", target: "sources[].id", stage: "stage_03" },
+      { source: "report_claims[].evidence_draft_ids[]", target: "evidence_drafts[].id", stage: "stage_03" },
+      { source: "report_claims[].source_ids[]", target: "sources[].id", stage: "stage_03" },
     ],
   },
 } as const;

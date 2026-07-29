@@ -10,6 +10,7 @@ import { loadGraphForRun } from "../engine/instance_graph";
 import { evidenceBoundSources } from "../engine/evidence_sources";
 import { parseManifest } from "../engine/manifest";
 import { parseJson } from "../engine/types";
+import { loadApprovedSemanticSnapshot } from "../engine/semantic_reads";
 import {
   buildWorkbenchManifest,
   projectEvidence,
@@ -34,6 +35,13 @@ function stageData(
   stage: "stage_01" | "stage_02" | "stage_03" | "stage_04" | "stage_05",
   approvedOnly: boolean,
 ) {
+  if (approvedOnly && ["stage_02", "stage_03", "stage_04"].includes(stage)) {
+    const snapshot = loadApprovedSemanticSnapshot(
+      runId,
+      stage as "stage_02" | "stage_03" | "stage_04",
+    );
+    return { artifact: snapshot.artifact, data: snapshot.data };
+  }
   const artifact = latestArtifact(runId, stage, approvedOnly ? ["approved"] : ["approved", "needs_review"]);
   if (!artifact) return { artifact: null, data: {} as Record<string, any> };
   return { artifact, data: parseJson<Record<string, any>>(artifact.json_content, {}) };
@@ -226,8 +234,8 @@ export function publishAndValidate(runId: string): PublishResult {
   const review = latestArtifact(runId, "independent_review", ["approved"]);
   if (!review) throw new Error("独立审阅尚未确认，不能进入交付校验");
   const reviewData: any = parseJson(review.json_content, {});
-  const judgment = latestArtifact(runId, "stage_04", ["approved"]);
-  if (!judgment) throw new Error("阶段 04 尚未确认");
+  const judgmentSnapshot = loadApprovedSemanticSnapshot(runId, "stage_04");
+  const judgment = judgmentSnapshot.artifact;
   const judgmentHash = createHash("sha256").update(judgment.json_content).digest("hex");
   if (reviewData.reviewed_stage04_artifact_id !== judgment.id || reviewData.reviewed_stage04_artifact_hash !== judgmentHash) {
     throw new Error("独立审阅已过期，不对应当前 stage_04");
@@ -246,7 +254,7 @@ export function publishAndValidate(runId: string): PublishResult {
   }
   const baseline = latestArtifact(runId, "baseline", ["approved"]);
   const evaluation = latestArtifact(runId, "evaluation", ["approved"]);
-  const evidence = latestArtifact(runId, "stage_03", ["approved"]);
+  const evidence = loadApprovedSemanticSnapshot(runId, "stage_03").artifact;
   if (!baseline || !evaluation || !evidence) throw new Error("发布前必须完成同证据基线和盲评");
   const evaluationData: any = parseJson(evaluation.json_content, {});
   const evidenceHash = createHash("sha256").update(evidence.json_content).digest("hex");

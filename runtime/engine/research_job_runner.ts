@@ -18,6 +18,11 @@ import { STAGES } from "./types";
 import { classifyRuntimeFailure, generateArtifact, shouldRetryRuntimeFailure } from "./workflow";
 import { stage03AutoSupplementMaxRounds } from "./evidence_auto_supplement";
 import { budgetViolationMessage, evaluateResearchJobBudget, parseResearchJobBudget } from "./research_job_budget";
+import {
+  isResumableStage03Artifact,
+  readStage03BatchCheckpoint,
+  updateStage03BatchCheckpoint,
+} from "./stage03_batch_checkpoint";
 
 type GenerationJobPayload = {
   run_id: string;
@@ -59,6 +64,16 @@ function parseGenerationPayload(job: ResearchJob): GenerationJobPayload {
     max_auto_rounds: Number.isFinite(parsed.max_auto_rounds) ? Number(parsed.max_auto_rounds) : null,
     initial_source_ids: Array.isArray(parsed.initial_source_ids) ? parsed.initial_source_ids.map(String) : [],
   };
+}
+
+export function resolveStage03ResumeArtifactId(
+  job: ResearchJob,
+  kind: ArtifactKind,
+  resolveArtifact: (id: string) => Artifact | undefined = getArtifact,
+): string | undefined {
+  if (kind !== "stage_03" || !job.artifact_id) return undefined;
+  const artifact = resolveArtifact(job.artifact_id);
+  return isResumableStage03Artifact(artifact) ? artifact!.id : undefined;
 }
 
 function assertGenerationPrerequisites(runId: string, kind: ArtifactKind) {
@@ -170,7 +185,8 @@ export async function executeClaimedGenerationJob(
     return store.finish(job.id, token, { reason: frozen.reason }, "waiting_for_input");
   }
 
-  if (job.artifact_id) {
+  const resumeArtifactId = resolveStage03ResumeArtifactId(job, payload.kind);
+  if (job.artifact_id && !resumeArtifactId) {
     updateArtifactIfStatus(job.artifact_id, "running", {
       status: "failed",
       error_message: "[model_output_error] JOB_LEASE_RECOVERED: worker 中断后从阶段起点重试",
@@ -188,6 +204,7 @@ export async function executeClaimedGenerationJob(
       mode: payload.mode,
       maxAutoRounds: payload.max_auto_rounds ?? undefined,
       maxSourceCount: budget.max_sources ?? undefined,
+      resumeArtifactId,
       executionLease: {
         assertActive() {
           if (leaseLost || !store.hasActiveLease(job.id, token)) {
@@ -269,9 +286,37 @@ export async function executeClaimedGenerationJob(
     return finished;
   } catch (error) {
     if (!store.hasActiveLease(job.id, token)) return undefined;
+    const boundArtifactId = store.get(job.id)?.artifact_id;
+    const boundArtifact = boundArtifactId ? getArtifact(boundArtifactId) : undefined;
+    if (payload.kind === "stage_03" && boundArtifact) {
+      try {
+        const data = JSON.parse(boundArtifact.json_content || "{}");
+        const checkpoint = readStage03BatchCheckpoint(data);
+        const paidBatch = checkpoint?.batches.find((entry) =>
+          entry.status === "in_progress" && Boolean(entry.paid_model_started_at),
+        );
+        if (checkpoint && paidBatch) {
+          data.stage03_batch_checkpoint = updateStage03BatchCheckpoint(checkpoint, paidBatch.batch_id, {
+            status: "interrupted",
+            finished_at: new Date().toISOString(),
+            error: `已付费批次中断且禁止自动重放：${error instanceof Error ? error.message : String(error)}`,
+          });
+          updateArtifactIfStatus(boundArtifact.id, boundArtifact.status, {
+            status: "failed",
+            json_content: JSON.stringify(data, null, 2),
+            error_message: "[model_output_error] STAGE03_PAID_BATCH_INTERRUPTED_NO_REPLAY",
+          });
+          return store.fail(job.id, token, error instanceof Error ? error.message : String(error), {
+            retryable: false,
+          });
+        }
+      } catch {
+        // Fall back to the ordinary failure router when checkpoint JSON itself
+        // is unreadable; no paid-batch claim can be made without evidence.
+      }
+    }
     const category = classifyRuntimeFailure(error);
     if (category === "evidence_insufficient" || category === "method_not_applicable" || category === "budget_exceeded") {
-      const boundArtifactId = store.get(job.id)?.artifact_id;
       if (boundArtifactId) {
         updateArtifactIfStatus(boundArtifactId, "running", {
           status: "failed",
@@ -304,6 +349,26 @@ export async function runNextResearchJob(options: {
     jobTypes: ["generate_artifact"],
   });
   if (!job) return undefined;
+  return executeClaimedGenerationJob(job, store, options.execute || generateArtifact);
+}
+
+export async function runResearchJobById(jobId: string, options: {
+  workerId?: string;
+  store?: ResearchJobStore;
+  execute?: GenerationExecutor;
+} = {}) {
+  const store = options.store || getResearchJobStore();
+  const job = store.claimById(jobId, {
+    workerId: options.workerId || `one-shot-worker-${process.pid}`,
+    leaseMs: researchJobLeaseMs(),
+    jobTypes: ["generate_artifact"],
+  });
+  if (!job) {
+    const current = store.get(jobId);
+    throw new Error(current
+      ? `JOB_NOT_CLAIMABLE: ${jobId} 当前状态为 ${current.status}`
+      : `JOB_NOT_FOUND: ${jobId}`);
+  }
   return executeClaimedGenerationJob(job, store, options.execute || generateArtifact);
 }
 

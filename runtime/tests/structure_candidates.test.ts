@@ -5,6 +5,7 @@ import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
   projectEvidenceRequirementsFromStructure,
+  resolveEvidenceRequirementsFromStructure,
 } from "../engine/structure_candidates";
 
 describe("structure_candidates", () => {
@@ -93,5 +94,76 @@ describe("structure_candidates", () => {
         source_ref: "CD-01",
       },
     ]);
+  });
+
+  it("把 Stage02 的 EvidenceRequirement 引用占位符展开为可执行取证要求并去重反证", () => {
+    const requirements = projectEvidenceRequirementsFromStructure({
+      units: [{
+        id: "JU-1",
+        title: "HBM 库存周期",
+        question: "HBM 是否进入可持续改善阶段？",
+        evidence_requirements: ["ER-JU1-support", "ER-JU1-counter"],
+      }],
+      counter_evidence_directions: [{
+        direction_id: "CD-JU1-01",
+        statement: "需求低于预期且库存重新累积",
+        judgment_unit_ids: ["JU-1"],
+      }],
+    });
+
+    expect(requirements).toHaveLength(2);
+    expect(requirements[0]).toMatchObject({
+      evidence_role: "support",
+      judgment_unit_ids: ["JU-1"],
+    });
+    expect(requirements[0].requirement).toContain("HBM 是否进入可持续改善阶段");
+    expect(requirements[0].requirement).toContain("价格、库存、供给约束与需求变化时序数据");
+    expect(requirements[1]).toMatchObject({
+      evidence_role: "counter",
+      requirement: "需求低于预期且库存重新累积",
+      source: "counter_direction",
+    });
+  });
+
+  it("优先执行 Stage02 顶层 EvidenceRequirement，不用 JudgmentUnit 引用重新投影", () => {
+    const resolved = resolveEvidenceRequirementsFromStructure({
+      units: [{
+        id: "JU-1",
+        question: "HBM 是否进入可持续改善阶段？",
+        evidence_requirements: ["ER-JU1-support", "ER-JU1-counter"],
+      }],
+      evidence_requirements: [{
+        id: "ER-JU1-support",
+        requirement: "HBM 合约价、库存天数、客户订单覆盖和有效产出季度序列",
+        evidence_role: "support",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-1"],
+        source: "unit_requirement",
+      }, {
+        id: "ER-JU1-counter",
+        requirement: "AI 系统部署不及预期、客户库存积压和良率爬坡慢于预期",
+        evidence_role: "counter",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-1"],
+        source: "counter_direction",
+        source_ref: "CD-JU1-01",
+      }],
+      counter_evidence_directions: [{
+        direction_id: "CD-JU1-01",
+        statement: "需求低于预期",
+        judgment_unit_ids: ["JU-1"],
+      }],
+    });
+
+    expect(resolved).toHaveLength(2);
+    expect(resolved[0]).toMatchObject({
+      id: "ER-JU1-support",
+      minimum_independent_sources: 2,
+    });
+    expect(resolved[0].requirement).toContain("客户订单覆盖");
+    expect(resolved[1]).toMatchObject({
+      source: "counter_direction",
+      source_ref: "CD-JU1-01",
+    });
   });
 });

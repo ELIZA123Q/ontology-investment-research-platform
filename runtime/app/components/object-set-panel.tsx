@@ -16,12 +16,24 @@ type ObjectSetResponse = {
   error?: string;
 };
 
+type RelationOption = {
+  id: string;
+  label: string;
+  definition: string;
+  attributes: Record<string, { type?: string; required?: boolean; allowed_values?: string[] }>;
+  targets: Array<{ id: string; type: string; label: string }>;
+};
+
 export function ObjectSetPanel({ runId }: { runId: string }) {
   const [typeFilter, setTypeFilter] = useState("JudgmentUnit");
   const [relatedTo, setRelatedTo] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [data, setData] = useState<ObjectSetResponse | null>(null);
   const [proposal, setProposal] = useState<any>(null);
+  const [relationOptions, setRelationOptions] = useState<RelationOption[]>([]);
+  const [relationType, setRelationType] = useState("");
+  const [relationTargetId, setRelationTargetId] = useState("");
+  const [relationProperties, setRelationProperties] = useState("{}");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -51,6 +63,44 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
     if (!selected || !data?.relations) return [];
     return data.relations.filter((r) => r.sourceId === selected.id || r.targetId === selected.id);
   }, [data, selected]);
+  const selectedRelationOption = useMemo(
+    () => relationOptions.find((option) => option.id === relationType) || null,
+    [relationOptions, relationType],
+  );
+
+  useEffect(() => {
+    if (!selected?.id || data?.authority !== "formal") {
+      setRelationOptions([]);
+      setRelationType("");
+      setRelationTargetId("");
+      return;
+    }
+    let active = true;
+    fetch(`/api/runs/${runId}/relations/options?sourceId=${encodeURIComponent(selected.id)}`)
+      .then(async (response) => ({ response, json: await response.json() }))
+      .then(({ response, json }) => {
+        if (!active) return;
+        if (!response.ok) {
+          setRelationOptions([]);
+          return;
+        }
+        const options = (json.relation_options || []) as RelationOption[];
+        setRelationOptions(options);
+        setRelationType((current) => options.some((option) => option.id === current) ? current : options[0]?.id || "");
+      })
+      .catch(() => {
+        if (active) setRelationOptions([]);
+      });
+    return () => { active = false; };
+  }, [runId, selected?.id, data?.authority]);
+
+  useEffect(() => {
+    setRelationTargetId((current) =>
+      selectedRelationOption?.targets.some((target) => target.id === current)
+        ? current
+        : selectedRelationOption?.targets[0]?.id || "");
+    setRelationProperties("{}");
+  }, [relationType]);
 
   async function propose() {
     if (!selected) return;
@@ -94,6 +144,42 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
     setBusy(false);
     if (!response.ok) { setError(workItem.error || "批准失败"); return; }
     setProposal((current: any) => ({ ...current, proposal: { ...current.proposal, status: "approved" }, approval_work_item: workItem }));
+  }
+
+  async function proposeRelation() {
+    if (!selected || !relationType || !relationTargetId) return;
+    let properties: Record<string, unknown>;
+    try {
+      properties = JSON.parse(relationProperties || "{}");
+      if (!properties || typeof properties !== "object" || Array.isArray(properties)) {
+        throw new Error("关系属性必须是 JSON 对象");
+      }
+    } catch (parseError) {
+      setError(parseError instanceof Error ? parseError.message : "关系属性 JSON 非法");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const response = await fetch(`/api/runs/${runId}/actions/proposals`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action_id: "LinkOntologyObjects",
+        parameters: {
+          sourceId: selected.id,
+          relationType,
+          targetId: relationTargetId,
+          properties,
+        },
+      }),
+    });
+    const json = await response.json();
+    setBusy(false);
+    if (!response.ok) {
+      setError(json.error || "关系提案创建失败");
+      return;
+    }
+    setProposal(json);
   }
 
   async function executeProposal() {
@@ -210,6 +296,53 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           ) : (
             <p className="muted">当前对象暂无相关关系</p>
           )}
+          {selected && data?.authority === "formal" ? (
+            <details className="structure-advanced" open>
+              <summary>建立受本体约束的新关系</summary>
+              <p className="muted">只显示与当前源对象类型、当前图中目标对象类型兼容的正式关系；提交后仍需人工批准。</p>
+              {relationOptions.length ? (
+                <>
+                  <div className="field">
+                    <label>正式关系类型</label>
+                    <select value={relationType} onChange={(event) => setRelationType(event.target.value)}>
+                      {relationOptions.map((option) => (
+                        <option key={option.id} value={option.id}>{option.label}（{option.id}）</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label>合法目标对象</label>
+                    <select value={relationTargetId} onChange={(event) => setRelationTargetId(event.target.value)}>
+                      {(selectedRelationOption?.targets || []).map((target) => (
+                        <option key={target.id} value={target.id}>{target.label} · {objectTypeLabel(target.type)} · {target.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {selectedRelationOption?.definition ? <p className="muted">{selectedRelationOption.definition}</p> : null}
+                  {selectedRelationOption && Object.keys(selectedRelationOption.attributes).length ? (
+                    <div className="field">
+                      <label>
+                        关系属性 JSON
+                        {" · "}
+                        {Object.entries(selectedRelationOption.attributes)
+                          .map(([name, definition]) => `${name}${definition.required ? "*" : ""}`)
+                          .join("、")}
+                      </label>
+                      <textarea
+                        className="json-editor"
+                        value={relationProperties}
+                        onChange={(event) => setRelationProperties(event.target.value)}
+                        rows={5}
+                      />
+                    </div>
+                  ) : null}
+                  <button className="button-secondary" disabled={busy || !relationTargetId} onClick={proposeRelation}>
+                    创建关系提案
+                  </button>
+                </>
+              ) : <p className="muted">当前对象在正式本体中没有可连接到本图现有对象的关系。</p>}
+            </details>
+          ) : null}
           {proposal ? (
             <>
               <h3>操作建议</h3>

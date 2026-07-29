@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { getRun } from "@/adapters/db";
 import {
   latestArtifactPayload,
@@ -10,12 +10,17 @@ import { EvidenceBoard } from "@/app/components/evidence-board";
 import { sourceRowForClient, workItemForClient } from "@/app/lib/client-rows";
 import { buildEvidenceReviewSuggestions } from "@/engine/evidence_review_assist";
 import { buildEvidenceSupplementSummary } from "@/engine/evidence_supplement_diff";
+import { buildEvidenceProfileGapHints, profileHintsAsGapPriorities } from "@/engine/evidence_profile_gaps";
+import { precheckFindingsAsWeakLinks, precheckStage03OntologyConstraints } from "@/engine/ontology_stage03_precheck";
 import { projectEvidenceRequirementsFromStructure } from "@/engine/structure_candidates";
 import { parseJson } from "@/engine/types";
 import Link from "next/link";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
-import { researcherLanguage } from "@/app/lib/researcher-stage-output";
+import { StageStatusBadge } from "@/app/components/stage-status-badge";
+import { EmptyState } from "@/app/components/empty-state";
+import { buildEvidenceReadinessView, researcherLanguage } from "@/app/lib/researcher-stage-output";
+import { journeyEditHref } from "@/app/lib/research-journey";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +29,16 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
   const run = getRun(id);
   if (!run) notFound();
   const evidenceArtifact = latestArtifactPayload(id, "stage_03", ["approved", "needs_review"]);
-  if (!evidenceArtifact) redirect(`/runs/${id}/stages/3`);
+  if (!evidenceArtifact) {
+    return (
+      <EmptyState
+        title="尚未准备证据"
+        description="先进入证据准备页取得公开来源并形成待核对事实，再回到证据台逐项确认。"
+        actionHref={journeyEditHref(id, 3)}
+        actionLabel="开始取证 →"
+      />
+    );
+  }
 
   const structure: any = parseJson(latestArtifactPayload(id, "stage_02", ["approved", "needs_review"])?.json_content || "{}", {});
   const evidenceData: any = parseJson(evidenceArtifact.json_content || "{}", {});
@@ -35,10 +49,9 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     current: evidenceData,
     previous: hasPrevious ? previousEvidenceData : null,
   });
+  const readiness = buildEvidenceReadinessView(evidenceData);
   const taskData: any = parseJson(latestArtifactPayload(id, "stage_01", ["approved"])?.json_content || "{}", {});
   const sources = listSourcesForReview(id);
-  // 证据页只展示并统计当前 Stage03 版本的对象级审阅任务。
-  // 历史版本和 Stage04/独立审阅任务仍保留在档案中，但不能混入当前证据口径。
   const workItems = listWorkItemsForReview(id).filter((item) =>
     item.artifact_id === evidenceArtifact.id && item.attempt === evidenceArtifact.version,
   );
@@ -85,6 +98,20 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     requirements,
   });
 
+  const profileHints = buildEvidenceProfileGapHints({
+    variables: structure.variables,
+    judgment_units: structure.judgment_units,
+    limit: 3,
+  });
+  const extraGapPriorities = profileHintsAsGapPriorities(profileHints);
+  const ontologyPrecheck = precheckStage03OntologyConstraints({
+    evidence_drafts: evidenceData.evidence_drafts || [],
+    sources: sources as any,
+    default_scope_ref: String(taskData.scope_ref || structure.scope_ref || ""),
+    cutoff_at: String(taskData.time_scope?.as_of || ""),
+  });
+  const ontologyPrecheckHints = precheckFindingsAsWeakLinks(ontologyPrecheck, 3);
+
   const pending = workItems.filter((item) => item.status === "pending" || item.status === "rework");
   const approved = workItems.filter((item) => item.status === "approved");
   const gapAccepted = workItems.filter((item) => item.kind === "supplement_evidence" && item.status === "approved");
@@ -106,15 +133,29 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
             canApprove={pending.length === 0}
             blockingHint={pending.length ? `先处理 ${pending.length} 项待核对或退回修改的内容` : undefined}
           />
-          <div className="run-meta">
-            <span>待核对 {pending.length}</span>
-            <span>已确认 {approved.length}</span>
-            <span>已确认暂缺 {gapAccepted.length}</span>
-          </div>
-          <Link className="button" href={`/runs/${id}/stages/3`}>去补证 →</Link>
+          <StageStatusBadge status={evidenceArtifact.status} pendingCount={pending.length} />
+          <Link className="button" href={journeyEditHref(id, 3)}>去补证 →</Link>
         </>
       }
     />
+
+    <section className="evidence-readiness-strip" aria-label="证据就绪度">
+      <article>
+        <span>能否形成判断</span>
+        <strong>{readiness.judgmentReadyLabel}</strong>
+        <small>事实 {readiness.factCount} · 尚缺 {readiness.gapCount} · 矛盾 {readiness.conflictCount}</small>
+      </article>
+      <article>
+        <span>交付素材是否就绪</span>
+        <strong>{readiness.deliveryReadyLabel}</strong>
+        <small>{readiness.note}</small>
+      </article>
+      <div className="run-meta">
+        <span>待核对 {pending.length}</span>
+        <span>已确认 {approved.length}</span>
+        <span>已确认暂缺 {gapAccepted.length}</span>
+      </div>
+    </section>
 
     {units.length ? <EvidenceBoard
       runId={id}
@@ -125,10 +166,15 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
       suggestions={suggestions}
       supplementSummary={supplementSummary.visible ? supplementSummary : null}
       artifactVersion={evidenceArtifact.version}
-    /> : <div className="card empty-state">
-      <h2>先建立研究结构</h2>
-      <p className="muted">证据台必须按判断单元组织；请先确认问题树、竞争解释与必要证据。</p>
-      <Link className="button" href={`/runs/${id}/structure`}>进入结构场景</Link>
-    </div>}
+      extraGapPriorities={extraGapPriorities}
+      ontologyPrecheckHints={ontologyPrecheckHints}
+    /> : (
+      <EmptyState
+        title="先建立研究结构"
+        description="证据台必须按关键判断组织；请先确认问题树、竞争解释与必要证据。"
+        actionHref={`/runs/${id}/structure`}
+        actionLabel="进入结构场景 →"
+      />
+    )}
   </>;
 }

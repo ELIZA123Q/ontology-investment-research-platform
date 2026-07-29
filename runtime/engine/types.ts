@@ -1,3 +1,5 @@
+import type { OntologySourceTier } from "./ontology_vocabulary.generated";
+
 export const STAGES = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"] as const;
 export type StageKind = (typeof STAGES)[number];
 export type ArtifactKind = StageKind | "baseline" | "evaluation" | "independent_review" | "instance_graph" | "action_audit";
@@ -237,7 +239,7 @@ export type SourceRecord = {
   published_at: string | null;
   accessed_at: string;
   source_type: string;
-  source_tier?: "S1" | "S2" | "S3" | "S4" | "S5" | "S6" | "S7" | "S8";
+  source_tier?: OntologySourceTier;
   authority_type?: "official" | "company_disclosure" | "industry_provider" | "public_secondary" | "unknown";
   source_group?: string;
   search_excerpt: string;

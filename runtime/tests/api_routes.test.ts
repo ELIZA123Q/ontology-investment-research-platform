@@ -119,7 +119,7 @@ describe("critical API routes", () => {
     );
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({
-      error: "当前阶段已有待确认产物，请先人工确认",
+      error: "当前阶段已有待确认结果，请先人工确认",
       next_href: `/runs/${run.id}/scope`,
     });
     expect(researchJobs.listResearchJobsForRun(run.id)).toHaveLength(0);

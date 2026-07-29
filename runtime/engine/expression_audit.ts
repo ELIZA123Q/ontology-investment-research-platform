@@ -1,6 +1,6 @@
 import "server-only";
 import type { DefectType, StageDefectReport } from "./output_contract";
-import { DEFECT_DIMENSIONS, HARD_FAILURE_DEFECTS, STRUCTURED_DEFECT_TYPES } from "./output_contract";
+import { DEFECT_DIMENSIONS, HARD_FAILURE_DEFECTS } from "./output_contract";
 
 /**
  * 表达审计 — 从 Python validate_05_outputs.py 迁移 + 增强
@@ -447,7 +447,7 @@ export function auditStage05ExpressionsV2(
   return { audit, defects };
 }
 
-function getFixSuggestion(defectType: DefectType, detail: string): string {
+function getFixSuggestion(defectType: DefectType, _detail: string): string {
   const suggestions: Record<DefectType, string> = {
     fact_error: "核实事实数据来源，修正错误",
     scope_extrapolation: "限定结论范围，明确边界条件",
