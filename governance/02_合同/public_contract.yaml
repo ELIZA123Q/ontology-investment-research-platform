@@ -62,9 +62,9 @@ ownership:
     - 二级 evidence_quality_dimensions / event_type_taxonomy 与 04 handoff 审计枚举见矩阵 not_promoted，本期不升格为 ontology_rule_param。
 
 # 跨阶段主链与标识：本块为唯一机器权威；阶段规范只解释本阶段如何使用。
-# 主链：01 核心问题 → 02 JU/候选方法 → 03 ER/EV/方法输入 → 04 MA/C → 05 EX
+# 主链：01 核心问题 → 02 P/JU/候选方法 → 03 ER/EV/方法输入 → 04 MA/C → 05 EX
 cross_stage_references:
-  primary_chain: [Q, JU, ER, EV, MA, C, RC, EX]
+  primary_chain: [Q, P, JU, ER, EV, MA, C, RC, EX]
   objects:
     Q:
       field: question_id
@@ -74,6 +74,11 @@ cross_stage_references:
       field: judgment_unit_id
       created_in: stage_02
       note: 全链主键，后续不得重编号
+    P:
+      field: path_id
+      created_in: stage_02
+      inherited_by: stage_04
+      note: Stage02 任务级有序路径投影；必须显式绑定状态变量与 JudgmentUnit，不是一级本体对象；新建使用 P-nn，已有 PATH-* 修复时保持稳定 ID
     ER:
       field: evidence_requirement_id
       created_in: stage_02
@@ -100,6 +105,8 @@ cross_stage_references:
       field: expression_id
       created_in: stage_05
   required_links:
+    - P_to_JU
+    - P_to_StateVariable
     - C_to_JU
     - JU_to_ER_for_critical_or_important
     - ER_to_EV_or_GAP
@@ -114,6 +121,7 @@ trace_id_patterns:
   task_id: '^JTASK-[A-Z0-9][A-Z0-9_-]+$'
   run_id: '^(?:RUN|EXEC)-[A-Z0-9][A-Z0-9_-]+$'
   Q: '^Q-\d+$'
+  P: '^(?:P-\d+|PATH-[A-Z0-9][A-Z0-9_-]*)$'
   JU: '^JU-\d+$'
   ER: '^ER-\d+$'
   EV: '^EV-\d+$'

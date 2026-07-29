@@ -1,150 +1,113 @@
-import "server-only";
 import { createHash } from "node:crypto";
+import "server-only";
 import {
-  approveArtifact,
-  createArtifact,
-  getArtifact,
-  getRun,
-  latestArtifact,
-  listWorkItems,
-  listSources,
-  normalizeUrl,
-  quarantineUnboundWebCitations,
-  saveInstanceGraph,
-  supersedeDownstream,
-  supersedeOtherArtifactAttempts,
-  updateArtifact,
-  updateArtifactIfStatus,
-  upsertSource,
-  withImmediateTransaction,
+createArtifact,
+getArtifact,
+getRun,
+latestArtifact,
+listSources,
+normalizeUrl,
+quarantineUnboundWebCitations,
+updateArtifact,
+updateArtifactIfStatus
 } from "../../adapters/db";
-import { accumulateTokenUsage, createResearchModelClient } from "../../adapters/deepseek";
+import { accumulateTokenUsage,createResearchModelClient } from "../../adapters/deepseek";
 import { generationLeaseMs } from "../../adapters/model_provider";
 import { logger } from "../../lib/logger";
-import { promptFor, PROMPT_VERSION } from "../prompts";
-import { schemas, type SchemaKind } from "../schemas";
-import { ontologyContextForPrompt, ontologyPromptSourceFiles } from "../ontology_tools";
-import { loadOntologyCatalog } from "../ontology_catalog";
-import { buildStageSemanticContext } from "../semantic_context";
-import { emptyGraph, loadDomainBusinessGraph, loadGraphForRun, markReachableDownstreamStale, materializeStageIntoGraph } from "../instance_graph";
+import { stripLegacyWriteFields,toExpressionAuditInputs } from "../artifact_read_adapter";
+import { assembleStageContext,buildSemanticRoute,clipUpstreamJsonSoft,CONTEXT_SLOT_BUDGETS } from "../context_assembler";
 import {
-  validateExpressionMethodBindings,
-  validateJudgmentCapabilityCoverage,
-  validateJudgmentMethodBindings,
-  validateMethodApplications,
-} from "../method_application";
+findUnchangedEvidenceIds,
+partitionStage03EvidenceBatches,
+runEvidenceSupplementRound,
+stage03AutoSupplementMaxRounds,
+stage03EvidenceBatchConfig
+} from "../evidence_auto_supplement";
+import { evaluateEvidenceQuality } from "../evidence_quality_gate";
+import { evidenceBoundSourceIds,evidenceBoundSources } from "../evidence_sources";
+import { auditStage05Expressions,sanitizeAuditVoice } from "../expression_audit";
+import { buildGenerationProgressHeartbeat,parseGenerationProgress } from "../generation_progress";
+import { buildGovernanceFingerprint } from "../governance_fingerprint";
+import { formalOntologyRuleIds,repairJudgmentPreparationDraft } from "../judgment_draft_normalize";
 import {
-  defaultMethodIdsForJudgmentType,
-  loadMethodRegistry,
-  methodRoutesForPrompt,
-  recallRegisteredMethodCandidates,
-  registeredMethodCandidates,
-  validateMethodRoutes,
-  validateRegisteredMethodApplications,
-} from "../method_registry";
-import {
-  evidenceJudgmentTypeCardsForPrompt,
-  executedMethodsSummary,
-  buildStageGenerationGuidance,
-  judgmentThresholdCapsForPrompt,
-  mcpChannelHintsForPrompt,
-  methodDisciplineDigest,
+buildStageGenerationGuidance,
+evidenceJudgmentTypeCardsForPrompt,
+executedMethodsSummary,
+judgmentThresholdCapsForPrompt,
+mcpChannelHintsForPrompt,
+methodDisciplineDigest,
 } from "../method_guidance";
 import {
-  attachResearchValueReview,
-  buildStage05RetryContext,
-  heuristicResearchValueReview,
-  mergeResearchValueReviews,
-  RESEARCH_VALUE_PASS_THRESHOLD,
-  researchValueReviewPrompt,
-  researchValueReviewSchema,
-  type ResearchValueReview,
+methodRoutesForPrompt
+} from "../method_registry";
+import { loadOntologyCatalog } from "../ontology_catalog";
+import { ontologyContextForPrompt,ontologyPromptSourceFiles } from "../ontology_tools";
+import { PROMPT_VERSION,promptFor } from "../prompts";
+import { syncStage03ReadableMarkdown,syncStage04ReadableMarkdown } from "../readable_markdown";
+import {
+attachResearchValueReview,
+buildStage05RetryContext,
+heuristicResearchValueReview,
+mergeResearchValueReviews,
+RESEARCH_VALUE_PASS_THRESHOLD,
+researchValueReviewPrompt,
+researchValueReviewSchema,
+type ResearchValueReview,
 } from "../research_value_review";
-import { summarizeInjectedAssets } from "../runtime_asset_coverage";
-import { buildGovernanceFingerprint } from "../governance_fingerprint";
-import {
-  applyUpstreamQualityFailure,
-  buildQualityRetryNotes,
-  collectStageHighQualityErrors,
-  forceHighQualityTarget,
-  HQ_RETRY_KEY,
-  markGenerationBelowHighQuality,
-  meetsHighQualityForReview,
-  shouldPreserveUpstreamQualityFailure,
-} from "../stage_hq_retry";
-import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type SourceRecord, type StageKind } from "../types";
-import { validateReasoningTraceBindings } from "../reasoning_trace";
-import { changeSetSchema, expandAffectedObjectRefs, mergeChangeSet, type ChangeSet } from "../change_set";
-import { captureSourceSnapshot } from "../source_snapshot";
-import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } from "../semantic_execution";
-import { evidenceBoundSourceIds, evidenceBoundSources } from "../evidence_sources";
 import { syncReviewWorkItems } from "../review_work_items";
-import { assembleStageContext, buildSemanticRoute, clipUpstreamJsonSoft, CONTEXT_SLOT_BUDGETS } from "../context_assembler";
+import { summarizeInjectedAssets } from "../runtime_asset_coverage";
+import { schemas,type SchemaKind } from "../schemas";
+import { buildStageSemanticContext } from "../semantic_context";
+import { applyDeterministicRuleEvaluations } from "../semantic_execution";
+import { computeSourceCoverage,evaluateEvidenceStopCondition } from "../source_coverage";
+import { pendingClarificationQuestion } from "../stage01_contract";
+import { ensureStage02DocumentFields,repairStage02GenerationDraft } from "../stage02_documents";
 import {
-  classifyRuntimeFailure,
-  compactStage04ForStage05,
-  compactStructuredArtifact,
-  compactStage03ForUpstream,
-  formatRuntimeFailureMessage,
-  shouldAbortStage03Batching,
-  shouldRetryRuntimeFailure,
-} from "../workflow_support";
-import { formalOntologyRuleIds, repairJudgmentPreparationDraft } from "../judgment_draft_normalize";
-import { buildGenerationProgressHeartbeat, parseGenerationProgress } from "../generation_progress";
-import { evaluateEvidenceQuality } from "../evidence_quality_gate";
-import { auditStage05Expressions, sanitizeAuditVoice } from "../expression_audit";
-import { stripLegacyWriteFields, toExpressionAuditInputs } from "../artifact_read_adapter";
-import {
-  findUnchangedEvidenceIds,
-  partitionStage03EvidenceBatches,
-  runEvidenceSupplementRound,
-  stage03AutoSupplementMaxRounds,
-  stage03EvidenceBatchConfig,
-  syncStage03DraftSourcesFromRegistry,
-} from "../evidence_auto_supplement";
-import { computeSourceCoverage, evaluateEvidenceStopCondition } from "../source_coverage";
-import { projectEvidenceRequirementsFromStructure, resolveEvidenceRequirementsFromStructure } from "../structure_candidates";
-import {
-  initializeStage03BatchCheckpoint,
-  readStage03BatchCheckpoint,
-  terminalStage03BatchIds,
-  updateStage03BatchCheckpoint,
-  type Stage03BatchCheckpoint,
+initializeStage03BatchCheckpoint,
+readStage03BatchCheckpoint,
+terminalStage03BatchIds,
+updateStage03BatchCheckpoint,
+type Stage03BatchCheckpoint,
 } from "../stage03_batch_checkpoint";
-import { resolveResearchJobReview } from "../../adapters/research_jobs";
-import {
-  methodCandidatesForPrompt,
-  normalizeBusinessCutoff,
-  sourcesForPrompt,
-  sourceForFrozenBaseline,
-  stageNumber,
-  upstreamJudgmentTypes,
-  validateApproval,
-  validateGeneratedSemanticDraft,
-  validateOntologyVariableBindings,
-  editArtifact,
-} from "../workflow_shared";
-import {
-  createControlledEvidenceProjection,
-  createControlledIndependentReview,
-  createControlledJudgmentProjection,
-  createControlledStructureProjection,
-  buildEvidenceGapFallback,
-  buildJudgmentGapFallback,
-  createEvidenceGapFallback,
-  createJudgmentGapFallback,
-  createStage01DeterministicProjection,
-  createStage05DeterministicProjection,
-  normalizeStage01Projection,
-  normalizeStage05Projection,
-  repairEvidencePreparationDraft,
-} from "../workflow_projections";
-import { ensureStage02DocumentFields, repairStage02GenerationDraft } from "../stage02_documents";
 import { ensureStage03DocumentFields } from "../stage03_documents";
 import { ensureStage04DocumentFields } from "../stage04_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
-import { applyClarificationAnswer, applyClarificationAnswers, pendingClarificationQuestion } from "../stage01_contract";
-import { syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "../readable_markdown";
+import {
+applyUpstreamQualityFailure,
+buildQualityRetryNotes,
+collectStageHighQualityErrors,
+forceHighQualityTarget,
+HQ_RETRY_KEY,
+markGenerationBelowHighQuality,
+meetsHighQualityForReview,
+shouldPreserveUpstreamQualityFailure,
+} from "../stage_hq_retry";
+import { projectEvidenceRequirementsFromStructure,resolveEvidenceRequirementsFromStructure } from "../structure_candidates";
+import { parseJson,STAGES,type ArtifactKind,type StageKind } from "../types";
+import {
+buildEvidenceGapFallback,
+buildJudgmentGapFallback,
+normalizeStage01Projection,
+normalizeStage05Projection,
+repairEvidencePreparationDraft
+} from "../workflow_projections";
+import {
+methodCandidatesForPrompt,
+normalizeBusinessCutoff,
+sourceForFrozenBaseline,
+sourcesForPrompt,
+stageNumber,
+upstreamJudgmentTypes,
+validateGeneratedSemanticDraft
+} from "../workflow_shared";
+import {
+classifyRuntimeFailure,
+compactStage03ForUpstream,
+compactStage04ForStage05,
+compactStructuredArtifact,
+formatRuntimeFailureMessage,
+shouldAbortStage03Batching
+} from "../workflow_support";
 
 function stage05PaidAutoRetryEnabled() {
   return ["1", "true", "yes"].includes(

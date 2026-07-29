@@ -187,6 +187,7 @@ export function syncStage02ReadableMarkdown(data: any): string {
   const counters = normalizeCounterEvidenceDirections(data.counter_evidence_directions, { unitIds });
   const competing = normalizeCompetingExplanations(data.competing_explanations, { unitIds });
   const ers = Array.isArray(data.evidence_requirements) ? data.evidence_requirements : [];
+  const paths = Array.isArray(data.paths) ? data.paths : [];
   const logic = [
     yamlFrontmatter({
       document_type: "research_logic",
@@ -225,15 +226,25 @@ export function syncStage02ReadableMarkdown(data: any): string {
       })
       : ["- 尚未登记判断单元"]),
     "",
-    "## 4. 必须主动寻找的反向证据",
+    "## 4. 主路径与判断归属",
+    "",
+    ...(paths.length
+      ? paths.map((path: any) => {
+        const targets = Array.isArray(path?.judgment_unit_ids) ? path.judgment_unit_ids.map(String) : [];
+        const variables = Array.isArray(path?.variable_ids) ? path.variable_ids.map(String) : [];
+        return `- ${path.id || "P"}：${path.statement || ""}；变量顺序：${variables.join(" → ") || "未登记"}；对应判断：${targets.join("、") || "待归属"}`;
+      })
+      : ["- 本任务未登记传导路径；若存在传导/机制/影响类判断，确认前必须补齐。"]),
+    "",
+    "## 5. 必须主动寻找的反向证据",
     "",
     ...bullets(counters.map((item) => formatCandidateBullet(item)), "- 尚未登记；确认前必须补齐。"),
     "",
-    "## 5. 竞争解释",
+    "## 6. 竞争解释",
     "",
     ...bullets(competing.map((item) => formatCandidateBullet(item)), "- 尚未登记；确认前必须补齐。"),
     "",
-    "## 6. 停止条件",
+    "## 7. 停止条件",
     "",
     "停止条件是核心判断达到最低验证条件（主证/反证/可区分竞争解释齐备）；禁止把停止条件写成继续堆材料。",
     "不得以「继续收集更多资料」或「材料足够多」作为停止条件。",
@@ -242,7 +253,7 @@ export function syncStage02ReadableMarkdown(data: any): string {
         `- ${item.id || "ER"}（${item.evidence_role || "role"}）：${item.requirement || ""}；最低独立来源 ${item.minimum_independent_sources ?? "未填"}`)
       : ["- 证据要求尚未登记；确认前必须补齐最低验证条件。"]),
     "",
-    "## 7. 双产物交接",
+    "## 8. 双产物交接",
     "",
     `- 配对本体视图：\`${String(data.ontology_view_ref || "")}\``,
     `- 缺口扫描：\`${String(data.ontology_gap_scan_status || "")}\``,

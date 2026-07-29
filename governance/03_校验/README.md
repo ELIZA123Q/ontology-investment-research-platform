@@ -9,6 +9,7 @@
 | 高质量原则与发布规则 | [`00A_高质量产出判别标准.md`](00A_高质量产出判别标准.md) |
 | 01–04 Runtime 质量短卡 | [`00A_runtime_quality_card.md`](00A_runtime_quality_card.md)（注入 knowledge；正式发布仍以全文 00A + validate_run 为准） |
 | 三库→Runtime 注入覆盖 | [`runtime_asset_coverage.yaml`](runtime_asset_coverage.yaml)（维护 ontology/methods/workflow 时对照；`runtime/tests/runtime_asset_coverage.test.ts`） |
+| 本体治理边界、资产权威与发布生命周期 | `python3 governance/03_校验/validate_governance_control_plane.py` |
 | 正式发布包（中文命名 MD/YAML） | `python3 governance/03_校验/validate_run.py <运行目录>` |
 | V3 黄金样例（紧凑 YAML） | `python3 governance/03_校验/validate_v3_samples.py <运行目录>` |
 | 工作台导出包 | `python3 governance/03_校验/validate_workbench_package.py <导出目录>` |

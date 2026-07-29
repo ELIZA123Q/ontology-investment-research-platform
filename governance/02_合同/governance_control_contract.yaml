@@ -1,0 +1,77 @@
+schema_name: ontology_governance_control_contract
+schema_version: 1.0.0
+status: active
+decision: control_plane_not_formal_ontology_domain
+description: >
+  用独立治理控制面管理本体及其消费资产的权威、变更、影响、验证、迁移和发布。
+  本合同可以引用正式本体元素，但不得成为投研业务实例图的一部分，也不得支撑商业判断。
+
+boundary:
+  control_plane_root: governance
+  formal_ontology_root: ontology
+  governance_namespace: gov
+  formal_ontology_model_registered: false
+  business_instance_projection_allowed: false
+  commercial_rule_evaluation_allowed: false
+  workflow_or_permission_semantics_in_formal_ontology_allowed: false
+  cross_plane_reference_rule: 治理记录只通过稳定资产 ID、本体元素 ID、运行 ID 和内容指纹引用业务面，不复制业务定义。
+
+governance_object_types:
+  GovernedAsset: 具有唯一权威位置、版本、责任角色和消费面的受治理资产。
+  AuthorityAssignment: 资产的责任角色与唯一权威声明。
+  ChangeProposal: 对受治理资产提出新增、修改、废弃、拆分或合并的变更请求。
+  ReviewDecision: 对变更请求作出的追加式审阅决定。
+  ImpactAssessment: 变更影响的元素、消费者、运行和必跑检查快照。
+  MigrationTask: 破坏性变更对应的迁移工作与完成证据。
+  ValidationRun: 对一个冻结实现执行检查后的不可变结果。
+  ReleaseBaseline: 已发布资产集合、正式本体版本和内容指纹。
+  GovernanceException: 有责任人、原因和失效时间的临时例外；不得绕过正式本体语义门。
+
+candidate_review:
+  statuses: [pending, expert_confirmed, promoted, rejected]
+  terminal_statuses: [rejected]
+  promoted_semantics: >
+    legacy-compatible 状态，仅表示候选已被受理并创建正式 ChangeProposal；
+    不表示目标元素已写入 YAML、通过验证或正式发布。
+  rules:
+    - promoted 必须填写非 task_local 的拟正式元素 ID。
+    - promoted 必须创建或绑定一个 status=proposed 的 ChangeProposal。
+    - 候选只有在关联 ChangeProposal.status=released 后才可展示为“已正式发布”。
+
+change_request:
+  statuses: [proposed, impact_assessed, approved, implemented, validated, released, rejected]
+  initial_status: proposed
+  terminal_statuses: [released, rejected]
+  transitions:
+    proposed: [impact_assessed, rejected]
+    impact_assessed: [approved, rejected]
+    approved: [implemented, rejected]
+    implemented: [validated]
+    validated: [released]
+    released: []
+    rejected: []
+  change_kinds: [add, modify, deprecate, split, merge]
+  history_policy: append_only
+  historical_result_policy: impact_only_no_silent_rewrite
+
+release_gates:
+  - id: target_resolves
+    rule: 拟正式元素 ID 必须能从当前正式本体目录或受治理的领域业务参数图解析。
+  - id: impact_assessment_frozen
+    rule: 必须保存元素变化、受影响消费者、受影响运行和必跑检查的冻结快照。
+  - id: required_checks_pass
+    rule: 影响分析产生的全部必跑检查必须有 pass 结果。
+  - id: breaking_change_has_migration
+    rule: breaking_change=true 时必须绑定可解析的迁移账本或迁移任务。
+  - id: release_fingerprint_bound
+    rule: 必须绑定发布时正式本体内容指纹，且不得使用拟议或旧指纹冒充当前基线。
+  - id: governance_cannot_support_judgment
+    rule: 治理对象、决定和检查不得出现在商业 RuleEvaluation.rule_ref 中。
+
+required_artifacts:
+  proposal: ChangeProposal
+  impact: ImpactAssessment
+  implementation: implementation_ref
+  validation: ValidationRun
+  migration_when_breaking: MigrationTask
+  release: ReleaseBaseline

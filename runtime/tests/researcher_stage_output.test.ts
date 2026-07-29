@@ -6,6 +6,7 @@ import {
   buildScopeResearcherView,
   buildJudgmentResearcherView,
   buildEvidenceReadinessView,
+  buildFormalDeliveryGate,
   formatResearchDate,
   prepareReaderReportMarkdown,
   researcherLanguage,
@@ -214,6 +215,15 @@ describe("researcher stage output", () => {
     expect(readiness.gapCount).toBe(1);
     expect(readiness.note).toContain("不等于判断强度");
 
+    const constrainedReadiness = buildEvidenceReadinessView({
+      evidence_drafts: [{ id: "EV-1", kind: "fact_draft" }],
+      evidence_readiness: { status: "ready" },
+      delivery_readiness: { status: "ready" },
+    }, { coverageConstraintCount: 2, ontologyWarningCount: 1 });
+    expect(constrainedReadiness.judgmentReadyLabel).toBe("材料受限，3 项待判断前核对");
+    expect(constrainedReadiness.deliveryReadyLabel).toBe("尚不能确认交付上限");
+    expect(constrainedReadiness.note).toContain("最低证据组合或口径仍有限制");
+
     const judgments = buildJudgmentResearcherView({
       judgments: [{
         id: "J-1",
@@ -227,5 +237,26 @@ describe("researcher stage output", () => {
     }, [{ id: "EV-1", statement: "库存环比下降" }], { artifactStatus: "needs_review", pendingCount: 1 });
     expect(judgments.proceed.canProceed).toBe(false);
     expect(judgments.proceed.blockingReasons[0]).toContain("待人工确认");
+  });
+
+  it("keeps formal export locked until review, todos, report and all stages pass", () => {
+    const blocked = buildFormalDeliveryGate({
+      artifactApproved: true,
+      reviewPassed: false,
+      pendingCount: 0,
+      allStagesApproved: true,
+    });
+    expect(blocked.ready).toBe(false);
+    expect(blocked.label).toBe("尚未达到正式发布条件");
+    expect(blocked.blockingReasons).toEqual(["独立审阅尚未通过"]);
+
+    const ready = buildFormalDeliveryGate({
+      artifactApproved: true,
+      reviewPassed: true,
+      pendingCount: 0,
+      allStagesApproved: true,
+    });
+    expect(ready.ready).toBe(true);
+    expect(ready.label).toBe("可导出正式发布包");
   });
 });

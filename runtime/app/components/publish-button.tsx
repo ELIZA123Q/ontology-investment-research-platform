@@ -2,7 +2,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function PublishButton({ runId, disabled = false }: { runId: string; disabled?: boolean }) {
+export function PublishButton({
+  runId,
+  disabled = false,
+  disabledReason = "",
+}: {
+  runId: string;
+  disabled?: boolean;
+  disabledReason?: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -37,9 +45,15 @@ export function PublishButton({ runId, disabled = false }: { runId: string; disa
 
   return (
     <div>
-      <button className="button" disabled={busy || disabled} onClick={publish}>
+      <button
+        className="button"
+        disabled={busy || disabled}
+        onClick={publish}
+        title={disabled && disabledReason ? disabledReason : undefined}
+      >
         {busy ? "正在导出正式包…" : "导出正式发布包"}
       </button>
+      {disabled && disabledReason ? <small className="muted">解锁条件：{disabledReason}</small> : null}
       {message ? <div className="notice">{message}</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
     </div>

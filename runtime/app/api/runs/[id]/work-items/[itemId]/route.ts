@@ -1,4 +1,4 @@
-import { getWorkItem, latestArtifact, listWorkItems, updateWorkItem, upsertWorkItem } from "@/adapters/db";
+import { getWorkItem, updateWorkItem } from "@/adapters/db";
 import { validateWorkItemReviewPatch } from "@/engine/work_item_review";
 
 export const runtime = "nodejs";

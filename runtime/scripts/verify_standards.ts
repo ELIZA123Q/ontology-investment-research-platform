@@ -4,7 +4,7 @@
  *
  * 用法: npm run verify:standards
  */
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import YAML from "yaml";
 

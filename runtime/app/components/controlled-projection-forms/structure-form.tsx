@@ -1,17 +1,14 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+researcherLanguage
+} from "@/app/lib/researcher-stage-output";
+import { ONTOLOGY_JUDGMENT_TYPES } from "@/engine/ontology_vocabulary.generated";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  judgmentDecisionStatusLabel,
-  judgmentStrengthLabel,
-  researcherLanguage,
-  researcherMarkdown,
-} from "@/app/lib/researcher-stage-output";
-import type { ApprovedScopeSummary, EvidenceOption, MethodApplicationOption, SourceOption, UnitOption } from "./types";
-import { asItemList, lines } from "./helpers";
-import { ONTOLOGY_JUDGMENT_TYPES } from "@/engine/ontology_vocabulary.generated";
+import { forwardRef,useCallback,useEffect,useImperativeHandle,useMemo,useState } from "react";
+import { asItemList } from "./helpers";
+import type { ApprovedScopeSummary } from "./types";
 
 type StructureUnitDraft = {
   id: string;
@@ -26,6 +23,13 @@ type StructureCandidateDraft = {
   statement: string;
   judgment_unit_ids: string[];
   discriminating_evidence: string[];
+};
+
+type StructurePathDraft = {
+  id: string;
+  statement: string;
+  variable_ids: string[];
+  judgment_unit_ids: string[];
 };
 
 const JUDGMENT_TYPE_LABELS: Record<string, string> = {
@@ -111,9 +115,22 @@ function parseStructureJson(existingJson: string | undefined) {
       evidence_requirements: asItemList(unit.evidence_requirements, 1).map(researcherLanguage),
     }))
     : [emptyStructureUnit()];
+  const paths: StructurePathDraft[] = Array.isArray(existing.paths)
+    ? existing.paths.map((path: any, index: number) => ({
+      id: String(path?.id || path?.path_id || `P-${index + 1}`),
+      statement: researcherLanguage(path?.statement || path?.description || path?.name),
+      variable_ids: Array.isArray(path?.variable_ids) ? path.variable_ids.map(String) : [],
+      judgment_unit_ids: Array.isArray(path?.judgment_unit_ids)
+        ? path.judgment_unit_ids.map(String)
+        : Array.isArray(path?.linked_judgment_units)
+          ? path.linked_judgment_units.map(String)
+          : [],
+    }))
+    : [];
   return {
     scopeLabel: String(existing.research_scope?.label || ""),
     units,
+    paths,
     counterDirections: parseCandidateList(existing.counter_evidence_directions, "CD", 1),
     competingExplanations: parseCandidateList(existing.competing_explanations, "CE", 1),
   };
@@ -164,6 +181,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
   const router = useRouter();
   const seed = useMemo(() => parseStructureJson(existingJson), [existingJson]);
   const [units, setUnits] = useState<StructureUnitDraft[]>(seed.units);
+  const [paths, setPaths] = useState<StructurePathDraft[]>(seed.paths);
   const [counterDirections, setCounterDirections] = useState<StructureCandidateDraft[]>(seed.counterDirections);
   const [competingExplanations, setCompetingExplanations] = useState<StructureCandidateDraft[]>(seed.competingExplanations);
   const [busy, setBusy] = useState(false);
@@ -174,6 +192,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
   useEffect(() => {
     const next = parseStructureJson(existingJson);
     setUnits(next.units);
+    setPaths(next.paths);
     setCounterDirections(next.counterDirections);
     setCompetingExplanations(next.competingExplanations);
     setMessage("");
@@ -189,6 +208,10 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
         question: unit.question.trim(),
         judgment_type: unit.judgment_type,
         evidence_requirements: unit.evidence_requirements.map((item) => item.trim()).filter(Boolean),
+      })),
+      paths: paths.map((path) => ({
+        id: path.id,
+        judgment_unit_ids: path.judgment_unit_ids,
       })),
       counter_evidence_directions: counterDirections
         .map((item, index) => ({
@@ -211,8 +234,9 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
       || !structure.counter_evidence_directions.length
       || !structure.competing_explanations.length
       || structure.competing_explanations.some((item) => !item.discriminating_evidence.length)
+      || structure.paths.some((path) => !path.judgment_unit_ids.length)
     ) {
-      const hint = "请补全：每个判断单元的标题/问题/必要证据，以及至少一条反向证据与竞争解释（含区分性证据）。";
+      const hint = "请补全：每个判断单元的必要证据、每条传导路径的判断归属，以及至少一条反向证据与竞争解释（含区分性证据）。";
       setMessage(hint);
       onError?.(hint);
       return false;
@@ -248,7 +272,7 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
       onBusyChange?.(false);
     }
   }, [
-    units, counterDirections, competingExplanations,
+    units, paths, counterDirections, competingExplanations,
     seed.scopeLabel, approvedScope,
     runId, router, onBusyChange, onError, hasExisting,
   ]);
@@ -347,6 +371,46 @@ export const ControlledStructureProjectionForm = forwardRef<ControlledStructureP
         ))}
       </div>
     </section>
+
+    {paths.length ? (
+      <section className="scope-block">
+        <header className="scope-block-head">
+          <strong>传导路径归属</strong>
+          <span>路径内容与变量顺序只读 · 必须显式挂接实际服务的判断单元</span>
+        </header>
+        <div className="structure-counter-stack">
+          {paths.map((path, index) => (
+            <div className="structure-candidate-card" key={path.id || index}>
+              <div className="structure-unit-head">
+                <span className="structure-unit-id">{path.id || `路径 ${index + 1}`}</span>
+              </div>
+              <p className="structure-readonly structure-readonly-block">{path.statement || "（未填写路径说明）"}</p>
+              <p className="muted">变量顺序：{path.variable_ids.join(" → ") || "未登记"}</p>
+              <div className="structure-candidate-units">
+                <span className="muted">{path.judgment_unit_ids.length ? "挂接判断单元" : "待归属"}</span>
+                {units.map((unit) => (
+                  <label key={`${path.id}-${unit.id}`}>
+                    <input
+                      type="checkbox"
+                      disabled={locked}
+                      checked={path.judgment_unit_ids.includes(unit.id)}
+                      onChange={(event) => {
+                        const nextIds = event.target.checked
+                          ? [...new Set([...path.judgment_unit_ids, unit.id])]
+                          : path.judgment_unit_ids.filter((id) => id !== unit.id);
+                        setPaths(paths.map((value, itemIndex) => itemIndex === index
+                          ? { ...value, judgment_unit_ids: nextIds }
+                          : value));
+                      }}
+                    /> {unit.title || `关键判断 ${units.findIndex((row) => row.id === unit.id) + 1}`}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    ) : null}
 
     <section className="scope-block">
       <header className="scope-block-head">

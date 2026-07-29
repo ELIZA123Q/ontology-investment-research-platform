@@ -17,8 +17,6 @@ import {
 } from "@/engine/stage02_documents";
 import { syncStage01ReadableMarkdown, syncStage02ReadableMarkdown } from "@/engine/readable_markdown";
 
-const longMd = "# 标题\n\n".padEnd(80, "正文内容足够长以通过 markdown 最小长度约束。");
-
 function baseStage01() {
   const data: any = {
     normalized_question: "未来六个月供需是否改善？",
@@ -497,6 +495,40 @@ describe("stage02 dual documents and gates", () => {
     const issues = collectStage02ConsistencyIssues(data);
     expect(issues.some((item) => item.code === "blocking_gap_can_enter")).toBe(true);
     expect(() => judgmentStructureSchema.parse(data)).toThrow(/blocking_gap/);
+  });
+
+  it("rejects orphan paths and propagation units that borrow another unit's path", () => {
+    const orphan = baseStage02();
+    orphan.paths = [{
+      id: "P-1",
+      statement: "价格变化 → 景气判断",
+      variable_ids: ["V-1"],
+      judgment_unit_ids: [],
+    }];
+    orphan.ontology_view_yaml = projectOntologyViewYaml(orphan);
+    expect(() => judgmentStructureSchema.parse(orphan)).toThrow(/judgment_unit_ids|至少包含|挂接/);
+    expect(collectStage02ConsistencyIssues(orphan).some((item) => item.code === "path_without_judgment_unit")).toBe(true);
+
+    const borrowed = baseStage02();
+    borrowed.judgment_units[0].judgment_type = "transmission_path";
+    borrowed.variables.push({
+      id: "V-2",
+      name: "库存",
+      category: "inventory",
+      definition: "DRAM 库存",
+      variable_kind: "observed",
+      anchors: ["库存"],
+      ontology_node_id: "task_local:V-2",
+      role: "judgment_input",
+    });
+    borrowed.paths = [{
+      id: "P-1",
+      statement: "价格 → 库存",
+      variable_ids: ["V-1", "V-2"],
+      judgment_unit_ids: ["JU-2"],
+    }];
+    borrowed.ontology_view_yaml = projectOntologyViewYaml(borrowed);
+    expect(() => judgmentStructureSchema.parse(borrowed)).toThrow(/JU-1.*路径|显式绑定/);
   });
 
   it("flags judgment unit drift between JSON and YAML", () => {

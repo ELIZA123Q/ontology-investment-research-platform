@@ -1,7 +1,9 @@
 # 工作区记忆
 
+本文件只保留仍有效的操作事实；按日工作日志不入库，已经形成结论的内容应回写对应 README、合同或决策日志。
+
 ## 03阶段金融MCP数据源
-- 15+金融MCP已注册到03取证阶段：通联全系列（股票/基金/指数/宏观）、cninfo（巨潮）、htsc_research（华泰研报）、china-policy（中央政策）、caixin-news（财新）、jina-reader（网页获取）
+- 18 个证据通道已注册并接入 03 取证阶段：通联全系列（股票/基金/指数/宏观）、cninfo（巨潮）、htsc_research（华泰研报）、china-policy（中央政策）、caixin-news（财新）、jina-reader（网页获取）
 - MCP配置在 `~/.workbuddy/mcp.json`（用户级），项目级不存储密钥
 - MCP通道注册：`methods/03_取证/B03_MCP通道注册.md`
 - MCP操作参考：`methods/03_取证/OPS_MCP查询快速参考.md`（QP-MCP-*编号）

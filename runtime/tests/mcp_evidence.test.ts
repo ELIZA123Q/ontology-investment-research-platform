@@ -24,7 +24,7 @@ describe("mcp_evidence adapter", () => {
   });
 
   it("normalizes injected MCP hits with provenance and company_disclosure authority", async () => {
-    setMcpEvidenceCallerForTests(async ({ channel }) => ({
+    setMcpEvidenceCallerForTests(async () => ({
       tools: [{ name: "list_announcements", description: "公告列表" }],
       contentText: "中芯国际2024年报 https://www.cninfo.com.cn/new/disclosure/detail?stockCode=688981&announcementId=1219000001 营业收入同比增长",
       structured: { tool_name: "list_announcements", isError: false },

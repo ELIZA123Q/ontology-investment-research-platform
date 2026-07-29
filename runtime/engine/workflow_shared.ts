@@ -1,78 +1,58 @@
-import "server-only";
 import { createHash } from "node:crypto";
+import "server-only";
 import {
-  approveArtifact,
-  createArtifact,
-  getArtifact,
-  getRun,
-  latestArtifact,
-  listWorkItems,
-  listSources,
-  normalizeUrl,
-  quarantineUnboundWebCitations,
-  saveInstanceGraph,
-  supersedeDownstream,
-  supersedeOtherArtifactAttempts,
-  updateArtifact,
-  updateArtifactIfStatus,
-  upsertSource,
-  withImmediateTransaction,
+createArtifact,
+getArtifact,
+getRun,
+listSources,
+normalizeUrl,
+supersedeDownstream,
+updateArtifact
 } from "../adapters/db";
-import { loadKnowledge } from "./knowledge";
-import { createResearchModelClient } from "../adapters/deepseek";
-import { promptFor, PROMPT_VERSION } from "./prompts";
-import { schemas, type SchemaKind } from "./schemas";
+import { evidenceBoundSourceIds } from "./evidence_sources";
+import { loadDomainBusinessGraph } from "./instance_graph";
 import {
-  normalizeCompetingExplanations,
-  normalizeCounterEvidenceDirections,
-  projectEvidenceRequirementsFromStructure,
-  resolveEvidenceRequirementsFromStructure,
-} from "./structure_candidates";
-import { ontologyContextForPrompt } from "./ontology_tools";
-import { emptyGraph, loadDomainBusinessGraph, loadGraphForRun, markReachableDownstreamStale, materializeStageIntoGraph } from "./instance_graph";
-import {
-  validateExpressionMethodBindings,
-  validateJudgmentCapabilityCoverage,
-  validateJudgmentMethodBindings,
-  validateMethodApplications,
+validateExpressionMethodBindings,
+validateJudgmentCapabilityCoverage,
+validateJudgmentMethodBindings,
+validateMethodApplications,
 } from "./method_application";
 import { enrichPromptMethodCards } from "./method_guidance";
 import {
-  defaultMethodIdsForJudgmentType,
-  loadMethodRegistry,
-  recallRegisteredMethodCandidates,
-  registeredMethodCandidates,
-  validateMethodRoutes,
-  validateRegisteredMethodApplications,
+recallRegisteredMethodCandidates,
+registeredMethodCandidates,
+validateMethodRoutes,
+validateRegisteredMethodApplications
 } from "./method_registry";
-import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type SourceRecord, type StageKind } from "./types";
-import { validateReasoningTraceBindings } from "./reasoning_trace";
-import { changeSetSchema, mergeChangeSet, type ChangeSet } from "./change_set";
-import { captureSourceSnapshot } from "./source_snapshot";
-import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } from "./semantic_execution";
-import { evidenceBoundSourceIds, evidenceBoundSources } from "./evidence_sources";
-import { syncReviewWorkItems } from "./review_work_items";
-import { classifyRuntimeFailure, compactStructuredArtifact } from "./workflow_support";
+import { checkCrossStageReferences,checkDerivedFields,computeBindingHash } from "./output_contract";
 import {
-  syncStage01ReadableMarkdown,
-  syncStage02ReadableMarkdown,
-  syncStage03ReadableMarkdown,
-  syncStage04ReadableMarkdown,
-  syncStage05ReadableMarkdown,
+syncStage01ReadableMarkdown,
+syncStage02ReadableMarkdown,
+syncStage03ReadableMarkdown,
+syncStage04ReadableMarkdown,
+syncStage05ReadableMarkdown,
 } from "./readable_markdown";
-import { assertStage01ReadyForApproval, ensureStage01ContractFields } from "./stage01_contract";
-import { assertStage02ReadyForApproval, ensureStage02DocumentFields } from "./stage02_documents";
-import { assertStage03ReadyForApproval, ensureStage03DocumentFields, recomputeStage03EvidenceQualityGate } from "./stage03_documents";
-import { assertStage04ReadyForApproval, ensureStage04DocumentFields } from "./stage04_documents";
-import { assertStage05ReadyForApproval, ensureStage05DocumentFields } from "./stage05_documents";
-import { checkDerivedFields, checkCrossStageReferences, computeBindingHash, type OutputQualityReport } from "./output_contract";
-import { routeError, buildReworkReport, type ReturnStage, type ErrorContext } from "./error_router";
-import { validateSemanticReview, SEMANTIC_REVIEW_CHECKS } from "./semantic_review";
+import { validateReasoningTraceBindings } from "./reasoning_trace";
+import { syncReviewWorkItems } from "./review_work_items";
+import { schemas,type SchemaKind } from "./schemas";
+import { applyDeterministicRuleEvaluations,assertDeterministicRuleResults } from "./semantic_execution";
 import {
-  approvedSemanticData,
-  approvedSemanticDataIfPresent,
-  loadApprovedSemanticSnapshot,
+approvedSemanticData,
+approvedSemanticDataIfPresent,
+loadApprovedSemanticSnapshot,
 } from "./semantic_reads";
+import { SEMANTIC_REVIEW_CHECKS,validateSemanticReview } from "./semantic_review";
+import { assertStage01ReadyForApproval,ensureStage01ContractFields } from "./stage01_contract";
+import { assertStage02ReadyForApproval,ensureStage02DocumentFields } from "./stage02_documents";
+import { assertStage03ReadyForApproval,ensureStage03DocumentFields,recomputeStage03EvidenceQualityGate } from "./stage03_documents";
+import { assertStage04ReadyForApproval,ensureStage04DocumentFields } from "./stage04_documents";
+import { assertStage05ReadyForApproval,ensureStage05DocumentFields } from "./stage05_documents";
+import {
+normalizeCompetingExplanations,
+normalizeCounterEvidenceDirections,
+resolveEvidenceRequirementsFromStructure
+} from "./structure_candidates";
+import { parseJson,type Artifact,type ArtifactKind,type MethodApplication,type SourceRecord } from "./types";
 
 export function stageNumber(kind: ArtifactKind) {
   return kind.startsWith("stage_") ? Number(kind.slice(-2)) : 0;

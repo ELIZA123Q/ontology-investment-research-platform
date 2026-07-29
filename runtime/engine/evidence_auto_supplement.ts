@@ -1,53 +1,48 @@
+import { listSources,normalizeUrl,upsertSource } from "../adapters/db";
 import type { ResearchModelClient } from "../adapters/deepseek";
-import { listSources, normalizeUrl, upsertSource } from "../adapters/db";
 import {
-  expandAffectedObjectRefs,
-  mergeStage03Patch,
-  normalizeStage03Patch,
-  objectId,
-  type Stage03Patch,
+expandAffectedObjectRefs,
+mergeStage03Patch,
+normalizeStage03Patch,
+objectId,
+type Stage03Patch,
 } from "./change_set";
-import { captureSourceSnapshot } from "./source_snapshot";
-import { computeSourceCoverage } from "./source_coverage";
-import type { EvidenceRequirementProjection } from "./structure_candidates";
-import type { SourceRecord } from "./types";
-import { controlledEvidencePatchSchema } from "./revise_schemas";
-import { repairEvidencePreparationDraft } from "./workflow_projections";
-import {
-  demoteUnverifiedEvidenceDrafts,
-  normalizeEvidenceDraftNulls,
-} from "./evidence_draft_normalize";
-import { schemas } from "./schemas";
-import { promptForEvidenceSupplement } from "./prompts";
-import {
-  evidenceJudgmentTypeCardsForPrompt,
-  evidenceMethodIdsFromApplications,
-  loadSelectedMethodGuidance,
-  mcpChannelHintsForPrompt,
-} from "./method_guidance";
 import { CONTEXT_SLOT_BUDGETS } from "./context_assembler";
 import {
-  buildCapturePriorityKeys,
-  buildSupplementBrief,
-  findUnchangedEvidenceIds,
-  orderByCapturePriority,
-  applyRegistryFreezeFields,
-  syncStage03DraftSourcesFromRegistry,
-  dedupeStage03DraftSources,
-  selectEvidenceSnapshotExcerpt,
+demoteUnverifiedEvidenceDrafts,
+normalizeEvidenceDraftNulls,
+} from "./evidence_draft_normalize";
+import {
+applyRegistryFreezeFields,
+buildCapturePriorityKeys,
+buildSupplementBrief,
+dedupeStage03DraftSources,
+findUnchangedEvidenceIds,
+orderByCapturePriority,
+selectEvidenceSnapshotExcerpt,
+syncStage03DraftSourcesFromRegistry,
 } from "./evidence_supplement_pure";
+import {
+evidenceJudgmentTypeCardsForPrompt,
+evidenceMethodIdsFromApplications,
+loadSelectedMethodGuidance,
+mcpChannelHintsForPrompt,
+} from "./method_guidance";
+import { promptForEvidenceSupplement } from "./prompts";
+import { controlledEvidencePatchSchema } from "./revise_schemas";
+import { schemas } from "./schemas";
+import { computeSourceCoverage } from "./source_coverage";
+import { captureSourceSnapshot } from "./source_snapshot";
+import type { EvidenceRequirementProjection } from "./structure_candidates";
+import type { SourceRecord } from "./types";
+import { repairEvidencePreparationDraft } from "./workflow_projections";
 
 export {
-  buildCapturePriorityKeys,
-  buildSupplementBrief,
-  buildSupplementCoverage,
-  evidenceFingerprint,
-  findUnchangedEvidenceIds,
-  orderByCapturePriority,
-  applyRegistryFreezeFields,
-  syncStage03DraftSourcesFromRegistry,
-  dedupeStage03DraftSources,
-  selectEvidenceSnapshotExcerpt,
+applyRegistryFreezeFields,buildCapturePriorityKeys,
+buildSupplementBrief,
+buildSupplementCoverage,dedupeStage03DraftSources,evidenceFingerprint,
+findUnchangedEvidenceIds,
+orderByCapturePriority,selectEvidenceSnapshotExcerpt,syncStage03DraftSourcesFromRegistry
 } from "./evidence_supplement_pure";
 
 /**
@@ -743,7 +738,6 @@ export function isolateStage03BatchPatch(input: {
   const scoped = scopeStage03DataForBatch(input.baseData, [...targetUnits]);
   const globalSources = Array.isArray(input.baseData?.sources) ? input.baseData.sources : [];
   const globalEvidence = Array.isArray(input.baseData?.evidence_drafts) ? input.baseData.evidence_drafts : [];
-  const globalMethods = Array.isArray(input.baseData?.method_applications) ? input.baseData.method_applications : [];
   const scopedSourceIds = uniqueStableIds(scoped.sources || []);
   const scopedEvidenceIds = uniqueStableIds(scoped.evidence_drafts || []);
   const scopedMethodIds = uniqueStableIds(scoped.method_applications || []);

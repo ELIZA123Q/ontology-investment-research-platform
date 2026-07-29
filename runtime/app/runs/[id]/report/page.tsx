@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { latestArtifactMeta, latestArtifactPayload, listWorkItemsForReview } from "@/adapters/db_read_models";
+import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview, listWorkItemsForReview } from "@/adapters/db_read_models";
 import { PublishButton } from "@/app/components/publish-button";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { parseJson } from "@/engine/types";
@@ -7,8 +7,9 @@ import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
-import { buildDeliveryResearcherView } from "@/app/lib/researcher-stage-output";
+import { buildDeliveryResearcherView, buildFormalDeliveryGate } from "@/app/lib/researcher-stage-output";
 import { journeyEditHref } from "@/app/lib/research-journey";
+import { buildReportClaimSourceIndex } from "@/engine/report_source_index";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
   const reviewData: any = parseJson(review?.json_content || "{}", {});
   const baseline = latestArtifactMeta(id, "baseline", ["approved"]);
   const evaluation = latestArtifactMeta(id, "evaluation", ["approved"]);
+  const claimSourceIndex = buildReportClaimSourceIndex(data, listSourcesForReview(id));
   const blockers = listWorkItemsForReview(id).filter((item) => item.status === "pending" || item.status === "rework");
   const reviewPassed = Boolean(review?.status === "approved" && reviewData.verdict === "pass");
   const dailyReady = Boolean(artifact.status === "approved" && reviewPassed && blockers.length === 0);
@@ -42,6 +44,12 @@ export default async function Report({ params }: { params: Promise<{ id: string 
     && artifact.status === "approved"
     && blockers.length === 0,
   );
+  const deliveryGate = buildFormalDeliveryGate({
+    artifactApproved: artifact.status === "approved",
+    reviewPassed,
+    pendingCount: blockers.length,
+    allStagesApproved: stagesApproved,
+  });
   const view = buildDeliveryResearcherView(data, {
     artifactStatus: artifact.status,
     reviewPassed,
@@ -110,14 +118,10 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       }
     />
 
-    <section className={`delivery-readiness ${stagesApproved ? "ready" : "blocked"}`} aria-label="交付就绪清单">
+    <section className={`delivery-readiness ${deliveryGate.ready ? "ready" : "blocked"}`} aria-label="交付就绪清单">
       <div>
-        <span>{stagesApproved ? "可导出正式包" : "尚未就绪"}</span>
-        <strong>
-          {stagesApproved
-            ? "五个研究阶段均已确认，可导出包含正文、来源与审计记录的正式发布包"
-            : view.proceed.blockingReasons.join("；") || "请按清单逐项解阻"}
-        </strong>
+        <span>{deliveryGate.label}</span>
+        <strong>{deliveryGate.summary}</strong>
       </div>
       <ol className="delivery-readiness-list">
         {readinessItems.map((item) => (
@@ -132,7 +136,11 @@ export default async function Report({ params }: { params: Promise<{ id: string 
         ))}
       </ol>
       <div className="actions" style={{ marginTop: 12 }}>
-        <PublishButton runId={id} disabled={!stagesApproved} />
+        <PublishButton
+          runId={id}
+          disabled={!deliveryGate.ready}
+          disabledReason={deliveryGate.blockingReasons.join("；")}
+        />
       </div>
     </section>
 
@@ -157,6 +165,34 @@ export default async function Report({ params }: { params: Promise<{ id: string 
         </div>
       </div>
     </details>
+
+    {claimSourceIndex.length ? (
+      <section className="card report-source-index" aria-label="核心主张来源索引">
+        <div className="panel-title">
+          <div>
+            <span>正文复核入口</span>
+            <strong>核心主张与来源逐条对应</strong>
+          </div>
+          <small>{claimSourceIndex.length} 条主张</small>
+        </div>
+        <p className="muted">这里只展示已绑定到报告主张的来源；逐字引文、正文哈希和完整审计记录保留在证据台与正式包中。</p>
+        <div className="report-source-index-list">
+          {claimSourceIndex.map((entry, index) => (
+            <details key={`${index}:${entry.statement}`}>
+              <summary><span>{index + 1}</span><strong>{entry.statement}</strong><em>{entry.sources.length} 个来源</em></summary>
+              <ul>
+                {entry.sources.map((source) => (
+                  <li key={source.id}>
+                    <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+                    <small>{source.publisher} · {source.publishedAt}</small>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ))}
+        </div>
+      </section>
+    ) : null}
 
     <article className="card markdown report-document"><ReportMarkdown content={artifact.markdown_content} readerView /></article>
   </>;

@@ -200,8 +200,83 @@ export function materializeStageIntoGraph(
         }
       }
     }
+    const stageVariables = Array.isArray(stageJson.variables) ? stageJson.variables as any[] : [];
+    const stateVariableTargetByRuntimeId = new Map<string, string>();
+    for (const [index, variable] of stageVariables.entries()) {
+      const runtimeId = String(variable?.id || "").trim();
+      const ontologyNodeId = String(variable?.ontology_node_id || "").trim();
+      if (!runtimeId || !ontologyNodeId) continue;
+      const targetId = ontologyNodeId === `task_local:${runtimeId}` ? runtimeId : ontologyNodeId;
+      stateVariableTargetByRuntimeId.set(runtimeId, targetId);
+      const exists = [...current.objects, ...slice.objects].some((item) => item.id === targetId);
+      if (!exists) {
+        slice.objects.push({
+          id: targetId,
+          type: "StateVariable",
+          properties: {
+            name: String(variable?.name || runtimeId),
+            category: String(variable?.category || "task_specific"),
+            definition: String(variable?.definition || variable?.name || runtimeId),
+            variable_kind: String(variable?.variable_kind || "task_local"),
+            anchors: Array.isArray(variable?.anchors) && variable.anchors.length
+              ? variable.anchors.map(String)
+              : [String(variable?.metric_ref || "task_scope")],
+            variable_role: String(variable?.role || "judgment_input"),
+            metric_ref: variable?.metric_ref ?? null,
+            scope_ref: (stageJson.research_scope as any)?.id ?? null,
+          },
+          projection: { section: "variables", index },
+        });
+      }
+    }
+    const stagePaths = Array.isArray(stageJson.paths) ? stageJson.paths as any[] : [];
+    const variableRolesByUnit = new Map<string, Map<string, string>>();
+    const rolePriority = new Map([
+      ["direct", 4],
+      ["path_outcome", 3],
+      ["path_input", 2],
+      ["path_intermediate", 1],
+    ]);
+    const bindVariable = (unitId: string, variableId: string, role: string) => {
+      if (!unitId || !stateVariableTargetByRuntimeId.has(variableId)) return;
+      const currentRoles = variableRolesByUnit.get(unitId) || new Map<string, string>();
+      const prior = currentRoles.get(variableId);
+      if (!prior || Number(rolePriority.get(role) || 0) > Number(rolePriority.get(prior) || 0)) {
+        currentRoles.set(variableId, role);
+      }
+      variableRolesByUnit.set(unitId, currentRoles);
+    };
+    for (const path of stagePaths) {
+      const variableIds = Array.isArray(path?.variable_ids) ? path.variable_ids.map(String) : [];
+      const unitIds = Array.isArray(path?.judgment_unit_ids)
+        ? path.judgment_unit_ids.map(String)
+        : Array.isArray(path?.linked_judgment_units)
+          ? path.linked_judgment_units.map(String)
+          : [];
+      variableIds.forEach((variableId: string, variableIndex: number) => {
+        const role = variableIndex === variableIds.length - 1
+          ? "path_outcome"
+          : variableIndex === 0
+            ? "path_input"
+            : "path_intermediate";
+        unitIds.forEach((unitId: string) => bindVariable(unitId, variableId, role));
+      });
+    }
+
     for (const [index, unit] of ((stageJson.judgment_units as any[]) || []).entries()) {
       const unitId = String(unit.judgment_unit_id || unit.id || `JU-${index + 1}`);
+      const ontologyRefs = new Set(
+        Array.isArray(unit.ontology_node_ids || unit.target_ontology_object_refs)
+          ? (unit.ontology_node_ids || unit.target_ontology_object_refs).map(String)
+          : [],
+      );
+      for (const variable of stageVariables) {
+        const runtimeId = String(variable?.id || "").trim();
+        const ontologyNodeId = String(variable?.ontology_node_id || "").trim();
+        if (ontologyRefs.has(runtimeId) || ontologyRefs.has(ontologyNodeId)) {
+          bindVariable(unitId, runtimeId, "direct");
+        }
+      }
       slice.objects.push({
         id: unitId,
         type: "JudgmentUnit",
@@ -219,6 +294,17 @@ export function materializeStageIntoGraph(
           sourceId: unitId,
           targetId: String(unit.scope_ref || scope.id),
           properties: {},
+        });
+      }
+      for (const [runtimeVariableId, role] of variableRolesByUnit.get(unitId) || []) {
+        const targetId = stateVariableTargetByRuntimeId.get(runtimeVariableId);
+        if (!targetId) continue;
+        slice.relations.push({
+          id: `REL-${unitId}-STATE-${runtimeVariableId}`,
+          type: "unitEvaluatesStateVariable",
+          sourceId: unitId,
+          targetId,
+          properties: { role },
         });
       }
     }

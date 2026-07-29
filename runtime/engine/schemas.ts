@@ -227,7 +227,12 @@ export const judgmentStructureSchema = z.object({
     geography: z.string().nullable().optional(),
     observation_period: z.string().nullable().optional(),
   })),
-  paths: z.array(z.object({ id: nonEmptyString, statement: nonEmptyString, variable_ids: z.array(z.string()) })),
+  paths: z.array(z.object({
+    id: nonEmptyString,
+    statement: nonEmptyString,
+    variable_ids: z.array(z.string()).min(1),
+    judgment_unit_ids: z.array(z.string()).min(1),
+  })),
   // optional 字段必须同时 nullable，以兼容 DeepSeek/OpenAI 严格函数 Schema
   //（所有 properties 均须 required；缺省用 null 表示）。保留 .optional() 以便兼容旧产物缺字段。
   questions: z.array(z.object({
@@ -339,6 +344,48 @@ export const judgmentStructureSchema = z.object({
     });
   }
   const unitIds = new Set(value.judgment_units.map((unit) => unit.id));
+  const variableIds = new Set(value.variables.map((variable) => variable.id));
+  const pathIds = new Set<string>();
+  for (const [index, path] of value.paths.entries()) {
+    if (pathIds.has(path.id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["paths", index, "id"],
+        message: `传导路径 ID 重复: ${path.id}`,
+      });
+    }
+    pathIds.add(path.id);
+    for (const variableId of path.variable_ids) {
+      if (!variableIds.has(variableId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["paths", index, "variable_ids"],
+          message: `传导路径 ${path.id} 引用了不存在的状态变量 ${variableId}`,
+        });
+      }
+    }
+    for (const unitId of path.judgment_unit_ids) {
+      if (!unitIds.has(unitId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["paths", index, "judgment_unit_ids"],
+          message: `传导路径 ${path.id} 挂接了不存在的判断单元 ${unitId}`,
+        });
+      }
+    }
+  }
+  const propagationTypes = new Set(["transmission_path", "mechanism_validation", "impact_realization"]);
+  for (const [index, unit] of value.judgment_units.entries()) {
+    if (!propagationTypes.has(unit.judgment_type)) continue;
+    const boundPaths = value.paths.filter((path) => path.judgment_unit_ids.includes(unit.id));
+    if (!boundPaths.some((path) => path.variable_ids.length >= 2)) {
+      context.addIssue({
+        code: "custom",
+        path: ["judgment_units", index, "judgment_type"],
+        message: `传导/机制/影响判断 ${unit.id} 必须显式绑定至少一条含两个及以上状态变量的路径`,
+      });
+    }
+  }
   for (const [index, item] of value.competing_explanations.entries()) {
     for (const unitId of item.judgment_unit_ids) {
       if (!unitIds.has(unitId)) {

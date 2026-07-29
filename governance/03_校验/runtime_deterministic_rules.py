@@ -39,15 +39,19 @@ LEGACY_REQUIRED_RULES = frozenset({
     "judgment_evidence_threshold",
     "judgment_status_consistency",
 })
-PRIOR_REQUIRED_RULES = frozenset(
-    rule_id
-    for rule_id in REQUIRED_RULES
-    if rule_id not in {
-        "value_chain_propagation_consistency",
-        "valuation_hypothesis_level_coupling",
-        "risk_exposure_blocking_linkage",
-    }
-)
+# 历史引擎的规则集合必须显式冻结；不能从当前登记表反向扣除，
+# 否则未来新增规则会被错误地施加到旧版本产物。
+PRIOR_REQUIRED_RULES = frozenset({
+    "evidence_scope_time_alignment",
+    "no_direct_evidence_to_judgment",
+    "judgment_reference_integrity",
+    "judgment_evidence_threshold",
+    "judgment_status_consistency",
+    "state_time_consistency",
+    "semiconductor_proxy_disclosure",
+    "semiconductor_qualification_stage_alignment",
+    "semiconductor_capacity_yield_scope_alignment",
+})
 KNOWN_ENGINE_VERSIONS = {ENGINE_VERSION, PRIOR_ENGINE_VERSION, LEGACY_ENGINE_VERSION}
 
 

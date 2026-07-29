@@ -20,6 +20,7 @@ import sys
 
 sys.path.insert(0, str(ROOT / "governance/03_校验"))
 spec.loader.exec_module(validator)
+import runtime_deterministic_rules
 
 
 def _write_minimal_package(run_dir: Path) -> None:
@@ -230,6 +231,22 @@ def _convert_to_strict_j0_package(run_dir: Path) -> None:
 
 
 class WorkbenchPackageTests(unittest.TestCase):
+    def test_runtime_rule_sets_are_versioned_snapshots(self) -> None:
+        self.assertNotIn(
+            "expectation_projection_integrity",
+            runtime_deterministic_rules.PRIOR_REQUIRED_RULES,
+        )
+        self.assertIn(
+            "expectation_projection_integrity",
+            runtime_deterministic_rules.REQUIRED_RULES,
+        )
+        self.assertEqual(
+            runtime_deterministic_rules.required_rules_for_engines(
+                {runtime_deterministic_rules.PRIOR_ENGINE_VERSION}
+            ),
+            runtime_deterministic_rules.PRIOR_REQUIRED_RULES,
+        )
+
     def test_minimal_package_passes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)

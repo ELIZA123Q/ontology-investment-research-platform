@@ -241,11 +241,22 @@ describe("formal ontology deterministic execution", () => {
       [source()],
       {
         judgment_units: [{ id: "JU-1", judgment_type: "transmission_path" }],
-        paths: [{ id: "P-1", statement: "产能→价格", variable_ids: ["V-1", "V-2"] }],
+        paths: [{ id: "P-1", statement: "产能→价格", variable_ids: ["V-1", "V-2"], judgment_unit_ids: ["JU-1"] }],
       },
     );
     const pathRule = withPath.rule_evaluations.find((item: any) => item.rule_ref === "value_chain_propagation_consistency");
     expect(pathRule.result).toBe("pass");
+
+    const pathForOtherUnit = applyDeterministicRuleEvaluations(
+      decision({ strength: "J1" }),
+      [fact()],
+      [source()],
+      {
+        judgment_units: [{ id: "JU-1", judgment_type: "transmission_path" }],
+        paths: [{ id: "P-1", statement: "产能→价格", variable_ids: ["V-1", "V-2"], judgment_unit_ids: ["JU-2"] }],
+      },
+    );
+    expect(pathForOtherUnit.judgments[0].strength).toBe("J0");
 
     const valuationSources = [1, 2, 3].map((index) => ({
       ...source(),

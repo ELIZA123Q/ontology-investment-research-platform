@@ -1,7 +1,6 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   judgmentDecisionStatusLabel,
@@ -9,8 +8,8 @@ import {
   researcherLanguage,
   researcherMarkdown,
 } from "@/app/lib/researcher-stage-output";
-import type { ApprovedScopeSummary, EvidenceOption, MethodApplicationOption, SourceOption, UnitOption } from "./types";
-import { asItemList, lines } from "./helpers";
+import type { EvidenceOption, MethodApplicationOption, UnitOption } from "./types";
+import { lines } from "./helpers";
 
 type JudgmentUnitSeed = {
   conclusion: string;
@@ -401,14 +400,43 @@ function JudgmentFormBody({
 }) {
   return <div>
     <p className="muted">结论与推理要点由研究员填写；竞争解释优先使用结构阶段已登记的候选。系统只使用已确认事实，并按规则重算结论强度与适用边界。</p>
-    {units.map((unit) => {
+    {units.map((unit, unitIndex) => {
       const candidates = candidatesByUnit.get(unit.id) || [];
       const badge = statusBadges[unit.id];
-      return <div className="card" key={unit.id} style={{ marginTop: 12 }}>
-        <JudgmentUnitHeader unit={unit} badge={badge} />
-        <div className="field"><label>方向结论</label><textarea disabled={locked} value={conclusions[unit.id] || ""} onChange={(event) => setConclusions({ ...conclusions, [unit.id]: event.target.value })} /></div>
-        <div className="field"><label>推理要点</label><textarea disabled={locked} value={rationales[unit.id] || ""} onChange={(event) => setRationales({ ...rationales, [unit.id]: event.target.value })} placeholder="说明为何由这些事实得到该结论；强度仍由系统重算" /></div>
-        <div className="field"><label>使用的已确认事实及其相对结论角色</label>{(evidenceByUnit.get(unit.id) || []).map((item) => <div className="evidence-role-row" key={item.id}><select disabled={locked} value={evidenceRoles[unit.id]?.[item.id] || "none"} onChange={(event) => setEvidenceRoles({ ...evidenceRoles, [unit.id]: { ...(evidenceRoles[unit.id] || {}), [item.id]: event.target.value as "none" | "support" | "counter" } })}><option value="none">不使用</option><option value="support">支持结论</option><option value="counter">反证 / 限制结论</option></select><span>{item.statement}{item.direction ? `（证据阶段：${({ support: "支持", weaken: "削弱", neutral: "中性" } as Record<string, string>)[item.direction] || item.direction}）` : ""}</span></div>)}</div>
+      const unitEvidence = evidenceByUnit.get(unit.id) || [];
+      const usedEvidenceCount = Object.values(evidenceRoles[unit.id] || {}).filter((role) => role !== "none").length;
+      const missing = [
+        !(conclusions[unit.id] || "").trim() ? "结论" : "",
+        usedEvidenceCount === 0 ? "事实角色" : "",
+        !(uncertainties[unit.id] || "").trim() ? "不确定性" : "",
+        !(invalidations[unit.id] || "").trim() ? "改判条件" : "",
+        !(competitions[unit.id] || "").trim() ? "竞争解释" : "",
+        !(discriminators[unit.id] || "").trim() ? "区分性证据" : "",
+      ].filter(Boolean);
+      const compactEvidence = (statement: string) => {
+        const normalized = researcherLanguage(statement).replace(/\s+/g, " ").trim();
+        return normalized.length > 180 ? `${normalized.slice(0, 180).trimEnd()}…` : normalized;
+      };
+      return <details className="card judgment-unit-editor" key={unit.id} open={unitIndex === 0}>
+        <summary>
+          <span>判断 {unitIndex + 1}</span>
+          <strong>{unit.title}</strong>
+          <em className={missing.length ? "incomplete" : "complete"}>
+            {missing.length ? `待补 ${missing.length} 项` : "要素齐全"}
+          </em>
+        </summary>
+        <div className="judgment-unit-editor-body">
+          <JudgmentUnitHeader unit={unit} badge={badge} />
+          <div className="judgment-editor-progress">
+            <span>已选择 {usedEvidenceCount}/{unitEvidence.length} 项事实</span>
+            {missing.length ? <span>还需：{missing.join("、")}</span> : <strong>可保存并执行规则重算</strong>}
+          </div>
+          <div className="field"><label>方向结论</label><textarea disabled={locked} value={conclusions[unit.id] || ""} onChange={(event) => setConclusions({ ...conclusions, [unit.id]: event.target.value })} /></div>
+          <div className="field"><label>推理要点</label><textarea disabled={locked} value={rationales[unit.id] || ""} onChange={(event) => setRationales({ ...rationales, [unit.id]: event.target.value })} placeholder="说明为何由这些事实得到该结论；强度仍由系统重算" /></div>
+          <details className="judgment-evidence-picker" open={usedEvidenceCount === 0}>
+            <summary>选择事实角色 · 已选 {usedEvidenceCount}/{unitEvidence.length}</summary>
+            <div className="field"><label>使用的已确认事实及其相对结论角色</label>{unitEvidence.map((item) => <div className="evidence-role-row" key={item.id}><select disabled={locked} value={evidenceRoles[unit.id]?.[item.id] || "none"} onChange={(event) => setEvidenceRoles({ ...evidenceRoles, [unit.id]: { ...(evidenceRoles[unit.id] || {}), [item.id]: event.target.value as "none" | "support" | "counter" } })}><option value="none">不使用</option><option value="support">支持结论</option><option value="counter">反证 / 限制结论</option></select><span title={researcherLanguage(item.statement)}>{compactEvidence(item.statement)}{item.direction ? `（证据阶段：${({ support: "支持", weaken: "削弱", neutral: "中性" } as Record<string, string>)[item.direction] || item.direction}）` : ""}</span></div>)}</div>
+          </details>
         <details className="source-tech-details">
           <summary>审计：方法适用条件</summary>
           <div className="field"><label>只勾选可由当前结构和已确认事实确认的条件</label>
@@ -440,7 +468,8 @@ function JudgmentFormBody({
           <div className="field"><label>跟踪信号（每行一条，可选）</label><textarea disabled={locked} value={trackingSignals[unit.id] || ""} onChange={(event) => setTrackingSignals({ ...trackingSignals, [unit.id]: event.target.value })} placeholder="下一步要盯什么指标或事件" /></div>
         </div>
         <div className="field"><label>反证如何被解决（可留空；若支持与反证并存且留空，系统将结论标为「暂不可判断 / 存在争议」）</label><textarea disabled={locked} value={resolutions[unit.id] || ""} onChange={(event) => setResolutions({ ...resolutions, [unit.id]: event.target.value })} /></div>
-      </div>;
+        </div>
+      </details>;
     })}
     {message ? <div className="notice">{message}</div> : null}
     {variant === "fallback" ? <button type="button" className="button" disabled={busy || locked || !units.length || !evidence.length} onClick={() => void onSubmit()}>{busy ? "正在执行规则与方法…" : "生成待核对判断草稿"}</button> : null}

@@ -93,19 +93,13 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
         ) : null}
       </section>
       <section className="stage-unit-list" aria-label="关键判断与必要证据">
-        {unitSummaries.map((unit, index) => {
-          const enriched = view.sections[index];
-          const meta = (enriched?.items || []).filter((item) =>
-            item.startsWith("候选主张：") || item.startsWith("决策角色：") || item.startsWith("决策权重：") || item.startsWith("优先级："),
-          );
-          return (
+        {unitSummaries.map((unit, index) => (
             <article className="stage-unit-card" key={unit.id}>
               <div className="stage-unit-index">{String(index + 1).padStart(2, "0")}</div>
               <div className="stage-unit-main">
                 <span>关键判断 {index + 1}</span>
                 <h2>{unit.title}</h2>
                 {unit.question && unit.question !== unit.title ? <p>{unit.question}</p> : null}
-                {meta.length ? <p className="muted">{meta.join(" · ")}</p> : null}
                 <div className="stage-unit-columns">
                   <div>
                     <strong>形成判断前必须拿到</strong>
@@ -123,8 +117,7 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
                 </div>
               </div>
             </article>
-          );
-        })}
+          ))}
       </section>
       </>
     ) : (

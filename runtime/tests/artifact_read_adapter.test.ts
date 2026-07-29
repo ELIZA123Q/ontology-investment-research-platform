@@ -8,6 +8,26 @@ import {
 } from "../engine/artifact_read_adapter";
 
 describe("artifact read adapter", () => {
+  it("maps Stage02 formal path aliases without guessing missing bindings", () => {
+    const stage02 = adaptArtifactForRead("stage_02", {
+      judgment_units: [{
+        judgment_unit_id: "JU-1",
+        statement: "价格路径判断",
+        path_refs: ["P-1"],
+      }],
+      paths: [{
+        path_id: "P-1",
+        description: "需求传导至价格",
+        state_variable_refs: ["SV-1", "SV-2"],
+      }],
+    });
+    expect(stage02.paths[0]).toMatchObject({
+      id: "P-1",
+      variable_ids: ["SV-1", "SV-2"],
+      judgment_unit_ids: ["JU-1"],
+    });
+  });
+
   it("projects claims from judgments with C-nn ids", () => {
     const claims = projectClaimsFromJudgments([
       {

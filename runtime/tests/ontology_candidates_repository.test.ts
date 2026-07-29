@@ -57,7 +57,103 @@ describe("ontology candidate governance repository", () => {
       status: "promoted",
       target_ontology_node_id: "depreciation_intensity",
     });
+    expect(promoted.change_request).toMatchObject({
+      status: "proposed",
+      target_ontology_node_id: "depreciation_intensity",
+    });
+    expect(promoted.change_request_events).toHaveLength(1);
     expect(promoted.review_events).toHaveLength(2);
     expect(promoted.review_events.map((event) => event.next_status)).toEqual(["promoted", "expert_confirmed"]);
+    const repeated = repository.reviewOntologyCandidate({
+      candidateKey: candidate.candidate_key,
+      status: "promoted",
+      expertName: "测试专家",
+      decisionNote: "重复请求必须保持幂等且不得追加第二条提案",
+      targetOntologyNodeId: "depreciation_intensity",
+    });
+    expect(repeated.review_events).toHaveLength(2);
+    expect(repeated.change_request_events).toHaveLength(1);
+  });
+
+  it("does not confuse an accepted candidate with a formally released ontology element", async () => {
+    const run = db.createRun(`候选发布链-${crypto.randomUUID()}`, "semiconductor");
+    const candidateName = `库存周期别名-${crypto.randomUUID()}`;
+    db.createArtifact(run.id, "stage_02", {
+      status: "approved",
+      json_content: JSON.stringify({
+        variables: [{
+          id: "VAR-RELEASE",
+          name: candidateName,
+          category: "inventory_cycle",
+          variable_kind: "observed",
+          definition: "用于验证元治理发布链的任务局部变量",
+          ontology_node_id: "task_local:VAR-RELEASE",
+        }],
+      }),
+    });
+    const candidate = repository.listOntologyCandidates().find((item) => item.name === candidateName)!;
+    expect(() => repository.reviewOntologyCandidate({
+      candidateKey: candidate.candidate_key,
+      status: "promoted",
+      expertName: "测试专家",
+      decisionNote: "不得绕过专家确认直接创建变更提案",
+      targetOntologyNodeId: "inventory_cycle",
+    })).toThrow(/必须先经专家确认/);
+    repository.reviewOntologyCandidate({
+      candidateKey: candidate.candidate_key,
+      status: "expert_confirmed",
+      expertName: "测试专家",
+      decisionNote: "确认该任务局部变量需要进入正式治理流程",
+    });
+    const proposed = repository.reviewOntologyCandidate({
+      candidateKey: candidate.candidate_key,
+      status: "promoted",
+      expertName: "测试专家",
+      decisionNote: "创建正式变更提案但尚不代表已经正式发布",
+      targetOntologyNodeId: "inventory_cycle",
+    }).change_request!;
+    const impact = {
+      changed_element_ids: ["inventory_cycle"],
+      affected_consumers: ["workflow_semantic_envelopes"],
+      affected_run_ids: [run.id],
+      required_checks: ["validate_v3", "validate_project"],
+    };
+    repository.advanceOntologyChangeRequest({
+      requestId: proposed.id,
+      nextStatus: "impact_assessed",
+      actorName: "治理专家",
+      decisionNote: "已冻结元素、消费面、运行和必跑检查影响",
+      impactReport: impact,
+    });
+    repository.advanceOntologyChangeRequest({
+      requestId: proposed.id,
+      nextStatus: "approved",
+      actorName: "治理专家",
+      decisionNote: "影响边界明确，批准进入正式实现环节",
+    });
+    repository.advanceOntologyChangeRequest({
+      requestId: proposed.id,
+      nextStatus: "implemented",
+      actorName: "本体维护",
+      decisionNote: "正式目标已经写入受治理领域参数资产",
+      implementationRef: "ontology/02_领域/semiconductor/business_instances.yaml#inventory_cycle",
+    });
+    repository.advanceOntologyChangeRequest({
+      requestId: proposed.id,
+      nextStatus: "validated",
+      actorName: "发布维护",
+      decisionNote: "影响分析列出的必跑检查已经全部通过",
+      validationResults: { validate_v3: "pass", validate_project: "pass" },
+    });
+    const { loadOntologyCatalog } = await import("@/engine/ontology_catalog");
+    const released = repository.advanceOntologyChangeRequest({
+      requestId: proposed.id,
+      nextStatus: "released",
+      actorName: "发布维护",
+      decisionNote: "目标已解析并绑定当前正式本体内容指纹",
+      releaseFingerprint: loadOntologyCatalog().fingerprint,
+    });
+    expect(released.status).toBe("released");
+    expect(released.released_at).toBeTruthy();
   });
 });

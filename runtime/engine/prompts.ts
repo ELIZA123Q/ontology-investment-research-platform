@@ -33,6 +33,8 @@ document_markdown 按投研需求说明模板展开正式正文（含解析、�
 
 StateVariable 定义：每个变量给出 name、category、definition 和锚定指标；无法从公开材料确认的维度标记 null，不猜测。运行期观测（如某期营收）用 task_local:<变量ID> 标识，不硬挂邻近本体概念。
 
+路径绑定：新建路径 ID 使用 P-nn（修复旧产物时保留已有 PATH-* 稳定 ID）；每条 paths[] 必须按传导顺序填写 variable_ids，并用 judgment_unit_ids 显式登记它服务的 JudgmentUnit；禁止依赖变量 ID、对象 ID 或文本相似度猜归属。transmission_path / mechanism_validation / impact_realization 类型的 JudgmentUnit 必须至少绑定一条含两个及以上变量的路径。路径不得悬空，也不得用一条全局路径替所有判断单元过门。
+
 每个 JudgmentUnit 登记 judgment_structure、evidence 和 adjudication 的 MA 候选。evidence 的 method_id 必须落在 allowed_kb03_methods，adjudication 必须落在 allowed_kb04_methods。每个 JudgmentUnit 都必须至少绑定一条竞争解释、一条可执行反证方向，并把该反证方向投影为 evidence_role=counter 的 EvidenceRequirement；不能用全局一条反证替全部单元过门。竞争解释给出 discriminating_evidence——可区分主路径与该解释的证据要求，不是已取得事实。
 
 产出 research_logic_markdown（含 judgment_spine 展开和竞争解释叙述，不是条目列表）和 ontology_view_yaml。填写 logic_id、can_enter_03、quality_status；有 blocking_gap 时 can_enter_03 为 false。research_logic_markdown 必须足够支撑后续 05C 论点章——对象分化、主路径、证伪条件。

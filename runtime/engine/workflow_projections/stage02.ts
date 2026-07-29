@@ -91,6 +91,7 @@ type ControlledStructureInput = {
   scope_label?: string;
   scope_dimensions?: Record<string, unknown>;
   units: ControlledStructureUnitInput[];
+  paths?: Array<{ id: string; judgment_unit_ids: string[] }>;
   counter_evidence_directions?: unknown[];
   competing_explanations?: unknown[];
 };
@@ -214,8 +215,31 @@ export function createControlledStructureProjection(runId: string, raw: Controll
     ? previous.variables
     : controlledVariablesForUnits(units);
   const variableIds = new Set(variables.map((variable: any) => String(variable.id)));
+  const requestedPathBindings = new Map(
+    (Array.isArray(input.paths) ? input.paths : [])
+      .map((path) => [
+        String(path?.id || ""),
+        Array.isArray(path?.judgment_unit_ids) ? path.judgment_unit_ids.map(String) : [],
+      ] as const)
+      .filter(([id]) => id),
+  );
   const paths = sameUnits && Array.isArray(previous.paths)
-    ? previous.paths.filter((path: any) => (path.variable_ids || []).every((variableId: unknown) => variableIds.has(String(variableId))))
+    ? previous.paths
+      .filter((path: any) => (path.variable_ids || []).every((variableId: unknown) => variableIds.has(String(variableId))))
+      .map((path: any) => {
+        const id = String(path?.id || "");
+        const requested = requestedPathBindings.get(id);
+        const judgmentUnitIds = requested === undefined
+          ? (Array.isArray(path?.judgment_unit_ids)
+            ? path.judgment_unit_ids.map(String)
+            : Array.isArray(path?.linked_judgment_units)
+              ? path.linked_judgment_units.map(String)
+              : [])
+          : requested;
+        const unknownUnit = judgmentUnitIds.find((unitId: string) => !seen.has(unitId));
+        if (unknownUnit) throw new Error(`传导路径 ${id} 挂接了不存在的判断单元 ${unknownUnit}`);
+        return { ...path, judgment_unit_ids: [...new Set(judgmentUnitIds)] };
+      })
     : [];
   const counterDirections = normalizeCounterEvidenceDirections(input.counter_evidence_directions, { unitIds: nextUnitIds });
   const competing = normalizeCompetingExplanations(input.competing_explanations, { unitIds: nextUnitIds });

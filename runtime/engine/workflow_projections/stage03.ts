@@ -1,82 +1,30 @@
-import "server-only";
 import { createHash } from "node:crypto";
+import "server-only";
 import {
-  approveArtifact,
-  createArtifact,
-  getArtifact,
-  getRun,
-  latestArtifact,
-  listWorkItems,
-  listSources,
-  normalizeUrl,
-  quarantineUnboundWebCitations,
-  saveInstanceGraph,
-  supersedeDownstream,
-  supersedeOtherArtifactAttempts,
-  updateArtifact,
-  updateArtifactIfStatus,
-  upsertSource,
-  withImmediateTransaction,
+createArtifact,
+getRun,
+latestArtifact,
+listSources
 } from "../../adapters/db";
-import { loadKnowledge } from "../knowledge";
-import { createResearchModelClient } from "../../adapters/deepseek";
-import { promptFor, PROMPT_VERSION } from "../prompts";
-import { schemas, type SchemaKind } from "../schemas";
-import { ontologyContextForPrompt } from "../ontology_tools";
-import { emptyGraph, loadDomainBusinessGraph, loadGraphForRun, markReachableDownstreamStale, materializeStageIntoGraph } from "../instance_graph";
 import {
-  validateExpressionMethodBindings,
-  validateJudgmentCapabilityCoverage,
-  validateJudgmentMethodBindings,
-  validateMethodApplications,
-} from "../method_application";
-import {
-  defaultMethodIdsForJudgmentType,
-  loadMethodRegistry,
-  recallRegisteredMethodCandidates,
-  registeredMethodCandidates,
-  validateMethodRoutes,
-  validateRegisteredMethodApplications,
-} from "../method_registry";
-import { parseJson, STAGES, type Artifact, type ArtifactKind, type MethodApplication, type SourceRecord, type StageKind } from "../types";
-import { validateReasoningTraceBindings } from "../reasoning_trace";
-import { changeSetSchema, mergeChangeSet, type ChangeSet } from "../change_set";
-import { captureSourceSnapshot } from "../source_snapshot";
-import { applyDeterministicRuleEvaluations, assertDeterministicRuleResults } from "../semantic_execution";
-import { evidenceBoundSourceIds, evidenceBoundSources } from "../evidence_sources";
-import { syncReviewWorkItems } from "../review_work_items";
-import { classifyRuntimeFailure, compactStructuredArtifact } from "../workflow_support";
-import {
-  normalizeEvidencePreparationNulls,
-  dropIncompleteSources,
-  prepareEvidenceForSourceCapture,
-  reconcileMethodEvidenceRefs,
+dropIncompleteSources,
+normalizeEvidencePreparationNulls,
+prepareEvidenceForSourceCapture,
+reconcileMethodEvidenceRefs,
 } from "../evidence_draft_normalize";
+import { PROMPT_VERSION } from "../prompts";
+import { syncReviewWorkItems } from "../review_work_items";
+import { schemas } from "../schemas";
+import { parseJson,type MethodApplication } from "../types";
 
-import { syncStage02ReadableMarkdown, syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "../readable_markdown";
-import { ensureStage01ContractFields } from "../stage01_contract";
-import { ensureStage02DocumentFields } from "../stage02_documents";
-import { ensureStage05DocumentFields } from "../stage05_documents";
+import { syncStage03ReadableMarkdown } from "../readable_markdown";
 import {
-  buildStage05SkeletonMarkdown,
-  shouldPreserveStage05Markdown,
-  stripInlineAuditDetails,
-} from "../stage05_quality";
-import {
-  competingExplanationsForUnit,
-  normalizeCompetingExplanations,
-  normalizeCounterEvidenceDirections,
-  projectEvidenceRequirementsFromStructure,
+projectEvidenceRequirementsFromStructure
 } from "../structure_candidates";
 import {
-  editArtifact,
-  methodCandidatesForPrompt,
-  normalizeBusinessCutoff,
-  sameStringSet,
-  sourcesForPrompt,
-  sourceForFrozenBaseline,
-  validateGeneratedSemanticDraft,
-  validateOntologyVariableBindings,
+normalizeBusinessCutoff,
+sourcesForPrompt,
+validateGeneratedSemanticDraft
 } from "../workflow_shared";
 
 export function repairEvidencePreparationDraft(data: any): any {

@@ -1,19 +1,19 @@
-import "server-only";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import "server-only";
 import YAML from "yaml";
 import { repositoryPath } from "../adapters/repo-paths";
-import {
-  emptyGraph,
-  type BusinessInstanceGraph,
-  type GraphObject,
-  type GraphRelation,
-} from "./instance_graph";
 import { validateRuntimeGraph } from "./graph_contract";
-import { ENGINE_VERSION as SEMANTIC_ENGINE_VERSION, REQUIRED_RULES } from "./semantic_execution";
-import { ONTOLOGY_JUDGMENT_LEVELS } from "./ontology_vocabulary.generated";
+import {
+emptyGraph,
+type BusinessInstanceGraph,
+type GraphObject,
+type GraphRelation,
+} from "./instance_graph";
 import { loadOntologyCatalog } from "./ontology_catalog";
 import { assertFormalRelationChoice } from "./ontology_relation_options";
+import { ONTOLOGY_JUDGMENT_LEVELS } from "./ontology_vocabulary.generated";
+import { REQUIRED_RULES,ENGINE_VERSION as SEMANTIC_ENGINE_VERSION } from "./semantic_execution";
 
 const TRACE_NODE_TYPES = new Set(
   loadOntologyCatalog().relation_types.get("traceIncludesNode")?.target_types || [],
@@ -754,7 +754,6 @@ function planWrites(
 
   if (action.id === "AssessEvidenceForUse") {
     const evidenceRefs = asStringArray(parameters.evidenceRefs);
-    const judgmentUnitRefs = asStringArray(parameters.judgmentUnitRefs);
     const assessmentId = String(parameters.assessmentId || `EA-${hashShort(evidenceRefs.join("|"))}`);
     const object: GraphObject = {
       id: assessmentId,
@@ -807,8 +806,6 @@ function planWrites(
   if (action.id === "FormJudgment") {
     const judgmentId = String(parameters.judgmentId || `J-${hashShort(String(parameters.statement))}`);
     const hypothesisRefs = asStringArray(parameters.hypothesisRefs);
-    const signalRefs = asStringArray(parameters.signalRefs);
-    const evidenceRefs = asStringArray(parameters.evidenceRefs);
     const methodApplicationRefs = asStringArray(parameters.methodApplicationRefs);
     const ruleEvaluationRefs = asStringArray(parameters.ruleEvaluationRefs);
     const judgmentUnitRef = String(parameters.judgmentUnitRef || "");

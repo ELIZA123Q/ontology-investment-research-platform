@@ -14,7 +14,6 @@ import {
 import {
   assertStage04ReadyForApproval,
   collectStage04ConsistencyIssues,
-  ensureStage04DocumentFields,
 } from "@/engine/stage04_documents";
 import {
   assertStage05ReadyForApproval,

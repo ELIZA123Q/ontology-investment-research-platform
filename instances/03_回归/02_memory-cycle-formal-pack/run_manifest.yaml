@@ -97,11 +97,20 @@ reasoning_loop:
   pending_stage_attempts: []
   structural_checkpoint_required: false
   converged: true
-validation_issues: []
+validation_issues:
+- issue_id: CHAIN-001
+  detected_at_stage: '02'
+  rule_id: 02.validator
+  return_to_stage: stage_02
+  reason: "/Users/luyao/Documents/基于本体的投研推理平台/ontology/01_通用/models/semantic.yaml 不是合法 YAML: could not determine a constructor\
+    \ for the tag 'tag:yaml.org,2002:merge'\n  in \"<unicode string>\", line 25, column 7:\n          <<: *named_attributes\n\
+    \          ^"
+  severity: blocking
 validation_summary:
-  quality_pass: true
-  publishable: true
-  publish_status: PUBLISHABLE
+  quality_pass: false
+  publishable: false
+  publish_status: RETURN_REQUIRED
   judgment_level: J2
   directional_conclusion_available: true
   contract_version: 1.3.0
+  semantic_baseline_status: legacy_fixture

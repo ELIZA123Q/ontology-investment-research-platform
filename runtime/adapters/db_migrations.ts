@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const LATEST_DATABASE_SCHEMA_VERSION = 13;
+export const LATEST_DATABASE_SCHEMA_VERSION = 14;
 
 type Migration = {
   version: number;
@@ -344,6 +344,83 @@ const migrations: Migration[] = [
           value_json TEXT NOT NULL DEFAULT '{}',
           updated_at TEXT NOT NULL
         );
+      `);
+    },
+  },
+  {
+    version: 14,
+    description: "ontology change requests separate candidate acceptance from formal release",
+    apply(connection) {
+      connection.exec(`
+        CREATE TABLE IF NOT EXISTS ontology_change_requests (
+          id TEXT PRIMARY KEY,
+          candidate_key TEXT NOT NULL,
+          request_version INTEGER NOT NULL DEFAULT 1,
+          change_kind TEXT NOT NULL DEFAULT 'add'
+            CHECK(change_kind IN ('add','modify','deprecate','split','merge')),
+          status TEXT NOT NULL DEFAULT 'proposed'
+            CHECK(status IN ('proposed','impact_assessed','approved','implemented','validated','released','rejected')),
+          target_ontology_node_id TEXT NOT NULL,
+          breaking_change INTEGER NOT NULL DEFAULT 0 CHECK(breaking_change IN (0,1)),
+          proposal_note TEXT NOT NULL DEFAULT '',
+          impact_report_json TEXT NOT NULL DEFAULT '{}',
+          required_checks_json TEXT NOT NULL DEFAULT '[]',
+          validation_results_json TEXT NOT NULL DEFAULT '{}',
+          implementation_ref TEXT NOT NULL DEFAULT '',
+          migration_ref TEXT NOT NULL DEFAULT '',
+          release_fingerprint TEXT NOT NULL DEFAULT '',
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          released_at TEXT,
+          UNIQUE(candidate_key, request_version),
+          FOREIGN KEY(candidate_key) REFERENCES ontology_candidate_reviews(candidate_key) ON DELETE RESTRICT
+        );
+        CREATE TABLE IF NOT EXISTS ontology_change_request_events (
+          id TEXT PRIMARY KEY,
+          request_id TEXT NOT NULL,
+          prior_status TEXT NOT NULL,
+          next_status TEXT NOT NULL,
+          actor_name TEXT NOT NULL,
+          decision_note TEXT NOT NULL,
+          evidence_json TEXT NOT NULL DEFAULT '{}',
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(request_id) REFERENCES ontology_change_requests(id) ON DELETE RESTRICT
+        );
+        CREATE INDEX IF NOT EXISTS idx_ontology_change_requests_status
+          ON ontology_change_requests(status, updated_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ontology_change_requests_candidate
+          ON ontology_change_requests(candidate_key, request_version DESC);
+        CREATE INDEX IF NOT EXISTS idx_ontology_change_request_events_request
+          ON ontology_change_request_events(request_id, created_at DESC);
+
+        INSERT OR IGNORE INTO ontology_change_requests(
+          id,candidate_key,request_version,change_kind,status,target_ontology_node_id,
+          proposal_note,created_by,created_at,updated_at
+        )
+        SELECT
+          'OCR-legacy-' || substr(candidate_key, 12),
+          candidate_key,1,'add','proposed',target_ontology_node_id,
+          decision_note,expert_name,COALESCE(reviewed_at,created_at),updated_at
+        FROM ontology_candidate_reviews
+        WHERE status='promoted' AND target_ontology_node_id <> '';
+
+        INSERT OR IGNORE INTO ontology_change_request_events(
+          id,request_id,prior_status,next_status,actor_name,decision_note,evidence_json,created_at
+        )
+        SELECT
+          'OCRE-legacy-' || substr(candidate.candidate_key, 12),
+          request.id,'none','proposed',candidate.expert_name,candidate.decision_note,
+          json_object(
+            'candidate_key', candidate.candidate_key,
+            'target_ontology_node_id', candidate.target_ontology_node_id,
+            'migration_source', 'ontology_candidate_reviews.status=promoted'
+          ),
+          COALESCE(candidate.reviewed_at,candidate.created_at)
+        FROM ontology_candidate_reviews candidate
+        JOIN ontology_change_requests request
+          ON request.candidate_key=candidate.candidate_key AND request.request_version=1
+        WHERE candidate.status='promoted' AND candidate.target_ontology_node_id <> '';
       `);
     },
   },

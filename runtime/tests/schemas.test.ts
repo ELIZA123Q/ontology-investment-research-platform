@@ -462,6 +462,66 @@ describe("stage contracts", () => {
     expect(() => validateRuntimeGraph(graph)).not.toThrow();
   });
 
+  it("materializes explicit JudgmentUnit → StateVariable bindings from Stage02 paths", () => {
+    const structure = {
+      research_scope: {
+        id: "SCOPE-1",
+        label: "价格传导范围",
+        dimensions: { core_object: "存储芯片行业" },
+      },
+      judgment_units: [{
+        id: "JU-1",
+        question: "需求是否传导至价格",
+        judgment_type: "transmission_path",
+        scope_ref: "SCOPE-1",
+        ontology_node_ids: [],
+      }],
+      variables: [{
+        id: "SV-DEMAND",
+        name: "需求强度",
+        category: "demand",
+        definition: "可比口径需求状态",
+        variable_kind: "observed",
+        anchors: ["shipment"],
+        ontology_node_id: "task_local:SV-DEMAND",
+        role: "input",
+      }, {
+        id: "SV-PRICE",
+        name: "价格压力",
+        category: "pricing",
+        definition: "可比口径价格方向",
+        variable_kind: "observed",
+        anchors: ["contract_price"],
+        ontology_node_id: "task_local:SV-PRICE",
+        role: "outcome",
+      }],
+      paths: [{
+        id: "P-1",
+        statement: "需求改善 → 价格压力上行",
+        variable_ids: ["SV-DEMAND", "SV-PRICE"],
+        judgment_unit_ids: ["JU-1"],
+      }],
+    };
+    const graph = materializeStageIntoGraph(emptyGraph(), "stage_02", structure);
+    expect(graph.objects.filter((object) => object.type === "StateVariable").map((object) => object.id))
+      .toEqual(expect.arrayContaining(["SV-DEMAND", "SV-PRICE"]));
+    expect(graph.relations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: "unitEvaluatesStateVariable",
+        sourceId: "JU-1",
+        targetId: "SV-DEMAND",
+        properties: expect.objectContaining({ role: "path_input" }),
+      }),
+      expect.objectContaining({
+        type: "unitEvaluatesStateVariable",
+        sourceId: "JU-1",
+        targetId: "SV-PRICE",
+        properties: expect.objectContaining({ role: "path_outcome" }),
+      }),
+    ]));
+    expect(() => validateRuntimeGraph(graph)).not.toThrow();
+  });
+
   it("Stage02 CompetingExplanation 投影补齐 Ontology 必填 discriminating_evidence", () => {
     const structure = {
       method_applications: [],

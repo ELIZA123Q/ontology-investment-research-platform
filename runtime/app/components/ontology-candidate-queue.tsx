@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 type CandidateStatus = "pending" | "expert_confirmed" | "promoted" | "rejected";
+type ChangeStatus = "proposed" | "impact_assessed" | "approved" | "implemented" | "validated" | "released" | "rejected";
 
 type Candidate = {
   candidate_key: string;
@@ -33,13 +34,42 @@ type Candidate = {
     target_ontology_node_id: string;
     created_at: string;
   }>;
+  change_request: {
+    id: string;
+    status: ChangeStatus;
+    target_ontology_node_id: string;
+    required_checks: string[];
+    implementation_ref: string;
+    migration_ref: string;
+    release_fingerprint: string;
+    updated_at: string;
+    released_at: string | null;
+  } | null;
+  change_request_events: Array<{
+    id: string;
+    prior_status: string;
+    next_status: ChangeStatus;
+    actor_name: string;
+    decision_note: string;
+    created_at: string;
+  }>;
 };
 
 const STATUS_LABELS: Record<CandidateStatus, string> = {
   pending: "待专家确认",
   expert_confirmed: "缺口已确认",
-  promoted: "已登记晋升",
+  promoted: "变更已受理",
   rejected: "已驳回",
+};
+
+const CHANGE_STATUS_LABELS: Record<ChangeStatus, string> = {
+  proposed: "变更已提案",
+  impact_assessed: "影响已冻结",
+  approved: "变更已批准",
+  implemented: "实现已提交",
+  validated: "检查已通过",
+  released: "已正式发布",
+  rejected: "变更已驳回",
 };
 
 function candidateCategoryLabel(category: string): string {
@@ -138,7 +168,7 @@ export function OntologyCandidateQueue() {
 
   const pendingCount = candidates.filter((candidate) => candidate.review.status === "pending").length;
   const reusedCount = candidates.filter((candidate) => candidate.cross_task_reused).length;
-  const decidedCount = candidates.length - pendingCount;
+  const releasedCount = candidates.filter((candidate) => candidate.change_request?.status === "released").length;
 
   return (
     <section className="ontology-governance">
@@ -146,11 +176,11 @@ export function OntologyCandidateQueue() {
         <article><strong>{candidates.length}</strong><span>当前本轮候选知识</span></article>
         <article><strong>{reusedCount}</strong><span>跨任务重复出现</span></article>
         <article><strong>{pendingCount}</strong><span>等待专家确认</span></article>
-        <article><strong>{decidedCount}</strong><span>已有治理决定</span></article>
+        <article><strong>{releasedCount}</strong><span>已正式发布</span></article>
       </div>
       <div className="ontology-governance-note">
-        <strong>登记晋升不会自动改写正式知识库</strong>
-        <span>这里记录出现频次、专家判断和拟正式知识编号；正式知识仍需单独评审、校验和发布。</span>
+        <strong>变更受理不等于正式发布</strong>
+        <span>候选受理后还须经过影响分析、批准、实施、验证并绑定正式指纹，才会显示为“已正式发布”。</span>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="ontology-governance-layout">
@@ -185,6 +215,10 @@ export function OntologyCandidateQueue() {
                 <div><dt>跨任务频次</dt><dd>{selected.run_count} 个研究 / {selected.occurrence_count} 次</dd></div>
                 <div><dt>覆盖领域</dt><dd>{selected.domains.map(candidateDomainLabel).join("、") || "—"}</dd></div>
                 <div><dt>复用判断</dt><dd>{selected.cross_task_reused ? "已跨任务重复，优先评审" : "暂为单任务证据"}</dd></div>
+                <div>
+                  <dt>正式变更状态</dt>
+                  <dd>{selected.change_request ? CHANGE_STATUS_LABELS[selected.change_request.status] : "尚未创建变更提案"}</dd>
+                </div>
               </dl>
               <h3>出现在哪些研究</h3>
               <ul className="source-list">
@@ -204,13 +238,13 @@ export function OntologyCandidateQueue() {
                   <textarea value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} placeholder="说明稳定性、跨任务价值、边界或驳回原因（至少 8 字）" />
                 </div>
                 <div className="field">
-                  <label>拟正式知识编号（仅晋升时必填）</label>
+                  <label>拟正式知识编号（创建变更提案时必填）</label>
                   <input value={targetId} onChange={(event) => setTargetId(event.target.value)} placeholder="由知识库维护人填写" />
                 </div>
                 <div className="actions">
-                  <button className="button-secondary" disabled={busy} onClick={() => decide("expert_confirmed")} type="button">确认这是知识缺口</button>
-                  <button className="button" disabled={busy} onClick={() => decide("promoted")} type="button">登记晋升</button>
-                  <button className="button-quiet" disabled={busy} onClick={() => decide("rejected")} type="button">驳回候选</button>
+                  <button className="button-secondary" disabled={busy || Boolean(selected.change_request)} onClick={() => decide("expert_confirmed")} type="button">确认这是知识缺口</button>
+                  <button className="button" disabled={busy || Boolean(selected.change_request)} onClick={() => decide("promoted")} type="button">创建变更提案</button>
+                  <button className="button-quiet" disabled={busy || Boolean(selected.change_request)} onClick={() => decide("rejected")} type="button">驳回候选</button>
                 </div>
               </div>
               <details>
@@ -231,6 +265,18 @@ export function OntologyCandidateQueue() {
                   ))}
                 </div>
               ) : <p className="muted">尚无专家决策记录。</p>}
+              <h3>正式变更历史</h3>
+              {selected.change_request_events.length ? (
+                <div className="candidate-review-history">
+                  {selected.change_request_events.map((event) => (
+                    <div key={event.id}>
+                      <strong>{event.prior_status === "none" ? "候选受理" : CHANGE_STATUS_LABELS[event.prior_status as ChangeStatus]} → {CHANGE_STATUS_LABELS[event.next_status]}</strong>
+                      <span>{event.actor_name} · {new Date(event.created_at).toLocaleString("zh-CN")}</span>
+                      <p>{event.decision_note}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className="muted">尚未进入正式变更流程。</p>}
             </>
           ) : <p className="muted">从左侧选择一个候选。</p>}
         </article>

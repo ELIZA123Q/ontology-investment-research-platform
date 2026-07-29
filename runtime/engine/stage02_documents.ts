@@ -23,12 +23,42 @@ function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
 }
 
+function normalizePathBindings(data: any): void {
+  const units = Array.isArray(data?.judgment_units) ? data.judgment_units : [];
+  const unitIdsByPath = new Map<string, string[]>();
+  for (const unit of units) {
+    const unitId = nonEmpty(unit?.id || unit?.judgment_unit_id);
+    if (!unitId) continue;
+    for (const pathId of asList(unit?.linked_paths || unit?.path_ids || unit?.path_refs)) {
+      const current = unitIdsByPath.get(pathId) || [];
+      if (!current.includes(unitId)) current.push(unitId);
+      unitIdsByPath.set(pathId, current);
+    }
+  }
+  if (!Array.isArray(data?.paths)) return;
+  data.paths = data.paths.map((path: any) => {
+    const id = nonEmpty(path?.id || path?.path_id);
+    const explicit = asList(
+      path?.judgment_unit_ids
+      || path?.linked_judgment_units
+      || path?.judgment_unit_refs,
+    );
+    return {
+      ...path,
+      id,
+      variable_ids: asList(path?.variable_ids || path?.state_variable_refs),
+      judgment_unit_ids: [...new Set([...explicit, ...(unitIdsByPath.get(id) || [])])],
+    };
+  });
+}
+
 export function defaultOntologyViewRef(logicId = "RLOG-RUNTIME"): string {
   return `02-研究逻辑配对本体视图-${logicId}.yaml`;
 }
 
 /** 从执行字段投影最小可审阅本体视图 YAML（模型未给全文时的兜底）。 */
 export function projectOntologyViewYaml(data: any, options: { taskId?: string; question?: string } = {}): string {
+  normalizePathBindings(data);
   const logicId = nonEmpty(data?.logic_id, "RLOG-RUNTIME");
   const viewRef = nonEmpty(data?.ontology_view_ref, defaultOntologyViewRef(logicId));
   const units = Array.isArray(data?.judgment_units) ? data.judgment_units : [];
@@ -39,7 +69,7 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
   const canEnter = data?.can_enter_03 !== false && gapStatus !== "blocking_gap";
   const payload = {
     schema_name: "task_ontology_view",
-    schema_version: "2.1.0",
+    schema_version: "2.2.0",
     task_context: {
       task_id: nonEmpty(options.taskId, "JTASK-RUNTIME"),
       logic_document: nonEmpty(data?.logic_id, logicId),
@@ -70,12 +100,17 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
       judgment_type: nonEmpty(unit?.judgment_type),
       scope_ref: nonEmpty(unit?.scope_ref),
       ontology_node_ids: asList(unit?.ontology_node_ids),
+      linked_paths: paths
+        .filter((path: any) => asList(path?.judgment_unit_ids).includes(nonEmpty(unit?.id)))
+        .map((path: any) => nonEmpty(path?.id))
+        .filter(Boolean),
       evidence_requirements: asList(unit?.evidence_requirements),
     })),
     path_design: paths.map((path: any) => ({
       id: nonEmpty(path?.id),
       statement: nonEmpty(path?.statement),
       variable_ids: asList(path?.variable_ids),
+      judgment_unit_ids: asList(path?.judgment_unit_ids),
     })),
     ontology_bindings: {
       variables: variables.map((variable: any) => ({
@@ -84,6 +119,10 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
         ontology_node_id: nonEmpty(variable?.ontology_node_id),
         variable_kind: nonEmpty(variable?.variable_kind),
         anchors: asList(variable?.anchors),
+        linked_judgment_units: paths
+          .filter((path: any) => asList(path?.variable_ids).includes(nonEmpty(variable?.id)))
+          .flatMap((path: any) => asList(path?.judgment_unit_ids))
+          .filter((unitId: string, index: number, all: string[]) => all.indexOf(unitId) === index),
       })),
     },
     evidence_requirements: evidenceRequirements.map((item: any) => ({
@@ -119,6 +158,7 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
 /** 补齐 Stage02 门禁与双产物字段；markdown_content 以 research_logic_markdown 为准。原地写入。 */
 export function ensureStage02DocumentFields(data: any, options: { question?: string; taskId?: string } = {}): any {
   const next = data && typeof data === "object" ? data : {};
+  normalizePathBindings(next);
   const logicId = nonEmpty(next.logic_id, "RLOG-RUNTIME");
   next.logic_id = logicId;
   next.ontology_view_ref = nonEmpty(next.ontology_view_ref, defaultOntologyViewRef(logicId));
@@ -162,6 +202,9 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
     "ontology_yaml_parse",
     "unit_missing_in_yaml",
     "unit_missing_in_json",
+    "path_missing_in_yaml",
+    "path_missing_in_json",
+    "path_binding_mismatch",
     "can_enter_03_mismatch",
   ]);
   const projectionErrors = collectStage02ConsistencyIssues(next)
@@ -384,6 +427,7 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
 
 export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIssue[] {
   const issues: Stage02ConsistencyIssue[] = [];
+  normalizePathBindings(data);
   const logic = nonEmpty(data?.research_logic_markdown, data?.document_markdown);
   const yamlText = nonEmpty(data?.ontology_view_yaml);
   if (!logic || logic.length < 40) {
@@ -404,6 +448,73 @@ export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIs
 
   const jsonUnitIds = new Set(asList((data?.judgment_units || []).map((unit: any) => unit?.id)));
   const jsonErIds = new Set(asList((data?.evidence_requirements || []).map((item: any) => item?.id)));
+  const jsonVariableIds = new Set(asList((data?.variables || []).map((item: any) => item?.id)));
+  const jsonPaths = Array.isArray(data?.paths) ? data.paths : [];
+  const jsonPathById = new Map<string, any>(
+    jsonPaths.map((path: any): [string, any] => [nonEmpty(path?.id), path]),
+  );
+  const seenPathIds = new Set<string>();
+  for (const path of jsonPaths) {
+    const pathId = nonEmpty(path?.id);
+    if (!pathId) {
+      issues.push({ severity: "error", code: "path_id_missing", message: "传导路径缺少稳定 ID" });
+      continue;
+    }
+    if (seenPathIds.has(pathId)) {
+      issues.push({ severity: "error", code: "path_id_duplicate", message: `传导路径 ID 重复：${pathId}` });
+    }
+    seenPathIds.add(pathId);
+    const boundUnits = asList(path?.judgment_unit_ids);
+    if (!boundUnits.length) {
+      issues.push({
+        severity: "error",
+        code: "path_without_judgment_unit",
+        message: `传导路径 ${pathId} 未显式挂接任何判断单元`,
+      });
+    }
+    for (const unitId of boundUnits) {
+      if (!jsonUnitIds.has(unitId)) {
+        issues.push({
+          severity: "error",
+          code: "path_unknown_judgment_unit",
+          message: `传导路径 ${pathId} 挂接了不存在的判断单元 ${unitId}`,
+        });
+      }
+    }
+    const boundVariables = asList(path?.variable_ids);
+    if (!boundVariables.length) {
+      issues.push({
+        severity: "error",
+        code: "path_without_variable",
+        message: `传导路径 ${pathId} 未登记状态变量`,
+      });
+    }
+    for (const variableId of boundVariables) {
+      if (!jsonVariableIds.has(variableId)) {
+        issues.push({
+          severity: "error",
+          code: "path_unknown_variable",
+          message: `传导路径 ${pathId} 引用了不存在的状态变量 ${variableId}`,
+        });
+      }
+    }
+  }
+  const propagationTypes = new Set(["transmission_path", "mechanism_validation", "impact_realization"]);
+  for (const unit of Array.isArray(data?.judgment_units) ? data.judgment_units : []) {
+    const unitId = nonEmpty(unit?.id);
+    if (!propagationTypes.has(nonEmpty(unit?.judgment_type))) continue;
+    const validPath = jsonPaths.some((path: any) =>
+      asList(path?.judgment_unit_ids).includes(unitId)
+      && asList(path?.variable_ids).length >= 2,
+    );
+    if (!validPath) {
+      issues.push({
+        severity: "error",
+        code: "propagation_unit_without_bound_path",
+        message: `传导/机制/影响判断 ${unitId} 未显式绑定含两个及以上状态变量的路径`,
+      });
+    }
+  }
 
   if (parsed && typeof parsed === "object") {
     const yamlUnits = Array.isArray(parsed.judgment_units) ? parsed.judgment_units : [];
@@ -437,6 +548,44 @@ export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIs
             message: `证据要求 ${id} 未同步到本体视图 YAML`,
           });
         }
+      }
+    }
+    const yamlPaths = Array.isArray(parsed.path_design) ? parsed.path_design : [];
+    const yamlPathById = new Map<string, any>(
+      yamlPaths.map((path: any): [string, any] => [nonEmpty(path?.id || path?.path_id), path]),
+    );
+    for (const [pathId, path] of jsonPathById) {
+      if (!pathId) continue;
+      const yamlPath = yamlPathById.get(pathId);
+      if (!yamlPath) {
+        issues.push({
+          severity: "error",
+          code: "path_missing_in_yaml",
+          message: `执行字段传导路径 ${pathId} 未出现在本体视图 YAML`,
+        });
+        continue;
+      }
+      const jsonUnits = asList(path?.judgment_unit_ids).sort();
+      const yamlUnits = asList(
+        yamlPath?.judgment_unit_ids
+        || yamlPath?.linked_judgment_units
+        || yamlPath?.judgment_unit_refs,
+      ).sort();
+      if (jsonUnits.join("\u0000") !== yamlUnits.join("\u0000")) {
+        issues.push({
+          severity: "error",
+          code: "path_binding_mismatch",
+          message: `传导路径 ${pathId} 的判断单元绑定在执行字段与本体视图 YAML 中不一致`,
+        });
+      }
+    }
+    for (const pathId of yamlPathById.keys()) {
+      if (pathId && !jsonPathById.has(pathId)) {
+        issues.push({
+          severity: "error",
+          code: "path_missing_in_json",
+          message: `本体视图 YAML 传导路径 ${pathId} 未出现在执行字段`,
+        });
       }
     }
     const qc = parsed.quality_control || {};

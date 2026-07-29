@@ -22,6 +22,7 @@ import {
   SEMANTIC_BASELINE_FILE,
 } from "./semantic_baseline";
 import type { StageKind } from "./types";
+import { appendReportClaimSourceIndex } from "./report_source_index";
 
 export type FormalPackExportResult = {
   export_dir: string;
@@ -66,6 +67,11 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
 
   const blockers = listWorkItems(runId).filter((item) => item.status === "pending" || item.status === "rework");
   if (blockers.length) throw new Error(`仍有 ${blockers.length} 个待办未完成，不能导出正式包`);
+  const review = latestArtifact(runId, "independent_review", ["approved"]);
+  const reviewData: any = review ? parseJson(review.json_content, {}) : {};
+  if (!review || reviewData.verdict !== "pass") {
+    throw new Error("独立审阅尚未通过，不能导出正式发布包");
+  }
 
   const d01: any = parseJson(s01.json_content, {});
   const d02: any = parseJson(s02.json_content, {});
@@ -154,7 +160,11 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     String(d04.reasoning_audit_yaml || "document_type: reasoning_audit\nnote: missing\n"),
     names.stage03SnapshotDir,
   );
-  const stage05Report = s05.markdown_content || d05.document_markdown || "# 研究报告\n";
+  const stage05Report = appendReportClaimSourceIndex(
+    s05.markdown_content || d05.document_markdown || "# 研究报告\n",
+    d05,
+    sources,
+  );
   const stage05Audit = String(d05.expression_audit_yaml || "document_type: expression_audit\nnote: missing\n");
 
   writeFileSync(path.join(exportDir, names.stage01Md), stage01Md, "utf8");
@@ -177,13 +187,6 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     stage_05: formalStageHash(exportDir, [names.stage05ReportMd, names.stage05AuditYaml]),
   };
 
-  const review = latestArtifact(runId, "independent_review", ["approved"]);
-  const reviewData: any = review ? parseJson(review.json_content, {}) : {
-    verdict: "needs_human",
-    summary: "尚未完成工作台独立审阅；导出包标记为 needs_human",
-    reviewer_type: "human",
-    reviewer_model: "human:pending",
-  };
   const contractVersion = String(parseManifest(run.manifest_json, run).versions?.contract || "1.3.0");
   const semanticYaml = mapIndependentReviewToSemanticYaml({
     reviewData,

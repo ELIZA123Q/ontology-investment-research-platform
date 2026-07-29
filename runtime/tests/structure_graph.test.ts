@@ -81,6 +81,7 @@ describe("structure-graph", () => {
         id: "PATH-1",
         statement: "库存偏紧 → 价格上行",
         variable_ids: ["SV-PRICE", "SV-INV"],
+        judgment_unit_ids: ["JU-1"],
       }],
       method_applications: [
         { application_id: "MA-S1", method_id: "kb02:A01", capability_type: "judgment_structure", target_judgment_unit_refs: ["JU-1"] },
@@ -106,6 +107,7 @@ describe("structure-graph", () => {
     expect(graph.edges).toEqual(expect.arrayContaining([
       expect.objectContaining({ source: "SV-PRICE", target: "PATH-1" }),
       expect.objectContaining({ source: "PATH-1", target: "JU-1", label: "路径" }),
+      expect.objectContaining({ source: "method-MA-S1", target: "JU-1", label: "方法应用" }),
     ]));
     const questionNode = graph.nodes.find((node) => node.id === "research-question");
     expect(questionNode?.details.失败路由).toBe("降级");
@@ -135,6 +137,7 @@ describe("structure-graph", () => {
         judgment_type: "state_measurement",
         scope_ref: "SCOPE",
         ontology_node_ids: ["SV-1", "inventory_cycle_position"],
+        linked_paths: [],
         evidence_requirements: [],
       },
       [
@@ -149,6 +152,38 @@ describe("structure-graph", () => {
   it("摘要函数对空输入安全降级", () => {
     expect(summarizeResearchScope(null)).toBeNull();
     expect(summarizeMethodApplications(undefined)).toEqual([]);
+  });
+
+  it("旧产物无路径归属时显式标记待归属，不留下孤立子图", () => {
+    const graph = buildStructureReviewGraph({
+      question: "价格如何传导？",
+      judgment_units: [{
+        id: "JU-1",
+        title: "价格判断",
+        question: "价格是否上行",
+        judgment_type: "transmission_path",
+        scope_ref: "SCOPE-1",
+        ontology_node_ids: ["product:DRAM"],
+        evidence_requirements: [],
+      }],
+      variables: [{
+        id: "SV-1",
+        name: "需求",
+        category: "demand",
+        definition: "需求状态",
+        variable_kind: "observed",
+        anchors: ["shipment"],
+        ontology_node_id: "end_market_demand_strength",
+        role: "input",
+      }],
+      paths: [{ id: "P-1", statement: "需求→价格", variable_ids: ["SV-1"] }],
+    });
+    expect(graph.edges).toContainEqual(expect.objectContaining({
+      source: "research-question",
+      target: "P-1",
+      label: "路径待归属",
+    }));
+    expect(graph.nodes.find((node) => node.id === "P-1")?.details.对应判断).toBe("待归属");
   });
 
   it("范围摘要把数组和复数技术字段转成研究员可读信息", () => {

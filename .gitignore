@@ -9,5 +9,4 @@ node_modules/
 instances/00_本机运行/*
 !instances/00_本机运行/.gitignore
 evaluation/04_报告/*
-!evaluation/04_报告/.gitkeep
 !evaluation/04_报告/2026-07-26_7-13与工作台产出差距审计.md

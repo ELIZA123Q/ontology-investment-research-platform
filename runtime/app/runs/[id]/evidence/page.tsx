@@ -49,7 +49,6 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     current: evidenceData,
     previous: hasPrevious ? previousEvidenceData : null,
   });
-  const readiness = buildEvidenceReadinessView(evidenceData);
   const taskData: any = parseJson(latestArtifactPayload(id, "stage_01", ["approved"])?.json_content || "{}", {});
   const sources = listSourcesForReview(id);
   const workItems = listWorkItemsForReview(id).filter((item) =>
@@ -110,7 +109,11 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
     default_scope_ref: String(taskData.scope_ref || structure.scope_ref || ""),
     cutoff_at: String(taskData.time_scope?.as_of || ""),
   });
-  const ontologyPrecheckHints = precheckFindingsAsWeakLinks(ontologyPrecheck, 3);
+  const ontologyPrecheckHints = Array.from(new Set(precheckFindingsAsWeakLinks(ontologyPrecheck, 3)));
+  const readiness = buildEvidenceReadinessView(evidenceData, {
+    coverageConstraintCount: extraGapPriorities.length,
+    ontologyWarningCount: ontologyPrecheckHints.length,
+  });
 
   const pending = workItems.filter((item) => item.status === "pending" || item.status === "rework");
   const approved = workItems.filter((item) => item.status === "approved");
@@ -143,7 +146,11 @@ export default async function EvidencePage({ params }: { params: Promise<{ id: s
       <article>
         <span>能否形成判断</span>
         <strong>{readiness.judgmentReadyLabel}</strong>
-        <small>事实 {readiness.factCount} · 尚缺 {readiness.gapCount} · 矛盾 {readiness.conflictCount}</small>
+        <small>
+          事实 {readiness.factCount} · 已登记尚缺 {readiness.gapCount} · 矛盾 {readiness.conflictCount}
+          {readiness.coverageConstraintCount ? ` · 覆盖限制 ${readiness.coverageConstraintCount}` : ""}
+          {readiness.ontologyWarningCount ? ` · 口径核对 ${readiness.ontologyWarningCount}` : ""}
+        </small>
       </article>
       <article>
         <span>交付素材是否就绪</span>

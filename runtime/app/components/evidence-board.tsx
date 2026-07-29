@@ -118,11 +118,22 @@ export function EvidenceBoard({
   const router = useRouter();
   const gapPriorities = useMemo(() => {
     const base = prioritizeEvidenceGaps({ evidence, workItems });
-    return [...extraGapPriorities, ...base]
+    const deduped = new Map<string, ExtraGapPriority>();
+    for (const item of [...extraGapPriorities, ...base]) {
+      const key = `${item.evidence_id}::${item.statement}`;
+      if (!deduped.has(key)) deduped.set(key, item);
+    }
+    return [...deduped.values()]
       .sort((a, b) => b.score - a.score || a.evidence_id.localeCompare(b.evidence_id));
   }, [evidence, workItems, extraGapPriorities]);
+  const coveragePriorities = gapPriorities.filter((item) => item.evidence_id.startsWith("PROFILE:"));
+  const actualGapPriorities = gapPriorities.filter((item) => !item.evidence_id.startsWith("PROFILE:"));
+  const uniqueOntologyPrecheckHints = useMemo(
+    () => Array.from(new Set(ontologyPrecheckHints)),
+    [ontologyPrecheckHints],
+  );
   const changeIds = useMemo(() => evidenceChangeIds(supplementSummary), [supplementSummary]);
-  const [selectedId, setSelectedId] = useState(gapPriorities[0]?.evidence_id || evidence[0]?.id || "");
+  const [selectedId, setSelectedId] = useState(actualGapPriorities[0]?.evidence_id || evidence[0]?.id || "");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -265,6 +276,14 @@ export function EvidenceBoard({
     const work = workItems.find((workItem) => workItem.target_id === item.id);
     return !work || work.status === "pending" || work.status === "rework";
   }).length;
+  const displayEvidenceStatement = (item: Evidence, maxLength = 220) => {
+    const statement = stripInternalReferencePrefix(item.statement).replace(/\s+/g, " ").trim();
+    if (statement.length <= maxLength) return statement;
+    const primarySource = item.source_ids.length === 1 ? sourceMap.get(item.source_ids[0]) : undefined;
+    const sourceTitle = primarySource?.title?.replace(/\s+/g, " ").trim();
+    if (sourceTitle && sourceTitle.length <= maxLength) return sourceTitle;
+    return `${statement.slice(0, maxLength).trimEnd()}…`;
+  };
 
   return <div className="evidence-review-section">
     {supplementSummary ? (
@@ -296,15 +315,17 @@ export function EvidenceBoard({
         </p>
       </section>
     ) : null}
-    {ontologyPrecheckHints.length ? <section className="gap-priority-panel ontology-precheck-panel">
-      <div className="gap-priority-head"><div><span>本体口径预警</span><strong>将在判断确认时挡门的 {Math.min(3, ontologyPrecheckHints.length)} 项</strong></div><small>Stage03 预检为非权威提示；不改写判断，Stage04 仍按正式规则重算</small></div>
-      <ul className="gap-priority-list">{ontologyPrecheckHints.slice(0, 3).map((hint) => <li key={hint}><small>{hint}</small></li>)}</ul>
+    {uniqueOntologyPrecheckHints.length ? <section className="gap-priority-panel ontology-precheck-panel">
+      <div className="gap-priority-head"><div><span>判断前口径核对</span><strong>{Math.min(3, uniqueOntologyPrecheckHints.length)} 项可能限制结论强度</strong></div><small>这是证据阶段的预检提示；判断阶段会按正式规则重算，未补齐时可能限制强度或退回补证。</small></div>
+      <ul className="gap-priority-list">{uniqueOntologyPrecheckHints.slice(0, 3).map((hint, index) => <li key={`${index}:${hint}`}><small>{hint.replace(/^将在判断确认时挡门：/, "")}</small></li>)}</ul>
     </section> : null}
-    {gapPriorities.length ? <section className="gap-priority-panel">
-      <div className="gap-priority-head"><div><span>优先处理</span><strong>先处理最影响判断的 {Math.min(3, gapPriorities.length)} 项尚缺证据</strong></div><small>排序依据：证据剖面最低要求、判断绑定、矛盾程度、独立来源要求与审阅状态</small></div>
-      <div className="gap-priority-list">{gapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={item.evidence_id} onClick={() => {
-        if (!item.evidence_id.startsWith("PROFILE:")) setSelectedId(item.evidence_id);
-      }} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
+    {coveragePriorities.length ? <section className="gap-priority-panel">
+      <div className="gap-priority-head"><div><span>最低证据组合</span><strong>{Math.min(3, coveragePriorities.length)} 项覆盖限制</strong></div><small>这些要求来自关键变量的最低证据组合，不等同于已经登记的“尚缺证据”；补齐后才能提高判断上限。</small></div>
+      <div className="gap-priority-list">{coveragePriorities.slice(0, 3).map((item, index) => <div className="gap-priority-static" key={`${item.evidence_id}:${item.statement}`}><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></div>)}</div>
+    </section> : null}
+    {actualGapPriorities.length ? <section className="gap-priority-panel">
+      <div className="gap-priority-head"><div><span>优先补证</span><strong>先处理最影响判断的 {Math.min(3, actualGapPriorities.length)} 项已登记缺口</strong></div><small>只展示证据稿中已经登记的尚缺、冲突或待处理事项。</small></div>
+      <div className="gap-priority-list">{actualGapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={`${item.evidence_id}:${item.statement}`} onClick={() => setSelectedId(item.evidence_id)} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
     </section> : null}
     <div className="evidence-review-toolbar">
       <div className="review-batch-actions">
@@ -342,8 +363,9 @@ export function EvidenceBoard({
                 const suggestion = terminal ? undefined : suggestionMap.get(item.id);
                 const relatedUnits = units.filter((unit) => item.judgment_unit_ids.includes(unit.id));
                 const changeBadge = evidenceChangeBadge(item.id, supplementSummary);
+                const cardStatement = displayEvidenceStatement(item);
                 return <div className={`evidence-list-card lane-${lane.id} ${selectedId === item.id ? "selected" : ""}${changeBadge ? ` change-${changeBadge}` : ""}`} key={item.id}>
-                  <label className="evidence-card-check" aria-label={`选择 ${stripInternalReferencePrefix(item.statement)}`}><input type="checkbox" checked={checkedIds.has(item.id)} onChange={(event) => toggleChecked(item.id, event.target.checked)} /></label>
+                  <label className="evidence-card-check" aria-label={`选择 ${cardStatement}`}><input type="checkbox" checked={checkedIds.has(item.id)} onChange={(event) => toggleChecked(item.id, event.target.checked)} /></label>
                   <button onClick={() => setSelectedId(item.id)} type="button">
                     <div className="evidence-list-meta">
                       <span>{evidenceKindLabel(item.kind)}</span>
@@ -352,7 +374,7 @@ export function EvidenceBoard({
                       {changeBadge === "added" ? <span className="change-badge added">本轮新增</span> : null}
                       {changeBadge === "changed" ? <span className="change-badge changed">本轮变更</span> : null}
                     </div>
-                    <strong>{stripInternalReferencePrefix(item.statement)}</strong>
+                    <strong>{cardStatement}</strong>
                     <div className="evidence-related-units">
                       <span>影响</span>
                       {relatedUnits.length
@@ -370,7 +392,7 @@ export function EvidenceBoard({
       </div>
       <aside className="evidence-inspector">
         <div className="eyebrow">证据详情</div>
-        <h2>{selected ? stripInternalReferencePrefix(selected.statement) : "选择一项证据"}</h2>
+        <h2>{selected ? displayEvidenceStatement(selected, 280) : "选择一项证据"}</h2>
         {selected ? <>
           <div className="inspector-tags">
             <span className={`semantic-key lane-${laneFor(selected)}`}>{lanes.find((lane) => lane.id === laneFor(selected))?.label}</span>
@@ -392,21 +414,43 @@ export function EvidenceBoard({
             {selected.minimum_independent_sources !== undefined ? <div><dt>最低独立来源</dt><dd>{selected.minimum_independent_sources}</dd></div> : null}
           </dl> : null}
 
-          <h3>影响判断</h3>
+          {stripInternalReferencePrefix(selected.statement).replace(/\s+/g, " ").trim().length > 280 ? (
+            <details className="evidence-full-statement">
+              <summary>查看完整事实表述</summary>
+              <p>{stripInternalReferencePrefix(selected.statement)}</p>
+            </details>
+          ) : null}
+
+          <div className="evidence-trace" aria-label="证据追溯路径">
+            <span>来源</span><b>→</b><span>逐字引文</span><b>→</b><span>已确认事实</span><b>→</b><span>关键判断</span>
+          </div>
+
+          <h3>影响哪些判断</h3>
           {selectedUnits.length ? <ul className="evidence-related-list">
             {selectedUnits.map((unit) => <li key={unit.id}>{stripInternalReferencePrefix(unit.title)}</li>)}
           </ul> : <p className="muted">该项仅作为研究背景，尚未绑定关键判断。</p>}
 
-          <h3>来源</h3>
+          <h3>来源与逐字引文</h3>
           {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => {
             const source = sourceMap.get(id);
             return <li key={id}>{source ? <>
-              <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
-              <small className="source-publisher">
-                {source.publisher || "未识别发布者"}
-                {source.published_at ? ` · ${formatSourceTime(source.published_at)}` : ""}
-              </small>
-              {source.source_quote ? <blockquote>{source.source_quote}</blockquote> : null}
+              <div className="source-review-head">
+                <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+                <small className="source-publisher">
+                  {source.publisher || "未识别发布者"}
+                  {source.published_at ? ` · ${formatSourceTime(source.published_at)}` : ""}
+                </small>
+              </div>
+              <div className="source-review-status">
+                <span>{source.quote_verified ? "逐字引文已核验" : "逐字引文待核验"}</span>
+                {source.locator ? <span>定位：{source.locator}</span> : null}
+              </div>
+              {source.source_quote ? (
+                <details className="source-quote" open={source.source_quote.length <= 360}>
+                  <summary>查看逐字引文</summary>
+                  <blockquote>{source.source_quote}</blockquote>
+                </details>
+              ) : <p className="muted">尚未登记可复核逐字引文。</p>}
               <details className="source-tech-details">
                 <summary>技术字段</summary>
                 <small>

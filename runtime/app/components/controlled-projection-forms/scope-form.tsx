@@ -1,16 +1,8 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  judgmentDecisionStatusLabel,
-  judgmentStrengthLabel,
-  researcherLanguage,
-  researcherMarkdown,
-} from "@/app/lib/researcher-stage-output";
-import type { ApprovedScopeSummary, EvidenceOption, MethodApplicationOption, SourceOption, UnitOption } from "./types";
-import { asItemList, lines } from "./helpers";
+import { forwardRef,useCallback,useEffect,useImperativeHandle,useMemo,useState } from "react";
+import { asItemList } from "./helpers";
 
 function parseScopeJson(existingJson: string | undefined, question: string) {
   let existing: any = {};

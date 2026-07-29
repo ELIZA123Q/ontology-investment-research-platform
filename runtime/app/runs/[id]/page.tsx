@@ -130,7 +130,6 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
     return groups;
   }, new Map<string, typeof pending>()));
   const showTasks = pending.length > 0;
-  const factCount = evidence.filter((item: any) => item.kind !== "gap" && item.kind !== "conflict").length;
   const showEvidence = run.current_stage >= 3 || evidence.length > 0 || gaps.length > 0;
   const overviewClass = "overview-grid";
   const readiness = buildEvidenceReadinessView(evidenceData);

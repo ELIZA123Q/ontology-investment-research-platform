@@ -45,7 +45,7 @@
 
 材料作用：主证据、比较基准、机制或承接、独立交叉验证、反证与限制。取数前核对可追溯、权限、对象、业务时间、定义单位、版本。
 
-取数通道：MCP、API、数据库终端是获取通道，不影响来源可靠度评价。可用 MCP 通道见 [B03_MCP通道注册](B03_MCP通道注册.md)，操作参考见 [OPS_MCP查询快速参考](OPS_MCP查询快速参考.md)。**`runtime/` 工作台已接入首批一手 MCP**（Stage03 模型生成/补证：cninfo、datayes-finoper、china-policy）；研究员手动补证仍可贴公开 URL。MCP 摘要只是线索，须核验原文后才能进证据。
+取数通道：MCP、API、数据库终端是获取通道，不影响来源可靠度评价。可用 MCP 通道见 [B03_MCP通道注册](B03_MCP通道注册.md)，操作参考见 [OPS_MCP查询快速参考](OPS_MCP查询快速参考.md)。**`runtime/` 的 Stage03 生成与自动补证已接入 18 个证据通道**；实际接线清单以 `runtime/adapters/mcp_evidence.ts#EVIDENCE_MCP_CHANNELS` 为准。研究员手动补证仍可贴公开 URL。MCP 摘要只是线索，须核验原文后才能进证据。
 
 ## 文件结构
 

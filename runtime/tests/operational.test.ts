@@ -379,6 +379,13 @@ describe("v1.3 operational spine", () => {
     expect(structure.method_applications.map((item: any) => item.method_id)).toEqual(["BF-SD-01", "kb03:A03", "kb04:A03"]);
     expect(structure.variables[0].ontology_node_id).toBe("task_local:V-CONTROLLED-01");
     expect(structure.judgment_units[0].ontology_node_ids).toEqual([]);
+    structure.paths = [{
+      id: "P-LEGACY-1",
+      statement: "价格状态进入周期判断",
+      variable_ids: [structure.variables[0].id],
+      judgment_unit_ids: [],
+    }];
+    db.updateArtifact(stage02.id, { json_content: JSON.stringify(structure) });
     const edited = workflow.createControlledStructureProjection(run.id, {
       scope_label: "全球非HBM DRAM；价格、库存、采购和政策抢运冲突裁决（修订）",
       units: [{
@@ -388,6 +395,7 @@ describe("v1.3 operational spine", () => {
         judgment_type: "cycle_phase",
         evidence_requirements: ["同口径价格序列", "库存与采购时点", "现货和合约需求交叉验证"],
       }],
+      paths: [{ id: "P-LEGACY-1", judgment_unit_ids: [structure.judgment_units[0].id] }],
       counter_evidence_directions: ["库存回升或现货需求谨慎"],
       competing_explanations: ["关税宽限期触发提前采购，价格上涨不可持续"],
     });
@@ -398,6 +406,7 @@ describe("v1.3 operational spine", () => {
     expect(editedStructure.method_applications.map((item: any) => item.application_id)).toEqual(
       structure.method_applications.map((item: any) => item.application_id),
     );
+    expect(editedStructure.paths[0].judgment_unit_ids).toEqual([structure.judgment_units[0].id]);
     expect(editedStructure.document_markdown).toContain("研究逻辑");
   });
 
@@ -1275,7 +1284,7 @@ describe("v1.3 operational spine", () => {
       method_applications: [structurePlan, evidencePlan, baseMa], research_scope: { id: "SCOPE-1", label: "半导体库存范围", dimensions: { domain: "semiconductor" } },
       judgment_units: [{ id: "JU-1", title: "库存", question: "库存是否下降", judgment_type: "state_measurement", scope_ref: "SCOPE-1", ontology_node_ids: ["SV-INV"], evidence_requirements: ["需要可定位库存事实"] }],
       variables: [{ id: "SV-INV", name: "inventory", category: "operations", definition: "可比口径库存", variable_kind: "observed", anchors: ["inventory"], ontology_node_id: "task_local:SV-INV", role: "target" }],
-      paths: [{ id: "PATH-1", statement: "库存变化形成状态信号", variable_ids: ["SV-INV"] }], counter_evidence_directions: ["库存回升"], competing_explanations: ["季节性波动"], document_markdown: "# 结构\n\n建立单一原子判断单元、冻结范围、状态变量、可证伪路径、反证方向和竞争解释，并绑定候选方法应用。",
+      paths: [{ id: "PATH-1", statement: "库存变化形成状态信号", variable_ids: ["SV-INV"], judgment_unit_ids: ["JU-1"] }], counter_evidence_directions: ["库存回升"], competing_explanations: ["季节性波动"], document_markdown: "# 结构\n\n建立单一原子判断单元、冻结范围、状态变量、可证伪路径、反证方向和竞争解释，并绑定候选方法应用。",
     };
     const source = db.upsertSource(run.id, {
       url: "https://example.com/publish-source", title: "可验证来源", publisher: "Example", published_at: "2026-07-18",

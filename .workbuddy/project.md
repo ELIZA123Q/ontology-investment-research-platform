@@ -17,7 +17,7 @@
 
 本项目已配置以下 MCP 金融数据通道（配置于 `~/.workbuddy/mcp.json`）：
 
-> **边界：** `runtime/` Stage03 生成/补证已接入首批一手 MCP（`cninfo`、`datayes-stock-finoper-mcp`、`china-policy`，见 `runtime/adapters/mcp_evidence.ts`）。B03 其余通道仍可供外部 Agent 使用；MCP 是获取通道不是来源生产者，关键事实仍须核验公开原文。
+> **边界：** `runtime/` Stage03 生成/补证已接入 18 个证据通道，实际清单以 `runtime/adapters/mcp_evidence.ts#EVIDENCE_MCP_CHANNELS` 为准。MCP 是获取通道不是来源生产者，关键事实仍须核验公开原文。
 
 ### 法定披露
 - **cninfo**：巨潮资讯网——A股公司公告列表、定期报告、临时公告、问询函

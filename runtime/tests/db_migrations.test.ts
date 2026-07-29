@@ -23,6 +23,8 @@ describe("database migrations", () => {
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_research_jobs_active_dedupe'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_candidate_reviews'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_candidate_review_events'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_change_requests'").get()).toBeTruthy();
+    expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_change_request_events'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='research_experience_events'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='runtime_meta'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_artifacts_one_running'").get()).toBeTruthy();
@@ -57,6 +59,38 @@ describe("database migrations", () => {
     runDatabaseMigrations(connection);
     const repaired = connection.prepare("SELECT artifact_id,attempt,payload_json FROM research_work_items WHERE id='wi-legacy'").get() as any;
     expect(repaired).toEqual({ artifact_id: "artifact-v3", attempt: 3, payload_json: "{\"legacy\":true}" });
+    connection.close();
+  });
+
+  it("backfills legacy promoted candidates as proposed change requests, not released assets", () => {
+    const connection = new DatabaseSync(":memory:");
+    connection.exec("PRAGMA foreign_keys = ON");
+    runDatabaseMigrations(connection);
+    connection.exec(`
+      DROP TABLE ontology_change_request_events;
+      DROP TABLE ontology_change_requests;
+      DELETE FROM schema_migrations WHERE version=14;
+    `);
+    const now = "2026-07-29T00:00:00.000Z";
+    connection.prepare(`INSERT INTO ontology_candidate_reviews(
+      candidate_key,status,expert_name,decision_note,target_ontology_node_id,reviewed_at,created_at,updated_at
+    ) VALUES(?,?,?,?,?,?,?,?)`).run(
+      "task-local:legacy-promoted",
+      "promoted",
+      "历史专家",
+      "历史登记晋升仅代表进入变更流程",
+      "inventory_cycle",
+      now,
+      now,
+      now,
+    );
+    runDatabaseMigrations(connection);
+    const request = connection.prepare(`
+      SELECT status,target_ontology_node_id FROM ontology_change_requests
+      WHERE candidate_key='task-local:legacy-promoted'
+    `).get() as any;
+    expect(request).toEqual({ status: "proposed", target_ontology_node_id: "inventory_cycle" });
+    expect((connection.prepare("SELECT COUNT(*) AS count FROM ontology_change_request_events").get() as any).count).toBe(1);
     connection.close();
   });
 

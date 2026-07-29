@@ -520,27 +520,72 @@ export type EvidenceReadinessView = {
   factCount: number;
   gapCount: number;
   conflictCount: number;
+  coverageConstraintCount: number;
+  ontologyWarningCount: number;
   note: string;
 };
 
-export function buildEvidenceReadinessView(data: UnknownRecord): EvidenceReadinessView {
+export function buildEvidenceReadinessView(
+  data: UnknownRecord,
+  options: { coverageConstraintCount?: number; ontologyWarningCount?: number } = {},
+): EvidenceReadinessView {
   const drafts = records(data.evidence_drafts);
   const facts = drafts.filter((item) => !["gap", "conflict"].includes(String(item.kind || "")));
   const gaps = drafts.filter((item) => String(item.kind) === "gap");
   const conflicts = drafts.filter((item) => String(item.kind) === "conflict");
   const evidenceReadiness = String(data.evidence_readiness?.status || data.evidence_readiness || "");
   const deliveryReadiness = String(data.delivery_readiness?.status || data.delivery_readiness || "");
+  const coverageConstraintCount = Math.max(0, Number(options.coverageConstraintCount || 0));
+  const ontologyWarningCount = Math.max(0, Number(options.ontologyWarningCount || 0));
+  const downstreamConstraintCount = coverageConstraintCount + ontologyWarningCount;
   return {
-    judgmentReadyLabel: evidenceReadiness
-      ? researcherLanguage(evidenceReadiness)
-      : (gaps.length || conflicts.length ? "可形成有边界的弱判断" : facts.length ? "具备判断材料" : "尚不足以下判断"),
-    deliveryReadyLabel: deliveryReadiness
-      ? researcherLanguage(deliveryReadiness)
-      : (facts.length ? "素材可支撑有边界报告" : "交付素材未就绪"),
+    judgmentReadyLabel: downstreamConstraintCount
+      ? `材料受限，${downstreamConstraintCount} 项待判断前核对`
+      : evidenceReadiness
+        ? researcherLanguage(evidenceReadiness)
+        : (gaps.length || conflicts.length ? "可形成有边界的弱判断" : facts.length ? "具备判断材料" : "尚不足以下判断"),
+    deliveryReadyLabel: downstreamConstraintCount
+      ? "尚不能确认交付上限"
+      : deliveryReadiness
+        ? researcherLanguage(deliveryReadiness)
+        : (facts.length ? "素材可支撑有边界报告" : "交付素材未就绪"),
     factCount: facts.length,
     gapCount: gaps.length,
     conflictCount: conflicts.length,
-    note: "证据数量不等于判断强度；结论强度仍受最薄弱环节与本体约束限制。",
+    coverageConstraintCount,
+    ontologyWarningCount,
+    note: downstreamConstraintCount
+      ? "事实已经登记，但最低证据组合或口径仍有限制；判断阶段会据此限制强度或要求返回补证。"
+      : "证据数量不等于判断强度；结论强度仍受最薄弱环节与本体约束限制。",
+  };
+}
+
+export type FormalDeliveryGate = {
+  ready: boolean;
+  label: string;
+  summary: string;
+  blockingReasons: string[];
+};
+
+export function buildFormalDeliveryGate(options: {
+  artifactApproved: boolean;
+  reviewPassed: boolean;
+  pendingCount: number;
+  allStagesApproved: boolean;
+}): FormalDeliveryGate {
+  const blockingReasons = [
+    !options.artifactApproved ? "报告表达尚未确认" : "",
+    !options.reviewPassed ? "独立审阅尚未通过" : "",
+    options.pendingCount > 0 ? `仍有 ${options.pendingCount} 项待办` : "",
+    !options.allStagesApproved ? "五个研究阶段尚未全部确认" : "",
+  ].filter(Boolean);
+  return {
+    ready: blockingReasons.length === 0,
+    label: blockingReasons.length ? "尚未达到正式发布条件" : "可导出正式发布包",
+    summary: blockingReasons.length
+      ? blockingReasons.join("；")
+      : "五个研究阶段、独立审阅和待办清单均已通过，可导出并执行正式校验。",
+    blockingReasons,
   };
 }
 

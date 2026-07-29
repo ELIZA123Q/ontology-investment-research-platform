@@ -484,7 +484,7 @@ rules:
     test_case_role: design_intent
     test_cases: [{id: SEM-R-01-P, input: {relation_type: produces, source_type: Company, target_type: Product, endpoints_exist: true}, expected: pass}, {id: SEM-R-01-N, input: {relation_type: produces, source_type: Event, target_type: Region, endpoints_exist: true}, expected: reject}]
   value_chain_propagation_consistency:
-    metadata: {id: value_chain_propagation_consistency, namespace: core.semantic, label_zh: 产业链传导一致性, label_en: Value chain propagation consistency, aliases: [传导路径一致性], definition: 传导/机制/影响类判断必须具备至少一条含两个及以上状态变量的路径；若声明正式影响边，则每条边必须具备机制与方向，且同端点对不得出现冲突方向。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-deep-axioms, examples: [transmission_path 判断绑定两条变量的传导路径], counter_examples: [机制判断无路径且无影响边]}
+    metadata: {id: value_chain_propagation_consistency, namespace: core.semantic, label_zh: 产业链传导一致性, label_en: Value chain propagation consistency, aliases: [传导路径一致性], definition: 每个传导/机制/影响类判断单元必须显式绑定至少一条含两个及以上状态变量的任务路径，路径变量通过 unitEvaluatesStateVariable 落到同一判断单元；不得以任务中其他判断单元的全局路径替代。若声明正式 stateVariableInfluences 边，则相关边必须具备机制与方向，且同端点对不得出现冲突方向。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-29', valid_to: null, replaced_by: [], source: ontology-3.0-path-binding-closure, examples: [transmission_path 判断显式绑定由两个状态变量组成的路径], counter_examples: [机制判断借用另一判断单元的无关路径通过门禁]}
     rule_class: semantic_constraint
     applies_to: [Judgment]
     input_types: [Judgment, JudgmentUnit, StateVariable]

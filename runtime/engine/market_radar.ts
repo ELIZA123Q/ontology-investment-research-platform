@@ -6,7 +6,6 @@ import {
   createChildRun,
   getMarketEvent,
   getRun,
-  latestArtifact,
   listEventImpacts,
   listRuns,
   setRadarLastRefreshedAt,
@@ -17,7 +16,7 @@ import {
   upsertSource,
   upsertWorkItem,
 } from "../adapters/db";
-import { parseJson, type ImpactClassification, type ImpactDirection, type MarketEvent } from "./types";
+import { type ImpactClassification, type ImpactDirection, type MarketEvent } from "./types";
 import { radarOutputSchema, type MarketEventDraft } from "./radar_schema";
 import { approvedSemanticDataIfPresent } from "./semantic_reads";
 

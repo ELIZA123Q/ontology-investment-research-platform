@@ -3,11 +3,11 @@ import "server-only";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 import { repositoryPath } from "../adapters/repo-paths";
-import { decideFromRuleDef, formalRuleDef } from "./ontology_rule_defs";
+import { decideFromRuleDef,formalRuleDef } from "./ontology_rule_defs";
 import {
-  ONTOLOGY_JUDGMENT_LEVELS,
-  type OntologyConfidenceLevel,
-  type OntologyJudgmentLevel,
+ONTOLOGY_JUDGMENT_LEVELS,
+type OntologyConfidenceLevel,
+type OntologyJudgmentLevel,
 } from "./ontology_vocabulary.generated";
 import type { SourceRecord } from "./types";
 
@@ -266,7 +266,6 @@ export function applyDeterministicConfidence(data: any, evidenceDrafts: Evidence
   const evidenceMap = new Map(evidenceDrafts.map((e) => [e.id, e]));
 
   for (const judgment of data.judgments || []) {
-    const judgmentId = String(judgment.id || judgment.judgment_id || "");
     const evidenceIds: string[] = [
       ...(judgment.supporting_evidence_draft_ids || []),
       ...(judgment.counter_evidence_draft_ids || []),
@@ -834,12 +833,26 @@ function computeRule(
       String(item.id || item.judgment_unit_id || "") === unitId) || {};
     const judgmentType = String(unit.judgment_type || judgment.judgment_type || "").trim();
     const propagationTypes = new Set(["transmission_path", "mechanism_validation", "impact_realization"]);
-    const paths = (structure.paths || []).filter((item: any) => (item.variable_ids || []).length >= 2);
+    const paths = (structure.paths || []).filter((item: any) =>
+      (item.variable_ids || []).length >= 2
+      && (
+        Array.isArray(item.judgment_unit_ids)
+          ? item.judgment_unit_ids.map(String).includes(unitId)
+          : Array.isArray(item.linked_judgment_units)
+            ? item.linked_judgment_units.map(String).includes(unitId)
+            : false
+      ));
+    const boundVariableIds = new Set(paths.flatMap((item: any) => (item.variable_ids || []).map(String)));
     const edges = [
       ...(Array.isArray(structure.influence_edges) ? structure.influence_edges : []),
       ...(Array.isArray(structure.state_variable_influences) ? structure.state_variable_influences : []),
       ...(Array.isArray(data.influence_edges) ? data.influence_edges : []),
-    ];
+    ].filter((edge: any) => {
+      if (!boundVariableIds.size) return false;
+      const source = String(edge.source || edge.from || "");
+      const target = String(edge.target || edge.to || "");
+      return boundVariableIds.has(source) && boundVariableIds.has(target);
+    });
     const incompleteEdge = edges.some((edge: any) => !String(edge.mechanism || "").trim() || !String(edge.sign || "").trim());
     const pairSigns = new Map<string, Set<string>>();
     for (const edge of edges) {

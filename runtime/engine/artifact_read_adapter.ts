@@ -110,6 +110,7 @@ export function normalizeJudgmentUnit(raw: unknown, index = 0): Record<string, a
     judgment_type: nonEmpty(unit.judgment_type, "mechanism_validation"),
     scope_ref: nonEmpty(unit.scope_ref),
     ontology_node_ids: asList(unit.ontology_node_ids).map(String),
+    linked_paths: asList(unit.linked_paths || unit.path_ids || unit.path_refs).map(String).filter(Boolean),
     evidence_requirements: asList(unit.evidence_requirements).map((item) => (
       typeof item === "string" ? item : nonEmpty(asRecord(item).requirement || asRecord(item).statement)
     )).filter(Boolean),
@@ -118,6 +119,22 @@ export function normalizeJudgmentUnit(raw: unknown, index = 0): Record<string, a
     priority_tier: nonEmpty(unit.priority_tier, index === 0 ? "critical" : "important"),
     decision_weight: typeof unit.decision_weight === "number" ? unit.decision_weight : (index === 0 ? 1 : 0.5),
     decision_role: nonEmpty(unit.decision_role, index === 0 ? "primary" : "supporting"),
+  };
+}
+
+/** 规范化 Stage02 路径；旧正式视图字段只做只读别名映射，不猜测语义归属。 */
+export function normalizeStructurePath(raw: unknown, index = 0): Record<string, any> {
+  const path = asRecord(raw);
+  return {
+    ...path,
+    id: nonEmpty(path.id || path.path_id, `PATH-${index + 1}`),
+    statement: nonEmpty(path.statement || path.description || path.name, `传导路径 ${index + 1}`),
+    variable_ids: asList(path.variable_ids || path.state_variable_refs).map(String).filter(Boolean),
+    judgment_unit_ids: asList(
+      path.judgment_unit_ids
+      || path.linked_judgment_units
+      || path.judgment_unit_refs,
+    ).map(String).filter(Boolean),
   };
 }
 
@@ -152,6 +169,24 @@ export function adaptArtifactForRead(kind: string, raw: unknown): Record<string,
 
   if (kind === "stage_02" || kind === "stage02") {
     data.judgment_units = asList(data.judgment_units).map((unit, index) => normalizeJudgmentUnit(unit, index));
+    const unitIdsByPath = new Map<string, string[]>();
+    for (const unit of data.judgment_units) {
+      for (const pathId of asList(unit.linked_paths).map(String)) {
+        const ids = unitIdsByPath.get(pathId) || [];
+        if (!ids.includes(unit.id)) ids.push(unit.id);
+        unitIdsByPath.set(pathId, ids);
+      }
+    }
+    data.paths = asList(data.paths).map((path, index) => {
+      const normalized = normalizeStructurePath(path, index);
+      normalized.judgment_unit_ids = [
+        ...new Set([
+          ...normalized.judgment_unit_ids,
+          ...(unitIdsByPath.get(normalized.id) || []),
+        ]),
+      ];
+      return normalized;
+    });
     return data;
   }
 

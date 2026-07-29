@@ -50,6 +50,7 @@ type UnitRecord = {
   judgment_type: string;
   scope_ref: string;
   ontology_node_ids: string[];
+  linked_paths: string[];
   evidence_requirements: string[];
 };
 
@@ -68,6 +69,7 @@ type PathRecord = {
   id: string;
   statement: string;
   variable_ids: string[];
+  judgment_unit_ids: string[];
 };
 
 type QuestionRecord = {
@@ -103,6 +105,7 @@ function normalizeUnits(raw: unknown): UnitRecord[] {
     judgment_type: String(unit?.judgment_type || "关键判断"),
     scope_ref: String(unit?.scope_ref || ""),
     ontology_node_ids: asStringArray(unit?.ontology_node_ids || unit?.target_ontology_object_refs),
+    linked_paths: asStringArray(unit?.linked_paths || unit?.path_ids || unit?.path_refs),
     evidence_requirements: asStringArray(unit?.evidence_requirements || unit?.evidence_requirement_refs),
   }));
 }
@@ -127,6 +130,11 @@ function normalizePaths(raw: unknown): PathRecord[] {
     id: String(path?.id || `PATH-${index + 1}`),
     statement: String(path?.statement || path?.id || `路径 ${index + 1}`),
     variable_ids: asStringArray(path?.variable_ids),
+    judgment_unit_ids: asStringArray(
+      path?.judgment_unit_ids
+      || path?.linked_judgment_units
+      || path?.judgment_unit_refs,
+    ),
   }));
 }
 
@@ -269,6 +277,7 @@ export function buildStructureReviewGraph(input: {
   });
   const variableLookup = display.ontologyNames;
   const unitIds = units.map((unit) => unit.id);
+  const unitIdSet = new Set(unitIds);
   const unitIndex = new Map(unitIds.map((id, index) => [id, index]));
   const variableIds = new Set(variables.map((variable) => variable.id));
   const cols = columnLayout(variables.length > 0, paths.length > 0);
@@ -344,6 +353,9 @@ export function buildStructureReviewGraph(input: {
       details: {
         路径说明: path.statement,
         涉及变量: path.variable_ids.length ? resolveOntologyDisplayLabels(path.variable_ids, variableLookup) : "—",
+        对应判断: path.judgment_unit_ids.length
+          ? unitDisplayLabels(path.judgment_unit_ids.filter((id) => unitIdSet.has(id)), display.unitTitles)
+          : "待归属",
       },
     });
     for (const variableId of path.variable_ids) {
@@ -387,16 +399,20 @@ export function buildStructureReviewGraph(input: {
 
     const linkedSet = new Set(linkedVars);
     let pathLinked = false;
-    if (paths.length > 0 && linkedVars.length) {
+    if (paths.length > 0) {
       for (const path of paths) {
-        if (!path.variable_ids.some((id) => linkedSet.has(id))) continue;
+        const explicitlyLinked = path.judgment_unit_ids.includes(unit.id) || unit.linked_paths.includes(path.id);
+        const legacyInferred = path.judgment_unit_ids.length === 0
+          && unit.linked_paths.length === 0
+          && path.variable_ids.some((id) => linkedSet.has(id));
+        if (!explicitlyLinked && !legacyInferred) continue;
         pathLinked = true;
         edges.push({
           id: `${path.id}-${unit.id}`,
           source: path.id,
           target: unit.id,
-          tone: "support",
-          label: "路径",
+          tone: legacyInferred ? "unknown" : "support",
+          label: legacyInferred ? "路径·旧产物推断" : "路径",
         });
       }
     }
@@ -441,6 +457,60 @@ export function buildStructureReviewGraph(input: {
       });
     });
   });
+
+  for (const path of paths) {
+    const hasBoundUnit = edges.some((edge) => edge.source === path.id && unitIdSet.has(edge.target));
+    if (hasBoundUnit) continue;
+    edges.push({
+      id: `question-${path.id}-unbound`,
+      source: "research-question",
+      target: path.id,
+      tone: "danger",
+      label: "路径待归属",
+    });
+  }
+
+  let methodIndex = 0;
+  for (const group of methodSummary) {
+    for (const application of group.items) {
+      const nodeId = `method-${application.application_id || `${group.capability}-${methodIndex + 1}`}`;
+      const boundUnits = application.unit_refs.filter((unitId) => unitIdSet.has(unitId));
+      nodes.push({
+        id: nodeId,
+        label: application.method_id || application.application_id || group.label,
+        meta: `${group.label} · ${application.application_id || "未编号"}`,
+        tone: boundUnits.length ? "inherited" : "danger",
+        x: cols.right + 560,
+        y: methodIndex * 104,
+        details: {
+          方法应用: application.application_id || "—",
+          方法: application.method_id || "—",
+          能力: group.label,
+          对应判断: boundUnits.length ? unitDisplayLabels(boundUnits, display.unitTitles) : "待归属",
+        },
+      });
+      if (boundUnits.length) {
+        for (const unitId of boundUnits) {
+          edges.push({
+            id: `${nodeId}-${unitId}`,
+            source: nodeId,
+            target: unitId,
+            tone: "inherited",
+            label: "方法应用",
+          });
+        }
+      } else {
+        edges.push({
+          id: `question-${nodeId}`,
+          source: "research-question",
+          target: nodeId,
+          tone: "danger",
+          label: "方法待归属",
+        });
+      }
+      methodIndex += 1;
+    }
+  }
 
   const counters = normalizeCounterEvidenceDirections(input.counter_evidence_directions, { unitIds });
   let unboundCounterIndex = 0;
