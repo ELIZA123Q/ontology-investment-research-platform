@@ -115,6 +115,7 @@ export function buildEvidenceGapFallback(structure: any, reason: string) {
       source_keys: [],
       source_ids: [],
       judgment_unit_ids: [unit.id],
+      evidence_requirement_ids: requirement.id ? [String(requirement.id)] : [],
       ontology_node_ids: unit.ontology_node_ids || [],
       requirement: String(requirement.requirement || requirement),
       evidence_role: ["support", "counter", "context", "boundary"].includes(String(requirement.evidence_role))
@@ -214,6 +215,7 @@ export function createEvidenceGapFallback(runId: string, reason: string) {
 type ControlledEvidenceBinding = {
   source_id: string;
   judgment_unit_ids: string[];
+  evidence_requirement_ids?: string[];
   subject_ref: string;
   observed_at: string;
   direction?: "support" | "weaken" | "neutral";
@@ -236,6 +238,11 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
   const cutoffMs = Date.parse(cutoffAt);
   const unitById = new Map<string, any>((structure.judgment_units || []).map((unit: any) => [String(unit.id), unit]));
   const sourceById = new Map(listSources(runId).map((source) => [source.id, source]));
+  const requirementById = new Map<string, any>(
+    (Array.isArray(structure.evidence_requirements) ? structure.evidence_requirements : [])
+      .map((requirement: any): [string, any] => [String(requirement?.id || ""), requirement])
+      .filter(([id]: [string, any]) => Boolean(id)),
+  );
   const duplicateSourceIds = bindings
     .map((binding) => String(binding.source_id))
     .filter((sourceId, index, values) => values.indexOf(sourceId) !== index);
@@ -300,6 +307,7 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
       source_keys: [sourceKey],
       source_ids: [source.id],
       judgment_unit_ids: unitIds,
+      evidence_requirement_ids: [...new Set((binding.evidence_requirement_ids || []).map(String))],
       ontology_node_ids: binding.ontology_node_ids?.length
         ? [...new Set(binding.ontology_node_ids.map(String))]
         : [...new Set(unitIds.flatMap((id) => unitById.get(id)?.ontology_node_ids || []))],
@@ -317,6 +325,17 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
         ...(forwardLooking ? ["来源陈述包含预测、预期或可能性语言，只能作为 SourceClaim，不得当作已经实现的事实"] : []),
       ],
     });
+    const created = evidenceDrafts[evidenceDrafts.length - 1];
+    if (created.evidence_requirement_ids.length) {
+      for (const requirementId of created.evidence_requirement_ids) {
+        const requirement = requirementById.get(requirementId);
+        if (!requirement) throw new Error(`EvidenceRequirement 不存在: ${requirementId}`);
+        const requirementUnits = new Set<string>((requirement.judgment_unit_ids || []).map(String));
+        if (![...requirementUnits].some((unitId) => unitIds.includes(unitId))) {
+          throw new Error(`${requirementId} 与来源 ${source.id} 绑定的 JudgmentUnit 不一致`);
+        }
+      }
+    }
   }
 
   const applications = (structure.method_applications || []).map((application: MethodApplication) => {
@@ -400,4 +419,3 @@ export function createControlledEvidenceProjection(runId: string, bindings: Cont
   syncReviewWorkItems(artifact, data);
   return artifact;
 }
-

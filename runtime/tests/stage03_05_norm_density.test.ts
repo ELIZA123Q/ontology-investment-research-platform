@@ -251,6 +251,7 @@ describe("stage03/04/05 norm density", () => {
 
   it("upgrades lean stage03 via ensure/sync for approval path", () => {
     const data: any = leanStage03();
+    data.evidence_drafts[0].evidence_requirement_ids = ["ER-1"];
     syncStage03ReadableMarkdown(data, {
       question: "库存是否改善？",
       structure: { judgment_units: [{ id: "JU-1", title: "库存" }] },

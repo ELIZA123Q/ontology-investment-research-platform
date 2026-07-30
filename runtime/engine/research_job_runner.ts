@@ -372,6 +372,50 @@ export async function runResearchJobById(jobId: string, options: {
   return executeClaimedGenerationJob(job, store, options.execute || generateArtifact);
 }
 
+/**
+ * Request-owned execution path. A generation request must not stop merely
+ * because its first attempt was moved to `retrying`: wait until the durable
+ * retry time and reclaim this exact job. The independent worker remains the
+ * crash/restart recovery path; leases keep both paths race-safe.
+ */
+export async function runResearchJobUntilSettled(jobId: string, options: {
+  workerId?: string;
+  store?: ResearchJobStore;
+  execute?: GenerationExecutor;
+  sleep?: (ms: number) => Promise<void>;
+} = {}) {
+  const store = options.store || getResearchJobStore();
+  const workerId = options.workerId || `request-worker-${process.pid}`;
+  const execute = options.execute || generateArtifact;
+  const sleep = options.sleep || ((ms: number) => new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  }));
+
+  while (true) {
+    const current = store.get(jobId);
+    if (!current) return undefined;
+    if (!["queued", "retrying"].includes(current.status)) return current;
+    if (current.status === "retrying") {
+      const waitMs = Math.max(0, Date.parse(current.available_at) - Date.now());
+      if (waitMs > 0) await sleep(waitMs);
+    }
+
+    const claimed = store.claimById(jobId, {
+      workerId,
+      leaseMs: researchJobLeaseMs(),
+      jobTypes: ["generate_artifact"],
+    });
+    if (!claimed) {
+      // A persistent worker may have won the lease while this callback slept.
+      // Return its current durable state instead of turning a healthy race into
+      // a user-visible error or claiming an unrelated queued job.
+      return store.get(jobId);
+    }
+    const result = await executeClaimedGenerationJob(claimed, store, execute);
+    if (!result || result.status !== "retrying") return result || store.get(jobId);
+  }
+}
+
 export async function runResearchWorkerLoop(options: { workerId?: string; pollMs?: number; signal?: AbortSignal } = {}) {
   while (!options.signal?.aborted) {
     const result = await runNextResearchJob({ workerId: options.workerId });

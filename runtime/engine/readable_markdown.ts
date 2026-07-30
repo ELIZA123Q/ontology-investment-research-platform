@@ -92,6 +92,18 @@ export function syncStage01ReadableMarkdown(data: any, question: string): string
       `| ${item.question_id || ""} | ${item.topic || ""} | ${item.question || ""} | ${item.answer || "（待答）"} |`
     ))
     : ["| — | — | 无澄清记录 | — |"];
+  const premiseRows = (
+    type: string,
+    values: unknown,
+    emptyLabel: string,
+  ) => {
+    const items = Array.isArray(values) ? values : [];
+    return items.length
+      ? items.map((item: any) => (
+        `| ${type} | ${String(item?.statement || item || "")} | ${(item?.source_refs || []).join("、")} | ${(item?.invalidation_conditions || []).join("、")} |`
+      ))
+      : [`| ${type} | ${emptyLabel} | — | — |`];
+  };
   data.document_markdown = [
     yamlFrontmatter({
       document_type: "judgment_task",
@@ -158,7 +170,21 @@ export function syncStage01ReadableMarkdown(data: any, question: string): string
     "",
     `范围过宽检查：\`${data.overscope_check?.status || "pending"}\` — ${data.overscope_check?.reason || ""}`,
     "",
-    "## 6. 研究价值与交付深度",
+    "## 6. 前提与假设",
+    "",
+    "已知事实仅表示用户给定或上下文继承的输入前提，尚未在本阶段核验；用户假设仅表示用户明确采用的立场；待验证假设必须进入后续结构与证据链。",
+    "",
+    "| 类型 | 内容 | 来源 | 失效或改判条件 |",
+    "|---|---|---|---|",
+    ...premiseRows("已知事实", data.known_facts, "本次无用户明确给定或继承的已知前提"),
+    ...premiseRows("用户假设", data.user_assumptions, "本次无用户明确采用的未验证立场"),
+    ...premiseRows("待验证假设", data.hypotheses_to_verify, "尚未形成待验证命题"),
+    "",
+    "### 系统可回滚假设",
+    "",
+    ...bullets(resolution.rollback_assumptions || [], "- 本次无系统可回滚默认"),
+    "",
+    "## 7. 研究价值与交付深度",
     "",
     `- 价值门禁：\`${data.research_value_gate?.status || "pending"}\` / ${data.research_value_gate?.value_level || ""}`,
     `- 分歧或未知：${data.research_value_gate?.disagreement_or_unknown || ""}`,
@@ -166,9 +192,9 @@ export function syncStage01ReadableMarkdown(data: any, question: string): string
     `- 结论粒度：${data.delivery_depth?.conclusion_granularity || ""}`,
     `- 最低交付：${data.delivery_depth?.minimum_delivery || ""}`,
     "",
-    "## 7. 阶段边界",
+    "## 8. 阶段边界",
     "",
-    "本阶段只冻结问题、时间与范围，不登记事实，不形成方向判断。任何观察、原因或结论都必须在后续阶段由可定位公开来源和事实级证据支持。",
+    "本阶段不登记事实，不形成方向判断；这里只冻结问题、时间、范围和输入前提分类，不把任何输入前提冒充为已核验事实。任何观察、原因或结论都必须在后续阶段由可定位公开来源和事实级证据支持。",
   ].join("\n");
   return data.document_markdown;
 }
@@ -208,6 +234,13 @@ export function syncStage02ReadableMarkdown(data: any): string {
     `> ${String(data.judgment_spine || "")}`,
     "",
     `研究范围：${String(data.research_scope?.label || data.research_scope?.id || "未命名")}`,
+    "",
+    "### 根问题闭环",
+    "",
+    `- 01 根问题：${String(data.task_answer_contract?.root_question || "")}`,
+    `- 必需判断单元：${Array.isArray(data.task_answer_contract?.required_judgment_unit_ids) ? data.task_answer_contract.required_judgment_unit_ids.join("、") : "未登记"}`,
+    `- 合成规则：${String(data.task_answer_contract?.synthesis_rule || "")}`,
+    `- 阻断/降级：${String(data.task_answer_contract?.blocking_policy || "")}`,
     "",
     "## 2. 框架选用与裁剪理由",
     "",

@@ -110,6 +110,7 @@ type EvidenceDraftLike = {
   direction?: string;
   directness?: string;
   evidence_role?: string;
+  evidence_requirement_ids?: string[];
   source_ids?: string[];
   judgment_unit_ids?: string[];
 };
@@ -127,6 +128,15 @@ function isUsableSource(source: SourceRecord) {
   return source.usability_status === "usable"
     && source.retrieval_status === "captured"
     && Boolean(source.quote_verified);
+}
+
+function evidenceRole(item: EvidenceDraftLike): EvidenceRequirementProjection["evidence_role"] {
+  if (["support", "counter", "context", "boundary"].includes(String(item.evidence_role || ""))) {
+    return item.evidence_role as EvidenceRequirementProjection["evidence_role"];
+  }
+  if (item.kind === "counter" || item.kind === "conflict" || item.direction === "weaken") return "counter";
+  if (item.direction === "neutral") return "context";
+  return "support";
 }
 
 function toGapSourceRef(source: SourceRecord): UnitGapSourceRef {
@@ -185,6 +195,35 @@ export function computeSourceCoverage(input: {
       }
     }
     const unitRequirements = requirements.filter((item) => item.judgment_unit_ids.includes(unit_id));
+    const requirementCoverage = unitRequirements.map((requirement) => {
+      const sameRoleRequirements = unitRequirements.filter((item) => item.evidence_role === requirement.evidence_role);
+      const matches = unitDrafts.filter((draft) => {
+        const explicit = Array.isArray(draft.evidence_requirement_ids)
+          ? draft.evidence_requirement_ids.map(String)
+          : [];
+        if (explicit.length) return explicit.includes(requirement.id);
+        return sameRoleRequirements.length === 1 && evidenceRole(draft) === requirement.evidence_role;
+      });
+      const usable = matches.filter((draft) =>
+        draft.kind !== "gap"
+        && (draft.source_ids || []).some((sourceId) => usableSourceById.has(sourceId)),
+      );
+      const groups = new Set<string>();
+      for (const draft of usable) {
+        for (const sourceId of draft.source_ids || []) {
+          const source = usableSourceById.get(sourceId);
+          if (source) groups.add(sourceGroup(source));
+        }
+      }
+      return {
+        requirement,
+        usable,
+        gaps: matches.filter((draft) => draft.kind === "gap"),
+        sourceGroupCount: groups.size,
+        met: usable.length > 0 && groups.size >= Math.max(1, requirement.minimum_independent_sources),
+      };
+    });
+    const unmetRequirements = requirementCoverage.filter((item) => !item.met);
     const minimum_independent_sources = unitRequirements.length
       ? Math.max(...unitRequirements.map((item) => item.minimum_independent_sources))
       : 1;
@@ -195,11 +234,12 @@ export function computeSourceCoverage(input: {
     if (usableDrafts.length >= 3 && qualifiedGroups.size >= 3 && highTierGroups.size >= 1 && direct_fact_count >= 2) ceiling = 3;
     const evidence_ceiling = `J${ceiling}` as UnitEvidenceCoverage["evidence_ceiling"];
     const counterRequired = unitRequirements.some((item) => item.evidence_role === "counter");
+    const counterCoverage = requirementCoverage.filter((item) => item.requirement.evidence_role === "counter");
     const counter_check_status: UnitEvidenceCoverage["counter_check_status"] = !counterRequired
       ? "not_required"
-      : counter_draft_count > 0
+      : counterCoverage.some((item) => item.met)
         ? "observed"
-        : counter_gap_count > 0
+        : counterCoverage.some((item) => item.gaps.length > 0)
           ? "gap"
           : "not_recorded";
 
@@ -217,7 +257,20 @@ export function computeSourceCoverage(input: {
 
     let support_gap_kind: UnitEvidenceCoverage["support_gap_kind"] = "none";
     let weakest_link: string;
-    if (!support_draft_count) {
+    const unmetMainRequirements = unmetRequirements.filter((item) =>
+      item.requirement.evidence_role === "support" || item.requirement.evidence_role === "boundary",
+    );
+    if (unmetMainRequirements.length) {
+      const first = unmetMainRequirements[0];
+      if (first.usable.length > 0) {
+        weakest_link = `${first.requirement.id} 独立来源组不足（${first.sourceGroupCount}/${first.requirement.minimum_independent_sources}）`;
+      } else {
+        support_gap_kind = nonGapDrafts.length > 0 && blocked_sources.length > 0
+          ? "unverified_bound_sources"
+          : "no_support_draft";
+        weakest_link = `${first.requirement.id} 缺少可核验的主证据`;
+      }
+    } else if (!support_draft_count) {
       if (nonGapDrafts.length > 0 && blocked_sources.length > 0) {
         support_gap_kind = "unverified_bound_sources";
         weakest_link = "已有草稿，但来源引文未核验通过";
@@ -225,10 +278,8 @@ export function computeSourceCoverage(input: {
         support_gap_kind = "no_support_draft";
         weakest_link = "缺少可核验的支持事实";
       }
-    } else if (sourceGroups.size < minimum_independent_sources) {
-      weakest_link = `独立来源组不足（${sourceGroups.size}/${minimum_independent_sources}）`;
-    } else if (counterRequired && counter_check_status !== "observed") {
-      weakest_link = "反证方向尚未形成可核验记录";
+    } else if (unmetRequirements.length) {
+      weakest_link = `${unmetRequirements[0].requirement.id} 尚未满足：${unmetRequirements[0].requirement.requirement}`;
     } else if (gap_count > 0) {
       weakest_link = `${gap_count} 个证据缺口仍开放`;
     } else {
@@ -251,8 +302,14 @@ export function computeSourceCoverage(input: {
       direct_fact_count,
       independent_source_groups: sourceGroups.size,
       minimum_independent_sources,
-      meets_independence: sourceGroups.size >= minimum_independent_sources,
-      has_support_evidence: support_draft_count > 0,
+      meets_independence: unitRequirements.length > 0
+        ? requirementCoverage.every((item) => item.met)
+        : sourceGroups.size >= minimum_independent_sources,
+      has_support_evidence: unitRequirements.some((item) =>
+        item.evidence_role === "support" || item.evidence_role === "boundary",
+      )
+        ? unmetMainRequirements.length === 0
+        : support_draft_count > 0,
       has_counter_evidence: counter_draft_count > 0,
       counter_check_status,
       evidence_ceiling,

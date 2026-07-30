@@ -62,6 +62,11 @@ describe("ontology candidate governance repository", () => {
       target_ontology_node_id: "depreciation_intensity",
     });
     expect(promoted.change_request_events).toHaveLength(1);
+    expect(promoted.change_request_events[0]).toMatchObject({
+      action_type: "ProposeOntologyChange",
+      action_version: "2.0.0",
+      actor_role: "ontology_steward",
+    });
     expect(promoted.review_events).toHaveLength(2);
     expect(promoted.review_events.map((event) => event.next_status)).toEqual(["promoted", "expert_confirmed"]);
     const repeated = repository.reviewOntologyCandidate({
@@ -118,40 +123,47 @@ describe("ontology candidate governance repository", () => {
       affected_run_ids: [run.id],
       required_checks: ["validate_v3", "validate_project"],
     };
-    repository.advanceOntologyChangeRequest({
+    repository.applyOntologyGovernanceAction({
       requestId: proposed.id,
-      nextStatus: "impact_assessed",
+      actionId: "FreezeImpactAssessment",
       actorName: "治理专家",
+      actorRole: "ontology_steward",
       decisionNote: "已冻结元素、消费面、运行和必跑检查影响",
       impactReport: impact,
     });
-    repository.advanceOntologyChangeRequest({
+    repository.applyOntologyGovernanceAction({
       requestId: proposed.id,
-      nextStatus: "approved",
+      actionId: "ApproveOntologyChange",
       actorName: "治理专家",
+      actorRole: "ontology_steward",
       decisionNote: "影响边界明确，批准进入正式实现环节",
+      approvalPolicySatisfied: true,
     });
-    repository.advanceOntologyChangeRequest({
+    repository.applyOntologyGovernanceAction({
       requestId: proposed.id,
-      nextStatus: "implemented",
+      actionId: "RecordOntologyImplementation",
       actorName: "本体维护",
+      actorRole: "ontology_steward",
       decisionNote: "正式目标已经写入受治理领域参数资产",
       implementationRef: "ontology/02_领域/semiconductor/business_instances.yaml#inventory_cycle",
     });
-    repository.advanceOntologyChangeRequest({
+    repository.applyOntologyGovernanceAction({
       requestId: proposed.id,
-      nextStatus: "validated",
+      actionId: "AttestValidationResults",
       actorName: "发布维护",
+      actorRole: "runtime_owner",
       decisionNote: "影响分析列出的必跑检查已经全部通过",
       validationResults: { validate_v3: "pass", validate_project: "pass" },
     });
     const { loadOntologyCatalog } = await import("@/engine/ontology_catalog");
-    const released = repository.advanceOntologyChangeRequest({
+    const released = repository.applyOntologyGovernanceAction({
       requestId: proposed.id,
-      nextStatus: "released",
+      actionId: "ReleaseOntologyBaseline",
       actorName: "发布维护",
+      actorRole: "governance_owner",
       decisionNote: "目标已解析并绑定当前正式本体内容指纹",
       releaseFingerprint: loadOntologyCatalog().fingerprint,
+      approvalPolicySatisfied: true,
     });
     expect(released.status).toBe("released");
     expect(released.released_at).toBeTruthy();

@@ -84,6 +84,10 @@ RUNTIME_CONTRACT_RELATION_TYPES = {
     "sourcePublishedBy",
     "claimAbout",
     "assessmentEvaluatesFact",
+    "requirementUsesEvidenceProfile",
+    "evidenceProfileConfiguresRequirement",
+    "requirementGovernedByRecipe",
+    "evidenceRecipeGovernsRequirement",
 }
 
 SECTION_TYPES = {

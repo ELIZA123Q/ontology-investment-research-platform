@@ -49,6 +49,10 @@ object_types:
       requirement: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 可执行要求。}
       evidence_role: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [support, counter, context, boundary], description: 证据角色。}
       minimum_independent_sources: {type: integer, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 最低独立来源数。}
+      evidence_profile_refs: {type: array, required: false, cardinality: '0..*', value_role: metadata, nullable_semantics: 空列表表示任务变量未绑定领域 EvidenceProfile，必须由 no_profile_reason 解释。, description: 受治理的领域证据画像 ID；只描述最低材料组合，不包含厂商、URL 或查询参数。}
+      evidence_recipe_ref: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未匹配领域取证配方。, description: 与判断类型对齐的受治理 EvidenceRecipe ID。}
+      derivation_refs: {type: object, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示旧产物尚无机器推导血缘。, description: 由判断单元、状态变量和传播路径推导本要求的稳定引用。}
+      no_profile_reason: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示已绑定 EvidenceProfile 或尚未完成校验。, description: task_local 或无正式状态变量时允许缺少画像的显式原因。}
     constraints: *standard_constraints
   EvidenceAssessment:
     metadata: {id: EvidenceAssessment, namespace: core.evidence, label_zh: 证据评估, label_en: Evidence Assessment, aliases: [可用性评估], definition: 证据在特定任务、范围和判断单元下的可靠性、相关性、时效性与可用性评估。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [公告为直接高可靠证据], counter_examples: [该来源永远可靠]}

@@ -117,6 +117,7 @@ export const CROSS_STAGE_REFERENCE_RULES = {
   "03_to_02": {
     checks: [
       { source: "evidence_drafts[].judgment_unit_ids[]", target: "judgment_units[].id", stage: "stage_02" },
+      { source: "evidence_drafts[].evidence_requirement_ids[]", target: "evidence_requirements[].id", stage: "stage_02" },
       { source: "evidence_requirements[].id", target: "evidence_requirements[].id", stage: "stage_02" },
       { source: "method_applications[].application_id", target: "method_applications[].application_id", stage: "stage_02" },
     ],

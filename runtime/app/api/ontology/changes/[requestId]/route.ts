@@ -18,7 +18,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ re
       migrationRef: body.migration_ref,
       releaseFingerprint: body.release_fingerprint,
     });
-    return Response.json({ change_request: changeRequest });
+    return Response.json(
+      {
+        change_request: changeRequest,
+        deprecation: "Use POST /api/ontology/changes/{requestId}/actions/{actionId}; next_status is a compatibility projection.",
+      },
+      { headers: { Deprecation: "true" } },
+    );
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 });
   }

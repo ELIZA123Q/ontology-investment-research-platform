@@ -91,6 +91,8 @@ export function projectFormalSnapshot(input: SnapshotProjectInput): { snapshotDi
     ? asList(input.structure?.evidence_requirements)
     : asList(input.evidence?.evidence_requirements);
   const drafts = asList(input.evidence?.evidence_drafts);
+  const requirementAssessments = asList(input.evidence?.evidence_requirement_assessments);
+  const gapDrafts = drafts.filter((draft: any) => draft?.kind === "gap");
   const gaps = asList(input.evidence?.unresolved_gaps);
   const materials = input.evidence?.delivery_materials || {};
   const executionId = `EXEC-${input.runId}`;
@@ -118,13 +120,16 @@ export function projectFormalSnapshot(input: SnapshotProjectInput): { snapshotDi
   })));
 
   write("evidence_baskets.csv", [
-    "basket_id", "judgment_unit_id", "support_count", "counter_count", "gap_count", "notes",
+    "basket_id", "judgment_unit_id", "requirement_ids", "support_count", "counter_count", "gap_count", "notes",
   ], units.map((unit: any, index: number) => {
     const unitId = nonEmpty(unit?.id, `JU-${String(index + 1).padStart(2, "0")}`);
     const related = drafts.filter((draft: any) => asList(draft?.judgment_unit_ids).includes(unitId));
     return {
       basket_id: `BK-${String(index + 1).padStart(2, "0")}`,
       judgment_unit_id: unitId,
+      requirement_ids: [...new Set(related.flatMap((draft: any) =>
+        asList(draft?.evidence_requirement_ids),
+      ))].join("|"),
       support_count: related.filter((draft: any) => draft?.kind !== "gap" && draft?.kind !== "counter").length,
       counter_count: related.filter((draft: any) => draft?.kind === "counter").length,
       gap_count: related.filter((draft: any) => draft?.kind === "gap").length,
@@ -247,10 +252,11 @@ export function projectFormalSnapshot(input: SnapshotProjectInput): { snapshotDi
   })));
 
   write("evidence_facts.csv", [
-    "fact_id", "evidence_id", "fact_text", "source_ids", "quote_verified", "notes",
+    "fact_id", "evidence_id", "evidence_requirement_ids", "fact_text", "source_ids", "quote_verified", "notes",
   ], drafts.filter((draft: any) => draft?.kind !== "gap").map((draft: any, index: number) => ({
     fact_id: `FT-${String(index + 1).padStart(3, "0")}`,
     evidence_id: nonEmpty(draft?.id),
+    evidence_requirement_ids: asList(draft?.evidence_requirement_ids).join("|"),
     fact_text: nonEmpty(draft?.statement),
     source_ids: asList(draft?.source_ids).join("|"),
     quote_verified: "unknown",
@@ -272,13 +278,20 @@ export function projectFormalSnapshot(input: SnapshotProjectInput): { snapshotDi
   })));
 
   write("evidence_readiness_assessments.csv", [
-    "assessment_id", "judgment_unit_id", "readiness", "allowed_output", "notes",
-  ], units.map((unit: any, index: number) => ({
+    "assessment_id", "requirement_id", "judgment_unit_id", "evidence_role",
+    "evidence_ids", "gap_ids", "independent_source_groups", "minimum_independent_sources",
+    "status", "notes",
+  ], requirementAssessments.map((assessment: any, index: number) => ({
     assessment_id: `ERA-${String(index + 1).padStart(2, "0")}`,
-    judgment_unit_id: nonEmpty(unit?.id, `JU-${String(index + 1).padStart(2, "0")}`),
-    readiness: nonEmpty(input.evidence?.evidence_readiness, "partial"),
-    allowed_output: nonEmpty(input.evidence?.allowed_05_output, "limited_report"),
-    notes: "workbench_projection",
+    requirement_id: nonEmpty(assessment?.requirement_id),
+    judgment_unit_id: nonEmpty(assessment?.judgment_unit_id),
+    evidence_role: nonEmpty(assessment?.evidence_role),
+    evidence_ids: asList(assessment?.evidence_ids).join("|"),
+    gap_ids: asList(assessment?.gap_ids).join("|"),
+    independent_source_groups: Number(assessment?.independent_source_groups || 0),
+    minimum_independent_sources: Number(assessment?.minimum_independent_sources || 0),
+    status: nonEmpty(assessment?.status, "missing"),
+    notes: asList(assessment?.limitations).join("；") || "workbench_projection",
   })));
 
   const variables = asList(input.structure?.variables);
@@ -308,12 +321,13 @@ export function projectFormalSnapshot(input: SnapshotProjectInput): { snapshotDi
     notes: "workbench_projection",
   })));
 
-  const gapRows = gaps.length
-    ? gaps.map((gap: any, index: number) => ({
+  const gapInputs = gapDrafts.length ? gapDrafts : gaps;
+  const gapRows = gapInputs.length
+    ? gapInputs.map((gap: any, index: number) => ({
       gap_id: nonEmpty(gap?.id, `GAP-${String(index + 1).padStart(2, "0")}`),
       execution_id: executionId,
       gap_type: nonEmpty(gap?.gap_type, "evidence"),
-      requirement_id: nonEmpty(gap?.requirement_id),
+      requirement_id: asList(gap?.evidence_requirement_ids).join("|") || nonEmpty(gap?.requirement_id),
       linked_judgment_unit_ids: asList(gap?.judgment_unit_ids).join("|"),
       description: nonEmpty(gap?.description || gap?.requirement || gap?.statement, "未解决缺口"),
       severity: nonEmpty(gap?.severity, "medium"),

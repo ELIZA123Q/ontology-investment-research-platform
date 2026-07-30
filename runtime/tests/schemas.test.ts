@@ -77,7 +77,37 @@ describe("stage contracts", () => {
     data.input_resolution.clarifications = [];
     data.input_resolution.unresolved_structural_ambiguities = [];
     syncStage01ReadableMarkdown(data, "未来六个月供需是否改善？");
-    expect(taskDefinitionSchema.parse(data)).toBeTruthy();
+    const parsed = taskDefinitionSchema.parse(data);
+    expect(parsed.hypotheses_to_verify).toEqual([expect.objectContaining({
+      id: "HV-01",
+      source_refs: ["system_normalization"],
+    })]);
+    expect(parsed.known_facts).toEqual([]);
+    expect(parsed.user_assumptions).toEqual([]);
+    expect(parsed.document_markdown).toContain("## 6. 前提与假设");
+  });
+
+  it("normalizes legacy premise strings and rejects cross-category duplication", () => {
+    const data: any = {
+      normalized_question: "未来六个月供需是否改善？",
+      core_object: "存储芯片",
+      judgment_action: "趋势判断",
+      time_scope: { lookback: "12个月", as_of: "2026-07-01", forward: "6个月" },
+      boundaries: ["全球"],
+      exclusions: ["交易建议"],
+      domain_supported: true,
+      known_facts: ["用户要求分产品判断"],
+      user_assumptions: ["用户要求分产品判断"],
+      hypotheses_to_verify: ["供需改善能够持续六个月"],
+      document_markdown: "# 任务定义",
+    };
+    ensureStage01ContractFields(data, "未来六个月供需是否改善？");
+    expect(data.known_facts[0]).toEqual(expect.objectContaining({
+      id: "KF-01",
+      statement: "用户要求分产品判断",
+      source_refs: ["current_user_input"],
+    }));
+    expect(() => taskDefinitionSchema.parse(data)).toThrow(/同一内容不得同时登记/);
   });
 
   it("allows a source-free explicit gap but rejects source-free facts", () => {

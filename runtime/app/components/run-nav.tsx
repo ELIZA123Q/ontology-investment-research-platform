@@ -17,7 +17,7 @@ const stageItems = [
 
 const referenceItems = [
   { id: "history" as const, label: "历史", path: "/history" },
-  { id: "object-set" as const, label: "关系与审计", path: "/object-set" },
+  { id: "object-set" as const, label: "实例关系", path: "/object-set" },
   { id: "compare" as const, label: "对照实验", path: "/compare" },
 ];
 

@@ -11,7 +11,6 @@ export {
 
 export {
   validateOntologyVariableBindings,
-  validateApproval,
   methodCandidatesForPrompt,
   upstreamJudgmentTypes,
   sourcesForPrompt,
@@ -21,6 +20,8 @@ export {
   editArtifact,
   validateGeneratedSemanticDraft,
 } from "./workflow_shared";
+
+export { validateApproval } from "./workflow/validate_approval";
 
 export {
   normalizeStage01Projection,
@@ -40,7 +41,6 @@ export {
 
 export {
   reviseRunStage,
-  validateStage02ForApproval,
   heuristicStructureIssues,
   structureValidationIssueConflictsWithContract,
   approvedDownstreamStages,
@@ -49,6 +49,7 @@ export {
 } from "./workflow_revise";
 
 export { approve } from "./workflow/approve";
+export { validateStage02ForApproval } from "./workflow/stage02_review";
 export { generateArtifact } from "./workflow/generate";
 export { cancelGeneration } from "./workflow/cancel";
 export { applyIncrementalChangeSet } from "./workflow/change_set_apply";

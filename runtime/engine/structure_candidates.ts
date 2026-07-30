@@ -22,6 +22,18 @@ export type EvidenceRequirementProjection = {
   judgment_unit_ids: string[];
   source: "unit_requirement" | "counter_direction";
   source_ref?: string;
+  /** 受治理的领域取证画像；具体来源与查询参数不在本字段中。 */
+  evidence_profile_refs?: string[];
+  /** 与 JudgmentType 对齐的领域取证配方索引。 */
+  evidence_recipe_ref?: string | null;
+  /** ER 从判断单元、状态变量和路径推导而来的稳定血缘。 */
+  derivation_refs?: {
+    judgment_unit_ref: string | null;
+    state_variable_refs: string[];
+    path_refs: string[];
+  };
+  /** task_local 或未绑定状态变量时允许无 Profile，但必须解释。 */
+  no_profile_reason?: string | null;
 };
 
 function asUnitIds(value: unknown, allowed?: Set<string>): string[] {
@@ -200,22 +212,26 @@ export function projectEvidenceRequirementsFromStructure(input: {
     });
   }
   for (const counter of counters) {
-    let id = `ER-${counter.direction_id}`;
-    let n = 1;
-    while (seen.has(id)) {
-      id = `ER-${counter.direction_id}-${n}`;
-      n += 1;
+    // Ontology 3.0 要求一条 ER 只服务一个原子 JU。全局反证方向必须在
+    // Stage02 拆成逐单元要求，不能让一条宽泛 ER 同时替多个判断单元过门。
+    for (const unitId of counter.judgment_unit_ids) {
+      let id = `ER-${counter.direction_id}-${unitId}`;
+      let n = 1;
+      while (seen.has(id)) {
+        id = `ER-${counter.direction_id}-${unitId}-${n}`;
+        n += 1;
+      }
+      seen.add(id);
+      result.push({
+        id,
+        requirement: counter.statement,
+        evidence_role: "counter",
+        minimum_independent_sources: 1,
+        judgment_unit_ids: [unitId],
+        source: "counter_direction",
+        source_ref: counter.direction_id,
+      });
     }
-    seen.add(id);
-    result.push({
-      id,
-      requirement: counter.statement,
-      evidence_role: "counter",
-      minimum_independent_sources: 1,
-      judgment_unit_ids: [...counter.judgment_unit_ids],
-      source: "counter_direction",
-      source_ref: counter.direction_id,
-    });
   }
   return result;
 }
@@ -231,7 +247,7 @@ export function resolveEvidenceRequirementsFromStructure(input: {
 }): EvidenceRequirementProjection[] {
   const unitIds = new Set((input.units || []).map((unit) => String(unit.id || "")).filter(Boolean));
   const topLevel = Array.isArray(input.evidence_requirements) ? input.evidence_requirements : [];
-  const valid = topLevel.length > 0 && topLevel.every((item) => {
+  const structurallyValid = topLevel.length > 0 && topLevel.every((item) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return false;
     const record = item as Record<string, unknown>;
     const refs = Array.isArray(record.judgment_unit_ids) ? record.judgment_unit_ids.map(String).filter(Boolean) : [];
@@ -242,15 +258,39 @@ export function resolveEvidenceRequirementsFromStructure(input: {
       && refs.length > 0
       && refs.every((id) => unitIds.has(id));
   });
-  if (valid) {
-    return topLevel.map((item: any) => ({
-      id: String(item.id),
-      requirement: String(item.requirement),
-      evidence_role: item.evidence_role,
-      minimum_independent_sources: Math.max(0, Math.floor(Number(item.minimum_independent_sources))),
-      judgment_unit_ids: item.judgment_unit_ids.map(String),
-      source: item.source === "counter_direction" ? "counter_direction" : "unit_requirement",
-      ...(item.source_ref ? { source_ref: String(item.source_ref) } : {}),
+  if (structurallyValid) {
+    const usedIds = new Set<string>();
+    return topLevel.flatMap((item: any) => item.judgment_unit_ids.map((unitId: unknown) => {
+      const unit = String(unitId);
+      const baseId = item.judgment_unit_ids.length === 1
+        ? String(item.id)
+        : `${String(item.id)}-${unit}`;
+      let id = baseId;
+      let suffix = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(id);
+      return {
+        id,
+        requirement: String(item.requirement),
+        evidence_role: item.evidence_role,
+        minimum_independent_sources: Math.max(0, Math.floor(Number(item.minimum_independent_sources))),
+        judgment_unit_ids: [unit],
+        source: item.source === "counter_direction" ? "counter_direction" as const : "unit_requirement" as const,
+        ...(item.source_ref ? { source_ref: String(item.source_ref) } : {}),
+        evidence_profile_refs: asNonEmptyStrings(item.evidence_profile_refs),
+        evidence_recipe_ref: item.evidence_recipe_ref ? String(item.evidence_recipe_ref) : null,
+        derivation_refs: item.derivation_refs && typeof item.derivation_refs === "object"
+          ? {
+            judgment_unit_ref: unit,
+            state_variable_refs: asNonEmptyStrings(item.derivation_refs.state_variable_refs),
+            path_refs: asNonEmptyStrings(item.derivation_refs.path_refs),
+          }
+          : undefined,
+        no_profile_reason: item.no_profile_reason ? String(item.no_profile_reason) : null,
+      };
     }));
   }
   return projectEvidenceRequirementsFromStructure({

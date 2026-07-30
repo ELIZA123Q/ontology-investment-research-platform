@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import { getRun, latestArtifact, listWorkItems } from "@/adapters/db";
 import { listResearchJobsForRun } from "@/adapters/research_jobs";
-import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
 import { STAGES } from "@/engine/types";
 import { workItemHref } from "@/engine/research_overview";
 import { latestJobForStage } from "@/app/lib/ui-labels";
@@ -53,7 +53,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     }
 
     const job = enqueueArtifactGeneration({ runId: id, kind });
-    after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+    after(() => { void runResearchJobUntilSettled(job.id, { workerId: `next-after-${process.pid}` }).catch(() => undefined); });
     return Response.json({ job, next_href: href, stop_at: "human_review" }, { status: 202 });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });

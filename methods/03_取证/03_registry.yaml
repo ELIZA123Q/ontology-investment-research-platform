@@ -12,6 +12,11 @@ ontology_authority_refs:
   source_profiles: ontology/02_领域/semiconductor/business_instances.yaml#business_instance_graph.objects.@type=SourceProfile
   proxy_indicators: ontology/02_领域/semiconductor/business_instances.yaml#business_instance_graph.objects.@type=ProxyIndicator
 
+# 方法层机器路由表：把 EvidenceProfile / JudgmentType / EvidenceRole
+# 编译成可执行的来源顺序、检索域名、查询词和核验方式。
+# 来源生产者与查询参数会变化，因此不进入正式本体。
+source_route_registry_ref: methods/03_取证/source_routes.yaml
+
 # 所有证据必须先通过的共同有效性条件；不是可收集的证据角色。
 validity_preconditions:
   - id: traceable
@@ -96,6 +101,7 @@ judgment_types:
     auto_add: []
     requires_methods: [A02]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_trend_direction
   cycle_phase:
     method: A03
     required_roles: [primary, baseline, cross_check, counter]
@@ -112,6 +118,7 @@ judgment_types:
     formal_a08: true
     auto_add: [A01]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_mechanism_validation
   causal_attribution:
     method: A04
     required_roles: [primary, mechanism, cross_check, counter]
@@ -119,6 +126,7 @@ judgment_types:
     formal_a08: true
     auto_add: [A01]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_causal_attribution
   transmission_path:
     method: A04
     required_roles: [primary, mechanism, counter]
@@ -135,6 +143,7 @@ judgment_types:
     auto_add: []
     forbidden_without: [unified_comparison_scope]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_object_differentiation
   impact_realization:
     method: A06
     required_roles: [primary, mechanism, baseline, counter]
@@ -143,6 +152,7 @@ judgment_types:
     auto_add: []
     forbidden_without: [financial_baseline, critical_financial_bridge]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_impact_realization
   expectation_gap:
     method: A07
     required_roles: [primary, baseline, cross_check, counter]
@@ -151,6 +161,7 @@ judgment_types:
     auto_add: []
     forbidden_without: [pre_event_consensus_vintage]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_expectation_gap
   valuation_impact:
     method: A07
     required_roles: [primary, baseline, cross_check, counter]
@@ -159,6 +170,7 @@ judgment_types:
     auto_add: []
     forbidden_without: [valuation_baseline]
     max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_valuation_impact
 
 methods:
   A01:

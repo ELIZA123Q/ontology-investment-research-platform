@@ -842,6 +842,21 @@ describe("evaluateEvidenceStopCondition", () => {
         },
       },
       supplementContext: { judgmentTypes: ["cycle_phase"] },
+      structure: {
+        variables: [{ id: "VAR-1", ontology_node_id: "end_market_demand_strength" }],
+        paths: [{ id: "PATH-1", variable_ids: ["VAR-1"], judgment_unit_ids: ["JU-1"] }],
+        judgment_units: [{ id: "JU-1", judgment_type: "cycle_phase", ontology_node_ids: [] }],
+      },
+      requirements: [{
+        id: "ER-1",
+        requirement: "取得 HBM 需求、订单与库存反证",
+        evidence_role: "counter",
+        minimum_independent_sources: 2,
+        judgment_unit_ids: ["JU-1"],
+        source: "counter_direction",
+      }],
+      targetUnitIds: ["JU-1"],
+      cutoffMs: Date.parse("2026-06-30T23:59:59Z"),
       assertRunning: () => undefined,
       existingSources: [],
     }).catch(() => undefined);
@@ -851,5 +866,8 @@ describe("evaluateEvidenceStopCondition", () => {
     expect(payload.selected_method_guidance[0].method_id).toBe("kb03:A03");
     expect(payload.evidence_judgment_type_cards.cycle_phase.method).toBe("kb03:A03");
     expect(payload.mcp_channel_hints.length).toBeGreaterThan(0);
+    expect(payload.acquisition_plan.generated_from.evidence_profile_ids).toContain("demand_orders");
+    expect(payload.acquisition_plan.tasks[0].query_card_refs.length).toBeGreaterThan(0);
+    expect(payload.runtime_acquisition_trace.route_registry_version).toBe("1.1.0");
   });
 });

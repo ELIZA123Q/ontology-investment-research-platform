@@ -23,6 +23,7 @@ const EVIDENCE_ARRAY_KEYS = [
   "source_keys",
   "source_ids",
   "judgment_unit_ids",
+  "evidence_requirement_ids",
   "ontology_node_ids",
   "limitations",
 ] as const;

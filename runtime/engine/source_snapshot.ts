@@ -84,7 +84,10 @@ export async function captureSourceSnapshot(
       content_hash: createHash("sha256").update(bytes).digest("hex"),
       content_mime: mime,
       http_status: response.status,
-      retrieval_status: usable ? "captured" : captured ? "limited" : "failed",
+      // retrieval_status 只表达传输/正文冻结是否成功；引文是否可用由
+      // quote_verified + usability_status 表达。过去把“已抓正文但没引文”
+      // 记成 limited，导致 Runtime 误判为 fetch=0/正文未取得。
+      retrieval_status: captured ? "captured" : "failed",
       snapshot_text: text.slice(0, 200_000),
       // 标点折叠命中时改存正文逐字片段，避免后续重核验/展示仍用“带逗号的改写句”。
       source_quote: quoteVerified ? alignedQuote : (input.source_quote || ""),

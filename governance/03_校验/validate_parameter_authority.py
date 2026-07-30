@@ -270,7 +270,7 @@ def main() -> int:
         "business_scenario_tags": 9,
         "judgment_level_criterion_templates": 5,
         "source_profiles": 3,
-        "evidence_recipes": 3,
+        "evidence_recipes": 10,
         "proxy_indicators": 5,
     }
     if counts != expected:

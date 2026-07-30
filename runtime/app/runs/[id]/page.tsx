@@ -179,7 +179,7 @@ export default async function RunPage({ params }: { params: Promise<{ id: string
       </summary>
       <div className="grid">
         <Link className="card run-card" href={`/runs/${id}/compare`}><span className="card-arrow">↗</span><span className="eyebrow">质量实验</span><h3>同证据盲评</h3><p>{baseline ? "对照基线已冻结，可比较两种研究流程。" : "证据确认后，可生成不补充外部信息的对照稿。"}</p></Link>
-        <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级查询</span><h3>本轮对象关系</h3><p>核对业务对象与影响路径；日常补证和判断仍使用上方阶段页面。</p></Link>
+        <Link className="card run-card" href={`/runs/${id}/object-set`}><span className="card-arrow">↗</span><span className="eyebrow">高级审计</span><h3>本轮实例关系</h3><p>核对具体对象的正式连接和关系缺口；知识类型与规则定义在知识库查看。</p></Link>
         <Link className="card run-card" href="/experience"><span className="card-arrow">↗</span><span className="eyebrow">试运行</span><h3>流程体验基线</h3><p>查看真实任务队列与流程体验指标；不用于评价研究员绩效。</p></Link>
       </div>
     </details>

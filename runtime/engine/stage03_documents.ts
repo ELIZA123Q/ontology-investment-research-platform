@@ -10,6 +10,10 @@ import {
   type StageQualityIssue,
 } from "./stage_high_quality";
 import { evaluateEvidenceQuality } from "./evidence_quality_gate";
+import {
+  precheckFindingsAsWeakLinks,
+  precheckStage03OntologyConstraints,
+} from "./ontology_stage03_precheck";
 import { projectEvidenceRequirementsFromStructure } from "./structure_candidates";
 import type { SourceRecord } from "./types";
 
@@ -22,6 +26,105 @@ function nonEmpty(value: unknown, fallback = ""): string {
 
 function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
+}
+
+function requirementsFromStructure(structure: any): any[] {
+  const units = Array.isArray(structure?.judgment_units) ? structure.judgment_units : [];
+  return Array.isArray(structure?.evidence_requirements) && structure.evidence_requirements.length
+    ? structure.evidence_requirements
+    : projectEvidenceRequirementsFromStructure({
+      units,
+      counter_evidence_directions: structure?.counter_evidence_directions,
+    });
+}
+
+function evidenceRoleOfDraft(draft: any): string {
+  const explicit = String(draft?.evidence_role || "");
+  if (["support", "counter", "context", "boundary"].includes(explicit)) return explicit;
+  if (draft?.kind === "counter" || draft?.kind === "conflict" || draft?.direction === "weaken") return "counter";
+  if (draft?.direction === "neutral") return "context";
+  return "support";
+}
+
+/**
+ * 新产物显式使用 evidence_requirement_ids。旧产物只有在“同 JU、同角色、
+ * 同 requirement 文本”或唯一候选时才自动迁移；歧义时保持空数组并由门禁阻断。
+ */
+export function bindStage03DraftsToRequirements(data: any, structure?: any): void {
+  const requirements = requirementsFromStructure(structure);
+  const requirementById = new Map(requirements.map((item: any) => [String(item?.id || ""), item]));
+  if (!Array.isArray(data?.evidence_drafts)) return;
+  data.evidence_drafts = data.evidence_drafts.map((draft: any) => {
+    const declared = asList(draft?.evidence_requirement_ids);
+    // 只读展示/旧工具未携带 Stage02 结构时不得擦除已存在的显式绑定；
+    // 审批路径一定携带结构，届时再严格剔除悬空 ER。
+    const explicit = requirements.length
+      ? declared.filter((requirementId) => requirementById.has(requirementId))
+      : declared;
+    if (explicit.length) return { ...draft, evidence_requirement_ids: explicit };
+    const unitIds = new Set(asList(draft?.judgment_unit_ids));
+    const role = evidenceRoleOfDraft(draft);
+    const candidates = requirements.filter((requirement: any) =>
+      String(requirement?.evidence_role || "support") === role
+      && asList(requirement?.judgment_unit_ids).some((unitId) => unitIds.has(unitId)),
+    );
+    const exact = String(draft?.requirement || "").trim()
+      ? candidates.filter((requirement: any) =>
+        String(requirement?.requirement || "").trim() === String(draft.requirement).trim(),
+      )
+      : [];
+    const inferred = exact.length === 1
+      ? [String(exact[0].id)]
+      : candidates.length === 1
+        ? [String(candidates[0].id)]
+        : [];
+    return { ...draft, evidence_requirement_ids: inferred };
+  });
+}
+
+export function deriveDeliveryReadiness(data: any): "ready" | "partial" | "not_ready" {
+  const materials = data?.delivery_materials || {};
+  const charts = Array.isArray(materials.chart_candidates) ? materials.chart_candidates : [];
+  const tables = Array.isArray(materials.table_candidates) ? materials.table_candidates : [];
+  const annotations = Array.isArray(materials.source_annotation_candidates)
+    ? materials.source_annotation_candidates
+    : [];
+  if (!charts.length && !tables.length && !annotations.length) return "not_ready";
+  if ((charts.length || tables.length) && annotations.length) return "ready";
+  return "partial";
+}
+
+function parseableTime(value: unknown): string | undefined {
+  const text = String(value || "").trim();
+  return text && Number.isFinite(Date.parse(text)) ? text : undefined;
+}
+
+/**
+ * 预检使用 01 截止时点（若可解析）与 02 研究范围。旧调用方未传截止
+ * 时点时，取证据中最早的 cutoff，防止较晚口径悄悄扩大研究窗口。
+ */
+function stage03OntologyPrecheck(
+  data: any,
+  structure: any,
+  sources: SourceRecord[],
+  options: { defaultScopeRef?: string; cutoffAt?: string } = {},
+) {
+  const drafts = Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : [];
+  const declaredCutoffs = drafts
+    .filter((draft: any) => String(draft?.kind) !== "gap")
+    .map((draft: any) => parseableTime(draft?.cutoff_at))
+    .filter((value: string | undefined): value is string => Boolean(value))
+    .sort((a: string, b: string) => Date.parse(a) - Date.parse(b));
+  return precheckStage03OntologyConstraints({
+    evidence_drafts: drafts,
+    sources,
+    default_scope_ref: String(
+      options.defaultScopeRef
+      || structure?.research_scope?.id
+      || "",
+    ).trim(),
+    cutoff_at: parseableTime(options.cutoffAt) || declaredCutoffs[0],
+  });
 }
 
 export function projectInstanceManifestYaml(
@@ -92,6 +195,7 @@ export function ensureStage03DocumentFields(
   options: { question?: string; taskId?: string; structure?: any; forceProjection?: boolean } = {},
 ): any {
   const next = data && typeof data === "object" ? data : {};
+  bindStage03DraftsToRequirements(next, options.structure);
   const drafts = Array.isArray(next.evidence_drafts) ? next.evidence_drafts : [];
   const units = Array.isArray(options.structure?.judgment_units) ? options.structure.judgment_units : [];
   const unitIds = new Set(units.map((unit: any) => String(unit.id)).filter(Boolean));
@@ -134,7 +238,6 @@ export function ensureStage03DocumentFields(
   next.evidence_readiness = allGap
     ? "not_ready"
     : (rate >= next.required_coverage_rate ? "ready" : "partial");
-  next.delivery_readiness = next.evidence_readiness === "ready" ? "ready" : "partial";
   next.snapshot_ref = nonEmpty(next.snapshot_ref, "03-证据快照摘要.yaml");
   // 缺口可带边界确认（gap_report_only）；仅当显式要求返工时才置 return_required。
   next.quality_status = nonEmpty(next.quality_status, "minimum_pass");
@@ -160,23 +263,21 @@ export function ensureStage03DocumentFields(
       ? next.delivery_materials.source_annotation_candidates
       : [];
   }
+  next.delivery_readiness = deriveDeliveryReadiness(next);
 
   ensureEvidenceCompressionFields(next, options.structure);
 
   const gateStatus = String(next?.evidence_quality_gate?.quality_status || "");
   if (next?.evidence_quality_gate?.passed === false || gateStatus === "return_required") {
     next.evidence_readiness = "not_ready";
-    next.delivery_readiness = "not_ready";
     next.allowed_05_output = Number(next?.evidence_quality_gate?.total_evidence || 0) > 0
       ? "bounded_report"
       : "gap_report_only";
   } else if (gateStatus === "minimum_pass") {
     next.evidence_readiness = "partial";
-    next.delivery_readiness = "partial";
     next.allowed_05_output = "bounded_report";
   } else if (gateStatus === "high_quality_pass") {
     next.evidence_readiness = "ready";
-    next.delivery_readiness = "ready";
     next.allowed_05_output = "full_report";
   }
 
@@ -291,6 +392,7 @@ export function collectStage03HighQualityIssues(data: any): StageQualityIssue[] 
 
 /** 从 drafts 投影 Evidence Summary / Bundle；模型已写则保留并补缺。 */
 export function ensureEvidenceCompressionFields(data: any, structure?: any): void {
+  bindStage03DraftsToRequirements(data, structure);
   const drafts = Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : [];
   const units = Array.isArray(structure?.judgment_units) ? structure.judgment_units : [];
   const unitIds = [
@@ -360,6 +462,9 @@ export function ensureEvidenceCompressionFields(data: any, structure?: any): voi
         : (gaps.length || !support.length ? "partial" : "ready");
       return {
         judgment_unit_id: unitId,
+        requirement_ids: [
+          ...new Set(related.flatMap((draft: any) => asList(draft?.evidence_requirement_ids))),
+        ],
         support_evidence_ids: support.map((d: any) => String(d.id)),
         counter_evidence_ids: counter.map((d: any) => String(d.id)),
         gap_ids: gaps.map((d: any) => String(d.id)),
@@ -437,11 +542,29 @@ export function collectStage03ConsistencyIssues(data: any): Stage03ConsistencyIs
       message: "evidence_readiness=not_ready 时 allowed_05_output 不得为 full_report",
     });
   }
-  if (String(data?.delivery_readiness) === "ready" && String(data?.evidence_readiness) === "not_ready") {
+  const expectedDeliveryReadiness = deriveDeliveryReadiness(data);
+  if (String(data?.delivery_readiness) !== expectedDeliveryReadiness) {
     issues.push({
-      severity: "warning",
-      code: "dual_readiness_independence",
-      message: "delivery_readiness 与 evidence_readiness 应独立评估；证据未就绪时交付 ready 需人工确认",
+      severity: "error",
+      code: "delivery_readiness_not_material_derived",
+      message: `delivery_readiness 必须由展示素材独立派生，当前应为 ${expectedDeliveryReadiness}`,
+    });
+  }
+  const unboundDrafts = (Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : [])
+    .filter((draft: any) => !asList(draft?.evidence_requirement_ids).length);
+  if (unboundDrafts.length) {
+    issues.push({
+      severity: "error",
+      code: "evidence_requirement_binding_missing",
+      message: `每条 EvidenceDraft 必须绑定具体 Stage02 ER；未绑定：${unboundDrafts.map((draft: any) => draft?.id).join(", ")}`,
+    });
+  }
+  const ontologyPrecheck = data?.ontology_precheck;
+  if (ontologyPrecheck && Number(ontologyPrecheck.blocking_soft_count || 0) > 0) {
+    issues.push({
+      severity: "error",
+      code: "ontology_precheck_blocking",
+      message: `本体约束预检存在 ${ontologyPrecheck.blocking_soft_count} 项待修复阻断`,
     });
   }
   const quality = nonEmpty(data?.quality_status);
@@ -490,10 +613,16 @@ export function collectStage03ConsistencyIssues(data: any): Stage03ConsistencyIs
  */
 export function recomputeStage03EvidenceQualityGate(
   data: any,
-  options: { structure?: any; sources?: SourceRecord[] } = {},
+  options: {
+    structure?: any;
+    sources?: SourceRecord[];
+    defaultScopeRef?: string;
+    cutoffAt?: string;
+  } = {},
 ): any {
   const next = data && typeof data === "object" ? { ...data } : {};
   const structure = options.structure || {};
+  bindStage03DraftsToRequirements(next, structure);
   const units = Array.isArray(structure.judgment_units) ? structure.judgment_units : [];
   const requirements = Array.isArray(structure.evidence_requirements) && structure.evidence_requirements.length
     ? structure.evidence_requirements
@@ -501,29 +630,40 @@ export function recomputeStage03EvidenceQualityGate(
       units,
       counter_evidence_directions: structure.counter_evidence_directions,
     });
+  const sources = Array.isArray(options.sources) ? options.sources : [];
   const evidenceQuality = evaluateEvidenceQuality({
     evidenceDrafts: Array.isArray(next.evidence_drafts) ? next.evidence_drafts : [],
-    sources: Array.isArray(options.sources) ? options.sources : [],
+    sources,
     judgmentUnits: units,
     evidenceRequirements: requirements,
   });
+  const ontologyPrecheck = stage03OntologyPrecheck(next, structure, sources, options);
+  const ontologyBlocked = ontologyPrecheck.blocking_soft_count > 0;
+  next.ontology_precheck = ontologyPrecheck;
+  const ontologyWeakLinks = precheckFindingsAsWeakLinks(ontologyPrecheck);
   next.evidence_quality_gate = {
-    passed: evidenceQuality.passed,
-    quality_status: evidenceQuality.qualityStatus,
+    passed: evidenceQuality.passed && !ontologyBlocked,
+    quality_status: ontologyBlocked ? "return_required" : evidenceQuality.qualityStatus,
     total_evidence: evidenceQuality.totalEvidence,
     source_groups: evidenceQuality.sourceGroups,
     direct_facts: evidenceQuality.directFacts,
     gap_details: evidenceQuality.gapDetails,
     evaluated_at: new Date().toISOString(),
     recomputed_on_approval: true,
+    ontology_precheck_blocking_soft_count: ontologyPrecheck.blocking_soft_count,
+    ontology_precheck_advisory_count: ontologyPrecheck.advisory_count,
   };
-  next.evidence_quality_summary = evidenceQuality.summary;
-  if (!evidenceQuality.passed || evidenceQuality.qualityStatus === "return_required") {
+  next.evidence_quality_summary = [
+    evidenceQuality.summary,
+    ...ontologyWeakLinks,
+  ].filter(Boolean).join("；");
+  next.evidence_requirement_assessments = evidenceQuality.requirementAssessments;
+  next.delivery_readiness = deriveDeliveryReadiness(next);
+  if (ontologyBlocked || !evidenceQuality.passed || evidenceQuality.qualityStatus === "return_required") {
     next.quality_status = "return_required";
     next.return_required = true;
     next.deterministic_check_status = "not_checked";
     next.evidence_readiness = "not_ready";
-    next.delivery_readiness = "not_ready";
     next.allowed_05_output = evidenceQuality.totalEvidence > 0 ? "bounded_report" : "gap_report_only";
   } else if (evidenceQuality.qualityStatus === "minimum_pass") {
     if (String(next.quality_status || "") === "high_quality_pass") {
@@ -531,11 +671,9 @@ export function recomputeStage03EvidenceQualityGate(
       next.deterministic_check_status = "not_checked";
     }
     next.evidence_readiness = "partial";
-    next.delivery_readiness = "partial";
     next.allowed_05_output = "bounded_report";
   } else if (evidenceQuality.qualityStatus === "high_quality_pass") {
     next.evidence_readiness = "ready";
-    next.delivery_readiness = "ready";
     next.allowed_05_output = "full_report";
     next.return_required = false;
     // 证据门按当前 Registry 重算通过后，再以完整 HQ 合同闭环校验。

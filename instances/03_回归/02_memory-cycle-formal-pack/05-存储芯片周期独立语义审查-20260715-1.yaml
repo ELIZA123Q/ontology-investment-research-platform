@@ -13,7 +13,7 @@ inputs:
     stage_02: sha256:0c7899455a2c210d1d6219b4c5c7d748c79ac130b8b55803ee5157a0c3ddda1a
     stage_03: sha256:504d002c2521ba97e0d68250a47706ab95996ea33994fb50fa4a572d6af9fcc7
     stage_04: sha256:676270b7cf5d2e3a299692a20482b9dbd08f2d28e1f77331e4f242ed15fbe3eb
-    stage_05: sha256:226d480af11fdb05ecc607db5c24acb34ba18edc88c81b1ed8f1e87c9c71d4e5
+    stage_05: sha256:69b47d8f8f2d768d7776916f650db504c4afc945f6ac86db2f5e8cff9736b6fc
 checks:
 - check_id: local_evidence_not_globalized
   result: pass

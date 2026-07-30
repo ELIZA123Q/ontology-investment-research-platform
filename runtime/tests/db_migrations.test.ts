@@ -25,6 +25,14 @@ describe("database migrations", () => {
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_candidate_review_events'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_change_requests'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='ontology_change_request_events'").get()).toBeTruthy();
+    const ontologyRequestColumns = (connection.prepare("PRAGMA table_info(ontology_change_requests)").all() as Array<{ name: string }>).map((row) => row.name);
+    expect(ontologyRequestColumns).toEqual(expect.arrayContaining([
+      "base_fingerprint", "candidate_fingerprint", "branch_ref", "conflicts_json", "rebase_required", "approval_policy_ref",
+    ]));
+    const ontologyActionLogColumns = (connection.prepare("PRAGMA table_info(ontology_change_request_events)").all() as Array<{ name: string }>).map((row) => row.name);
+    expect(ontologyActionLogColumns).toEqual(expect.arrayContaining([
+      "action_type", "action_version", "actor_role", "prior_fingerprint", "result_fingerprint", "edited_object_ids_json",
+    ]));
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='research_experience_events'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='runtime_meta'").get()).toBeTruthy();
     expect(connection.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name='idx_artifacts_one_running'").get()).toBeTruthy();

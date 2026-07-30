@@ -110,7 +110,7 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
                 <span className="muted"> {section(key)?.body}</span>
                 {section(key)?.items?.length
                   ? <ul>{section(key)!.items!.slice(0, 5).map((item) => <li key={item}>{item}</li>)}</ul>
-                  : <p className="muted">尚未登记</p>}
+                  : <p className="muted">{section(key)?.emptyBody || "尚未登记"}</p>}
               </div>
             ))}
           </div>

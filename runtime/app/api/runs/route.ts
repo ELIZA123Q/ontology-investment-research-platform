@@ -1,4 +1,4 @@
-import { createRun, listRuns } from "@/adapters/db";
+import { createRun, listRuns, deleteRuns } from "@/adapters/db";
 import { listActiveResearchJobs } from "@/adapters/research_jobs";
 import {
   createExperienceCohortRun,
@@ -64,5 +64,18 @@ export async function POST(req: Request) {
     }
   } catch (e) {
     return Response.json({ error: String(e) }, { status: 400 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const body = await req.json();
+    const ids = Array.isArray(body.ids) ? body.ids.map(String).filter(Boolean) : [];
+    if (!ids.length) return Response.json({ error: "请选择要删除的研究" }, { status: 400 });
+    const result = deleteRuns(ids);
+    return Response.json({ ok: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "批量删除失败";
+    return Response.json({ error: message }, { status: 500 });
   }
 }

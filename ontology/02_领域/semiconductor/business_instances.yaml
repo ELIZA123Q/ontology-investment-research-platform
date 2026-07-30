@@ -3036,6 +3036,111 @@ business_instance_graph:
     projection:
       section: evidence_recipes
       index: 2
+  - id: recipe_trend_direction
+    type: EvidenceRecipe
+    properties:
+      id: recipe_trend_direction
+      recipeName: 趋势方向判断取证配方
+      judgmentType: trend_direction
+      strategyLibraryRef: methods/03_取证/A03_趋势与阶段判断.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, cross_validation, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 可比时间序列、基准、独立交叉验证与反证齐备
+      proxyRule: 代理序列必须披露口径、滞后和不可替代项
+      downgradeRule: 序列或交叉验证不足时最高 observation/Q1
+    projection: {section: evidence_recipes, index: 3}
+  - id: recipe_mechanism_validation
+    type: EvidenceRecipe
+    properties:
+      id: recipe_mechanism_validation
+      recipeName: 机制验证取证配方
+      judgmentType: mechanism_validation
+      strategyLibraryRef: methods/03_取证/A04_机制传导验证.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, cross_validation, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 起点事实、关键机制节点、承接结果与反证逐段核验
+      proxyRule: 机制节点允许受限代理，但不得跳过中间节点
+      downgradeRule: 任一关键机制段缺证据则停止向终点外推
+    projection: {section: evidence_recipes, index: 4}
+  - id: recipe_causal_attribution
+    type: EvidenceRecipe
+    properties:
+      id: recipe_causal_attribution
+      recipeName: 因果归因取证配方
+      judgmentType: causal_attribution
+      strategyLibraryRef: methods/03_取证/A04_机制传导验证.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, cross_validation, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 原因时序、机制链、替代解释和反事实检查同时通过
+      proxyRule: 相关性或单点事件不得单独作为因果归因
+      downgradeRule: 替代解释未排除时最高 conditional/Q2
+    projection: {section: evidence_recipes, index: 5}
+  - id: recipe_object_differentiation
+    type: EvidenceRecipe
+    properties:
+      id: recipe_object_differentiation
+      recipeName: 对象分化比较取证配方
+      judgmentType: object_differentiation
+      strategyLibraryRef: methods/03_取证/A05_对象分化比较.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 比较口径、对象暴露、承接能力和反证均可比
+      proxyRule: 部分可比时只允许分组比较
+      downgradeRule: 统一比较口径缺失时禁止精确排序
+    projection: {section: evidence_recipes, index: 6}
+  - id: recipe_impact_realization
+    type: EvidenceRecipe
+    properties:
+      id: recipe_impact_realization
+      recipeName: 影响兑现取证配方
+      judgmentType: impact_realization
+      strategyLibraryRef: methods/03_取证/A06_财务影响测算.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 财务基准、关键桥接、敏感性和反证齐备
+      proxyRule: 行业增长不得直接代理公司收入或利润
+      downgradeRule: 基准或桥接缺失时只保留方向材料
+    projection: {section: evidence_recipes, index: 7}
+  - id: recipe_expectation_gap
+    type: EvidenceRecipe
+    properties:
+      id: recipe_expectation_gap
+      recipeName: 预期差取证配方
+      judgmentType: expectation_gap
+      strategyLibraryRef: methods/03_取证/A07_市场预期与定价.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 事前预期 vintage、新信息、修正路径与反证齐备
+      proxyRule: 事后预测不得回填为事前预期
+      downgradeRule: 无事前 vintage 时最高 observation/Q1
+    projection: {section: evidence_recipes, index: 8}
+  - id: recipe_valuation_impact
+    type: EvidenceRecipe
+    properties:
+      id: recipe_valuation_impact
+      recipeName: 估值影响取证配方
+      judgmentType: valuation_impact
+      strategyLibraryRef: methods/03_取证/A07_市场预期与定价.md
+      strategyVersion: 3.2.0
+      requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
+      mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
+      counterBasketTypes: [counter_evidence]
+      minimumPassRule: 估值基准、预期变化、定价反应和反证齐备
+      proxyRule: 单日价格波动不得单独归因于目标信息
+      downgradeRule: 缺估值基准或事前预期时最高 observation/Q1
+    projection: {section: evidence_recipes, index: 9}
   - id: proxy_spot_price_for_inventory
     type: ProxyIndicator
     properties:

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Background, BackgroundVariant, Controls, Position, ReactFlow, useEdgesState, useNodesState, type Edge, type Node } from "@xyflow/react";
+import { Background, BackgroundVariant, Controls, MarkerType, Position, ReactFlow, useEdgesState, useNodesState, type Edge, type Node } from "@xyflow/react";
 import type { ResearchWorkItem } from "@/engine/types";
 
 export type ResearchGraphNode = {
@@ -83,6 +83,12 @@ function toFlowEdges(
         opacity: focused ? 1 : 0.12,
       },
       labelStyle: { fill: "#687680", fontSize: 10, opacity: focused ? 1 : 0.12 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: colors[tone],
+        width: 16,
+        height: 16,
+      },
       zIndex: focused ? 8 : 0,
       pathOptions: { borderRadius: 14, offset: 28 },
     };
@@ -104,7 +110,7 @@ export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessa
   workItems?: Array<Pick<ResearchWorkItem, "id" | "target_id" | "status" | "title" | "reason" | "stage" | "kind">>;
 }) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState(inputNodes[0]?.id || "");
+  const [selectedId, setSelectedId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reviewNote, setReviewNote] = useState("");
@@ -138,10 +144,7 @@ export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessa
   }, [styledEdges, setEdges]);
 
   useEffect(() => {
-    if (!selectedId && inputNodes[0]?.id) setSelectedId(inputNodes[0].id);
-    else if (selectedId && !inputNodes.some((node) => node.id === selectedId)) {
-      setSelectedId(inputNodes[0]?.id || "");
-    }
+    if (selectedId && !inputNodes.some((node) => node.id === selectedId)) setSelectedId("");
   }, [inputNodes, selectedId]);
 
   async function decide(status: "approved" | "rework") {
@@ -177,7 +180,7 @@ export function ResearchGraph({ nodes: inputNodes, edges: inputEdges, emptyMessa
         onEdgesChange={onEdgesChange}
         defaultEdgeOptions={{ type: "smoothstep" }}
         fitView
-        fitViewOptions={{ padding: 0.18 }}
+        fitViewOptions={{ padding: 0.24 }}
         minZoom={0.35}
         maxZoom={1.5}
         nodesDraggable

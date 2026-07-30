@@ -1,5 +1,5 @@
 import { clarifyStage01 } from "@/engine/workflow";
-import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
@@ -34,7 +34,7 @@ export async function POST(
     const regenerate = body.regenerate !== false;
     if (regenerate) {
       const job = enqueueArtifactGeneration({ runId: id, kind: "stage_01" });
-      after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+      after(() => { void runResearchJobUntilSettled(job.id, { workerId: `next-after-${process.pid}` }).catch(() => undefined); });
       return Response.json({ artifact, job, regenerating: true }, { status: 202 });
     }
     return Response.json({ artifact, regenerating: false });

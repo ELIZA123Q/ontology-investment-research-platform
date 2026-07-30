@@ -134,4 +134,48 @@ describe("replayable research job runner", () => {
     expect(result).toMatchObject({ id: queued.id, status: "waiting_for_input" });
     expect(JSON.parse(result!.result_json).reason).toContain("JOB_HARD_TIMEOUT");
   });
+
+  it("keeps the request-owned job alive across an automatic retry", async () => {
+    const now = new Date().toISOString();
+    const queued = store.enqueue({
+      runId: "run-worker",
+      jobType: "generate_artifact",
+      stage: "stage_01",
+      dedupeKey: "runner-auto-retry",
+      maxAttempts: 3,
+      payload: {
+        run_id: "run-worker",
+        kind: "stage_01",
+        mode: "regenerate",
+        max_auto_rounds: null,
+        initial_source_ids: [],
+      },
+      now,
+    });
+    const artifact = insertArtifact("artifact-after-retry");
+    let executions = 0;
+    const { runResearchJobUntilSettled } = await import("@/engine/research_job_runner");
+
+    const result = await runResearchJobUntilSettled(queued.id, {
+      store,
+      workerId: "request-retry-test",
+      sleep: async () => {
+        store.retryNow(queued.id);
+      },
+      execute: async (_runId, _kind, options) => {
+        executions += 1;
+        if (executions === 1) throw new Error("MODEL_TIMEOUT: transient");
+        options?.executionLease?.onArtifactCreated?.(artifact.id);
+        return artifact;
+      },
+    });
+
+    expect(executions).toBe(2);
+    expect(result).toMatchObject({
+      id: queued.id,
+      status: "waiting_for_review",
+      attempt: 2,
+      artifact_id: artifact.id,
+    });
+  });
 });

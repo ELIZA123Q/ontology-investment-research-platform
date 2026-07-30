@@ -25,8 +25,18 @@ const stage:Record<StageKind,string>={
 
 填写 input_resolution（mode/status/clarifications）、main_judgment_axis、delivery_depth、research_value_gate、delivery_archetype.primary（明确交付形态：行业周期判断→industry_cycle_report、事件点评→event_commentary 等），并写清增量问题——相对常见叙事，这个研究真正要回答什么新问题。
 
-document_markdown 按投研需求说明模板展开正式正文（含解析、主线、时间、范围、价值与交付）。若输入含 clarification_state，保留全部历史并基于回答收敛任务。`,
-  stage_02:`依据已确认的任务定义，从注册资产中选择方法组合，定义判断单元、变量、传导路径、证据要求和竞争解释。
+前提三分必须填写三个独立数组，不能互相复制：
+- known_facts：只登记用户明确给定或有效上下文继承的输入前提；它们在 01 尚未核验，不得把模型常识或系统推断写进去。
+- user_assumptions：只登记用户明确采用、但尚未由本任务验证的立场或边界选择；系统默认和可回滚整理不得冒充用户假设。
+- hypotheses_to_verify：登记后续需要支持、削弱或反证的可证伪命题；accepted 任务至少一条，不能只重复研究问题的问句。
+每项都填写稳定 id、statement、source_refs 和 invalidation_conditions。若某类确实没有内容，明确输出空数组；同一陈述不得跨类重复。input_resolution.rollback_assumptions 继续单独保存系统默认，不得塞进 user_assumptions。
+
+document_markdown 按投研需求说明模板展开正式正文（含解析、主线、时间、范围、前提三分、价值与交付）。若输入含 clarification_state，保留全部历史并基于回答收敛任务。`,
+  stage_02:`依据已确认的任务定义，从注册资产中选择方法组合，定义判断单元、变量、传导路径、证据要求和竞争解释。把 Stage01 的 hypotheses_to_verify 作为核心待验证命题来源；known_facts 只能作为未经本阶段复核的结构前提，user_assumptions 只能作为用户约束，不得把两者改写成已核验事实。
+
+先做两遍而不是一遍套模板：第一遍只从 Stage01 根问题、边界和待验证假设做无损拆解，形成可独立证伪的 JudgmentUnit；第二遍再匹配框架、本体、方法和证据画像。资产缺口必须登记 gap，禁止为了迁就现有本体/方法库改写 01 问题。
+
+填写 task_answer_contract：root_question 必须原样承接 Stage01 normalized_question；required_judgment_unit_ids 只列回答根问题不可缺的单元；synthesis_rule 说明这些局部判断怎样合成根问题回答；blocking_policy 说明哪个必需单元 J0/被反证/被阻断时根问题必须降级或停止；hypothesis_coverage 将 Stage01 每条 hypotheses_to_verify 映射到至少一个 JudgmentUnit。不得用“综合判断”“视情况而定”作合成规则。
 
 方法选用：先确定每个 JudgmentUnit 的 judgment_type → 查 judgment_method_routes 的允许列表和默认方法 → 核对 method_candidates 的 entry_requires 和适用条件 → 选择最小充分的方法组合。
 周期阶段（cycle_phase）必须以 kb03:A03 作为主取证方法；kb03:A02 仅用于满足 A03 的状态测量前置和建立可比基线，不能单独代替 A03。若同一周期单元同时登记 A02/A03，二者都应指向该 JudgmentUnit，并分别说明 prerequisite 与 primary 的角色。
@@ -35,7 +45,7 @@ StateVariable 定义：每个变量给出 name、category、definition 和锚定
 
 路径绑定：新建路径 ID 使用 P-nn（修复旧产物时保留已有 PATH-* 稳定 ID）；每条 paths[] 必须按传导顺序填写 variable_ids，并用 judgment_unit_ids 显式登记它服务的 JudgmentUnit；禁止依赖变量 ID、对象 ID 或文本相似度猜归属。transmission_path / mechanism_validation / impact_realization 类型的 JudgmentUnit 必须至少绑定一条含两个及以上变量的路径。路径不得悬空，也不得用一条全局路径替所有判断单元过门。
 
-每个 JudgmentUnit 登记 judgment_structure、evidence 和 adjudication 的 MA 候选。evidence 的 method_id 必须落在 allowed_kb03_methods，adjudication 必须落在 allowed_kb04_methods。每个 JudgmentUnit 都必须至少绑定一条竞争解释、一条可执行反证方向，并把该反证方向投影为 evidence_role=counter 的 EvidenceRequirement；不能用全局一条反证替全部单元过门。竞争解释给出 discriminating_evidence——可区分主路径与该解释的证据要求，不是已取得事实。
+每个 JudgmentUnit 登记 judgment_structure、evidence 和 adjudication 的 MA 候选。evidence 的 method_id 必须落在 allowed_kb03_methods，adjudication 必须落在 allowed_kb04_methods。每个 JudgmentUnit 都必须至少绑定一条主证据/边界 EvidenceRequirement、一条竞争解释、一条可执行反证方向，并把该反证方向投影为 evidence_role=counter 的 EvidenceRequirement；一条 EvidenceRequirement 只允许绑定一个 JudgmentUnit，不能用全局一条反证替多个单元过门。竞争解释给出 discriminating_evidence——可区分主路径与该解释的证据要求，不是已取得事实。
 
 产出 research_logic_markdown（含 judgment_spine 展开和竞争解释叙述，不是条目列表）和 ontology_view_yaml。填写 logic_id、can_enter_03、quality_status；有 blocking_gap 时 can_enter_03 为 false。research_logic_markdown 必须足够支撑后续 05C 论点章——对象分化、主路径、证伪条件。
 
@@ -53,6 +63,7 @@ StateVariable 定义：每个变量给出 name、category、definition 和锚定
   stage_03:`继承 02 的 method_applications，保持 MA 身份和版本不变。对取证方法记录 selected/degraded/blocked/rejected 状态和前置条件检查。
 
 证据压缩：产出 evidence_drafts（按 source_claim/fact_draft/counter/conflict/gap 分类）、evidence_summaries（趋势/对比/异常摘要，numeric_values 登记可引用数字）、evidence_bundles（按 judgment_unit_id 的 support/counter/gap 分组）。
+每条 evidence_draft 必须填写 evidence_requirement_ids，绑定到它实际满足或暴露缺口的 Stage02 ER-*；不得仅绑定 JudgmentUnit 后让一条宽泛事实自动满足该单元全部证据要求。若同一事实确实服务多个 ER，逐项列出且主体、时间、口径和证据角色都必须匹配。
 
 来源登记：sources 提供 source_key、source_tier、published_at、逐字 source_quote 和 locator。同一 URL 只对应一个 source_key。source_quote 必须从工具返回的 content_excerpt 连续复制（≥20字），陈述中的数字必须能在 source_quote 或 numeric_values 中找到。MCP 是获取通道而不是来源等级；公司 IR、监管/政府官网等公开原文经正文抓取与逐字核验后同样可以作为一手证据。任何通道未取得可核验正文时登记 gap，不伪装成已核验事实。
 
@@ -67,6 +78,7 @@ gap 必须填写 requirement 和 direction:unknown，source_keys 为空数组。
 - fact_draft 必须含 subject_ref、time_basis、scope_ref，不写无主体的抽象陈述
 - numeric_values 只登记有 source_quote 原文出处的数字，不自行生成估算值
 - gap 必须填写 requirement（需要什么证据）和 direction:unknown
+- gap 必须在 evidence_requirement_ids 中原样引用对应 Stage02 ER；一个 gap 不得替多个语义不同的 ER 过门
 - evidence_summaries 按趋势/对比/异常三类组织，每条摘要绑定 supporting_draft_ids`,
   stage_04:`继承 03 的 method_applications 并收敛：执行完成的标记 executed，无法执行的标记 blocked/degraded/rejected。优先基于 Bundle/Summary 裁决。
 
@@ -144,9 +156,11 @@ export function promptForEvidenceSupplement() {
 - affected_object_refs 与 upserts/removals 是双记账：模型常只更新 upserts 而漏写新建 SRC。以 upserts/removals 为准；Runtime 提交时会自动并入 affected_object_refs。
 - method_applications / sources / evidence_drafts 禁止用 null 占位必填数组或字符串；无内容用 [] 或明确字符串。
 - 新增来源使用新 SRC-xx source_key，并写入 upserts.sources；补证来源必须提供可逐字核验的 source_quote 与 locator，以及 url/title/published_at/source_tier/source_type。一手 MCP/公司披露/官方来源的 authority_type 应标为 company_disclosure 或 official。
+- MCP 无公开 URL 时，只允许使用工具返回的 structured_snapshot_contract.verification_status="field_snapshot_verified" 记录：原样复制其 source_id、mcp:// virtual_url、source_quote、locator/published_at，不得改写响应或伪造网页 URL。mapping_status 未注册、缺重放参数或缺业务时间的 MCP 响应仍登记 gap。
 - 取证真实性是硬约束：本轮若没有实际调用 search_public_web、fetch_public_pages 或证据 MCP，则不得新增 upserts.sources，不得把任何 evidence_draft 写成 source_claim/fact_draft/counter/conflict；只能保留或新增 gap，并把证据方法状态设为 blocked/degraded。Runtime 会按工具轨迹复核，模型常识、记忆和训练数据不算来源。
 - 每条非 gap evidence_draft 必须同时绑定至少一个本轮 upserts.sources 或 current_evidence_draft 中完整可抓取的 source_key；不能只写 source_keys 而不提交来源对象，也不能引用搜索摘要冒充正文。
 - 新建非 gap evidence_draft 必须一次给齐：id、statement、kind、direction（support|weaken|neutral|unknown）、source_keys、source_ids:[]、judgment_unit_ids、ontology_node_ids、subject_ref、time_basis、scope_ref、observed_at、valid_from、valid_to:null、published_at、cutoff_at、directness（direct|indirect|proxy）、limitations、semiconductor_measurement（不用则 null）。缺少事实时间时不要猜测，改为 gap。
+- 新建或更新 evidence_draft 必须填写 evidence_requirement_ids，且只能引用本轮 requirements 中实际匹配的 ER；找不到精确 ER 时改为 gap 或保留未绑定，不得按 JudgmentUnit 粗配。
 - semiconductor_measurement 非 null 时必须给齐 metric_kind（capacity|yield）以及 facility_ref、wafer_size、process_or_product_ref、batch_stage、unit、business_time_basis；未知字段明确写 null。
 - method_applications.status 只能是 candidate、selected、executed、rejected、blocked、degraded。仅搜索到线索而未取得正文时不得写 executed。
 - 修复失败来源时优先阅读 failed_sources.snapshot_excerpt：从其连续复制 ≥20 字原文作为 source_quote；摘录与主张无关则换 URL，或把绑定证据降为 gap。

@@ -62,6 +62,22 @@ runtime_relation_types:
     source_types: [EvidenceAssessment]
     target_types: [EvidenceClaim, EvidenceFact]
     source_ref: runtime/engine/runtime_operations.yaml#actions.AssessEvidenceForUse
+  requirementUsesEvidenceProfile:
+    source_types: [EvidenceRequirement]
+    target_types: [EvidenceProfile]
+    source_ref: ontology/01_通用/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_profile_refs
+  evidenceProfileConfiguresRequirement:
+    source_types: [EvidenceProfile]
+    target_types: [EvidenceRequirement]
+    source_ref: ontology/01_通用/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_profile_refs
+  requirementGovernedByRecipe:
+    source_types: [EvidenceRequirement]
+    target_types: [EvidenceRecipe]
+    source_ref: ontology/01_通用/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_recipe_ref
+  evidenceRecipeGovernsRequirement:
+    source_types: [EvidenceRecipe]
+    target_types: [EvidenceRequirement]
+    source_ref: ontology/01_通用/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_recipe_ref
 
 executable_method_profile:
   kb04:A01:

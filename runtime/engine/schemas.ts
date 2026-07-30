@@ -1,5 +1,17 @@
 import { z } from "zod";
-import { isHumanClarificationQuestion } from "./stage01_contract";
+import {
+  markdownSchema as markdown,
+  nonEmptyStringSchema as nonEmptyString,
+  qualityStatusSchema as qualityStatus,
+  stageStatusSchema as stageStatus,
+} from "./schema_primitives";
+import {
+  EVALUATION_CRITERIA,
+  evaluationSchema,
+  evaluationSubmissionSchema,
+  independentReviewSchema,
+} from "./schemas_review";
+import { taskDefinitionSchema } from "./schemas_stage01";
 import {
   ONTOLOGY_CONFIDENCE_LEVELS,
   ONTOLOGY_ENUMS,
@@ -8,17 +20,6 @@ import {
   ONTOLOGY_SOURCE_TIERS,
 } from "./ontology_vocabulary.generated";
 
-const markdown = z.string().min(40);
-const nonEmptyString = z.string().min(1);
-const qualityStatus = z.enum([
-  "draft",
-  "minimum_pass",
-  "high_quality_pass",
-  "return_required",
-  "stop_with_gap_report",
-]);
-const stageStatus = z.enum(["not_started", "in_progress", "complete", "blocked", "returned"]);
-const taskDisposition = z.enum(["accepted", "needs_clarification", "out_of_scope", "split_required"]);
 const ontologyGapScanStatus = z.enum(["no_gap", "minor_gap", "major_gap", "blocking_gap"]);
 const judgmentType = z.enum(ONTOLOGY_JUDGMENT_TYPES);
 
@@ -57,138 +58,6 @@ export const methodApplicationSchema = z.object({
   })),
 });
 
-export const taskDefinitionSchema = z.object({
-  normalized_question: nonEmptyString,
-  core_object: nonEmptyString,
-  judgment_action: nonEmptyString,
-  time_scope: z.object({ lookback: nonEmptyString, as_of: nonEmptyString, forward: nonEmptyString }),
-  boundaries: z.array(z.string()),
-  exclusions: z.array(z.string()),
-  domain_supported: z.boolean(),
-  document_markdown: markdown,
-  stage_status: stageStatus,
-  task_disposition: taskDisposition,
-  status_reason: nonEmptyString,
-  quality_status: qualityStatus,
-  quality_gate_ref: nonEmptyString,
-  deterministic_check_status: z.enum(["not_checked", "checked", "failed"]),
-  semantic_review_status: z.enum(["not_reviewed", "reviewed", "rejected"]),
-  return_required: z.boolean(),
-  return_stage: z.string().nullable(),
-  original_input: nonEmptyString,
-  judgment_landing: nonEmptyString,
-  task_type: z.object({
-    primary: nonEmptyString,
-    secondary: z.array(z.string()),
-  }),
-  delivery_archetype: z.object({
-    primary: nonEmptyString,
-    secondary: z.array(z.string()),
-    modules: z.array(z.string()),
-  }),
-  intended_use: z.array(z.string()).min(1),
-  not_allowed_use: z.array(z.string()),
-  main_judgment_axis: z.object({
-    object: nonEmptyString,
-    comparison_scope: nonEmptyString,
-    judgment_action: nonEmptyString,
-    primary_channel: nonEmptyString,
-    key_question: nonEmptyString,
-    expected_05_landing: nonEmptyString,
-    non_core_axes: z.array(z.string()),
-  }),
-  delivery_depth: z.object({
-    conclusion_granularity: nonEmptyString,
-    minimum_delivery: nonEmptyString,
-  }),
-  research_value_gate: z.object({
-    status: z.enum(["pass", "fail", "pending"]),
-    value_level: z.enum(["high", "medium", "low"]),
-    disagreement_or_unknown: nonEmptyString,
-    changing_variable: nonEmptyString,
-    asset_or_decision_impact_path: nonEmptyString,
-    decision_use: nonEmptyString,
-    why_now: nonEmptyString,
-    incremental_question: nonEmptyString,
-    low_value_reason: z.string(),
-  }),
-  overscope_check: z.object({
-    status: z.enum(["pass", "fail", "pending"]),
-    reason: nonEmptyString,
-    broadness_flags: z.array(z.string()),
-    alternative_subquestions: z.array(z.string()),
-    excluded_paths: z.array(z.string()),
-    allowed_secondary_axes: z.array(z.string()),
-  }),
-  needs_split: z.boolean(),
-  split_recommendation: z.string().nullable(),
-  scope_summary: nonEmptyString,
-  input_resolution: z.object({
-    mode: z.enum(["direct_extract", "inherited_context", "user_clarified"]),
-    status: z.enum(["resolved", "pending"]),
-    source_refs: z.array(z.string()).min(1),
-    system_understanding: z.object({
-      core_object: nonEmptyString,
-      judgment_action: nonEmptyString,
-      time_window: nonEmptyString,
-      scope_boundary: nonEmptyString,
-      delivery_landing: nonEmptyString,
-    }),
-    rollback_assumptions: z.array(z.string()),
-    clarifications: z.array(z.object({
-      question_id: nonEmptyString,
-      topic: nonEmptyString,
-      question: nonEmptyString,
-      answer: z.string().nullable(),
-      answered_at: z.string().nullable(),
-    })),
-    unresolved_structural_ambiguities: z.array(z.string()),
-  }),
-}).superRefine((value, context) => {
-  if (value.task_disposition === "needs_clarification") {
-    const clarifications = value.input_resolution.clarifications;
-    const unanswered = clarifications.filter((item) => !item.answer);
-    const unresolved = value.input_resolution.unresolved_structural_ambiguities;
-    const allAnsweredAwaitingRegen = clarifications.length > 0
-      && clarifications.every((item) => Boolean(item.answer))
-      && value.input_resolution.mode === "user_clarified"
-      && value.input_resolution.status === "pending";
-    if (!unanswered.length && !unresolved.length && !allAnsweredAwaitingRegen) {
-      context.addIssue({
-        code: "custom",
-        path: ["task_disposition"],
-        message: "needs_clarification 必须登记待答澄清或未决结构性歧义",
-      });
-    }
-    if (unanswered.length > 5) {
-      context.addIssue({
-        code: "custom",
-        path: ["input_resolution", "clarifications"],
-        message: "澄清问题过多：一次最多 5 个结构性追问，请合并或拆题",
-      });
-    }
-    unanswered.forEach((item, index) => {
-      if (!isHumanClarificationQuestion(item.question)) {
-        context.addIssue({
-          code: "custom",
-          path: ["input_resolution", "clarifications", index, "question"],
-          message: "澄清问题必须是短句人话（对齐 7/13：如「是否把 HBM、非 HBM DRAM 与 NAND 分开判断」），禁止模板腔与内部代号",
-        });
-      }
-    });
-  }
-  if (value.input_resolution.mode === "direct_extract") {
-    const forged = value.input_resolution.clarifications.some((item) => Boolean(item.answer));
-    if (forged) {
-      context.addIssue({
-        code: "custom",
-        path: ["input_resolution", "clarifications"],
-        message: "direct_extract 不得伪造已回答的澄清记录",
-      });
-    }
-  }
-});
-
 export const judgmentStructureSchema = z.object({
   method_applications: z.array(methodApplicationSchema).min(1),
   research_scope: z.object({
@@ -211,6 +80,24 @@ export const judgmentStructureSchema = z.object({
     decision_weight: z.number().min(0).max(1).nullable().optional(),
     decision_role: z.enum(["primary", "supporting", "boundary", "watch"]).nullable().optional(),
   })).min(1),
+  /**
+   * 01 根问题到 02 原子判断的闭环合同。
+   *
+   * JudgmentUnit 只解决局部问题；没有本合同，02 即使拆得很细，也无法证明
+   * 这些局部裁决最终能够回答 01。旧产物允许缺省，生成/确认门会补投影并校验。
+   */
+  task_answer_contract: z.object({
+    root_question_ref: nonEmptyString,
+    root_question: nonEmptyString,
+    required_judgment_unit_ids: z.array(z.string()).min(1),
+    synthesis_operator: z.enum(["all_required", "weighted", "conditional", "comparative", "custom"]),
+    synthesis_rule: nonEmptyString,
+    blocking_policy: nonEmptyString,
+    hypothesis_coverage: z.array(z.object({
+      hypothesis_ref: nonEmptyString,
+      judgment_unit_ids: z.array(z.string()).min(1),
+    })).default([]),
+  }).nullable().optional(),
   variables: z.array(z.object({
     id: nonEmptyString,
     name: nonEmptyString,
@@ -247,9 +134,18 @@ export const judgmentStructureSchema = z.object({
     requirement: nonEmptyString,
     evidence_role: z.enum(ONTOLOGY_ENUMS["EvidenceRequirement.evidence_role"]),
     minimum_independent_sources: z.number().int().nonnegative(),
-    judgment_unit_ids: z.array(z.string()).default([]),
+    // Ontology 3.0: 一条 ER 只服务一个原子 JudgmentUnit。
+    judgment_unit_ids: z.array(z.string()).min(1).max(1),
     source: z.enum(["unit_requirement", "counter_direction"]).nullable().optional(),
     source_ref: z.string().nullable().optional(),
+    evidence_profile_refs: z.array(z.string()).nullable().optional(),
+    evidence_recipe_ref: z.string().nullable().optional(),
+    derivation_refs: z.object({
+      judgment_unit_ref: z.string().nullable(),
+      state_variable_refs: z.array(z.string()),
+      path_refs: z.array(z.string()),
+    }).nullable().optional(),
+    no_profile_reason: z.string().nullable().optional(),
   })).default([]),
   counter_evidence_directions: z.array(z.preprocess(
     (value) => {
@@ -345,6 +241,28 @@ export const judgmentStructureSchema = z.object({
   }
   const unitIds = new Set(value.judgment_units.map((unit) => unit.id));
   const variableIds = new Set(value.variables.map((variable) => variable.id));
+  if (value.task_answer_contract) {
+    for (const unitId of value.task_answer_contract.required_judgment_unit_ids) {
+      if (!unitIds.has(unitId)) {
+        context.addIssue({
+          code: "custom",
+          path: ["task_answer_contract", "required_judgment_unit_ids"],
+          message: `根问题闭环合同引用了不存在的判断单元 ${unitId}`,
+        });
+      }
+    }
+    for (const [index, coverage] of value.task_answer_contract.hypothesis_coverage.entries()) {
+      for (const unitId of coverage.judgment_unit_ids) {
+        if (!unitIds.has(unitId)) {
+          context.addIssue({
+            code: "custom",
+            path: ["task_answer_contract", "hypothesis_coverage", index, "judgment_unit_ids"],
+            message: `假设覆盖引用了不存在的判断单元 ${unitId}`,
+          });
+        }
+      }
+    }
+  }
   const pathIds = new Set<string>();
   for (const [index, path] of value.paths.entries()) {
     if (pathIds.has(path.id)) {
@@ -473,6 +391,7 @@ const evidenceFactDraft = z.object({
   source_keys: z.array(z.string()).min(1),
   source_ids: z.array(z.string()).default([]),
   judgment_unit_ids: z.array(z.string()).min(1),
+  evidence_requirement_ids: z.array(z.string()).default([]),
   ontology_node_ids: z.array(z.string()),
   subject_ref: nonEmptyString,
   time_basis: nonEmptyString,
@@ -502,6 +421,7 @@ const evidenceGapDraft = z.object({
   source_keys: z.array(z.string()).max(0),
   source_ids: z.array(z.string()).default([]),
   judgment_unit_ids: z.array(z.string()).min(1),
+  evidence_requirement_ids: z.array(z.string()).default([]),
   ontology_node_ids: z.array(z.string()),
   requirement: nonEmptyString,
   evidence_role: z.enum(ONTOLOGY_ENUMS["EvidenceRequirement.evidence_role"]),
@@ -532,6 +452,7 @@ const evidenceSummarySchema = z.object({
 /** Evidence Bundle：按判断单元组织的支持/反证/缺口，供 04 默认消费。 */
 const evidenceBundleSchema = z.object({
   judgment_unit_id: nonEmptyString,
+  requirement_ids: z.array(z.string()).default([]),
   support_evidence_ids: z.array(z.string()).default([]),
   counter_evidence_ids: z.array(z.string()).default([]),
   gap_ids: z.array(z.string()).default([]),
@@ -540,12 +461,50 @@ const evidenceBundleSchema = z.object({
   notes: z.array(z.string()).default([]),
 });
 
+const evidenceRequirementAssessmentSchema = z.object({
+  requirement_id: nonEmptyString,
+  judgment_unit_id: nonEmptyString,
+  evidence_role: z.enum(ONTOLOGY_ENUMS["EvidenceRequirement.evidence_role"]),
+  evidence_ids: z.array(z.string()).default([]),
+  gap_ids: z.array(z.string()).default([]),
+  independent_source_groups: z.number().int().nonnegative(),
+  minimum_independent_sources: z.number().int().nonnegative(),
+  status: z.enum(["met", "partial", "missing", "blocked"]),
+  limitations: z.array(z.string()).default([]),
+});
+
+const stage03OntologyPrecheckSchema = z.object({
+  findings: z.array(z.object({
+    rule_ref: z.enum([
+      "semiconductor_proxy_disclosure",
+      "semiconductor_qualification_stage_alignment",
+      "semiconductor_capacity_yield_scope_alignment",
+      "evidence_scope_time_alignment",
+    ]),
+    severity: z.enum(["advisory", "blocking_soft"]),
+    evidence_id: nonEmptyString,
+    statement: nonEmptyString,
+    message: nonEmptyString,
+    researcher_hint: nonEmptyString,
+  })).default([]),
+  by_rule: z.record(z.string(), z.number().int().nonnegative()).default({}),
+  blocking_soft_count: z.number().int().nonnegative(),
+  advisory_count: z.number().int().nonnegative(),
+});
+
 export const evidencePreparationSchema = z.object({
   method_applications: z.array(methodApplicationSchema).min(1),
   sources: z.array(sourceDraft),
   evidence_drafts: z.array(z.discriminatedUnion("kind", [evidenceFactDraft, evidenceGapDraft])).min(1),
   evidence_summaries: z.array(evidenceSummarySchema).default([]),
   evidence_bundles: z.array(evidenceBundleSchema).default([]),
+  evidence_requirement_assessments: z.array(evidenceRequirementAssessmentSchema).default([]),
+  ontology_precheck: stage03OntologyPrecheckSchema.default({
+    findings: [],
+    by_rule: {},
+    blocking_soft_count: 0,
+    advisory_count: 0,
+  }),
   unresolved_gaps: z.array(z.string()),
   // 规范双产物：数据与证据准备正文 + 跨域实例清单；document_markdown 与 preparation_markdown 镜像。
   preparation_markdown: markdown,
@@ -882,92 +841,6 @@ export const baselineSchema = z.object({
   document_markdown: markdown,
 });
 
-export const evaluationSchema = z.object({
-  scores: z.record(z.string(), z.number().min(1).max(5)),
-  metrics: z.record(z.string(), z.unknown()),
-  notes: z.string(),
-  evaluator: nonEmptyString,
-  evaluated_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/),
-  revealed: z.boolean(),
-  side_a: z.enum(["baseline", "runtime"]),
-  baseline_artifact_id: nonEmptyString,
-  runtime_report_artifact_id: nonEmptyString,
-  frozen_stage03_artifact_id: nonEmptyString,
-  frozen_stage03_artifact_hash: z.string().regex(/^[a-f0-9]{64}$/),
-  metrics_version: z.string().nullable().optional(),
-  metrics_recomputed_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/).nullable().optional(),
-  supersedes_evaluation_artifact_id: z.string().nullable().optional(),
-});
-
-export const EVALUATION_CRITERIA = ["事实与来源可核验性", "无来源主张控制", "反证与竞争解释", "结论边界", "可复盘性", "研究决策帮助"] as const;
-
-export const evaluationSubmissionSchema = z.object({
-  scores: z.record(z.string(), z.number().int().min(1).max(5)),
-  notes: z.string().trim().min(8),
-  evaluator: z.string().trim().min(2),
-});
-
-export const independentReviewSchema = z.object({
-  reviewed_stage04_artifact_id: nonEmptyString,
-  reviewed_stage04_artifact_hash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
-  verdict: z.enum(["pass", "rework"]),
-  issues: z.array(z.object({
-    issue_type: z.enum(["reasoning_jump", "evidence_mismatch", "overclaim", "missing_competing_explanation", "traceability_gap"]),
-    judgment_id: z.string().nullable(),
-    description: nonEmptyString,
-    evidence_refs: z.array(z.string()),
-    required_action: nonEmptyString,
-    return_stage: z.enum(["stage_02", "stage_03", "stage_04"]),
-  })),
-  strengths: z.array(z.string()),
-  overall_assessment: nonEmptyString,
-  document_markdown: markdown,
-  reviewer_model: z.string().nullable(),
-  producer_model: z.string().nullable(),
-  reviewer_type: z.enum(["model", "human"]).default("model"),
-  reviewer_attestation: z.string().nullable().default(null),
-  independence_level: z.enum(["independent_model", "independent_human", "same_model_separate_call"]).nullable(),
-  /** 正式五项语义审查；verdict=pass 时确认门禁要求完整且通过 validateSemanticReview */
-  semantic_checks: z.array(z.object({
-    check_id: z.enum([
-      "local_evidence_not_globalized",
-      "parent_aggregation_complete",
-      "incremental_update_is_local_first",
-      "title_represents_major_scopes",
-      "conditions_scope_and_prohibitions_preserved",
-    ]),
-    result: z.enum(["pass", "fail", "needs_human"]),
-    reason: nonEmptyString,
-    return_to_stage: z.enum(["02", "03", "04", "05"]).nullable().optional(),
-  })).default([]),
-}).superRefine((value, context) => {
-  if (value.independence_level === "independent_human") {
-    if (value.reviewer_type !== "human") context.addIssue({ code: "custom", path: ["reviewer_type"], message: "人类独立审阅必须标记 reviewer_type=human" });
-    if (!value.reviewer_attestation || value.reviewer_attestation.trim().length < 20) {
-      context.addIssue({ code: "custom", path: ["reviewer_attestation"], message: "人类独立审阅必须留下至少 20 字的独立性声明" });
-    }
-  }
-  if (value.independence_level === "independent_model" && value.reviewer_type !== "model") {
-    context.addIssue({ code: "custom", path: ["reviewer_type"], message: "模型独立审阅必须标记 reviewer_type=model" });
-  }
-  if (value.verdict === "pass" && value.semantic_checks.length !== 5) {
-    context.addIssue({
-      code: "custom",
-      path: ["semantic_checks"],
-      message: "verdict=pass 时必须填写全部五项 semantic_checks",
-    });
-  }
-  for (const check of value.semantic_checks) {
-    if (check.result !== "pass" && !check.return_to_stage) {
-      context.addIssue({
-        code: "custom",
-        path: ["semantic_checks"],
-        message: `${check.check_id} 未通过时必须指定 return_to_stage`,
-      });
-    }
-  }
-});
-
 export const schemas = {
   stage_01: taskDefinitionSchema,
   stage_02: judgmentStructureSchema,
@@ -978,3 +851,11 @@ export const schemas = {
   independent_review: independentReviewSchema,
 };
 export type SchemaKind = keyof typeof schemas;
+
+export {
+  EVALUATION_CRITERIA,
+  evaluationSchema,
+  evaluationSubmissionSchema,
+  independentReviewSchema,
+  taskDefinitionSchema,
+};

@@ -16,10 +16,8 @@ import {
   type ControlledStructureProjectionFormHandle,
   type ControlledJudgmentProjectionFormHandle,
 } from "@/app/components/controlled-projection-forms";
-import { SourceCoveragePanel } from "@/app/components/source-coverage-panel";
 import { artifactStatusLabel, researchJobIssueMessage, researchJobStatusLabel } from "@/app/lib/ui-labels";
 import {
-  formatElapsedMs,
   isGenerationProgressStale,
   parseGenerationProgress,
 } from "@/engine/generation_progress";
@@ -34,12 +32,21 @@ import {
   buildScopeStageSummary,
   buildStructureStageSummary,
   prepareReaderReportMarkdown,
-  researcherLanguage,
   researcherMarkdown,
 } from "@/app/lib/researcher-stage-output";
 import { formatJourneyOutput, journeyReviewHref, researchStage } from "@/app/lib/research-journey";
-import { ReportMarkdown } from "@/app/components/report-markdown";
 import type { EvidenceSupplementSummary } from "@/engine/evidence_supplement_view";
+import {
+  Stage3WorkspacePanel,
+  Stage5WorkspacePanel,
+} from "@/app/components/stage-workspace-panels";
+import {
+  ActiveJobNotice,
+  ClarificationSheet,
+  GenerationProgressNotice,
+  StructureValidationNotice,
+  type ValidationState,
+} from "@/app/components/stage-workspace-feedback";
 
 export type { ApprovedScopeSummary };
 
@@ -50,6 +57,7 @@ export type WorkspaceJob = {
   attempt: number;
   max_attempts: number;
   last_error: string | null;
+  available_at: string;
   updated_at: string;
 };
 
@@ -78,20 +86,6 @@ export type Stage4JudgmentProps = {
     precondition_checks: Array<{ precondition_id: string; reason?: string }>;
   }>;
   structureCompetingExplanations: Array<{ explanation_id: string; statement: string; judgment_unit_ids: string[] }>;
-};
-
-type ValidationIssue = {
-  severity: "error" | "warning";
-  unit_id?: string;
-  code: string;
-  message: string;
-};
-
-type ValidationState = {
-  ok: boolean;
-  summary: string;
-  issues: ValidationIssue[];
-  suggested_patch: unknown;
 };
 
 export function StageWorkspace({
@@ -386,8 +380,12 @@ export function StageWorkspace({
     || qualityStatus === "high_quality_pass"
     || needsClarification;
   const canGenerate = unlocked && !busy && artifact?.status !== "running" && !jobInFlight && !needsClarification;
-  const generateLabel = busy || artifact?.status === "running" || jobInFlight
-    ? "模型正在工作…"
+  const generateLabel = activeJob?.status === "retrying"
+    ? "等待自动重试…"
+    : activeJob?.status === "queued"
+      ? "等待执行…"
+      : busy || artifact?.status === "running" || jobInFlight
+        ? "模型正在工作…"
     : needsClarification
       ? "请先回答澄清问题"
       : artifact
@@ -489,88 +487,42 @@ export function StageWorkspace({
       <span className="workspace-status">{statusText}</span>
     </div>
     {!unlocked && <div className="notice">当前阶段已锁定。请先 <Link href={prevStageHref(runId, stage)}>完成并确认上一阶段 →</Link></div>}
-    {activeJob && artifact?.status !== "running" ? <div className={`notice generation-progress${jobNeedsAttention ? " generation-progress-stale" : ""}`}><strong>{researchJobStatusLabel(activeJob.status)}</strong><p>{activeJob.status === "queued" ? "任务已提交，稍后会自动开始生成。" : activeJob.status === "retrying" ? "上次执行中断，将从本阶段起点安全重试。" : activeJob.status === "waiting_for_input" ? "上游输入已变化或证据条件不足，请检查后重新提交。" : activeJob.status === "blocked" ? "本次生成已停止，需要检查当前阶段后重新提交。" : "后台任务正在处理。"}</p>{activeJobError ? <p className="muted">{activeJobError}</p> : null}{jobNeedsAttention ? <p><Link href={jobRecoveryHref(runId, stage, activeJob.status)}>处理当前阶段 →</Link></p> : <p className="muted">页面自动刷新中，每 5 秒同步一次进度。</p>}</div> : null}
+    <ActiveJobNotice
+      job={activeJob}
+      artifactRunning={artifact?.status === "running"}
+      error={activeJobError}
+      needsAttention={jobNeedsAttention}
+      recoveryHref={jobRecoveryHref(runId, stage, activeJob?.status || "")}
+      busy={busy}
+      onRetryNow={activeJob?.status === "retrying"
+        ? () => { void call(`/api/runs/${runId}/jobs/${activeJob.id}/retry`, { method: "POST" }); }
+        : undefined}
+    />
     {displayError && displayError !== activeJobError ? <div className="notice error">{displayError}</div> : null}
-    {artifact?.status === "running" ? (
-      <div className={`notice generation-progress${progressStale ? " generation-progress-stale" : ""}`}>
-        <strong>{progressStale ? "超过 3 分钟无进度更新，可能卡住；可取消后重试" : "模型持续工作中"}</strong>
-        <p>
-          已运行 {formatElapsedMs(Number.isFinite(liveElapsedMs) ? liveElapsedMs : 0)}
-          {progress?.auto_round ? ` · 补证第 ${progress.auto_round}/${progress.max_auto_rounds || "?"} 轮` : ""}
-          {progress?.round ? ` · 第 ${progress.round}/${progress.max_rounds || "?"} 轮` : ""}
-          {typeof progress?.coverage_rate === "number" ? ` · 覆盖率 ${(progress.coverage_rate * 100).toFixed(0)}%` : ""}
-          {typeof progress?.verification_rate === "number" ? ` · 核验率 ${(progress.verification_rate * 100).toFixed(0)}%` : ""}
-        </p>
-        <p className="muted">{progress?.message ? researcherLanguage(progress.message) : "已开始生成，等待首轮模型响应…"}</p>
-        <p className="muted">页面自动刷新中，每 5 秒同步一次进度。</p>
-      </div>
-    ) : null}
-    {validation && !validation.ok ? (
-      <div className="notice structure-validation">
-        <strong>确认前校验未通过</strong>
-        <p>{validation.summary}</p>
-        <ul>
-          {validation.issues.map((issue, index) => (
-            <li key={`${issue.code}-${index}`}>
-              {issue.severity === "error" ? "阻断" : "提醒"}{issue.unit_id ? ` · ${researcherLanguage(issue.unit_id)}` : ""}：{researcherLanguage(issue.message)}
-            </li>
-          ))}
-        </ul>
-        <div className="actions">
-          {validation.suggested_patch ? (
-            <button type="button" className="button" disabled={busy} onClick={applyStructureSuggestions}>采纳建议并保存</button>
-          ) : null}
-          <button type="button" className="button-secondary" disabled={busy} onClick={() => setValidation(null)}>返回修改</button>
-        </div>
-      </div>
-    ) : null}
+    <GenerationProgressNotice
+      running={artifact?.status === "running"}
+      progress={progress}
+      stale={progressStale}
+      elapsedMs={liveElapsedMs}
+    />
+    <StructureValidationNotice
+      validation={validation}
+      busy={busy}
+      onApply={applyStructureSuggestions}
+      onDismiss={() => setValidation(null)}
+    />
     {needsClarification ? (
-      <section className="clarify-sheet">
-        <header className="clarify-sheet-head">
-          <div>
-            <p className="clarify-kicker">开始研究前</p>
-            <h2>先确认这 {clarificationItems.length} 件事</h2>
-            <p className="muted">一次答完即可；这些选择会决定后续研究怎么拆、时间怎么落、交什么成果。</p>
-          </div>
-          <span className="clarify-count">{clarificationItems.length} 问</span>
-        </header>
-        <ol className="clarify-list">
-          {clarificationItems.map((item: { question_id: string; question: string; impact: string }, index: number) => (
-            <li key={item.question_id} className="clarify-item">
-              <div className="clarify-item-head">
-                <span className="clarify-index">{index + 1}</span>
-                <div>
-                  <p className="clarify-question">{item.question}</p>
-                  <p className="muted clarify-impact">{item.impact}</p>
-                </div>
-              </div>
-              <input
-                type="text"
-                className="clarify-input"
-                aria-label={`回答问题 ${index + 1}`}
-                value={clarifyAnswers[item.question_id] || ""}
-                onChange={(event) => setClarifyAnswers((prev) => ({
-                  ...prev,
-                  [item.question_id]: event.target.value,
-                }))}
-                disabled={!formEditable}
-                placeholder="一句话回答"
-              />
-            </li>
-          ))}
-        </ol>
-        <div className="clarify-actions">
-          <button
-            type="button"
-            className="button"
-            disabled={!formEditable || !allClarifyAnswersFilled}
-            onClick={submitClarification}
-          >
-            全部答完，继续收敛
-          </button>
-          <p className="muted">提交后会按你的回答重写研究范围，不会直接进入下一阶段。</p>
-        </div>
-      </section>
+      <ClarificationSheet
+        items={clarificationItems}
+        answers={clarifyAnswers}
+        editable={formEditable}
+        complete={allClarifyAnswersFilled}
+        onAnswer={(questionId, answer) => setClarifyAnswers((previous) => ({
+          ...previous,
+          [questionId]: answer,
+        }))}
+        onSubmit={submitClarification}
+      />
     ) : null}
     {!unlocked ? (
       <section className="card empty-state">
@@ -678,67 +630,17 @@ export function StageWorkspace({
           </pre>
         </details>
       </section>
-    </div> : stage === 3 ? <div className="two-col">
-      <div className="stage3-left-stack">
-        {sourceCoverage ? (
-          <SourceCoveragePanel
-            runId={runId}
-            units={sourceCoverage.units}
-            sources={sourceCoverage.sources}
-            controlledSources={sourceCoverage.controlledSources}
-            coverage={sourceCoverage.coverage}
-            boundSourceIds={sourceCoverage.boundSourceIds}
-          />
-        ) : (
-          <section className="card empty-state">
-            <h2>先确认研究结构</h2>
-            <p className="muted">来源覆盖与补充依赖已确认的判断单元与必要证据。</p>
-          </section>
-        )}
-      </div>
-      <section className="card editor-panel">
-        <div className="panel-head"><h2>本阶段交接</h2><span>去{journey?.navLabel || "证据"}页完成确认</span></div>
-        <div className="stage-editor-summary-list">
-          {supplementSummary ? (
-            <article className={`stage-editor-summary-card${supplementSummary.zero_material_change ? " supplement-empty" : ""}`}>
-              <span>本轮补证结果{artifact?.version ? ` · 第 ${artifact.version} 版` : ""}</span>
-              <h3>{supplementSummary.headline}</h3>
-              {supplementSummary.detail_lines.length ? (
-                <ul>{supplementSummary.detail_lines.map((line) => <li key={line}>{line}</li>)}</ul>
-              ) : null}
-              <p className="muted">
-                {supplementSummary.zero_material_change
-                  ? "未取到新材料时，请再补一轮或到证据页接受尚缺并限制结论。"
-                  : "请到证据页核对「本轮新增/变更」条目；未改动项若上一版已确认会自动继承。"}
-              </p>
-              <Link className="button" href={`/runs/${runId}/evidence`}>查看补证变更 →</Link>
-            </article>
-          ) : null}
-          <article className="stage-editor-summary-card">
-            <span>本阶段输出</span>
-            <h3>{(journey?.output.replace(/\{count\}\s*项\s*/g, "").trim()) || "可核验事实、反证与尚缺的证据"}</h3>
-            <p>当前覆盖 {sourceCoverage?.coverage.unit_coverage.length || 0} 个关键判断；仍有 {sourceCoverage?.coverage.coverage_gap_count || 0} 个判断未达到最低证据要求。</p>
-            <strong>研究员需要确认</strong>
-            <p>{journey?.confirmation || "逐项核对原文、口径、时间与局限；待核对事实只有在证据页确认后，才会进入判断阶段。"}</p>
-            <Link className="button" href={`/runs/${runId}${journey?.reviewPath || "/evidence"}`}>打开{journey?.navLabel || "证据"}审阅 →</Link>
-          </article>
-        </div>
-        <details className="structure-advanced">
-          <summary>查看已保存的证据准备说明</summary>
-          <article className="markdown preview-pane preview-pane-only">
-            {stage03PrepPreview.trim()
-              ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{researcherMarkdown(stage03PrepPreview)}</ReactMarkdown>
-              : <p className="muted">尚无证据准备结果。生成或补充来源并投影后会显示在这里。</p>}
-          </article>
-        </details>
-        <details className="structure-advanced">
-          <summary>审计：实例清单</summary>
-          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
-            {stage03ManifestPreview.trim() || "尚无实例清单 YAML。保存或生成 Stage03 后会写入 instance_manifest_yaml。"}
-          </pre>
-        </details>
-      </section>
-    </div> : stage === 4 ? <div className="two-col">
+    </div> : stage === 3 ? (
+      <Stage3WorkspacePanel
+        runId={runId}
+        artifact={artifact}
+        sourceCoverage={sourceCoverage}
+        supplementSummary={supplementSummary}
+        journey={journey}
+        preparationPreview={stage03PrepPreview}
+        manifestPreview={stage03ManifestPreview}
+      />
+    ) : stage === 4 ? <div className="two-col">
       <section className="card scope-panel">
         <div className="panel-head"><h2>判断逻辑</h2><span>修改结论、依据、边界与改判条件</span></div>
         <div className="scope-panel-body">
@@ -809,44 +711,21 @@ export function StageWorkspace({
           </pre>
         </details>
       </section>
-    </div> : stage === 5 && artifact ? <div className="two-col">
-      <section className="card editor-panel">
-        <div className="panel-head"><h2>修改报告正文</h2><span>不显示审计编号，可直接编辑</span></div>
-        <p className="muted">这里仅编辑读者会看到的内容；结构化判断、证据和来源关系仍保留在审计记录中。</p>
-        <textarea
-          aria-label="报告正文"
-          className="json-editor"
-          value={readerMd}
-          onChange={(e) => setReaderMd(e.target.value)}
-          spellCheck
-          disabled={!formEditable}
-        />
-        <details className="structure-advanced" open={showAdvancedJson} onToggle={(event) => setShowAdvancedJson((event.target as HTMLDetailsElement).open)}>
-          <summary>高级：原始 JSON（逃生舱）</summary>
-          <p className="muted">日常请编辑上方可读稿。直接改 JSON 会按结构化字段重写可读稿。</p>
-          <textarea aria-label="结构化内容" className="json-editor" value={json} onChange={(e) => setJson(e.target.value)} spellCheck={false} disabled={!formEditable} />
-          <button type="button" className="button-secondary" disabled={!formEditable} onClick={saveJson}>保存原始 JSON</button>
-        </details>
-      </section>
-      <section className="card editor-panel">
-        <div className="panel-head"><h2>读者预览</h2><span>最终交付效果</span></div>
-        <article className="markdown preview-pane preview-pane-only">
-          {readerMd.trim() ? <ReportMarkdown content={readerMd} /> : <p className="muted">尚无可读稿。生成或重新生成后会显示在这里。</p>}
-        </article>
-        <details className="structure-advanced">
-          <summary>审计：原始交付稿</summary>
-          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
-            {md.trim() || "尚无原始交付稿。"}
-          </pre>
-        </details>
-        <details className="structure-advanced">
-          <summary>审计：表达记录</summary>
-          <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
-            {stage05AuditPreview.trim() || "尚无表达审计 YAML。保存或生成 Stage05 后会写入 expression_audit_yaml。"}
-          </pre>
-        </details>
-      </section>
-    </div> : null}
+    </div> : stage === 5 && artifact ? (
+      <Stage5WorkspacePanel
+        artifact={artifact}
+        readerMarkdown={readerMd}
+        rawMarkdown={md}
+        auditPreview={stage05AuditPreview}
+        json={json}
+        editable={formEditable}
+        showAdvancedJson={showAdvancedJson}
+        onReaderMarkdownChange={setReaderMd}
+        onJsonChange={setJson}
+        onAdvancedJsonToggle={setShowAdvancedJson}
+        onSaveJson={saveJson}
+      />
+    ) : null}
     {injectedAssets ? (
       <details className="structure-advanced">
         <summary>维护对照：本阶段注入资产</summary>

@@ -200,10 +200,14 @@ describe("researcher stage output", () => {
       boundaries: ["全球"],
       exclusions: ["个股"],
       known_facts: ["价格已回升"],
+      user_assumptions: [],
+      hypotheses_to_verify: ["未来六个月库存将继续改善"],
     }, { artifactStatus: "needs_review" });
     expect(scope.outputCount).toBe(1);
     expect(scope.proceed.canProceed).toBe(true);
     expect(scope.sections.find((item) => item.id === "boundaries")?.items).toEqual(["全球"]);
+    expect(scope.sections.find((item) => item.id === "assumptions")?.emptyBody)
+      .toContain("本次没有");
 
     const readiness = buildEvidenceReadinessView({
       evidence_drafts: [
@@ -237,6 +241,31 @@ describe("researcher stage output", () => {
     }, [{ id: "EV-1", statement: "库存环比下降" }], { artifactStatus: "needs_review", pendingCount: 1 });
     expect(judgments.proceed.canProceed).toBe(false);
     expect(judgments.proceed.blockingReasons[0]).toContain("待人工确认");
+  });
+
+  it("distinguishes a legacy missing premise contract from an explicit empty category", () => {
+    const legacy = buildScopeResearcherView({
+      normalized_question: "库存是否改善？",
+      boundaries: ["全球"],
+      exclusions: ["个股"],
+    }, { artifactStatus: "needs_review" });
+    expect(legacy.proceed.canProceed).toBe(false);
+    expect(legacy.proceed.blockingReasons).toContain("前提三分字段缺失，请重新生成研究范围");
+    expect(legacy.sections.find((item) => item.id === "known")?.body).toBe("字段缺失");
+    expect(legacy.sections.find((item) => item.id === "known")?.emptyBody).toContain("旧产物");
+
+    const explicit = buildScopeResearcherView({
+      normalized_question: "库存是否改善？",
+      task_disposition: "accepted",
+      boundaries: ["全球"],
+      exclusions: ["个股"],
+      known_facts: [],
+      user_assumptions: [],
+      hypotheses_to_verify: [{ statement: "未来六个月库存继续下降" }],
+    }, { artifactStatus: "needs_review" });
+    expect(explicit.proceed.canProceed).toBe(true);
+    expect(explicit.sections.find((item) => item.id === "known")?.body).toBe("0 项");
+    expect(explicit.sections.find((item) => item.id === "known")?.emptyBody).toContain("本次没有");
   });
 
   it("keeps formal export locked until review, todos, report and all stages pass", () => {

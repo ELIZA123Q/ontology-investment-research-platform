@@ -1,0 +1,249 @@
+schema_name: ontology_governance_relation_model
+schema_version: 2.0.0
+meta_schema_version: 2.0.0
+status: active
+namespace: gov.change
+model: relation
+description: 治理对象之间的影响、责任、变更、批准、检查、迁移、发布与审计关系。
+
+relation_types:
+  governedAssetOwnedBy:
+    metadata: {id: governedAssetOwnedBy, namespace: gov.change, label_zh: 资产由其负责, label_en: governed asset owned by, definition: 受治理资产由权威责任分配承担问责。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernedAsset]
+    target_types: [AuthorityAssignment]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: ownerResponsibleForAsset
+    attributes: {}
+    invalidation_policy: block_delete
+  ownerResponsibleForAsset:
+    metadata: {id: ownerResponsibleForAsset, namespace: gov.change, label_zh: 负责资产, label_en: owner responsible for asset, definition: governedAssetOwnedBy 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [AuthorityAssignment]
+    target_types: [GovernedAsset]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: governedAssetOwnedBy
+    attributes: {}
+    invalidation_policy: block_delete
+  assetConsumedBy:
+    metadata: {id: assetConsumedBy, namespace: gov.change, label_zh: 资产被其消费, label_en: asset consumed by, definition: 消费者读取或依赖受治理资产。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernedAsset]
+    target_types: [GovernanceConsumer]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: consumerUsesAsset
+    attributes: {usage_mode: {type: enum, allowed_values: [read, write, validate, publish]}}
+    invalidation_policy: invalidate_downstream
+  consumerUsesAsset:
+    metadata: {id: consumerUsesAsset, namespace: gov.change, label_zh: 消费者使用资产, label_en: consumer uses asset, definition: assetConsumedBy 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernanceConsumer]
+    target_types: [GovernedAsset]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: assetConsumedBy
+    attributes: {usage_mode: {type: enum, allowed_values: [read, write, validate, publish]}}
+    invalidation_policy: invalidate_downstream
+  proposalChangesAsset:
+    metadata: {id: proposalChangesAsset, namespace: gov.change, label_zh: 提案变更资产, label_en: proposal changes asset, definition: 变更提案拟修改一个受治理资产。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [GovernedAsset]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: assetChangedByProposal
+    attributes: {}
+    invalidation_policy: retain_history
+  assetChangedByProposal:
+    metadata: {id: assetChangedByProposal, namespace: gov.change, label_zh: 资产被提案变更, label_en: asset changed by proposal, definition: proposalChangesAsset 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernedAsset]
+    target_types: [ChangeProposal]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: proposalChangesAsset
+    attributes: {}
+    invalidation_policy: retain_history
+  proposalUsesBranch:
+    metadata: {id: proposalUsesBranch, namespace: gov.change, label_zh: 提案使用分支, label_en: proposal uses branch, definition: 提案的差异在一个隔离分支上形成。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [OntologyBranch]
+    source_cardinality: '1..1'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: branchForProposal
+    attributes: {}
+    invalidation_policy: block_delete
+  branchForProposal:
+    metadata: {id: branchForProposal, namespace: gov.change, label_zh: 分支服务于提案, label_en: branch for proposal, definition: proposalUsesBranch 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [OntologyBranch]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..1'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: proposalUsesBranch
+    attributes: {}
+    invalidation_policy: block_delete
+  proposalHasImpactAssessment:
+    metadata: {id: proposalHasImpactAssessment, namespace: gov.change, label_zh: 提案具有影响评估, label_en: proposal has impact assessment, definition: 提案绑定冻结或已失效的影响评估。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [ImpactAssessment]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: impactAssessmentForProposal
+    attributes: {}
+    invalidation_policy: retain_history
+  impactAssessmentForProposal:
+    metadata: {id: impactAssessmentForProposal, namespace: gov.change, label_zh: 影响评估所属提案, label_en: impact assessment for proposal, definition: proposalHasImpactAssessment 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [ImpactAssessment]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: proposalHasImpactAssessment
+    attributes: {}
+    invalidation_policy: retain_history
+  impactAffectsConsumer:
+    metadata: {id: impactAffectsConsumer, namespace: gov.change, label_zh: 影响涉及消费者, label_en: impact affects consumer, definition: 影响评估识别出一个受影响消费者。, model: relation, version: 2.0.0, status: active}
+    source_types: [ImpactAssessment]
+    target_types: [GovernanceConsumer]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: consumerAffectedByImpact
+    attributes: {severity: {type: enum, allowed_values: [low, medium, high, breaking]}}
+    invalidation_policy: retain_history
+  consumerAffectedByImpact:
+    metadata: {id: consumerAffectedByImpact, namespace: gov.change, label_zh: 消费者被影响评估涉及, label_en: consumer affected by impact, definition: impactAffectsConsumer 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernanceConsumer]
+    target_types: [ImpactAssessment]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: impactAffectsConsumer
+    attributes: {severity: {type: enum, allowed_values: [low, medium, high, breaking]}}
+    invalidation_policy: retain_history
+  proposalRequiresApproval:
+    metadata: {id: proposalRequiresApproval, namespace: gov.change, label_zh: 提案需要批准, label_en: proposal requires approval, definition: 提案按策略需要一个批准任务。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [ApprovalTask]
+    source_cardinality: '1..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: approvalForProposal
+    attributes: {}
+    invalidation_policy: block_delete
+  approvalForProposal:
+    metadata: {id: approvalForProposal, namespace: gov.change, label_zh: 批准任务所属提案, label_en: approval for proposal, definition: proposalRequiresApproval 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [ApprovalTask]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..1'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: proposalRequiresApproval
+    attributes: {}
+    invalidation_policy: block_delete
+  proposalHasValidationRun:
+    metadata: {id: proposalHasValidationRun, namespace: gov.change, label_zh: 提案具有检查运行, label_en: proposal has validation run, definition: 提案绑定不可变检查结果。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [ValidationRun]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: validationRunForProposal
+    attributes: {}
+    invalidation_policy: retain_history
+  validationRunForProposal:
+    metadata: {id: validationRunForProposal, namespace: gov.change, label_zh: 检查运行所属提案, label_en: validation run for proposal, definition: proposalHasValidationRun 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [ValidationRun]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: proposalHasValidationRun
+    attributes: {}
+    invalidation_policy: retain_history
+  proposalRequiresMigration:
+    metadata: {id: proposalRequiresMigration, namespace: gov.change, label_zh: 提案需要迁移, label_en: proposal requires migration, definition: 破坏性提案绑定迁移任务。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [MigrationTask]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: migrationForProposal
+    attributes: {}
+    invalidation_policy: block_delete
+  migrationForProposal:
+    metadata: {id: migrationForProposal, namespace: gov.change, label_zh: 迁移任务所属提案, label_en: migration for proposal, definition: proposalRequiresMigration 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [MigrationTask]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: proposalRequiresMigration
+    attributes: {}
+    invalidation_policy: block_delete
+  proposalReleasedAsBaseline:
+    metadata: {id: proposalReleasedAsBaseline, namespace: gov.change, label_zh: 提案发布为基线, label_en: proposal released as baseline, definition: 成功发布的提案进入一个不可变发布基线。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [ReleaseBaseline]
+    source_cardinality: '0..1'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: baselineIncludesProposal
+    attributes: {}
+    invalidation_policy: retain_history
+  baselineIncludesProposal:
+    metadata: {id: baselineIncludesProposal, namespace: gov.change, label_zh: 基线包含提案, label_en: baseline includes proposal, definition: proposalReleasedAsBaseline 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [ReleaseBaseline]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..*'
+    target_cardinality: '0..1'
+    direction: directed
+    inverse_of: proposalReleasedAsBaseline
+    attributes: {}
+    invalidation_policy: retain_history
+  actionLogForProposal:
+    metadata: {id: actionLogForProposal, namespace: gov.change, label_zh: 动作日志属于提案, label_en: action log for proposal, definition: 动作日志记录一个提案上的 Action 执行。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernanceActionLog]
+    target_types: [ChangeProposal]
+    source_cardinality: '1..1'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: proposalHasActionLog
+    attributes: {}
+    invalidation_policy: retain_history
+  proposalHasActionLog:
+    metadata: {id: proposalHasActionLog, namespace: gov.change, label_zh: 提案具有动作日志, label_en: proposal has action log, definition: actionLogForProposal 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [ChangeProposal]
+    target_types: [GovernanceActionLog]
+    source_cardinality: '1..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: actionLogForProposal
+    attributes: {}
+    invalidation_policy: retain_history
+  exceptionAppliesToAsset:
+    metadata: {id: exceptionAppliesToAsset, namespace: gov.change, label_zh: 例外适用于资产, label_en: exception applies to asset, definition: 临时治理例外适用于明确的受治理资产。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernanceException]
+    target_types: [GovernedAsset]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: assetHasException
+    attributes: {}
+    invalidation_policy: retain_history
+  assetHasException:
+    metadata: {id: assetHasException, namespace: gov.change, label_zh: 资产具有例外, label_en: asset has exception, definition: exceptionAppliesToAsset 的逆关系。, model: relation, version: 2.0.0, status: active}
+    source_types: [GovernedAsset]
+    target_types: [GovernanceException]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: exceptionAppliesToAsset
+    attributes: {}
+    invalidation_policy: retain_history

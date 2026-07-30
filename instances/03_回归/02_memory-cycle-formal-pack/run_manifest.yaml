@@ -77,7 +77,7 @@ stages:
     - 05-存储芯片周期行业周期判断-20260715-1.md
     - 05-存储芯片周期表达审计-20260715-1.yaml
     - 05-存储芯片周期独立语义审查-20260715-1.yaml
-    hash: sha256:226d480af11fdb05ecc607db5c24acb34ba18edc88c81b1ed8f1e87c9c71d4e5
+    hash: sha256:69b47d8f8f2d768d7776916f650db504c4afc945f6ac86db2f5e8cff9736b6fc
     source_hashes:
       stage_04: sha256:676270b7cf5d2e3a299692a20482b9dbd08f2d28e1f77331e4f242ed15fbe3eb
     stage_status: complete
@@ -97,19 +97,11 @@ reasoning_loop:
   pending_stage_attempts: []
   structural_checkpoint_required: false
   converged: true
-validation_issues:
-- issue_id: CHAIN-001
-  detected_at_stage: '02'
-  rule_id: 02.validator
-  return_to_stage: stage_02
-  reason: "/Users/luyao/Documents/基于本体的投研推理平台/ontology/01_通用/models/semantic.yaml 不是合法 YAML: could not determine a constructor\
-    \ for the tag 'tag:yaml.org,2002:merge'\n  in \"<unicode string>\", line 25, column 7:\n          <<: *named_attributes\n\
-    \          ^"
-  severity: blocking
+validation_issues: []
 validation_summary:
-  quality_pass: false
-  publishable: false
-  publish_status: RETURN_REQUIRED
+  quality_pass: true
+  publishable: true
+  publish_status: PUBLISHABLE
   judgment_level: J2
   directional_conclusion_available: true
   contract_version: 1.3.0

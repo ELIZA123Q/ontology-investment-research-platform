@@ -17,6 +17,7 @@ type EvidenceDraft = {
   direction?: string;
   evidence_role?: string;
   judgment_unit_ids?: string[];
+  evidence_requirement_ids?: string[];
   scope_ref?: string;
 };
 
@@ -28,6 +29,7 @@ type JudgmentUnit = {
 
 type EvidenceRequirementLite = {
   id?: string;
+  requirement?: string;
   evidence_role?: string;
   minimum_independent_sources?: number;
   judgment_unit_ids?: string[];
@@ -42,6 +44,7 @@ type EvidenceGateInput = {
 };
 
 export type EvidenceGapDetail = {
+  requirementId?: string;
   judgmentUnitId: string;
   judgmentType?: string;
   totalEvidence: number;
@@ -50,6 +53,18 @@ export type EvidenceGapDetail = {
   isBlocking: boolean;
   missing: string;
   suggestion: string;
+};
+
+export type EvidenceRequirementAssessment = {
+  requirement_id: string;
+  judgment_unit_id: string;
+  evidence_role: "support" | "counter" | "context" | "boundary";
+  evidence_ids: string[];
+  gap_ids: string[];
+  independent_source_groups: number;
+  minimum_independent_sources: number;
+  status: "met" | "partial" | "missing" | "blocked";
+  limitations: string[];
 };
 
 export type EvidenceGateResult = {
@@ -62,6 +77,7 @@ export type EvidenceGateResult = {
   indirectFacts: number;
   proxyFacts: number;
   gapDetails: EvidenceGapDetail[];
+  requirementAssessments: EvidenceRequirementAssessment[];
   summary: string;
 };
 
@@ -93,6 +109,38 @@ function countSourceGroups(sources: SourceRecord[]): number {
   return new Set(sources.map(sourceGroup)).size;
 }
 
+function draftRole(draft: EvidenceDraft): EvidenceRequirementAssessment["evidence_role"] {
+  const explicit = String(draft.evidence_role || "");
+  if (["support", "counter", "context", "boundary"].includes(explicit)) {
+    return explicit as EvidenceRequirementAssessment["evidence_role"];
+  }
+  if (draft.kind === "counter" || draft.kind === "conflict" || draft.direction === "weaken") return "counter";
+  if (draft.direction === "neutral") return "context";
+  return "support";
+}
+
+/**
+ * 新产物必须显式绑定 ER。旧产物只在“同 JU + 同角色恰好一条 ER”时做无歧义
+ * 兼容推断；存在多个候选时保持未绑定，避免一条宽泛事实替全部要求过门。
+ */
+function requirementIdsForDraft(
+  draft: EvidenceDraft,
+  requirements: EvidenceRequirementLite[],
+): string[] {
+  const knownIds = new Set(requirements.map((item) => String(item.id || "")).filter(Boolean));
+  const explicit = Array.isArray(draft.evidence_requirement_ids)
+    ? [...new Set(draft.evidence_requirement_ids.map(String).filter((id) => knownIds.has(id)))]
+    : [];
+  if (explicit.length) return explicit;
+  const unitIds = new Set((draft.judgment_unit_ids || []).map(String));
+  const role = draftRole(draft);
+  const candidates = requirements.filter((requirement) =>
+    String(requirement.evidence_role || "support") === role
+    && (requirement.judgment_unit_ids || []).some((unitId) => unitIds.has(String(unitId))),
+  );
+  return candidates.length === 1 && candidates[0].id ? [String(candidates[0].id)] : [];
+}
+
 export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateResult {
   const { evidenceDrafts, sources, judgmentUnits, evidenceRequirements = [] } = input;
   const usableSourceMap = new Map(
@@ -114,6 +162,9 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
   );
   const gapDrafts = evidenceDrafts.filter((d) => String(d.kind || "") === "gap");
   const gapOnlyCount = gapDrafts.length;
+  const requirementIdsByDraft = new Map(
+    evidenceDrafts.map((draft) => [draft.id, requirementIdsForDraft(draft, evidenceRequirements)]),
+  );
 
   // 基础统计（仅非 gap）
   const allSourceIds = new Set<string>();
@@ -133,21 +184,93 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
     .filter(Boolean) as SourceRecord[];
   const sourceGroups = countSourceGroups(boundSources);
 
-  // 逐 JU 检查：优先 judgment_unit_ids，其次 scope_ref / id 兼容
+  // 逐 ER 检查。取证任务和质量门必须在同一粒度闭环，不能退化为“JU 有材料即可”。
   const gapDetails: EvidenceGapDetail[] = [];
+  const requirementAssessments: EvidenceRequirementAssessment[] = [];
+  const blockingRequirementIds = new Set<string>();
+  for (const [index, requirement] of evidenceRequirements.entries()) {
+    const requirementId = String(requirement.id || `ER-UNRESOLVED-${index + 1}`);
+    const unitIds = (requirement.judgment_unit_ids || []).map(String).filter(Boolean);
+    const unitId = unitIds[0] || "JU-UNRESOLVED";
+    const role = (["support", "counter", "context", "boundary"].includes(String(requirement.evidence_role || ""))
+      ? String(requirement.evidence_role)
+      : "support") as EvidenceRequirementAssessment["evidence_role"];
+    const minimumSources = Math.max(1, Number(requirement.minimum_independent_sources || 1) || 1);
+    const evidence = usableDrafts.filter((draft) =>
+      (requirementIdsByDraft.get(draft.id) || []).includes(requirementId)
+      && draftRole(draft) === role,
+    );
+    const gaps = gapDrafts.filter((draft) =>
+      (requirementIdsByDraft.get(draft.id) || []).includes(requirementId),
+    );
+    const sourceIds = new Set(evidence.flatMap((draft) => (draft.source_ids || []).map(String)));
+    const sourceGroupsForRequirement = countSourceGroups(
+      [...sourceIds].map((sourceId) => usableSourceMap.get(sourceId)).filter(Boolean) as SourceRecord[],
+    );
+    const enoughSources = evidence.length > 0 && sourceGroupsForRequirement >= minimumSources;
+    const ambiguousUnitBinding = unitIds.length !== 1;
+    const status: EvidenceRequirementAssessment["status"] = ambiguousUnitBinding
+      ? "blocked"
+      : enoughSources
+        ? "met"
+        : evidence.length > 0
+          ? "partial"
+          : gaps.length > 0
+            ? "missing"
+            : "blocked";
+    const limitations = [
+      ...(ambiguousUnitBinding ? ["一条 EvidenceRequirement 必须且只能绑定一个 JudgmentUnit"] : []),
+      ...(evidence.length && !enoughSources
+        ? [`独立来源组不足（${sourceGroupsForRequirement}/${minimumSources}）`]
+        : []),
+      ...(!evidence.length && gaps.length
+        ? [role === "counter"
+          ? "反证要求已显式登记为 gap，但尚未取得可核验反证材料"
+          : "已显式登记缺口，尚未取得可核验证据"]
+        : []),
+      ...(!evidence.length && !gaps.length
+        ? [role === "counter"
+          ? "结构要求的反证角色未登记（需 counter/conflict 或显式 gap）"
+          : "既无匹配证据，也无显式缺口登记"]
+        : []),
+    ];
+    requirementAssessments.push({
+      requirement_id: requirementId,
+      judgment_unit_id: unitId,
+      evidence_role: role,
+      evidence_ids: evidence.map((draft) => draft.id),
+      gap_ids: gaps.map((draft) => draft.id),
+      independent_source_groups: sourceGroupsForRequirement,
+      minimum_independent_sources: minimumSources,
+      status,
+      limitations,
+    });
+    const blocksMinimum = ambiguousUnitBinding
+      || ((role === "support" || role === "boundary") && status !== "met")
+      || (role === "counter" && status === "blocked");
+    if (blocksMinimum) blockingRequirementIds.add(requirementId);
+    if (status !== "met") {
+      gapDetails.push({
+        requirementId,
+        judgmentUnitId: unitId,
+        judgmentType: judgmentUnits.find((unit) => String(unit.id) === unitId)?.judgment_type,
+        totalEvidence: evidence.length,
+        directEvidence: evidence.filter((draft) => draft.directness === "direct").length,
+        sourceGroupCount: sourceGroupsForRequirement,
+        isBlocking: blocksMinimum,
+        missing: limitations.join("；") || "证据要求尚未满足",
+        suggestion: `${requirementId}: 按该 ER 的主体、时间、口径和角色补取可核验原文；不得用同 JU 的其他材料替代`,
+      });
+    }
+  }
+
+  // 再做 JU 兜底检查：即使旧结构没有 ER，也不能让判断单元空转。
   for (const ju of judgmentUnits) {
     const juId = String(ju.id || "");
     const juEvidence = usableDrafts.filter((d) => draftBelongsToJudgmentUnit(d, juId));
-    const juGaps = gapDrafts.filter((d) => draftBelongsToJudgmentUnit(d, juId));
-    const juCounterGaps = juGaps.filter((d) => String(d.evidence_role || "") === "counter");
     const juRequirements = evidenceRequirements.filter((req) =>
       (Array.isArray(req.judgment_unit_ids) ? req.judgment_unit_ids.map(String) : []).includes(juId),
     );
-    const requiredIndependence = juRequirements.length
-      ? Math.max(MIN_EVIDENCE_PER_JU, ...juRequirements.map((req) => Number(req.minimum_independent_sources || 1) || 1))
-      : MIN_EVIDENCE_PER_JU;
-    const requiresCounter = juRequirements.some((req) => String(req.evidence_role || "") === "counter");
-
     const juSources = new Set<string>();
     for (const d of juEvidence) {
       for (const sid of d.source_ids || []) juSources.add(String(sid));
@@ -157,26 +280,15 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
       .filter(Boolean) as SourceRecord[];
     const juSourceGroups = countSourceGroups(juBoundSources);
     const juDirect = juEvidence.filter((d) => d.directness === "direct").length;
-    const juCounter = juEvidence.filter((d) => {
-      const kind = String(d.kind || "");
-      const dir = String(d.direction || "");
-      return kind === "counter" || kind === "conflict" || dir === "weaken";
-    }).length;
-    const counterRecorded = juCounter > 0 || juCounterGaps.length > 0;
-    const unresolvedCounter = requiresCounter && juCounter === 0 && juCounterGaps.length > 0;
-
     const missingSupport = juEvidence.length < MIN_EVIDENCE_PER_JU;
-    const missingIndependence = juEvidence.length > 0 && juSourceGroups < requiredIndependence;
-    const missingCounter = requiresCounter && !counterRecorded;
-    const isBlocker = missingSupport || missingIndependence || missingCounter;
-    if (isBlocker || juEvidence.length < 2 || unresolvedCounter) {
+    const missingRequirements = juRequirements.length === 0;
+    // 旧结构缺 ER 时仍按 JU 做兼容兜底；有可用事实就不把“结构缺 ER”
+    // 误判为证据缺失。新正式产物会在 Stage02 门禁处直接阻止缺 ER。
+    const isBlocker = missingSupport;
+    if (isBlocker || juEvidence.length < 2) {
       const missingParts = [
         missingSupport ? "完全缺失可用证据（gap 不计），无法支撑任何判断" : "",
-        missingIndependence
-          ? `独立来源组不足（${juSourceGroups}/${requiredIndependence}）`
-          : "",
-        missingCounter ? "结构要求的反证角色未登记（需 counter/conflict 或显式 gap）" : "",
-        unresolvedCounter ? "反证要求已显式登记为 gap，但尚未取得可核验反证材料" : "",
+        missingRequirements ? "Stage02 未提供该单元的原子 EvidenceRequirement" : "",
         !isBlocker ? "可用证据不足 2 条，仅供初步观察" : "",
       ].filter(Boolean);
       gapDetails.push({
@@ -195,9 +307,10 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
   }
 
   // 判断质量状态（条数门槛只看可用证据）
-  const hasBlocking = gapDetails.some((d) => d.isBlocking);
-  const hasOpenCounterGap = gapDetails.some((d) =>
-    !d.isBlocking && d.missing.includes("反证要求已显式登记为 gap"),
+  const hasBlocking = blockingRequirementIds.size > 0
+    || gapDetails.some((detail) => detail.isBlocking && !detail.requirementId);
+  const hasOpenCounterGap = requirementAssessments.some((assessment) =>
+    assessment.evidence_role === "counter" && assessment.status !== "met",
   );
   const belowFloor =
     usableDrafts.length < QUALITY_FLOOR_MIN_EVIDENCE || sourceGroups < QUALITY_FLOOR_MIN_GROUPS;
@@ -235,6 +348,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
     indirectFacts: indirectFacts.length,
     proxyFacts: proxyFacts.length,
     gapDetails,
+    requirementAssessments,
     summary,
   };
 }

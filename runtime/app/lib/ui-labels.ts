@@ -196,10 +196,14 @@ export function actionLabel(actionId: string): string {
 export function objectTypeLabel(type: string): string {
   return (
     {
+      ResearchQuestion: "研究问题",
       JudgmentUnit: "判断单元",
       Judgment: "判断",
       EvidenceFact: "已确认事实",
       EvidenceClaim: "证据主张",
+      EvidenceRequirement: "证据要求",
+      EvidenceAssessment: "证据评估",
+      EvidenceBasket: "证据篮子",
       SourceDocument: "来源文档",
       Hypothesis: "假设",
       Signal: "信号",
@@ -218,6 +222,35 @@ export function objectTypeLabel(type: string): string {
       Application: "应用场景",
       Company: "公司",
       ManufacturingFacility: "制造设施",
+    } as Record<string, string>
+  )[type] || type;
+}
+
+export function relationTypeLabel(type: string): string {
+  return (
+    {
+      questionDecomposesIntoUnit: "拆分为判断单元",
+      unitUsesScope: "使用研究范围",
+      scopeIncludesObject: "范围包含",
+      unitEvaluatesStateVariable: "评估状态变量",
+      unitHasHypothesis: "检验假设",
+      judgmentResolvesUnit: "裁决判断单元",
+      judgmentBasedOnHypothesis: "基于假设",
+      requirementForJudgmentUnit: "服务于判断单元",
+      basketFulfillsRequirement: "满足证据要求",
+      basketIncludesAssessment: "包含证据评估",
+      assessmentEvaluatesFact: "评估事实",
+      signalGroundedByFact: "由事实支撑",
+      signalEvaluatesHypothesis: "检验假设",
+      factDerivedFromClaim: "来自证据主张",
+      claimCitesSource: "引用来源",
+      supports: "支持",
+      weakens: "削弱",
+      derivedFrom: "来自",
+      basedOn: "依据",
+      targets: "指向",
+      affects: "影响",
+      requires: "需要",
     } as Record<string, string>
   )[type] || type;
 }

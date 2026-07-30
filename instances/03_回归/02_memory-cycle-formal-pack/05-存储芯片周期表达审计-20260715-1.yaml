@@ -4,7 +4,7 @@ metadata:
   task_id: JTASK-MEM-CYCLE-001
   execution_id: EXEC-MEM-CYCLE-20260715-1
   delivery_ref: 05-存储芯片周期行业周期判断-20260715-1.md
-  delivery_content_hash: sha256:f3f4ceee89f077112d0d56ac39e20422866670fdbfe28342664534312ed80c40
+  delivery_content_hash: sha256:22389d4cc7af2167db4917151b98e8b56a1bdc4bdc12819cb71537c2f3ca177e
   source_04_brief_ref: 04-存储芯片周期判断简报-20260715-1.md
   source_04_audit_ref: 04-存储芯片周期推理审计-20260715-1.yaml
   source_04_audit_hash: sha256:8ca35e698d3c512310af4961f54e148784ad76482555eed640797f84cea713fd

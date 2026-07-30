@@ -1,0 +1,23 @@
+schema_name: ontology_governance_model_registry
+schema_version: 2.0.0
+status: active
+fingerprint_algorithm: sha256_over_ordered_repository_path_and_raw_bytes
+meta_schema: meta_schema.yaml
+model_files:
+  - models/shared.yaml
+  - models/asset.yaml
+  - models/change.yaml
+  - models/relation.yaml
+  - models/action.yaml
+  - models/policy.yaml
+instance_graphs:
+  - instances/governance_instance_graph.yaml
+runtime_contract:
+  status_object_type: ChangeProposal
+  status_property: status
+  action_section: action_types
+  action_log_object_type: GovernanceActionLog
+compatibility_projections:
+  - governance/02_合同/governance_control_contract.yaml
+  - governance/02_合同/governed_asset_registry.yaml
+formal_ontology_registration: forbidden

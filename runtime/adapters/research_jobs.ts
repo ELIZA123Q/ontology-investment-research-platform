@@ -265,6 +265,14 @@ export class ResearchJobStore {
     });
   }
 
+  /** Researcher-triggered wake-up for an already scheduled retry; does not reset attempt limits. */
+  retryNow(id: string, now = new Date().toISOString()): ResearchJob | undefined {
+    const result = this.connection.prepare(`UPDATE research_jobs SET
+      available_at=?, updated_at=?
+      WHERE id=? AND status='retrying' AND attempt < max_attempts`).run(now, now, id);
+    return Number(result.changes) === 1 ? row(this.connection, id) : undefined;
+  }
+
   cancel(id: string, reason: string, now = new Date().toISOString()): ResearchJob | undefined {
     const result = this.connection.prepare(`UPDATE research_jobs SET
       status='cancelled', lease_token=NULL, worker_id=NULL, lease_expires_at=NULL,
@@ -346,4 +354,8 @@ export function reopenCompletedBudgetResultForReview(jobId: string, artifactId: 
 
 export function cancelResearchJob(jobId: string, reason: string) {
   return getResearchJobStore().cancel(jobId, reason);
+}
+
+export function retryResearchJobNow(jobId: string) {
+  return getResearchJobStore().retryNow(jobId);
 }

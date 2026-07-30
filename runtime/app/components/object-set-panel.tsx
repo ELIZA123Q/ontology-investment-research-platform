@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { actionLabel, authorityLabel, objectTypeLabel } from "@/app/lib/ui-labels";
+import { actionLabel, authorityLabel, objectTypeLabel, relationTypeLabel } from "@/app/lib/ui-labels";
 
 type ObjectSetResponse = {
   authority?: string;
@@ -290,7 +290,7 @@ export function ObjectSetPanel({ runId }: { runId: string }) {
           {related.length ? (
             <ul className="source-list">
               {related.map((relation) => (
-                <li key={relation.id}>{relationLabel(relation.type)} · {objectName(data?.objects, relation.sourceId)} → {objectName(data?.objects, relation.targetId)}</li>
+                <li key={relation.id}>{relationTypeLabel(relation.type)} · {objectName(data?.objects, relation.sourceId)} → {objectName(data?.objects, relation.targetId)}</li>
               ))}
             </ul>
           ) : (
@@ -376,16 +376,4 @@ function objectName(
 ) {
   const object = objects?.find((item) => item.id === id);
   return object ? objectLabel(object) : "关联对象";
-}
-
-function relationLabel(type: string) {
-  return ({
-    supports: "支持",
-    weakens: "削弱",
-    derivedFrom: "来自",
-    basedOn: "依据",
-    targets: "指向",
-    affects: "影响",
-    requires: "需要",
-  } as Record<string, string>)[type] || "相关";
 }

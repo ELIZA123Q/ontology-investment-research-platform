@@ -123,9 +123,9 @@ export const RESEARCH_REFERENCE_SCENES: readonly ResearchReferenceScene[] = [
   },
   {
     id: "object-set",
-    eyebrow: "高级查询 · 不改变研究结论",
-    title: "本轮对象与影响关系",
-    hint: "核对业务对象与影响路径；日常补证和判断仍使用阶段页面。",
+    eyebrow: "高级审计 · 不改变研究结论",
+    title: "本轮实例关系审计",
+    hint: "核对本轮具体对象的正式连接与关系缺口；知识类型和规则定义请到知识库查看。",
   },
   {
     id: "compare",

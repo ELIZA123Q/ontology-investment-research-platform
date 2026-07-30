@@ -54,6 +54,9 @@ export function createStage01DeterministicProjection(runId: string, input: Contr
     },
     boundaries: input.boundaries?.map(String).map((item) => item.trim()).filter(Boolean) ?? previous.boundaries ?? [],
     exclusions: input.exclusions?.map(String).map((item) => item.trim()).filter(Boolean) ?? previous.exclusions ?? [],
+    known_facts: previous.known_facts ?? [],
+    user_assumptions: previous.user_assumptions ?? [],
+    hypotheses_to_verify: previous.hypotheses_to_verify ?? [],
     domain_supported: run.domain === "semiconductor",
     document_markdown: "placeholder",
   };
@@ -75,4 +78,3 @@ export function createStage01DeterministicProjection(runId: string, input: Contr
     tool_usage: JSON.stringify({ deterministic_projection: true }),
   });
 }
-

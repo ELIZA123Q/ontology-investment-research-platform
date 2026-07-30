@@ -73,6 +73,9 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
   const [sortMode, setSortMode] = useState<SortMode>("action_priority");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmBatch, setConfirmBatch] = useState(false);
+  const [busyBatch, setBusyBatch] = useState(false);
 
   const domains = useMemo(
     () => Array.from(new Set(runs.map((run) => run.domain))).sort(),
@@ -142,13 +145,53 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
     }
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function removeRuns() {
+    setBusyBatch(true);
+    setError("");
+    try {
+      const response = await fetch("/api/runs", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(typeof data.error === "string" ? data.error : "批量删除失败");
+        return;
+      }
+      setSelectedIds(new Set());
+      setConfirmBatch(false);
+      router.refresh();
+    } catch {
+      setError("批量删除失败，请稍后重试");
+    } finally {
+      setBusyBatch(false);
+    }
+  }
+
   function renderRow(run: RunListItem, depth: number) {
     const kids = forest.children.get(run.id) || [];
     const isCollapsed = Boolean(collapsed[run.id]);
     return (
       <div key={run.id} className="run-tree-block">
-        <article className={`run-row${depth > 0 ? " is-child" : ""}`} style={{ ["--run-depth" as string]: depth }}>
+        <article className={`run-row${selectedIds.has(run.id) ? " is-selected" : ""}${depth > 0 ? " is-child" : ""}`} style={{ ["--run-depth" as string]: depth }}>
           <div className="run-title-group">
+            <input
+              type="checkbox"
+              className="run-select"
+              checked={selectedIds.has(run.id)}
+              onChange={() => toggleSelect(run.id)}
+              aria-label={`选择 ${run.question}`}
+            />
             {kids.length ? (
               <button
                 type="button"
@@ -201,6 +244,17 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
   return (
     <>
       <div className="run-list-toolbar">
+        <label className="run-select-all">
+          <input
+            type="checkbox"
+            checked={filtered.length > 0 && filtered.every((run) => selectedIds.has(run.id))}
+            onChange={(event) =>
+              setSelectedIds(event.target.checked ? new Set(filtered.map((run) => run.id)) : new Set())
+            }
+            aria-label="全选当前筛选结果"
+          />
+          <span>全选</span>
+        </label>
         <label className="run-search">
           <span>搜索</span>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="按研究问题搜索" aria-label="按研究问题搜索" />
@@ -230,6 +284,25 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
         </label>
       </div>
       {error ? <div className="notice error" style={{ marginBottom: 16 }}>{error}</div> : null}
+      {selectedIds.size > 0 ? (
+        <div className="run-batch-bar">
+          <span>已选 {selectedIds.size} 项</span>
+          {confirmBatch ? (
+            <>
+              <span className="run-batch-warn">删除后无法恢复，并会级联删除其增量研究。</span>
+              <button type="button" className="button run-batch-confirm" disabled={busyBatch} onClick={removeRuns}>
+                {busyBatch ? "删除中…" : `确认删除 ${selectedIds.size} 项`}
+              </button>
+              <button type="button" className="button-quiet" disabled={busyBatch} onClick={() => setConfirmBatch(false)}>取消</button>
+            </>
+          ) : (
+            <>
+              <button type="button" className="button run-batch-delete" disabled={busyBatch} onClick={() => setConfirmBatch(true)}>批量删除</button>
+              <button type="button" className="button-quiet" onClick={() => setSelectedIds(new Set())}>取消选择</button>
+            </>
+          )}
+        </div>
+      ) : null}
       <section className="run-list" aria-label="研究列表">
         <div className="run-list-head">
           <span>研究问题</span>

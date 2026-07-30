@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 import { precheckStage03OntologyConstraints, precheckFindingsAsWeakLinks } from "@/engine/ontology_stage03_precheck";
+import { recomputeStage03EvidenceQualityGate } from "@/engine/stage03_documents";
 import { buildEvidenceProfileGapHints, profileHintsAsGapPriorities } from "@/engine/evidence_profile_gaps";
 import { buildOntologyContributionSummary } from "@/engine/ontology_contribution_summary";
 
@@ -39,6 +40,59 @@ describe("ontology_stage03_precheck", () => {
     const summary = precheckStage03OntologyConstraints({ evidence_drafts: drafts });
     expect(summary.findings).toHaveLength(0);
     expect(drafts[0].kind).toBe("gap");
+  });
+
+  it("is wired into the Stage03 approval recompute gate", () => {
+    const groups = ["g1", "g2", "g3", "g1", "g2"];
+    const sources = groups.map((group, index) => ({
+      id: `SRC-${index + 1}`,
+      publisher: group,
+      source_group: group,
+      url: `https://${group}.example/${index + 1}`,
+      usability_status: "usable",
+      retrieval_status: "captured",
+      quote_verified: true,
+    })) as any;
+    const drafts = sources.map((source: any, index: number) => ({
+      id: `EV-${index + 1}`,
+      kind: index < 3 ? "fact_draft" : "counter",
+      direction: index < 3 ? "support" : "weaken",
+      statement: `可核验事实 ${index + 1}`,
+      judgment_unit_ids: ["JU-1"],
+      source_ids: [source.id],
+      directness: "direct",
+      scope_ref: index === 0 ? "SCOPE-WRONG" : "SCOPE-1",
+      observed_at: "2026-06-01T00:00:00Z",
+      valid_from: "2026-06-01T00:00:00Z",
+      published_at: "2026-06-02T00:00:00Z",
+      cutoff_at: "2026-07-01T00:00:00Z",
+    }));
+    const recomputed = recomputeStage03EvidenceQualityGate({
+      evidence_drafts: drafts,
+      quality_status: "high_quality_pass",
+    }, {
+      structure: {
+        research_scope: { id: "SCOPE-1" },
+        judgment_units: [{ id: "JU-1", judgment_type: "state" }],
+        evidence_requirements: [{
+          id: "ER-S",
+          evidence_role: "support",
+          minimum_independent_sources: 2,
+          judgment_unit_ids: ["JU-1"],
+        }, {
+          id: "ER-C",
+          evidence_role: "counter",
+          minimum_independent_sources: 2,
+          judgment_unit_ids: ["JU-1"],
+        }],
+      },
+      sources,
+      cutoffAt: "2026-07-01T00:00:00Z",
+    });
+    expect(recomputed.ontology_precheck.blocking_soft_count).toBe(1);
+    expect(recomputed.evidence_quality_gate.ontology_precheck_blocking_soft_count).toBe(1);
+    expect(recomputed.evidence_quality_gate.passed).toBe(false);
+    expect(recomputed.quality_status).toBe("return_required");
   });
 });
 

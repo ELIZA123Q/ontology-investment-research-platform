@@ -10,9 +10,12 @@ import {
   type TaskLocalCandidateSummary,
 } from "../engine/ontology_candidates";
 import {
-  assertOntologyChangeTransition,
+  assertOntologyGovernanceAction,
+  governanceActionDefinition,
+  ontologyGovernanceActionForTransition,
   type OntologyChangeKind,
   type OntologyChangeStatus,
+  type OntologyGovernanceActionId,
   type OntologyImpactSnapshot,
 } from "../engine/ontology_governance";
 import { loadOntologyCatalog, loadSemiconductorBusinessObjectIds } from "../engine/ontology_catalog";
@@ -54,6 +57,12 @@ export type OntologyChangeRequest = {
   implementation_ref: string;
   migration_ref: string;
   release_fingerprint: string;
+  base_fingerprint: string;
+  candidate_fingerprint: string;
+  branch_ref: string;
+  conflicts: string[];
+  rebase_required: boolean;
+  approval_policy_ref: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -65,9 +74,15 @@ export type OntologyChangeRequestEvent = {
   request_id: string;
   prior_status: string;
   next_status: OntologyChangeStatus;
+  action_type: string;
+  action_version: string;
   actor_name: string;
+  actor_role: string;
   decision_note: string;
   evidence: Record<string, unknown>;
+  prior_fingerprint: string;
+  result_fingerprint: string;
+  edited_object_ids: string[];
   created_at: string;
 };
 
@@ -142,6 +157,12 @@ function mapChangeRequest(row: any): OntologyChangeRequest {
     implementation_ref: String(row.implementation_ref || ""),
     migration_ref: String(row.migration_ref || ""),
     release_fingerprint: String(row.release_fingerprint || ""),
+    base_fingerprint: String(row.base_fingerprint || ""),
+    candidate_fingerprint: String(row.candidate_fingerprint || ""),
+    branch_ref: String(row.branch_ref || ""),
+    conflicts: parseJson<string[]>(row.conflicts_json, []),
+    rebase_required: Boolean(row.rebase_required),
+    approval_policy_ref: String(row.approval_policy_ref || "standard_ontology_change"),
     created_by: String(row.created_by || ""),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -155,9 +176,15 @@ function mapChangeRequestEvent(row: any): OntologyChangeRequestEvent {
     request_id: String(row.request_id),
     prior_status: String(row.prior_status),
     next_status: row.next_status as OntologyChangeStatus,
+    action_type: String(row.action_type || "LegacyStatusTransition"),
+    action_version: String(row.action_version || "1.0.0"),
     actor_name: String(row.actor_name),
+    actor_role: String(row.actor_role || ""),
     decision_note: String(row.decision_note),
     evidence: parseJson<Record<string, unknown>>(row.evidence_json, {}),
+    prior_fingerprint: String(row.prior_fingerprint || ""),
+    result_fingerprint: String(row.result_fingerprint || ""),
+    edited_object_ids: parseJson<string[]>(row.edited_object_ids_json, []),
     created_at: String(row.created_at),
   };
 }
@@ -272,6 +299,8 @@ export function reviewOntologyCandidate(input: {
   }
   const db = getWorkbenchDb();
   const now = new Date().toISOString();
+  const currentOntologyFingerprint = loadOntologyCatalog().fingerprint;
+  const proposeAction = governanceActionDefinition("ProposeOntologyChange");
   withImmediateTransaction(() => {
     const existing = db.prepare("SELECT * FROM ontology_candidate_reviews WHERE candidate_key=?").get(input.candidateKey) as any;
     const priorStatus = (existing?.status || "pending") as OntologyCandidateStatus;
@@ -304,16 +333,25 @@ export function reviewOntologyCandidate(input: {
         const requestId = `OCR-${crypto.randomUUID()}`;
         db.prepare(`INSERT INTO ontology_change_requests(
           id,candidate_key,request_version,change_kind,status,target_ontology_node_id,
-          proposal_note,created_by,created_at,updated_at
-        ) VALUES(?,?,?,?,?,?,?,?,?,?)`).run(
+          proposal_note,base_fingerprint,branch_ref,approval_policy_ref,created_by,created_at,updated_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
           requestId, input.candidateKey, 1, "add", "proposed", targetOntologyNodeId,
-          decisionNote, expertName, now, now,
+          decisionNote, currentOntologyFingerprint, `candidate:${input.candidateKey}`,
+          "standard_ontology_change", expertName, now, now,
         );
         db.prepare(`INSERT INTO ontology_change_request_events(
-          id,request_id,prior_status,next_status,actor_name,decision_note,evidence_json,created_at
-        ) VALUES(?,?,?,?,?,?,?,?)`).run(
-          crypto.randomUUID(), requestId, "none", "proposed", expertName, decisionNote,
-          JSON.stringify({ candidate_key: input.candidateKey, target_ontology_node_id: targetOntologyNodeId }), now,
+          id,request_id,prior_status,next_status,action_type,action_version,actor_name,actor_role,
+          decision_note,evidence_json,prior_fingerprint,result_fingerprint,edited_object_ids_json,created_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+          crypto.randomUUID(), requestId, "none", "proposed", "ProposeOntologyChange", proposeAction.action_log.version,
+          expertName, "ontology_steward", decisionNote,
+          JSON.stringify({
+            candidate_key: input.candidateKey,
+            target_ontology_node_id: targetOntologyNodeId,
+            branch_ref: `candidate:${input.candidateKey}`,
+            base_fingerprint: currentOntologyFingerprint,
+          }),
+          "", currentOntologyFingerprint, JSON.stringify([requestId]), now,
         );
       } else if (existingRequest.target_ontology_node_id !== targetOntologyNodeId) {
         throw new Error("已有本体变更提案时不得静默修改拟正式元素 ID");
@@ -329,6 +367,152 @@ export function listOntologyChangeRequests(): OntologyChangeRequest[] {
   ).all() as any[]).map(mapChangeRequest);
 }
 
+export function applyOntologyGovernanceAction(input: {
+  requestId: string;
+  actionId: OntologyGovernanceActionId;
+  actorName: string;
+  actorRole: string;
+  decisionNote: string;
+  impactReport?: OntologyImpactSnapshot;
+  validationResults?: Record<string, "pass" | "fail">;
+  implementationRef?: string;
+  breakingChange?: boolean;
+  migrationRef?: string;
+  migrationComplete?: boolean;
+  releaseFingerprint?: string;
+  approvalPolicySatisfied?: boolean;
+  candidateFingerprint?: string;
+  remainingConflicts?: string[];
+}): OntologyChangeRequest {
+  const db = getWorkbenchDb();
+  const raw = db.prepare("SELECT * FROM ontology_change_requests WHERE id=?").get(input.requestId) as any;
+  if (!raw) throw new Error("本体变更提案不存在");
+  const current = mapChangeRequest(raw);
+  const actorName = input.actorName.trim();
+  const actorRole = input.actorRole.trim();
+  const decisionNote = input.decisionNote.trim();
+  if (actorName.length < 2) throw new Error("治理决定必须记录责任人");
+  const action = governanceActionDefinition(input.actionId);
+  if (!action.permission.roles.includes(actorRole)) {
+    throw new Error(`角色 ${actorRole || "(empty)"} 无权执行 Action ${input.actionId}`);
+  }
+  if (decisionNote.length < 8) throw new Error("治理决定必须记录至少 8 字理由");
+
+  const impactReport = input.impactReport || current.impact_report;
+  const requiredChecks = impactReport?.required_checks || current.required_checks;
+  const validationResults = input.validationResults || current.validation_results;
+  const implementationRef = String(input.implementationRef ?? current.implementation_ref).trim();
+  const breakingChange = input.breakingChange ?? current.breaking_change;
+  const migrationRef = String(input.migrationRef ?? current.migration_ref).trim();
+  const releaseFingerprint = String(input.releaseFingerprint ?? current.release_fingerprint).trim();
+  const catalog = loadOntologyCatalog();
+  const transitionTo = action.state_transition.to;
+  const nextStatus = input.actionId === "RebaseOntologyProposal"
+    ? "proposed"
+    : transitionTo === "same"
+      ? current.status
+      : transitionTo as OntologyChangeStatus;
+  if (input.actionId === "RecordOntologyImplementation" && !governedRepositoryRefExists(implementationRef)) {
+    throw new Error("进入 implemented 前实现引用必须指向仓库内已存在资产");
+  }
+  if (
+    input.actionId === "ReleaseOntologyBaseline"
+    && breakingChange
+    && !governedRepositoryRefExists(migrationRef)
+  ) {
+    throw new Error("破坏性本体变更的迁移记录必须可解析");
+  }
+  if (input.actionId === "CreateMigrationTask" && !governedRepositoryRefExists(migrationRef)) {
+    throw new Error("迁移任务引用必须指向仓库内已存在资产");
+  }
+  assertOntologyGovernanceAction(input.actionId, current.status, {
+    impact_report: impactReport,
+    implementation_ref: implementationRef,
+    required_checks: requiredChecks,
+    validation_results: validationResults,
+    breaking_change: breakingChange,
+    migration_ref: migrationRef,
+    migration_complete: input.migrationComplete ?? false,
+    target_resolves: targetResolves(current.target_ontology_node_id),
+    release_fingerprint: releaseFingerprint,
+    current_ontology_fingerprint: catalog.fingerprint,
+    base_fingerprint: input.actionId === "RebaseOntologyProposal" ? catalog.fingerprint : current.base_fingerprint,
+    rebase_required: input.actionId === "RebaseOntologyProposal" ? false : current.rebase_required,
+    unresolved_conflicts: input.actionId === "RebaseOntologyProposal"
+      ? input.remainingConflicts || []
+      : current.conflicts,
+    approval_policy_satisfied: input.approvalPolicySatisfied,
+  });
+
+  const now = new Date().toISOString();
+  const baseFingerprint = input.actionId === "RebaseOntologyProposal"
+    ? catalog.fingerprint
+    : current.base_fingerprint;
+  const conflicts = input.actionId === "RebaseOntologyProposal"
+    ? input.remainingConflicts || []
+    : current.conflicts;
+  const candidateFingerprint = String(input.candidateFingerprint ?? current.candidate_fingerprint).trim();
+  withImmediateTransaction(() => {
+    db.prepare(`UPDATE ontology_change_requests SET
+      status=?, breaking_change=?, impact_report_json=?, required_checks_json=?,
+      validation_results_json=?, implementation_ref=?, migration_ref=?, release_fingerprint=?,
+      base_fingerprint=?, candidate_fingerprint=?, conflicts_json=?, rebase_required=?,
+      updated_at=?, released_at=?
+      WHERE id=?`).run(
+      nextStatus,
+      breakingChange ? 1 : 0,
+      JSON.stringify(input.actionId === "RebaseOntologyProposal" ? {} : impactReport || {}),
+      JSON.stringify(input.actionId === "RebaseOntologyProposal" ? [] : requiredChecks),
+      JSON.stringify(validationResults),
+      implementationRef,
+      migrationRef,
+      releaseFingerprint,
+      baseFingerprint,
+      candidateFingerprint,
+      JSON.stringify(conflicts),
+      conflicts.length ? 1 : 0,
+      now,
+      nextStatus === "released" ? now : current.released_at,
+      input.requestId,
+    );
+    db.prepare(`INSERT INTO ontology_change_request_events(
+      id,request_id,prior_status,next_status,action_type,action_version,actor_name,actor_role,
+      decision_note,evidence_json,prior_fingerprint,result_fingerprint,edited_object_ids_json,created_at
+    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+      crypto.randomUUID(),
+      input.requestId,
+      current.status,
+      nextStatus,
+      input.actionId,
+      action.action_log.version,
+      actorName,
+      actorRole,
+      decisionNote,
+      JSON.stringify({
+        impact_report: impactReport,
+        validation_results: validationResults,
+        implementation_ref: implementationRef,
+        breaking_change: breakingChange,
+        migration_ref: migrationRef,
+        migration_complete: input.migrationComplete ?? false,
+        release_fingerprint: releaseFingerprint,
+        base_fingerprint: baseFingerprint,
+        candidate_fingerprint: candidateFingerprint,
+        conflicts,
+        approval_policy_satisfied: input.approvalPolicySatisfied ?? false,
+      }),
+      current.base_fingerprint,
+      nextStatus === "released" ? releaseFingerprint : candidateFingerprint || baseFingerprint,
+      JSON.stringify([input.requestId]),
+      now,
+    );
+  });
+  return mapChangeRequest(
+    db.prepare("SELECT * FROM ontology_change_requests WHERE id=?").get(input.requestId),
+  );
+}
+
+/** @deprecated 使用 applyOntologyGovernanceAction，以 Action ID 代替自由 next_status。 */
 export function advanceOntologyChangeRequest(input: {
   requestId: string;
   nextStatus: OntologyChangeStatus;
@@ -341,85 +525,15 @@ export function advanceOntologyChangeRequest(input: {
   migrationRef?: string;
   releaseFingerprint?: string;
 }): OntologyChangeRequest {
-  const db = getWorkbenchDb();
-  const raw = db.prepare("SELECT * FROM ontology_change_requests WHERE id=?").get(input.requestId) as any;
-  if (!raw) throw new Error("本体变更提案不存在");
-  const current = mapChangeRequest(raw);
-  const actorName = input.actorName.trim();
-  const decisionNote = input.decisionNote.trim();
-  if (actorName.length < 2) throw new Error("治理决定必须记录责任人");
-  if (decisionNote.length < 8) throw new Error("治理决定必须记录至少 8 字理由");
-
-  const impactReport = input.impactReport || current.impact_report;
-  const requiredChecks = impactReport?.required_checks || current.required_checks;
-  const validationResults = input.validationResults || current.validation_results;
-  const implementationRef = String(input.implementationRef ?? current.implementation_ref).trim();
-  const breakingChange = input.breakingChange ?? current.breaking_change;
-  const migrationRef = String(input.migrationRef ?? current.migration_ref).trim();
-  const releaseFingerprint = String(input.releaseFingerprint ?? current.release_fingerprint).trim();
-  if (input.nextStatus === "implemented" && !governedRepositoryRefExists(implementationRef)) {
-    throw new Error("进入 implemented 前实现引用必须指向仓库内已存在资产");
-  }
-  if (
-    input.nextStatus === "released"
-    && breakingChange
-    && !governedRepositoryRefExists(migrationRef)
-  ) {
-    throw new Error("破坏性本体变更的迁移记录必须可解析");
-  }
-  const catalog = loadOntologyCatalog();
-  assertOntologyChangeTransition(current.status, input.nextStatus, {
-    impact_report: impactReport,
-    implementation_ref: implementationRef,
-    required_checks: requiredChecks,
-    validation_results: validationResults,
-    breaking_change: breakingChange,
-    migration_ref: migrationRef,
-    target_resolves: targetResolves(current.target_ontology_node_id),
-    release_fingerprint: releaseFingerprint,
-    current_ontology_fingerprint: catalog.fingerprint,
-  });
-
-  const now = new Date().toISOString();
-  withImmediateTransaction(() => {
-    db.prepare(`UPDATE ontology_change_requests SET
-      status=?, breaking_change=?, impact_report_json=?, required_checks_json=?,
-      validation_results_json=?, implementation_ref=?, migration_ref=?, release_fingerprint=?,
-      updated_at=?, released_at=?
-      WHERE id=?`).run(
-      input.nextStatus,
-      breakingChange ? 1 : 0,
-      JSON.stringify(impactReport || {}),
-      JSON.stringify(requiredChecks),
-      JSON.stringify(validationResults),
-      implementationRef,
-      migrationRef,
-      releaseFingerprint,
-      now,
-      input.nextStatus === "released" ? now : current.released_at,
-      input.requestId,
-    );
-    db.prepare(`INSERT INTO ontology_change_request_events(
-      id,request_id,prior_status,next_status,actor_name,decision_note,evidence_json,created_at
-    ) VALUES(?,?,?,?,?,?,?,?)`).run(
-      crypto.randomUUID(),
-      input.requestId,
-      current.status,
-      input.nextStatus,
-      actorName,
-      decisionNote,
-      JSON.stringify({
-        impact_report: impactReport,
-        validation_results: validationResults,
-        implementation_ref: implementationRef,
-        breaking_change: breakingChange,
-        migration_ref: migrationRef,
-        release_fingerprint: releaseFingerprint,
-      }),
-      now,
-    );
-  });
-  return mapChangeRequest(
-    db.prepare("SELECT * FROM ontology_change_requests WHERE id=?").get(input.requestId),
+  const current = mapChangeRequest(
+    getWorkbenchDb().prepare("SELECT * FROM ontology_change_requests WHERE id=?").get(input.requestId),
   );
+  const actionId = ontologyGovernanceActionForTransition(current.status, input.nextStatus);
+  return applyOntologyGovernanceAction({
+    ...input,
+    actionId,
+    actorRole: "ontology_steward",
+    approvalPolicySatisfied: true,
+    migrationComplete: Boolean(input.migrationRef),
+  });
 }

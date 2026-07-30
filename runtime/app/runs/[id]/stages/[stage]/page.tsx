@@ -263,6 +263,7 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
         attempt: activeJob.attempt,
         max_attempts: activeJob.max_attempts,
         last_error: activeJob.last_error,
+        available_at: activeJob.available_at,
         updated_at: activeJob.updated_at,
       } : undefined}
       unlocked={unlocked}

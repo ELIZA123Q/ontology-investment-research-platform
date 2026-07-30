@@ -119,7 +119,7 @@ describe("run-level source budget", () => {
     expect(data.unresolved_gaps[0]).toContain("来源预算已用尽");
   });
 
-  it("registers Runtime-discovered candidates without any model call", async () => {
+  it("registers and deterministically quote-freezes Runtime-discovered candidates without any model call", async () => {
     vi.resetModules();
     const db = await import("@/adapters/db");
     const run = db.createRun("Runtime 确定性候选来源登记", "semiconductor");
@@ -157,10 +157,11 @@ describe("run-level source budget", () => {
     expect(acquired.queries[0]).toMatch(/DRAM.*contract price.*inventory/);
     expect(acquired.sources).toHaveLength(1);
     expect(acquired.sources[0]).toMatchObject({
-      retrieval_status: "limited",
-      usability_status: "limited",
-      quote_verified: 0,
+      retrieval_status: "captured",
+      usability_status: "usable",
+      quote_verified: 1,
     });
+    expect(acquired.sources[0].source_quote).toBe("A".repeat(400));
     expect(db.listSources(run.id)).toHaveLength(1);
   });
 

@@ -9,6 +9,7 @@ import {
   ensureStage01ContractFields,
 } from "@/engine/stage01_contract";
 import {
+  assertStage02AnswersStage01,
   assertStage02ReadyForApproval,
   collectStage02ConsistencyIssues,
   ensureStage02DocumentFields,
@@ -220,6 +221,13 @@ describe("stage01 clarification and quality gates", () => {
     const data = baseStage01();
     expect(() => taskDefinitionSchema.parse(data)).not.toThrow();
     expect(() => assertStage01ReadyForApproval(data)).not.toThrow();
+  });
+
+  it("requires an accepted task to hand at least one hypothesis to Stage02", () => {
+    const data = baseStage01();
+    data.hypotheses_to_verify = [];
+    expect(() => taskDefinitionSchema.parse(data)).toThrow(/至少需要一条待验证假设/);
+    expect(() => assertStage01ReadyForApproval(data)).toThrow(/尚未形成待验证假设/);
   });
 
   it("blocks approval while clarification is pending", () => {
@@ -468,6 +476,43 @@ describe("stage02 dual documents and gates", () => {
     expect(data.method_applications).toHaveLength(methodCount);
   });
 
+  it("normalizes common model-only Stage02 contract drift before validation", () => {
+    const data = baseStage02();
+    data.method_applications[0].application_id = "ma 02 bfva01";
+    data.method_applications[0].status = "executed";
+    data.method_applications[0].input_evidence_refs = ["EV-PREMATURE"];
+    data.method_applications[0].output_signal_refs = ["SIG-PREMATURE"];
+    data.method_applications[0].output_judgment_refs = ["J-PREMATURE"];
+    data.method_applications[0].execution_summary = "已执行";
+    data.method_applications[0].provenance = {
+      stage: "stage_03",
+      source_application_id: "MA-OLD",
+      actor: "model",
+      recorded_at: "2026-07-30T00:00:00Z",
+    };
+    data.judgment_units[0].decision_weight = 40;
+    data.judgment_units[1].decision_weight = 60;
+
+    repairStage02GenerationDraft(data);
+
+    expect(data.method_applications[0]).toMatchObject({
+      application_id: "MA-02-BFVA01",
+      status: "candidate",
+      input_evidence_refs: [],
+      output_signal_refs: [],
+      output_judgment_refs: [],
+      execution_summary: "",
+      provenance: {
+        stage: "stage_02",
+        source_application_id: null,
+        actor: "model",
+        recorded_at: null,
+      },
+    });
+    expect(data.judgment_units.map((unit: any) => unit.decision_weight)).toEqual([0.4, 0.6]);
+    expect(() => judgmentStructureSchema.parse(data)).not.toThrow();
+  });
+
   it("requires research_logic_markdown and ontology_view_yaml", () => {
     const data = baseStage02();
     expect(data.research_logic_markdown.length).toBeGreaterThan(40);
@@ -539,5 +584,28 @@ describe("stage02 dual documents and gates", () => {
     });
     const issues = collectStage02ConsistencyIssues(data);
     expect(issues.some((item) => item.code === "unit_missing_in_yaml")).toBe(true);
+  });
+
+  it("requires every Stage01 hypothesis to be owned by a valid Stage02 judgment unit", () => {
+    const data = baseStage02();
+    data.task_answer_contract.root_question = "未来六个月供需是否改善？";
+    const task = {
+      normalized_question: "未来六个月供需是否改善？",
+      hypotheses_to_verify: [
+        { id: "HYP-1" },
+        { id: "HYP-2" },
+      ],
+    };
+    data.task_answer_contract.hypothesis_coverage = [{
+      hypothesis_ref: "HYP-1",
+      judgment_unit_ids: ["JU-1"],
+    }];
+    expect(() => assertStage02AnswersStage01(data, task)).toThrow(/HYP-2/);
+
+    data.task_answer_contract.hypothesis_coverage.push({
+      hypothesis_ref: "HYP-2",
+      judgment_unit_ids: ["JU-2"],
+    });
+    expect(() => assertStage02AnswersStage01(data, task)).not.toThrow();
   });
 });

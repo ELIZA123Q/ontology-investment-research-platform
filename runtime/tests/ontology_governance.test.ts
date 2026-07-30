@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   allowedOntologyChangeTransitions,
+  assertOntologyGovernanceAction,
   assertOntologyChangeTransition,
+  governanceActionDefinition,
+  ontologyGovernanceActionForTransition,
 } from "@/engine/ontology_governance";
 
 const impact = {
@@ -12,6 +15,15 @@ const impact = {
 };
 
 describe("ontology governance lifecycle", () => {
+  it("loads states, transitions and action-log policy from the governance ontology YAML", () => {
+    expect(ontologyGovernanceActionForTransition("proposed", "impact_assessed")).toBe("FreezeImpactAssessment");
+    expect(governanceActionDefinition("ReleaseOntologyBaseline").action_log).toEqual({
+      object_type: "GovernanceActionLog",
+      version: "2.0.0",
+      immutable: true,
+    });
+  });
+
   it("requires the full proposal-to-release path", () => {
     expect(allowedOntologyChangeTransitions("proposed")).toEqual(["impact_assessed", "rejected"]);
     expect(() => assertOntologyChangeTransition("proposed", "approved", {})).toThrow(/不得/);
@@ -32,20 +44,42 @@ describe("ontology governance lifecycle", () => {
     })).not.toThrow();
   });
 
+  it("typed approval action enforces baseline freshness and approval policy", () => {
+    const fingerprint = `sha256:${"b".repeat(64)}`;
+    expect(() => assertOntologyGovernanceAction("ApproveOntologyChange", "impact_assessed", {
+      base_fingerprint: fingerprint,
+      current_ontology_fingerprint: fingerprint,
+      approval_policy_satisfied: false,
+    })).toThrow(/批准策略/);
+    expect(() => assertOntologyGovernanceAction("ApproveOntologyChange", "impact_assessed", {
+      base_fingerprint: fingerprint,
+      current_ontology_fingerprint: fingerprint,
+      approval_policy_satisfied: true,
+      unresolved_conflicts: ["conflict-1"],
+    })).toThrow(/rebase/);
+  });
+
   it("requires a resolved target, current fingerprint and migration for breaking releases", () => {
     const fingerprint = `sha256:${"a".repeat(64)}`;
+    const validatedEvidence = {
+      required_checks: impact.required_checks,
+      validation_results: { validate_v3: "pass", "ontology:check": "pass" } as const,
+    };
     expect(() => assertOntologyChangeTransition("validated", "released", {
+      ...validatedEvidence,
       target_resolves: false,
       release_fingerprint: fingerprint,
       current_ontology_fingerprint: fingerprint,
     })).toThrow(/必须能从当前本体/);
     expect(() => assertOntologyChangeTransition("validated", "released", {
+      ...validatedEvidence,
       target_resolves: true,
       release_fingerprint: fingerprint,
       current_ontology_fingerprint: fingerprint,
       breaking_change: true,
-    })).toThrow(/迁移记录/);
+    })).toThrow(/迁移任务/);
     expect(() => assertOntologyChangeTransition("validated", "released", {
+      ...validatedEvidence,
       target_resolves: true,
       release_fingerprint: fingerprint,
       current_ontology_fingerprint: fingerprint,

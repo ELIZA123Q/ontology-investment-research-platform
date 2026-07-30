@@ -99,7 +99,7 @@ describe("source_coverage", () => {
       independent_source_groups: 0,
       evidence_ceiling: "J0",
       support_gap_kind: "unverified_bound_sources",
-      weakest_link: "已有草稿，但来源引文未核验通过",
+      weakest_link: "ER-1 缺少可核验的主证据",
       blocked_sources: [expect.objectContaining({ id: "SRC-1", failure_detail: "原文引用未能在抓取正文中精确定位" })],
     });
   });
@@ -127,7 +127,7 @@ describe("source_coverage", () => {
     });
     expect(coverage.unit_coverage[0]).toMatchObject({
       support_gap_kind: "no_support_draft",
-      weakest_link: "缺少可核验的支持事实",
+      weakest_link: "ER-1 缺少可核验的主证据",
       candidate_sources: [expect.objectContaining({ id: "SRC-READY", title: "已核验披露" })],
     });
   });
@@ -167,7 +167,7 @@ describe("source_coverage", () => {
       independent_source_groups: 1,
       meets_independence: false,
       evidence_ceiling: "J1",
-      weakest_link: "独立来源组不足（1/2）",
+      weakest_link: "ER-1 独立来源组不足（1/2）",
     });
   });
 

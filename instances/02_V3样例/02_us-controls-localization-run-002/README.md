@@ -1,15 +1,39 @@
-# us-controls-localization-run-002
+# 美国管制与国产设备替代研究样例
 
-Ontology 3.0 / Public Contract 1.3 的美国管制与国产设备替代示范样例。
+这是一个完整的外部管制→产业链影响研究案例。可以跟着文件顺序走一遍，看政策事件怎么传导到设备可得性、国产替代怎么从"有进展"变成"有边界的判断"。
 
-## 示范要点
+## 研究问题
 
-1. **政策事件 + 半导体领域对象**：Event、WaferFab、ProcessNode、SemiconductorEquipment、YieldMetric
-2. **领域关系**：`facilityUsesEquipment`（qualification 阶段）、`facilityLocatedIn`、`eventAffectsState` 与 `stateVariableForObject`
-3. **方法链**：kb03:A05 降级、kb04:A10 阻断（缺定价输入）
-4. **证据结构**：支持 / 反证 / 缺口（EG-11：批量采购序列 partially_met）
-5. **竞争解释**：原有采购周期（CE-11 unresolved）、验证≠收入（CE-12 retained）
-6. **05 反查**：EX-11/12 → C-11/12 → MA-14/15 → EV-11/12/13
-7. **增量更新**：EV-14 验证失败仅 stale JU-02 链；EA-12 评估失效；C-11 管制判断保持 current
+> 美国新管制是否改变先进设备可得性？国产设备认证是否已推进到量产导入？
 
-阅读顺序：`01_task.yaml` → `02_structure.yaml` → `03_evidence.yaml` → `04_judgment.yaml` → `05_expression.yaml` → `05_report.md` → `incremental_update.yaml`。
+## 核心判断
+
+- **管制传导**：新规则提高部分先进设备的许可约束，设备可得性不确定性上升。判断不��推至全部厂商或全部品��
+- **国产替代**：国产刻蚀设备验证机会增加，但当前证据只支持"认证在推进"——验证≠规模采购≠收入兑现
+
+��键的克制：证据够了就说够，不够就标注缺口。跨客户批量采购序列缺失（EG-11），国产替代没有过度拔高。
+
+## 为什么值得看这个案例
+
+1. **政策事件→行业传导的完整链路**：从管制规则 → 设备可得性 → 国产替代进度，每步都有方法选择和证据支撑
+2. **领域对象建模**：用到了 WaferFab、ProcessNode、SemiconductorEquipment 等半导体专项概念
+3. **方法降级与阻断**：A05 降级（缺收入确认）、A10 阻断（缺定价输入）——不是所有方法都能用，该拒就拒
+
+## 文件阅读顺序
+
+```
+01_task.yaml        → 研究问题和交付要求
+02_structure.yaml   → 选框架、拆判断单元
+03_evidence.yaml    → 证据材料：管制文件、设备商披露、采购数据
+04_judgment.yaml    → 判断结论的等级和边界（最核心）
+05_report.md        → 最终研报
+05_expression.yaml  → 表达审计
+```
+
+建议先读 `05_report.md` 看结论，再回看 `04_judgment.yaml` 理解判断怎么定级和约束。
+
+---
+
+## 系统示范要点（维护者用）
+
+政策事件 + 半导体领域对象（WaferFab、ProcessNode、SemiconductorEquipment、YieldMetric），含 5 条领域关系和 facilityUsesEquipment 的 qualification 阶段。方法链含 kb03:A05 降级和 kb04:A10 阻断，证据四种类型，竞争解释含"原有采购周期"和"验证≠收入"。

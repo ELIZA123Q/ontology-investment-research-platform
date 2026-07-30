@@ -1,11 +1,16 @@
 import type { ResearchGraphEdge, ResearchGraphNode } from "@/app/components/research-graph";
+import { objectTypeLabel, relationTypeLabel } from "@/app/lib/ui-labels";
 import { type GraphLoadResult } from "@/engine/instance_graph";
 
 const PROCESS_TYPES = new Set([
+  "ResearchQuestion",
   "JudgmentUnit",
   "Judgment",
   "EvidenceFact",
   "EvidenceClaim",
+  "EvidenceRequirement",
+  "EvidenceAssessment",
+  "EvidenceBasket",
   "SourceDocument",
   "Hypothesis",
   "Signal",
@@ -17,8 +22,71 @@ const PROCESS_TYPES = new Set([
   "ResearchPath",
 ]);
 
+const DECISION_TYPES = new Set([
+  "ResearchQuestion",
+  "JudgmentUnit",
+  "ResearchScope",
+  "StateVariable",
+  "Industry",
+  "ValueChainSegment",
+  "Product",
+  "Application",
+  "Company",
+  "ManufacturingFacility",
+  "Technology",
+  "Region",
+  "Material",
+  "ProcessStep",
+  "Asset",
+  "Hypothesis",
+  "Judgment",
+]);
+
+const DECISION_RELATIONS = new Set([
+  "questionDecomposesIntoUnit",
+  "unitUsesScope",
+  "scopeIncludesObject",
+  "unitEvaluatesStateVariable",
+  "unitHasHypothesis",
+  "judgmentResolvesUnit",
+  "judgmentBasedOnHypothesis",
+]);
+
+const DISPLAY_ORDER = [
+  "ResearchQuestion",
+  "JudgmentUnit",
+  "ResearchScope",
+  "StateVariable",
+  "Industry",
+  "ValueChainSegment",
+  "Product",
+  "Application",
+  "Company",
+  "ManufacturingFacility",
+  "Technology",
+  "Region",
+  "Material",
+  "ProcessStep",
+  "Asset",
+  "Hypothesis",
+  "Judgment",
+];
+
+export type EntityRelationGraphStats = {
+  totalObjects: number;
+  totalRelations: number;
+  visibleObjects: number;
+  visibleRelations: number;
+  isolatedDecisionObjects: number;
+  judgmentUnits: number;
+  judgmentUnitsWithoutVariableBindings: number;
+  stateVariables: number;
+  unboundStateVariables: number;
+};
+
 function toneForType(type: string): ResearchGraphNode["tone"] {
   if (type === "Judgment") return "support";
+  if (type === "ResearchQuestion" || type === "Hypothesis") return "inherited";
   if (PROCESS_TYPES.has(type)) return "unknown";
   return "neutral";
 }
@@ -30,24 +98,46 @@ function objectLabel(item: { id: string; properties?: Record<string, unknown> })
 
 export function buildEntityRelationGraph(
   loaded: GraphLoadResult,
-  options: { includeProcessObjects?: boolean } = {},
-): { nodes: ResearchGraphNode[]; edges: ResearchGraphEdge[] } {
-  const includeProcessObjects = Boolean(options.includeProcessObjects);
-  const visibleObjects = loaded.graph.objects.filter((item) => includeProcessObjects || !PROCESS_TYPES.has(item.type));
+  options: { includeProcessObjects?: boolean; scope?: "decision" | "business" | "all" } = {},
+): { nodes: ResearchGraphNode[]; edges: ResearchGraphEdge[]; stats: EntityRelationGraphStats } {
+  const scope = options.scope || (options.includeProcessObjects ? "all" : "business");
+  const candidateObjects = loaded.graph.objects.filter((item) => {
+    if (scope === "all") return true;
+    if (scope === "decision") return DECISION_TYPES.has(item.type);
+    return !PROCESS_TYPES.has(item.type);
+  });
+  const candidateIds = new Set(candidateObjects.map((item) => item.id));
+  const candidateRelations = loaded.graph.relations.filter((item) =>
+    candidateIds.has(item.sourceId)
+    && candidateIds.has(item.targetId)
+    && (scope !== "decision" || DECISION_RELATIONS.has(item.type)),
+  );
+  const connectedIds = new Set(candidateRelations.flatMap((item) => [item.sourceId, item.targetId]));
+  const visibleObjects = scope === "decision"
+    ? candidateObjects.filter((item) => connectedIds.has(item.id))
+    : candidateObjects;
   const visibleIds = new Set(visibleObjects.map((item) => item.id));
+  const orderedTypes = [
+    ...DISPLAY_ORDER.filter((type) => visibleObjects.some((item) => item.type === type)),
+    ...[...new Set(visibleObjects.map((item) => item.type))].filter((type) => !DISPLAY_ORDER.includes(type)),
+  ];
   const columns = new Map<string, number>();
-  let cursor = 0;
-  const nodes = visibleObjects.map((object, index) => {
-    if (!columns.has(object.type)) {
-      columns.set(object.type, cursor);
-      cursor += 1;
-    }
-    const col = columns.get(object.type) || 0;
-    const row = visibleObjects.filter((item, idx) => idx <= index && item.type === object.type).length - 1;
+  let columnCursor = 0;
+  for (const type of orderedTypes) {
+    columns.set(type, columnCursor);
+    const count = visibleObjects.filter((item) => item.type === type).length;
+    columnCursor += Math.max(1, Math.ceil(count / 6));
+  }
+  const rowByType = new Map<string, number>();
+  const nodes = visibleObjects.map((object) => {
+    const index = rowByType.get(object.type) || 0;
+    rowByType.set(object.type, index + 1);
+    const col = (columns.get(object.type) || 0) + Math.floor(index / 6);
+    const row = index % 6;
     return {
       id: object.id,
       label: objectLabel(object),
-      meta: object.type,
+      meta: objectTypeLabel(object.type),
       tone: toneForType(object.type),
       x: col * 320,
       y: row * 130,
@@ -58,14 +148,40 @@ export function buildEntityRelationGraph(
       },
     } satisfies ResearchGraphNode;
   });
-  const edges = loaded.graph.relations
+  const edges = candidateRelations
     .filter((item) => visibleIds.has(item.sourceId) && visibleIds.has(item.targetId))
     .map((relation) => ({
       id: relation.id,
       source: relation.sourceId,
       target: relation.targetId,
-      label: relation.type,
-      tone: "neutral" as const,
+      label: relationTypeLabel(relation.type),
+      tone: relation.type.startsWith("judgment") ? "support" as const
+        : relation.type === "unitEvaluatesStateVariable" || relation.type === "unitHasHypothesis"
+          ? "inherited" as const
+          : "neutral" as const,
     }));
-  return { nodes, edges };
+  const judgmentUnitIds = new Set(loaded.graph.objects.filter((item) => item.type === "JudgmentUnit").map((item) => item.id));
+  const stateVariableIds = new Set(loaded.graph.objects.filter((item) => item.type === "StateVariable").map((item) => item.id));
+  const variableRelations = loaded.graph.relations.filter((item) =>
+    item.type === "unitEvaluatesStateVariable"
+    && judgmentUnitIds.has(item.sourceId)
+    && stateVariableIds.has(item.targetId),
+  );
+  const boundJudgmentUnitIds = new Set(variableRelations.map((item) => item.sourceId));
+  const boundStateVariableIds = new Set(variableRelations.map((item) => item.targetId));
+  return {
+    nodes,
+    edges,
+    stats: {
+      totalObjects: loaded.graph.objects.length,
+      totalRelations: loaded.graph.relations.length,
+      visibleObjects: nodes.length,
+      visibleRelations: edges.length,
+      isolatedDecisionObjects: candidateObjects.length - visibleObjects.length,
+      judgmentUnits: judgmentUnitIds.size,
+      judgmentUnitsWithoutVariableBindings: judgmentUnitIds.size - boundJudgmentUnitIds.size,
+      stateVariables: stateVariableIds.size,
+      unboundStateVariables: stateVariableIds.size - boundStateVariableIds.size,
+    },
+  };
 }

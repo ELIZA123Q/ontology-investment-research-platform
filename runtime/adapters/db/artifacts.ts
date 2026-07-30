@@ -2,7 +2,7 @@ import "server-only";
 import { cache } from "react";
 import type { Artifact, ArtifactKind, ArtifactStatus } from "../../engine/types";
 import { db } from "./connection";
-import { recordResearchExperienceEvent, updateRun, getRun } from "./runs";
+import { recordResearchExperienceEvent, updateRun, getRun, recomputeRunProgress } from "./runs";
 import { parseManifest, recordApprovedStage } from "../../engine/manifest";
 export function listArtifacts(runId: string): Artifact[] {
   return db.prepare("SELECT * FROM artifacts WHERE run_id=? ORDER BY created_at DESC").all(runId) as Artifact[];
@@ -101,10 +101,12 @@ export function supersedeDownstream(runId: string, afterStage: number) {
       `UPDATE artifacts SET status='superseded' WHERE run_id=? AND kind IN (${kinds.map(() => "?").join(",")}) AND status IN ('approved','needs_review')`,
     ).run(runId, ...kinds);
   }
+  recomputeRunProgress(runId);
 }
 export function supersedeOtherArtifactAttempts(runId: string, kind: ArtifactKind, keepId: string) {
   db.prepare("UPDATE artifacts SET status='superseded' WHERE run_id=? AND kind=? AND id<>? AND status IN ('approved','needs_review')")
     .run(runId, kind, keepId);
+  recomputeRunProgress(runId);
 }
 export function approveArtifact(artifact: Artifact) {
   const stage = Number(artifact.kind.slice(-2));
@@ -128,11 +130,8 @@ export function approveArtifact(artifact: Artifact) {
   if (run) {
     const approved = getArtifact(artifact.id)!;
     const manifest = recordApprovedStage(parseManifest(run.manifest_json, run), approved);
-    updateRun(run.id, {
-      current_stage: stage || run.current_stage,
-      status: stage === 5 ? "complete" : "in_progress",
-      manifest_json: JSON.stringify(manifest),
-    });
+    updateRun(run.id, { manifest_json: JSON.stringify(manifest) });
+    recomputeRunProgress(run.id);
   } else if (stage) {
     db.prepare("UPDATE research_runs SET current_stage=?, status=?, updated_at=? WHERE id=?").run(
       stage,

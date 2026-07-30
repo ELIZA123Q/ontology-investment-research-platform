@@ -30,9 +30,9 @@ import { ensureStage03DocumentFields,recomputeStage03EvidenceQualityGate } from 
 import { parseJson,STAGES,type Artifact,type ArtifactKind,type StageKind } from "../types";
 import {
 recomputeStage04DeterministicRules,
-stageNumber,
-validateApproval
+stageNumber
 } from "../workflow_shared";
+import { validateApproval } from "./validate_approval";
 
 export function approve(id: string) {
   return withImmediateTransaction(() => {
@@ -46,8 +46,10 @@ export function approve(id: string) {
         listSources(artifact.run_id),
       );
       const run = getRun(artifact.run_id);
+      const taskArtifact = latestArtifact(artifact.run_id, "stage_01", ["approved"]);
+      const taskDefinition: any = parseJson(taskArtifact?.json_content || "{}", {});
       const structureArtifact = latestArtifact(artifact.run_id, "stage_02", ["approved"]);
-      const structure = parseJson(structureArtifact?.json_content || "{}", {});
+      const structure: any = parseJson(structureArtifact?.json_content || "{}", {});
       ensureStage03DocumentFields(synced.data, {
         question: run?.question,
         taskId: artifact.run_id,
@@ -57,6 +59,8 @@ export function approve(id: string) {
       const recomputed = recomputeStage03EvidenceQualityGate(synced.data, {
         structure,
         sources: listSources(artifact.run_id),
+        defaultScopeRef: structure?.research_scope?.id,
+        cutoffAt: taskDefinition?.time_scope?.as_of,
       });
       // 质量门不是只在内存里“通过”后即丢弃；下游 Stage04/05 必须读取
       // 与本次确认完全相同的重算结果。

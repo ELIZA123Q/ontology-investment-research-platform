@@ -1,5 +1,6 @@
 /** Stage02 双产物（研究逻辑.md + 本体视图.yaml）同步与一致性门禁。 */
 
+import "server-only";
 import YAML from "yaml";
 import {
   applyHighQualityGate,
@@ -11,6 +12,7 @@ import {
   type StageQualityIssue,
 } from "./stage_high_quality";
 import { normalizeMethodApplicationNulls } from "./evidence_draft_normalize";
+import { applyEvidenceRequirementBindings } from "./evidence_requirement_bindings";
 
 export const STAGE02_QUALITY_GATE_REF =
   "workflow/stages/02_结构/02_判断结构与本体视图规范.md#7-质量门槛与返工规则";
@@ -21,6 +23,53 @@ function nonEmpty(value: unknown, fallback = ""): string {
 
 function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
+}
+
+function ensureTaskAnswerContract(data: any, question = ""): void {
+  const units = Array.isArray(data?.judgment_units) ? data.judgment_units : [];
+  const unitIds = units.map((unit: any) => nonEmpty(unit?.id)).filter(Boolean);
+  const criticalIds = units
+    .filter((unit: any) => String(unit?.priority_tier || "") === "critical")
+    .map((unit: any) => nonEmpty(unit?.id))
+    .filter(Boolean);
+  const existing = data?.task_answer_contract && typeof data.task_answer_contract === "object"
+    ? data.task_answer_contract
+    : {};
+  const required = asList(existing.required_judgment_unit_ids)
+    .filter((unitId) => unitIds.includes(unitId));
+  data.task_answer_contract = {
+    root_question_ref: nonEmpty(
+      existing.root_question_ref,
+      nonEmpty(data?.questions?.[0]?.id, "RQ-01"),
+    ),
+    root_question: nonEmpty(
+      existing.root_question,
+      nonEmpty(question, nonEmpty(data?.research_scope?.label, data?.judgment_spine)),
+    ),
+    required_judgment_unit_ids: required.length
+      ? required
+      : (criticalIds.length ? criticalIds : unitIds),
+    synthesis_operator: [
+      "all_required",
+      "weighted",
+      "conditional",
+      "comparative",
+      "custom",
+    ].includes(String(existing.synthesis_operator))
+      ? String(existing.synthesis_operator)
+      : "conditional",
+    synthesis_rule: nonEmpty(
+      existing.synthesis_rule,
+      "逐一裁决全部必需判断单元并保留对象分化；不得用单一均值或材料数量替代根问题回答。",
+    ),
+    blocking_policy: nonEmpty(
+      existing.blocking_policy,
+      "任一必需判断单元为 J0、存在未关闭阻断或关键反证缺口时，根问题只能输出有边界的部分回答或暂不可判断。",
+    ),
+    hypothesis_coverage: Array.isArray(existing.hypothesis_coverage)
+      ? existing.hypothesis_coverage
+      : [],
+  };
 }
 
 function normalizePathBindings(data: any): void {
@@ -59,6 +108,7 @@ export function defaultOntologyViewRef(logicId = "RLOG-RUNTIME"): string {
 /** 从执行字段投影最小可审阅本体视图 YAML（模型未给全文时的兜底）。 */
 export function projectOntologyViewYaml(data: any, options: { taskId?: string; question?: string } = {}): string {
   normalizePathBindings(data);
+  ensureTaskAnswerContract(data, options.question);
   const logicId = nonEmpty(data?.logic_id, "RLOG-RUNTIME");
   const viewRef = nonEmpty(data?.ontology_view_ref, defaultOntologyViewRef(logicId));
   const units = Array.isArray(data?.judgment_units) ? data.judgment_units : [];
@@ -106,6 +156,7 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
         .filter(Boolean),
       evidence_requirements: asList(unit?.evidence_requirements),
     })),
+    task_answer_contract: data.task_answer_contract,
     path_design: paths.map((path: any) => ({
       id: nonEmpty(path?.id),
       statement: nonEmpty(path?.statement),
@@ -131,6 +182,10 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
       evidence_role: nonEmpty(item?.evidence_role),
       judgment_unit_ids: asList(item?.judgment_unit_ids),
       minimum_independent_sources: Number(item?.minimum_independent_sources || 1),
+      evidence_profile_refs: asList(item?.evidence_profile_refs),
+      evidence_recipe_ref: nonEmpty(item?.evidence_recipe_ref) || null,
+      derivation_refs: item?.derivation_refs || null,
+      no_profile_reason: nonEmpty(item?.no_profile_reason) || null,
     })),
     ontology_gaps: {
       status: gapStatus,
@@ -159,6 +214,8 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
 export function ensureStage02DocumentFields(data: any, options: { question?: string; taskId?: string } = {}): any {
   const next = data && typeof data === "object" ? data : {};
   normalizePathBindings(next);
+  applyEvidenceRequirementBindings(next);
+  ensureTaskAnswerContract(next, options.question);
   const logicId = nonEmpty(next.logic_id, "RLOG-RUNTIME");
   next.logic_id = logicId;
   next.ontology_view_ref = nonEmpty(next.ontology_view_ref, defaultOntologyViewRef(logicId));
@@ -232,7 +289,58 @@ export function repairStage02GenerationDraft(
 ): any {
   const next = data && typeof data === "object" ? data : {};
   if (Array.isArray(next.method_applications)) {
-    next.method_applications = next.method_applications.map(normalizeMethodApplicationNulls);
+    const usedApplicationIds = new Set<string>();
+    next.method_applications = next.method_applications.map((item: any, index: number) => {
+      const normalized = normalizeMethodApplicationNulls(item) as any;
+      if (!normalized || typeof normalized !== "object") return normalized;
+
+      // 模型常把合法 ID 写成小写、空格分隔或直接使用方法名。Stage02 的
+      // application_id 只是本轮稳定键，可做无损的确定性规范化，避免为格式
+      // 偏差重跑整轮模型。
+      const rawId = nonEmpty(normalized.application_id, `STAGE02-${index + 1}`)
+        .toUpperCase()
+        .replace(/[^A-Z0-9_-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      const baseId = /^MA-[A-Z0-9_-]+$/.test(rawId)
+        ? rawId
+        : `MA-${rawId.replace(/^MA[-_]?/, "") || `STAGE02-${index + 1}`}`;
+      let applicationId = baseId;
+      let suffix = 2;
+      while (usedApplicationIds.has(applicationId)) {
+        applicationId = `${baseId}-${suffix}`;
+        suffix += 1;
+      }
+      usedApplicationIds.add(applicationId);
+
+      // Stage02 只登记候选方法，不执行方法。模型误填的证据输入、信号输出、
+      // 判断输出和执行摘要均属于阶段越权信息，必须在 schema/语义校验前清空。
+      normalized.application_id = applicationId;
+      normalized.status = "candidate";
+      normalized.input_evidence_refs = [];
+      normalized.output_signal_refs = [];
+      normalized.output_judgment_refs = [];
+      normalized.execution_summary = "";
+      normalized.provenance = {
+        ...(normalized.provenance && typeof normalized.provenance === "object"
+          ? normalized.provenance
+          : {}),
+        stage: "stage_02",
+        source_application_id: null,
+        actor: nonEmpty(normalized.provenance?.actor, "model"),
+        recorded_at: null,
+      };
+      return normalized;
+    });
+  }
+  if (Array.isArray(next.judgment_units)) {
+    next.judgment_units = next.judgment_units.map((unit: any) => {
+      if (!unit || typeof unit !== "object" || unit.decision_weight == null) return unit;
+      const rawWeight = Number(unit.decision_weight);
+      if (!Number.isFinite(rawWeight)) return { ...unit, decision_weight: null };
+      // 40/35/25 是模型最常见的百分制表达；合同统一保存为 0–1。
+      const scaled = rawWeight > 1 && rawWeight <= 100 ? rawWeight / 100 : rawWeight;
+      return { ...unit, decision_weight: Math.min(1, Math.max(0, scaled)) };
+    });
   }
   return ensureStage02DocumentFields(next, options);
 }
@@ -319,6 +427,53 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
     });
   }
   const ers = Array.isArray(data?.evidence_requirements) ? data.evidence_requirements : [];
+  const taskAnswer = data?.task_answer_contract;
+  const requiredUnitIds = new Set(asList(taskAnswer?.required_judgment_unit_ids));
+  const knownUnitIds = new Set(units.map((unit: any) => String(unit?.id || "")).filter(Boolean));
+  if (
+    !taskAnswer
+    || !nonEmpty(taskAnswer?.root_question)
+    || !nonEmpty(taskAnswer?.synthesis_rule)
+    || !nonEmpty(taskAnswer?.blocking_policy)
+    || !requiredUnitIds.size
+  ) {
+    issues.push({
+      severity: "error",
+      code: "task_answer_contract_missing",
+      message: "high_quality 要求声明 01 根问题如何由 02 必需判断单元合成回答，以及何时必须降级/停止",
+    });
+  } else {
+    const unknownRequired = [...requiredUnitIds].filter((unitId) => !knownUnitIds.has(unitId));
+    if (unknownRequired.length) {
+      issues.push({
+        severity: "error",
+        code: "task_answer_contract_unknown_unit",
+        message: `根问题闭环合同引用了不存在的判断单元：${unknownRequired.join(", ")}`,
+      });
+    }
+  }
+  const multiUnitRequirements = ers.filter((item: any) => asList(item?.judgment_unit_ids).length !== 1);
+  if (multiUnitRequirements.length) {
+    issues.push({
+      severity: "error",
+      code: "evidence_requirement_not_atomic",
+      message: `一条 EvidenceRequirement 必须只服务一个原子判断单元；异常：${multiUnitRequirements.map((item: any) => item?.id).join(", ")}`,
+    });
+  }
+  const mainRoles = new Set(["support", "boundary"]);
+  const unitsMissingMainRequirement = units
+    .map((unit: any) => String(unit?.id || ""))
+    .filter((unitId: string) => unitId && !ers.some((item: any) =>
+      asList(item?.judgment_unit_ids).includes(unitId)
+      && mainRoles.has(String(item?.evidence_role)),
+    ));
+  if (unitsMissingMainRequirement.length) {
+    issues.push({
+      severity: "error",
+      code: "main_requirement_unit_coverage",
+      message: `high_quality 要求每个判断单元至少有一条主证据/边界 EvidenceRequirement；缺少：${unitsMissingMainRequirement.join(", ")}`,
+    });
+  }
   if (!ers.some((item: any) => String(item?.evidence_role) === "counter")) {
     issues.push({
       severity: "error",
@@ -375,13 +530,19 @@ export function collectStage02HighQualityIssues(data: any): StageQualityIssue[] 
     });
   }
   const mas = Array.isArray(data?.method_applications) ? data.method_applications : [];
-  for (const cap of ["judgment_structure", "evidence", "adjudication"] as const) {
-    if (!mas.some((item: any) => String(item?.capability_type) === cap)) {
-      issues.push({
-        severity: "error",
-        code: `ma_${cap}_missing`,
-        message: `high_quality 要求登记 ${cap} 能力的 MethodApplication`,
-      });
+  for (const unit of units) {
+    const unitId = String(unit?.id || "");
+    for (const cap of ["judgment_structure", "evidence", "adjudication"] as const) {
+      if (!mas.some((item: any) =>
+        String(item?.capability_type) === cap
+        && asList(item?.target_judgment_unit_refs).includes(unitId),
+      )) {
+        issues.push({
+          severity: "error",
+          code: `ma_${cap}_missing_for_unit`,
+          message: `high_quality 要求 ${unitId} 登记 ${cap} 能力的 MethodApplication`,
+        });
+      }
     }
   }
   const scopeBlob = [
@@ -673,5 +834,49 @@ export function assertStage02ReadyForApproval(data: any) {
   const errors = collectStage02ConsistencyIssues(data).filter((item) => item.severity === "error");
   if (errors.length) {
     throw new Error(`Stage02 双产物/质量门禁未通过：${errors.map((item) => item.message).join("；")}`);
+  }
+}
+
+/**
+ * 02 的局部结构必须可追溯回已确认的 01，而不是只在自身内部“结构完整”。
+ * 此门禁不自动猜测假设与 JU 的语义映射：漏映射就要求重做 02。
+ */
+export function assertStage02AnswersStage01(data: any, taskDefinition: any): void {
+  const contract = data?.task_answer_contract || {};
+  const normalizedQuestion = nonEmpty(taskDefinition?.normalized_question);
+  if (normalizedQuestion && nonEmpty(contract?.root_question) !== normalizedQuestion) {
+    throw new Error("Stage02 根问题闭环失败：task_answer_contract.root_question 必须原样承接 Stage01 normalized_question");
+  }
+
+  const hypothesisIds = asList(
+    (Array.isArray(taskDefinition?.hypotheses_to_verify)
+      ? taskDefinition.hypotheses_to_verify
+      : []).map((item: any) => item?.id),
+  );
+  const knownUnitIds = new Set(
+    (Array.isArray(data?.judgment_units) ? data.judgment_units : [])
+      .map((unit: any) => nonEmpty(unit?.id))
+      .filter(Boolean),
+  );
+  const coverage = Array.isArray(contract?.hypothesis_coverage)
+    ? contract.hypothesis_coverage
+    : [];
+  const coverageByHypothesis = new Map<string, string[]>(
+    coverage.map((item: any) => [
+      nonEmpty(item?.hypothesis_ref),
+      asList(item?.judgment_unit_ids),
+    ]),
+  );
+  const missing = hypothesisIds.filter((hypothesisId) => {
+    const unitIds = coverageByHypothesis.get(hypothesisId) || [];
+    return !unitIds.length || unitIds.some((unitId) => !knownUnitIds.has(unitId));
+  });
+  if (missing.length) {
+    throw new Error(`Stage02 根问题闭环失败：Stage01 待验证假设未被有效 JudgmentUnit 承接：${missing.join(", ")}`);
+  }
+  const unknownHypotheses = [...coverageByHypothesis.keys()]
+    .filter((hypothesisId) => hypothesisId && !hypothesisIds.includes(hypothesisId));
+  if (unknownHypotheses.length) {
+    throw new Error(`Stage02 根问题闭环失败：hypothesis_coverage 引用了 Stage01 不存在的假设：${unknownHypotheses.join(", ")}`);
   }
 }

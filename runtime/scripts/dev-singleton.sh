@@ -19,4 +19,14 @@ export WATCHPACK_POLLING=true
 export CHOKIDAR_USEPOLLING=true
 export PORT
 echo "Workbench canonical URL: http://${HOST}:${PORT}"
-exec npm run dev
+worker_pid=""
+cleanup() {
+  if [ -n "$worker_pid" ] && kill -0 "$worker_pid" 2>/dev/null; then
+    kill "$worker_pid" 2>/dev/null || true
+    wait "$worker_pid" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+NODE_OPTIONS='--conditions=react-server' ./node_modules/.bin/tsx scripts/research-worker.ts &
+worker_pid=$!
+npm run dev

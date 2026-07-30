@@ -2,7 +2,9 @@ import { mkdtempSync, readFileSync, rmSync, existsSync, mkdirSync, writeFileSync
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { buildFormalPackNames, formalThemeSlug } from "../engine/formal_pack_naming";
 import { formalStageHash } from "../engine/formal_pack_hash";
 import { projectFormalSnapshot, SNAPSHOT_CSV_LAYOUT } from "../engine/formal_snapshot_project";

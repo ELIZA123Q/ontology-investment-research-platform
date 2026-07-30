@@ -1,5 +1,5 @@
 import { createControlledIndependentReview } from "@/engine/workflow";
-import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
 import { after } from "next/server";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return Response.json(createControlledIndependentReview(id, body.review || {}));
     }
     const job = enqueueArtifactGeneration({ runId: id, kind: "independent_review" });
-    after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+    after(() => { void runResearchJobUntilSettled(job.id, { workerId: `next-after-${process.pid}` }).catch(() => undefined); });
     return Response.json(job, { status: 202 });
   } catch (error) {
     return Response.json(

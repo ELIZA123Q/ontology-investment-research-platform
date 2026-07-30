@@ -49,8 +49,24 @@ describe("verifiable source snapshots", () => {
       url: "https://example.com/source",
       source_quote: "missing exact quote",
     }, dependencies(async () => new Response(`<p>${"available body ".repeat(40)}</p>`, { status: 200, headers: { "content-type": "text/html" } })));
+    expect(snapshot.retrieval_status).toBe("captured");
     expect(snapshot.usability_status).toBe("limited");
     expect(snapshot.quote_verified).toBe(false);
+  });
+
+  it("records body capture separately from quote verification when no quote is supplied", async () => {
+    const snapshot = await captureSourceSnapshot({
+      url: "https://example.com/source",
+    }, dependencies(async () => new Response(`<p>${"captured body ".repeat(40)}</p>`, {
+      status: 200,
+      headers: { "content-type": "text/html" },
+    })));
+    expect(snapshot).toMatchObject({
+      retrieval_status: "captured",
+      usability_status: "limited",
+      quote_verified: false,
+    });
+    expect(snapshot.snapshot_text.length).toBeGreaterThan(200);
   });
 
   it("decodes decimal and hexadecimal HTML entities before exact-quote verification", async () => {

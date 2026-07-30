@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import OpenAI from "openai";
 import { assertModelStructuredSchema } from "../engine/model_schema_helpers";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { zodFunction } from "openai/helpers/zod";
 import { schemas, type SchemaKind } from "../engine/schemas";
 import { ontologyToolDefinitions, runOntologyTool, type OntologyToolName } from "../engine/ontology_tools";
 import { captureSourceSnapshot } from "../engine/source_snapshot";
+import { upsertSource } from "./db";
 import { resolveModelProvider, type ModelRole, type ResolvedModelProvider } from "./model_provider";
 import type { GenerationProgressEvent } from "../engine/generation_progress";
 import {
@@ -580,23 +582,23 @@ export class DeepSeekClient {
           } else if (toolName === "fetch_public_pages") {
             result = await fetchPublicPages(args, citations);
           } else if (toolName === "query_cninfo") {
-            result = await enrichMcpResult(await queryCninfo(args), citations);
+            result = await enrichMcpResult(await queryCninfo(args), citations, options.runId);
           } else if (toolName === "query_datayes_finoper") {
-            result = await enrichMcpResult(await queryDatayesFinoper(args), citations);
+            result = await enrichMcpResult(await queryDatayesFinoper(args), citations, options.runId);
           } else if (toolName === "query_china_policy") {
-            result = await enrichMcpResult(await queryChinaPolicy(args), citations);
+            result = await enrichMcpResult(await queryChinaPolicy(args), citations, options.runId);
           } else if (toolName === "query_datayes_stock") {
-            result = await enrichMcpResult(await queryDatayesStock(args), citations);
+            result = await enrichMcpResult(await queryDatayesStock(args), citations, options.runId);
           } else if (toolName === "query_macro_data") {
-            result = await enrichMcpResult(await queryDatayesMacro(args), citations);
+            result = await enrichMcpResult(await queryDatayesMacro(args), citations, options.runId);
           } else if (toolName === "query_market_index") {
-            result = await enrichMcpResult(await queryDatayesIndex(args), citations);
+            result = await enrichMcpResult(await queryDatayesIndex(args), citations, options.runId);
           } else if (toolName === "query_fund_data") {
-            result = await enrichMcpResult(await queryDatayesFund(args), citations);
+            result = await enrichMcpResult(await queryDatayesFund(args), citations, options.runId);
           } else if (toolName === "query_research_reports") {
-            result = await enrichMcpResult(await queryHtscResearch(args), citations);
+            result = await enrichMcpResult(await queryHtscResearch(args), citations, options.runId);
           } else if (toolName === "query_caixin_news") {
-            result = await enrichMcpResult(await queryCaixinNews(args), citations);
+            result = await enrichMcpResult(await queryCaixinNews(args), citations, options.runId);
           } else if (options.ontologyTools && options.runId) {
             result = runOntologyTool(options.runId, toolName as OntologyToolName, args);
           } else {
@@ -759,7 +761,35 @@ export function parseDirectJson<T>(
   return schema.parse(candidate);
 }
 
-async function enrichMcpResult(result: McpEvidenceQueryResult, citations: Citation[]) {
+function inferMcpBusinessDate(text: string, explicit?: string | null): string | null {
+  if (explicit && Number.isFinite(Date.parse(explicit))) return new Date(Date.parse(explicit)).toISOString();
+  const compact = String(text || "").slice(0, 16_000);
+  const iso = compact.match(/\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b/);
+  if (iso) {
+    const parsed = Date.parse(`${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}T00:00:00Z`);
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  }
+  const compactDate = compact.match(/\b(20\d{2})(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\b/);
+  if (compactDate) {
+    const parsed = Date.parse(`${compactDate[1]}-${compactDate[2]}-${compactDate[3]}T00:00:00Z`);
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  }
+  return null;
+}
+
+function mcpSourceTier(authority: string) {
+  if (authority === "official") return "S1" as const;
+  if (authority === "company_disclosure") return "S2" as const;
+  if (authority === "industry_provider") return "S3" as const;
+  if (authority === "public_secondary") return "S6" as const;
+  return "S8" as const;
+}
+
+export async function enrichMcpResult(
+  result: McpEvidenceQueryResult,
+  citations: Citation[],
+  runId?: string,
+) {
   const enrichedResults = [];
   for (const hit of result.results.slice(0, 6)) {
     if (hit.url) {
@@ -773,11 +803,86 @@ async function enrichMcpResult(result: McpEvidenceQueryResult, citations: Citati
         mcp_channel: result.channel,
       });
     } else {
+      const frozenText = String(hit.raw_excerpt || result.content_text || "").slice(0, 24_000);
+      const publishedAt = inferMcpBusinessDate(frozenText, hit.published_at);
+      const mapped = result.provenance?.mapping_status === "registered";
+      const replayable = Boolean(
+        result.provenance?.connector
+        && result.provenance?.tool_name
+        && result.provenance?.response_fingerprint
+        && result.provenance?.query_parameters,
+      );
+      const canVerifyStructuredResponse = frozenText.length >= 20 && mapped && replayable && Boolean(publishedAt);
+      const fingerprint = String(
+        result.provenance?.response_fingerprint
+        || createHash("sha256").update(frozenText).digest("hex"),
+      ).replace(/[^a-zA-Z0-9_-]/g, "-");
+      const virtualUrl = `mcp://${encodeURIComponent(result.channel)}/${fingerprint}`;
+      const locator = JSON.stringify({
+        connector: result.provenance?.connector || result.channel,
+        tool_name: result.provenance?.tool_name || null,
+        query_parameters: result.provenance?.query_parameters || {},
+        response_fingerprint: result.provenance?.response_fingerprint || null,
+        mapping_profile_id: result.provenance?.mapping_profile_id || null,
+        mapping_profile_version: result.provenance?.mapping_profile_version || null,
+        field_lineage_note: result.provenance?.field_lineage_note || "",
+      });
+      const registered = runId && frozenText
+        ? upsertSource(runId, {
+          url: virtualUrl,
+          title: hit.title,
+          publisher: hit.publisher,
+          published_at: publishedAt,
+          source_type: "structured_mcp_snapshot",
+          source_tier: mcpSourceTier(hit.authority_type),
+          authority_type: hit.authority_type,
+          source_group: `${result.channel}:${result.provenance?.upstream_producer || hit.publisher}`,
+          search_excerpt: hit.summary || "",
+          locator,
+          captured_at: new Date().toISOString(),
+          content_hash: createHash("sha256").update(frozenText).digest("hex"),
+          usability_status: canVerifyStructuredResponse ? "usable" : "limited",
+          failure_category: "",
+          failure_detail: canVerifyStructuredResponse
+            ? ""
+            : [
+              !mapped ? "MCP 连接器缺少已注册字段映射" : "",
+              !replayable ? "MCP 响应缺少可重放工具参数或响应指纹" : "",
+              !publishedAt ? "MCP 响应无法解析业务/发布时间" : "",
+            ].filter(Boolean).join("；"),
+          final_url: virtualUrl,
+          content_mime: "application/vnd.ontology.mcp-snapshot+json",
+          http_status: null,
+          retrieval_status: "captured",
+          snapshot_text: frozenText,
+          source_quote: frozenText,
+          quote_verified: canVerifyStructuredResponse,
+        })
+        : null;
       enrichedResults.push({
         ...hit,
-        retrieval_status: "limited",
-        content_excerpt: hit.raw_excerpt.slice(0, 8_000),
-        locator_hint: "无公开 URL：只能把 MCP 结构化摘录登记为线索/limited，不得假装 quote_verified；优先补公开原文 URL。",
+        url: registered?.url || null,
+        source_id: registered?.id || null,
+        retrieval_status: registered?.retrieval_status || "limited",
+        quote_verified: Boolean(registered?.quote_verified),
+        usability_status: registered?.usability_status || "limited",
+        content_hash: registered?.content_hash || null,
+        content_excerpt: frozenText.slice(0, 8_000),
+        source_quote: registered?.source_quote || "",
+        published_at: registered?.published_at || publishedAt,
+        locator_hint: registered?.locator
+          || "无公开 URL 且未形成可重放 MCP 响应快照；只能登记为线索/limited。",
+        structured_snapshot_contract: {
+          source_id: registered?.id || null,
+          virtual_url: registered?.url || virtualUrl,
+          mapping_status: result.provenance?.mapping_status || "unregistered",
+          mapping_profile_id: result.provenance?.mapping_profile_id || null,
+          mapping_profile_version: result.provenance?.mapping_profile_version || null,
+          verification_status: canVerifyStructuredResponse ? "field_snapshot_verified" : "limited",
+          instruction: canVerifyStructuredResponse
+            ? "该 MCP 响应已冻结到 Source Registry；提交来源时原样使用 source_id/url/source_quote/locator，不得改写。"
+            : "该响应未满足字段映射、重放参数或业务时间门槛；不得作为非 gap 事实。",
+        },
         mcp_channel: result.channel,
       });
     }

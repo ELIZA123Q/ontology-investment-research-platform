@@ -7,7 +7,7 @@ import {
   createStage01DeterministicProjection,
   createStage05DeterministicProjection,
 } from "@/engine/workflow";
-import { enqueueArtifactGeneration, runNextResearchJob } from "@/engine/research_job_runner";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
 import { STAGES } from "@/engine/types";
 import { after } from "next/server";
 
@@ -28,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (kind === "stage_03" && body.mode === "evidence_supplement") {
       const job = enqueueArtifactGeneration({ runId: id, kind: kind as any, mode: "evidence_supplement" });
-      after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+      after(() => { void runResearchJobUntilSettled(job.id, { workerId: `next-after-${process.pid}` }).catch(() => undefined); });
       return Response.json(job, { status: 202 });
     }
     if (kind === "stage_03" && body.mode === "controlled_evidence_projection") {
@@ -47,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return Response.json(createStage05DeterministicProjection(id));
     }
     const job = enqueueArtifactGeneration({ runId: id, kind: kind as any });
-    after(() => { void runNextResearchJob({ workerId: `next-after-${process.pid}` }).catch(() => undefined); });
+    after(() => { void runResearchJobUntilSettled(job.id, { workerId: `next-after-${process.pid}` }).catch(() => undefined); });
     return Response.json(job, { status: 202 });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });

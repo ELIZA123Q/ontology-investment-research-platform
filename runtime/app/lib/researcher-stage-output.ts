@@ -395,6 +395,7 @@ export type ResearcherStageView = {
     label: string;
     body: string;
     items?: string[];
+    emptyBody?: string;
   }>;
   auditRefs: string[];
 };
@@ -433,20 +434,35 @@ export function buildScopeResearcherView(
   options: { artifactStatus?: string | null; fallbackQuestion?: string } = {},
 ): ResearcherStageView {
   const summary = buildScopeStageSummary(data, options.fallbackQuestion);
-  const premises = {
-    known: displayStrings(data.known_facts).length
-      || statementRecords(data.known_facts).map((item) => researcherLanguage(item.statement)).filter(Boolean).length,
-    assumptions: displayStrings(data.user_assumptions).length
-      || statementRecords(data.user_assumptions).map((item) => researcherLanguage(item.statement)).filter(Boolean).length,
-    hypotheses: displayStrings(data.hypotheses_to_verify).length
-      || statementRecords(data.hypotheses_to_verify).map((item) => researcherLanguage(item.statement)).filter(Boolean).length,
-  };
+  const hasPremiseField = (key: "known_facts" | "user_assumptions" | "hypotheses_to_verify") => (
+    Object.prototype.hasOwnProperty.call(data, key) && Array.isArray(data[key])
+  );
+  const premiseFieldsComplete = hasPremiseField("known_facts")
+    && hasPremiseField("user_assumptions")
+    && hasPremiseField("hypotheses_to_verify");
   const knownItems = statementRecords(data.known_facts).map((item) => researcherLanguage(item.statement || item)).filter(Boolean);
   const assumptionItems = statementRecords(data.user_assumptions).map((item) => researcherLanguage(item.statement || item)).filter(Boolean);
   const hypothesisItems = statementRecords(data.hypotheses_to_verify).map((item) => researcherLanguage(item.statement || item)).filter(Boolean);
   const blocking: string[] = [];
   if (!summary.question) blocking.push("尚未形成规范化研究问题");
   if (!summary.boundaries.length && !summary.exclusions.length) blocking.push("边界与排除项仍不完整");
+  if (!premiseFieldsComplete) blocking.push("前提三分字段缺失，请重新生成研究范围");
+  if (hasPremiseField("hypotheses_to_verify") && !hypothesisItems.length && data.task_disposition === "accepted") {
+    blocking.push("尚未形成待验证假设");
+  }
+  const premiseSection = (
+    id: "known" | "assumptions" | "hypotheses",
+    key: "known_facts" | "user_assumptions" | "hypotheses_to_verify",
+    label: string,
+    items: string[],
+    emptyBody: string,
+  ) => ({
+    id,
+    label,
+    body: hasPremiseField(key) ? `${items.length} 项` : "字段缺失",
+    items,
+    emptyBody: hasPremiseField(key) ? emptyBody : "旧产物未生成此字段，请重新生成研究范围",
+  });
   return {
     stage: 1,
     title: summary.question || "研究范围",
@@ -465,9 +481,9 @@ export function buildScopeResearcherView(
       },
       { id: "boundaries", label: "研究边界", body: `${summary.boundaries.length} 项`, items: summary.boundaries },
       { id: "exclusions", label: "不研究事项", body: `${summary.exclusions.length} 项`, items: summary.exclusions },
-      { id: "known", label: "已知事实", body: `${premises.known || knownItems.length} 项`, items: knownItems },
-      { id: "assumptions", label: "用户假设", body: `${premises.assumptions || assumptionItems.length} 项`, items: assumptionItems },
-      { id: "hypotheses", label: "待验证假设", body: `${premises.hypotheses || hypothesisItems.length} 项`, items: hypothesisItems },
+      premiseSection("known", "known_facts", "已知事实", knownItems, "本次没有用户明确给定或继承的已知前提"),
+      premiseSection("assumptions", "user_assumptions", "用户假设", assumptionItems, "本次没有用户明确采用的未验证立场"),
+      premiseSection("hypotheses", "hypotheses_to_verify", "待验证假设", hypothesisItems, "尚未形成待验证命题"),
       { id: "delivery", label: "交付落点", body: summary.reportType || researcherLanguage(data.delivery_depth?.minimum_delivery) || "尚未登记" },
     ],
     auditRefs: ["document_markdown", "input_resolution", "research_value_gate"],

@@ -1,17 +1,14 @@
 import "server-only";
-import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure, resolveDiscriminatingEvidence } from "../structure_candidates";
+import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure } from "../structure_candidates";
 import { extractGraph } from "./load";
 import { mergeGraphs } from "./projection";
 import { emptyGraph, type BusinessInstanceGraph } from "./types";
 import { loadOntologyCatalog } from "../ontology_catalog";
+import { materializeStage04 } from "./materialize_stage04";
 
 const SCOPE_MEMBER_TYPES = new Set(
   loadOntologyCatalog().relation_types.get("scopeIncludesObject")?.target_types || [],
 );
-const TRACE_NODE_TARGET_TYPES = new Set(
-  loadOntologyCatalog().relation_types.get("traceIncludesNode")?.target_types || [],
-);
-
 /** 仅靠 name 即可满足必填字段的成员类型；新建时其它类型回落到 Industry。 */
 const SCOPE_MEMBER_TYPES_NAME_ONLY = new Set([
   "Organization",
@@ -371,6 +368,12 @@ export function materializeStageIntoGraph(
           minimum_independent_sources: Number(requirement.minimum_independent_sources ?? 1),
           source: requirement.source,
           source_ref: requirement.source_ref,
+          evidence_profile_refs: Array.isArray(requirement.evidence_profile_refs)
+            ? requirement.evidence_profile_refs.map(String)
+            : [],
+          evidence_recipe_ref: requirement.evidence_recipe_ref || null,
+          derivation_refs: requirement.derivation_refs || null,
+          no_profile_reason: requirement.no_profile_reason || null,
         },
         projection: { section: "evidence_requirements", index },
       });
@@ -382,6 +385,33 @@ export function materializeStageIntoGraph(
           sourceId: requirementId,
           targetId: String(unitId),
           properties: {},
+        });
+      }
+      const availableParameterIds = new Set(
+        [...current.objects, ...slice.objects]
+          .filter((item) => item.type === "EvidenceProfile" || item.type === "EvidenceRecipe")
+          .map((item) => item.id),
+      );
+      for (const profileId of Array.isArray(requirement.evidence_profile_refs)
+        ? requirement.evidence_profile_refs.map(String)
+        : []) {
+        if (!availableParameterIds.has(profileId)) continue;
+        slice.relations.push({
+          id: `RUNTIME-${requirementId}-PROFILE-${profileId}`,
+          type: "requirementUsesEvidenceProfile",
+          sourceId: requirementId,
+          targetId: profileId,
+          properties: { authority: "public_contract_1.3" },
+        });
+      }
+      const recipeId = String(requirement.evidence_recipe_ref || "").trim();
+      if (recipeId && availableParameterIds.has(recipeId)) {
+        slice.relations.push({
+          id: `RUNTIME-${requirementId}-RECIPE-${recipeId}`,
+          type: "requirementGovernedByRecipe",
+          sourceId: requirementId,
+          targetId: recipeId,
+          properties: { authority: "public_contract_1.3" },
         });
       }
     }
@@ -436,6 +466,16 @@ export function materializeStageIntoGraph(
     addObjects(stageJson.assessments, "EvidenceAssessment", ["assessment_id", "id"], "assessments");
     addObjects(stageJson.baskets, "EvidenceBasket", ["basket_id", "id"], "baskets");
     const sourceByKey = new Map<string, any>();
+    const requirementObjects = new Map(
+      current.objects
+        .filter((item) => item.type === "EvidenceRequirement")
+        .map((item) => [item.id, item]),
+    );
+    const requirementAssessmentById = new Map<string, any>(
+      ((stageJson.evidence_requirement_assessments as any[]) || [])
+        .map((item): [string, any] => [String(item?.requirement_id || ""), item])
+        .filter(([id]: [string, any]) => Boolean(id)),
+    );
     for (const [index, source] of ((stageJson.sources as any[]) || []).entries()) {
       const id = String(source.source_id || source.source_key || source.id || `SD-${index + 1}`);
       sourceByKey.set(String(source.source_key || id), { ...source, id });
@@ -455,21 +495,23 @@ export function materializeStageIntoGraph(
     for (const [index, draft] of ((stageJson.evidence_drafts as any[]) || []).entries()) {
       const evidenceId = String(draft.id || `EV-${index + 1}`);
       if (draft.kind === "gap") {
+        // 缺口是“某个既有 ER 尚未满足”的运行状态，不是另一条新的
+        // EvidenceRequirement。把它物化为 BlockingFactor，保留原 ER 主键。
         slice.objects.push({
           id: evidenceId,
-          type: "EvidenceRequirement",
+          type: "BlockingFactor",
           properties: {
             ...draft,
-            requirement: draft.requirement || draft.statement,
-            evidence_role: draft.evidence_role,
-            minimum_independent_sources: draft.minimum_independent_sources,
+            statement: draft.statement || draft.requirement,
+            effect: draft.evidence_role === "counter" ? "level_cap" : "method_block",
+            evidence_requirement_ids: draft.evidence_requirement_ids || [],
           },
           projection: { section: "evidence_drafts", index },
         });
         for (const unitId of draft.judgment_unit_ids || []) {
           slice.relations.push({
             id: `REL-${evidenceId}-UNIT-${unitId}`,
-            type: "requirementForJudgmentUnit",
+            type: "blockingFactorForUnit",
             sourceId: evidenceId,
             targetId: String(unitId),
             properties: {},
@@ -524,7 +566,36 @@ export function materializeStageIntoGraph(
         if (!unitId) continue;
         const assessmentId = `EA-${evidenceId}-${unitId}`;
         const basketId = `EB-${unitId}-${role}`;
-        const requirementId = `ER-RUNTIME-${unitId}-${role}`;
+        const explicitRequirementIds = (draft.evidence_requirement_ids || [])
+          .map(String)
+          .filter((requirementId: string) => {
+            const requirement = requirementObjects.get(requirementId);
+            if (!requirement) return false;
+            return String(requirement.properties?.evidence_role || "") === role
+              && current.relations.some((relation) =>
+                relation.type === "requirementForJudgmentUnit"
+                && relation.sourceId === requirementId
+                && relation.targetId === unitId,
+              );
+          });
+        const compatibleRequirementIds = explicitRequirementIds.length
+          ? explicitRequirementIds
+          : [...requirementObjects.values()]
+            .filter((requirement) =>
+              String(requirement.properties?.evidence_role || "") === role
+              && current.relations.some((relation) =>
+                relation.type === "requirementForJudgmentUnit"
+                && relation.sourceId === requirement.id
+                && relation.targetId === unitId,
+              ),
+            )
+            .map((requirement) => requirement.id);
+        // 旧产物仅在同 JU+同角色唯一候选时兼容推断；多候选时不猜。
+        const requirementIds = explicitRequirementIds.length
+          ? explicitRequirementIds
+          : compatibleRequirementIds.length === 1
+            ? compatibleRequirementIds
+            : [];
         if (!slice.objects.some((item) => item.id === assessmentId)) {
           slice.objects.push({
             id: assessmentId,
@@ -564,246 +635,27 @@ export function materializeStageIntoGraph(
           targetId: assessmentId,
           properties: {},
         });
-        if (!slice.objects.some((item) => item.id === requirementId)) {
-          slice.objects.push({
-            id: requirementId,
-            type: "EvidenceRequirement",
-            properties: {
-              requirement: `${unitId} 的${role === "counter" ? "反证" : role === "context" ? "背景" : "支持"}证据门槛`,
-              evidence_role: role,
-              minimum_independent_sources: 1,
-            },
-            projection: { section: "derived_requirements", index: slice.objects.filter((o) => o.type === "EvidenceRequirement").length },
-          });
-          slice.relations.push({
-            id: `REL-${requirementId}-UNIT-${unitId}`,
-            type: "requirementForJudgmentUnit",
-            sourceId: requirementId,
-            targetId: unitId,
-            properties: {},
-          });
-        }
-        if (!slice.relations.some((item) => item.id === `REL-${basketId}-REQ-${requirementId}`)) {
+        for (const requirementId of requirementIds) {
+          if (slice.relations.some((item) => item.id === `REL-${basketId}-REQ-${requirementId}`)) continue;
+          const assessment = requirementAssessmentById.get(requirementId);
+          const fulfillment = assessment?.status === "met"
+            ? "met"
+            : assessment?.status === "partial"
+              ? "partially_met"
+              : "unmet";
           slice.relations.push({
             id: `REL-${basketId}-REQ-${requirementId}`,
             type: "basketFulfillsRequirement",
             sourceId: basketId,
             targetId: requirementId,
-            properties: { fulfillment: "partially_met" },
+            properties: { fulfillment },
           });
         }
       }
     }
   }
   if (stageKind === "stage_04") {
-    for (const [index, signal] of ((stageJson.signals as any[]) || []).entries()) {
-      const id = String(signal.signal_id || signal.id || `SIG-${index + 1}`);
-      slice.objects.push({
-        id,
-        type: "Signal",
-        properties: { ...signal },
-        projection: { section: "signals", index },
-      });
-      for (const evidenceId of signal.evidence_refs || signal.evidence_draft_ids || []) {
-        slice.relations.push({
-          id: `REL-${id}-EVIDENCE-${evidenceId}`,
-          type: "signalGroundedByFact",
-          sourceId: id,
-          targetId: String(evidenceId),
-          properties: { role: signal.role },
-        });
-      }
-      for (const hypothesisId of signal.target_hypothesis_ids || []) {
-        slice.relations.push({
-          id: `REL-${id}-HYPOTHESIS-${hypothesisId}`,
-          type: "signalEvaluatesHypothesis",
-          sourceId: id,
-          targetId: String(hypothesisId),
-          properties: {},
-        });
-      }
-    }
-    addObjects(stageJson.hypotheses, "Hypothesis", ["hypothesis_id", "id"], "hypotheses");
-    for (const [index, hypothesis] of ((stageJson.hypotheses as any[]) || []).entries()) {
-      const hypothesisId = String(hypothesis.hypothesis_id || hypothesis.id || `H-${index + 1}`);
-      for (const unitId of hypothesis.judgment_unit_ids || []) {
-        if (!unitId) continue;
-        const relationId = `REL-${unitId}-HYPOTHESIS-${hypothesisId}`;
-        if (slice.relations.some((item) => item.id === relationId)) continue;
-        slice.relations.push({
-          id: relationId,
-          type: "unitHasHypothesis",
-          sourceId: String(unitId),
-          targetId: hypothesisId,
-          properties: { role: "primary" },
-        });
-      }
-    }
-    for (const [index, explanation] of ((stageJson.competing_explanations as any[]) || []).entries()) {
-      const explanationId = String(explanation.explanation_id || explanation.id || `CE-${index + 1}`);
-      const statement = String(explanation.statement || "").trim();
-      slice.objects.push({
-        id: explanationId,
-        type: "CompetingExplanation",
-        properties: {
-          ...explanation,
-          statement,
-          discriminating_evidence: resolveDiscriminatingEvidence(explanation, { statement }),
-        },
-        projection: { section: "competing_explanations", index },
-      });
-      for (const unitId of explanation.judgment_unit_ids || []) {
-        if (!unitId) continue;
-        slice.relations.push({
-          id: `REL-${explanationId}-UNIT-${unitId}`,
-          type: "competingExplanationForUnit",
-          sourceId: explanationId,
-          targetId: String(unitId),
-          properties: { stage: "stage_04" },
-        });
-      }
-    }
-    addObjects(stageJson.rule_evaluations, "RuleEvaluation", ["rule_evaluation_id", "id"], "rule_evaluations");
-    addObjects(stageJson.market_expectations, "MarketExpectation", ["id"], "market_expectations");
-    addObjects(stageJson.expectation_gaps, "ExpectationGap", ["id"], "expectation_gaps");
-    addObjects(stageJson.asset_impacts, "AssetImpact", ["id"], "asset_impacts");
-    for (const gap of (Array.isArray(stageJson.expectation_gaps) ? stageJson.expectation_gaps as any[] : [])) {
-      const gapId = String(gap.id || "");
-      if (!gapId) continue;
-      if (gap.judgment_ref) {
-        slice.relations.push({
-          id: `REL-${gapId}-JUDGMENT-${gap.judgment_ref}`,
-          type: "expectationGapBasedOnJudgment",
-          sourceId: gapId,
-          targetId: String(gap.judgment_ref),
-          properties: {},
-        });
-      }
-      if (gap.market_expectation_ref) {
-        slice.relations.push({
-          id: `REL-${gapId}-EXPECTATION-${gap.market_expectation_ref}`,
-          type: "expectationGapComparesExpectation",
-          sourceId: gapId,
-          targetId: String(gap.market_expectation_ref),
-          properties: {},
-        });
-      }
-    }
-    for (const impact of (Array.isArray(stageJson.asset_impacts) ? stageJson.asset_impacts as any[] : [])) {
-      const impactId = String(impact.id || "");
-      if (!impactId) continue;
-      for (const judgmentId of impact.source_judgment_refs || []) {
-        slice.relations.push({
-          id: `REL-${impactId}-JUDGMENT-${judgmentId}`,
-          type: "assetImpactBasedOnJudgment",
-          sourceId: impactId,
-          targetId: String(judgmentId),
-          properties: {},
-        });
-      }
-    }
-
-    for (const [index, trace] of ((stageJson.reasoning_traces as any[]) || []).entries()) {
-      slice.objects.push({
-        id: String(trace.trace_id || trace.id || `RT-${index + 1}`),
-        type: "ReasoningTrace",
-        properties: {
-          ...trace,
-          judgment_ref: trace.judgment_ref || trace.judgment_id,
-          node_refs: trace.node_refs || trace.node_ids,
-          created_at: trace.created_at,
-        },
-        projection: { section: "reasoning_traces", index },
-      });
-    }
-    for (const [index, judgment] of ((stageJson.judgments as any[]) || []).entries()) {
-      const id = String(judgment.judgment_id || judgment.id || `J-${index + 1}`);
-      slice.objects.push({
-        id,
-        type: "Judgment",
-        properties: {
-          ...judgment,
-          statement: judgment.statement || judgment.conclusion,
-          level: judgment.level || judgment.strength,
-          confidence: judgment.confidence,
-          decision_status: judgment.decision_status,
-          conflict_status: judgment.conflict_status,
-          not_judgeable_reason: judgment.not_judgeable_reason,
-          scope_ref: judgment.scope_ref,
-          cutoff_at: judgment.cutoff_at,
-          conditions: judgment.conditions || [],
-          invalidation_conditions: judgment.invalidation_conditions,
-        },
-        projection: { section: "judgments", index },
-      });
-      for (const hypothesisId of judgment.hypothesis_ids || []) {
-        slice.relations.push({
-          id: `REL-${id}-${hypothesisId}`,
-          type: "judgmentBasedOnHypothesis",
-          sourceId: id,
-          targetId: String(hypothesisId),
-          properties: {},
-        });
-        if (judgment.judgment_unit_id) {
-          slice.relations.push({
-            id: `REL-${judgment.judgment_unit_id}-HYPOTHESIS-${hypothesisId}`,
-            type: "unitHasHypothesis",
-            sourceId: String(judgment.judgment_unit_id),
-            targetId: String(hypothesisId),
-            properties: { role: "primary" },
-          });
-        }
-      }
-      for (const ruleId of judgment.rule_evaluation_ids || []) {
-        slice.relations.push({
-          id: `REL-${id}-RULE-${ruleId}`,
-          type: "judgmentHasRuleEvaluation",
-          sourceId: id,
-          targetId: String(ruleId),
-          properties: {},
-        });
-      }
-      if (judgment.judgment_unit_id) {
-        slice.relations.push({
-          id: `REL-${id}-UNIT-${judgment.judgment_unit_id}`,
-          type: "judgmentResolvesUnit",
-          sourceId: id,
-          targetId: String(judgment.judgment_unit_id),
-          properties: {},
-        });
-      }
-      for (const applicationId of judgment.method_application_refs || judgment.method_application_ids || []) {
-        slice.relations.push({
-          id: `RUNTIME-${id}-METHOD-${applicationId}`,
-          type: "runtimeJudgmentUsesMethodApplication",
-          sourceId: id,
-          targetId: String(applicationId),
-          properties: { authority: "public_contract_1.3" },
-        });
-      }
-    }
-    for (const trace of (stageJson.reasoning_traces as any[]) || []) {
-      const traceId = String(trace.trace_id || trace.id);
-      const judgmentId = String(trace.judgment_ref || trace.judgment_id);
-      slice.relations.push({
-        id: `REL-${traceId}-JUDGMENT-${judgmentId}`,
-        type: "reasoningTraceForJudgment",
-        sourceId: traceId,
-        targetId: judgmentId,
-        properties: {},
-      });
-      for (const [sequence, nodeId] of ((trace.node_refs || trace.node_ids || []) as string[]).entries()) {
-        const target = [...current.objects, ...slice.objects].find((object) => object.id === String(nodeId));
-        if (!target || !TRACE_NODE_TARGET_TYPES.has(target.type)) continue;
-        slice.relations.push({
-          id: `REL-${traceId}-NODE-${sequence + 1}-${nodeId}`,
-          type: "traceIncludesNode",
-          sourceId: traceId,
-          targetId: String(nodeId),
-          properties: { sequence: sequence + 1 },
-        });
-      }
-    }
+    materializeStage04(current, slice, stageJson, addObjects);
   }
   return mergeGraphs(
     { ...current, authority: "business_parameters" },

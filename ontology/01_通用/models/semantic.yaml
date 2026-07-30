@@ -22,7 +22,8 @@ object_types:
     primary_key: id
     title_property: name
     attributes:
-      <<: *named_attributes
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
       primary_listing_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示未冻结主挂牌引用。, reference_target: Listing, description: 公司主挂牌引用。}
       issuer_identifiers: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: null 表示未冻结发行人标识集合。, description: 可归一发行人标识集合（如 ISIN/其他代码）。}
     constraints: *standard_constraints
@@ -43,7 +44,8 @@ object_types:
     primary_key: id
     title_property: name
     attributes:
-      <<: *named_attributes
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
       product_category: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示未冻结分类口径。, description: 产品类别或子口径（非百科长文）。}
       primary_application_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要应用锚点。, reference_target: Application, description: 该产品在研究中最常用的主要应用锚点。}
     constraints: *standard_constraints
@@ -124,7 +126,8 @@ object_types:
     primary_key: id
     title_property: name
     attributes:
-      <<: *named_attributes
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
       mic_or_code: {type: string, required: false, cardinality: '0..1', value_role: identity, nullable_semantics: null 表示无国际标准代码或代码尚未冻结。, description: MIC 或市场通用代码。}
     constraints: *standard_constraints
   Listing:

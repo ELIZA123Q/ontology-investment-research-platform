@@ -148,6 +148,29 @@ describe("durable research job leases", () => {
     })).toMatchObject({ status: "blocked", finished_at: "2026-07-22T00:00:30.000Z" });
   });
 
+  it("lets the researcher expedite a scheduled retry without resetting attempt limits", () => {
+    const queued = store.enqueue({
+      runId: "run-1", jobType: "generate_artifact", dedupeKey: "retry-now", maxAttempts: 3, now: t0,
+    });
+    const first = store.claimNext({ workerId: "worker-a", leaseMs: 60_000, now: t0 })!;
+    store.fail(queued.id, first.lease_token!, "MODEL_TIMEOUT", {
+      retryable: true,
+      retryDelayMs: 60_000,
+      now: "2026-07-22T00:00:10.000Z",
+    });
+
+    expect(store.retryNow(queued.id, "2026-07-22T00:00:11.000Z")).toMatchObject({
+      status: "retrying",
+      attempt: 1,
+      max_attempts: 3,
+      available_at: "2026-07-22T00:00:11.000Z",
+    });
+    expect(store.retryNow(queued.id, "2026-07-22T00:00:12.000Z")).toMatchObject({
+      status: "retrying",
+      attempt: 1,
+    });
+  });
+
   it("cancels a running job and invalidates its worker token", () => {
     const queued = store.enqueue({ runId: "run-1", jobType: "generate_artifact", dedupeKey: "cancel", now: t0 });
     const claimed = store.claimNext({ workerId: "worker-a", leaseMs: 60_000, now: t0 })!;

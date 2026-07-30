@@ -162,6 +162,29 @@ export function updateRun(id: string, fields: Partial<Pick<ResearchRun, "package
   return getRun(id)!;
 }
 
+/**
+ * 以「实际已批准（approved）的 stage 产出」为进度唯一真相源，重算 run 的进度与状态。
+ * 修复 approveArtifact 单向推进、以及 supersede 降级已批准产出时不回退导致的进度漂移
+ * （例如：stage_05 曾被批准→进度=5/complete，随后被取代为 superseded，却仍显示 5/5）。
+ */
+export function recomputeRunProgress(runId: string): ResearchRun {
+  const run = getRun(runId);
+  if (!run) throw new Error("任务不存在");
+  const rows = db.prepare(
+    "SELECT kind FROM artifacts WHERE run_id=? AND status='approved' AND kind LIKE 'stage_%'",
+  ).all(runId) as Array<{ kind: string }>;
+  const stages = rows
+    .map((r) => Number(r.kind.slice(-2)))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const maxStage = stages.length ? Math.max(...stages) : 0;
+  let status = run.status;
+  if (maxStage >= 5) status = "complete";
+  else if (maxStage > 0) status = "in_progress";
+  // maxStage === 0 时保持原 status（草稿/归档语义不被误改）
+  if (maxStage === run.current_stage && status === run.status) return run;
+  return updateRun(runId, { current_stage: maxStage, status });
+}
+
 /** Collect run id and all descendant incremental runs (children first, root last). */
 export function collectRunSubtreeIds(rootId: string): string[] {
   const childrenByParent = new Map<string, string[]>();
@@ -197,6 +220,23 @@ export function deleteRun(id: string): { deleted_ids: string[] } {
   const run = getRun(id);
   if (!run) throw new Error("任务不存在");
   const deletedIds = collectRunSubtreeIds(id);
+  withImmediateTransaction(() => {
+    for (const runId of deletedIds) deleteRunRecords(runId);
+  });
+  return { deleted_ids: deletedIds };
+}
+
+/** Hard-delete multiple research runs (and their subtrees) in one transaction.
+ *  Subtree ids are unioned and deduplicated, so selecting a parent together
+ *  with its child is safe (the child is deleted once as part of the parent). */
+export function deleteRuns(ids: string[]): { deleted_ids: string[] } {
+  const allIds = new Set<string>();
+  for (const id of ids) {
+    if (!getRun(id)) continue;
+    for (const subId of collectRunSubtreeIds(id)) allIds.add(subId);
+  }
+  const deletedIds = Array.from(allIds);
+  if (!deletedIds.length) return { deleted_ids: [] };
   withImmediateTransaction(() => {
     for (const runId of deletedIds) deleteRunRecords(runId);
   });

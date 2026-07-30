@@ -85,7 +85,7 @@ describe("structure_candidates", () => {
         source: "unit_requirement",
       },
       {
-        id: "ER-CD-01",
+        id: "ER-CD-01-JU-1",
         requirement: "库存回升",
         evidence_role: "counter",
         minimum_independent_sources: 1,

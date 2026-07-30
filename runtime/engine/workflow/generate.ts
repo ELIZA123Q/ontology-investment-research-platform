@@ -7,15 +7,12 @@ getRun,
 latestArtifact,
 listSources,
 normalizeUrl,
-quarantineUnboundWebCitations,
 updateArtifact,
 updateArtifactIfStatus
 } from "../../adapters/db";
 import { accumulateTokenUsage,createResearchModelClient } from "../../adapters/deepseek";
 import { generationLeaseMs } from "../../adapters/model_provider";
 import { logger } from "../../lib/logger";
-import { stripLegacyWriteFields,toExpressionAuditInputs } from "../artifact_read_adapter";
-import { assembleStageContext,buildSemanticRoute,clipUpstreamJsonSoft,CONTEXT_SLOT_BUDGETS } from "../context_assembler";
 import {
 findUnchangedEvidenceIds,
 partitionStage03EvidenceBatches,
@@ -24,96 +21,41 @@ stage03AutoSupplementMaxRounds,
 stage03EvidenceBatchConfig
 } from "../evidence_auto_supplement";
 import { evaluateEvidenceQuality } from "../evidence_quality_gate";
-import { evidenceBoundSourceIds,evidenceBoundSources } from "../evidence_sources";
-import { auditStage05Expressions,sanitizeAuditVoice } from "../expression_audit";
 import { buildGenerationProgressHeartbeat,parseGenerationProgress } from "../generation_progress";
-import { buildGovernanceFingerprint } from "../governance_fingerprint";
-import { formalOntologyRuleIds,repairJudgmentPreparationDraft } from "../judgment_draft_normalize";
-import {
-buildStageGenerationGuidance,
-evidenceJudgmentTypeCardsForPrompt,
-executedMethodsSummary,
-judgmentThresholdCapsForPrompt,
-mcpChannelHintsForPrompt,
-methodDisciplineDigest,
-} from "../method_guidance";
-import {
-methodRoutesForPrompt
-} from "../method_registry";
-import { loadOntologyCatalog } from "../ontology_catalog";
-import { ontologyContextForPrompt,ontologyPromptSourceFiles } from "../ontology_tools";
-import { PROMPT_VERSION,promptFor } from "../prompts";
+import { repairJudgmentPreparationDraft } from "../judgment_draft_normalize";
+import { PROMPT_VERSION } from "../prompts";
 import { syncStage03ReadableMarkdown,syncStage04ReadableMarkdown } from "../readable_markdown";
-import {
-attachResearchValueReview,
-buildStage05RetryContext,
-heuristicResearchValueReview,
-mergeResearchValueReviews,
-RESEARCH_VALUE_PASS_THRESHOLD,
-researchValueReviewPrompt,
-researchValueReviewSchema,
-type ResearchValueReview,
-} from "../research_value_review";
 import { syncReviewWorkItems } from "../review_work_items";
-import { summarizeInjectedAssets } from "../runtime_asset_coverage";
 import { schemas,type SchemaKind } from "../schemas";
 import { buildStageSemanticContext } from "../semantic_context";
 import { applyDeterministicRuleEvaluations } from "../semantic_execution";
-import { computeSourceCoverage,evaluateEvidenceStopCondition } from "../source_coverage";
-import { pendingClarificationQuestion } from "../stage01_contract";
+import { computeSourceCoverage } from "../source_coverage";
 import { ensureStage02DocumentFields,repairStage02GenerationDraft } from "../stage02_documents";
 import {
 initializeStage03BatchCheckpoint,
 readStage03BatchCheckpoint,
-terminalStage03BatchIds,
-updateStage03BatchCheckpoint,
-type Stage03BatchCheckpoint,
 } from "../stage03_batch_checkpoint";
 import { ensureStage03DocumentFields } from "../stage03_documents";
 import { ensureStage04DocumentFields } from "../stage04_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
-import {
-applyUpstreamQualityFailure,
-buildQualityRetryNotes,
-collectStageHighQualityErrors,
-forceHighQualityTarget,
-HQ_RETRY_KEY,
-markGenerationBelowHighQuality,
-meetsHighQualityForReview,
-shouldPreserveUpstreamQualityFailure,
-} from "../stage_hq_retry";
 import { projectEvidenceRequirementsFromStructure,resolveEvidenceRequirementsFromStructure } from "../structure_candidates";
 import { parseJson,STAGES,type ArtifactKind,type StageKind } from "../types";
 import {
 buildEvidenceGapFallback,
 buildJudgmentGapFallback,
 normalizeStage01Projection,
-normalizeStage05Projection,
 repairEvidencePreparationDraft
 } from "../workflow_projections";
-import {
-methodCandidatesForPrompt,
-normalizeBusinessCutoff,
-sourceForFrozenBaseline,
-sourcesForPrompt,
-stageNumber,
-upstreamJudgmentTypes,
-validateGeneratedSemanticDraft
-} from "../workflow_shared";
+import { normalizeBusinessCutoff,stageNumber,validateGeneratedSemanticDraft } from "../workflow_shared";
 import {
 classifyRuntimeFailure,
-compactStage03ForUpstream,
-compactStage04ForStage05,
-compactStructuredArtifact,
 formatRuntimeFailureMessage,
 shouldAbortStage03Batching
 } from "../workflow_support";
-
-function stage05PaidAutoRetryEnabled() {
-  return ["1", "true", "yes"].includes(
-    String(process.env.STAGE05_PAID_AUTO_RETRY || "").trim().toLowerCase(),
-  );
-}
+import { runGenerationHighQualityRetry } from "./generation_hq_retry";
+import { buildGenerationContext } from "./generation_context";
+import { runStage05ResearchValueReview } from "./generation_stage05_review";
+import { runStage03BatchSequence } from "./stage03_batch_runner";
 
 export async function generateArtifact(
   runId: string,
@@ -168,244 +110,19 @@ export async function generateArtifact(
       tool_usage: JSON.stringify({ failure_category: "model_output_error", recovered_abandoned_generation: true }),
     });
   }
-  const dependencyStages: Partial<Record<ArtifactKind, StageKind[]>> = {
-    stage_01: [],
-    stage_02: ["stage_01"],
-    stage_03: ["stage_01", "stage_02"],
-    stage_04: ["stage_02", "stage_03"],
-    stage_05: ["stage_01", "stage_03", "stage_04"],
-    baseline: [],
-    independent_review: ["stage_02", "stage_03", "stage_04"],
-  };
-  const upstreamStages = dependencyStages[kind] || [];
-  const upstreamRaw = upstreamStages
-    .map((s) => latestArtifact(runId, s, ["approved"]))
-    .filter(Boolean)
-    .map((a) => {
-      const raw = parseJson(a!.json_content, {});
-      const compressed = a!.kind === "stage_03" && ["stage_04", "stage_05", "independent_review"].includes(kind)
-        ? compactStage03ForUpstream(raw)
-        : a!.kind === "stage_04" && kind === "stage_05"
-          ? compactStage04ForStage05(raw)
-          : compactStructuredArtifact(raw);
-      return {
-        artifact_id: a!.id,
-        artifact_hash: createHash("sha256").update(a!.json_content).digest("hex"),
-        model_name: a!.model_name,
-        kind: a!.kind,
-        json: compressed,
-      };
-    });
-  const upstreamClip = clipUpstreamJsonSoft(upstreamRaw, CONTEXT_SLOT_BUDGETS.upstream_json_soft);
-  const upstream = upstreamClip.value;
-  const approvedEvidenceArtifact = latestArtifact(runId, "stage_03", ["approved"]);
-  const approvedEvidence: any = approvedEvidenceArtifact
-    ? parseJson(approvedEvidenceArtifact.json_content, {})
-    : undefined;
-  if (approvedEvidence && kind !== "stage_03") {
-    quarantineUnboundWebCitations(runId, evidenceBoundSourceIds(approvedEvidence));
-  }
-  const allSources = listSources(runId);
-  const isEvidenceConsumer = ["stage_04", "stage_05", "baseline", "independent_review"].includes(kind);
-  const frozenSources = isEvidenceConsumer && approvedEvidence
-    ? evidenceBoundSources(allSources, approvedEvidence)
-    : [];
-  const taskContext: any = upstream.find((item) => item.kind === "stage_01")?.json
-    || parseJson(latestArtifact(runId, "stage_01", ["approved"])?.json_content || "{}", {});
-  const deliveryArchetype = String(
-    taskContext?.delivery_archetype?.primary
-    || "industry_cycle_report",
-  );
-  const routePreview = buildSemanticRoute(upstream);
-  const ontologyRaw = ontologyContextForPrompt(runId, {
-    focusNodeIds: routePreview.ontology_node_ids,
-    focusJudgmentUnitIds: routePreview.judgment_unit_ids,
-  });
-  const assembled = assembleStageContext({
-    kind,
+  const {
     upstream,
-    ontologyObjectSet: ontologyRaw,
+    frozenSources,
+    frozenEvidenceArtifact,
+    taskContext,
     deliveryArchetype,
-  });
-  const judgmentTypesForKnowledge = assembled.semantic_route.judgment_types.length
-    ? assembled.semantic_route.judgment_types
-    : upstreamJudgmentTypes(upstream);
-  const knowledge = {
-    version: assembled.knowledge_version,
-    context: assembled.knowledge_context,
-    files: assembled.knowledge_files,
-  };
-  const promptSources = sourcesForPrompt(kind, allSources, taskContext?.time_scope?.as_of);
-  const sourceContext = promptSources.map((source) => ({
-    ...source,
-    snapshot_text: (source.snapshot_text || "").slice(0, 12_000),
-  }));
-  // 同证据基线只能看到 Stage03 已登记的逐字引文，不能从完整快照
-  // 额外开采主链未登记的新事实，否则“同证据”比较失真。
-  const frozenSourceContext = frozenSources.map(sourceForFrozenBaseline);
-  const ontologyContext = assembled.ontology_object_set;
-  const frozenEvidenceArtifact = kind === "baseline" ? approvedEvidenceArtifact : undefined;
-  const frozenEvidence: any = frozenEvidenceArtifact ? parseJson(frozenEvidenceArtifact.json_content, {}) : undefined;
-  const priorStage01 = kind === "stage_01"
-    ? latestArtifact(runId, "stage_01", ["needs_review", "approved"])
-    : null;
-  const priorStage01Data = priorStage01 ? parseJson<any>(priorStage01.json_content, {}) : null;
-  const methodCandidates = methodCandidatesForPrompt(kind, upstream, run.question);
-  // C1 修复：将方法关键纪律提取为文本，注入 system prompt 前面，避免模型忽略 JSON 深处的方法正文
-  const methodDigest = (kind === "stage_02" || kind === "stage_03" || kind === "stage_04")
-    ? methodDisciplineDigest(methodCandidates)
-    : "";
-  const systemPrompt = methodDigest ? `${promptFor(kind)}\n\n${methodDigest}` : promptFor(kind);
-  const stageGuidance = (kind === "stage_02" || kind === "stage_03" || kind === "stage_04")
-    ? buildStageGenerationGuidance({
-      kind,
-      candidates: methodCandidates,
-      taskText: run.question,
-      totalChars: CONTEXT_SLOT_BUDGETS.method_guidance,
-    })
-    : undefined;
-  const selectedMethodGuidance = stageGuidance?.selected_method_guidance;
-  const scenarioCardIds = stageGuidance?.scenario_card_ids || [];
-  const stage04Json: any = kind === "stage_05"
-    ? (upstream.find((item) => item.kind === "stage_04")?.json
-      || parseJson(latestArtifact(runId, "stage_04", ["approved"])?.json_content || "{}", {}))
-    : undefined;
-  const stage03UpstreamJson: any = kind === "stage_04" || kind === "stage_05"
-    ? (upstream.find((item) => item.kind === "stage_03")?.json
-      || parseJson(latestArtifact(runId, "stage_03", ["approved"])?.json_content || "{}", {}))
-    : undefined;
-  const injectedAssets = summarizeInjectedAssets({
-    knowledge_files: knowledge.files,
-    ontology_files: ontologyPromptSourceFiles(),
-    method_guidance: selectedMethodGuidance,
-    scenario_card_ids: scenarioCardIds,
-    structured_keys: [
-      kind === "stage_03" || kind === "stage_04" ? "judgment_method_routes" : "",
-      kind === "stage_03" || kind === "stage_04" ? "judgment_threshold_caps" : "",
-      kind === "stage_03" ? "mcp_channel_hints" : "",
-      kind === "stage_05" ? "expression_permission_from_04" : "",
-      kind === "stage_05" ? "executed_methods_summary" : "",
-      kind === "stage_05" ? "allowed_05_output_from_03" : "",
-    ].filter(Boolean),
-  });
-  const { governance_version: governanceVersion, detail: governanceDetail } = buildGovernanceFingerprint({
-    knowledge_source_version: assembled.knowledge_source_version,
-    knowledge_injected_version: assembled.knowledge_version,
-    knowledge_files: knowledge.files,
-    knowledge_file_injections: assembled.file_injections,
-    ontology_source_version: loadOntologyCatalog().fingerprint,
-    ontology_injected_text: ontologyContext,
-    ontology_files: injectedAssets.ontology_files,
-    method_guidance: selectedMethodGuidance,
-    scenario_card_ids: scenarioCardIds,
-    structured_keys: injectedAssets.structured_keys,
-    route: {
-      judgment_types: assembled.semantic_route.judgment_types,
-      ontology_node_ids: assembled.semantic_route.ontology_node_ids,
-      judgment_unit_ids: assembled.semantic_route.judgment_unit_ids,
-    },
-  });
-  const allowed05From03 = String(stage03UpstreamJson?.allowed_05_output || "");
-  const inputContext = JSON.stringify(
-    {
-      question: run.question,
-      domain: run.domain,
-      package_path: run.package_path,
-      upstream,
-      semantic_route: assembled.semantic_route,
-      context_assembly: {
-        note: assembled.assembly_note,
-        budgets: assembled.budgets,
-        knowledge_version: assembled.knowledge_version,
-        knowledge_source_version: assembled.knowledge_source_version,
-        governance_version: governanceVersion,
-        governance_libraries: governanceDetail,
-        standards_loading: assembled.standards_loading,
-        file_injections: assembled.file_injections,
-        injected_assets: injectedAssets,
-        upstream_json: {
-          clipped: upstreamClip.clipped,
-          original_chars: upstreamClip.original_chars,
-          final_chars: upstreamClip.final_chars,
-        },
-      },
-      clarification_state: kind === "stage_01" && priorStage01Data
-        ? {
-          previous_artifact_id: priorStage01?.id,
-          task_disposition: priorStage01Data.task_disposition,
-          input_resolution: priorStage01Data.input_resolution,
-          pending_question: pendingClarificationQuestion(priorStage01Data),
-          pending_questions: (priorStage01Data?.input_resolution?.clarifications || [])
-            .filter((item: any) => !item?.answer),
-        }
-        : undefined,
-      // 04/05/独立审阅只能看到 Stage03 已批准并冻结的逐字引文。
-      // 完整 snapshot 会让后续模型重新开采未登记事实，既破坏同证据边界，
-      // 也把输入放大到数十万 token。
-      sources: kind === "baseline"
-        ? undefined
-        : isEvidenceConsumer
-          ? frozenSourceContext
-          : sourceContext,
-      frozen_evidence: kind === "baseline" ? {
-        artifact_id: frozenEvidenceArtifact?.id,
-        artifact_version: frozenEvidenceArtifact?.version,
-        artifact_hash: frozenEvidenceArtifact ? createHash("sha256").update(frozenEvidenceArtifact.json_content).digest("hex") : null,
-        evidence_drafts: frozenEvidence?.evidence_drafts || [],
-        source_registry: frozenSourceContext,
-      } : undefined,
-      ontology_object_set: ontologyContext,
-      method_candidates: methodCandidates,
-      selected_method_guidance: selectedMethodGuidance,
-      scenario_card_ids: scenarioCardIds.length ? scenarioCardIds : undefined,
-      judgment_method_routes: kind === "stage_02" || kind === "stage_03" || kind === "stage_04"
-        ? methodRoutesForPrompt()
-        : undefined,
-      judgment_threshold_caps: kind === "stage_03" || kind === "stage_04"
-        ? judgmentThresholdCapsForPrompt()
-        : undefined,
-      evidence_judgment_type_cards: kind === "stage_03"
-        ? evidenceJudgmentTypeCardsForPrompt(judgmentTypesForKnowledge)
-        : undefined,
-      mcp_channel_hints: kind === "stage_03" ? mcpChannelHintsForPrompt() : undefined,
-      executed_methods_summary: kind === "stage_05"
-        ? executedMethodsSummary(
-          upstream.flatMap((item) => (item.json as any)?.method_applications || []),
-        )
-        : undefined,
-      expression_permission_from_04: kind === "stage_05"
-        ? (stage04Json?.expression_permission || null)
-        : undefined,
-      allowed_05_output_from_03: kind === "stage_05" ? (allowed05From03 || null) : undefined,
-      gap_report_only: kind === "stage_05" && allowed05From03 === "gap_report_only",
-      formal_ontology_rules: kind === "stage_04" ? [...formalOntologyRuleIds()].sort() : undefined,
-      delivery_archetype: kind === "stage_05" ? {
-        primary: deliveryArchetype,
-        secondary: taskContext?.delivery_archetype?.secondary || [],
-        modules: taskContext?.delivery_archetype?.modules || [],
-        template_hint: deliveryArchetype === "industry_cycle_report"
-          ? "delivery/02_模板/05C_行业周期判断模板.md"
-          : deliveryArchetype === "event_commentary"
-            ? "delivery/02_模板/05A_事件点评模板.md"
-            : deliveryArchetype === "industry_dynamic_commentary"
-              ? "delivery/02_模板/05B_行业动态点评模板.md"
-              : deliveryArchetype === "company_earnings_commentary"
-                ? "delivery/02_模板/05D_公司业绩点评模板.md"
-                : deliveryArchetype === "theme_deep_dive"
-                  ? "delivery/02_模板/05E_主题深度研究模板.md"
-                  : "delivery/02_模板/05C_行业周期判断模板.md",
-        expression_standard: "delivery/01_标准/05_投研表达标准.md",
-        quality_gate_note: "工作台确认 ≠ PUBLISHABLE；正式发布仍须 governance validate_05_outputs / validate_run。",
-        gap_report_constraint: allowed05From03 === "gap_report_only"
-          ? "上游仅允许缺口报告：只写缺口说明、补证建议与停止理由，不得包装为完整研究报告或方向性洞见。"
-          : undefined,
-      } : undefined,
-      knowledge_files: knowledge.files,
-      knowledge_context: knowledge.context,
-    },
-    null,
-    2,
-  );
+    judgmentTypesForKnowledge,
+    stage03UpstreamJson,
+    injectedAssets,
+    systemPrompt,
+    inputContext,
+    governanceVersion,
+  } = buildGenerationContext({ runId, kind, run });
   const client = createResearchModelClient(
     kind === "independent_review" ? "reviewer" : "producer",
     kind,
@@ -502,12 +219,6 @@ export async function generateArtifact(
           return Number.isFinite(parsed) ? parsed : undefined;
         })()
         : undefined;
-      const supplementContext = {
-        upstream,
-        question: run.question,
-        domain: run.domain,
-        judgmentTypes: judgmentTypesForKnowledge,
-      };
       const compactSupplementContextForUnits = (unitIds: string[]) => {
         const target = new Set(unitIds.map(String));
         return {
@@ -538,22 +249,6 @@ export async function generateArtifact(
             };
           }),
         };
-      };
-      const persistStage03Checkpoint = (checkpoint: Stage03BatchCheckpoint) => {
-        data.stage03_batch_checkpoint = checkpoint;
-        const progress = parseJson<Record<string, unknown>>(lastHeartbeatJson, {});
-        const saved = updateArtifactIfStatus(artifact.id, "running", {
-          json_content: JSON.stringify(data, null, 2),
-          token_usage: JSON.stringify(cumulativeUsage),
-          tool_usage: JSON.stringify({
-            ...progress,
-            in_progress: checkpoint.status !== "complete",
-            evidence_batch_checkpoint: checkpoint,
-          }),
-        });
-        if (!saved) {
-          throw new Error("GENERATION_LEASE_LOST: Stage03 批次检查点写入失败，禁止继续付费取证");
-        }
       };
 
       if (kind === "stage_03" && stage03Mode === "evidence_supplement") {
@@ -603,139 +298,34 @@ export async function generateArtifact(
             requirements: evidenceRequirements,
             ...stage03EvidenceBatchConfig(),
           });
-        let checkpoint = initializeStage03BatchCheckpoint({
+        const checkpoint = initializeStage03BatchCheckpoint({
           mode: "evidence_supplement",
           batches,
           baseArtifactId: baseArtifact.id,
           prior: resumedCheckpoint,
         });
-        persistStage03Checkpoint(checkpoint);
-        for (const [batchIndex, batch] of batches.entries()) {
-          assertRunning();
-          const checkpointEntry = checkpoint.batches.find((entry) => entry.batch_id === batch.batch_id);
-          if (terminalStage03BatchIds(checkpoint).has(batch.batch_id)) continue;
-          if (checkpointEntry?.status === "in_progress" && checkpointEntry.paid_model_started_at) {
-            const interruption = `${batch.batch_id} 上一 worker 在批次提交前中断；为避免可能已付费的调用被重复执行，本次自动恢复跳过该批次`;
-            data.unresolved_gaps = [
-              ...new Set([
-                ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
-                interruption,
-              ]),
-            ];
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "interrupted",
-              finished_at: new Date().toISOString(),
-              error: interruption,
-            });
-            persistStage03Checkpoint(checkpoint);
-            continue;
-          }
-          if (checkpointEntry?.status === "in_progress") {
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "pending",
-              error: "上一 worker 在付费模型调用前中断，允许从确定性来源预取阶段安全恢复",
-            });
-            persistStage03Checkpoint(checkpoint);
-          }
-          writeCoverageHeartbeat(
-            batchIndex + 1,
-            Math.max(batches.length, 1),
-            computeSourceCoverage({
-              sources: listSources(runId),
-              evidence: data.evidence_drafts || [],
-              requirements: evidenceRequirements,
-              cutoffMs,
-            }),
-            `Stage03 定向补证 ${batch.batch_id}：${batch.unit_ids.join(", ")}`,
-          );
-          checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-            status: "in_progress",
-            started_at: new Date().toISOString(),
-          });
-          persistStage03Checkpoint(checkpoint);
-          try {
-            const supplement = await runEvidenceSupplementRound({
-              client,
-              runId,
-              baseData: data,
-              supplementContext: compactSupplementContextForUnits(batch.unit_ids),
-              assertRunning,
-              onProgress: (event) => {
-                if (
-                  event.message.includes("针对缺口与失败来源生成补证 patch")
-                  && !checkpoint.batches.find((entry) => entry.batch_id === batch.batch_id)?.paid_model_started_at
-                ) {
-                  checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-                    paid_model_started_at: new Date().toISOString(),
-                  });
-                  persistStage03Checkpoint(checkpoint);
-                }
-                const heartbeat = buildGenerationProgressHeartbeat({
-                  phase: "model_round",
-                  round: event.round,
-                  max_rounds: 8,
-                  tool_names: [],
-                  message: `${batch.batch_id}：${event.message}`,
-                }, startedAt);
-                lastHeartbeatJson = JSON.stringify({
-                  ...heartbeat,
-                  evidence_batch: batch.batch_id,
-                  evidence_batch_index: batchIndex + 1,
-                  evidence_batch_count: batches.length,
-                  target_unit_ids: batch.unit_ids,
-                  mode: "evidence_supplement",
-                });
-                updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-              },
-              existingSources: listSources(runId),
-              maxSourceCount: options?.maxSourceCount,
-              requirements: batch.requirements,
-              targetUnitIds: batch.unit_ids,
-              cutoffMs,
-              maxToolRounds: 8,
-              idNamespace: `SUP-${batch.batch_id}`,
-            });
-            data = supplement.data;
-            cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "complete",
-              finished_at: new Date().toISOString(),
-              tool_usage: supplement.toolUsage,
-              unchanged_evidence_ids: [...supplement.unchangedEvidenceIds],
-            });
-            persistStage03Checkpoint(checkpoint);
-          } catch (error) {
-            if (shouldAbortStage03Batching(error)) throw error;
-            const message = formatRuntimeFailureMessage(error);
-            data.unresolved_gaps = [
-              ...new Set([
-                ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
-                `${batch.batch_id} 定向补证失败（${batch.unit_ids.join(", ")}）：${message}`,
-              ]),
-            ];
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "failed",
-              finished_at: new Date().toISOString(),
-              error: message,
-            });
-            persistStage03Checkpoint(checkpoint);
-          }
-        }
-        data.stage03_batch_execution = {
-          mode: "evidence_supplement_batches",
-          batch_count: batches.length,
-          batches: checkpoint.batches,
-          pipeline_steps: [
-            "coverage_gap_queue",
-            "batched_acquisition",
-            "source_snapshot",
-            "evidence_structure",
-            "method_execution",
-            "quality_gate",
-          ],
-        };
-        checkpoint = { ...checkpoint, status: "complete", updated_at: new Date().toISOString() };
-        persistStage03Checkpoint(checkpoint);
+        const batchRun = await runStage03BatchSequence({
+          mode: "evidence_supplement",
+          batches,
+          checkpoint,
+          data,
+          cumulativeUsage,
+          lastHeartbeatJson,
+          artifactId: artifact.id,
+          runId,
+          client,
+          startedAt,
+          assertRunning,
+          compactSupplementContextForUnits,
+          structure: structureData,
+          writeCoverageHeartbeat,
+          allRequirements: evidenceRequirements,
+          cutoffMs,
+          maxSourceCount: options?.maxSourceCount,
+        });
+        data = batchRun.data;
+        cumulativeUsage = batchRun.cumulativeUsage;
+        lastHeartbeatJson = batchRun.lastHeartbeatJson;
       } else if (kind === "stage_03") {
         // 03 默认走可恢复批次：确定性 gap 底稿保证所有判断单元都有位置，
         // 每批只研究 1–2 个单元，patch 再合并回全局。单批失败不抹掉已成功批次。
@@ -768,138 +358,33 @@ export async function generateArtifact(
             requirements: evidenceRequirements,
             ...stage03EvidenceBatchConfig(),
           });
-        let checkpoint = initializeStage03BatchCheckpoint({
+        const checkpoint = initializeStage03BatchCheckpoint({
           mode: "regenerate",
           batches,
           prior: resumedCheckpoint,
         });
-        persistStage03Checkpoint(checkpoint);
-        for (const [batchIndex, batch] of batches.entries()) {
-          assertRunning();
-          const checkpointEntry = checkpoint.batches.find((entry) => entry.batch_id === batch.batch_id);
-          if (terminalStage03BatchIds(checkpoint).has(batch.batch_id)) continue;
-          if (checkpointEntry?.status === "in_progress" && checkpointEntry.paid_model_started_at) {
-            const interruption = `${batch.batch_id} 上一 worker 在批次提交前中断；为避免可能已付费的调用被重复执行，本次自动恢复跳过该批次`;
-            data.unresolved_gaps = [
-              ...new Set([
-                ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
-                interruption,
-              ]),
-            ];
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "interrupted",
-              finished_at: new Date().toISOString(),
-              error: interruption,
-            });
-            persistStage03Checkpoint(checkpoint);
-            continue;
-          }
-          if (checkpointEntry?.status === "in_progress") {
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "pending",
-              error: "上一 worker 在付费模型调用前中断，允许从确定性来源预取阶段安全恢复",
-            });
-            persistStage03Checkpoint(checkpoint);
-          }
-          writeCoverageHeartbeat(
-            batchIndex + 1,
-            Math.max(batches.length, 1),
-            computeSourceCoverage({
-              sources: listSources(runId),
-              evidence: data.evidence_drafts || [],
-              requirements: evidenceRequirements,
-              cutoffMs,
-            }),
-            `Stage03 分批取证 ${batch.batch_id}：${batch.unit_ids.join(", ")}`,
-          );
-          checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-            status: "in_progress",
-            started_at: new Date().toISOString(),
-          });
-          persistStage03Checkpoint(checkpoint);
-          try {
-            const supplement = await runEvidenceSupplementRound({
-              client,
-              runId,
-              baseData: data,
-              supplementContext: compactSupplementContextForUnits(batch.unit_ids),
-              assertRunning,
-              onProgress: (event) => {
-                if (
-                  event.message.includes("针对缺口与失败来源生成补证 patch")
-                  && !checkpoint.batches.find((entry) => entry.batch_id === batch.batch_id)?.paid_model_started_at
-                ) {
-                  checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-                    paid_model_started_at: new Date().toISOString(),
-                  });
-                  persistStage03Checkpoint(checkpoint);
-                }
-                const heartbeat = buildGenerationProgressHeartbeat({
-                  phase: "model_round",
-                  round: event.round,
-                  max_rounds: 8,
-                  tool_names: [],
-                  message: `${batch.batch_id}：${event.message}`,
-                }, startedAt);
-                lastHeartbeatJson = JSON.stringify({
-                  ...heartbeat,
-                  evidence_batch: batch.batch_id,
-                  evidence_batch_index: batchIndex + 1,
-                  evidence_batch_count: batches.length,
-                  target_unit_ids: batch.unit_ids,
-                });
-                updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-              },
-              existingSources: listSources(runId),
-              maxSourceCount: options?.maxSourceCount,
-              requirements: batch.requirements,
-              targetUnitIds: batch.unit_ids,
-              cutoffMs,
-              maxToolRounds: 8,
-              idNamespace: batch.batch_id,
-            });
-            data = supplement.data;
-            cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "complete",
-              finished_at: new Date().toISOString(),
-              tool_usage: supplement.toolUsage,
-            });
-            persistStage03Checkpoint(checkpoint);
-          } catch (error) {
-            if (shouldAbortStage03Batching(error)) throw error;
-            // 继续其他批次；最终证据门会把未完成批次锁为 return_required，
-            // 不会因容错而把全 gap 产物伪装成高质量。
-            const message = formatRuntimeFailureMessage(error);
-            data.unresolved_gaps = [
-              ...new Set([
-                ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
-                `${batch.batch_id} 批次失败（${batch.unit_ids.join(", ")}）：${message}`,
-              ]),
-            ];
-            checkpoint = updateStage03BatchCheckpoint(checkpoint, batch.batch_id, {
-              status: "failed",
-              finished_at: new Date().toISOString(),
-              error: message,
-            });
-            persistStage03Checkpoint(checkpoint);
-          }
-        }
-        data.stage03_batch_execution = {
-          mode: "judgment_unit_batches",
-          batch_count: batches.length,
-          batches: checkpoint.batches,
-          pipeline_steps: [
-            "gap_scaffold",
-            "batched_acquisition",
-            "source_snapshot",
-            "evidence_structure",
-            "method_execution",
-            "quality_gate",
-          ],
-        };
-        checkpoint = { ...checkpoint, status: "complete", updated_at: new Date().toISOString() };
-        persistStage03Checkpoint(checkpoint);
+        const batchRun = await runStage03BatchSequence({
+          mode: "regenerate",
+          batches,
+          checkpoint,
+          data,
+          cumulativeUsage,
+          lastHeartbeatJson,
+          artifactId: artifact.id,
+          runId,
+          client,
+          startedAt,
+          assertRunning,
+          compactSupplementContextForUnits,
+          structure: structureData,
+          writeCoverageHeartbeat,
+          allRequirements: evidenceRequirements,
+          cutoffMs,
+          maxSourceCount: options?.maxSourceCount,
+        });
+        data = batchRun.data;
+        cumulativeUsage = batchRun.cumulativeUsage;
+        lastHeartbeatJson = batchRun.lastHeartbeatJson;
       } else if (kind === "stage_04") {
         // 全 gap 上游：跳过模型，直接确定性 J0，避免无事实输入生成方向性判断。
         const evidenceApproved: any = stage03UpstreamJson
@@ -1041,10 +526,37 @@ export async function generateArtifact(
         syncStage04ReadableMarkdown(data, { question: run.question, taskId: run.id });
         schemas.stage_04.parse(data);
       }
-      if (kind === "stage_03" && stage03Mode !== "evidence_supplement" && !data?.stage03_batch_execution) {
-        // 全量生成后可自动多轮补证；「补充取证」按钮本身已是一轮，再套 max_auto_rounds 会把 token 打爆。
-        let autoRound = 1;
-        let previousGapCount: number | undefined;
+      if (kind === "stage_03") {
+        // 完整生成与“补充取证”共用同一闭环：每一轮先跑覆盖/质量门，
+        // 再只对仍薄弱的 JU 分批补证。旧实现因 stage03_batch_execution 已存在
+        // 而完全跳过这里，手动模式也被硬编码为单轮。
+        const supplementRounds: Array<Record<string, any>> = Array.isArray(data?.stage03_supplement_rounds)
+          ? structuredClone(data.stage03_supplement_rounds)
+          : [];
+        for (const round of supplementRounds) {
+          for (const batch of Array.isArray(round?.batches) ? round.batches : []) {
+            if (batch?.status !== "in_progress") continue;
+            batch.status = "interrupted";
+            batch.finished_at = new Date().toISOString();
+            batch.error = batch.paid_model_started_at
+              ? "上一 worker 在付费模型提交前中断；为避免重复付费，本轮不重放"
+              : "上一 worker 在补证批次完成前中断；本轮记为中断并由后续轮次重新评估";
+          }
+        }
+        let autoRound = Math.max(
+          1,
+          ...supplementRounds.map((round) => Number(round?.round || 1)).filter(Number.isFinite),
+        );
+        const persistAutoSupplementState = () => {
+          data.stage03_supplement_rounds = supplementRounds;
+          const saved = updateArtifactIfStatus(artifact.id, "running", {
+            json_content: JSON.stringify(data, null, 2),
+            token_usage: JSON.stringify(cumulativeUsage),
+            tool_usage: lastHeartbeatJson,
+          });
+          if (!saved) throw new Error("GENERATION_LEASE_LOST: Stage03 自动补证检查点写入失败");
+        };
+        persistAutoSupplementState();
         while (autoRound < maxAutoRounds) {
           const coverage = computeSourceCoverage({
             sources: listSources(runId),
@@ -1052,45 +564,135 @@ export async function generateArtifact(
             requirements: evidenceRequirements,
             cutoffMs,
           });
+          const interimQuality = evaluateEvidenceQuality({
+            evidenceDrafts: data.evidence_drafts || [],
+            sources: listSources(runId),
+            judgmentUnits: structureData.judgment_units || [],
+            evidenceRequirements,
+          });
           writeCoverageHeartbeat(
             autoRound,
             maxAutoRounds,
             coverage,
-            `第 ${autoRound}/${maxAutoRounds} 轮后评估：覆盖率 ${(coverage.coverage_rate * 100).toFixed(0)}%，核验率 ${(coverage.verification_rate * 100).toFixed(0)}%`,
+            `第 ${autoRound}/${maxAutoRounds} 轮后评估：${interimQuality.qualityStatus}，覆盖率 ${(coverage.coverage_rate * 100).toFixed(0)}%，核验率 ${(coverage.verification_rate * 100).toFixed(0)}%`,
           );
-          const stop = evaluateEvidenceStopCondition(coverage, previousGapCount);
-          if (stop.shouldStop) break;
-          previousGapCount = coverage.coverage_gap_count;
+          if (interimQuality.qualityStatus === "high_quality_pass") break;
+          const qualityTargets = new Set(interimQuality.gapDetails.map((item) => String(item.judgmentUnitId)));
+          let targetUnitIds = coverage.unit_coverage
+            .filter((unit) => (
+              !unit.has_support_evidence
+              || !unit.meets_independence
+              || unit.gap_count > 0
+              || unit.counter_gap_count > 0
+              || qualityTargets.has(String(unit.unit_id))
+            ))
+            .map((unit) => String(unit.unit_id));
+          // 逐 JU 都过最低门但全局仍未到 HQ（例如总证据或来源组不足）时，
+          // 继续把全体 JU 作为补强候选，直到 HQ 或轮次预算耗尽。
+          if (!targetUnitIds.length) {
+            targetUnitIds = (structureData.judgment_units || [])
+              .map((unit: any) => String(unit?.id || ""))
+              .filter(Boolean);
+          }
+          if (!targetUnitIds.length) break;
           autoRound += 1;
-          const supplement = await runEvidenceSupplementRound({
-            client,
-            runId,
-            baseData: data,
-            supplementContext,
-            assertRunning,
-            onProgress: (event) => {
-              const heartbeat = buildGenerationProgressHeartbeat({
-                phase: "model_round",
-                round: event.round,
-                max_rounds: maxAutoRounds,
-                tool_names: [],
-                message: event.message,
-              }, startedAt);
-              lastHeartbeatJson = JSON.stringify({
-                ...heartbeat,
-                auto_round: autoRound,
-                max_auto_rounds: maxAutoRounds,
-              });
-              updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-            },
-            existingSources: listSources(runId),
-            maxSourceCount: options?.maxSourceCount,
+          const batches = partitionStage03EvidenceBatches({
+            judgmentUnitIds: targetUnitIds,
             requirements: evidenceRequirements,
-            cutoffMs,
+            ...stage03EvidenceBatchConfig(),
           });
-          data = supplement.data;
-          cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
+          const roundRecord: Record<string, any> = {
+            round: autoRound,
+            trigger_quality_status: interimQuality.qualityStatus,
+            trigger_gap_count: coverage.coverage_gap_count,
+            target_unit_ids: targetUnitIds,
+            batches: [],
+            started_at: new Date().toISOString(),
+          };
+          supplementRounds.push(roundRecord);
+          persistAutoSupplementState();
+          for (const [batchIndex, batch] of batches.entries()) {
+            const batchRecord: Record<string, unknown> = {
+              batch_id: batch.batch_id,
+              target_unit_ids: batch.unit_ids,
+              status: "in_progress",
+              started_at: new Date().toISOString(),
+            };
+            roundRecord.batches.push(batchRecord);
+            persistAutoSupplementState();
+            try {
+              const supplement = await runEvidenceSupplementRound({
+                client,
+                runId,
+                baseData: data,
+                supplementContext: compactSupplementContextForUnits(batch.unit_ids),
+                assertRunning,
+                onProgress: (event) => {
+                  if (
+                    event.message.includes("针对缺口与失败来源生成补证 patch")
+                    && !batchRecord.paid_model_started_at
+                  ) {
+                    batchRecord.paid_model_started_at = new Date().toISOString();
+                    persistAutoSupplementState();
+                  }
+                  const heartbeat = buildGenerationProgressHeartbeat({
+                    phase: "model_round",
+                    round: event.round,
+                    max_rounds: maxAutoRounds,
+                    tool_names: [],
+                    message: `自动补证 R${autoRound}/${batch.batch_id}：${event.message}`,
+                  }, startedAt);
+                  lastHeartbeatJson = JSON.stringify({
+                    ...heartbeat,
+                    auto_round: autoRound,
+                    max_auto_rounds: maxAutoRounds,
+                    evidence_batch_index: batchIndex + 1,
+                    evidence_batch_count: batches.length,
+                    target_unit_ids: batch.unit_ids,
+                  });
+                  updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
+                },
+                existingSources: listSources(runId),
+                maxSourceCount: options?.maxSourceCount,
+                requirements: batch.requirements,
+                targetUnitIds: batch.unit_ids,
+                cutoffMs,
+                maxToolRounds: 8,
+                idNamespace: `R${autoRound}-${batch.batch_id}`,
+                structure: structureData,
+              });
+              data = supplement.data;
+              cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);
+              Object.assign(batchRecord, {
+                status: "complete",
+                finished_at: new Date().toISOString(),
+                tool_usage: supplement.toolUsage,
+                unchanged_evidence_ids: [...supplement.unchangedEvidenceIds],
+              });
+              // supplement.data 来自模型 patch，不含 Runtime 外层检查点；重新挂回。
+              data.stage03_supplement_rounds = supplementRounds;
+              persistAutoSupplementState();
+            } catch (error) {
+              if (shouldAbortStage03Batching(error)) throw error;
+              const message = formatRuntimeFailureMessage(error);
+              data.unresolved_gaps = [
+                ...new Set([
+                  ...(Array.isArray(data.unresolved_gaps) ? data.unresolved_gaps.map(String) : []),
+                  `自动补证 R${autoRound}/${batch.batch_id} 失败（${batch.unit_ids.join(", ")}）：${message}`,
+                ]),
+              ];
+              Object.assign(batchRecord, {
+                status: "failed",
+                finished_at: new Date().toISOString(),
+                error: message,
+              });
+              persistAutoSupplementState();
+            }
+          }
+          roundRecord.finished_at = new Date().toISOString();
+          persistAutoSupplementState();
         }
+        data.stage03_supplement_rounds = supplementRounds;
       }
       if (kind === "stage_03") {
         data = repairEvidencePreparationDraft(data);
@@ -1161,6 +763,12 @@ export async function generateArtifact(
         const batchToolUsage = (data?.stage03_batch_execution?.batches || [])
           .map((batch: any) => batch?.tool_usage)
           .filter((usage: unknown) => usage && typeof usage === "object") as Array<Record<string, unknown>>;
+        batchToolUsage.push(
+          ...(data?.stage03_supplement_rounds || [])
+            .flatMap((round: any) => Array.isArray(round?.batches) ? round.batches : [])
+            .map((batch: any) => batch?.tool_usage)
+            .filter((usage: unknown) => usage && typeof usage === "object") as Array<Record<string, unknown>>,
+        );
         const toolUsage = (result?.toolUsage && typeof result.toolUsage === "object")
           ? result.toolUsage as Record<string, unknown>
           : batchToolUsage.length
@@ -1201,398 +809,48 @@ export async function generateArtifact(
         schemas.stage_03.parse(data);
       }
       if (kind === "stage_05") {
-        const judgmentArtifact = latestArtifact(runId, "stage_04", ["approved"])!;
-        const judgmentJson = parseJson<any>(judgmentArtifact.json_content, {});
-        // 对齐 claim↔judgment 与审计；保留模型研报正文，不压平为简报。
-        normalizeStage05Projection(
+        const stage05Review = await runStage05ResearchValueReview({
           data,
-          judgmentJson,
-          run.question,
-          listSources(runId),
-        );
-        if (!data.delivery_archetype) data.delivery_archetype = deliveryArchetype;
-
-        let review: ResearchValueReview = heuristicResearchValueReview({
-          body: String(data.document_markdown || ""),
-          stage01: taskContext,
-          research_edge: data.research_edge,
-          intensity_lifted: false,
-          retry_count: 0,
+          result,
+          cumulativeUsage,
+          lastHeartbeatJson,
+          runId,
+          run,
+          deliveryArchetype,
+          taskContext,
+          client,
+          systemPrompt,
+          inputContext,
+          artifact,
+          startedAt,
+          assertRunning,
         });
-        review.producer_model = client.model;
-        // 研究价值用 reviewer 配置打分，避免生产模型自评。不可用时保留
-        // 更保守的确定性启发式；reviewer 不参与改写正文。
-        try {
-          const valueReviewClient = createResearchModelClient("reviewer", "stage_05");
-          const llmReview = await valueReviewClient.generateStructured(
-            "research_value_review",
-            researchValueReviewSchema,
-            researchValueReviewPrompt(),
-            JSON.stringify({
-              question: run.question,
-              stage01_normalized_question: taskContext?.normalized_question || null,
-              document_markdown: String(data.document_markdown || "").slice(0, 24_000),
-              research_edge: data.research_edge || [],
-            }, null, 2),
-            { maxToolRounds: 2 },
-          );
-          cumulativeUsage = accumulateTokenUsage(cumulativeUsage, llmReview.usage);
-          const totalScore = llmReview.data.checks.reduce((sum, item) => sum + item.score, 0);
-          review = {
-            status: llmReview.data.status,
-            checks: llmReview.data.checks,
-            retry_count: 0,
-            total_score: totalScore,
-            pass_threshold: RESEARCH_VALUE_PASS_THRESHOLD,
-            reviewed_at: new Date().toISOString(),
-            mode: "llm",
-            reviewer_model: valueReviewClient.model,
-            producer_model: client.model,
-          };
-          // 与启发式取交：任一 fail 则 fail
-          const heuristic = heuristicResearchValueReview({
-            body: String(data.document_markdown || ""),
-            stage01: taskContext,
-            research_edge: data.research_edge,
-            retry_count: 0,
-          });
-          const byId = new Map(heuristic.checks.map((item) => [item.id, item]));
-          for (const check of review.checks) {
-            const prev = byId.get(check.id);
-            byId.set(check.id, {
-              id: check.id,
-              pass: Boolean(prev?.pass) && check.pass,
-              score: Math.min(prev?.score ?? 0, check.score ?? 0),
-              evidence_span: check.evidence_span || prev?.evidence_span || "",
-              note: check.note || prev?.note || "",
-            });
-          }
-          review = {
-            status: [...byId.values()].every((item) => item.pass)
-              && [...byId.values()].reduce((sum, item) => sum + item.score, 0) >= RESEARCH_VALUE_PASS_THRESHOLD
-              ? "pass"
-              : "fail",
-            checks: [...byId.values()],
-            retry_count: 0,
-            total_score: [...byId.values()].reduce((sum, item) => sum + item.score, 0),
-            pass_threshold: RESEARCH_VALUE_PASS_THRESHOLD,
-            reviewed_at: new Date().toISOString(),
-            mode: "combined",
-            reviewer_model: valueReviewClient.model,
-            producer_model: client.model,
-          };
-        } catch {
-          // 模型审查不可用时仅用启发式
-        }
-
-        if (review.status === "fail" && stage05PaidAutoRetryEnabled()) {
-          assertRunning();
-          const retryInput = JSON.stringify({
-            ...JSON.parse(inputContext),
-            research_value_retry_notes: buildStage05RetryContext(review),
-          }, null, 2);
-          const retryResult = await client.generate(kind as SchemaKind, systemPrompt, retryInput, {
-            maxToolRounds: 4,
-            runId,
-            validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
-            repairOutput: (draft) => ensureStage05DocumentFields(draft, {
-              question: run.question,
-              taskId: run.id,
-              stage04: judgmentJson,
-            }),
-            onProgress: (event) => {
-              assertRunning();
-              const heartbeat = buildGenerationProgressHeartbeat({
-                ...event,
-                message: `00A 研究价值重试：${event.message || ""}`,
-              }, startedAt);
-              lastHeartbeatJson = JSON.stringify(heartbeat);
-              updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-            },
-          });
-          cumulativeUsage = accumulateTokenUsage(cumulativeUsage, retryResult.usage);
-          data = retryResult.data;
-          result = retryResult;
-          normalizeStage05Projection(
-            data,
-            judgmentJson,
-            run.question,
-            listSources(runId),
-          );
-          if (!data.delivery_archetype) data.delivery_archetype = deliveryArchetype;
-          let retryReview = heuristicResearchValueReview({
-            body: String(data.document_markdown || ""),
-            stage01: taskContext,
-            research_edge: data.research_edge,
-            retry_count: 1,
-          });
-          retryReview.producer_model = client.model;
-          // 重试后仍尝试 LLM 审查；失败则保留启发式，不得静默当过。
-          try {
-            const valueReviewClient = createResearchModelClient("reviewer", "stage_05");
-            const llmRetry = await valueReviewClient.generateStructured(
-              "research_value_review",
-              researchValueReviewSchema,
-              researchValueReviewPrompt(),
-              JSON.stringify({
-                question: run.question,
-                stage01_normalized_question: taskContext?.normalized_question || null,
-                document_markdown: String(data.document_markdown || "").slice(0, 24_000),
-                research_edge: data.research_edge || [],
-              }, null, 2),
-              { maxToolRounds: 2 },
-            );
-            cumulativeUsage = accumulateTokenUsage(cumulativeUsage, llmRetry.usage);
-            retryReview = mergeResearchValueReviews(retryReview, {
-              status: llmRetry.data.status,
-              checks: llmRetry.data.checks,
-              retry_count: 1,
-              total_score: llmRetry.data.checks.reduce((sum, item) => sum + item.score, 0),
-              pass_threshold: RESEARCH_VALUE_PASS_THRESHOLD,
-              reviewed_at: new Date().toISOString(),
-              mode: "llm",
-              reviewer_model: valueReviewClient.model,
-              producer_model: client.model,
-            });
-            retryReview.retry_count = 1;
-            retryReview.mode = "combined";
-          } catch {
-            // keep heuristic
-          }
-          review = retryReview;
-        }
-
-        attachResearchValueReview(data, review);
-        ensureStage05DocumentFields(data, {
-          question: run.question,
-          taskId: run.id,
-          stage04: judgmentJson,
-        });
-
-        // A6: 表达审计 - 用 report_claims + 04 claims 投影，验证 EX→C 映射、等级一致性、审计腔禁令
-        const auditInputs = toExpressionAuditInputs(data, judgmentJson);
-        const expressionAudit = auditStage05Expressions(
-          auditInputs.expressions,
-          auditInputs.claims,
-          auditInputs.judgments,
-        );
-        // expression_audit 仅运行时旁路；写入前会 strip，正式产物保留 expression_audit_yaml
-        (data as any)._expression_audit_runtime = expressionAudit;
-
-        // 审计腔清洗：05 正文移除 YAML/审计专用术语
-        if (data.document_markdown) {
-          data.document_markdown = sanitizeAuditVoice(String(data.document_markdown));
-        }
-
-        Object.assign(data, stripLegacyWriteFields(data));
-        schemas.stage_05.parse(data);
+        data = stage05Review.data;
+        result = stage05Review.result;
+        cumulativeUsage = stage05Review.cumulativeUsage;
+        lastHeartbeatJson = stage05Review.lastHeartbeatJson;
       }
-
-      // 01–05：生成后静默 HQ 门禁；失败则注入失败项再生成一次，仍失败则标为不可确认。
-      // 上游硬失败（00A 研究价值 / 证据质量门）禁止 forceHQ + checked 盖章冲掉。
-      const stageKindsForHq = new Set(["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"]);
-      if (
-        stageKindsForHq.has(kind)
-        && data
-        && typeof data === "object"
-        && String(data.task_disposition || "") !== "needs_clarification"
-      ) {
-        const upstreamLock = shouldPreserveUpstreamQualityFailure(data, kind as ArtifactKind);
-        if (upstreamLock.preserve) {
-          applyUpstreamQualityFailure(data, upstreamLock.reason);
-        } else {
-          forceHighQualityTarget(data);
-          // 仅在形态检查期间临时假定 checked；通过后才保留，失败由 markGeneration 清回。
-          data.deterministic_check_status = "checked";
-          let hqErrors = collectStageHighQualityErrors(kind, data);
-          if (
-            hqErrors.length
-            && stage03Mode !== "evidence_supplement"
-            && (kind !== "stage_05" || stage05PaidAutoRetryEnabled())
-          ) {
-            assertRunning();
-            const retryNotes = buildQualityRetryNotes(hqErrors);
-            const retryHeartbeat = buildGenerationProgressHeartbeat({
-              phase: "model_round",
-              round: 1,
-              max_rounds: 2,
-              tool_names: [],
-              message: "正在按可交接密度标准补强本稿",
-            }, startedAt);
-            lastHeartbeatJson = JSON.stringify(retryHeartbeat);
-            updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-            const retryInput = JSON.stringify({
-              ...JSON.parse(inputContext),
-              [HQ_RETRY_KEY]: retryNotes,
-            }, null, 2);
-            const useOntologyTools = kind === "stage_02" || kind === "stage_03";
-            const retryResult = await client.generate(kind as SchemaKind, systemPrompt, retryInput, {
-              webSearch: kind === "stage_03",
-              ontologyTools: useOntologyTools,
-              maxToolRounds: kind === "stage_04" ? 6 : undefined,
-              runId,
-              validateOutput: (draft) => validateGeneratedSemanticDraft(runId, kind, draft),
-              repairOutput: kind === "stage_03"
-                ? (draft) => {
-                  const repaired = repairEvidencePreparationDraft(draft);
-                  ensureStage03DocumentFields(repaired, {
-                    question: run.question,
-                    taskId: run.id,
-                    structure: structureData,
-                  });
-                  return repaired;
-                }
-                : kind === "stage_04"
-                  ? (draft) => {
-                    const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
-                    const repaired = repairJudgmentPreparationDraft(draft, {
-                      judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
-                      scopeRef: structure.research_scope?.id || null,
-                    });
-                    ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
-                    return repaired;
-                  }
-                  : kind === "stage_02"
-                    ? (draft) => repairStage02GenerationDraft(draft, { question: run.question, taskId: run.id })
-                    : kind === "stage_05"
-                      ? (draft) => {
-                        const stage04: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])?.json_content || "{}", {});
-                        return ensureStage05DocumentFields(draft, { question: run.question, taskId: run.id, stage04 });
-                      }
-                      : kind === "stage_01"
-                        ? (draft) => {
-                          normalizeStage01Projection(draft, run.question);
-                          return draft;
-                        }
-                        : undefined,
-              onProgress: (event) => {
-                assertRunning();
-                const heartbeat = buildGenerationProgressHeartbeat({
-                  ...event,
-                  message: `密度补强：${event.message || ""}`,
-                }, startedAt);
-                lastHeartbeatJson = JSON.stringify(heartbeat);
-                updateArtifactIfStatus(artifact.id, "running", { tool_usage: lastHeartbeatJson });
-              },
-            });
-            cumulativeUsage = accumulateTokenUsage(cumulativeUsage, retryResult.usage);
-            data = retryResult.data;
-            result = retryResult;
-            assertRunning();
-            if (kind === "stage_01") {
-              normalizeStage01Projection(data, run.question);
-              schemas.stage_01.parse(data);
-            } else if (kind === "stage_02") {
-              ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
-              if (!String(data.research_logic_markdown || "").trim() && String(data.document_markdown || "").trim()) {
-                data.research_logic_markdown = data.document_markdown;
-              }
-              if (String(data.research_logic_markdown || "").trim()) {
-                data.document_markdown = data.research_logic_markdown;
-              }
-              ensureStage02DocumentFields(data, { question: run.question, taskId: run.id });
-              schemas.stage_02.parse(data);
-            } else if (kind === "stage_03") {
-              data = repairEvidencePreparationDraft(data);
-              syncStage03ReadableMarkdown(data, {
-                question: run.question,
-                taskId: run.id,
-                structure: structureData,
-              });
-              ensureStage03DocumentFields(data, {
-                question: run.question,
-                taskId: run.id,
-                structure: structureData,
-              });
-              // HQ 重试后重新执法证据门，避免补强稿冲掉先前失败态
-              const stage03Requirements = Array.isArray(structureData?.evidence_requirements) && structureData.evidence_requirements.length
-                ? structureData.evidence_requirements
-                : projectEvidenceRequirementsFromStructure({
-                  units: structureData?.judgment_units || [],
-                  counter_evidence_directions: structureData?.counter_evidence_directions,
-                });
-              const evidenceQuality = evaluateEvidenceQuality({
-                evidenceDrafts: data.evidence_drafts || [],
-                sources: listSources(runId),
-                judgmentUnits: structureData?.judgment_units || [],
-                evidenceRequirements: stage03Requirements,
-              });
-              data.evidence_quality_gate = {
-                passed: evidenceQuality.passed,
-                quality_status: evidenceQuality.qualityStatus,
-                total_evidence: evidenceQuality.totalEvidence,
-                source_groups: evidenceQuality.sourceGroups,
-                direct_facts: evidenceQuality.directFacts,
-                gap_details: evidenceQuality.gapDetails,
-                evaluated_at: new Date().toISOString(),
-              };
-              data.evidence_quality_summary = evidenceQuality.summary;
-              if (!evidenceQuality.passed || evidenceQuality.qualityStatus === "return_required") {
-                data.quality_status = "return_required";
-                data.return_required = true;
-                data.deterministic_check_status = "not_checked";
-                data.status_reason = evidenceQuality.summary;
-                data.evidence_readiness = "not_ready";
-                data.delivery_readiness = "not_ready";
-                data.allowed_05_output = evidenceQuality.totalEvidence > 0 ? "bounded_report" : "gap_report_only";
-              } else if (evidenceQuality.qualityStatus === "minimum_pass") {
-                data.evidence_readiness = "partial";
-                data.delivery_readiness = "partial";
-                data.allowed_05_output = "bounded_report";
-                if (String(data.quality_status || "") === "high_quality_pass") {
-                  data.quality_status = "minimum_pass";
-                  data.deterministic_check_status = "not_checked";
-                }
-              } else {
-                data.evidence_readiness = "ready";
-                data.delivery_readiness = "ready";
-                data.allowed_05_output = "full_report";
-              }
-              syncStage03ReadableMarkdown(data, {
-                question: run.question,
-                taskId: run.id,
-                structure: structureData,
-                forceProjection: true,
-              });
-              schemas.stage_03.parse(data);
-            } else if (kind === "stage_04") {
-              const structure: any = parseJson(latestArtifact(runId, "stage_02", ["approved"])?.json_content || "{}", {});
-              const repaired = repairJudgmentPreparationDraft(data, {
-                judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
-                scopeRef: structure.research_scope?.id || null,
-              });
-              ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
-              data = repaired;
-              schemas.stage_04.parse(data);
-            } else if (kind === "stage_05") {
-              const judgmentJson: any = parseJson(latestArtifact(runId, "stage_04", ["approved"])!.json_content, {});
-              normalizeStage05Projection(data, judgmentJson, run.question, listSources(runId));
-              ensureStage05DocumentFields(data, {
-                question: run.question,
-                taskId: run.id,
-                stage04: judgmentJson,
-              });
-              schemas.stage_05.parse(data);
-            }
-            const retryLock = shouldPreserveUpstreamQualityFailure(data, kind as ArtifactKind);
-            if (retryLock.preserve) {
-              applyUpstreamQualityFailure(data, retryLock.reason);
-              hqErrors = [];
-            } else {
-              forceHighQualityTarget(data);
-              data.deterministic_check_status = "checked";
-              hqErrors = collectStageHighQualityErrors(kind, data);
-            }
-          }
-          if (
-            !shouldPreserveUpstreamQualityFailure(data, kind as ArtifactKind).preserve
-            && !meetsHighQualityForReview(kind, data)
-          ) {
-            markGenerationBelowHighQuality(data, hqErrors.length ? hqErrors : collectStageHighQualityErrors(kind, data));
-          }
-        }
-      }
-
+      const hqRetry = await runGenerationHighQualityRetry({
+        kind,
+        data,
+        result,
+        cumulativeUsage,
+        lastHeartbeatJson,
+        stage03Mode,
+        structureData,
+        client,
+        systemPrompt,
+        inputContext,
+        runId,
+        run,
+        artifact,
+        startedAt,
+        assertRunning,
+      });
+      data = hqRetry.data;
+      result = hqRetry.result;
+      cumulativeUsage = hqRetry.cumulativeUsage;
+      lastHeartbeatJson = hqRetry.lastHeartbeatJson;
       assertRunning();
       if (data && typeof data === "object") {
         if (STAGES.includes(kind as StageKind)) {

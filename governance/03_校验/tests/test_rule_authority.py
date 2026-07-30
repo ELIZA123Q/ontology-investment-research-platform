@@ -40,6 +40,19 @@ class RuleAuthorityTests(unittest.TestCase):
         errors = self.errors(operations=operations, refs=[])
         self.assertTrue(any("ambiguous rule_refs" in error for error in errors), errors)
 
+    def test_runtime_action_governance_ref_must_be_registered(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        registry["governance_rules"].pop("GOV-ACTION-APPROVAL-001")
+        errors = self.errors(registry=registry, refs=[])
+        self.assertTrue(
+            any(
+                "LinkOntologyObjects unresolved governance_rule_refs" in error
+                and "GOV-ACTION-APPROVAL-001" in error
+                for error in errors
+            ),
+            errors,
+        )
+
     def test_formal_registry_must_match_formal_models(self) -> None:
         registry = copy.deepcopy(self.registry)
         registry["formal_ontology_rules"]["kb04:A01"] = {

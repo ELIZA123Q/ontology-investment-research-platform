@@ -1,48 +1,60 @@
-# 校验说明
+# 质量校验
 
-跨阶段校验工具在这里；各阶段模板在对应 `workflow/stages/*/模板/` 下。
+这里定义了两件事：**一份好研究长什么样**，以及 **怎么确认你的产出达到了标准**。
 
-研究员日常用到的：
+## 研究员日常用到
 
-| 想确认 | 打开或运行 |
-|--------|------------|
-| 高质量原则与发布规则 | [`00A_高质量产出判别标准.md`](00A_高质量产出判别标准.md) |
-| 01–04 Runtime 质量短卡 | [`00A_runtime_quality_card.md`](00A_runtime_quality_card.md)（注入 knowledge；正式发布仍以全文 00A + validate_run 为准） |
-| 三库→Runtime 注入覆盖 | [`runtime_asset_coverage.yaml`](runtime_asset_coverage.yaml)（维护 ontology/methods/workflow 时对照；`runtime/tests/runtime_asset_coverage.test.ts`） |
-| 本体治理边界、资产权威与发布生命周期 | `python3 governance/03_校验/validate_governance_control_plane.py` |
-| 正式发布包（中文命名 MD/YAML） | `python3 governance/03_校验/validate_run.py <运行目录>` |
-| V3 黄金样例（紧凑 YAML） | `python3 governance/03_校验/validate_v3_samples.py <运行目录>` |
-| 工作台导出包 | `python3 governance/03_校验/validate_workbench_package.py <导出目录>` |
-| 包类型定义 | [`../02_合同/package_kinds.yaml`](../02_合同/package_kinds.yaml) |
-| 全库自检 | `python3 governance/03_校验/validate_project.py` |
+| 想确认什么 | 看哪 |
+|--------|------|
+| 高质量研究的标准和发布规则 | [`00A_高质量产出判���标准.md`](00A_高质量产出判别标准.md) |
+| 每个阶段应该产出什么 | 下方的「各阶段产出」表 |
+| 某个阶段做了多少、还缺什么 | 工作台界面会自动展示缺口，不需要手动跑命令 |
+| 我的报告能不能发布 | 工作台导出时自动校验，通过了就行 |
 
-三类包不要混用校验入口：`validate_run` 会拒绝 V3/工作台包并提示正确命令。
+你不用自己跑校验命令——工作台会在导出时自动跑。如果你想手动确认，见下方维护者附录。
 
-## 各阶段产出（人看什么）
+## 各阶段产出物
 
-| 阶段 | 面向研究员 | 结构化文件 |
-|------|------------|------------|
-| 01 | 投研需求说明 | — |
-| 02 | 研究逻辑 | 本体视图 YAML |
-| 03 | 数据与证据准备 | 实例清单 + 快照目录 |
-| 04 | 判断简报 | 推理审计 YAML |
-| 05 | 研报正文 | 表达审计 YAML |
+| 阶段 | 面向研究员 | 结构化文件（机器校验用） |
+|------|------------|------------------------|
+| 01_受理 | 投研需求说明 | — |
+| 02_结构 | 研究逻辑 | 本体视图 YAML |
+| 03_证据 | 数据与证据准备 | 实例清单 + 快照目录 |
+| 04_判断 | 判断简报 | 推理审计 YAML |
+| 05_表达 | 研报正文 | 表达审计 YAML |
 
-发布闸门另有「独立语义审查」（非研究员交付物）。走完 05 且结构通过，不等于一定 `PUBLISHABLE`。
+走完 05 且结构通过，不等于一定可发布——还需要通过独立语义审查。
 
-## 证据闭环与 attempt 归档
+## 03 证据快照长什么样
 
-新 attempt 不覆盖旧 attempt；历史归档哈希必须可复核。相关校验见 [`requirements_coverage.yaml`](requirements_coverage.yaml) 的 `LOOP-ATTEMPT-001`。
+做 03 时产生的证据文件会放在如下结构里，每个文件都能追溯：
 
-## 03 快照目录长什么样
-
-```text
+```
 03-主题数据与证据快照-日期-序号/
-├─ manifest.csv
-├─ 01_plan/           证据需求、配方、来源画像
-├─ 02_assets/         来源与规范化证据链
-├─ 03_gate/           各判断证据是否够用
-└─ 04_05_materials/   图表、表格、研报素材就绪情况
+├─ manifest.csv         文件清单
+├─ 01_plan/             证据需求、配方、来源画像
+├─ 02_assets/           来源与规范化证据链
+├─ 03_gate/             各判断证据是否够用
+└─ 04_05_materials/      图表、表格、研报素材
 ```
 
-更细的字段、版本与发布双层校验规则，见本目录实现与 [`00A`](00A_高质量产出判别标准.md)。跨阶段 ID 约定以 [`../02_合同/public_contract.yaml`](../02_合同/public_contract.yaml) 为准。
+---
+
+## 维护者附录（研究员可跳过）
+
+### 校验命令
+
+```bash
+python3 governance/03_校验/validate_project.py         # 全库自检
+python3 governance/03_校验/validate_run.py <目录>       # 正式发布包
+python3 governance/03_校验/validate_v3_samples.py <目录> # V3 黄金样例
+python3 governance/03_校验/validate_workbench_package.py <导出目录> # 工作台导出
+```
+
+三类包不要混用校验入口，`validate_run` 会拒绝非正式包并提示正确命令。
+
+### 相关配置
+
+- 包类型定义：`../02_合同/package_kinds.yaml`
+- 跨阶段 ID 约定：`../02_合同/public_contract.yaml`
+- 高质量原则全文：`00A_高质量产出判别标准.md`

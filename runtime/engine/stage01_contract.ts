@@ -34,6 +34,13 @@ export type ClarificationItem = {
   answered_at: string | null;
 };
 
+export type PremiseRecord = {
+  id: string;
+  statement: string;
+  source_refs: string[];
+  invalidation_conditions: string[];
+};
+
 /** 澄清主题 → 用户可读标签（仅作次要说明；主文案必须是 question 人话）。 */
 export const CLARIFICATION_TOPIC_LABELS: Record<string, string> = {
   core_object: "对象是否拆开",
@@ -69,6 +76,43 @@ function nonEmpty(value: unknown, fallback = ""): string {
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
+}
+
+function normalizePremiseRecords(
+  value: unknown,
+  options: {
+    prefix: "KF" | "UA" | "HV";
+    defaultSourceRef: string;
+    defaultInvalidationCondition: string;
+  },
+): PremiseRecord[] {
+  if (!Array.isArray(value)) return [];
+  const seenStatements = new Set<string>();
+  const records: PremiseRecord[] = [];
+  for (const item of value) {
+    const source = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    const statement = nonEmpty(
+      typeof item === "string" ? item : source.statement ?? source.content ?? source.hypothesis,
+    );
+    const statementKey = statement.replace(/\s+/g, "").replace(/[？?。；;]+$/g, "");
+    if (!statement || seenStatements.has(statementKey)) continue;
+    seenStatements.add(statementKey);
+    const sourceRefs = stringList(source.source_refs).length
+      ? stringList(source.source_refs)
+      : [options.defaultSourceRef];
+    const invalidationConditions = stringList(source.invalidation_conditions).length
+      ? stringList(source.invalidation_conditions)
+      : stringList(source.rollback_triggers).length
+        ? stringList(source.rollback_triggers)
+        : [options.defaultInvalidationCondition];
+    records.push({
+      id: nonEmpty(source.id, `${options.prefix}-${String(records.length + 1).padStart(2, "0")}`),
+      statement,
+      source_refs: sourceRefs,
+      invalidation_conditions: invalidationConditions,
+    });
+  }
+  return records;
 }
 
 function clipOriginal(value: unknown, max = 36): string {
@@ -406,6 +450,29 @@ export function ensureStage01ContractFields(data: any, question: string): any {
       nonEmpty(next.time_scope?.as_of),
     ].filter(Boolean).join("；"),
   );
+  next.known_facts = normalizePremiseRecords(next.known_facts, {
+    prefix: "KF",
+    defaultSourceRef: "current_user_input",
+    defaultInvalidationCondition: "用户更正原始输入或有效继承上下文发生变化",
+  });
+  next.user_assumptions = normalizePremiseRecords(next.user_assumptions, {
+    prefix: "UA",
+    defaultSourceRef: "current_user_input",
+    defaultInvalidationCondition: "用户撤回或改写该立场或边界选择",
+  });
+  next.hypotheses_to_verify = normalizePremiseRecords(next.hypotheses_to_verify, {
+    prefix: "HV",
+    defaultSourceRef: "system_normalization",
+    defaultInvalidationCondition: "后续证据反证该命题或研究问题被重新拆分",
+  });
+  if (disposition === "accepted" && !next.hypotheses_to_verify.length) {
+    next.hypotheses_to_verify = [{
+      id: "HV-01",
+      statement: `需要验证：${nonEmpty(next.normalized_question, question)}`,
+      source_refs: ["system_normalization"],
+      invalidation_conditions: ["用户改写规范化研究问题或结构阶段将其拆分为其他命题"],
+    }];
+  }
   const answeredClarifications = clarifications.filter((item) => item.answer);
   const unresolvedForResolution = unanswered.length
     ? (unresolvedFinal.length ? unresolvedFinal : unanswered.map((item) => item.topic))
@@ -609,6 +676,16 @@ export function assertStage01ReadyForApproval(data: any) {
   }
   if (String(data?.overscope_check?.status || "") !== "pass") {
     throw new Error("overscope_check 未通过，不能确认");
+  }
+  if (
+    !Array.isArray(data?.known_facts)
+    || !Array.isArray(data?.user_assumptions)
+    || !Array.isArray(data?.hypotheses_to_verify)
+  ) {
+    throw new Error("前提三分字段不完整，不能确认");
+  }
+  if (!data.hypotheses_to_verify.length) {
+    throw new Error("尚未形成待验证假设，不能确认进入 02");
   }
   const quality = String(data?.quality_status || "");
   if (quality !== "high_quality_pass") {

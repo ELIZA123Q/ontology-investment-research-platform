@@ -79,8 +79,8 @@ describe("round4 quality drains", () => {
     })) as any;
     const evidence = sources.map((source: any, index: number) => ({
       id: `EV-${index + 1}`,
-      kind: index === 4 ? "counter" : "fact_draft",
-      direction: index === 4 ? "weaken" : "support",
+      kind: index >= 3 ? "counter" : "fact_draft",
+      direction: index >= 3 ? "weaken" : "support",
       statement: `可核验陈述 ${index + 1}`,
       judgment_unit_ids: ["JU-1"],
       source_ids: [source.id],
@@ -324,6 +324,69 @@ describe("round4 quality drains", () => {
     expect(result.passed).toBe(true);
     expect(result.qualityStatus).toBe("minimum_pass");
     expect(result.gapDetails.some((d) => d.missing.includes("反证要求已显式登记为 gap"))).toBe(true);
+  });
+
+  it("does not let one broad fact satisfy multiple ERs in the same judgment unit", () => {
+    const result = evaluateEvidenceQuality({
+      evidenceDrafts: [{
+        id: "EV-1",
+        kind: "fact_draft",
+        direction: "support",
+        judgment_unit_ids: ["JU-1"],
+        source_ids: ["SRC-1"],
+        directness: "direct",
+      }],
+      sources: [{
+        id: "SRC-1",
+        publisher: "A",
+        source_group: "g1",
+        url: "https://a.example",
+        usability_status: "usable",
+        retrieval_status: "captured",
+        quote_verified: true,
+      } as any],
+      judgmentUnits: [{ id: "JU-1" }],
+      evidenceRequirements: [
+        { id: "ER-PRICE", evidence_role: "support", minimum_independent_sources: 1, judgment_unit_ids: ["JU-1"] },
+        { id: "ER-INVENTORY", evidence_role: "support", minimum_independent_sources: 1, judgment_unit_ids: ["JU-1"] },
+      ],
+    });
+    expect(result.passed).toBe(false);
+    expect(result.requirementAssessments.every((item) => item.status === "blocked")).toBe(true);
+  });
+
+  it("keeps delivery readiness independent from evidence readiness", () => {
+    const data: any = {
+      evidence_drafts: [{
+        id: "GAP-1",
+        kind: "gap",
+        direction: "unknown",
+        judgment_unit_ids: ["JU-1"],
+        evidence_requirement_ids: ["ER-1"],
+        evidence_role: "support",
+        requirement: "取得库存原始序列",
+      }],
+      sources: [],
+      delivery_materials: {
+        chart_candidates: [{ id: "CH-1", title: "库存序列", evidence_draft_ids: [], note: "仅展示缺口范围" }],
+        table_candidates: [],
+        source_annotation_candidates: [{ id: "SA-1", source_id: null, source_key: null, annotation: "当前无可用来源" }],
+      },
+    };
+    ensureStage03DocumentFields(data, {
+      structure: {
+        judgment_units: [{ id: "JU-1" }],
+        evidence_requirements: [{
+          id: "ER-1",
+          requirement: "取得库存原始序列",
+          evidence_role: "support",
+          minimum_independent_sources: 1,
+          judgment_unit_ids: ["JU-1"],
+        }],
+      },
+    });
+    expect(data.evidence_readiness).toBe("not_ready");
+    expect(data.delivery_readiness).toBe("ready");
   });
 
   it("projects Stage02 counter requirements into the Stage03 gap baseline", () => {

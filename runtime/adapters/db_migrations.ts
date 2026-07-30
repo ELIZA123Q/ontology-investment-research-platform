@@ -1,6 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
 
-export const LATEST_DATABASE_SCHEMA_VERSION = 14;
+export const LATEST_DATABASE_SCHEMA_VERSION = 15;
 
 type Migration = {
   version: number;
@@ -421,6 +421,45 @@ const migrations: Migration[] = [
         JOIN ontology_change_requests request
           ON request.candidate_key=candidate.candidate_key AND request.request_version=1
         WHERE candidate.status='promoted' AND candidate.target_ontology_node_id <> '';
+      `);
+    },
+  },
+  {
+    version: 15,
+    description: "Palantir-style ontology governance branches and versioned action logs",
+    apply(connection) {
+      ensureColumn(connection, "ontology_change_requests", "base_fingerprint", "TEXT NOT NULL DEFAULT ''");
+      ensureColumn(connection, "ontology_change_requests", "candidate_fingerprint", "TEXT NOT NULL DEFAULT ''");
+      ensureColumn(connection, "ontology_change_requests", "branch_ref", "TEXT NOT NULL DEFAULT ''");
+      ensureColumn(connection, "ontology_change_requests", "conflicts_json", "TEXT NOT NULL DEFAULT '[]'");
+      ensureColumn(connection, "ontology_change_requests", "rebase_required", "INTEGER NOT NULL DEFAULT 0 CHECK(rebase_required IN (0,1))");
+      ensureColumn(connection, "ontology_change_requests", "approval_policy_ref", "TEXT NOT NULL DEFAULT 'standard_ontology_change'");
+      ensureColumn(connection, "ontology_change_request_events", "action_type", "TEXT NOT NULL DEFAULT 'LegacyStatusTransition'");
+      ensureColumn(connection, "ontology_change_request_events", "action_version", "TEXT NOT NULL DEFAULT '1.0.0'");
+      ensureColumn(connection, "ontology_change_request_events", "actor_role", "TEXT NOT NULL DEFAULT ''");
+      ensureColumn(connection, "ontology_change_request_events", "prior_fingerprint", "TEXT NOT NULL DEFAULT ''");
+      ensureColumn(connection, "ontology_change_request_events", "result_fingerprint", "TEXT NOT NULL DEFAULT ''");
+      ensureColumn(connection, "ontology_change_request_events", "edited_object_ids_json", "TEXT NOT NULL DEFAULT '[]'");
+      connection.exec(`
+        UPDATE ontology_change_requests
+        SET branch_ref = CASE
+          WHEN branch_ref = '' THEN 'candidate:' || candidate_key
+          ELSE branch_ref
+        END;
+        UPDATE ontology_change_request_events
+        SET action_type = CASE
+          WHEN next_status='proposed' THEN 'ProposeOntologyChange'
+          WHEN next_status='impact_assessed' THEN 'FreezeImpactAssessment'
+          WHEN next_status='approved' THEN 'ApproveOntologyChange'
+          WHEN next_status='implemented' THEN 'RecordOntologyImplementation'
+          WHEN next_status='validated' THEN 'AttestValidationResults'
+          WHEN next_status='released' THEN 'ReleaseOntologyBaseline'
+          WHEN next_status='rejected' THEN 'RejectOntologyChange'
+          ELSE action_type
+        END,
+        action_version = '2.0.0',
+        edited_object_ids_json = json_array(request_id)
+        WHERE action_type='LegacyStatusTransition';
       `);
     },
   },
