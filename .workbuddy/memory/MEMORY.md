@@ -11,6 +11,7 @@
 - 验证：`python3 methods/03_取证/validate_03.py` ← 修改后需重新验证
 - validate_03.py修改要点：B文件允许B03存在、OPS文件允许第4个、QP_PATTERN支持QP-MCP-*
 - `.workbuddy/project.md` 在打开项目时自动注入MCP清单到AI上下文
+- **cninfo MCP 环境坑（已修，记录防复发）**：venv `/Users/luyao/.cninfo-mcp/venv` 须锁 `mcp==1.5.0`（cninfo-mcp 1.3.0 用 `from mcp.server import FastMCP`，该 re-export 在 mcp>=1.6 移除；requirements 只写 `mcp>=1.0.0` 过松会装成 2.x 致 ImportError）。pypi 在此机 SSL 校验失败，重装须 `pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org "mcp==1.5.0"`。通道 per-call spawn（`adapters/mcp_evidence.ts` 的 StdioClientTransport），修 venv 无需重启服务。
 
 ## 项目运行
 - 运行时（dev，默认）：`cd runtime && npm run dev:singleton` → `http://127.0.0.1:3000`（含 webpack 监听+HMR，内存占用高）
@@ -18,6 +19,7 @@
 - 后台Worker：`npm run worker`
 - Python验证使用 managed Python：`/Users/luyao/.workbuddy/binaries/python/versions/3.13.12/bin/python3`
 - **卡死诊断**：`curl` 返回 HTTP 000 但 `lsof -i :3000` 仍有 LISTEN 进程 = 进程卡死（8GB 内存压力下 Node 死锁/内存耗尽）。`dev-singleton.sh` 的 SIGTERM 可能杀不掉，需手动 `for pid in $(lsof -tiTCP:3000 -sTCP:LISTEN); do kill -9 $pid; done` 后重启。预防：运行期间少开重型应用（Claude/飞书/Cursor/Chrome），频繁卡死则重启机器释放内存。
+- **研究 job token 预算**：默认上限 1,000,000 token（`RESEARCH_JOB_MAX_TOKENS`，research_job_runner.ts:136，仅从 env 读、不从请求体传）；`max_sources` 默认 40（`RESEARCH_JOB_MAX_SOURCES`）；`hard_timeout_ms=generationLeaseMs()`。deepseek-v4-pro 长取证易超 1M 被 `JOB_BUDGET_EXCEEDED` 截断成 `return_required`。调高需 `RESEARCH_JOB_MAX_TOKENS=2000000 npm run prod:singleton`（重启 worker 才生效）。stage_03 证据不足时用 `POST /api/runs/{id}/stages/03/generate` `{"mode":"evidence_supplement"}` 补证（优于全量 regenerate：继承底稿+已 usable 来源跳过重抓），**但并非真正"轻量补缺口"**——每 batch 仍跑完整 LLM 生成、重跑公开网检索、跑最多 3 轮自动补证（`STAGE03_AUTO_SUPPLEMENT_MAX_ROUNDS` 默认 3，`evidence_acquisition_planning.ts:4-8`），且无缺口回退全量单元（`generate.ts:297`）、MCP per-call spawn（`mcp_evidence.ts:333-357`）。效率根因：①补证复用全量 machinery+多轮 ②MCP 每次调用新起进程 ③无缺口回退全量 ④缺口识别依赖 source_ids 回填易误判。优化方向待定（用户按"先诊断后改"习惯，未授权改代码）。
 
 ## 本体约束体系（ontology/）
 - 冻结门验证：`python3 ontology/01_通用/validate_v3.py`（修改本体后必跑）

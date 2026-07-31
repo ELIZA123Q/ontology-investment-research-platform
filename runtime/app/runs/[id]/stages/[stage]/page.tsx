@@ -128,6 +128,7 @@ function buildStage3SourceCoverage(runId: string): Stage3SourceCoverageProps | u
       source_tier: source.source_tier as SourceRecord["source_tier"],
       quote_verified: Boolean(source.quote_verified),
       failure_detail: source.failure_detail ? String(source.failure_detail) : undefined,
+      source_type: String(source.source_type),
       fact_status: approvedBoundSourceIds.has(String(source.id))
         ? "approved"
         : boundSourceIds.has(String(source.id))

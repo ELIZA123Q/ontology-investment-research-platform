@@ -12,13 +12,17 @@ buildCapturePriorityKeys,
 buildSupplementBrief,
 dedupeStage03DraftSources,
 findUnchangedEvidenceIds,
+trimStage03DraftForModel,
 } from "./evidence_supplement_pure";
 import {
-evidenceJudgmentTypeCardsForPrompt,
-evidenceMethodIdsFromApplications,
-loadSelectedMethodGuidance,
-mcpChannelHintsForPrompt,
+  enrichPromptMethodCards,
+  evidenceJudgmentTypeCardsForPrompt,
+  evidenceMethodIdsFromApplications,
+  loadSelectedMethodGuidance,
+  methodDisciplineDigest,
+  mcpChannelHintsForPrompt,
 } from "./method_guidance";
+import { loadMethodRegistry, type RegisteredMethod } from "./method_registry";
 import {
   materializeFrozenStage03CandidateDrafts,
   preAcquireStage03CandidateSources,
@@ -50,6 +54,33 @@ export * from "./evidence_candidate_acquisition";
 export * from "./evidence_batch_isolation";
 export * from "./evidence_snapshot_apply";
 
+/**
+ * 补证/取证批次轮的“关键纪律”摘要：把 kb03 方法的产出门禁/最低证据/质量门/必需角色
+ * 压成 ~2–4K 文本，注入 system prompt（与主生成路径的 methodDisciplineDigest 对齐）。
+ * 作用：让方法级硬性门禁在系统提示里高亮呈现，避免模型只扫 JSON 深处的
+ * selected_method_guidance（实测 9 方法正文仅 ~10.6K，完整发送）而漏看强制规则。
+ * 成本约 1.9K token/批（占 1M 预算 ~2%），属于质量保险而非省钱项。
+ * 同一 run 内 kb03Ids + judgmentTypes 通常稳定，模块级记忆化避免每批次重复解析注册表。
+ */
+let cachedDisciplineDigest: { key: string; digest: string } | null = null;
+
+function getEvidenceDisciplineDigest(kb03Ids: string[], judgmentTypes: string[]): string {
+  const key = `${[...kb03Ids].sort().join(",")}|${[...judgmentTypes].sort().join(",")}`;
+  if (cachedDisciplineDigest && cachedDisciplineDigest.key === key) {
+    return cachedDisciplineDigest.digest;
+  }
+  const registry = loadMethodRegistry();
+  const cards = enrichPromptMethodCards(
+    kb03Ids
+      .map((id) => registry.get(id))
+      .filter((method): method is RegisteredMethod => Boolean(method)),
+    judgmentTypes,
+  );
+  const digest = methodDisciplineDigest(cards);
+  cachedDisciplineDigest = { key, digest };
+  return digest;
+}
+
 export async function runEvidenceSupplementRound(input: {
   client: ResearchModelClient;
   runId: string;
@@ -66,6 +97,8 @@ export async function runEvidenceSupplementRound(input: {
   idNamespace?: string;
   /** Stage02 完整结构；用于把 JU/变量/EvidenceProfile 编译成机器查询计划。 */
   structure?: any;
+  /** 补证轮次（1-based）；传递给预取阶段用于查询差异化。 */
+  round?: number;
 }) {
   const targetUnitIds = [...new Set((input.targetUnitIds || []).map(String).filter(Boolean))];
   const targetSet = new Set(targetUnitIds);
@@ -84,6 +117,7 @@ export async function runEvidenceSupplementRound(input: {
     maxSourceCount: input.maxSourceCount,
     structure: input.structure,
     cutoffMs: input.cutoffMs,
+    round: input.round,
   });
   input.assertRunning();
   if (runtimeAcquisition.plan.gap_details.length) {
@@ -147,10 +181,11 @@ export async function runEvidenceSupplementRound(input: {
     ? [...(input.supplementContext as any).judgmentTypes].map(String)
     : [];
   const kb03Ids = evidenceMethodIdsFromApplications(scopedBase.method_applications || []);
+  const disciplineDigest = getEvidenceDisciplineDigest(kb03Ids, judgmentTypes);
   const result = await input.client.generateStructured(
     "evidence_supplement",
     controlledEvidencePatchSchema,
-    promptForEvidenceSupplement(),
+    promptForEvidenceSupplement(disciplineDigest),
     JSON.stringify({
       supplement_brief: brief,
       acquisition_plan: runtimeAcquisition.plan,
@@ -162,14 +197,27 @@ export async function runEvidenceSupplementRound(input: {
         reserved_evidence_ids: (input.baseData.evidence_drafts || []).map((item: any) => item?.id).filter(Boolean),
         instruction: "本轮只处理这些判断单元；其他单元由其他批次负责，不得扩展。",
       } : null,
-      current_evidence_draft: {
-        method_applications: scopedBase.method_applications || [],
-        sources: scopedBase.sources || [],
-        evidence_drafts: scopedBase.evidence_drafts || [],
-        unresolved_gaps: scopedBase.unresolved_gaps || [],
-      },
+      current_evidence_draft: (() => {
+        // 失败/返工/缺口必须修复的来源钉住，绝不能因 recent-N 裁剪而丢失修复上下文。
+        const mustIncludeSourceKeys = (brief.failed_sources || [])
+          .map((item: any) => item?.source_key)
+          .filter(Boolean) as string[];
+        // delta 风格收敛：本批必需（已绑定 + 必修复）来源钉住；其余未绑定/溢出来源
+        // 按最近 N 条保留，避免被反复补证的单元把整份历史来源逐轮重发（最大乘数）。
+        // method_applications / unresolved_gaps 体量小且质量必需，原样保留。
+        return trimStage03DraftForModel({
+          methodApplications: scopedBase.method_applications || [],
+          sources: scopedBase.sources || [],
+          evidenceDrafts: scopedBase.evidence_drafts || [],
+          unresolvedGaps: scopedBase.unresolved_gaps || [],
+          mustIncludeSourceKeys,
+        });
+      })(),
       selected_method_guidance: loadSelectedMethodGuidance(kb03Ids, {
-        totalChars: CONTEXT_SLOT_BUDGETS.method_guidance,
+        // 实测：9 个 kb03 方法正文合计仅 ~10.6K 字符（远低于 56K 上限），
+        // 故此处用主生成同档预算即可，方法正文完整发送、无需压半。
+        totalChars: Number(process.env.STAGE03_SUPPLEMENT_METHOD_GUIDANCE_CHARS)
+          || CONTEXT_SLOT_BUDGETS.method_guidance,
       }),
       evidence_judgment_type_cards: evidenceJudgmentTypeCardsForPrompt(judgmentTypes),
       mcp_channel_hints: mcpChannelHintsForPrompt(),
@@ -204,16 +252,20 @@ export async function runEvidenceSupplementRound(input: {
       ...input.supplementContext,
     }, null, 2),
     {
-      // 冻结候选已足够时只保留结构化 submit 工具；禁止模型重复搜索并在
-      // 每轮重放整份上下文。只有无候选时才开放取证工具。
-      webSearch: frozenDraftSources.length === 0,
+      // MCP 证据通道始终开放：即使已有预取候选，模型仍可查询 cninfo/datayes
+      // 等结构化数据源，补齐预取未覆盖的判断单元。这是覆盖率提升的关键路径。
+      mcpEvidenceTools: true,
+      // web search 在以下条件开放：①无预取候选（原始逻辑）②覆盖率仍低于 70%
+      // 且有缺口单元（预取候选不足以覆盖所有缺口时，允许模型自行联网补充）。
+      webSearch: frozenDraftSources.length === 0
+        || (brief.coverage_rate < 0.7 && brief.coverage_gap_count > 0),
       requireEvidenceAcquisition: frozenCandidates.length === 0,
       // 本轮目标是调用工具取得并冻结来源，不是形成最终判断。关闭 thinking
       // 可显著降低“检索前长思考”，推理质量由后续证据结构化/Stage04 承担。
       disableReasoning: true,
       // 本批目标和本体节点已由 Stage02 固定；关闭 ontology 工具避免在取证环空转。
       ontologyTools: false,
-      maxToolRounds: input.maxToolRounds || 8,
+      maxToolRounds: input.maxToolRounds || Number(process.env.STAGE03_SUPPLEMENT_MAX_TOOL_ROUNDS || 4),
       runId: input.runId,
       // 提交时即把 upserts/removals ID 并入 affected，避免 schema 过关后 merge 再因漏声明失败。
       repairOutput: (data) => {

@@ -819,7 +819,11 @@ export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIs
     });
   }
   const quality = nonEmpty(data?.quality_status);
-  if (quality !== "high_quality_pass") {
+  // spec §7.1：minimum_pass 即可进入 03；high_quality_pass 仅用于正式交付（§7.2）。
+  // 因此确认门禁只应在生成器明确判定 return_required（未达最低完备度）时阻断，
+  // 不应因“非 high_quality_pass”而阻断——否则比 spec 更严，且会把生成器自检字段
+  // 当成结构合同缺陷，与 §7 质量门槛的“minimum_pass 可进入 03”相悖。
+  if (quality === "return_required") {
     issues.push({
       severity: "error",
       code: "quality_status",

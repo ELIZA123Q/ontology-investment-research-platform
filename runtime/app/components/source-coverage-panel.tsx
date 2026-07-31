@@ -10,7 +10,7 @@ import { judgmentStrengthLabel, researcherLanguage } from "@/app/lib/researcher-
 import { ONTOLOGY_SOURCE_TIERS } from "@/engine/ontology_vocabulary.generated";
 
 type UnitOption = { id: string; title: string };
-type SourceRow = Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail"> & { fact_status: SourceFactStatus };
+type SourceRow = Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail" | "source_type"> & { fact_status: SourceFactStatus };
 
 const ACQUIRE_AUTHORITY_OPTIONS = [
   ["official", "监管 / 官方原文"],
@@ -23,7 +23,6 @@ export function SourceCoveragePanel({
   runId,
   units,
   sources,
-  controlledSources,
   coverage,
   boundSourceIds,
 }: {
@@ -37,18 +36,17 @@ export function SourceCoveragePanel({
   const router = useRouter();
   const boundSourceIdSet = useMemo(() => new Set(boundSourceIds), [boundSourceIds]);
   const unitGapCount = coverage.coverage_gap_count;
+  // 整 run 严格 1 条手动完整证据：仅统计“已核验通过”的人工来源（source_type 标记）。
+  const manualCount = useMemo(
+    () => sources.filter((source) => source.source_type === "user_supplied_public_evidence" && source.quote_verified).length,
+    [sources],
+  );
+  const manualCapReached = manualCount >= 1;
   const [acquireOpen, setAcquireOpen] = useState(false);
-  const [projectionOpen, setProjectionOpen] = useState(false);
   const [acquireBusy, setAcquireBusy] = useState(false);
   const [acquireMessage, setAcquireMessage] = useState("");
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [unitRefs, setUnitRefs] = useState<Record<string, string[]>>({});
-  const [subjects, setSubjects] = useState<Record<string, string>>({});
-  const [observed, setObserved] = useState<Record<string, string>>({});
-  const [directions, setDirections] = useState<Record<string, "support" | "weaken" | "neutral">>({});
-  const [projectionBusy, setProjectionBusy] = useState(false);
-  const [projectionMessage, setProjectionMessage] = useState("");
-  const [projectionReady, setProjectionReady] = useState(false);
+  const [manualTargetUnit, setManualTargetUnit] = useState("");
+  const [manualDirection, setManualDirection] = useState<"support" | "weaken" | "neutral">("support");
 
   const unboundCandidates = useMemo(
     () => sources.filter((source) => !boundSourceIdSet.has(source.id)),
@@ -64,63 +62,57 @@ export function SourceCoveragePanel({
     return "本单元未要求反证";
   }
 
-  function preselectSource(sourceId: string) {
-    setSelected({ [sourceId]: true });
-    setProjectionOpen(true);
-    const row = document.getElementById("source-projection");
-    row?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   async function acquireSource(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setAcquireBusy(true);
     setAcquireMessage("");
     const form = new FormData(event.currentTarget);
+    const unitId = manualTargetUnit;
+    if (!unitId) {
+      setAcquireMessage("请先选择该证据支持的判断单元。");
+      setAcquireBusy(false);
+      return;
+    }
     const response = await fetch(`/api/runs/${runId}/sources/acquire`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(Object.fromEntries(form.entries())),
     });
     const result = await response.json();
-    setAcquireBusy(false);
-    if (!response.ok) {
-      setAcquireMessage(result.error || result.source?.failure_detail || "来源未通过抓取与引用定位校验");
+    if (!response.ok || !result?.accepted) {
+      setAcquireMessage(result?.error || result?.source?.failure_detail || "来源未通过抓取与引用定位校验（需 ≥20 字可定位逐字引文）");
+      setAcquireBusy(false);
       router.refresh();
       return;
     }
-    setAcquireMessage("① 完成：来源已核验。请继续 ② 挂到判断单元。");
-    setProjectionOpen(true);
-    router.refresh();
-  }
-
-  async function submitProjection() {
-    const bindings = controlledSources.filter((source) => selected[source.id]).map((source) => ({
-      source_id: source.id,
-      judgment_unit_ids: unitRefs[source.id] || [],
-      subject_ref: (subjects[source.id] || "").trim(),
-      observed_at: observed[source.id] ? new Date(`${observed[source.id]}T23:59:59`).toISOString() : "",
-      direction: directions[source.id] || "support",
-    }));
-    if (!bindings.length || bindings.some((item) => !item.judgment_unit_ids.length || !item.subject_ref || !item.observed_at)) {
-      setProjectionMessage("每个选中来源都必须挂到至少一个判断单元，并填写事实对象和观测日期。");
-      return;
-    }
-    setProjectionBusy(true);
-    setProjectionMessage("");
-    const response = await fetch(`/api/runs/${runId}/stages/03/generate`, {
+    const sourceId = result?.source?.id;
+    const unitTitle = units.find((unit) => unit.id === unitId)?.title || "";
+    const publishedAt = String(form.get("published_at") || "");
+    const observedAt = publishedAt ? new Date(`${publishedAt}T23:59:59`).toISOString() : "";
+    const projectionResponse = await fetch(`/api/runs/${runId}/stages/03/generate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ mode: "controlled_evidence_projection", bindings }),
+      body: JSON.stringify({
+        mode: "controlled_evidence_projection",
+        bindings: [{
+          source_id: sourceId,
+          judgment_unit_ids: [unitId],
+          subject_ref: unitTitle,
+          observed_at: observedAt,
+          direction: manualDirection,
+        }],
+      }),
     });
-    const result = await response.json();
-    setProjectionBusy(false);
-    if (!response.ok) {
-      setProjectionMessage(result.error || "生成待核对事实失败");
+    const projectionResult = await projectionResponse.json();
+    if (!projectionResponse.ok) {
+      setAcquireMessage(projectionResult?.error || "证据绑定失败");
+      setAcquireBusy(false);
       return;
     }
-    setProjectionMessage("② 完成：待核对事实已创建。");
-    setProjectionReady(true);
-    setSelected({});
+    setAcquireMessage("已补充 1 条完整证据（含来源与判断绑定），请到证据页确认或删除。本任务最多补充 1 条。");
+    setManualTargetUnit("");
+    setManualDirection("support");
+    setAcquireBusy(false);
     router.refresh();
   }
 
@@ -146,14 +138,14 @@ export function SourceCoveragePanel({
           <small>进入候选池，还不是证据</small>
         </div>
       </li>
-      <li className={draftCount || projectionReady ? "done" : projectionOpen ? "current" : ""}>
+      <li className={draftCount ? "done" : ""}>
         <em>2</em>
         <div>
-          <strong>挂到判断单元，生成待核对事实</strong>
-          <small>绑定对象、观测日与方向</small>
+          <strong>取证自动绑定判断单元，生成待核对事实</strong>
+          <small>由模型自动完成，无需人工挂接</small>
         </div>
       </li>
-      <li className={projectionReady || draftCount ? "current" : ""}>
+      <li className={draftCount ? "current" : ""}>
         <em>3</em>
         <div>
           <strong>到证据审阅页确认</strong>
@@ -167,7 +159,7 @@ export function SourceCoveragePanel({
       覆盖率与核验率是<strong>进度指标</strong>：只要仍有单元尚缺项，系统不会仅凭覆盖率停补。
     </p>
 
-    {(projectionReady || draftCount > 0) ? (
+    {(draftCount > 0) ? (
       <div className="notice evidence-next-step">
         <strong>下一步：去证据审阅确认草稿</strong>
         <p>待核对事实不会自动变成已确认证据。</p>
@@ -204,17 +196,9 @@ export function SourceCoveragePanel({
             }}>重新取得来源</button>
           </div> : null}
           {unit.support_gap_kind === "no_support_draft" && unit.candidate_sources.length ? <div className="unit-gap-actions">
-            <strong>可挂到本判断的已核验来源</strong>
-            <ul>{unit.candidate_sources.map((candidate) => <li key={candidate.id}>
-              <span>{candidate.title}</span>
-              <button type="button" className="button-secondary button-compact" onClick={() => {
-                setUnitRefs((current) => ({
-                  ...current,
-                  [candidate.id]: [...new Set([...(current[candidate.id] || []), unit.unit_id])],
-                }));
-                preselectSource(candidate.id);
-              }}>挂到本判断</button>
-            </li>)}</ul>
+            <strong>已有可核验来源尚未绑定</strong>
+            <p className="muted">这些来源会在下一轮取证中被模型自动绑定到本判断；如需人工补一条完整证据，请用上方“① 补充一条完整证据”。</p>
+            <ul>{unit.candidate_sources.map((candidate) => <li key={candidate.id}><span>{candidate.title}</span></li>)}</ul>
           </div> : null}
           {unit.requirements.length ? <details>
             <summary>最低证据组合（{unit.requirements.length} 项）</summary>
@@ -232,7 +216,6 @@ export function SourceCoveragePanel({
       <ul className="source-list">
         {sources.map((source) => {
           const bound = boundSourceIdSet.has(source.id);
-          const controllable = controlledSources.some((item) => item.id === source.id);
           const lifecycle = deriveSourceResearchLifecycle({
             retrievalStatus: source.retrieval_status,
             quoteVerified: Boolean(source.quote_verified),
@@ -240,7 +223,11 @@ export function SourceCoveragePanel({
           });
           return <li key={source.id} id={`source-row-${source.id}`}>
             <div className="source-row-head">
-              <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+              {/^https?:\/\//i.test(source.url || "") ? (
+                <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+              ) : (
+                <span className="source-title-no-link">{source.title} <small className="mcp-note">（MCP 快照，无可点击原文，靠快照复核）</small></span>
+              )}
               <span className={`source-research-state state-${lifecycle.stage}`}>{lifecycle.label}</span>
             </div>
             <small className="source-provenance-line">
@@ -256,7 +243,6 @@ export function SourceCoveragePanel({
               </span>
             </div>
             {source.failure_detail ? <small className="source-failure-detail">未能继续：{source.failure_detail}</small> : null}
-            {controllable && !bound ? <button type="button" className="button-secondary button-compact" onClick={() => preselectSource(source.id)}>② 挂到判断单元</button> : null}
           </li>;
         })}
       </ul>
@@ -265,31 +251,38 @@ export function SourceCoveragePanel({
     {unboundCandidates.length ? <p className="muted">另有 {unboundCandidates.length} 条来源尚未挂到任何判断单元。</p> : null}
 
     <div className="coverage-actions">
-      <button type="button" className="button" onClick={() => setAcquireOpen((value) => !value)}>
+      <button type="button" className="button" disabled={manualCapReached} onClick={() => setAcquireOpen((value) => !value)}>
         {acquireOpen
-          ? "收起步骤 1"
-          : unitGapCount
-            ? `① 补充来源（${unitGapCount} 个判断仍不足）`
-            : "① 补充来源"}
+          ? "收起补充"
+          : manualCapReached
+            ? "① 已补充 1 条完整证据（达上限）"
+            : unitGapCount
+              ? `① 补充一条完整证据（${unitGapCount} 个判断仍不足）`
+              : "① 补充一条完整证据"}
       </button>
-      <button
-        type="button"
-        className="button-secondary"
-        id="source-projection"
-        disabled={!controlledSources.length && !projectionOpen}
-        onClick={() => setProjectionOpen((value) => !value)}
-      >
-        {projectionOpen ? "收起步骤 2" : "② 生成待核对事实"}
-      </button>
-      <Link className="button-secondary" href={`/runs/${runId}/evidence`}>③ 证据审阅</Link>
+      <Link className="button-secondary" href={`/runs/${runId}/evidence`}>② 证据审阅（确认 / 删除）</Link>
     </div>
+    {manualCapReached ? <p className="muted">本任务已补充 1 条完整证据，达到上限；如需更换，请先到证据页删除该条，再回来补充。</p> : null}
 
-    {acquireOpen ? <form className="source-acquire-form" id="source-acquire" onSubmit={acquireSource}>
+    {acquireOpen && !manualCapReached ? <form className="source-acquire-form" id="source-acquire" onSubmit={acquireSource}>
       <div className="source-form-grid">
         <div className="field source-url"><label>公开 URL</label><input name="url" type="url" required /></div>
         <div className="field"><label>来源标题</label><input name="title" required /></div>
         <div className="field"><label>发布者</label><input name="publisher" required /></div>
         <div className="field"><label>发布日期</label><input name="published_at" type="date" required /></div>
+        <div className="field"><label>支持的判断单元</label>
+          <select name="judgment_unit_id" value={manualTargetUnit} onChange={(event) => setManualTargetUnit(event.target.value)} required>
+            <option value="">— 请选择 —</option>
+            {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.title}</option>)}
+          </select>
+        </div>
+        <div className="field"><label>证据方向</label>
+          <select name="direction" value={manualDirection} onChange={(event) => setManualDirection(event.target.value as "support" | "weaken" | "neutral")}>
+            <option value="support">支持</option>
+            <option value="weaken">削弱 / 反证</option>
+            <option value="neutral">背景 / 中性</option>
+          </select>
+        </div>
         <div className="field source-wide"><label>页内定位</label><input name="locator" placeholder="段落标题、表格行或 quote:…" required /></div>
         <div className="field source-wide"><label>正文逐字引用</label><textarea name="source_quote" placeholder="必须能在抓取正文中逐字定位，至少 20 个字符" required /></div>
       </div>
@@ -306,26 +299,9 @@ export function SourceCoveragePanel({
         </div>
       </details>
       {acquireMessage ? <div className="notice">{acquireMessage}</div> : null}
-      <button className="button" disabled={acquireBusy}>{acquireBusy ? "正在抓取并核验…" : "取得来源并进入候选池"}</button>
+      <button className="button" disabled={acquireBusy}>{acquireBusy ? "正在抓取并核验…" : "补充这条完整证据"}</button>
     </form> : null}
 
-    {projectionOpen && controlledSources.length ? <div className="source-projection-block">
-      {controlledSources.map((source) => <div className="card projection-card" key={source.id}>
-        <label><input type="checkbox" checked={Boolean(selected[source.id])} onChange={(event) => setSelected({ ...selected, [source.id]: event.target.checked })} /> 选择：{source.title}</label>
-        <p className="muted">{authorityTypeLabel(source.authority_type || "unknown")} · {source.publisher || "未知发布者"} · {source.published_at || "发布日期未知"}</p>
-        {selected[source.id] ? <div className="source-form-grid">
-          <div className="field source-wide"><label>挂到判断单元（可多选）</label>{units.map((unit) => <label key={unit.id}><input type="checkbox" checked={(unitRefs[source.id] || []).includes(unit.id)} onChange={(event) => {
-            const current = unitRefs[source.id] || [];
-            const next = event.target.checked ? [...new Set([...current, unit.id])] : current.filter((id) => id !== unit.id);
-            setUnitRefs({ ...unitRefs, [source.id]: next });
-          }} /> {unit.title}</label>)}</div>
-          <div className="field"><label>事实对象（口径标识）</label><input value={subjects[source.id] || ""} onChange={(event) => setSubjects({ ...subjects, [source.id]: event.target.value })} placeholder="例如：HBM 合约价" /></div>
-          <div className="field"><label>事实观测日期</label><input type="date" value={observed[source.id] || ""} onChange={(event) => setObserved({ ...observed, [source.id]: event.target.value })} /></div>
-          <div className="field"><label>证据方向</label><select value={directions[source.id] || "support"} onChange={(event) => setDirections({ ...directions, [source.id]: event.target.value as "support" | "weaken" | "neutral" })}><option value="support">支持</option><option value="weaken">削弱 / 反证</option><option value="neutral">背景 / 中性</option></select></div>
-        </div> : null}
-      </div>)}
-      {projectionMessage ? <div className="notice">{projectionMessage}</div> : null}
-      <button type="button" className="button" disabled={projectionBusy} onClick={submitProjection}>{projectionBusy ? "正在按规则校验…" : "生成待核对事实"}</button>
-    </div> : null}
+    {null}
   </section>;
 }

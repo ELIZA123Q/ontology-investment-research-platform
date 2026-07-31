@@ -102,10 +102,18 @@ export function buildGenerationContext(input: {
     files: assembled.knowledge_files,
   };
   const promptSources = sourcesForPrompt(kind, allSources, taskContext?.time_scope?.as_of);
-  const sourceContext = promptSources.map((source) => ({
-    ...source,
-    snapshot_text: (source.snapshot_text || "").slice(0, 12_000),
-  }));
+  // Plan A：抓取全文只存 Source Registry（DB snapshot_text），绝不进入模型上下文。
+  // 上下文仅保留“指针 + ≤300 字逐字引文窗口”，模型照样能照抄 ≥20 字原文；
+  // 同时把写进 artifact.input_context 的体量从 ~12k/源压到几百字/源。
+  const SOURCE_CITATION_WINDOW_CHARS = 300;
+  const sourceContext = promptSources.map((source) => {
+    const { snapshot_text: _omit, ...sourceWithoutSnapshot } = source;
+    void _omit;
+    return {
+      ...sourceWithoutSnapshot,
+      citation_window: String(source.source_quote || source.search_excerpt || "").slice(0, SOURCE_CITATION_WINDOW_CHARS),
+    };
+  });
   // 同证据基线只能看到 Stage03 已登记的逐字引文，不能从完整快照
   // 额外开采主链未登记的新事实，否则“同证据”比较失真。
   const frozenSourceContext = frozenSources.map(sourceForFrozenBaseline);

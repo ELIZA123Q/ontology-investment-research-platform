@@ -147,12 +147,48 @@ function toGapSourceRef(source: SourceRecord): UnitGapSourceRef {
   };
 }
 
+/**
+ * 覆盖计算结果缓存（best-effort）。补证路径中 runStage03BatchSequence 会以「相同来源/证据、
+ * 仅提示文案不同」的条件多次调用本函数，内循环为 O(单元×(来源+证据))。用来源覆盖相关状态 +
+ * 证据 source_ids + 需求 id 的紧凑签名做 key，输入未变时直接命中，避免重复重算。
+ * 来源可用性变化会改变签名 → 自然失效，不会返回陈旧覆盖。
+ */
+let coverageCache: { key: string; result: SourceCoverageSummary } | null = null;
+
+function sourceCoverageSignature(source: SourceRecord): string {
+  return [
+    source.id,
+    source.usability_status,
+    source.retrieval_status,
+    source.quote_verified ? 1 : 0,
+    source.source_tier,
+    source.source_group || source.publisher || source.normalized_url || "",
+  ].join("|");
+}
+
+function buildCoverageKey(input: {
+  sources: SourceRecord[];
+  evidence: EvidenceDraftLike[];
+  requirements?: EvidenceRequirementProjection[];
+  cutoffMs?: number;
+}): string {
+  const src = input.sources.map(sourceCoverageSignature).sort().join(";");
+  const ev = input.evidence
+    .map((e) => `${e.id}:${(e.source_ids || []).slice().sort().join("|")}`)
+    .sort()
+    .join(";");
+  const req = (input.requirements || []).map((r) => r.id).sort().join(",");
+  return `${src}#${ev}#${req}#${input.cutoffMs ?? ""}`;
+}
+
 export function computeSourceCoverage(input: {
   sources: SourceRecord[];
   evidence: EvidenceDraftLike[];
   requirements?: EvidenceRequirementProjection[];
   cutoffMs?: number;
 }): SourceCoverageSummary {
+  const cacheKey = buildCoverageKey(input);
+  if (coverageCache && coverageCache.key === cacheKey) return coverageCache.result;
   const { sources, evidence } = input;
   const cutoffMs = input.cutoffMs;
   const sourceById = new Map(sources.map((source) => [source.id, source]));
@@ -324,13 +360,15 @@ export function computeSourceCoverage(input: {
   const coverage_rate = computeCoverageRate(unit_coverage);
   const verification_rate = computeVerificationRate(sources);
 
-  return {
+  const result: SourceCoverageSummary = {
     public_secondary_count,
     unit_coverage,
     coverage_gap_count,
     coverage_rate,
     verification_rate,
   };
+  coverageCache = { key: cacheKey, result };
+  return result;
 }
 
 function computeCoverageRate(unit_coverage: UnitEvidenceCoverage[]): number {

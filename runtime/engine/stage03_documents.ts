@@ -40,7 +40,11 @@ function requirementsFromStructure(structure: any): any[] {
 
 function evidenceRoleOfDraft(draft: any): string {
   const explicit = String(draft?.evidence_role || "");
-  if (["support", "counter", "context", "boundary"].includes(explicit)) return explicit;
+  if (["support", "counter", "context", "boundary"].includes(explicit)) {
+    // 显式 evidence_role 与 kind/direction 冲突时，以 kind 为准
+    if (explicit === "support" && (draft?.kind === "counter" || draft?.kind === "conflict" || draft?.direction === "weaken")) return "counter";
+    return explicit;
+  }
   if (draft?.kind === "counter" || draft?.kind === "conflict" || draft?.direction === "weaken") return "counter";
   if (draft?.direction === "neutral") return "context";
   return "support";

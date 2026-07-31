@@ -151,6 +151,10 @@ export function bindEvidenceRequirementsToOntology(
     const boundProfiles = explicitProfiles.length
       ? explicitProfiles.filter((ref) => profileIds.has(ref))
       : inferredProfiles;
+    // 反向证据（evidence_role === "counter"）是跨判断类型的通用反驳画像；
+    // 其取证画像（如 counter_evidence）本质不与状态变量推导画像相交，
+    // 此类"不匹配"是预期内的，不应升级为 Stage02 阻断缺口。
+    const isCounterRole = requirement.evidence_role === "counter";
     if (
       explicitProfiles.length
       && inferredProfiles.length
@@ -160,8 +164,10 @@ export function bindEvidenceRequirementsToOntology(
         code: "evidence_profile_binding_mismatch",
         requirement_id: requirement.id,
         judgment_unit_ids: requirement.judgment_unit_ids,
-        detail: `EvidenceProfile 与 StateVariable 不相容：显式 ${boundProfiles.join(", ")}；推导 ${inferredProfiles.join(", ")}`,
-        blocking: true,
+        detail: isCounterRole
+          ? `反向证据画像与状态变量推导画像未直接相交（预期内，非阻断）：显式 ${boundProfiles.join(", ")}；推导 ${inferredProfiles.join(", ")}`
+          : `EvidenceProfile 与 StateVariable 不相容：显式 ${boundProfiles.join(", ")}；推导 ${inferredProfiles.join(", ")}`,
+        blocking: !isCounterRole,
       });
     }
     if (formalStateRefs.length && !boundProfiles.length) {

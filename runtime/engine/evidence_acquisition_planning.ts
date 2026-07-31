@@ -7,6 +7,17 @@ export function stage03AutoSupplementMaxRounds(): number {
   return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 3;
 }
 
+/**
+ * 定向补证（evidence_supplement）专用轮次上限，独立于全量取证的自动补证轮次。
+ * 补证只是「按缺口补」，单轮足够；默认 1，避免退化成多轮全量取证。
+ * 仅当显式调高 STAGE03_SUPPLEMENT_MAX_ROUNDS 时才进入多轮（用于极端缺口场景）。
+ */
+export function stage03SupplementMaxRounds(): number {
+  const raw = process.env.STAGE03_SUPPLEMENT_MAX_ROUNDS;
+  const parsed = raw ? Number(raw) : 1;
+  return Number.isFinite(parsed) && parsed >= 1 ? Math.floor(parsed) : 1;
+}
+
 export type Stage03EvidenceBatch = {
   batch_id: string;
   unit_ids: string[];
@@ -45,11 +56,16 @@ export function partitionStage03EvidenceBatches(input: {
 }
 
 export function stage03EvidenceBatchConfig() {
-  const unitsRaw = Number(process.env.STAGE03_EVIDENCE_UNITS_PER_BATCH || 2);
-  const batchesRaw = Number(process.env.STAGE03_EVIDENCE_MAX_BATCHES || 4);
+  // 任务缩窄：默认每批只研究 1 个判断单元，使取证上下文更精准、单批失败隔离
+  // 范围更小（一个坏单元不影响其他单元）；maxBatches 提高以避免在单元很多时
+  // 被迫把多单元塞进同批。可用 env 覆盖：
+  //   STAGE03_EVIDENCE_UNITS_PER_BATCH（更省固定开销可设 2）、
+  //   STAGE03_EVIDENCE_MAX_BATCHES。
+  const unitsRaw = Number(process.env.STAGE03_EVIDENCE_UNITS_PER_BATCH || 1);
+  const batchesRaw = Number(process.env.STAGE03_EVIDENCE_MAX_BATCHES || 12);
   return {
-    preferredUnitsPerBatch: Number.isFinite(unitsRaw) && unitsRaw > 0 ? Math.floor(unitsRaw) : 2,
-    maxBatches: Number.isFinite(batchesRaw) && batchesRaw > 0 ? Math.floor(batchesRaw) : 4,
+    preferredUnitsPerBatch: Number.isFinite(unitsRaw) && unitsRaw > 0 ? Math.floor(unitsRaw) : 1,
+    maxBatches: Number.isFinite(batchesRaw) && batchesRaw > 0 ? Math.floor(batchesRaw) : 12,
   };
 }
 
@@ -164,9 +180,11 @@ export function semiconductorSearchKeywords(
       ? role === "support" ? "site:investors.micron.com" : "site:trendforce.com"
       : product.startsWith("enterprise")
         ? role === "support" ? "site:investor.sandisk.com" : "site:trendforce.com"
-        : product.startsWith("client")
-          ? role === "support" ? "site:trendforce.com" : "site:counterpointresearch.com"
-          : role === "support" ? "site:investors.micron.com" : "site:trendforce.com";
+    : product.startsWith("client")
+      ? role === "support" ? "site:trendforce.com" : "site:counterpointresearch.com"
+      // 非存储主题（刻蚀设备 / 晶圆厂 capex / 国产替代等）不下钻到美光 IR；改投
+      // 境遇 cninfo（A 股法定披露，已在来源路由白名单），更贴近中微/晶圆厂议题。
+      : role === "support" ? "site:cninfo.com.cn" : "site:trendforce.com";
   const hasPricing = terms.some((term) => ["contract price", "spot price", "pricing"].includes(term));
   const hasInventory = terms.some((term) => term.includes("inventory"));
   const hasDemand = terms.some((term) =>

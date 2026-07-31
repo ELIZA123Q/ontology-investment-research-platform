@@ -139,7 +139,9 @@ export function EvidenceBoard({
   const [error, setError] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [unitFilter, setUnitFilter] = useState("all");
-  const [focusChanges, setFocusChanges] = useState(Boolean(supplementSummary && changeIds.size > 0));
+  // 补证后默认展示全量证据，避免收紧到只看待核对变更导致看不到完整上下文；
+  // 顶部"本轮补证结果"面板（含新增/变更角标）已能提示本轮差异，用户需聚焦时再手动切换。
+  const [focusChanges, setFocusChanges] = useState(false);
   const selected = evidence.find((item) => item.id === selectedId);
   const sourceMap = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources]);
   const suggestionMap = useMemo(() => new Map(suggestions.map((item) => [item.evidence_id, item])), [suggestions]);
@@ -435,7 +437,11 @@ export function EvidenceBoard({
             const source = sourceMap.get(id);
             return <li key={id}>{source ? <>
               <div className="source-review-head">
-                <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+                {/^https?:\/\//i.test(source.url || "") ? (
+                  <a href={source.url} target="_blank" rel="noreferrer">{source.title} ↗</a>
+                ) : (
+                  <span className="source-title-no-link">{source.title} <small className="mcp-note">（MCP 快照，无可点击原文；靠快照字段复核）</small></span>
+                )}
                 <small className="source-publisher">
                   {source.publisher || "未识别发布者"}
                   {source.published_at ? ` · ${formatSourceTime(source.published_at)}` : ""}

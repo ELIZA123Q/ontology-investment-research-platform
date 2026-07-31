@@ -98,37 +98,60 @@ export async function applyStage03SourceSnapshots(input: {
   for (const [index, source] of captureTargets.entries()) {
     input.assertRunning();
     input.onCaptureProgress?.(index + 1, captureTargets.length);
-    const snapshot = await captureSourceSnapshot({
-      url: source.url,
-      locator: source.locator,
-      source_quote: source.source_quote,
-    });
-    input.assertRunning();
-    const saved = upsertSource(input.runId, {
-      url: source.url,
-      title: source.title,
-      publisher: source.publisher,
-      published_at: source.published_at,
-      source_type: source.source_type,
-      source_tier: source.source_tier,
-      authority_type: source.authority_type || "unknown",
-      search_excerpt: source.search_excerpt,
-      locator: snapshot.locator,
-      captured_at: snapshot.captured_at,
-      content_hash: snapshot.content_hash,
-      usability_status: snapshot.usability_status,
-      failure_category: snapshot.failure_category,
-      failure_detail: snapshot.failure_detail,
-      final_url: snapshot.final_url,
-      content_mime: snapshot.content_mime,
-      http_status: snapshot.http_status,
-      retrieval_status: snapshot.retrieval_status,
-      snapshot_text: snapshot.snapshot_text,
-      source_quote: snapshot.source_quote,
-      quote_verified: snapshot.quote_verified,
-    });
-    Object.assign(source, applyRegistryFreezeFields(source, saved));
-    keyMap.set(source.source_key, saved.id);
+    // 单条来源抓取失败不应拖垮整批取证：隔离该来源、继续其余，
+    // 避免一个坏链接/超时让已付费的整批模型调用作废并重放。失败源在后续
+    // 轮次作为 failed / needs-repair 重新进入补证优先级队列。
+    try {
+      const snapshot = await captureSourceSnapshot({
+        url: source.url,
+        locator: source.locator,
+        source_quote: source.source_quote,
+      });
+      input.assertRunning();
+      const saved = upsertSource(input.runId, {
+        url: source.url,
+        title: source.title,
+        publisher: source.publisher,
+        published_at: source.published_at,
+        source_type: source.source_type,
+        source_tier: source.source_tier,
+        authority_type: source.authority_type || "unknown",
+        search_excerpt: source.search_excerpt,
+        locator: snapshot.locator,
+        captured_at: snapshot.captured_at,
+        content_hash: snapshot.content_hash,
+        usability_status: snapshot.usability_status,
+        failure_category: snapshot.failure_category,
+        failure_detail: snapshot.failure_detail,
+        final_url: snapshot.final_url,
+        content_mime: snapshot.content_mime,
+        http_status: snapshot.http_status,
+        retrieval_status: snapshot.retrieval_status,
+        snapshot_text: snapshot.snapshot_text,
+        source_quote: snapshot.source_quote,
+        quote_verified: snapshot.quote_verified,
+      });
+      Object.assign(source, applyRegistryFreezeFields(source, saved));
+      keyMap.set(source.source_key, saved.id);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      Object.assign(source, {
+        source_id: source.source_id ?? null,
+        retrieval_status: "failed",
+        usability_status: "rejected",
+        quote_verified: false,
+        captured_at: null,
+        content_hash: null,
+        failure_category: "source_acquisition_failure",
+        failure_detail: `抓取中断（已隔离，不阻断其余来源）：${detail}`,
+      });
+      input.data.unresolved_gaps = [
+        ...new Set([
+          ...(Array.isArray(input.data.unresolved_gaps) ? input.data.unresolved_gaps.map(String) : []),
+          `来源抓取失败已隔离：${source.source_key || source.url} — ${detail}`,
+        ]),
+      ];
+    }
   }
 
   for (const source of sources) {

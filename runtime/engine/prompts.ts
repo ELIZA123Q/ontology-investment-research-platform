@@ -64,6 +64,7 @@ StateVariable 定义：每个变量给出 name、category、definition 和锚定
 
 证据压缩：产出 evidence_drafts（按 source_claim/fact_draft/counter/conflict/gap 分类）、evidence_summaries（趋势/对比/异常摘要，numeric_values 登记可引用数字）、evidence_bundles（按 judgment_unit_id 的 support/counter/gap 分组）。
 每条 evidence_draft 必须填写 evidence_requirement_ids，绑定到它实际满足或暴露缺口的 Stage02 ER-*；不得仅绑定 JudgmentUnit 后让一条宽泛事实自动满足该单元全部证据要求。若同一事实确实服务多个 ER，逐项列出且主体、时间、口径和证据角色都必须匹配。
+**evidence_role 必须与绑定 ER 的 evidence_role 严格一致**：若证据绑定了 ER-06（evidence_role: counter），则 evidence_role 字段必须为 "counter"，不可填 "support"。kind=counter 但 evidence_role=support 是硬错误。
 
 来源登记：sources 提供 source_key、source_tier、published_at、逐字 source_quote 和 locator。同一 URL 只对应一个 source_key。source_quote 必须从工具返回的 content_excerpt 连续复制（≥20字），陈述中的数字必须能在 source_quote 或 numeric_values 中找到。MCP 是获取通道而不是来源等级；公司 IR、监管/政府官网等公开原文经正文抓取与逐字核验后同样可以作为一手证据。任何通道未取得可核验正文时登记 gap，不伪装成已核验事实。
 
@@ -79,7 +80,9 @@ gap 必须填写 requirement 和 direction:unknown，source_keys 为空数组。
 - numeric_values 只登记有 source_quote 原文出处的数字，不自行生成估算值
 - gap 必须填写 requirement（需要什么证据）和 direction:unknown
 - gap 必须在 evidence_requirement_ids 中原样引用对应 Stage02 ER；一个 gap 不得替多个语义不同的 ER 过门
-- evidence_summaries 按趋势/对比/异常三类组织，每条摘要绑定 supporting_draft_ids`,
+- evidence_summaries 按趋势/对比/异常三类组织，每条摘要绑定 supporting_draft_ids
+- **时间字段必须不晚于研究截止日**：observed_at / published_at / cutoff_at 均须 ≤ 输入中给出的 cutoff_at（任务时间范围 as_of）。若来源发布时间晚于截止日，该来源及依赖它的证据不得��记为 fact_draft，必须改为 gap
+- **semiconductor_measurement 仅用于真正的产能/良率度量**：收入、订单金额、市占率、客户集中度、毛利率等财务/竞争类陈述不填此字段（设为 null）。仅当陈述的核心指标是产能（capacity）或良率（yield）且需设施/晶圆尺寸/制程/批次等口径时才填写，且必须六维齐全`,
   stage_04:`继承 03 的 method_applications 并收敛：执行完成的标记 executed，无法执行的标记 blocked/degraded/rejected。优先基于 Bundle/Summary 裁决。
 
 判断档位不得超过 judgment_method_routes 的 normal_max_j 和 judgment_threshold_caps 的上限。Judgment 填写 confidence（low|medium|high）、decision_status、scope_ref、cutoff_at，并引用假设、规则评估和实际方法应用。结论中的数字必须来自 03 Summary/Record。
@@ -131,8 +134,8 @@ export function promptFor(kind:ArtifactKind){
   return `${shared}\n\n阶段任务：${stage[kind as StageKind]}`;
 }
 
-export function promptForEvidenceSupplement() {
-  return `${shared}
+export function promptForEvidenceSupplement(disciplineDigest = "") {
+  const base = `${shared}
 
 阶段任务：你是 Stage03 证据补证器。输入包含 supplement_brief（含 priority_queue 确定性调度）与 current_evidence_draft（当前完整稿件基座摘要）。
 
@@ -160,8 +163,8 @@ export function promptForEvidenceSupplement() {
 - 取证真实性是硬约束：本轮若没有实际调用 search_public_web、fetch_public_pages 或证据 MCP，则不得新增 upserts.sources，不得把任何 evidence_draft 写成 source_claim/fact_draft/counter/conflict；只能保留或新增 gap，并把证据方法状态设为 blocked/degraded。Runtime 会按工具轨迹复核，模型常识、记忆和训练数据不算来源。
 - 每条非 gap evidence_draft 必须同时绑定至少一个本轮 upserts.sources 或 current_evidence_draft 中完整可抓取的 source_key；不能只写 source_keys 而不提交来源对象，也不能引用搜索摘要冒充正文。
 - 新建非 gap evidence_draft 必须一次给齐：id、statement、kind、direction（support|weaken|neutral|unknown）、source_keys、source_ids:[]、judgment_unit_ids、ontology_node_ids、subject_ref、time_basis、scope_ref、observed_at、valid_from、valid_to:null、published_at、cutoff_at、directness（direct|indirect|proxy）、limitations、semiconductor_measurement（不用则 null）。缺少事实时间时不要猜测，改为 gap。
-- 新建或更新 evidence_draft 必须填写 evidence_requirement_ids，且只能引用本轮 requirements 中实际匹配的 ER；找不到精确 ER 时改为 gap 或保留未绑定，不得按 JudgmentUnit 粗配。
-- semiconductor_measurement 非 null 时必须给齐 metric_kind（capacity|yield）以及 facility_ref、wafer_size、process_or_product_ref、batch_stage、unit、business_time_basis；未知字段明确写 null。
+- 新建或更新 evidence_draft 必须填写 evidence_requirement_ids，且只能引用本轮 requirements 中实际匹配的 ER；找不到精确 ER 时改为 gap 或保留未绑定，不得按 JudgmentUnit 粗配。evidence_role 字段必须与所绑 ER 的 evidence_role 一致（如 ER-06 为 counter 则填 "counter"），kind=counter 但 evidence_role=support 会被质量门拦截。
+- semiconductor_measurement 非 null 时必须给齐 metric_kind（capacity|yield）以及 facility_ref、wafer_size、process_or_product_ref、batch_stage、unit、business_time_basis；未知字段明确写 null。仅当陈述核心指标是产能/良率时才填写，收入、订单、市占率、毛利率等财务报表数字不填此字段（设为 null）。
 - method_applications.status 只能是 candidate、selected、executed、rejected、blocked、degraded。仅搜索到线索而未取得正文时不得写 executed。
 - 修复失败来源时优先阅读 failed_sources.snapshot_excerpt：从其连续复制 ≥20 字原文作为 source_quote；摘录与主张无关则换 URL，或把绑定证据降为 gap。
 - removals 只能引用 current_evidence_draft 里已存在的稳定 ID；不要发明 EV-GAP-xx。多轮补证若目标已不存在，不要重复删；Runtime 对缺失删除按幂等忽略。
@@ -169,4 +172,5 @@ export function promptForEvidenceSupplement() {
 - evidence_drafts.kind 只能是 source_claim、fact_draft、counter、conflict、gap；禁止自造 kind。
 - 保持未受影响对象的 application_id、evidence id 与 MA 身份不变。
 - 不得输出完整 stage_03 稿件，只输出 patch。`;
+  return disciplineDigest ? `${base}\n\n${disciplineDigest}` : base;
 }

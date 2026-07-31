@@ -359,7 +359,12 @@ const sourceDraft = z.object({
   content_hash: z.string().nullable(),
   final_url: z.string().nullable(),
   retrieval_status: z.string().nullable(),
-  quote_verified: z.boolean().nullable(),
+  // 模型常以 0/1 表达布尔（DeepSeek/OpenAI 函数调用），宽容转换避免整批证据因
+  // 单个字段类型不符而在 schemas.stage_03.safeParse 处被整体判废。
+  quote_verified: z.preprocess(
+    (v) => (typeof v === "number" ? Boolean(v) : v),
+    z.boolean().nullable(),
+  ),
 });
 
 const commercializationStage = z.enum([
@@ -389,7 +394,11 @@ const evidenceFactDraft = z.object({
   kind: z.enum(["source_claim", "fact_draft", "counter", "conflict"]),
   direction: z.enum(["support", "weaken", "neutral", "unknown"]),
   source_keys: z.array(z.string()).min(1),
-  source_ids: z.array(z.string()).default([]),
+  // 模型偶把 source_ids 写成 [null, "id", ...]；过滤 null 而非整体判废该草稿。
+  source_ids: z.preprocess(
+    (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.length > 0) : []),
+    z.array(z.string()).default([]),
+  ),
   judgment_unit_ids: z.array(z.string()).min(1),
   evidence_requirement_ids: z.array(z.string()).default([]),
   ontology_node_ids: z.array(z.string()),
@@ -419,7 +428,10 @@ const evidenceGapDraft = z.object({
   kind: z.literal("gap"),
   direction: z.literal("unknown"),
   source_keys: z.array(z.string()).max(0),
-  source_ids: z.array(z.string()).default([]),
+  source_ids: z.preprocess(
+    (v) => (Array.isArray(v) ? v.filter((x) => typeof x === "string" && x.length > 0) : []),
+    z.array(z.string()).default([]),
+  ),
   judgment_unit_ids: z.array(z.string()).min(1),
   evidence_requirement_ids: z.array(z.string()).default([]),
   ontology_node_ids: z.array(z.string()),

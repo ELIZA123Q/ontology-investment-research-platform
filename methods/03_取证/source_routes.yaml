@@ -28,6 +28,11 @@ routes:
       - { name: Micron, domain: investors.micron.com, tier: S2, authority_type: company_disclosure }
       - { name: Samsung, domain: news.samsung.com, tier: S2, authority_type: company_disclosure }
       - { name: SK_hynix, domain: news.skhynix.com, tier: S2, authority_type: company_disclosure }
+      # 国内晶圆厂（中芯国际/华虹等）资本开支与订单：补齐原清单只覆盖海外存储/代工厂的缺口
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+      - { name: SMIC, domain: investor.smic.com, tier: S2, authority_type: company_disclosure }
+      - { name: SINA_Finance, domain: sina.com.cn, tier: S4, authority_type: public_secondary }
+      - { name: Eastmoney, domain: eastmoney.com, tier: S4, authority_type: public_secondary }
     query_terms: [shipments, demand, orders, capex, guidance]
 
   - id: semiconductor_capacity_supply
@@ -45,6 +50,11 @@ routes:
       - { name: Samsung, domain: news.samsung.com, tier: S2, authority_type: company_disclosure }
       - { name: SK_hynix, domain: news.skhynix.com, tier: S2, authority_type: company_disclosure }
       - { name: TrendForce, domain: trendforce.com, tier: S4, authority_type: industry_provider }
+      # 国内晶圆厂（中芯国际/华虹等）产能与利用率：补齐原清单只覆盖海外存储/代工厂的缺口
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+      - { name: SMIC, domain: investor.smic.com, tier: S2, authority_type: company_disclosure }
+      - { name: SINA_Finance, domain: sina.com.cn, tier: S4, authority_type: public_secondary }
+      - { name: Eastmoney, domain: eastmoney.com, tier: S4, authority_type: public_secondary }
     query_terms: [capacity, wafer allocation, utilization, yield, production]
 
   - id: semiconductor_inventory

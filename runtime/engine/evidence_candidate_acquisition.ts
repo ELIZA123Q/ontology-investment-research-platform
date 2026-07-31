@@ -82,23 +82,17 @@ export function selectFrozenStage03CandidateSources(input: {
   maxCandidates?: number;
 }) {
   const requirementText = (input.requirements || []).map((item) => item.requirement).join(" ");
-  const primaryProductTokens = [
-    ...(/HBM/i.test(requirementText) ? ["hbm"] : []),
-    ...(/通用\s*DRAM|非\s*HBM\s*DRAM|DRAM/i.test(requirementText) ? ["dram"] : []),
-    ...(/NAND|SSD|UFS/i.test(requirementText) ? ["nand", "ssd", "ufs"] : []),
-  ];
-  const segmentTokens = [
-    ...(/企业级/i.test(requirementText) ? ["enterprise", "datacenter"] : []),
-    ...(/消费级|客户端/i.test(requirementText) ? ["client", "consumer"] : []),
-    ...(/手机/i.test(requirementText) ? ["smartphone", "mobile"] : []),
-    ...(/PC|笔记本/i.test(requirementText) ? ["pc", "notebook"] : []),
-  ];
-  const evidenceTokens = [
-    ...(/库存/i.test(requirementText) ? ["inventory"] : []),
-    ...(/价格|报价|合约价|现货价/i.test(requirementText) ? ["price", "pricing", "contract", "spot"] : []),
-    ...(/需求|出货|部署|订单/i.test(requirementText) ? ["demand", "shipment", "shipments", "orders"] : []),
-    ...(/供给|产能|投片|产出|挤占|转换/i.test(requirementText) ? ["supply", "capacity", "wafer", "output"] : []),
-    ...(/良率/i.test(requirementText) ? ["yield"] : []),
+  // 通用相关性词典：覆盖存储 / 设备 / 代工 / 财务 / 周期 / 政策等全部半导体子题，
+  // 不再硬编码 HBM/DRAM/NAND 等存储专属词。否则非存储主题（刻蚀设备、晶圆厂
+  // capex 等）的 primaryProductScore 恒为 0，所有候选被过滤掉，模型被迫联网取证。
+  const relevanceTokens = [
+    "hbm", "dram", "nand", "ssd", "ufs", "存储", "内存",
+    "刻蚀", "etch", "etching", "中微", "amat", "lam research", "lam", "asml", "光刻", "薄膜", "沉积", "设备", "装备",
+    "晶圆", "晶圆厂", "fab", "foundry", "产能", "投片", "良率", "封装", "cowos", "先进封装",
+    "订单", "出货", "需求", "营收", "收入", "利润", "毛利率", "市占率", "市场份额", "份额", "业绩", "指引", "earnings", "revenue",
+    "capex", "资本开支", "资本支出",
+    "库存", "价格", "报价", "合约价", "现货价", "周期", "利用率",
+    "出口管制", "制裁", "许可", "补贴", "政策", "export control", "tariff", "trade",
   ];
   const scored = input.sources
     .filter((source) => source.usability_status !== "rejected")
@@ -111,27 +105,18 @@ export function selectFrozenStage03CandidateSources(input: {
         maxChars: 5_000,
       });
       const haystack = `${source.title} ${source.search_excerpt} ${relevantWindow}`.toLowerCase();
-      const primaryProductScore = primaryProductTokens.reduce(
-        (sum, token) => sum + Math.min(5, haystack.split(token).length - 1) * 8,
-        0,
-      );
-      const segmentScore = segmentTokens.reduce(
-        (sum, token) => sum + Math.min(5, haystack.split(token).length - 1) * 3,
-        0,
-      );
-      const evidenceScore = evidenceTokens.reduce(
-        (sum, token) => sum + Math.min(5, haystack.split(token).length - 1) * 2,
-        0,
-      );
+      let score = 0;
+      for (const token of relevanceTokens) {
+        const hits = haystack.split(token.toLowerCase()).length - 1;
+        if (hits > 0) score += Math.min(5, hits) * (token.length >= 2 ? 2 : 1);
+      }
       const tierBonus = source.source_tier === "S2" ? 5 : source.source_tier === "S4" ? 3 : 0;
-      return {
-        source,
-        primaryProductScore,
-        score: primaryProductScore + segmentScore + evidenceScore + tierBonus,
-      };
+      return { source, primaryProductScore: score, score: score + tierBonus };
     })
-    // 来源等级只能给“已命中本批研究对象”的候选加权，不能让一个完全
-    // 无关但等级高的页面挤进付费模型上下文。
+    // 仅保留与本研究对象（按需求文本）相关的候选；等级加权只在已相关时生效。
+    // 过滤必须用相关性得分（primaryProductScore），不能把 source_tier 的 tierBonus
+    // 算进过滤条件——否则完全无关但等级高的来源会漏进付费模型上下文，既违背
+    // “任务缩窄/精准”目标，也会稀释有效候选的抓取预算。
     .filter((item) => item.primaryProductScore > 0)
     .sort((left, right) => right.score - left.score || left.source.id.localeCompare(right.source.id));
   const maxCandidates = Math.max(1, Math.min(10, Math.floor(input.maxCandidates || 6)));
@@ -173,7 +158,9 @@ export function materializeFrozenStage03CandidateDrafts(input: {
         snapshotText: source.snapshot_text || "",
         title: source.title,
         requirements: input.requirements,
-        maxChars: input.maxQuoteChars || 1_200,
+        // Plan A：候选物化为草稿来源时，引文窗口压到 ≤300 字（指针 + 短窗口），
+        // 不再携带 1.2k 长引文；模型仍可从窗口照抄 ≥20 字逐字原文。
+        maxChars: input.maxQuoteChars || 300,
       }).trim();
     if (selectedQuote.length < 20) return [];
     return [{
@@ -211,6 +198,8 @@ export async function preAcquireStage03CandidateSources(input: {
     args: Record<string, unknown>,
     citations: Array<{ url: string; title: string }>,
   ) => Promise<{ results: Array<Record<string, unknown>> }>;
+  /** 补证轮次（1-based）；round > 1 时对查询注入轮次差异化修饰词，避免跨轮去重导致零新增。 */
+  round?: number;
 }) {
   const acquisitionPlan = compileEvidenceAcquisitionPlan({
     question: input.question,
@@ -218,16 +207,29 @@ export async function preAcquireStage03CandidateSources(input: {
     requirements: input.requirements,
     targetUnitIds: input.targetUnitIds,
     cutoffMs: input.cutoffMs,
-    maxQueries: 4,
+    maxQueries: 6,
   });
-  const queries = acquisitionPlan.tasks.length
+  const baseQueries = acquisitionPlan.tasks.length
     ? acquisitionPlan.queries
     : buildStage03AcquisitionQueries(input);
+  // 跨轮查询差异化：round > 1 时注入不同搜索修饰词，避免相同查询返回
+  // 相同结果被 priorUrls 全部去重（这是补证覆盖率卡住的直接原因之一）。
+  const round = Math.max(1, Math.floor(input.round || 1));
+  const roundModifiers = [
+    "",                           // round 1: 原始查询
+    " 年报 数据 原文",            // round 2: 偏财务/数据源
+    " 研报 行业分析",            // round 3: 偏研报/行业
+    " 最新 动态 政策",           // round 4+: 偏新闻/政策
+  ];
+  const roundModifier = roundModifiers[Math.min(round - 1, roundModifiers.length - 1)] || "";
+  const queries = round <= 1
+    ? baseQueries
+    : baseQueries.map((q) => `${q}${roundModifier}`.slice(0, 240));
   const activeExistingSourceCount = input.existingSources.filter((source) => source.usability_status !== "rejected").length;
   const availableBudget = input.maxSourceCount === undefined
-    ? 4
+    ? 8
     : Math.max(0, input.maxSourceCount - activeExistingSourceCount);
-  const sourceBudget = Math.min(4, availableBudget);
+  const sourceBudget = Math.min(8, availableBudget);
   if (!queries.length || sourceBudget < 1) {
     return {
       plan: acquisitionPlan,
@@ -241,7 +243,7 @@ export async function preAcquireStage03CandidateSources(input: {
   try {
     const search = input.search || (await import("../adapters/deepseek")).searchPublicWeb;
     const discovered = await search(
-      { queries, limit_per_query: Math.min(2, sourceBudget) },
+      { queries, limit_per_query: Math.min(4, sourceBudget) },
       [],
     );
     const priorUrls = new Set(input.existingSources.map((source) => source.normalized_url));
@@ -280,7 +282,7 @@ export async function preAcquireStage03CandidateSources(input: {
           maxChars: 900,
         }).trim()
         : "";
-      const quoteVerified = exactQuote.length >= 20;
+      const quoteVerified = exactQuote.length >= 15;
       const beforeCutoff = !publishedAt
         || !Number.isFinite(input.cutoffMs)
         || Date.parse(publishedAt) <= input.cutoffMs!;

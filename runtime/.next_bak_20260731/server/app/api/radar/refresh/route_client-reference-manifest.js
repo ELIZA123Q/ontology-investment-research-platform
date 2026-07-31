@@ -1,0 +1,1 @@
+globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/radar/refresh/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/Users/luyao/Documents/基于本体的投研推理平台/runtime/app/api/radar/refresh/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

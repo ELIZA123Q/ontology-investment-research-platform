@@ -1,6 +1,6 @@
 import "server-only";
 import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure } from "../structure_candidates";
-import { extractGraph } from "./load";
+import { extractGraph, loadDomainBusinessGraph } from "./load";
 import { mergeGraphs } from "./projection";
 import { emptyGraph, type BusinessInstanceGraph } from "./types";
 import { loadOntologyCatalog } from "../ontology_catalog";
@@ -143,21 +143,52 @@ export function materializeStageIntoGraph(
             };
           }
         } else {
+          let resolved = true;
+          let resolvedFromDomain = false;
+          let domainProperties: Record<string, unknown> | null = null;
           if (dimension === "judgment_unit_ontology_node") {
             const typedInstance = parseTypedScopeMemberRef(objectId);
-            if (!typedInstance) {
-              throw new Error(`JudgmentUnit 引用的本体对象未解析: ${objectId}`);
+            if (typedInstance) {
+              preferredType = typedInstance.type;
+              name = typedInstance.name;
+            } else {
+              // JU 本体节点允许直接以裸 ID 引用领域业务图（business_instances.yaml）
+              // 中的语义对象/状态变量；回查领域图解析真实类型与名称，避免权威门禁
+              // 误杀合法领域引用（bindEvidenceRequirementsToOntology 在同一条审批链路中
+              // 已回查领域图）。领域图也未命中的未知对象仍按原门禁拒绝。
+              const domain = loadDomainBusinessGraph();
+              const domainObject = domain?.objects.find((item) => item.id === objectId);
+              if (domainObject) {
+                preferredType = String(domainObject.type || "Industry");
+                name = String((domainObject.properties as any)?.name || objectId);
+                domainProperties = (domainObject.properties as Record<string, unknown>) || null;
+                resolvedFromDomain = true;
+              } else {
+                resolved = false;
+              }
             }
-            preferredType = typedInstance.type;
-            name = typedInstance.name;
           }
-          const type = SCOPE_MEMBER_TYPES_NAME_ONLY.has(preferredType) ? preferredType : "Industry";
+          if (!resolved) {
+            throw new Error(`JudgmentUnit 引用的本体对象未解析: ${objectId}`);
+          }
+          // 领域已知对象（如 StateVariable）保留真实类型入图；其余沿用原回落规则
+          // （作用域成员类型或通用缺省回落 Industry）。
+          const type = resolvedFromDomain
+            ? preferredType
+            : (SCOPE_MEMBER_TYPES_NAME_ONLY.has(preferredType) ? preferredType : "Industry");
           slice.objects.push({
             id: objectId,
             type,
-            properties: { name: name || objectId },
+            properties: resolvedFromDomain
+              ? { ...(domainProperties || {}), name: name || objectId }
+              : { name: name || objectId },
             projection: { section: "scope_members", index: slice.objects.filter((item) => item.type === type).length },
           });
+          // 非作用域成员类型（如 StateVariable）按既有语义不挂接 scopeIncludesObject 关系，
+          // 仅作为领域对象入图供规则引擎读取。
+          if (!SCOPE_MEMBER_TYPES_NAME_ONLY.has(preferredType)) {
+            return;
+          }
         }
         const relationId = `REL-${scopeId}-INCLUDES-${objectId}`;
         if (slice.relations.some((item) => item.id === relationId) || current.relations.some((item) => item.id === relationId)) return;

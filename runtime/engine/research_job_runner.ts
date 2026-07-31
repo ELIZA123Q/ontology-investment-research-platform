@@ -16,7 +16,7 @@ import { generationLeaseMs, researchJobLeaseMs } from "../adapters/model_provide
 import type { Artifact, ArtifactKind, ResearchJob, StageKind } from "./types";
 import { STAGES } from "./types";
 import { classifyRuntimeFailure, generateArtifact, shouldRetryRuntimeFailure } from "./workflow";
-import { stage03AutoSupplementMaxRounds } from "./evidence_auto_supplement";
+import { stage03AutoSupplementMaxRounds, stage03SupplementMaxRounds } from "./evidence_acquisition_planning";
 import { budgetViolationMessage, evaluateResearchJobBudget, parseResearchJobBudget } from "./research_job_budget";
 import {
   isResumableStage03Artifact,
@@ -122,7 +122,7 @@ export function enqueueArtifactGeneration(input: {
   const mode = input.mode || "regenerate";
   const initialSourceIds = listSources(input.runId).map((source) => source.id).sort();
   const maxAutoRounds = input.kind === "stage_03"
-    ? Math.max(1, Math.floor(input.maxAutoRounds ?? stage03AutoSupplementMaxRounds()))
+    ? Math.max(1, Math.floor(input.maxAutoRounds ?? (mode === "evidence_supplement" ? stage03SupplementMaxRounds() : stage03AutoSupplementMaxRounds())))
     : 1;
   return enqueueResearchJob({
     runId: input.runId,

@@ -105,6 +105,11 @@ export function researchJobIssueMessage(value: unknown): string {
   if (/确定性本体规则未通过|未提交合法结构化|invalid_type|too_big|expected (?:array|string|number|object)|method_applications|judgment_reference_integrity|precondition/.test(normalized)) {
     return "本轮草稿未通过结构与证据规则校验，因此没有进入人工确认。请重新生成；如连续失败，可改用页面中的手动路径。";
   }
+  // 确定性校验/质量门失败：这是用户可定位、需要补证或重新生成的问题，绝不是技术故障。
+  // 这类信息本就较长，绝不能套用下方“技术错误/请重新提交”的兜底而误导用户去重新提交当前阶段。
+  if (/质量门|质量门禁|本体约束预检|可交接密度|挡门|待修复阻断|需补证|重新生成后再确认|未获人工批准|未创建审阅工作项|output_contract|跨阶段引用断裂|双产物/.test(raw)) {
+    return raw.length > 600 ? raw.slice(0, 600) + "…" : raw;
+  }
   if (raw.length > 180 || /deepseek|traceback|syntaxerror|typeerror|zod|json/i.test(raw)) {
     return "生成任务返回了技术错误，详细日志已保留在审计记录。请重新提交当前阶段。";
   }

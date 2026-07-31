@@ -87,7 +87,15 @@ function measurementComplete(m: EvidenceLike["semiconductor_measurement"]): bool
 }
 
 function looksLikeCapacityOrYield(statement: string): boolean {
-  return /产能|良率|yield|capacity|wafer|晶圆/.test(statement);
+  // 仅在明确描述产能/良率度量时触发六维字段要求；
+  // 排除：否定语境（未发现/不构成）、纯设施引用（晶圆厂）、风险/约束讨论
+  const s = statement;
+  if (!/产能|良率|yield|capacity|wafer|晶圆/.test(s)) return false;
+  // 否定语境：产能受限、未发现产能问题、不影响产能等
+  if (/未发现.*产能|产能.*受限|产能.*制约|产能.*不|不构成.*产能/.test(s)) return false;
+  // "晶圆厂" 仅是设施/组织引用，不是度量
+  if (/晶圆厂/.test(s) && !/晶圆.*产出|晶圆.*产能|晶圆.*良率|晶圆.*wafer|wafer.*output|wafer.*capacity/.test(s)) return false;
+  return true;
 }
 
 function looksLikeCommercialization(statement: string): boolean {

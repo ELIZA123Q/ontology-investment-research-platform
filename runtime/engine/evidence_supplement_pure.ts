@@ -197,6 +197,100 @@ export function findUnchangedEvidenceIds(baseEvidence: EvidenceDraftLike[], merg
   return unchanged;
 }
 
+function clampPositiveInt(raw: string | undefined, dflt: number, floor: number): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return dflt;
+  return Math.max(floor, Math.floor(n));
+}
+
+function stripSnapshotTextFromDraftSource(source: unknown): unknown {
+  if (source && typeof source === "object" && "snapshot_text" in (source as Record<string, unknown>)) {
+    const { snapshot_text: _omit, ...cleaned } = source as Record<string, unknown>;
+    void _omit;
+    return cleaned;
+  }
+  return source;
+}
+
+/**
+ * 把送模的 current_evidence_draft 收敛到“本批必需 + 最近 N 条”（delta 风格）：
+ *
+ * - method_applications / unresolved_gaps：本就批内裁剪且体量小，原样保留（质量需要）。
+ * - evidence_drafts：本批证据，用于避免重复生成；仅作极端体量下的“最近 N 条”兜底。
+ * - sources：核心优化点。绑定到本批证据的来源，以及失败/返工/缺口必须修复的来源，
+ *   一律**钉住**（绝不裁剪，避免重复抓取或丢失修复上下文）；其余“未绑定/溢出”来源
+ *   按草稿顺序（越靠后越新）保留最近的，超出 STAGE03_DRAFT_MAX_SOURCES 的部分丢弃。
+ *
+ * 这样既防止“被反复补证的单元把整份历史来源逐轮重发”（当前证据草稿的最大乘数），
+ * 又不牺牲取证质量：模型始终能看到本批已绑定来源与必须修复的失败源。
+ */
+export function trimStage03DraftForModel(input: {
+  methodApplications?: unknown[];
+  sources?: unknown[];
+  evidenceDrafts?: unknown[];
+  unresolvedGaps?: unknown[];
+  mustIncludeSourceKeys?: string[];
+  maxSources?: number;
+  maxEvidence?: number;
+}): {
+  method_applications: unknown[];
+  sources: unknown[];
+  evidence_drafts: unknown[];
+  unresolved_gaps: unknown[];
+} {
+  const maxSources = input.maxSources
+    ?? clampPositiveInt(process.env.STAGE03_DRAFT_MAX_SOURCES, 40, 8);
+  const maxEvidence = input.maxEvidence
+    ?? clampPositiveInt(process.env.STAGE03_DRAFT_MAX_EVIDENCE, 80, 8);
+  const method_applications = Array.isArray(input.methodApplications) ? input.methodApplications : [];
+  const evidence_drafts = Array.isArray(input.evidenceDrafts) ? input.evidenceDrafts : [];
+  const unresolved_gaps = Array.isArray(input.unresolvedGaps) ? input.unresolvedGaps : [];
+
+  // 本批证据已绑定的来源 key/id 必须保留，否则模型会重复登记或重复抓取。
+  const boundKeys = new Set<string>();
+  for (const ev of evidence_drafts) {
+    const draft = ev as Record<string, unknown>;
+    for (const k of Array.isArray(draft?.source_keys) ? (draft.source_keys as unknown[]) : []) {
+      const s = String(k);
+      if (s) boundKeys.add(s);
+    }
+    for (const id of Array.isArray(draft?.source_ids) ? (draft.source_ids as unknown[]) : []) {
+      const s = String(id);
+      if (s) boundKeys.add(s);
+    }
+  }
+  const mustInclude = new Set<string>(
+    (Array.isArray(input.mustIncludeSourceKeys) ? input.mustIncludeSourceKeys : [])
+      .map(String)
+      .filter(Boolean),
+  );
+  const isPinned = (source: unknown): boolean => {
+    const draft = source as Record<string, unknown>;
+    const key = draft?.source_key ? String(draft.source_key) : "";
+    const id = draft?.source_id ? String(draft.source_id) : "";
+    if (key && (boundKeys.has(key) || mustInclude.has(key))) return true;
+    if (id && (boundKeys.has(id) || mustInclude.has(id))) return true;
+    return false;
+  };
+
+  const allSources = Array.isArray(input.sources) ? input.sources : [];
+  const pinned = allSources.filter(isPinned).map(stripSnapshotTextFromDraftSource);
+  const extra = allSources.filter((source) => !isPinned(source));
+  const extraBudget = Math.max(0, maxSources - pinned.length);
+  // 未绑定/溢出来源按草稿顺序保留最近的（末尾更晚加入）。
+  const keptExtra = extra
+    .slice(Math.max(0, extra.length - extraBudget))
+    .map(stripSnapshotTextFromDraftSource);
+  const sources = [...pinned, ...keptExtra];
+
+  // evidence_drafts 仅在病理级体量下作“最近 N 条”兜底，不直接删证据以免重复生成。
+  const evidenceTrimmed = evidence_drafts.length > maxEvidence
+    ? evidence_drafts.slice(Math.max(0, evidence_drafts.length - maxEvidence))
+    : evidence_drafts;
+
+  return { method_applications, sources, evidence_drafts: evidenceTrimmed, unresolved_gaps };
+}
+
 /**
  * 补证确定性调度顺序：
  * 1) 阻塞/降级方法与无可用来源的证据
@@ -548,7 +642,9 @@ export function buildSupplementBrief(input: {
         snapshotText: snapshot,
         title: source.title,
         requirements: input.requirements,
-        maxChars: 2_400,
+        // Plan A：失败源修复只需一个能照抄 ≥20 字原文的窗口，400 字足够，
+        // 不再把 2.4k 正文片段塞进补证 brief。
+        maxChars: 400,
       });
       return {
         id: source.id,

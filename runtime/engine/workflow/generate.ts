@@ -265,6 +265,26 @@ export async function generateArtifact(
         inheritFromArtifactId = baseArtifact.id;
         initialBaseData = parseJson(baseArtifact.json_content, {});
         data = repairEvidencePreparationDraft(resumedStage03Data || initialBaseData);
+        // 补证前回填 source_ids，避免已抓取来源因未链接被误判为缺口（否则会反复把整批送进补证批次）。
+        // 草稿证据以 source_keys 引用来源，草稿 sources 维护 source_key → source_id(Registry id) 映射；
+        // 据此重建 evidence.source_ids，与 source_coverage 用 source_ids 查 usableSourceById 的口径一致。
+        // 仅补全映射，不触发重新抓取。与 evidence_snapshot_apply 的回填逻辑同口径。
+        {
+          const registryIds = new Set(listSources(runId).map((s) => s.id));
+          const keyToId = new Map<string, string>();
+          for (const s of (data.sources || []) as Array<{ source_key?: string; source_id?: string }>) {
+            if (s.source_key && s.source_id) keyToId.set(s.source_key, s.source_id);
+          }
+          for (const ev of (data.evidence_drafts || []) as Array<{ source_keys?: string[]; source_ids?: string[] }>) {
+            if (!Array.isArray(ev.source_keys) || !ev.source_keys.length) continue;
+            const mapped = ev.source_keys
+              .map((k: string) => keyToId.get(k))
+              .filter((id): id is string => Boolean(id))
+              .filter((id) => registryIds.has(id));
+            const kept = (ev.source_ids || []).filter((id) => registryIds.has(id));
+            ev.source_ids = Array.from(new Set([...kept, ...mapped]));
+          }
+        }
         const currentCoverage = computeSourceCoverage({
           sources: listSources(runId),
           evidence: data.evidence_drafts || [],
@@ -293,11 +313,13 @@ export async function generateArtifact(
               requirement.judgment_unit_ids.some((id) => entry.target_unit_ids.includes(String(id))),
             ),
           }))
-          : partitionStage03EvidenceBatches({
-            judgmentUnitIds: targetUnitIds.length ? targetUnitIds : allStructureUnitIds,
-            requirements: evidenceRequirements,
-            ...stage03EvidenceBatchConfig(),
-          });
+          : targetUnitIds.length
+            ? partitionStage03EvidenceBatches({
+              judgmentUnitIds: targetUnitIds,
+              requirements: evidenceRequirements,
+              ...stage03EvidenceBatchConfig(),
+            })
+            : [];
         const checkpoint = initializeStage03BatchCheckpoint({
           mode: "evidence_supplement",
           batches,
@@ -590,6 +612,8 @@ export async function generateArtifact(
           // 逐 JU 都过最低门但全局仍未到 HQ（例如总证据或来源组不足）时，
           // 继续把全体 JU 作为补强候选，直到 HQ 或轮次预算耗尽。
           if (!targetUnitIds.length) {
+            // 补证模式：无缺口即止，不退化为全量单元重抓（覆盖已良好时补证本应无操作）。
+            if (stage03Mode === "evidence_supplement") break;
             targetUnitIds = (structureData.judgment_units || [])
               .map((unit: any) => String(unit?.id || ""))
               .filter(Boolean);
@@ -657,9 +681,10 @@ export async function generateArtifact(
                 requirements: batch.requirements,
                 targetUnitIds: batch.unit_ids,
                 cutoffMs,
-                maxToolRounds: 8,
+                maxToolRounds: Number(process.env.STAGE03_SUPPLEMENT_MAX_TOOL_ROUNDS || 4),
                 idNamespace: `R${autoRound}-${batch.batch_id}`,
                 structure: structureData,
+                round: autoRound,
               });
               data = supplement.data;
               cumulativeUsage = accumulateTokenUsage(cumulativeUsage, supplement.usage);

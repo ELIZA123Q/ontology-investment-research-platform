@@ -103,15 +103,27 @@ export async function validateStage02ForApproval(
     }
   }
 
+  // can_enter_03 / quality_status 是“生成器自检字段”（spec §7 质量门槛与返工规则），
+  // 并非结构合同缺陷；权威确认门禁 assertStage02ReadyForApproval
+  // （collectStage02ConsistencyIssues）并不读取二者，故模型结构校验不得因自检字段阻断确认。
+  const SELF_ASSESSMENT_CODES = new Set(["cannot_enter_03", "quality_status"]);
+  const isStructuralIssue = (issue: { code?: string | null }): boolean =>
+    !SELF_ASSESSMENT_CODES.has(issue.code || "");
+
+  // 仅保留结构性问题；自检字段相关的 error 不阻断确认。
+  result.issues = (result.issues || []).filter(isStructuralIssue);
+
   // Merge heuristic errors the model might have missed.
   const codes = new Set(result.issues.map((item) => `${item.unit_id || ""}:${item.code}`));
-  for (const issue of heuristic.filter((item) => item.severity === "error")) {
+  for (const issue of heuristic.filter((item) => item.severity === "error" && isStructuralIssue(item))) {
     const key = `${issue.unit_id || ""}:${issue.code}`;
     if (!codes.has(key)) {
       result.issues.push(issue);
-      result.ok = false;
     }
   }
+
+  // ok 仅由残留的结构性问题决定（不再受自检字段影响）。
+  result.ok = !result.issues.some((item) => item.severity === "error");
 
   if (result.ok) return { ...result };
 

@@ -324,26 +324,36 @@ function pickToolName(
   return tools[0]?.name || null;
 }
 
-async function callViaSdk(input: {
+/**
+ * MCP 客户端连接池（Stage03 补证延迟优化，Phase 3a）。
+ * 默认关闭，需显式设置 MCP_ENABLE_POOL=1 才启用；仅对 stdio 通道（本地只读查询 MCP）复用连接，
+ * 避免每次工具调用都新起子进程 + connect（≤15s）+ listTools。HTTP/SSE 通道不接入池。
+ * 所有已接入通道均为无状态只读查询 API，复用安全；任一调用异常即标记 unhealthy 并关闭重建。
+ */
+type PoolEntry = {
   channel: string;
-  config: McpServerConfig;
-  toolName?: string;
-  arguments?: Record<string, unknown>;
-}): Promise<{ tools: Array<{ name: string; description?: string; inputSchema?: unknown }>; contentText: string; structured?: unknown }> {
+  client: Client;
+  transport: unknown;
+  lastUsed: number;
+  healthy: boolean;
+};
+const clientPool = new Map<string, PoolEntry>();
+const MCP_POOL_ENABLED = process.env.MCP_ENABLE_POOL === "1";
+const MCP_POOL_TTL_MS = Math.max(1_000, Number(process.env.MCP_POOL_TTL_MS || 60_000));
+
+async function disposePooled(channel: string, entry: PoolEntry): Promise<void> {
+  clientPool.delete(channel);
+  try { await entry.client.close(); } catch { /* ignore */ }
+  try { await (entry.transport as { close?: () => Promise<void> })?.close?.(); } catch { /* ignore */ }
+}
+
+async function connectNew(
+  input: { channel: string; config: McpServerConfig },
+  connectTimeoutMs: number,
+): Promise<{ client: Client; transport: unknown }> {
   const client = new Client({ name: "ontology-research-workbench", version: "0.1.0" });
-  const timeoutMs = Math.min(Math.max(Number(input.config.timeout || 60_000), 5_000), 45_000);
-  const connectTimeoutMs = Math.min(15_000, timeoutMs);
-  let transport: { close?: () => Promise<void> } | null = null;
+  let transport: unknown = null;
   let connectTimer: ReturnType<typeof setTimeout> | undefined;
-  let callTimer: ReturnType<typeof setTimeout> | undefined;
-
-  const clearTimers = () => {
-    if (connectTimer) clearTimeout(connectTimer);
-    if (callTimer) clearTimeout(callTimer);
-    connectTimer = undefined;
-    callTimer = undefined;
-  };
-
   try {
     await Promise.race([
       (async () => {
@@ -376,6 +386,54 @@ async function callViaSdk(input: {
         connectTimer = setTimeout(() => reject(new Error(`MCP 连接超时 ${connectTimeoutMs}ms`)), connectTimeoutMs);
       }),
     ]);
+    if (connectTimer) clearTimeout(connectTimer);
+    return { client, transport };
+  } catch (err) {
+    if (connectTimer) clearTimeout(connectTimer);
+    try { await client.close(); } catch { /* ignore */ }
+    try { await (transport as { close?: () => Promise<void> })?.close?.(); } catch { /* ignore */ }
+    throw err;
+  }
+}
+
+async function callViaSdk(input: {
+  channel: string;
+  config: McpServerConfig;
+  toolName?: string;
+  arguments?: Record<string, unknown>;
+}): Promise<{ tools: Array<{ name: string; description?: string; inputSchema?: unknown }>; contentText: string; structured?: unknown }> {
+  const usePool = MCP_POOL_ENABLED && Boolean(input.config.command);
+  const timeoutMs = Math.min(Math.max(Number(input.config.timeout || 60_000), 5_000), 45_000);
+  const connectTimeoutMs = Math.min(15_000, timeoutMs);
+  let transport: unknown = null;
+  let callTimer: ReturnType<typeof setTimeout> | undefined;
+  let fromPool = false;
+  let client!: Client;
+
+  const clearTimers = () => {
+    if (callTimer) clearTimeout(callTimer);
+    callTimer = undefined;
+  };
+
+  try {
+    if (usePool) {
+      const pooled = clientPool.get(input.channel);
+      if (pooled && pooled.healthy && Date.now() - pooled.lastUsed < MCP_POOL_TTL_MS) {
+        client = pooled.client;
+        transport = pooled.transport;
+        fromPool = true;
+      } else {
+        if (pooled) await disposePooled(input.channel, pooled);
+        const created = await connectNew(input, connectTimeoutMs);
+        client = created.client;
+        transport = created.transport;
+        clientPool.set(input.channel, { channel: input.channel, client, transport, lastUsed: Date.now(), healthy: true });
+      }
+    } else {
+      const created = await connectNew(input, connectTimeoutMs);
+      client = created.client;
+      transport = created.transport;
+    }
 
     const listed = await client.listTools();
     const tools = (listed.tools || []).map((tool) => ({
@@ -409,6 +467,10 @@ async function callViaSdk(input: {
     ]);
 
     const contentText = contentToText((result as { content?: unknown }).content);
+    if (usePool && fromPool) {
+      const entry = clientPool.get(input.channel);
+      if (entry) entry.lastUsed = Date.now();
+    }
     return {
       tools,
       contentText,
@@ -418,14 +480,21 @@ async function callViaSdk(input: {
         structuredContent: (result as { structuredContent?: unknown }).structuredContent ?? null,
       },
     };
+  } catch (err) {
+    if (usePool && fromPool) {
+      const entry = clientPool.get(input.channel);
+      if (entry) { entry.healthy = false; await disposePooled(input.channel, entry); }
+    }
+    throw err;
   } finally {
     clearTimers();
-    // 不等待 HTTP 会话优雅关闭；残留句柄由调用方/worker 进程生命周期消化。
-    void Promise.resolve()
-      .then(async () => {
+    if (!usePool) {
+      // 非池模式：保持原有「每次调用关闭连接」语义，残留句柄由进程生命周期消化。
+      void Promise.resolve().then(async () => {
         try { await client.close(); } catch { /* ignore */ }
-        try { await transport?.close?.(); } catch { /* ignore */ }
+        try { await (transport as { close?: () => Promise<void> })?.close?.(); } catch { /* ignore */ }
       });
+    }
   }
 }
 

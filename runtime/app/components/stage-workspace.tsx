@@ -63,7 +63,7 @@ export type WorkspaceJob = {
 
 export type Stage3SourceCoverageProps = {
   units: Array<{ id: string; title: string }>;
-  sources: Array<Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail"> & { fact_status: SourceFactStatus }>;
+  sources: Array<Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail" | "source_type"> & { fact_status: SourceFactStatus }>;
   controlledSources: Array<{
     id: string;
     title: string;

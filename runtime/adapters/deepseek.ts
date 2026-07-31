@@ -36,6 +36,12 @@ export type ModelResult<T> = {
 
 export type GenerateOptions = {
   webSearch?: boolean;
+  /**
+   * 独立控制 MCP 证据通道工具（cninfo/datayes/china-policy 等）。
+   * 与 webSearch 解耦：补证模式即使已有预取候选（webSearch=false），
+   * 仍可开放 MCP 工具让模型查询结构化数据，避免覆盖率卡死。
+   */
+  mcpEvidenceTools?: boolean;
   ontologyTools?: boolean;
   /**
    * 证据补证专用：在至少发生一次 search/fetch/证据 MCP 调用前，
@@ -421,7 +427,10 @@ export class DeepSeekClient {
       parameters: schema,
     });
     const tools: any[] = [];
-    if (options.webSearch) {
+    // MCP 证据通道工具与 webSearch 解耦：补证模式即使已有预取候选
+    // （webSearch=false），仍可开放 MCP 工具让模型查询结构化数据。
+    // 这解决了"有候选→webSearch=false→所有取证工具全撤→覆盖率卡死"的连坐问题。
+    if (options.webSearch || options.mcpEvidenceTools) {
       tools.push(
         queryCninfoTool,
         queryDatayesFinoperTool,
@@ -432,12 +441,18 @@ export class DeepSeekClient {
         queryChinaPolicyTool,
         queryHtscResearchTool,
         queryCaixinNewsTool,
+      );
+    }
+    // web search / fetch 仅在 webSearch=true 时开放，避免有候选时模型重复联网
+    if (options.webSearch) {
+      tools.push(
         webSearchTool,
         fetchPublicPagesTool,
       );
     }
     if (options.ontologyTools) tools.push(...chatOntologyTools());
     tools.push(submitTool);
+    const ontologyToolNames = new Set<string>((ontologyToolDefinitions || []).map((t: any) => t.name));
 
     const messages: any[] = [
       {
@@ -458,6 +473,7 @@ export class DeepSeekClient {
     // 直接 JSON 仅在工具轮次自然结束后、仍有剩余时间时作为结构修复手段，而不是超时逃生舱。
     const maxRounds = resolveMaxToolRounds(options);
     const submitNudgeFrom = Math.max(0, maxRounds - Math.min(3, Math.max(1, Math.ceil(maxRounds / 3))));
+    let usedOntology = false;
     const emitProgress = (progress: GenerationProgressEvent) => {
       try { options.onProgress?.(progress); } catch { /* progress must not abort generation */ }
     };
@@ -482,9 +498,14 @@ export class DeepSeekClient {
       let hardTimer: ReturnType<typeof setTimeout> | undefined;
       try {
         const { forceAcquisition, toolChoice } = resolveStructuredToolMode(options, toolTrace);
-        const roundTools = forceAcquisition
-          ? tools.filter((tool) => String(tool?.function?.name || "") !== submitName)
-          : tools;
+        const roundTools = tools.filter((tool) => {
+          const n = String(tool?.function?.name || "");
+          if (forceAcquisition && n === submitName) return false;
+          // 一旦模型使用过本体工具，后续轮次撤下本体工具，强制其通过 submit 提交结构化结果，
+          // 避免 deepseek 在 query_object_set 等工具上无限循环而不提交（见 stage_02 生成卡死）。
+          if (usedOntology && ontologyToolNames.has(n)) return false;
+          return true;
+        });
         const requestBody: Record<string, unknown> = {
           model: this.model,
           messages,
@@ -540,6 +561,7 @@ export class DeepSeekClient {
 
       for (const call of calls) {
         const toolName = String(call.function?.name || "");
+        if (ontologyToolNames.has(toolName)) usedOntology = true;
         let args: Record<string, unknown> = {};
         try { args = JSON.parse(String(call.function?.arguments || "{}")); } catch { args = {}; }
 

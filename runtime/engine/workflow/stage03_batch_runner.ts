@@ -175,7 +175,14 @@ export async function runStage03BatchSequence(input: {
         requirements: batch.requirements,
         targetUnitIds: batch.unit_ids,
         cutoffMs: input.cutoffMs,
-        maxToolRounds: 8,
+        // 补证批次必须传 round，否则 evidence_candidate_acquisition 的跨轮差异化修饰词
+        // （年报/研报/最新动态政策）永不触发，补证与全量取证用同一组查询，返回的全是
+        // 已收录 URL 被 priorUrls 去重 → 净新增恒为 0（这正是“点了补证却补不上”的根因）。
+        // 补证模式强制从 round>=2 起，确保每批带差异化修饰词、能挖到新来源。
+        round: isSupplement ? batchIndex + 2 : batchIndex + 1,
+        maxToolRounds: input.mode === "evidence_supplement"
+          ? Number(process.env.STAGE03_SUPPLEMENT_MAX_TOOL_ROUNDS || 4)
+          : Number(process.env.STAGE03_REGEN_MAX_TOOL_ROUNDS || 8),
         idNamespace: isSupplement ? `SUP-${batch.batch_id}` : batch.batch_id,
         structure: input.structure,
       });

@@ -112,6 +112,10 @@ function countSourceGroups(sources: SourceRecord[]): number {
 function draftRole(draft: EvidenceDraft): EvidenceRequirementAssessment["evidence_role"] {
   const explicit = String(draft.evidence_role || "");
   if (["support", "counter", "context", "boundary"].includes(explicit)) {
+    // 显式 evidence_role 与 kind/direction 冲突时，以 kind 为准（LLM 常见误填）
+    if (explicit === "support" && (draft.kind === "counter" || draft.kind === "conflict" || draft.direction === "weaken")) {
+      return "counter";
+    }
     return explicit as EvidenceRequirementAssessment["evidence_role"];
   }
   if (draft.kind === "counter" || draft.kind === "conflict" || draft.direction === "weaken") return "counter";
