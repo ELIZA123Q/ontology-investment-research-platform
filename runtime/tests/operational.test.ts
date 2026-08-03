@@ -685,7 +685,7 @@ describe("v1.3 operational spine", () => {
     expect(data.judgments[0].conclusion).toContain("暂不升级强判断");
   });
 
-  it("flags title/question swaps and does not let an external ok bypass Stage02 quality gates", async () => {
+  it("flags title/question swaps while allowing the Stage02 minimum-pass handoff contract", async () => {
     const issues = workflow.heuristicStructureIssues({
       scope_label: "测试",
       units: [{
@@ -765,8 +765,8 @@ describe("v1.3 operational spine", () => {
     const ok = await workflow.validateStage02ForApproval(run.id, {
       validationResult: { ok: true, summary: "可通过", issues: [], suggested_patch: null },
     });
-    expect(ok.ok).toBe(false);
-    expect(ok.issues).toEqual(expect.arrayContaining([
+    expect(ok.ok).toBe(true);
+    expect(ok.issues).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "quality_status" }),
     ]));
 
@@ -774,8 +774,8 @@ describe("v1.3 operational spine", () => {
       throw new Error("人工受控结构不应调用付费模型校验");
     });
     const deterministic = await workflow.validateStage02ForApproval(run.id, { createClient: createClient as any });
-    expect(deterministic.ok).toBe(false);
-    expect(deterministic.summary).toContain("未通过确定性确认前校验");
+    expect(deterministic.ok).toBe(true);
+    expect(deterministic.summary).toContain("已通过 Schema 与确定性确认前校验");
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -1394,7 +1394,7 @@ describe("v1.3 operational spine", () => {
     const reviewData = { reviewed_stage04_artifact_id: judgmentArtifact.id, reviewed_stage04_artifact_hash: hash(judgmentArtifact.json_content), verdict: "pass", issues: [], strengths: ["边界明确"], overall_assessment: "通过", document_markdown: "# 独立审阅\n\n证据、方法和判断边界一致。", reviewer_model: "reviewer-model", producer_model: "producer-model", independence_level: "independent_model" };
     db.createArtifact(run.id, "independent_review", { status: "approved", json_content: JSON.stringify(reviewData), markdown_content: reviewData.document_markdown, model_name: "reviewer-model", approved_at: cutoff });
     const criteria = ["事实与来源可核验性", "无来源主张控制", "反证与竞争解释", "结论边界", "可复盘性", "研究决策帮助"];
-    db.createArtifact(run.id, "evaluation", { status: "approved", json_content: JSON.stringify({ scores: Object.fromEntries(criteria.flatMap((criterion) => [[`A:${criterion}`, 4], [`B:${criterion}`, 4]])), metrics: {}, notes: "已完成同证据盲评核对", evaluator: "test-researcher", evaluated_at: cutoff, revealed: true, side_a: "baseline", baseline_artifact_id: baseline.id, runtime_report_artifact_id: reportArtifact.id, frozen_stage03_artifact_id: evidenceArtifact.id, frozen_stage03_artifact_hash: hash(evidenceArtifact.json_content) }), approved_at: cutoff });
+    const evaluation = db.createArtifact(run.id, "evaluation", { status: "approved", json_content: JSON.stringify({ scores: Object.fromEntries(criteria.flatMap((criterion) => [[`A:${criterion}`, 4], [`B:${criterion}`, 4]])), metrics: {}, notes: "已完成同证据盲评核对", evaluator: "test-researcher", evaluated_at: cutoff, revealed: true, side_a: "baseline", baseline_artifact_id: baseline.id, runtime_report_artifact_id: reportArtifact.id, frozen_stage03_artifact_id: evidenceArtifact.id, frozen_stage03_artifact_hash: hash(evidenceArtifact.json_content) }), approved_at: cutoff });
     const rescore = await evaluationRoute.POST(new Request("http://local", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ scores: Object.fromEntries(criteria.flatMap((criterion) => [[`A:${criterion}`, 5], [`B:${criterion}`, 1]])), notes: "已揭示后尝试重评应被拒绝", evaluator: "test-researcher" }),
@@ -1451,9 +1451,19 @@ describe("v1.3 operational spine", () => {
     const republished = publish.publishAndValidate(run.id);
     expect(republished.validate_ok).toBe(true);
     expect(republished.validation_summary.publish_status).toBe("workbench_validate_passed");
+
+    // 普通研究即使没有已确认盲评或独立审阅，也必须继续满足导出与校验主链；
+    // 05 已批准状态本身就是 04→05 交付一致性门的结果。
+    db.updateArtifact(baseline.id, { status: "needs_review" });
+    db.updateArtifact(evaluation.id, { status: "needs_review" });
+    for (const item of db.listArtifacts(run.id).filter((artifact) => artifact.kind === "independent_review")) {
+      db.updateArtifact(item.id, { status: "needs_review" });
+    }
+    const publishedWithoutBlindEvaluation = publish.publishAndValidate(run.id);
+    expect(publishedWithoutBlindEvaluation.validate_ok).toBe(true);
   });
 
-  it("blocks publish before report, independent review and object work are cleared", () => {
+  it("blocks publish before Stage05 is confirmed", () => {
     const run = db.createRun("发布阻断测试", "semiconductor");
     expect(() => publish.publishAndValidate(run.id)).toThrow(/阶段 05 尚未确认/);
   });

@@ -15,7 +15,7 @@ import { parseJson } from "./types";
 import { buildFormalPackNames, formalDateStamp, formalThemeSlug } from "./formal_pack_naming";
 import { formalArtifactSha256, formalStageHash } from "./formal_pack_hash";
 import { projectFormalSnapshot } from "./formal_snapshot_project";
-import { mapIndependentReviewToSemanticYaml } from "./formal_semantic_review";
+import { mapStage05ConsistencyToSemanticYaml } from "./formal_semantic_review";
 import {
   buildProductionSemanticBaseline,
   FORMAL_INSTANCE_GRAPH_FILE,
@@ -31,7 +31,12 @@ export type FormalPackExportResult = {
   files: string[];
 };
 
-export { mapIndependentReviewToSemanticYaml } from "./formal_semantic_review";
+type FormalPackExportOptions = {
+  releaseSet?: boolean;
+  packageKind?: "formal_pack" | "research_audit_pack";
+};
+
+export { mapIndependentReviewToSemanticYaml, mapStage05ConsistencyToSemanticYaml } from "./formal_semantic_review";
 
 function nextSeqForTheme(formalRoot: string, theme: string, date: string): number {
   if (!existsSync(formalRoot)) return 1;
@@ -52,7 +57,7 @@ function rewriteSnapshotRefs(markdown: string, snapshotDirName: string): string 
     .replace(/03-[^\s/]*数据与证据快照-[^\s/]+/g, snapshotDirName);
 }
 
-export function exportFormalPack(runId: string): FormalPackExportResult {
+export function exportFormalPack(runId: string, options: FormalPackExportOptions = {}): FormalPackExportResult {
   const run = getRun(runId);
   if (!run) throw new Error("研究任务不存在");
 
@@ -67,12 +72,6 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
 
   const blockers = listWorkItems(runId).filter((item) => item.status === "pending" || item.status === "rework");
   if (blockers.length) throw new Error(`仍有 ${blockers.length} 个待办未完成，不能导出正式包`);
-  const review = latestArtifact(runId, "independent_review", ["approved"]);
-  const reviewData: any = review ? parseJson(review.json_content, {}) : {};
-  if (!review || reviewData.verdict !== "pass") {
-    throw new Error("独立审阅尚未通过，不能导出正式发布包");
-  }
-
   const d01: any = parseJson(s01.json_content, {});
   const d02: any = parseJson(s02.json_content, {});
   const d03: any = parseJson(s03.json_content, {});
@@ -111,9 +110,10 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
   const date = formalDateStamp();
   const configuredRoot = process.env.WORKBENCH_FORMAL_ROOT?.trim()
     || process.env.WORKBENCH_EXPORT_ROOT?.trim();
+  const collection = options.releaseSet ? "releases" : "formal";
   const formalRelBase = configuredRoot
-    ? path.join(path.resolve(configuredRoot), "formal")
-    : path.join("instances", "00_本机运行", "formal");
+    ? path.join(path.resolve(configuredRoot), collection)
+    : path.join("instances", "00_本机运行", collection);
   const formalRoot = configuredRoot
     ? formalRelBase
     : repositoryPath(formalRelBase);
@@ -126,8 +126,10 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     deliveryPrimary: d01.delivery_archetype?.primary || d05.delivery_archetype?.primary,
   });
 
-  const exportDir = path.join(formalRoot, names.dirName);
+  const releaseRoot = path.join(formalRoot, names.dirName);
+  const exportDir = options.releaseSet ? path.join(releaseRoot, "audit") : releaseRoot;
   mkdirSync(exportDir, { recursive: true });
+  const packageKind = options.packageKind || "formal_pack";
 
   const sources = evidenceBoundSources(listSources(runId), d03);
   const snapshotAbs = path.join(exportDir, names.stage03SnapshotDir);
@@ -188,11 +190,11 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
   };
 
   const contractVersion = String(parseManifest(run.manifest_json, run).versions?.contract || "1.3.0");
-  const semanticYaml = mapIndependentReviewToSemanticYaml({
-    reviewData,
+  const semanticYaml = mapStage05ConsistencyToSemanticYaml({
+    stage05Data: d05,
     stageHashes,
     contractVersion,
-    producerId: String(s04.model_name || "producer"),
+    approved: s05.status === "approved",
   });
   writeFileSync(path.join(exportDir, names.stage05SemanticReviewYaml), semanticYaml, "utf8");
 
@@ -211,6 +213,7 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     FORMAL_INSTANCE_GRAPH_FILE,
     SEMANTIC_BASELINE_FILE,
     "run_manifest.yaml",
+    "package_kind.yaml",
     "README.md",
   ];
 
@@ -224,7 +227,7 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     producer_id: String(s04.model_name || "workbench-producer"),
     workbench_run_id: runId,
     workbench_parent_run_id: run.parent_run_id || null,
-    package_kind: "formal_pack",
+    package_kind: packageKind,
     versions: {
       contract: contractVersion,
       ontology: "3.0.0",
@@ -326,16 +329,28 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
     },
   };
   writeFileSync(path.join(exportDir, "run_manifest.yaml"), YAML.stringify(manifest), "utf8");
+  writeFileSync(path.join(exportDir, "package_kind.yaml"), YAML.stringify({
+    package_kind: packageKind,
+    layout: packageKind === "research_audit_pack" ? "internal_full_chain" : "chinese_named_md_yaml",
+    validator: "governance/03_校验/validate_run.py",
+    publishable: true,
+    contract_ref: { schema_name: "controlled_research_run_manifest", schema_version: "1.3.0" },
+    note: packageKind === "research_audit_pack"
+      ? "内部研究审计制品；对外交付制品位于同一 release_set 的 delivery 目录。"
+      : "历史正式中文包；新发布流程改用 delivery + audit 双制品。",
+  }), "utf8");
   writeFileSync(
     path.join(exportDir, "README.md"),
     [
-      `# ${names.theme} 正式发布包`,
+      `# ${names.theme} ${packageKind === "research_audit_pack" ? "内部研究审计包" : "历史正式发布包"}`,
       "",
       `workbench_run_id: ${runId}`,
-      `package_kind: formal_pack`,
+      `package_kind: ${packageKind}`,
       `layout: ${names.dirName}`,
       "",
-      "本目录由工作台一键导出，文件命名对齐正式中文包（见 instances/03_回归/02_memory-cycle-formal-pack）。",
+      packageKind === "research_audit_pack"
+        ? "本目录保存完整 01—05、证据快照、语义基线和内部审计链；不得作为普通对外交付包。"
+        : "本目录为历史格式；新发布流程使用 formal_delivery_pack + research_audit_pack。",
       "发布状态以 `python3 governance/03_校验/validate_run.py <本目录>` 派生为准。",
       "",
       "## 产物",
@@ -347,8 +362,8 @@ export function exportFormalPack(runId: string): FormalPackExportResult {
   );
 
   const exportRel = configuredRoot
-    ? path.join(formalRelBase, names.dirName)
-    : path.join("instances", "00_本机运行", "formal", names.dirName);
+    ? path.join(formalRelBase, names.dirName, ...(options.releaseSet ? ["audit"] : []))
+    : path.join("instances", "00_本机运行", collection, names.dirName, ...(options.releaseSet ? ["audit"] : []));
 
   return { export_dir: exportDir, export_rel: exportRel, names, files };
 }

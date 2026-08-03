@@ -35,7 +35,7 @@ import {
 initializeStage03BatchCheckpoint,
 readStage03BatchCheckpoint,
 } from "../stage03_batch_checkpoint";
-import { ensureStage03DocumentFields } from "../stage03_documents";
+import { ensureStage03DocumentFields,findStage03NumericGroundingIssues } from "../stage03_documents";
 import { ensureStage04DocumentFields } from "../stage04_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
 import { projectEvidenceRequirementsFromStructure,resolveEvidenceRequirementsFromStructure } from "../structure_candidates";
@@ -221,10 +221,19 @@ export async function generateArtifact(
         : undefined;
       const compactSupplementContextForUnits = (unitIds: string[]) => {
         const target = new Set(unitIds.map(String));
+        const numericRepairIssues = findStage03NumericGroundingIssues(data || {})
+          .filter((issue) => issue.judgment_unit_ids.some((id) => target.has(String(id))));
         return {
           question: run.question,
           domain: run.domain,
           judgmentTypes: judgmentTypesForKnowledge,
+          acceptance_repair_issues: numericRepairIssues.map((issue) => ({
+            evidence_id: issue.evidence_id,
+            judgment_unit_ids: issue.judgment_unit_ids,
+            issue: "numeric_ungrounded",
+            tokens: issue.tokens,
+            instruction: "仅保留可由绑定 source_quote 逐字核对的数字；否则补取匹配原文、拆分陈述或降为显式 gap",
+          })),
           upstream: upstream.map((item: any) => {
             if (item.kind !== "stage_02") return item;
             const json = item.json || {};
@@ -291,13 +300,28 @@ export async function generateArtifact(
           requirements: evidenceRequirements,
           cutoffMs,
         });
+        const currentQuality = evaluateEvidenceQuality({
+          evidenceDrafts: data.evidence_drafts || [],
+          sources: listSources(runId),
+          judgmentUnits: structureData.judgment_units || [],
+          evidenceRequirements,
+        });
+        const blockingQualityTargets = new Set(
+          currentQuality.gapDetails
+            .filter((detail) => detail.isBlocking)
+            .map((detail) => String(detail.judgmentUnitId)),
+        );
+        const numericQualityTargets = new Set(
+          findStage03NumericGroundingIssues(data)
+            .flatMap((issue) => issue.judgment_unit_ids.map(String)),
+        );
         const coverageTargets = new Set(
           currentCoverage.unit_coverage
             .filter((unit) => (
               !unit.has_support_evidence
               || !unit.meets_independence
-              || unit.gap_count > 0
-              || unit.counter_gap_count > 0
+              || blockingQualityTargets.has(String(unit.unit_id))
+              || numericQualityTargets.has(String(unit.unit_id))
             ))
             .map((unit) => String(unit.unit_id)),
         );
@@ -599,14 +623,23 @@ export async function generateArtifact(
             `第 ${autoRound}/${maxAutoRounds} 轮后评估：${interimQuality.qualityStatus}，覆盖率 ${(coverage.coverage_rate * 100).toFixed(0)}%，核验率 ${(coverage.verification_rate * 100).toFixed(0)}%`,
           );
           if (interimQuality.qualityStatus === "high_quality_pass") break;
-          const qualityTargets = new Set(interimQuality.gapDetails.map((item) => String(item.judgmentUnitId)));
+          // 非阻断 gap（尤其已执行检索但未找到的 counter gap）必须作为限制带入
+          // Stage04，而不是每轮重复取证。只有阻断项和 HQ 数字落引问题进入补证队列。
+          const qualityTargets = new Set(
+            interimQuality.gapDetails
+              .filter((item) => item.isBlocking)
+              .map((item) => String(item.judgmentUnitId)),
+          );
+          const numericTargets = new Set(
+            findStage03NumericGroundingIssues(data)
+              .flatMap((issue) => issue.judgment_unit_ids.map(String)),
+          );
           let targetUnitIds = coverage.unit_coverage
             .filter((unit) => (
               !unit.has_support_evidence
               || !unit.meets_independence
-              || unit.gap_count > 0
-              || unit.counter_gap_count > 0
               || qualityTargets.has(String(unit.unit_id))
+              || numericTargets.has(String(unit.unit_id))
             ))
             .map((unit) => String(unit.unit_id));
           // 逐 JU 都过最低门但全局仍未到 HQ（例如总证据或来源组不足）时，

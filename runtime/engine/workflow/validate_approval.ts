@@ -7,6 +7,7 @@ import {
   normalizeUrl,
 } from "../../adapters/db";
 import { evidenceBoundSourceIds } from "../evidence_sources";
+import { syncStage03DraftSourcesFromRegistry } from "../evidence_supplement_pure";
 import {
   validateExpressionMethodBindings,
   validateJudgmentCapabilityCoverage,
@@ -100,6 +101,13 @@ export function validateApproval(artifact: Artifact) {
     const taskArtifact = latestArtifact(artifact.run_id, "stage_01", ["approved"]);
     const taskDefinition: any = parseJson(taskArtifact?.json_content || "{}", {});
     const structure: any = approvedSemanticData(artifact.run_id, "stage_02");
+    // validate API 与 approve API 必须使用同一份 Registry 冻结投影。否则只点
+    // “校验”会因模型漏写 locator/captured_at/final_url 报格式错，而“确认”路径
+    // 又会自动修好，形成入口不一致和无效返工。
+    Object.assign(data, syncStage03DraftSourcesFromRegistry(
+      data,
+      listSources(artifact.run_id),
+    ).data);
     ensureStage03DocumentFields(data, { question: run?.question, taskId: artifact.run_id, structure });
     // 确认时重算证据门，防止手工编辑省略/伪造 gate 绕过生成期门禁
     Object.assign(data, recomputeStage03EvidenceQualityGate(data, {

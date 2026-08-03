@@ -7,13 +7,14 @@ import { parseJson } from "@/engine/types";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { researcherMarkdown } from "@/app/lib/researcher-stage-output";
 
-export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics, canEvaluate }: {
+export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics, canEvaluate, readOnly = false }: {
   runId: string;
   baseline: ArtifactPayload;
   runtime: ArtifactPayload;
   evaluation?: ArtifactPayload;
   metrics: Record<string, unknown>;
   canEvaluate: boolean;
+  readOnly?: boolean;
 }) {
   const sideA = useMemo(() => {
     let value = 0;
@@ -31,6 +32,7 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
   const b = sideA === "baseline" ? runtime : baseline;
 
   async function save() {
+    if (readOnly) return;
     setBusy(true);
     setError("");
     const response = await fetch(`/api/runs/${runId}/evaluation`, {
@@ -52,18 +54,23 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
       <section className="card compare-pane"><span className="badge">方案 A</span><article className="markdown"><ReportMarkdown content={a.markdown_content} readerView /></article></section>
       <section className="card compare-pane"><span className="badge">方案 B</span><article className="markdown"><ReportMarkdown content={b.markdown_content} readerView /></article></section>
     </div>
+    {readOnly && !evaluation ? <section className="card" style={{ marginTop: 20 }}>
+      <h2>历史盲评未完成</h2>
+      <p className="muted">保留两份历史输入供复核，但此只读入口不再接受评分或补生成评测产物。</p>
+    </section> : null}
+    {readOnly && !evaluation ? null : (
     <section className="card" style={{ marginTop: 20 }}>
-      <h2>盲评</h2>
-      <p className="muted">分别为 A、B 两个方案评分 1—5；提交后才揭示身份和确定性指标，揭示后不得重评。</p>
+      <h2>{readOnly ? "历史盲评结果" : "盲评"}</h2>
+      <p className="muted">{readOnly ? "以下结果只读保留，不属于当前研究完成或交付条件。" : "分别为 A、B 两个方案评分 1—5；提交后才揭示身份和确定性指标，揭示后不得重评。"}</p>
       <div className="score-grid">{criteria.flatMap((criterion) => ["A", "B"].map((side) => <label key={`${side}:${criterion}`}>
         {side} · {criterion}
-        <select disabled={saved} value={scores[`${side}:${criterion}`] || ""} onChange={(event) => setScores({ ...scores, [`${side}:${criterion}`]: Number(event.target.value) })}>
+        <select disabled={saved || readOnly} value={scores[`${side}:${criterion}`] || ""} onChange={(event) => setScores({ ...scores, [`${side}:${criterion}`]: Number(event.target.value) })}>
           <option value="">选择</option>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}
         </select>
       </label>))}</div>
-      <div className="field"><label>评价人标识</label><input disabled={saved} value={evaluator} onChange={(event) => setEvaluator(event.target.value)} placeholder="例如：主研究员 / Codex 运行验收" /></div>
-      <div className="field"><label>对比备注</label><textarea disabled={saved} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="说明评分依据、最大差异和不确定性" /></div>
-      <button className="button" disabled={saved || busy || !canEvaluate || evaluator.trim().length < 2 || notes.trim().length < 8 || Object.keys(scores).length !== criteria.length * 2} onClick={save}>保存评价并揭示</button>
+      <div className="field"><label>评价人标识</label><input disabled={saved || readOnly} value={evaluator} onChange={(event) => setEvaluator(event.target.value)} placeholder="例如：主研究员 / Codex 运行验收" /></div>
+      <div className="field"><label>对比备注</label><textarea disabled={saved || readOnly} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="说明评分依据、最大差异和不确定性" /></div>
+      {!readOnly ? <button className="button" disabled={saved || busy || !canEvaluate || evaluator.trim().length < 2 || notes.trim().length < 8 || Object.keys(scores).length !== criteria.length * 2} onClick={save}>保存评价并揭示</button> : null}
       {!canEvaluate && !saved ? <div className="notice">基线和交付报告都必须先确认，才能锁定盲评输入。</div> : null}
       {error ? <div className="notice error">{error}</div> : null}
       {saved ? <>
@@ -83,6 +90,7 @@ export function CompareWorkspace({ runId, baseline, runtime, evaluation, metrics
         </details>
       </> : null}
     </section>
+    )}
   </>;
 }
 

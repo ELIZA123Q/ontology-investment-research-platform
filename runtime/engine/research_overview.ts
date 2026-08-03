@@ -109,14 +109,14 @@ export function buildResearchOverview(input: {
         ? {
           eyebrow: "交付已就绪",
           title: "检查报告并导出交付",
-          description: "报告与独立审阅已齐备；同证据基线与 A/B 为可选质量实验。",
+          description: "05 已通过 04→05 交付一致性检查；同证据基线与 A/B 为可选质量实验。",
           href: `/runs/${input.runId}/report`,
           cta: "查看 →",
         }
         : {
           eyebrow: "完成交付准备",
           title: "检查交付条件",
-          description: "查看尚未满足的报告确认、独立审阅或待办条件。",
+          description: "查看尚未满足的 05 交付一致性确认或待办条件。",
           href: `/runs/${input.runId}/report`,
           cta: "查看 →",
         };

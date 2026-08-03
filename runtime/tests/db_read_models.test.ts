@@ -109,6 +109,43 @@ describe("db_read_models", () => {
     });
   });
 
+  it("allows an unreadable legacy quote to be quarantined instead of preserving a false usable state", () => {
+    const run = db.createRun("乱码来源隔离", "semiconductor");
+    const first = db.upsertSource(run.id, {
+      url: "https://example.com/damaged",
+      title: "乱码旧快照",
+      publisher: "Example",
+      published_at: "2025-01-01",
+      source_type: "disclosure",
+      search_excerpt: "",
+      source_quote: "��˾2024��Ӫҵ����",
+      quote_verified: true,
+      usability_status: "usable",
+      retrieval_status: "captured",
+      content_hash: "a".repeat(64),
+    });
+    expect(first).toMatchObject({
+      usability_status: "limited",
+      quote_verified: 0,
+      failure_category: "source_acquisition_failure",
+    });
+    const quarantined = db.upsertSource(run.id, {
+      ...first,
+      source_quote: first.source_quote || "",
+      quote_verified: false,
+      usability_status: "limited",
+      retrieval_status: "captured",
+      failure_category: "source_acquisition_failure",
+      failure_detail: "原文引用含编码乱码",
+    });
+    expect(quarantined).toMatchObject({
+      id: first.id,
+      usability_status: "limited",
+      quote_verified: 0,
+      failure_detail: "原文引用含编码乱码",
+    });
+  });
+
   it("listWorkItemsForReview omits payload_json", () => {
     const run = db.createRun("工作项瘦身", "semiconductor");
     const artifact = db.createArtifact(run.id, "stage_03", { status: "needs_review" });
@@ -149,6 +186,7 @@ describe("db_read_models", () => {
     expect(overview?.run.id).toBe(run.id);
     expect(overview?.stage03Json).toContain("EV-1");
     expect(overview?.stage04Json).toContain("J-1");
+    expect(overview?.progress).toMatchObject({ current_stage: 4, completed_stage_count: 2, is_contiguous: false });
     expect(overview).not.toHaveProperty("artifacts");
     expect(overview).not.toHaveProperty("sources");
   });

@@ -83,6 +83,6 @@ export function buildFormalPackNames(input: {
     stage04AuditYaml: `04-${theme}推理审计-${stamp}.yaml`,
     stage05ReportMd: `05-${theme}${deliveryLabel}-${stamp}.md`,
     stage05AuditYaml: `05-${theme}表达审计-${stamp}.yaml`,
-    stage05SemanticReviewYaml: `05-${theme}独立语义审查-${stamp}.yaml`,
+    stage05SemanticReviewYaml: `05-${theme}交付一致性检查-${stamp}.yaml`,
   };
 }

@@ -70,7 +70,7 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
   const [error, setError] = useState("");
   const [domainFilter, setDomainFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [sortMode, setSortMode] = useState<SortMode>("action_priority");
+  const [sortMode, setSortMode] = useState<SortMode>("updated_desc");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -276,8 +276,8 @@ export function RunList({ runs }: { runs: RunListItem[] }) {
         <label>
           <span>排序</span>
           <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} aria-label="排序方式">
-            <option value="action_priority">按下一步优先</option>
             <option value="updated_desc">按最后更新</option>
+            <option value="action_priority">按下一步优先</option>
             <option value="created_desc">按创建时间</option>
             <option value="status_group">按状态分组</option>
           </select>

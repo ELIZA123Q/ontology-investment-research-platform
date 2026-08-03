@@ -38,6 +38,61 @@ export function listEvidenceImpactQueries(runId: string) {
     }));
 }
 
+export type EvidenceRequirementQuery = {
+  id: string;
+  label: string;
+  role: string;
+  fulfillment: "met" | "partial" | "unmet";
+  blocking: boolean;
+  affected_judgments: Array<{ id: string; label: string; strength: string }>;
+};
+
+/** 正式 ER→JU→Judgment 投影；只沿显式关系，不按文本猜绑定。 */
+export function listEvidenceRequirementQueries(runId: string): EvidenceRequirementQuery[] {
+  const run = getRun(runId);
+  if (!run) return [];
+  const graph = loadGraphForRun(runId, run.package_path).graph;
+  const objects = new Map(graph.objects.map((object) => [object.id, object]));
+  const judgmentsByUnit = new Map<string, Array<{ id: string; label: string; strength: string }>>();
+  for (const relation of graph.relations.filter((item) => item.type === "judgmentResolvesUnit")) {
+    const judgment = objects.get(relation.sourceId);
+    if (!judgment || judgment.type !== "Judgment") continue;
+    const current = judgmentsByUnit.get(relation.targetId) || [];
+    current.push({
+      id: judgment.id,
+      label: String(judgment.properties?.conclusion || judgment.properties?.statement || judgment.id),
+      strength: String(judgment.properties?.strength || judgment.properties?.level || "J0"),
+    });
+    judgmentsByUnit.set(relation.targetId, current);
+  }
+  return graph.objects.filter((object) => object.type === "EvidenceRequirement").map((requirement) => {
+    const unitIds = graph.relations
+      .filter((relation) => relation.type === "requirementForJudgmentUnit" && relation.sourceId === requirement.id)
+      .map((relation) => relation.targetId);
+    const fulfillmentValues = graph.relations
+      .filter((relation) => relation.type === "basketFulfillsRequirement" && relation.targetId === requirement.id)
+      .map((relation) => String(relation.properties?.fulfillment || "unmet"));
+    const fulfillment = fulfillmentValues.includes("met") ? "met" as const
+      : fulfillmentValues.includes("partially_met") ? "partial" as const
+        : "unmet" as const;
+    const blocking = graph.objects.some((object) => object.type === "BlockingFactor"
+      && Array.isArray(object.properties?.evidence_requirement_ids)
+      && object.properties!.evidence_requirement_ids.map(String).includes(requirement.id));
+    const affected = new Map<string, { id: string; label: string; strength: string }>();
+    for (const unitId of unitIds) for (const judgment of judgmentsByUnit.get(unitId) || []) affected.set(judgment.id, judgment);
+    return {
+      id: requirement.id,
+      label: String(requirement.properties?.requirement || requirement.properties?.statement || requirement.id),
+      role: String(requirement.properties?.evidence_role || "support"),
+      fulfillment,
+      blocking,
+      affected_judgments: [...affected.values()],
+    };
+  }).sort((left, right) => right.affected_judgments.length - left.affected_judgments.length
+    || Number(right.blocking) - Number(left.blocking)
+    || left.id.localeCompare(right.id));
+}
+
 export function listVariableUsageQueries() {
   const rows = latestStructureRows();
   const formalNames = formalStateVariableDisplayNames();

@@ -81,7 +81,6 @@ export function selectFrozenStage03CandidateSources(input: {
   requirements?: EvidenceRequirementProjection[];
   maxCandidates?: number;
 }) {
-  const requirementText = (input.requirements || []).map((item) => item.requirement).join(" ");
   // 通用相关性词典：覆盖存储 / 设备 / 代工 / 财务 / 周期 / 政策等全部半导体子题，
   // 不再硬编码 HBM/DRAM/NAND 等存储专属词。否则非存储主题（刻蚀设备、晶圆厂
   // capex 等）的 primaryProductScore 恒为 0，所有候选被过滤掉，模型被迫联网取证。
@@ -209,6 +208,11 @@ export async function preAcquireStage03CandidateSources(input: {
     cutoffMs: input.cutoffMs,
     maxQueries: 6,
   });
+  const activeExistingSourceCount = input.existingSources.filter((source) => source.usability_status !== "rejected").length;
+  const availableBudget = input.maxSourceCount === undefined
+    ? 8
+    : Math.max(0, input.maxSourceCount - activeExistingSourceCount);
+  const sourceBudget = Math.min(8, availableBudget);
   const baseQueries = acquisitionPlan.tasks.length
     ? acquisitionPlan.queries
     : buildStage03AcquisitionQueries(input);
@@ -222,14 +226,13 @@ export async function preAcquireStage03CandidateSources(input: {
     " 最新 动态 政策",           // round 4+: 偏新闻/政策
   ];
   const roundModifier = roundModifiers[Math.min(round - 1, roundModifiers.length - 1)] || "";
+  // A query can yield multiple hits, so never send more distinct searches than
+  // the number of new sources this round can register. Later rounds can widen
+  // only if the acceptance-driven gap remains open.
+  const budgetedBaseQueries = baseQueries.slice(0, Math.max(0, sourceBudget));
   const queries = round <= 1
-    ? baseQueries
-    : baseQueries.map((q) => `${q}${roundModifier}`.slice(0, 240));
-  const activeExistingSourceCount = input.existingSources.filter((source) => source.usability_status !== "rejected").length;
-  const availableBudget = input.maxSourceCount === undefined
-    ? 8
-    : Math.max(0, input.maxSourceCount - activeExistingSourceCount);
-  const sourceBudget = Math.min(8, availableBudget);
+    ? budgetedBaseQueries
+    : budgetedBaseQueries.map((q) => `${q}${roundModifier}`.slice(0, 240));
   if (!queries.length || sourceBudget < 1) {
     return {
       plan: acquisitionPlan,

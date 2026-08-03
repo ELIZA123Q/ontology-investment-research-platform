@@ -33,7 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <nav aria-label="主导航">
             <Link href="/"><RadarIcon />研究雷达</Link>
             <Link href="/runs"><RunsIcon />我的研究</Link>
-            <Link href="/ontology"><GraphIcon />知识库</Link>
+            <Link href="/knowledge"><GraphIcon />知识库</Link>
           </nav>
           <ActiveJobsIndicator />
         </header>

@@ -20,6 +20,7 @@ export async function applyStage03SourceSnapshots(input: {
   affectedRefs: Set<string>;
   existingSources: SourceRecord[];
   maxNewSources?: number;
+  cutoffMs?: number;
   /** 抓取预算按补证优先级消耗；缺省时保持原顺序 */
   capturePriorityKeys?: string[];
   assertRunning: () => void;
@@ -32,6 +33,11 @@ export async function applyStage03SourceSnapshots(input: {
   const registrySources = listSources(input.runId);
   const allCaptureTargetsRaw = sources.filter((source: any) => {
     if (!source?.source_key || !source?.url) return false;
+    // Registry 冻结值是已核验状态的权威，但对尚未核验/待修复来源，
+    // 本轮补证带来的候选逐字引文必须保留到 captureSourceSnapshot 做正文对齐。
+    // 否则旧的空 quote 会覆盖新 quote，形成重复抓取或“空引文已核验”。
+    const proposedQuote = String(source.source_quote || "").trim();
+    const proposedLocator = String(source.locator || "").trim();
     if (source.source_id) {
       const known = registrySources.find((item) => item.id === source.source_id);
       if (known) {
@@ -42,7 +48,11 @@ export async function applyStage03SourceSnapshots(input: {
           && known.retrieval_status === "captured"
           && Boolean(known.quote_verified)
         ) return false;
-        if (input.affectedRefs.has(source.source_key)) return true;
+        if (input.affectedRefs.has(source.source_key)) {
+          if (proposedQuote) source.source_quote = proposedQuote;
+          if (proposedLocator) source.locator = proposedLocator;
+          return true;
+        }
         return Boolean(source.source_quote)
           && !(known.usability_status === "usable" && known.retrieval_status === "captured" && Boolean(known.quote_verified));
       }
@@ -57,6 +67,8 @@ export async function applyStage03SourceSnapshots(input: {
       source.source_id = existing.id;
       Object.assign(source, applyRegistryFreezeFields(source, existing));
       keyMap.set(source.source_key, existing.id);
+      if (proposedQuote) source.source_quote = proposedQuote;
+      if (proposedLocator) source.locator = proposedLocator;
       return Boolean(source.source_quote)
         && !(existing.usability_status === "usable" && existing.retrieval_status === "captured" && Boolean(existing.quote_verified));
     }
@@ -164,6 +176,8 @@ export async function applyStage03SourceSnapshots(input: {
   }
   // 再按当前 Registry 全量投影：覆盖 upsert 拒绝降级返回 prior、以及未重抓的已绑定源。
   const projected = syncStage03DraftSourcesFromRegistry(input.data, listSources(input.runId));
-  return repairEvidencePreparationDraft(demoteUnverifiedEvidenceDrafts(projected.data));
+  return repairEvidencePreparationDraft(demoteUnverifiedEvidenceDrafts(projected.data, {
+    cutoffMs: input.cutoffMs,
+    registrySources: listSources(input.runId),
+  }));
 }
-

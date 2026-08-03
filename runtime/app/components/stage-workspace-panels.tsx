@@ -60,19 +60,10 @@ export function Stage3WorkspacePanel({
       </div>
       <div className="stage-editor-summary-list">
         {supplementSummary ? (
-          <article className={`stage-editor-summary-card${supplementSummary.zero_material_change ? " supplement-empty" : ""}`}>
-            <span>本轮补证结果{artifact?.version ? ` · 第 ${artifact.version} 版` : ""}</span>
-            <h3>{supplementSummary.headline}</h3>
-            {supplementSummary.detail_lines.length ? (
-              <ul>{supplementSummary.detail_lines.map((line) => <li key={line}>{line}</li>)}</ul>
-            ) : null}
-            <p className="muted">
-              {supplementSummary.zero_material_change
-                ? "未取到新材料时，请再补一轮或到证据页接受尚缺并限制结论。"
-                : "请到证据页核对「本轮新增/变更」条目；未改动项若上一版已确认会自动继承。"}
-            </p>
-            <Link className="button" href={`/runs/${runId}/evidence`}>查看补证变更 →</Link>
-          </article>
+          <div className={`stage-supplement-handoff${supplementSummary.zero_material_change ? " supplement-empty" : ""}`}>
+            <div><span>最近一轮补证{artifact?.version ? ` · 第 ${artifact.version} 版` : ""}</span><strong>{supplementSummary.headline}</strong></div>
+            <Link href={`/runs/${runId}/evidence?filter=changes#evidence-board`}>筛选本轮变更 →</Link>
+          </div>
         ) : null}
         <article className="stage-editor-summary-card">
           <span>本阶段输出</span>
@@ -84,15 +75,14 @@ export function Stage3WorkspacePanel({
         </article>
       </div>
       <details className="structure-advanced">
-        <summary>查看已保存的证据准备说明</summary>
+        <summary>证据准备与审计详情</summary>
+        <h3>已保存的证据准备说明</h3>
         <article className="markdown preview-pane preview-pane-only">
           {preparationPreview.trim()
             ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{researcherMarkdown(preparationPreview)}</ReactMarkdown>
             : <p className="muted">尚无证据准备结果。生成或补充来源并投影后会显示在这里。</p>}
         </article>
-      </details>
-      <details className="structure-advanced">
-        <summary>审计：实例清单</summary>
+        <h3>实例清单</h3>
         <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
           {manifestPreview.trim() || "尚无实例清单 YAML。保存或生成 Stage03 后会写入 instance_manifest_yaml。"}
         </pre>
@@ -139,25 +129,6 @@ export function Stage5WorkspacePanel({
         spellCheck
         disabled={!editable}
       />
-      <details
-        className="structure-advanced"
-        open={showAdvancedJson}
-        onToggle={(event) => onAdvancedJsonToggle((event.target as HTMLDetailsElement).open)}
-      >
-        <summary>高级：原始 JSON（逃生舱）</summary>
-        <p className="muted">日常请编辑上方可读稿。直接改 JSON 会按结构化字段重写可读稿。</p>
-        <textarea
-          aria-label="结构化内容"
-          className="json-editor"
-          value={json}
-          onChange={(event) => onJsonChange(event.target.value)}
-          spellCheck={false}
-          disabled={!editable}
-        />
-        <button type="button" className="button-secondary" disabled={!editable} onClick={onSaveJson}>
-          保存原始 JSON
-        </button>
-      </details>
     </section>
     <section className="card editor-panel">
       <div className="panel-head"><h2>读者预览</h2><span>最终交付效果</span></div>
@@ -166,19 +137,25 @@ export function Stage5WorkspacePanel({
           ? <ReportMarkdown content={readerMarkdown} />
           : <p className="muted">尚无可读稿。生成或重新生成后会显示在这里。</p>}
       </article>
-      <details className="structure-advanced">
-        <summary>审计：原始交付稿</summary>
+      <details
+        className="structure-advanced"
+        open={showAdvancedJson}
+        onToggle={(event) => onAdvancedJsonToggle((event.target as HTMLDetailsElement).open)}
+      >
+        <summary>交付审计与原始内容</summary>
+        <h3>原始交付稿</h3>
         <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
           {rawMarkdown.trim() || "尚无原始交付稿。"}
         </pre>
-      </details>
-      <details className="structure-advanced">
-        <summary>审计：表达记录</summary>
+        <h3>表达记录</h3>
         <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
           {auditPreview.trim() || "尚无表达审计 YAML。保存或生成 Stage05 后会写入 expression_audit_yaml。"}
         </pre>
+        <h3>高级：原始 JSON（逃生舱）</h3>
+        <p className="muted">日常请编辑可读稿。直接修改 JSON 会按结构化字段重写可读稿。</p>
+        <textarea aria-label="结构化内容" className="json-editor" value={json} onChange={(event) => onJsonChange(event.target.value)} spellCheck={false} disabled={!editable} />
+        <button type="button" className="button-secondary" disabled={!editable} onClick={onSaveJson}>保存原始 JSON</button>
       </details>
     </section>
   </div>;
 }
-

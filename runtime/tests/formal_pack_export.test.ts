@@ -34,7 +34,7 @@ describe("formal pack naming", () => {
     expect(names.stage01Md).toBe("01-存储芯片周期投研需求说明-20260713-1.md");
     expect(names.stage03SnapshotDir).toBe("03-存储芯片周期数据与证据快照-20260713-1");
     expect(names.stage05ReportMd).toBe("05-存储芯片周期行业周期判断-20260713-1.md");
-    expect(names.stage05SemanticReviewYaml).toBe("05-存储芯片周期独立语义审查-20260713-1.yaml");
+    expect(names.stage05SemanticReviewYaml).toBe("05-存储芯片周期交付一致性检查-20260713-1.yaml");
   });
 
   it("slugs theme from core object", () => {
@@ -145,6 +145,36 @@ describe("stage HQ retry helpers", () => {
 });
 
 describe("formal pack discovery and semantic review mapping", () => {
+  it("exports the already-approved Stage05 consistency gate without starting another review", async () => {
+    const { mapStage05ConsistencyToSemanticYaml } = await import("../engine/formal_semantic_review");
+    const YAML = (await import("yaml")).default;
+    const yamlText = mapStage05ConsistencyToSemanticYaml({
+      stage05Data: {
+        title: "存储周期判断",
+        document_markdown: "# 存储周期判断\n\n## 风险与验证\n\n当前结论保留样本边界与改判条件，并明确适用范围、观察信号和重新评估条件。",
+        report_claims: [{ id: "RC-1", judgment_ids: ["J-1"] }],
+        limitations: ["样本范围有限"],
+        source_04_brief_ref: "04-判断简报.md",
+        source_04_audit_ref: "04-推理审计.yaml",
+        quality_status: "high_quality_pass",
+        deterministic_check_status: "checked",
+        semantic_review_status: "reviewed",
+        research_value_review: { status: "pass" },
+        expression_audit_yaml: YAML.stringify({
+          claim_expression_register: [{ claim_id: "RC-1", intensity_lifted: false }],
+          overall_check: { result: "pass" },
+        }),
+      },
+      stageHashes: { stage_02: "a", stage_03: "b", stage_04: "c", stage_05: "d" },
+      contractVersion: "1.3.0",
+      approved: true,
+    });
+    const parsed = YAML.parse(yamlText);
+    expect(parsed.verdict).toBe("pass");
+    expect(parsed.reviewer.reviewer_type).toBe("system");
+    expect(parsed.notes).toContain("未在导出阶段重新发起");
+  });
+
   it("refuses batch verdict mapping without semantic_checks", async () => {
     const { mapIndependentReviewToSemanticYaml } = await import("../engine/formal_semantic_review");
     const YAML = (await import("yaml")).default;

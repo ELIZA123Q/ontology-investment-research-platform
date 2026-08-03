@@ -1,27 +1,28 @@
 import Link from "next/link";
 import { latestArtifactPayload, listWorkItemsForReview } from "@/adapters/db_read_models";
-import { IndependentReviewButton } from "@/app/components/independent-review-button";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
 import { workItemForGraph } from "@/app/lib/client-rows";
 import { buildJudgmentReviewGraph } from "@/app/lib/judgment-graph";
-import { buildJudgmentResearcherView, buildJudgmentStageSummary } from "@/app/lib/researcher-stage-output";
+import { buildJudgmentResearcherView, buildJudgmentStageSummary, researcherLanguage } from "@/app/lib/researcher-stage-output";
 import { parseJson } from "@/engine/types";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
-import { OntologyContributionPanel } from "@/app/components/ontology-contribution-panel";
 import {
   buildOntologyContributionSummary,
 } from "@/engine/ontology_contribution_summary";
 import { getRunOntologyResearchValue } from "@/engine/knowledge_browser";
 import { adaptArtifactForRead } from "@/engine/artifact_read_adapter";
 import { journeyEditHref } from "@/app/lib/research-journey";
+import { DeepLinkFocus } from "@/app/components/deep-link-focus";
+import { StageExceptionNotice } from "@/app/components/stage-exception-notice";
 
 export const dynamic = "force-dynamic";
 
-export default async function Judgments({ params }: { params: Promise<{ id: string }> }) {
+export default async function Judgments({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ focus?: string; from?: string }> }) {
   const { id } = await params;
+  const q = await searchParams;
   const artifact = latestArtifactPayload(id, "stage_04", ["approved", "needs_review"]);
   if (!artifact) {
     return (
@@ -34,8 +35,6 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
     );
   }
   const evidenceData: any = parseJson(latestArtifactPayload(id, "stage_03", ["approved", "needs_review"])?.json_content || "{}", {});
-  const reviewArtifact = latestArtifactPayload(id, "independent_review", ["needs_review", "approved"]);
-  const review: any = parseJson(reviewArtifact?.json_content || "{}", {});
   const data: any = adaptArtifactForRead("stage_04", parseJson(artifact.json_content || "{}", {}));
   const workItems = listWorkItemsForReview(id);
   const evidence = (evidenceData.evidence_drafts || []).map((item: any, index: number) => ({
@@ -45,7 +44,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
   const { nodes, edges, emptyReason } = buildJudgmentReviewGraph({
     stage04: data,
     evidenceDrafts: evidence,
-    reviewIssues: review.issues || [],
+    reviewIssues: [],
     workItems: workItems as any,
   });
   const judgmentSummaries = buildJudgmentStageSummary(data, evidence);
@@ -63,30 +62,32 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
   });
 
   return <>
+    <DeepLinkFocus id={q.focus} />
     <StageSceneChrome
       runId={id}
       stage={4}
       status={artifact.status}
       outputCount={judgmentSummaries.length}
-      statusNote={pendingJudgmentCount ? `仍有 ${pendingJudgmentCount} 项判断等待人工确认。` : "判断已形成，可继续核对边界或进入交付。"}
+      statusNote={pendingJudgmentCount ? undefined : "判断已形成，可继续核对边界或进入交付。"}
       actions={
         <>
-          <StageApprovalButton runId={id} artifactId={artifact.id} stage={4} status={artifact.status} canApprove={pendingJudgmentCount === 0} blockingHint={pendingJudgmentCount ? `先处理 ${pendingJudgmentCount} 项待核对判断` : undefined} />
-          {artifact.status === "approved" ? <IndependentReviewButton runId={id} completed={Boolean(reviewArtifact)} /> : null}
+          {pendingJudgmentCount === 0 ? <StageApprovalButton runId={id} artifactId={artifact.id} stage={4} status={artifact.status} /> : null}
           <StageStatusBadge status={artifact.status} pendingCount={pendingJudgmentCount} />
           <Link className="button-secondary" href={journeyEditHref(id, 4)}>修改判断</Link>
         </>
       }
     />
-    <OntologyContributionPanel
-      summary={ontologyContribution}
-      title="因何约束停在当前强度"
-      linkLabel="补全 / 限制 / 关联 →"
-    />
+    {q.from === "audit" || q.from === "insights" ? <div className="notice audit-return-note">已定位到相关判断；修订并确认后，质量与关系结果会自动重算。</div> : null}
+    <StageExceptionNotice exception={pendingJudgmentCount ? {
+      title: `${pendingJudgmentCount} 项判断需要逐项确认`,
+      summary: "确认或退回后，才能进入交付。",
+      href: "#judgment-audit",
+      actionLabel: "打开待确认判断 →",
+    } : null} />
     {judgmentSummaries.length ? (
       <section className="judgment-output-list" aria-label="研究判断">
         {judgmentSummaries.map((judgment, index) => (
-          <article className="judgment-output-card" key={judgment.id}>
+          <article id={`focus-${judgment.id}`} className={`judgment-output-card${q.focus === judgment.id ? " is-deep-linked" : ""}`} key={judgment.id}>
             <header>
               <div>
                 <span>判断 {index + 1}</span>
@@ -97,10 +98,10 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
                 <small>{judgment.statusLabel}</small>
               </div>
             </header>
-            {judgment.rationale ? <p className="judgment-rationale">{judgment.rationale}</p> : null}
             <div className="judgment-output-columns">
               <div>
-                <strong>关键依据</strong>
+                <strong>为什么</strong>
+                {judgment.rationale ? <p className="judgment-reason">{judgment.rationale}</p> : null}
                 {judgment.evidence.length ? <ul>{judgment.evidence.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ul> : <p className="muted">当前没有可展示的已确认事实</p>}
               </div>
               <div>
@@ -114,12 +115,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
                 {judgment.invalidationConditions.length
                   ? <ul>{judgment.invalidationConditions.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ul>
                   : <p className="muted">尚未登记改判条件</p>}
-                {judgment.trackingSignals.length ? (
-                  <>
-                    <strong>跟踪信号</strong>
-                    <ul>{judgment.trackingSignals.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ul>
-                  </>
-                ) : null}
+                {judgment.trackingSignals.length ? <details className="judgment-tracking"><summary>后续跟踪（{judgment.trackingSignals.length}）</summary><ul>{judgment.trackingSignals.slice(0, 5).map((item) => <li key={item}>{item}</li>)}</ul></details> : null}
               </div>
             </div>
           </article>
@@ -133,8 +129,7 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
         actionLabel="进入判断草稿 →"
       />
     )}
-    {reviewArtifact ? <section className={`review-strip ${review.verdict === "rework" ? "review-rework" : "review-pass"}`}><div><span>独立审阅 · {review.verdict === "pass" ? "通过" : review.verdict === "rework" ? "退回修改" : review.verdict}</span><strong>{(review.issues || []).length ? `${review.issues.length} 项问题需要处理` : "结论强度、证据边界与推理链未发现实质问题"}</strong></div><small>审阅记录已冻结</small></section> : null}
-    <details className="advanced-tools stage-audit-details" open={pendingJudgmentCount > 0}>
+    <details id="judgment-audit" className="advanced-tools stage-audit-details" open={pendingJudgmentCount > 0}>
       <summary>
         <div>
           <div className="eyebrow">{pendingJudgmentCount ? "待人工确认" : "审计详情"}</div>
@@ -142,13 +137,11 @@ export default async function Judgments({ params }: { params: Promise<{ id: stri
         </div>
         <span className="section-meta">{pendingJudgmentCount ? "请在下方确认或退回" : "按需展开"}</span>
       </summary>
+      {ontologyContribution.headline || ontologyContribution.lines.length ? <div className="judgment-constraint-audit">
+        <strong>{researcherLanguage(ontologyContribution.headline)}</strong>
+        {ontologyContribution.lines.length ? <ul>{ontologyContribution.lines.map((line) => <li key={`${line.kind}:${line.title}`}><span>{researcherLanguage(line.title)}</span><small>{researcherLanguage(line.detail)}</small></li>)}</ul> : null}
+      </div> : null}
       <ResearchGraphLazy nodes={nodes} edges={edges} runId={id} workItems={workItems.map(workItemForGraph)} emptyMessage={emptyReason || "判断阶段尚未形成可视化判断。"} />
-      {reviewArtifact?.markdown_content || review.overall_assessment ? (
-        <details className="nested-audit-copy">
-          <summary>查看独立审阅全文</summary>
-          <p>{review.overall_assessment}</p>
-        </details>
-      ) : null}
     </details>
   </>;
 }

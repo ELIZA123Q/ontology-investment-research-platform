@@ -63,7 +63,7 @@ function caseActionHref(item: ExperienceCohortCase) {
   if (!item.run_id || item.progress.destination === "new_run") {
     return { pathname: "/runs/new", query: { question: item.question, experience_case_id: item.case_id } };
   }
-  if (item.progress.destination === "compare") return `/runs/${item.run_id}/compare`;
+  if (item.progress.destination === "compare") return `/runs/${item.run_id}/compare?mode=cohort`;
   if (item.progress.destination === "judgments") return `/runs/${item.run_id}/judgments`;
   if (item.progress.destination === "report") return `/runs/${item.run_id}/report`;
   return `/runs/${item.run_id}`;

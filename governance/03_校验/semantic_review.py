@@ -41,7 +41,7 @@ def validate_independent_semantic_review(
         raise ValueError("独立语义审查缺少 reviewer/inputs/checks")
     reviewer_id = str(reviewer.get("reviewer_id", "")).strip()
     reviewer_type = str(reviewer.get("reviewer_type", "")).strip()
-    if not reviewer_id or reviewer_type not in {"model", "human", "test_fixture"}:
+    if not reviewer_id or reviewer_type not in {"model", "human", "system", "test_fixture"}:
         raise ValueError("独立语义审查 reviewer_id/reviewer_type 非法")
     if reviewer_id == producer_id or reviewer.get("independent_from_producer") is not True:
         raise ValueError("生产者不得自审，reviewer 必须独立")

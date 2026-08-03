@@ -9,6 +9,7 @@ import {
   type EvidenceSupplementSummary,
 } from "@/engine/evidence_supplement_view";
 import { stripInternalReferencePrefix } from "@/engine/research_overview";
+import { matchesEvidenceQuickFilter, sortByEvidencePriority, type EvidenceQuickFilter } from "@/app/lib/evidence-view";
 
 type ClientSource = {
   id: string;
@@ -73,6 +74,7 @@ type Evidence = {
   requirement?: string;
   evidence_role?: string;
   minimum_independent_sources?: number;
+  evidence_requirement_ids?: string[];
 };
 
 const lanes = [
@@ -102,6 +104,8 @@ export function EvidenceBoard({
   artifactVersion,
   extraGapPriorities = [],
   ontologyPrecheckHints = [],
+  focusId = "",
+  initialFilter = "all",
 }: {
   runId: string;
   units: Unit[];
@@ -114,6 +118,8 @@ export function EvidenceBoard({
   /** EvidenceProfile / 本体预检等只读缺口提示（不写入产物） */
   extraGapPriorities?: ExtraGapPriority[];
   ontologyPrecheckHints?: string[];
+  focusId?: string;
+  initialFilter?: EvidenceQuickFilter;
 }) {
   const router = useRouter();
   const gapPriorities = useMemo(() => {
@@ -133,21 +139,26 @@ export function EvidenceBoard({
     [ontologyPrecheckHints],
   );
   const changeIds = useMemo(() => evidenceChangeIds(supplementSummary), [supplementSummary]);
-  const [selectedId, setSelectedId] = useState(actualGapPriorities[0]?.evidence_id || evidence[0]?.id || "");
+  const [selectedId, setSelectedId] = useState(focusId || actualGapPriorities[0]?.evidence_id || evidence[0]?.id || "");
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [unitFilter, setUnitFilter] = useState("all");
-  // 补证后默认展示全量证据，避免收紧到只看待核对变更导致看不到完整上下文；
-  // 顶部"本轮补证结果"面板（含新增/变更角标）已能提示本轮差异，用户需聚焦时再手动切换。
-  const [focusChanges, setFocusChanges] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<EvidenceQuickFilter>(initialFilter);
   const selected = evidence.find((item) => item.id === selectedId);
   const sourceMap = useMemo(() => new Map(sources.map((source) => [source.id, source])), [sources]);
   const suggestionMap = useMemo(() => new Map(suggestions.map((item) => [item.evidence_id, item])), [suggestions]);
   const workItem = workItems.find((item) => item.target_id === selectedId && ["evidence_review", "supplement_evidence", "resolve_conflict"].includes(item.kind));
   const terminalReview = workItem && ["approved", "dismissed", "superseded"].includes(workItem.status);
   const selectedSuggestion = selected && !terminalReview ? suggestionMap.get(selected.id) : undefined;
+
+  useEffect(() => {
+    if (focusId && evidence.some((item) => item.id === focusId)) {
+      setSelectedId(focusId);
+      document.querySelector(`[data-evidence-id="${CSS.escape(focusId)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [focusId, evidence]);
 
   useEffect(() => {
     if (!selected) {
@@ -265,19 +276,15 @@ export function EvidenceBoard({
   }).length;
   if (!units.length) return <div className="card empty-state"><h2>尚无证据任务</h2><p className="muted">完成结构阶段后，证据要求会按判断单元展开。</p></div>;
 
-  const visibleEvidence = evidence.filter((item) => {
+  const priorityByEvidenceId = new Map(actualGapPriorities.map((item, index) => [item.evidence_id, { ...item, index }]));
+  const visibleEvidence = sortByEvidencePriority(evidence.filter((item) => {
     if (unitFilter !== "all" && !item.judgment_unit_ids.includes(unitFilter)) return false;
-    if (focusChanges && changeIds.size > 0 && !changeIds.has(item.id)) return false;
-    return true;
-  });
+    const itemWork = workItems.find((work) => work.target_id === item.id);
+    return matchesEvidenceQuickFilter({ filter: quickFilter, kind: item.kind, workStatus: itemWork?.status, changed: changeIds.has(item.id) });
+  }), actualGapPriorities.map((item) => item.evidence_id));
   const selectedUnits = selected
     ? units.filter((unit) => selected.judgment_unit_ids.includes(unit.id))
     : [];
-  const pendingChangeCount = evidence.filter((item) => {
-    if (!changeIds.has(item.id)) return false;
-    const work = workItems.find((workItem) => workItem.target_id === item.id);
-    return !work || work.status === "pending" || work.status === "rework";
-  }).length;
   const displayEvidenceStatement = (item: Evidence, maxLength = 220) => {
     const statement = stripInternalReferencePrefix(item.statement).replace(/\s+/g, " ").trim();
     if (statement.length <= maxLength) return statement;
@@ -287,48 +294,7 @@ export function EvidenceBoard({
     return `${statement.slice(0, maxLength).trimEnd()}…`;
   };
 
-  return <div className="evidence-review-section">
-    {supplementSummary ? (
-      <section className={`supplement-result-panel${supplementSummary.zero_material_change ? " empty" : ""}`}>
-        <div className="supplement-result-head">
-          <div>
-            <span>本轮补证结果{artifactVersion ? ` · 第 ${artifactVersion} 版` : ""}</span>
-            <strong>{supplementSummary.headline}</strong>
-          </div>
-          {changeIds.size > 0 ? (
-            <button
-              type="button"
-              className="button-secondary"
-              onClick={() => setFocusChanges((value) => !value)}
-            >
-              {focusChanges ? "查看全部证据" : `只看待核对变更（${pendingChangeCount}）`}
-            </button>
-          ) : null}
-        </div>
-        {supplementSummary.detail_lines.length ? (
-          <ul className="supplement-result-meta">
-            {supplementSummary.detail_lines.map((line) => <li key={line}>{line}</li>)}
-          </ul>
-        ) : null}
-        <p className="muted">
-          {supplementSummary.zero_material_change
-            ? "点了补证不等于一定补到材料。可再跑一轮，或在下方接受尚缺并限制结论。"
-            : "变更项默认待核对；未改动且上一版已确认的条目会继承审阅状态。批量确认是签字放行，不是再取证。"}
-        </p>
-      </section>
-    ) : null}
-    {uniqueOntologyPrecheckHints.length ? <section className="gap-priority-panel ontology-precheck-panel">
-      <div className="gap-priority-head"><div><span>判断前口径核对</span><strong>{Math.min(3, uniqueOntologyPrecheckHints.length)} 项可能限制结论强度</strong></div><small>这是证据阶段的预检提示；判断阶段会按正式规则重算，未补齐时可能限制强度或退回补证。</small></div>
-      <ul className="gap-priority-list">{uniqueOntologyPrecheckHints.slice(0, 3).map((hint, index) => <li key={`${index}:${hint}`}><small>{hint.replace(/^将在判断确认时挡门：/, "")}</small></li>)}</ul>
-    </section> : null}
-    {coveragePriorities.length ? <section className="gap-priority-panel">
-      <div className="gap-priority-head"><div><span>最低证据组合</span><strong>{Math.min(3, coveragePriorities.length)} 项覆盖限制</strong></div><small>这些要求来自关键变量的最低证据组合，不等同于已经登记的“尚缺证据”；补齐后才能提高判断上限。</small></div>
-      <div className="gap-priority-list">{coveragePriorities.slice(0, 3).map((item, index) => <div className="gap-priority-static" key={`${item.evidence_id}:${item.statement}`}><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></div>)}</div>
-    </section> : null}
-    {actualGapPriorities.length ? <section className="gap-priority-panel">
-      <div className="gap-priority-head"><div><span>优先补证</span><strong>先处理最影响判断的 {Math.min(3, actualGapPriorities.length)} 项已登记缺口</strong></div><small>只展示证据稿中已经登记的尚缺、冲突或待处理事项。</small></div>
-      <div className="gap-priority-list">{actualGapPriorities.slice(0, 3).map((item, index) => <button className={selectedId === item.evidence_id ? "selected" : ""} key={`${item.evidence_id}:${item.statement}`} onClick={() => setSelectedId(item.evidence_id)} type="button"><b>{index + 1}</b><div><span className={`gap-tier tier-${item.tier}`}>{item.label}</span><strong>{item.statement}</strong><small>{item.reason}</small></div></button>)}</div>
-    </section> : null}
+  return <div className="evidence-review-section" id="evidence-board">
     <div className="evidence-review-toolbar">
       <div className="review-batch-actions">
         <label className="unit-filter">
@@ -340,6 +306,19 @@ export function EvidenceBoard({
             ))}
           </select>
         </label>
+        <div className="evidence-quick-filters" aria-label="证据快速筛选">
+          {([
+            ["all", `全部 ${evidence.length}`],
+            ["pending", `待核对 ${pendingCount}`],
+            ["gaps", `尚缺 / 矛盾 ${evidence.filter((item) => ["gap", "conflict"].includes(item.kind)).length}`],
+            ["changes", `本轮变更 ${changeIds.size}`],
+          ] as Array<[EvidenceQuickFilter, string]>).map(([value, label]) => (
+            <button key={value} type="button" className={quickFilter === value ? "active" : ""} disabled={value === "changes" && changeIds.size === 0} onClick={() => setQuickFilter(value)}>{label}</button>
+          ))}
+        </div>
+        {supplementSummary ? <span className="supplement-filter-note" title={supplementSummary.detail_lines.join("；") || supplementSummary.headline}>
+          第 {artifactVersion || "—"} 版 · {supplementSummary.zero_material_change ? "本轮未取得新材料" : supplementSummary.headline}
+        </span> : null}
         {pendingCount ? <>
           <span className="section-meta">待核对 {pendingCount} · 已选 {checkedIds.size}</span>
           <label className="batch-select-all"><input type="checkbox" checked={checkedIds.size > 0 && checkedIds.size === pendingCount} onChange={(event) => toggleAllPending(event.target.checked)} /> 全选待核对</label>
@@ -365,8 +344,9 @@ export function EvidenceBoard({
                 const suggestion = terminal ? undefined : suggestionMap.get(item.id);
                 const relatedUnits = units.filter((unit) => item.judgment_unit_ids.includes(unit.id));
                 const changeBadge = evidenceChangeBadge(item.id, supplementSummary);
+                const gapPriority = priorityByEvidenceId.get(item.id);
                 const cardStatement = displayEvidenceStatement(item);
-                return <div className={`evidence-list-card lane-${lane.id} ${selectedId === item.id ? "selected" : ""}${changeBadge ? ` change-${changeBadge}` : ""}`} key={item.id}>
+                return <div data-evidence-id={item.id} className={`evidence-list-card lane-${lane.id} ${selectedId === item.id ? "selected" : ""}${changeBadge ? ` change-${changeBadge}` : ""}`} key={item.id}>
                   <label className="evidence-card-check" aria-label={`选择 ${cardStatement}`}><input type="checkbox" checked={checkedIds.has(item.id)} onChange={(event) => toggleChecked(item.id, event.target.checked)} /></label>
                   <button onClick={() => setSelectedId(item.id)} type="button">
                     <div className="evidence-list-meta">
@@ -375,6 +355,7 @@ export function EvidenceBoard({
                       <span>{item.source_ids.length ? `${item.source_ids.length} 个来源` : "尚无来源"}</span>
                       {changeBadge === "added" ? <span className="change-badge added">本轮新增</span> : null}
                       {changeBadge === "changed" ? <span className="change-badge changed">本轮变更</span> : null}
+                      {gapPriority ? <span className={`gap-tier tier-${gapPriority.tier}`}>{gapPriority.index + 1} · {gapPriority.label}</span> : null}
                     </div>
                     <strong>{cardStatement}</strong>
                     <div className="evidence-related-units">
@@ -390,7 +371,7 @@ export function EvidenceBoard({
             </div>
           </section>;
         })}
-        {!visibleEvidence.length ? <div className="empty-state"><h2>没有符合筛选条件的证据</h2><p className="muted">{focusChanges ? "本轮没有可筛选的变更项，可切换查看全部。" : "切换关键判断查看其他证据。"}</p></div> : null}
+        {!visibleEvidence.length ? <div className="empty-state"><h2>没有符合筛选条件的证据</h2><p className="muted">{quickFilter === "changes" ? "本轮没有可筛选的变更项，可切换查看全部。" : "切换筛选或关键判断查看其他证据。"}</p></div> : null}
       </div>
       <aside className="evidence-inspector">
         <div className="eyebrow">证据详情</div>
@@ -432,7 +413,7 @@ export function EvidenceBoard({
             {selectedUnits.map((unit) => <li key={unit.id}>{stripInternalReferencePrefix(unit.title)}</li>)}
           </ul> : <p className="muted">该项仅作为研究背景，尚未绑定关键判断。</p>}
 
-          <h3>来源与逐字引文</h3>
+          <h3>来源与原文</h3>
           {selected.source_ids.length ? <ul className="source-list">{selected.source_ids.map((id) => {
             const source = sourceMap.get(id);
             return <li key={id}>{source ? <>
@@ -468,8 +449,10 @@ export function EvidenceBoard({
             </> : id}</li>;
           })}</ul> : <p className="muted">尚未挂到来源；只能登记为尚缺的证据，不能确认事实。</p>}
 
-          <h3>局限</h3><p>{selected.limitations.join("；") || "暂无已登记局限"}</p>
-          <div className="field"><label>人工核验记录</label><textarea value={reviewNote} disabled={Boolean(terminalReview)} onChange={(event) => setReviewNote(event.target.value)} placeholder={selected.kind === "gap" ? "说明为何确认当前暂缺，以及结论必须停在什么边界" : "说明已核对的原文、口径、时间和局限"} /></div>
+          <h3>质量与局限</h3>
+          <p>{selected.directness ? `与判断的关系：${directnessLabel(selected.directness)}。` : ""}{selected.limitations.length ? `已登记局限：${selected.limitations.join("；")}` : "暂无已登记局限"}</p>
+          <h3>人工处置</h3>
+          <div className="field"><label>核验记录</label><textarea value={reviewNote} disabled={Boolean(terminalReview)} onChange={(event) => setReviewNote(event.target.value)} placeholder={selected.kind === "gap" ? "说明为何确认当前暂缺，以及结论必须停在什么边界" : "说明已核对的原文、口径、时间和局限"} /></div>
           <div className="review-actions">
             <button className="button" disabled={busy || Boolean(terminalReview)} onClick={() => decide("approved")} type="button">{selected.kind === "gap" ? "确认暂缺（限制结论）" : "确认可用"}</button>
             <button className="button-secondary" disabled={busy || Boolean(terminalReview)} onClick={() => decide("rework")} type="button">退回修改</button>
@@ -480,6 +463,11 @@ export function EvidenceBoard({
         </> : null}
       </aside>
     </div>
+    {(coveragePriorities.length || uniqueOntologyPrecheckHints.length) ? <details className="advanced-tools stage-audit-details evidence-constraint-audit">
+      <summary><div><div className="eyebrow">证据审计</div><strong>最低证据要求与口径记录</strong></div><span className="section-meta">{coveragePriorities.length + uniqueOntologyPrecheckHints.length} 项 · 按需展开</span></summary>
+      {coveragePriorities.length ? <div className="audit-evidence-requirements"><strong>最低证据要求</strong><ul>{coveragePriorities.map((item) => <li key={`${item.evidence_id}:${item.statement}`}><span className={`gap-tier tier-${item.tier}`}>{item.label}</span>{item.statement}<small>{item.reason}</small></li>)}</ul></div> : null}
+      {uniqueOntologyPrecheckHints.length ? <div className="audit-evidence-requirements"><strong>口径核对记录</strong><ul>{uniqueOntologyPrecheckHints.map((hint) => <li key={hint}>{hint.replace(/^将在判断确认时挡门：/, "")}</li>)}</ul></div> : null}
+    </details> : null}
   </div>;
 }
 

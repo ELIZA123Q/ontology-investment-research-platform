@@ -277,7 +277,11 @@ def discover_artifacts(run_dir: str | Path) -> RunArtifacts:
         names = ", ".join(path.name for path in delivery_matches)
         fail(f"{run_dir} 中存在多个 05 研报正文: {names}；一次运行只能有一份正式 05 交付物")
     expression_audit = _pick_optional(list(run_dir.glob("05-*表达审计-*.yaml")), "05 表达审计", run_dir)
-    semantic_review = _pick_optional(list(run_dir.glob("05-*独立语义审查-*.yaml")), "05 独立语义审查", run_dir)
+    semantic_candidates = list(run_dir.glob("05-*交付一致性检查-*.yaml"))
+    if not semantic_candidates:
+        # 兼容历史正式包；新包统一使用“交付一致性检查”。
+        semantic_candidates = list(run_dir.glob("05-*独立语义审查-*.yaml"))
+    semantic_review = _pick_optional(semantic_candidates, "05 交付一致性检查", run_dir)
     delivery = None
     if expression_audit is not None:
         expression_meta = load_yaml_file(expression_audit).get("metadata", {})

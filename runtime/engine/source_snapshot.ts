@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
+import { isReadableEvidenceText } from "./text_quality";
 
 export type SourceSnapshotInput = {
   url: string;
@@ -65,7 +66,8 @@ export async function captureSourceSnapshot(
     const text = isTextMime(mime) ? extractReadableText(bytes.toString("utf8"), mime) : "";
     const normalizedBody = normalizeText(text);
     const aligned = alignQuoteToBody(quote, normalizedBody);
-    const quoteVerified = aligned.verified;
+    const quoteReadable = isReadableEvidenceText(quote);
+    const quoteVerified = quoteReadable && aligned.verified;
     const alignedQuote = aligned.alignedQuote || quote;
     const captured = response.ok && bytes.length > 0;
     const usable = captured && text.length >= 200 && quoteVerified;
@@ -75,6 +77,8 @@ export async function captureSourceSnapshot(
         ? `已抓取 ${mime} 字节并计算哈希，但未提取可定位正文`
         : !quote
           ? "未提供原文引用，不能升级为可直接支撑判断的来源"
+          : !quoteReadable
+            ? "原文引用含编码乱码或不可读控制字符，不能作为可核验证据"
           : !quoteVerified
             ? "原文引用未能在抓取正文中精确定位"
             : "";

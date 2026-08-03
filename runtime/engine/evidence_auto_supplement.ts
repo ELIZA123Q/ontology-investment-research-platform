@@ -329,6 +329,7 @@ export async function runEvidenceSupplementRound(input: {
         input.maxSourceCount
           - sourcesAfterRuntimeAcquisition.filter((source) => source.usability_status !== "rejected").length,
       ),
+    cutoffMs: input.cutoffMs,
     capturePriorityKeys,
     assertRunning: input.assertRunning,
     onCaptureProgress: (index, total) => {

@@ -9,6 +9,7 @@ import { listSources, upsertSource } from "./sources";
 import { buildAuthorityGraphCandidate, extractGraph } from "../../engine/instance_graph";
 import { evidenceBoundSourceIds } from "../../engine/evidence_sources";
 import { saveInstanceGraph } from "./meta";
+import { deriveRunProgress, projectRunStatus, type RunProgress } from "../../engine/run_progress";
 function mapRun(row: any): ResearchRun {
   return {
     id: row.id,
@@ -27,12 +28,30 @@ function mapRun(row: any): ResearchRun {
 }
 
 export function listRuns(): ResearchRun[] {
-  return (db.prepare("SELECT * FROM research_runs ORDER BY created_at DESC").all() as any[]).map(mapRun);
+  return (db.prepare("SELECT * FROM research_runs ORDER BY created_at DESC").all() as any[])
+    .map(mapRun)
+    .map(projectRunFromApprovedArtifacts);
 }
 export const getRun = cache(function getRun(id: string): ResearchRun | undefined {
   const row = db.prepare("SELECT * FROM research_runs WHERE id=?").get(id) as any;
-  return row ? mapRun(row) : undefined;
+  return row ? projectRunFromApprovedArtifacts(mapRun(row)) : undefined;
 });
+
+export function getRunProgress(runId: string): RunProgress {
+  const rows = db.prepare(
+    "SELECT DISTINCT kind FROM artifacts WHERE run_id=? AND status='approved' AND kind LIKE 'stage_0_'",
+  ).all(runId) as Array<{ kind: string }>;
+  return deriveRunProgress(rows.map((row) => row.kind));
+}
+
+function projectRunFromApprovedArtifacts(run: ResearchRun): ResearchRun {
+  const progress = getRunProgress(run.id);
+  return {
+    ...run,
+    current_stage: progress.current_stage,
+    status: projectRunStatus(run.status, progress),
+  };
+}
 export function previousComparableRun(runId: string): ResearchRun | undefined {
   const current = getRun(runId);
   if (!current) return undefined;
@@ -170,19 +189,14 @@ export function updateRun(id: string, fields: Partial<Pick<ResearchRun, "package
 export function recomputeRunProgress(runId: string): ResearchRun {
   const run = getRun(runId);
   if (!run) throw new Error("任务不存在");
-  const rows = db.prepare(
-    "SELECT kind FROM artifacts WHERE run_id=? AND status='approved' AND kind LIKE 'stage_%'",
-  ).all(runId) as Array<{ kind: string }>;
-  const stages = rows
-    .map((r) => Number(r.kind.slice(-2)))
-    .filter((n) => Number.isFinite(n) && n > 0);
-  const maxStage = stages.length ? Math.max(...stages) : 0;
-  let status = run.status;
-  if (maxStage >= 5) status = "complete";
-  else if (maxStage > 0) status = "in_progress";
-  // maxStage === 0 时保持原 status（草稿/归档语义不被误改）
-  if (maxStage === run.current_stage && status === run.status) return run;
-  return updateRun(runId, { current_stage: maxStage, status });
+  const progress = getRunProgress(runId);
+  const status = projectRunStatus(run.status, progress);
+  const stored = db.prepare("SELECT current_stage,status FROM research_runs WHERE id=?").get(runId) as {
+    current_stage: number;
+    status: ResearchRun["status"];
+  };
+  if (progress.current_stage === stored.current_stage && status === stored.status) return run;
+  return updateRun(runId, { current_stage: progress.current_stage, status });
 }
 
 /** Collect run id and all descendant incremental runs (children first, root last). */

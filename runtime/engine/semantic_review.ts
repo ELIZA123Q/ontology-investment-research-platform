@@ -31,7 +31,7 @@ export type SemanticReviewCheck = {
 
 export type SemanticReviewInput = {
   reviewer_id: string;
-  reviewer_type: "model" | "human" | "test_fixture";
+  reviewer_type: "model" | "human" | "system" | "test_fixture";
   independent_from_producer: boolean;
   test_reviewer?: boolean;
   checks: SemanticReviewCheck[];

@@ -5,6 +5,8 @@ export type OntologyResearchEffectKind = "completion" | "constraint" | "connecti
 export type OntologyResearchEffect = {
   id: string;
   kind: OntologyResearchEffectKind;
+  status: "applied" | "checked" | "candidate" | "registered";
+  observed_contribution: boolean;
   title: string;
   explanation: string;
   result: string;
@@ -98,6 +100,8 @@ export function deriveOntologyResearchValue(input: {
       effects.push({
         id: `constraint:task-local:${id || ontologyRef}`,
         kind: "constraint",
+        status: "candidate",
+        observed_contribution: false,
         title: `保留“${name}”为本轮候选`,
         explanation: "正式变量库没有被强行套用；该概念只在本研究内生效，等待复用证据和专家确认后再决定是否晋升。",
         result: "限制：避免错误口径进入跨任务推理",
@@ -111,6 +115,8 @@ export function deriveOntologyResearchValue(input: {
     effects.push({
       id: `completion:binding:${id || ontologyRef}`,
       kind: "completion",
+      status: "registered",
+      observed_contribution: false,
       title: `对齐“${name}”的正式口径`,
       explanation: `本轮变量绑定到正式 StateVariable“${labelFor(ontologyRef)}”，获得稳定身份；时间、范围和单位仍需分别核验。`,
       result: "补全：支持同口径跨 run 对齐与复用",
@@ -129,6 +135,8 @@ export function deriveOntologyResearchValue(input: {
     effects.push({
       id: `connection:unit:${id || refs.join("|")}`,
       kind: "connection",
+      status: "registered",
+      observed_contribution: false,
       title: `“${title}”连接到 ${labels.join("、")}`,
       explanation: "判断单元与标准变量显式绑定，因此变量口径变化、证据更新和后续判断可以沿关系定位影响范围。",
       result: "关联：形成可追溯的变量—判断路径",
@@ -143,6 +151,7 @@ export function deriveOntologyResearchValue(input: {
     if (!ruleRef) continue;
     relevant.add(ruleRef);
     const outcome = String(evaluation.deterministic_result?.result || evaluation.result || "").trim();
+    const applied = ["fail", "blocked", "contested"].includes(outcome);
     const rationale = String(
       evaluation.deterministic_result?.rationale
         || evaluation.condition_results?.find((item) => item.outcome && item.outcome !== "pass")?.rationale
@@ -152,11 +161,13 @@ export function deriveOntologyResearchValue(input: {
     effects.push({
       id: `constraint:rule:${id || ruleRef}`,
       kind: "constraint",
+      status: applied ? "applied" : "checked",
+      observed_contribution: applied,
       title: `${labelFor(ruleRef)}：${outcomeLabel(outcome)}`,
       explanation: rationale,
-      result: ["fail", "blocked", "contested"].includes(outcome)
+      result: applied
         ? "限制：阻止判断越过当前证据与语义边界"
-        : "限制：已核验判断没有越过该规则边界",
+        : "核验：已检查该规则边界，未观察到其改变本轮结论",
       object_refs: id ? [id] : [],
       ontology_refs: [ruleRef],
     });
@@ -180,6 +191,8 @@ export function deriveOntologyResearchValue(input: {
       effects.push({
         id: `completion:object-type:${type}`,
         kind: "completion",
+        status: "registered",
+        observed_contribution: false,
         title: `识别 ${objects.length} 个“${labelFor(type)}”对象`,
         explanation: `实例图把 ${examples.join("、")}${objects.length > 3 ? "等" : ""} 归入统一对象类型，供范围、关系和跨 run 查询使用。`,
         result: "补全：为业务对象提供可查询的标准类型",
@@ -197,6 +210,8 @@ export function deriveOntologyResearchValue(input: {
       effects.push({
         id: `connection:relation:${relation.id}`,
         kind: "connection",
+        status: "registered",
+        observed_contribution: false,
         title: `${sourceLabel} → ${targetLabel}`,
         explanation: `实例图通过“${labelFor(relation.type)}”记录这条关系；任一端变化时可据此查询相邻对象与下游影响。`,
         result: "关联：支持影响查询与局部重算",

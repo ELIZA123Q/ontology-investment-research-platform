@@ -14,6 +14,7 @@ export type TaskLocalCandidateOccurrence = {
   category: string;
   variable_kind: string;
   definition: string;
+  anchors: string[];
   ontology_node_id: string;
   observed_at: string;
 };
@@ -31,6 +32,7 @@ export type TaskLocalCandidateSummary = {
   domains: string[];
   variable_ids: string[];
   definitions: string[];
+  anchors: string[];
   first_observed_at: string;
   last_observed_at: string;
 };
@@ -79,6 +81,7 @@ export function extractTaskLocalCandidateOccurrences(rows: Array<{
         category,
         variable_kind: variableKind,
         definition: String(variable?.definition || "").trim(),
+        anchors: Array.isArray(variable?.anchors) ? variable.anchors.map(String).filter(Boolean) : [],
         ontology_node_id: ontologyNodeId,
         observed_at: row.created_at,
       });
@@ -114,10 +117,77 @@ export function aggregateTaskLocalCandidates(
       domains: unique(group.map((item) => item.domain)),
       variable_ids: unique(group.map((item) => item.variable_id)),
       definitions: unique(group.map((item) => item.definition)),
+      anchors: unique(group.flatMap((item) => item.anchors)),
       first_observed_at: sorted[0].observed_at,
       last_observed_at: latest.observed_at,
     };
   }).sort((left, right) => right.run_count - left.run_count
     || right.occurrence_count - left.occurrence_count
     || right.last_observed_at.localeCompare(left.last_observed_at));
+}
+
+export type CandidateSimilarity = {
+  candidate_key: string;
+  name: string;
+  score: number;
+  confidence: "high" | "possible";
+  reason: string;
+};
+
+function bigrams(value: string): Set<string> {
+  const token = canonicalToken(value);
+  if (!token) return new Set();
+  if (token.length < 2) return new Set([token]);
+  return new Set(Array.from({ length: token.length - 1 }, (_, index) => token.slice(index, index + 2)));
+}
+
+function dice(left: string, right: string): number {
+  const a = bigrams(left);
+  const b = bigrams(right);
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return (2 * shared) / (a.size + b.size);
+}
+
+function jaccard(left: string[], right: string[]): number {
+  const a = new Set(left.map(canonicalToken).filter(Boolean));
+  const b = new Set(right.map(canonicalToken).filter(Boolean));
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return shared / new Set([...a, ...b]).size;
+}
+
+/**
+ * 保守的确定性近义提示：类别与变量类型必须一致；只有高分项默认建议归组。
+ * 它只生成治理线索，绝不自动把两个 task_local 概念写成同一正式知识。
+ */
+export function candidateSimilarities(
+  candidate: TaskLocalCandidateSummary,
+  all: TaskLocalCandidateSummary[],
+): CandidateSimilarity[] {
+  return all.flatMap((other) => {
+    if (other.candidate_key === candidate.candidate_key) return [];
+    const sameDomain = candidate.domains.some((domain) => other.domains.map(canonicalToken).includes(canonicalToken(domain)));
+    if (!sameDomain) return [];
+    if (canonicalToken(other.category) !== canonicalToken(candidate.category)) return [];
+    if (canonicalToken(other.variable_kind) !== canonicalToken(candidate.variable_kind)) return [];
+    const exactName = canonicalToken(other.name) === canonicalToken(candidate.name);
+    const nameScore = exactName ? 1 : dice(candidate.name, other.name);
+    const definitionScore = Math.max(0, ...candidate.definitions.flatMap((left) => other.definitions.map((right) => dice(left, right))));
+    const anchorScore = jaccard(candidate.anchors, other.anchors);
+    const score = exactName ? 1 : Number((nameScore * .45 + definitionScore * .35 + anchorScore * .2).toFixed(4));
+    if (score < .7) return [];
+    const confidence = score >= .86 ? "high" as const : "possible" as const;
+    return [{
+      candidate_key: other.candidate_key,
+      name: other.name,
+      score,
+      confidence,
+      reason: exactName
+        ? "名称归一后相同"
+        : `名称 ${(nameScore * 100).toFixed(0)}% · 定义 ${(definitionScore * 100).toFixed(0)}% · 锚点 ${(anchorScore * 100).toFixed(0)}%`,
+    }];
+  }).sort((left, right) => right.score - left.score || left.name.localeCompare(right.name, "zh-CN"));
 }

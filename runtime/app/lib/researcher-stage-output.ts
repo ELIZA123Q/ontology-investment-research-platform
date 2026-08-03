@@ -2,6 +2,42 @@ import { stripInternalReferencePrefix } from "@/engine/research_overview";
 
 type UnknownRecord = Record<string, any>;
 
+export type StageExceptionView = {
+  tone: "blocking" | "limiting";
+  title: string;
+  items: string[];
+};
+
+export type StageDecisionView = {
+  outcome: string;
+  exception: StageExceptionView | null;
+};
+
+/** 统一研究员主视图：正常校验不产生提示，阻断优先于强度限制。 */
+export function buildStageDecisionView(options: {
+  outcome: unknown;
+  blockingReasons?: unknown[];
+  limitingReasons?: unknown[];
+  blockingTitle?: string;
+  limitingTitle?: string;
+}): StageDecisionView {
+  const unique = (items: unknown[] = []) => Array.from(new Set(items.map(researcherLanguage).filter(Boolean)));
+  const blocking = unique(options.blockingReasons);
+  const limiting = unique(options.limitingReasons);
+  return {
+    outcome: researcherLanguage(options.outcome),
+    exception: blocking.length ? {
+      tone: "blocking",
+      title: options.blockingTitle || "确认前需处理",
+      items: blocking,
+    } : limiting.length ? {
+      tone: "limiting",
+      title: options.limitingTitle || "当前结论强度受限",
+      items: limiting,
+    } : null,
+  };
+}
+
 function records(value: unknown): UnknownRecord[] {
   return Array.isArray(value) ? value.filter((item): item is UnknownRecord => Boolean(item && typeof item === "object")) : [];
 }
@@ -585,22 +621,29 @@ export type FormalDeliveryGate = {
 
 export function buildFormalDeliveryGate(options: {
   artifactApproved: boolean;
-  reviewPassed: boolean;
   pendingCount: number;
   allStagesApproved: boolean;
+  /**
+   * 五个阶段是否全部达到高质量通过（high_quality_pass）。
+   * 缺省为 undefined，表示调用方未提供该信息——此时不额外阻断，保持旧行为。
+   * 传入 false 时，将作为正式交付阻塞项（与 exportFormalPack 的真实导出规则对齐）。
+   */
+  allStagesHighQualityPass?: boolean;
 }): FormalDeliveryGate {
   const blockingReasons = [
-    !options.artifactApproved ? "报告表达尚未确认" : "",
-    !options.reviewPassed ? "独立审阅尚未通过" : "",
+    !options.artifactApproved ? "05 尚未通过交付一致性检查" : "",
     options.pendingCount > 0 ? `仍有 ${options.pendingCount} 项待办` : "",
     !options.allStagesApproved ? "五个研究阶段尚未全部确认" : "",
+    options.allStagesHighQualityPass === false
+      ? "存在阶段未达到高质量通过（high_quality_pass），不满足正式交付门槛"
+      : "",
   ].filter(Boolean);
   return {
     ready: blockingReasons.length === 0,
     label: blockingReasons.length ? "尚未达到正式发布条件" : "可导出正式发布包",
     summary: blockingReasons.length
       ? blockingReasons.join("；")
-      : "五个研究阶段、独立审阅和待办清单均已通过，可导出并执行正式校验。",
+      : "05 已忠实表达 04，五个研究阶段均达高质量通过且待办清单已清空，可直接导出正式发布包。",
     blockingReasons,
   };
 }
@@ -641,15 +684,13 @@ export function buildDeliveryResearcherView(
   data: UnknownRecord,
   options: {
     artifactStatus?: string | null;
-    reviewPassed?: boolean;
     pendingCount?: number;
     stagesApproved?: boolean;
   } = {},
 ): ResearcherStageView {
   const claims = records(data.report_claims);
   const blocking: string[] = [];
-  if (options.artifactStatus !== "approved") blocking.push("报告表达尚未确认");
-  if (!options.reviewPassed) blocking.push("独立审阅尚未通过");
+  if (options.artifactStatus !== "approved") blocking.push("05 尚未通过交付一致性检查");
   if (options.pendingCount) blocking.push(`仍有 ${options.pendingCount} 项待办`);
   if (!options.stagesApproved) blocking.push("五个研究阶段尚未全部确认");
   return {

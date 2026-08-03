@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import YAML from "yaml";
 import { getRun, listArtifacts, listSources, listWorkItems, latestArtifact, updateRun } from "./db";
@@ -176,9 +176,7 @@ export function exportRunPackage(
   // Radar leads and failed search candidates remain in SQLite as audit data.
   const sources = evidenceBoundSources(listSources(runId), s03.data);
   writeFileSync(path.join(exportDir, "sources.json"), JSON.stringify(sources, null, 2), "utf8");
-  for (const [kind, fileName] of [["independent_review", "independent_review.yaml"], ["baseline", "baseline.yaml"], ["evaluation", "evaluation.yaml"]] as const) {
-    const artifact = latestArtifact(runId, kind, ["approved"]);
-    if (!artifact) throw new Error(`导出缺少已确认产物 ${kind}`);
+  const writeArtifactWrapper = (artifact: NonNullable<ReturnType<typeof latestArtifact>>, fileName: string) => {
     writeFileSync(path.join(exportDir, fileName), YAML.stringify({
       artifact_id: artifact.id,
       artifact_version: artifact.version,
@@ -187,6 +185,28 @@ export function exportRunPackage(
       json_content: artifact.json_content,
       content: parseJson(artifact.json_content, {}),
     }), "utf8");
+  };
+  const review = latestArtifact(runId, "independent_review", ["approved"]);
+  // 独立审阅仅作为可选评测材料保留，不再是 05 确认或导出的前置门。
+  if (review) {
+    writeArtifactWrapper(review, "independent_review.yaml");
+  } else {
+    const reviewPath = path.join(exportDir, "independent_review.yaml");
+    if (existsSync(reviewPath)) unlinkSync(reviewPath);
+  }
+
+  // 同证据盲评是独立评测材料：仅在一整对历史产物都存在时随包保留，
+  // 普通研究没有或只生成了一半时都不影响导出，也不能复用旧导出中的过期文件。
+  const baseline = latestArtifact(runId, "baseline", ["approved"]);
+  const evaluation = latestArtifact(runId, "evaluation", ["approved"]);
+  if (baseline && evaluation) {
+    writeArtifactWrapper(baseline, "baseline.yaml");
+    writeArtifactWrapper(evaluation, "evaluation.yaml");
+  } else {
+    for (const fileName of ["baseline.yaml", "evaluation.yaml"]) {
+      const artifactPath = path.join(exportDir, fileName);
+      if (existsSync(artifactPath)) unlinkSync(artifactPath);
+    }
   }
 
   const exportManifest = {
@@ -231,37 +251,6 @@ export function publishAndValidate(runId: string): PublishResult {
   if (!run) throw new Error("研究任务不存在");
   const report = latestArtifact(runId, "stage_05", ["approved"]);
   if (!report) throw new Error("阶段 05 尚未确认，不能进入交付校验");
-  const review = latestArtifact(runId, "independent_review", ["approved"]);
-  if (!review) throw new Error("独立审阅尚未确认，不能进入交付校验");
-  const reviewData: any = parseJson(review.json_content, {});
-  const judgmentSnapshot = loadApprovedSemanticSnapshot(runId, "stage_04");
-  const judgment = judgmentSnapshot.artifact;
-  const judgmentHash = createHash("sha256").update(judgment.json_content).digest("hex");
-  if (reviewData.reviewed_stage04_artifact_id !== judgment.id || reviewData.reviewed_stage04_artifact_hash !== judgmentHash) {
-    throw new Error("独立审阅已过期，不对应当前 stage_04");
-  }
-  if (reviewData.verdict !== "pass") throw new Error("独立审阅要求返工，不能进入交付校验");
-  const independentModel = reviewData.independence_level === "independent_model"
-    && reviewData.reviewer_type !== "human";
-  const independentHuman = reviewData.independence_level === "independent_human"
-    && reviewData.reviewer_type === "human"
-    && String(reviewData.reviewer_model || "").startsWith("human:")
-    && String(reviewData.reviewer_attestation || "").trim().length >= 20;
-  if (!independentModel && !independentHuman) throw new Error("独立审阅身份或独立性声明不可验证，不能进入交付校验");
-  if (!review.model_name || reviewData.reviewer_model !== review.model_name
-    || reviewData.producer_model !== judgment.model_name || reviewData.reviewer_model === reviewData.producer_model) {
-    throw new Error("独立审阅者身份无法从产物元数据验证");
-  }
-  const baseline = latestArtifact(runId, "baseline", ["approved"]);
-  const evaluation = latestArtifact(runId, "evaluation", ["approved"]);
-  const evidence = loadApprovedSemanticSnapshot(runId, "stage_03").artifact;
-  if (!baseline || !evaluation || !evidence) throw new Error("发布前必须完成同证据基线和盲评");
-  const evaluationData: any = parseJson(evaluation.json_content, {});
-  const evidenceHash = createHash("sha256").update(evidence.json_content).digest("hex");
-  if (evaluationData.baseline_artifact_id !== baseline.id || evaluationData.runtime_report_artifact_id !== report.id
-    || evaluationData.frozen_stage03_artifact_id !== evidence.id || evaluationData.frozen_stage03_artifact_hash !== evidenceHash) {
-    throw new Error("盲评已过期，不对应当前基线、报告或冻结证据");
-  }
   const blockers = listWorkItems(runId).filter((item) => item.status === "pending" || item.status === "rework");
   if (blockers.length) throw new Error(`仍有 ${blockers.length} 个对象级工作项未完成，不能进入交付校验`);
   const { exportDir, exportRel } = exportRunPackage(runId, { approvedOnly: true });

@@ -548,7 +548,7 @@ export function StageWorkspace({
         </div>
       </section>
       <section className="card editor-panel">
-        <div className="panel-head"><h2>本阶段将交付</h2><span>{journey?.nextStep.label.replace("→", "").trim() || "保存后进入下一步"}</span></div>
+        <div className="panel-head"><h2>范围预览</h2><span>与审阅页保持一致</span></div>
         <div className="stage-editor-summary-list">
           <article className="stage-editor-summary-card">
             <span>{formatJourneyOutput(journey || { output: "本阶段输出", outputFallback: "本阶段输出" }, { count: scopeSummary.question ? 1 : 0 })}</span>
@@ -616,15 +616,14 @@ export function StageWorkspace({
           )) : <p className="muted">保存研究结构后，这里会按关键判断展示阶段输出。</p>}
         </div>
         <details className="structure-advanced">
-          <summary>审计：完整研究逻辑</summary>
+          <summary>结构审计详情</summary>
+          <h3>完整研究逻辑</h3>
           <article className="markdown preview-pane preview-pane-only">
             {logicPreview.trim()
               ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{researcherMarkdown(logicPreview)}</ReactMarkdown>
               : <p className="muted">尚无研究逻辑正文。</p>}
           </article>
-        </details>
-        <details className="structure-advanced">
-          <summary>审计：本体视图</summary>
+          <h3>本体视图</h3>
           <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
             {ontologyYamlPreview.trim() || "尚无本体视图 YAML。保存或生成 Stage02 后会写入 ontology_view_yaml。"}
           </pre>
@@ -697,15 +696,14 @@ export function StageWorkspace({
           )) : <p className="muted">保存判断逻辑后，这里会展示结论、强度、依据和改判条件。</p>}
         </div>
         <details className="structure-advanced">
-          <summary>审计：完整判断简报</summary>
+          <summary>判断审计详情</summary>
+          <h3>完整判断简报</h3>
           <article className="markdown preview-pane preview-pane-only">
             {stage04BriefPreview.trim()
               ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{researcherMarkdown(stage04BriefPreview)}</ReactMarkdown>
               : <p className="muted">尚无可读稿。保存推理逻辑或模型生成后会显示在这里。</p>}
           </article>
-        </details>
-        <details className="structure-advanced">
-          <summary>审计：推理记录</summary>
+          <h3>推理记录</h3>
           <pre className="preview-pane preview-pane-only" style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
             {stage04AuditPreview.trim() || "尚无推理审计 YAML。保存或生成 Stage04 后会写入 reasoning_audit_yaml。"}
           </pre>

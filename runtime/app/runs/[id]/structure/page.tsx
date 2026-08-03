@@ -3,8 +3,9 @@ import { getRun } from "@/adapters/db";
 import { latestArtifactPayload } from "@/adapters/db_read_models";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
 import { buildStructureReviewGraph } from "@/app/lib/structure-graph";
-import { buildStructureResearcherView, buildStructureStageSummary } from "@/app/lib/researcher-stage-output";
-import { scopeDimensionKeyLabel } from "@/engine/ontology_display_labels";
+import { buildStageDecisionView, buildStructureResearcherView, buildStructureStageSummary } from "@/app/lib/researcher-stage-output";
+import { formalStateVariableDisplayNames, scopeDimensionKeyLabel } from "@/engine/ontology_display_labels";
+import { buildOntologyStructureReview } from "@/engine/ontology_structure_review";
 import { parseJson } from "@/engine/types";
 import Link from "next/link";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
@@ -13,11 +14,14 @@ import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
 import { journeyEditHref } from "@/app/lib/research-journey";
 import { adaptArtifactForRead } from "@/engine/artifact_read_adapter";
+import { DeepLinkFocus } from "@/app/components/deep-link-focus";
+import { StageExceptionNotice } from "@/app/components/stage-exception-notice";
 
 export const dynamic = "force-dynamic";
 
-export default async function StructurePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StructurePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ focus?: string; from?: string }> }) {
   const { id } = await params;
+  const q = await searchParams;
   const run = getRun(id);
   if (!run) notFound();
   const artifact = latestArtifactPayload(id, "stage_02", ["approved", "needs_review"]);
@@ -48,53 +52,58 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
   });
   const unitSummaries = buildStructureStageSummary(data);
   const view = buildStructureResearcherView(data, { artifactStatus: artifact.status });
+  const structureReview = buildOntologyStructureReview({
+    structure: data,
+    formalStateVariables: formalStateVariableDisplayNames(),
+  });
+  const canApprove = structureReview.preflight.status !== "blocked" && view.proceed.blockingReasons.length === 0;
+  const blockingIssues = structureReview.preflight.issues
+    .filter((item) => item.severity === "blocking")
+    .map((item) => item.title);
+  const blockingReasons = Array.from(new Set([...blockingIssues, ...view.proceed.blockingReasons]));
+  const decision = buildStageDecisionView({
+    outcome: view.summary,
+    blockingReasons,
+    blockingTitle: "研究结构还不能确认",
+  });
 
   return <>
+    <DeepLinkFocus id={q.focus} />
     <StageSceneChrome
       runId={id}
       stage={2}
       status={artifact.status}
       outputCount={unitSummaries.length}
-      subtitle={run.question}
       actions={
         <>
-          <StageApprovalButton runId={id} artifactId={artifact.id} stage={2} status={artifact.status} />
+          {canApprove ? <StageApprovalButton
+            runId={id}
+            artifactId={artifact.id}
+            stage={2}
+            status={artifact.status}
+          /> : null}
           <StageStatusBadge status={artifact.status} />
-          <Link className="button-secondary" href={journeyEditHref(id, 2)}>修改结构</Link>
+          {canApprove ? <Link className="button-secondary" href={journeyEditHref(id, 2)}>修改结构</Link> : null}
         </>
       }
     />
+    {q.from === "audit" ? <div className="notice audit-return-note">已从关系审计定位到相关结构对象；修订并确认后，关系审计会自动重算。</div> : null}
+    <StageExceptionNotice exception={decision.exception ? {
+      ...decision.exception,
+      summary: "只列出会阻止进入证据阶段的问题。",
+      href: journeyEditHref(id, 2),
+      actionLabel: "修正研究结构 →",
+    } : null} />
     {unitSummaries.length ? (
       <>
-      <section className="structure-review-summary" aria-label="研究范围">
+      <section className="scope-anchor" aria-label="研究范围">
         {scopeSummary ? (
-          <article className="structure-review-card">
-            <span>研究范围</span>
-            <strong>{scopeSummary.label}</strong>
-            {scopeSummary.dimensions.length ? (
-              <dl>
-                {scopeSummary.dimensions.map((dim) => (
-                  <div key={dim.key}>
-                    <dt>{scopeDimensionKeyLabel(dim.key)}</dt>
-                    <dd>{dim.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <small>尚未登记范围维度</small>
-            )}
-          </article>
-        ) : null}
-        {view.proceed.blockingReasons.length ? (
-          <article className="structure-review-card">
-            <span>确认前注意</span>
-            <ul>{view.proceed.blockingReasons.map((item) => <li key={item}>{item}</li>)}</ul>
-          </article>
+          <><div><span>范围锚点</span><strong>{scopeSummary.label}</strong>{scopeSummary.dimensions.length ? <small>{scopeSummary.dimensions.slice(0, 3).map((dim) => `${scopeDimensionKeyLabel(dim.key)}：${dim.value}`).join("；")}</small> : null}</div><Link href={`/runs/${id}/scope`}>查看 / 修改范围 →</Link></>
         ) : null}
       </section>
       <section className="stage-unit-list" aria-label="关键判断与必要证据">
         {unitSummaries.map((unit, index) => (
-            <article className="stage-unit-card" key={unit.id}>
+            <article id={`focus-${unit.id}`} className={`stage-unit-card${q.focus === unit.id ? " is-deep-linked" : ""}`} key={unit.id}>
               <div className="stage-unit-index">{String(index + 1).padStart(2, "0")}</div>
               <div className="stage-unit-main">
                 <span>关键判断 {index + 1}</span>
@@ -131,11 +140,17 @@ export default async function StructurePage({ params }: { params: Promise<{ id: 
     <details className="advanced-tools stage-audit-details">
       <summary>
         <div>
-          <div className="eyebrow">审计详情</div>
-          <strong>变量、传导路径与方法登记</strong>
+          <div className="eyebrow">结构审计</div>
+          <strong>本体承接、变量、传导路径与方法</strong>
         </div>
-        <span className="section-meta">需要核对系统拆解时展开</span>
+        <span className="section-meta">{structureReview.preflight.issues.length ? `${structureReview.preflight.issues.length} 项记录` : "按需展开"}</span>
       </summary>
+      <div className="audit-compact-summary">
+        <span>正式口径 {structureReview.preflight.formal_bindings.length}</span>
+        <span>本轮候选 {structureReview.preflight.task_local_candidates.length}</span>
+        <span>结构问题 {structureReview.preflight.issues.length}</span>
+      </div>
+      {structureReview.preflight.issues.length ? <ul className="audit-issue-list">{structureReview.preflight.issues.map((item) => <li key={`${item.code}:${item.target_id}`}><strong>{item.severity === "blocking" ? "阻断" : "记录"}</strong>{item.title}</li>)}</ul> : null}
       {methodSummary.length ? (
         <div className="structure-method-tags stage-method-summary">
           {methodSummary.map((group) => (

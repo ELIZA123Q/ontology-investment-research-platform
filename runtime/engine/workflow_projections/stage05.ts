@@ -11,6 +11,7 @@ import { schemas } from "../schemas";
 import { parseJson,type SourceRecord } from "../types";
 
 import { ensureStage05DocumentFields } from "../stage05_documents";
+import { isReadableEvidenceText } from "../text_quality";
 import {
 buildStage05SkeletonMarkdown,
 shouldPreserveStage05Markdown,
@@ -120,7 +121,8 @@ export function normalizeStage05Projection(
           judgmentTitles: judgments.map((judgment: any) => judgment.title).filter(Boolean),
           conclusions: judgments.map((judgment: any) => judgment.conclusion).filter(Boolean),
           sourceLines: claimSources.map((source) => {
-            const quote = String(source.source_quote || "").replace(/\s+/g, " ").trim();
+            const rawQuote = String(source.source_quote || "").replace(/\s+/g, " ").trim();
+            const quote = isReadableEvidenceText(rawQuote) ? rawQuote : "";
             const excerpt = quote.length > 500 ? `${quote.slice(0, 500)}…` : quote;
             return `[${source.title}](${source.url})${excerpt ? `：“${excerpt}”` : ""}`;
           }),

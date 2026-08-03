@@ -82,7 +82,7 @@ export function projectExpressionAuditYaml(
       source_04_audit_ref: nonEmpty(data?.source_04_audit_ref, options.stage04?.audit_ref || "04-推理审计.yaml"),
       delivery_ref: nonEmpty(data?.delivery_ref, "05-研究报告.md"),
       normalized_question: nonEmpty(options.question),
-      note: "工作台确认不等于 PUBLISHABLE；正式发布仍须通过 governance validate_05_outputs / validate_run。",
+      note: "05 确认即完成 04→05 交付一致性检查；导出阶段仅复验当前批准版本、文件完整性与内容指纹。",
     },
     claim_expression_register: claims.map((claim: any, index: number) => {
       const judgmentIds = asList(claim?.judgment_ids);

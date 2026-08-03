@@ -34,9 +34,6 @@ REQUIRED_FILES = (
     "05_report.md",
     "business_instance_graph.yaml",
     "sources.json",
-    "independent_review.yaml",
-    "baseline.yaml",
-    "evaluation.yaml",
 )
 MA_ID = re.compile(r"^MA-[A-Z0-9_-]+$")
 STAGE_KEYS = ("stage_01", "stage_02", "stage_03", "stage_04", "stage_05")
@@ -163,9 +160,23 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
     judgment = load(run_dir / "04_judgment.yaml")
     expression = load(run_dir / "05_expression.yaml")
     report = (run_dir / "05_report.md").read_text(encoding="utf-8").strip()
-    review_wrapper, review = _artifact_wrapper(run_dir / "independent_review.yaml", errors)
-    baseline_wrapper, baseline = _artifact_wrapper(run_dir / "baseline.yaml", errors)
-    evaluation_wrapper, evaluation = _artifact_wrapper(run_dir / "evaluation.yaml", errors)
+    review_path = run_dir / "independent_review.yaml"
+    review_wrapper: dict[str, Any] = {}
+    review: dict[str, Any] = {}
+    if review_path.is_file():
+        review_wrapper, review = _artifact_wrapper(review_path, errors)
+    baseline_path = run_dir / "baseline.yaml"
+    evaluation_path = run_dir / "evaluation.yaml"
+    has_baseline = baseline_path.is_file()
+    has_evaluation = evaluation_path.is_file()
+    baseline_wrapper: dict[str, Any] = {}
+    baseline: dict[str, Any] = {}
+    evaluation: dict[str, Any] = {}
+    if has_baseline != has_evaluation:
+        errors.append("盲评历史材料不完整：baseline.yaml 与 evaluation.yaml 必须同时存在或同时缺省")
+    elif has_baseline:
+        baseline_wrapper, baseline = _artifact_wrapper(baseline_path, errors)
+        _, evaluation = _artifact_wrapper(evaluation_path, errors)
     artifact_bindings = (manifest.get("export_meta") or {}).get("artifact_bindings") or {}
     for stage in STAGE_KEYS:
         binding = artifact_bindings.get(stage)
@@ -480,40 +491,41 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
     stage03_binding = artifact_bindings.get("stage_03") or {}
     stage04_binding = artifact_bindings.get("stage_04") or {}
     stage05_binding = artifact_bindings.get("stage_05") or {}
-    if baseline.get("frozen_stage03_artifact_id") != stage03_binding.get("artifact_id") or baseline.get("frozen_stage03_artifact_hash") != stage03_binding.get("content_hash"):
-        errors.append("baseline 不对应导出的当前 stage_03 冻结证据")
-    if review.get("reviewed_stage04_artifact_id") != stage04_binding.get("artifact_id") or review.get("reviewed_stage04_artifact_hash") != stage04_binding.get("content_hash"):
-        errors.append("independent_review 不对应导出的当前 stage_04")
-    if review.get("verdict") != "pass" or review.get("issues"):
-        errors.append("independent_review 未形成无阻断项的 pass")
-    independent_model = (
-        review.get("independence_level") == "independent_model"
-        and review.get("reviewer_type", "model") == "model"
-        and review.get("reviewer_model")
-        and review.get("reviewer_model") != review.get("producer_model")
-    )
-    independent_human = (
-        review.get("independence_level") == "independent_human"
-        and review.get("reviewer_type") == "human"
-        and str(review.get("reviewer_model") or "").startswith("human:")
-        and review.get("reviewer_model") != review.get("producer_model")
-        and len(str(review.get("reviewer_attestation") or "").strip()) >= 20
-    )
-    if not independent_model and not independent_human:
-        errors.append("independent_review 的审阅者身份或独立性声明不可验证")
-    if review_wrapper.get("model_name") != review.get("reviewer_model"):
-        errors.append("independent_review 的 reviewer_model 与产物元数据不一致")
-    if evaluation.get("baseline_artifact_id") != baseline_wrapper.get("artifact_id") or evaluation.get("runtime_report_artifact_id") != stage05_binding.get("artifact_id"):
-        errors.append("evaluation 不对应当前 baseline/stage_05")
-    if evaluation.get("frozen_stage03_artifact_id") != stage03_binding.get("artifact_id") or evaluation.get("frozen_stage03_artifact_hash") != stage03_binding.get("content_hash"):
-        errors.append("evaluation 不对应当前冻结证据")
-    expected_score_keys = {f"{side}:{criterion}" for side in ("A", "B") for criterion in (
-        "事实与来源可核验性", "无来源主张控制", "反证与竞争解释", "结论边界", "可复盘性", "研究决策帮助",
-    )}
-    if set((evaluation.get("scores") or {}).keys()) != expected_score_keys:
-        errors.append("evaluation 评分准则不完整或被替换")
-    if evaluation.get("revealed") is not True or evaluation.get("side_a") not in {"baseline", "runtime"}:
-        errors.append("evaluation 未完成盲评揭示")
+    if review:
+        # 历史/评测材料若随包存在，仍校验其真实性；缺省不影响 05 交付。
+        if review.get("reviewed_stage04_artifact_id") != stage04_binding.get("artifact_id") or review.get("reviewed_stage04_artifact_hash") != stage04_binding.get("content_hash"):
+            errors.append("independent_review 不对应导出的当前 stage_04")
+        independent_model = (
+            review.get("independence_level") == "independent_model"
+            and review.get("reviewer_type", "model") == "model"
+            and review.get("reviewer_model")
+            and review.get("reviewer_model") != review.get("producer_model")
+        )
+        independent_human = (
+            review.get("independence_level") == "independent_human"
+            and review.get("reviewer_type") == "human"
+            and str(review.get("reviewer_model") or "").startswith("human:")
+            and review.get("reviewer_model") != review.get("producer_model")
+            and len(str(review.get("reviewer_attestation") or "").strip()) >= 20
+        )
+        if not independent_model and not independent_human:
+            errors.append("independent_review 的审阅者身份或独立性声明不可验证")
+        if review_wrapper.get("model_name") != review.get("reviewer_model"):
+            errors.append("independent_review 的 reviewer_model 与产物元数据不一致")
+    if has_baseline and has_evaluation:
+        if baseline.get("frozen_stage03_artifact_id") != stage03_binding.get("artifact_id") or baseline.get("frozen_stage03_artifact_hash") != stage03_binding.get("content_hash"):
+            errors.append("baseline 不对应导出的当前 stage_03 冻结证据")
+        if evaluation.get("baseline_artifact_id") != baseline_wrapper.get("artifact_id") or evaluation.get("runtime_report_artifact_id") != stage05_binding.get("artifact_id"):
+            errors.append("evaluation 不对应当前 baseline/stage_05")
+        if evaluation.get("frozen_stage03_artifact_id") != stage03_binding.get("artifact_id") or evaluation.get("frozen_stage03_artifact_hash") != stage03_binding.get("content_hash"):
+            errors.append("evaluation 不对应当前冻结证据")
+        expected_score_keys = {f"{side}:{criterion}" for side in ("A", "B") for criterion in (
+            "事实与来源可核验性", "无来源主张控制", "反证与竞争解释", "结论边界", "可复盘性", "研究决策帮助",
+        )}
+        if set((evaluation.get("scores") or {}).keys()) != expected_score_keys:
+            errors.append("evaluation 评分准则不完整或被替换")
+        if evaluation.get("revealed") is not True or evaluation.get("side_a") not in {"baseline", "runtime"}:
+            errors.append("evaluation 未完成盲评揭示")
 
     non_gap_drafts = [item for item in drafts if isinstance(item, dict) and item.get("kind") != "gap"]
     if non_gap_drafts and not any(

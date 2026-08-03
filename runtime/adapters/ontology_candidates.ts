@@ -1,10 +1,12 @@
 import "server-only";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import YAML from "yaml";
 import { getWorkbenchDb, withImmediateTransaction } from "./db";
 import { repositoryPath, repositoryRoot } from "./repo-paths";
 import {
   aggregateTaskLocalCandidates,
+  candidateSimilarities,
   extractTaskLocalCandidateOccurrences,
   type OntologyCandidateStatus,
   type TaskLocalCandidateSummary,
@@ -18,7 +20,9 @@ import {
   type OntologyGovernanceActionId,
   type OntologyImpactSnapshot,
 } from "../engine/ontology_governance";
-import { loadOntologyCatalog, loadSemiconductorBusinessObjectIds } from "../engine/ontology_catalog";
+import { loadOntologyCatalog, loadSemiconductorBusinessObjectIds, resetOntologyCatalogForTests } from "../engine/ontology_catalog";
+import { extractGraph, loadDomainBusinessGraph, resetDomainBusinessGraphCache } from "../engine/instance_graph";
+import { buildKnowledgePackage, validateKnowledgePackageFiles } from "../engine/knowledge_package";
 
 export type OntologyCandidateReview = {
   candidate_key: string;
@@ -87,6 +91,7 @@ export type OntologyChangeRequestEvent = {
 };
 
 export type GovernedOntologyCandidate = TaskLocalCandidateSummary & {
+  similarities: ReturnType<typeof candidateSimilarities>;
   review: OntologyCandidateReview;
   review_events: OntologyCandidateReviewEvent[];
   change_request: OntologyChangeRequest | null;
@@ -256,6 +261,7 @@ export function listOntologyCandidates(): GovernedOntologyCandidate[] {
   }
   return summaries.map((summary) => ({
     ...summary,
+    similarities: candidateSimilarities(summary, summaries),
     review: reviews.get(summary.candidate_key) || pendingReview(summary.candidate_key),
     review_events: events.get(summary.candidate_key) || [],
     change_request: changeRequests.get(summary.candidate_key) || null,
@@ -536,4 +542,163 @@ export function advanceOntologyChangeRequest(input: {
     approvalPolicySatisfied: true,
     migrationComplete: Boolean(input.migrationRef),
   });
+}
+
+export type FormalStateVariableInput = {
+  targetId: string;
+  name: string;
+  definition: string;
+  category: string;
+  variableKind: string;
+  anchors: string[];
+  evidenceProfileRef: string;
+  decisionUse: string;
+  observationGuidance: string;
+  counterEvidenceGuidance: string;
+};
+
+const DOMAIN_GRAPH_REF = "ontology/02_领域/semiconductor/business_instances.yaml";
+
+function validateFormalStateVariableInput(input: FormalStateVariableInput) {
+  if (!/^[a-z][a-z0-9_]{2,80}$/.test(input.targetId)) throw new Error("正式本体 ID 只能使用小写字母、数字和下划线，且至少 3 位");
+  for (const [label, value] of [
+    ["正式名称", input.name], ["稳定定义", input.definition], ["判断用途", input.decisionUse],
+    ["观察指引", input.observationGuidance], ["反证指引", input.counterEvidenceGuidance],
+  ]) if (String(value || "").trim().length < 4) throw new Error(`${label}至少需要 4 个字符`);
+  if (!input.category.trim() || !input.variableKind.trim()) throw new Error("类别和变量类型不能为空");
+  if (!input.anchors.length) throw new Error("正式状态变量至少需要一个对象锚点");
+  const catalog = loadOntologyCatalog();
+  const unresolved = input.anchors.filter((anchor) => !catalog.object_types.has(anchor));
+  if (unresolved.length) throw new Error(`对象锚点不是正式类型：${unresolved.join("、")}`);
+  const domainGraph = loadDomainBusinessGraph();
+  if (!domainGraph?.objects.some((object) => object.type === "EvidenceProfile" && object.id === input.evidenceProfileRef)) {
+    throw new Error("证据画像必须引用领域知识库中已有的 EvidenceProfile");
+  }
+  if (domainGraph.objects.some((object) => object.id === input.targetId)) throw new Error("拟正式本体 ID 已存在");
+}
+
+function writeFormalStateVariable(input: FormalStateVariableInput): { rollback: () => void } {
+  validateFormalStateVariableInput(input);
+  const absolute = repositoryPath(DOMAIN_GRAPH_REF);
+  const original = readFileSync(absolute, "utf8");
+  const graph = loadDomainBusinessGraph()!;
+  const nextIndex = graph.objects.filter((object) => object.type === "StateVariable").length;
+  const object = {
+    id: input.targetId,
+    type: "StateVariable",
+    properties: {
+      id: input.targetId,
+      name: input.name.trim(),
+      category: input.category.trim(),
+      definition: input.definition.trim(),
+      decision_use: input.decisionUse.trim(),
+      variable_kind: input.variableKind.trim(),
+      anchors: [...new Set(input.anchors.map((item) => item.trim()).filter(Boolean))],
+      observation_guidance: input.observationGuidance.trim(),
+      evidence_profile_ref: input.evidenceProfileRef.trim(),
+      counter_evidence_guidance: input.counterEvidenceGuidance.trim(),
+      variable_role: "primary_judgment_variable",
+    },
+    projection: { section: "state_variables", index: nextIndex },
+  };
+  const marker = "\n  relations:\n";
+  if (!original.includes(marker)) throw new Error("领域本体文件缺少 relations 分区，不能安全写入");
+  const itemYaml = YAML.stringify([object], { lineWidth: 0 }).split("\n").filter(Boolean).map((line) => `  ${line}`).join("\n");
+  const next = original.replace(marker, `\n${itemYaml}\n  relations:\n`);
+  const projected = extractGraph(YAML.parse(next));
+  if (!projected || projected.objects.filter((item) => item.id === input.targetId).length !== 1) {
+    throw new Error("候选写入后的领域本体图无法通过结构解析");
+  }
+  const temporary = `${absolute}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(temporary, next, "utf8");
+  renameSync(temporary, absolute);
+  resetDomainBusinessGraphCache();
+  resetOntologyCatalogForTests();
+  return {
+    rollback: () => {
+      const restore = `${absolute}.restore-${process.pid}-${Date.now()}`;
+      writeFileSync(restore, original, "utf8");
+      renameSync(restore, absolute);
+      if (existsSync(temporary)) unlinkSync(temporary);
+      resetDomainBusinessGraphCache();
+      resetOntologyCatalogForTests();
+    },
+  };
+}
+
+function validatePromotedStateVariable(input: FormalStateVariableInput): Record<string, "pass" | "fail"> {
+  resetDomainBusinessGraphCache();
+  resetOntologyCatalogForTests();
+  const graph = loadDomainBusinessGraph();
+  const inserted = graph?.objects.filter((object) => object.id === input.targetId) || [];
+  const catalog = loadOntologyCatalog();
+  const authorityValid = input.anchors.every((anchor) => catalog.object_types.has(anchor))
+    && Boolean(graph?.objects.some((object) => object.type === "EvidenceProfile" && object.id === input.evidenceProfileRef));
+  const baseline = buildKnowledgePackage(null);
+  const packageResult = validateKnowledgePackageFiles(new Map(baseline.files.map((file) => [file.file_name, file.content])));
+  const results = {
+    "ontology:check": inserted.length === 1 && targetResolves(input.targetId) ? "pass" as const : "fail" as const,
+    parameter_authority: authorityValid ? "pass" as const : "fail" as const,
+    knowledge_package: packageResult.ok ? "pass" as const : "fail" as const,
+  };
+  const failed = Object.entries(results).filter(([, status]) => status === "fail").map(([check]) => check);
+  if (failed.length) throw new Error(`自动入库校验失败：${failed.join("、")}`);
+  return results;
+}
+
+/**
+ * 面向知识库的一次性操作；内部仍追加完整治理 Action 历史。
+ * 文件校验或治理发布失败时恢复领域本体资产，提案则停留在失败步骤供审计。
+ */
+export function promoteOntologyCandidateGroup(input: {
+  candidateKey: string;
+  memberCandidateKeys?: string[];
+  expertName: string;
+  decisionNote: string;
+  definition: FormalStateVariableInput;
+}) {
+  validateFormalStateVariableInput(input.definition);
+  const all = listOntologyCandidates();
+  let candidate = all.find((item) => item.candidate_key === input.candidateKey);
+  if (!candidate) throw new Error("本体候选不存在或已无当前研究依据");
+  if (candidate.change_request?.status === "released") return candidate;
+  const targetId = input.definition.targetId;
+  if (candidate.review.status === "pending") {
+    candidate = reviewOntologyCandidate({ candidateKey: candidate.candidate_key, status: "expert_confirmed", expertName: input.expertName, decisionNote: input.decisionNote, targetOntologyNodeId: targetId });
+  }
+  if (!candidate.change_request) {
+    candidate = reviewOntologyCandidate({ candidateKey: candidate.candidate_key, status: "promoted", expertName: input.expertName, decisionNote: input.decisionNote, targetOntologyNodeId: targetId });
+  }
+  let current = candidate.change_request!;
+  const memberKeys = [...new Set([candidate.candidate_key, ...(input.memberCandidateKeys || [])])];
+  const memberRuns = [...new Set(all.filter((item) => memberKeys.includes(item.candidate_key)).flatMap((item) => item.run_ids))];
+  const impactReport: OntologyImpactSnapshot = {
+    changed_element_ids: [targetId],
+    affected_consumers: ["runtime_semantic_catalog", "knowledge_task_slice", "knowledge_library_ui"],
+    affected_run_ids: memberRuns,
+    required_checks: ["ontology:check", "parameter_authority", "knowledge_package"],
+  };
+  if (current.status === "proposed") current = applyOntologyGovernanceAction({ requestId: current.id, actionId: "FreezeImpactAssessment", actorName: input.expertName, actorRole: "ontology_steward", decisionNote: input.decisionNote, impactReport });
+  if (current.status === "impact_assessed") current = applyOntologyGovernanceAction({ requestId: current.id, actionId: "ApproveOntologyChange", actorName: input.expertName, actorRole: "ontology_steward", decisionNote: input.decisionNote, approvalPolicySatisfied: true });
+  let written: ReturnType<typeof writeFormalStateVariable> | null = null;
+  try {
+    const targetAlreadyExists = Boolean(loadDomainBusinessGraph()?.objects.some((object) => object.id === targetId));
+    if (!targetAlreadyExists) written = writeFormalStateVariable(input.definition);
+    if (current.status === "approved") current = applyOntologyGovernanceAction({ requestId: current.id, actionId: "RecordOntologyImplementation", actorName: input.expertName, actorRole: "ontology_steward", decisionNote: input.decisionNote, implementationRef: DOMAIN_GRAPH_REF });
+    if (current.status === "implemented") {
+      const validationResults = validatePromotedStateVariable(input.definition);
+      current = applyOntologyGovernanceAction({ requestId: current.id, actionId: "AttestValidationResults", actorName: input.expertName, actorRole: "ontology_steward", decisionNote: input.decisionNote, validationResults });
+    }
+    if (current.status === "validated") {
+      const fingerprint = loadOntologyCatalog().fingerprint;
+      current = applyOntologyGovernanceAction({ requestId: current.id, actionId: "ReleaseOntologyBaseline", actorName: input.expertName, actorRole: "ontology_steward", decisionNote: input.decisionNote, releaseFingerprint: fingerprint, approvalPolicySatisfied: true });
+    }
+  } catch (error) {
+    written?.rollback();
+    throw error;
+  }
+  for (const member of all.filter((item) => memberKeys.includes(item.candidate_key) && item.candidate_key !== candidate!.candidate_key && !item.change_request)) {
+    if (member.review.status === "pending") reviewOntologyCandidate({ candidateKey: member.candidate_key, status: "expert_confirmed", expertName: input.expertName, decisionNote: `与 ${targetId} 合并治理：${input.decisionNote}`, targetOntologyNodeId: targetId });
+  }
+  return listOntologyCandidates().find((item) => item.candidate_key === candidate!.candidate_key)!;
 }

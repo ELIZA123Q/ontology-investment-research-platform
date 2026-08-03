@@ -81,6 +81,30 @@ function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
 }
 
+/**
+ * Spend a constrained query budget across requirements before taking a second
+ * producer/query for any one requirement. This prevents early requirements
+ * from consuming the whole search context and leaving later JUs uncovered.
+ */
+export function roundRobinAcquisitionQueries(
+  tasks: Array<Pick<EvidenceAcquisitionTask, "queries">>,
+  limit: number,
+): string[] {
+  const selected: string[] = [];
+  const seen = new Set<string>();
+  const maxDepth = Math.max(0, ...tasks.map((task) => task.queries.length));
+  for (let depth = 0; depth < maxDepth && selected.length < limit; depth += 1) {
+    for (const task of tasks) {
+      const query = task.queries[depth];
+      if (!query || seen.has(query)) continue;
+      seen.add(query);
+      selected.push(query);
+      if (selected.length >= limit) break;
+    }
+  }
+  return selected;
+}
+
 export function loadEvidenceSourceRoutes(): {
   version: string;
   routes: EvidenceSourceRoute[];
@@ -362,7 +386,7 @@ export function compileEvidenceAcquisitionPlan(input: {
         evidence_profile_ids: task.evidence_profile_ids,
       }]
       : []),
-    queries: [...new Set(tasks.flatMap((task) => task.queries))].slice(0, maxQueries),
+    queries: roundRobinAcquisitionQueries(tasks, maxQueries),
     allowed_producers: [
       ...new Map(tasks.flatMap((task) => task.allowed_producers).map((producer) => [producer.domain, producer])).values(),
     ],

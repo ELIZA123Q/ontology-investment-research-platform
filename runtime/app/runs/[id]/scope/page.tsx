@@ -7,8 +7,9 @@ import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
-import { buildScopeResearcherView } from "@/app/lib/researcher-stage-output";
+import { buildScopeResearcherView, buildStageDecisionView } from "@/app/lib/researcher-stage-output";
 import { journeyEditHref } from "@/app/lib/research-journey";
+import { StageExceptionNotice } from "@/app/components/stage-exception-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,11 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
     fallbackQuestion: run.question,
   });
   const section = (key: string) => view.sections.find((item) => item.id === key);
+  const decision = buildStageDecisionView({
+    outcome: view.summary,
+    blockingReasons: view.proceed.blockingReasons,
+    blockingTitle: "研究范围还不能确认",
+  });
 
   return <>
     <StageSceneChrome
@@ -41,34 +47,39 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
       stage={1}
       status={artifact.status}
       outputCount={view.outputCount}
-      subtitle={run.question}
       actions={
         <>
-          <StageApprovalButton runId={id} artifactId={artifact.id} stage={1} status={artifact.status} />
+          {view.proceed.canProceed ? <StageApprovalButton runId={id} artifactId={artifact.id} stage={1} status={artifact.status} /> : null}
           <StageStatusBadge status={artifact.status} />
-          <Link className="button-secondary" href={journeyEditHref(id, 1)}>修改范围</Link>
+          {view.proceed.canProceed ? <Link className="button-secondary" href={journeyEditHref(id, 1)}>修改范围</Link> : null}
         </>
       }
     />
 
+    <StageExceptionNotice exception={decision.exception ? {
+      ...decision.exception,
+      href: journeyEditHref(id, 1),
+      actionLabel: "修正研究范围 →",
+    } : null} />
+
     {view.outputCount ? (
-      <section className="structure-review-summary" aria-label="研究范围与前提">
-        <article className="structure-review-card">
+      <section className="scope-decision-card" aria-label="研究范围与前提">
+        <article className="scope-question-block">
           <span>规范化研究问题</span>
           <strong>{section("question")?.body}</strong>
-          <p>{view.summary}</p>
         </article>
-
-        <article className="structure-review-card">
-          <span>核心判断</span>
-          {section("object")?.body ? <strong>{section("object")?.body}</strong> : null}
-          {section("action")?.body ? <p>{section("action")?.body}</p> : null}
-        </article>
-
-        <article className="structure-review-card">
-          <span>时间口径</span>
-          {section("time")?.items?.length ? (
-            <dl>
+        <div className="scope-facts-grid">
+          <article>
+            <span>研究对象</span>
+            <strong>{section("object")?.body || "尚未登记"}</strong>
+          </article>
+          <article>
+            <span>要做的判断</span>
+            <strong>{section("action")?.body || "尚未登记"}</strong>
+          </article>
+          <article>
+            <span>时间口径</span>
+            {section("time")?.items?.length ? <dl>
               {section("time")!.items!.map((item) => {
                 const [label, ...rest] = item.split("：");
                 return (
@@ -78,11 +89,10 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
                   </div>
                 );
               })}
-            </dl>
-          ) : <p className="muted">尚未登记</p>}
-        </article>
-
-        <article className="structure-review-card">
+            </dl> : <p className="muted">尚未登记</p>}
+          </article>
+        </div>
+        <article className="scope-boundary-block">
           <span>边界与排除</span>
           <div className="premise-grid">
             <div>
@@ -98,11 +108,9 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
                 : <p className="muted">尚未登记</p>}
             </div>
           </div>
-          {section("delivery")?.body ? <p><strong>交付落点</strong><br />{section("delivery")?.body}</p> : null}
         </article>
-
-        <article className="structure-review-card">
-          <span>前提三分法</span>
+        <details className="stage-inline-details" open={view.proceed.blockingReasons.length > 0}>
+          <summary><strong>研究前提</strong><span>已知事实、用户假设与待验证假设</span></summary>
           <div className="premise-grid">
             {(["known", "assumptions", "hypotheses"] as const).map((key) => (
               <div key={key}>
@@ -114,7 +122,7 @@ export default async function ScopePage({ params }: { params: Promise<{ id: stri
               </div>
             ))}
           </div>
-        </article>
+        </details>
       </section>
     ) : (
       <EmptyState

@@ -10,6 +10,7 @@ import { EmptyState } from "@/app/components/empty-state";
 import { buildDeliveryResearcherView, buildFormalDeliveryGate } from "@/app/lib/researcher-stage-output";
 import { journeyEditHref } from "@/app/lib/research-journey";
 import { buildReportClaimSourceIndex } from "@/engine/report_source_index";
+import { StageExceptionNotice } from "@/app/components/stage-exception-notice";
 
 export const dynamic = "force-dynamic";
 
@@ -20,77 +21,51 @@ export default async function Report({ params }: { params: Promise<{ id: string 
     return (
       <EmptyState
         title="尚未生成交付稿"
-        description="请先确认判断并完成独立审阅所需前置后，再进入报告草稿页生成读者可见正文。"
+        description="请先确认判断，再进入报告草稿页生成读者可见正文。05 确认时会检查报告是否忠实表达 04。"
         actionHref={journeyEditHref(id, 5)}
         actionLabel="生成交付稿 →"
       />
     );
   }
   const data: any = parseJson(artifact.json_content || "{}", {});
-  const review = latestArtifactPayload(id, "independent_review", ["approved", "needs_review"]);
-  const reviewData: any = parseJson(review?.json_content || "{}", {});
-  const baseline = latestArtifactMeta(id, "baseline", ["approved"]);
-  const evaluation = latestArtifactMeta(id, "evaluation", ["approved"]);
   const claimSourceIndex = buildReportClaimSourceIndex(data, listSourcesForReview(id));
   const blockers = listWorkItemsForReview(id).filter((item) => item.status === "pending" || item.status === "rework");
-  const reviewPassed = Boolean(review?.status === "approved" && reviewData.verdict === "pass");
-  const dailyReady = Boolean(artifact.status === "approved" && reviewPassed && blockers.length === 0);
-  const qualityReady = Boolean(dailyReady && baseline && evaluation);
-  const stagesApproved = Boolean(
+  const dailyReady = Boolean(artifact.status === "approved" && blockers.length === 0);
+  const upstreamStagesApproved = Boolean(
     latestArtifactMeta(id, "stage_01", ["approved"])
     && latestArtifactMeta(id, "stage_02", ["approved"])
     && latestArtifactMeta(id, "stage_03", ["approved"])
     && latestArtifactMeta(id, "stage_04", ["approved"])
-    && artifact.status === "approved"
-    && blockers.length === 0,
   );
+  const stagesApproved = Boolean(upstreamStagesApproved && artifact.status === "approved" && blockers.length === 0);
+  const stageKinds = ["stage_01", "stage_02", "stage_03", "stage_04", "stage_05"] as const;
+  const stagesBelowHq = stageKinds
+    .map((s) => {
+      const a = latestArtifactPayload(id, s, ["approved"]);
+      if (!a) return null;
+      const d: any = parseJson(a.json_content || "{}", {});
+      return String(d.quality_status || "") === "high_quality_pass" ? null : s;
+    })
+    .filter((x): x is string => x !== null);
+  const allStagesHighQualityPass = stagesBelowHq.length === 0;
   const deliveryGate = buildFormalDeliveryGate({
     artifactApproved: artifact.status === "approved",
-    reviewPassed,
     pendingCount: blockers.length,
     allStagesApproved: stagesApproved,
+    allStagesHighQualityPass,
   });
   const view = buildDeliveryResearcherView(data, {
     artifactStatus: artifact.status,
-    reviewPassed,
     pendingCount: blockers.length,
     stagesApproved,
   });
-
-  const readinessItems = [
-    {
-      id: "report",
-      label: "报告表达已确认",
-      pass: artifact.status === "approved",
-      href: artifact.status === "approved" ? null : null,
-      action: artifact.status === "approved" ? null : "在本页确认交付",
-    },
-    {
-      id: "review",
-      label: "独立审阅通过",
-      pass: reviewPassed,
-      href: `/runs/${id}/judgments`,
-      action: !review
-        ? "先到判断页发起独立审阅"
-        : reviewData.verdict === "rework"
-          ? "独立审阅要求退回，请先处理问题"
-          : "到判断页完成独立审阅确认",
-    },
-    {
-      id: "todos",
-      label: "待办已清零",
-      pass: blockers.length === 0,
-      href: `/runs/${id}`,
-      action: blockers.length ? `处理 ${blockers.length} 项剩余待办` : null,
-    },
-    {
-      id: "stages",
-      label: "五阶段均已确认",
-      pass: stagesApproved,
-      href: `/runs/${id}`,
-      action: stagesApproved ? null : "返回概览检查未确认阶段",
-    },
-  ];
+  const actionableBlockingReasons = [
+    blockers.length ? `仍有 ${blockers.length} 项待办` : "",
+    !upstreamStagesApproved ? "前四个研究阶段尚未全部确认" : "",
+    stagesBelowHq.length
+      ? `阶段 ${stagesBelowHq.map((s) => s.replace("stage_", "")).join("、")} 未达到高质量通过（high_quality_pass），不满足正式交付门槛`
+      : "",
+  ].filter(Boolean);
 
   return <>
     <StageSceneChrome
@@ -98,76 +73,49 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       stage={5}
       status={artifact.status}
       outputCount={view.outputCount}
-      statusNote={view.proceed.blockingReasons[0] || "日常交付条件已满足"}
+      statusNote={view.proceed.blockingReasons.length ? undefined : "日常交付条件已满足"}
+      showNextStep={false}
       actions={
         <>
-          <StageApprovalButton
+          {blockers.length === 0 ? <StageApprovalButton
             runId={id}
             artifactId={artifact.id}
             stage={5}
             status={artifact.status}
-            canApprove={blockers.length === 0}
-            blockingHint={blockers.length ? `先处理 ${blockers.length} 项待办` : undefined}
-          />
-          {dailyReady ? (
-            <a className="button-secondary" href={`/api/runs/${id}/report.md`}>导出 Markdown ↓</a>
-          ) : null}
+          /> : null}
           <StageStatusBadge status={artifact.status} pendingCount={blockers.length} />
           <Link className="button-quiet" href={journeyEditHref(id, 5)}>修改交付稿</Link>
         </>
       }
     />
 
-    <section className={`delivery-readiness ${deliveryGate.ready ? "ready" : "blocked"}`} aria-label="交付就绪清单">
-      <div>
-        <span>{deliveryGate.label}</span>
-        <strong>{deliveryGate.summary}</strong>
-      </div>
-      <ol className="delivery-readiness-list">
-        {readinessItems.map((item) => (
-          <li key={item.id} className={item.pass ? "pass" : "blocked"}>
-            <span>{item.label}</span>
-            {item.pass ? <strong>已满足</strong> : (
-              item.href && item.action
-                ? <Link href={item.href}>{item.action} →</Link>
-                : <strong>{item.action || "待处理"}</strong>
-            )}
-          </li>
-        ))}
-      </ol>
-      <div className="actions" style={{ marginTop: 12 }}>
+    <StageExceptionNotice exception={actionableBlockingReasons.length ? {
+      title: "尚未达到正式发布条件",
+      items: actionableBlockingReasons,
+      href: blockers.length ? `/runs/${id}` : journeyEditHref(id, 5),
+      actionLabel: blockers.length ? "处理剩余待办 →" : "核对交付稿 →",
+    } : null} />
+
+    {deliveryGate.ready ? <section className="release-toolbar" aria-label="交付操作">
+      <div><span>已可正式发布</span><strong>报告与来源映射已锁定为同一版本</strong></div>
+      <div className="actions">
         <PublishButton
           runId={id}
-          disabled={!deliveryGate.ready}
-          disabledReason={deliveryGate.blockingReasons.join("；")}
+          disabled={false}
         />
+        {dailyReady ? <a className="button-secondary" href={`/api/runs/${id}/report.md`}>导出 Markdown ↓</a> : null}
       </div>
-    </section>
+    </section> : null}
 
-    <details className="advanced-tools delivery-quality">
-      <summary>
-        <div>
-          <div className="eyebrow">可选质量实验</div>
-          <strong>同证据基线与 A/B 盲评</strong>
-        </div>
-        <span className="section-meta">{qualityReady ? "已完成" : "不属于正式包主链"}</span>
-      </summary>
-      <div className="delivery-quality-body">
-        <p className="muted">用于流程对照实验；正式发布包导出不再依赖盲评。</p>
-        <div className="readiness-checks">
-          <span className={baseline ? "pass" : ""}>同证据基线</span>
-          <span className={evaluation ? "pass" : ""}>A/B 盲评</span>
-        </div>
-        <div className="actions">
-          <Link className="button-secondary" href={`/runs/${id}/compare`}>
-            {qualityReady ? "查看对照实验 →" : "进入对照实验 →"}
-          </Link>
-        </div>
-      </div>
-    </details>
+    <article className="card markdown report-document"><ReportMarkdown content={artifact.markdown_content} readerView /></article>
 
-    {claimSourceIndex.length ? (
-      <section className="card report-source-index" aria-label="核心主张来源索引">
+    <details className="advanced-tools stage-audit-details delivery-audit-details">
+      <summary><div><div className="eyebrow">交付与来源详情</div><strong>发布制品边界与核心主张来源</strong></div><span className="section-meta">按需展开</span></summary>
+      <section className="release-package-boundary" aria-label="正式发布制品说明">
+        <div><div className="eyebrow">对外交付包</div><strong>报告、必要图表与来源索引</strong><p className="muted">不包含完整证据快照、内部推理审计或方法正文。</p></div>
+        <div><div className="eyebrow">内部审计包</div><strong>完整五阶段、证据链与知识锁</strong><p className="muted">用于内部复核、回放和增量更新。</p></div>
+      </section>
+      {claimSourceIndex.length ? <section className="report-source-index" aria-label="核心主张来源索引">
         <div className="panel-title">
           <div>
             <span>正文复核入口</span>
@@ -175,7 +123,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
           </div>
           <small>{claimSourceIndex.length} 条主张</small>
         </div>
-        <p className="muted">这里只展示已绑定到报告主张的来源；逐字引文、正文哈希和完整审计记录保留在证据台与正式包中。</p>
+        <p className="muted">这里只展示已绑定到报告主张的来源；逐字引文、正文哈希和完整审计记录保留在证据台与内部研究审计包中。</p>
         <div className="report-source-index-list">
           {claimSourceIndex.map((entry, index) => (
             <details key={`${index}:${entry.statement}`}>
@@ -191,9 +139,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
             </details>
           ))}
         </div>
-      </section>
-    ) : null}
-
-    <article className="card markdown report-document"><ReportMarkdown content={artifact.markdown_content} readerView /></article>
+      </section> : <p className="muted">当前没有可展示的核心主张来源索引。</p>}
+    </details>
   </>;
 }

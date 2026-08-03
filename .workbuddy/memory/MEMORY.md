@@ -35,3 +35,13 @@
 - `research_runs.current_stage` 由 `recomputeRunProgress(runId)`（runtime/adapters/db/runs.ts）作为单一真相源维护，依据实际 approved 的 stage_XX 产出最大编号计算；禁止在其他位置直接赋值 current_stage。
 - 触发点：`approveArtifact` / `supersedeDownstream` / `supersedeOtherArtifactAttempts`（artifacts.ts），覆盖所有批准与取代入口。
 - 存量漂移修复：`npm run recompute:run-progress`（runtime/scripts/recompute-run-progress.ts，纯 node:sqlite）。
+
+## 正式交付/审计包导出门槛（易踩坑）
+- 两套独立门槛，且发布前 UI 判定与发布时真实校验不一致，易造成"按钮可点但导出失败"：
+  - 02→03 放行：`assertStage02ReadyForApproval` 只拦 `quality_status==="return_required"`；`minimum_pass`/`high_quality_pass` 都放行（spec §7.1：minimum_pass 即可进 03）。
+  - 正式包导出：`exportFormalPack`（被 `publishReleaseSetAndValidate` 调用）强制 01–05 全部 `quality_status==="high_quality_pass"`（formal_pack_export.ts:84），依据 spec §7.2。
+  - 发布前按钮判定 `buildFormalDeliveryGate`（researcher-stage-output.ts:622）只查"五阶段全 approved + 无 pending"，不查 high_quality_pass → 按钮显示"可导出正式发布包"但点击被 hq 检查拦下。
+- quality_status 默认回退为 minimum_pass（stage02_documents.ts:238）；只有生成器自评 high_quality_pass 且通过 §7.2 检查（collectStage02HighQualityIssues）才保留，否则 `downgradeIfHighQualityFails` 降级回 minimum_pass。
+- 导出循环按 01→05 顺序，第一个非 hq 即抛"阶段 X 尚未达到可交接密度"——看到 02 不代表 03/04/05 已过。
+- 修复路径：回各阶段重生成/补强到 high_quality_pass；重生成早期阶段会 supersede 旧 artifact，下游 03/04/05 可能需一并重跑保持契约一致。
+- **已落地（2026-08-03）**：`buildFormalDeliveryGate` 增加可选 `allStagesHighQualityPass` 入参；`report/page.tsx` 计算 01–05 各阶段 quality_status，未达 hq 则按钮隐藏（release-toolbar 仅在 gate.ready 时渲染）并在 StageExceptionNotice 列出具体阶段（如"阶段 02 未达到高质量通过"），对齐 exportFormalPack 真实规则。测试见 researcher_stage_output.test.ts。

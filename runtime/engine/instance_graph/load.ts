@@ -100,6 +100,9 @@ export function loadGraphFromYamlFile(absolutePath: string): BusinessInstanceGra
 }
 
 let cachedDomainGraph: BusinessInstanceGraph | null | undefined;
+export function resetDomainBusinessGraphCache() {
+  cachedDomainGraph = undefined;
+}
 export function loadDomainBusinessGraph(): BusinessInstanceGraph | null {
   if (cachedDomainGraph !== undefined) return cachedDomainGraph ? structuredClone(cachedDomainGraph) : null;
   cachedDomainGraph = loadGraphFromYamlFile(repositoryPath("ontology", "02_领域", "semiconductor", "business_instances.yaml"));

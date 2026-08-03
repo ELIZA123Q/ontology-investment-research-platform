@@ -191,9 +191,17 @@ export function precheckStage03OntologyConstraints(input: {
         researcher_hint: "将在判断确认时挡门：请纠正范围绑定或拆分跨范围判断",
       });
     }
-    const times = [draft.observed_at, draft.valid_from, draft.published_at, draft.cutoff_at]
+    const factTimes = [draft.observed_at, draft.valid_from, draft.published_at]
       .map(parseTime);
-    if (cutoff && times.some((value) => value == null || value > cutoff)) {
+    const declaredCutoff = parseTime(draft.cutoff_at);
+    // cutoff_at 是研究边界而非事实发生时间。持久层有的路径写到整秒，
+    // 有的路径写到同一秒的 .999；两者语义相同，不能因毫秒精度差异误报越界。
+    // 真正的事实时间仍按毫秒严格校验。
+    const cutoffBoundaryInvalid = Boolean(cutoff) && (
+      declaredCutoff == null
+      || Math.floor(declaredCutoff / 1000) > Math.floor(cutoff! / 1000)
+    );
+    if (cutoff && (factTimes.some((value) => value == null || value > cutoff) || cutoffBoundaryInvalid)) {
       findings.push({
         rule_ref: "evidence_scope_time_alignment",
         severity: "blocking_soft",

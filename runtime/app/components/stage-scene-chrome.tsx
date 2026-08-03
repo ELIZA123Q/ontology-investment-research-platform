@@ -53,23 +53,23 @@ export function StageSceneChrome({
         {actions ? <div className="actions">{actions}</div> : null}
       </div>
 
-      <section className="stage-output-banner">
-        <div>
-          <span>本阶段输出</span>
-          <strong>{outputTitle}</strong>
-          {subtitle ? <small>{subtitle}</small> : <small>{outputNote}</small>}
-        </div>
-        <p>{statusNote || outputNote}</p>
-      </section>
-
-      <section className={`stage-confirm-gate${awaitingConfirm ? " pending" : ""}`}>
-        <div>
-          <span>本阶段确认问题</span>
+      <section className={`stage-decision-strip${awaitingConfirm ? " pending" : ""}`}>
+        <div className="stage-decision-question">
+          <span>当前要决定</span>
           <strong>{journey.confirmation}</strong>
-          <small>{awaitingConfirm ? "确认前请先回答这个问题。" : status === "approved" ? "本阶段已确认。" : "生成可核对版本后，在此回答确认问题。"}</small>
+          <small>{awaitingConfirm
+            ? statusNote || "核对下方研究内容后确认。"
+            : status === "approved"
+              ? "本阶段已确认。"
+              : statusNote || "生成可核对版本后再确认。"}</small>
+        </div>
+        <div className="stage-decision-output">
+          <span>当前产出</span>
+          <strong>{outputTitle}</strong>
+          <small>{subtitle || outputNote}</small>
         </div>
         {shouldShowNext ? (
-          <Link className="button-secondary" href={nextHref}>{journey.nextStep.label}</Link>
+          <Link className="button" href={nextHref}>{journey.nextStep.label}</Link>
         ) : null}
       </section>
     </>

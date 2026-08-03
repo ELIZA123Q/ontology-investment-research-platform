@@ -1,7 +1,5 @@
-import type { listKnowledgeAssets } from "@/engine/knowledge_browser";
-
-export type OntologyTabId = "network" | "catalog" | "methods" | "comparability" | "queries" | "governance";
-export type OntologyTabGroup = "run" | "cross" | "governance";
+export type OntologyTabId = "network" | "catalog" | "comparability" | "queries" | "governance";
+export type OntologyTabGroup = "use" | "reuse" | "publish";
 
 export type TabGuide = {
   id: OntologyTabId;
@@ -14,15 +12,15 @@ export type TabGuide = {
 };
 
 export const TAB_GROUPS: Array<{ id: OntologyTabGroup; label: string; hint: string; demoted?: boolean }> = [
-  { id: "run", label: "看本轮", hint: "核对当前研究用了什么知识" },
-  { id: "cross", label: "跨研究", hint: "对齐口径与影响范围" },
-  { id: "governance", label: "治理", hint: "专家维护正式知识库", demoted: true },
+  { id: "use", label: "1 · 用于本研究", hint: "核对本轮实际使用的语义与规则" },
+  { id: "reuse", label: "2 · 跨研究复用", hint: "按统一口径查询与比较" },
+  { id: "publish", label: "3 · 治理与发布", hint: "把候选知识变成正式版本并导出", demoted: true },
 ];
 
 export const TAB_GUIDE: TabGuide[] = [
   {
     id: "network",
-    group: "run",
+    group: "use",
     label: "研究知识网络",
     blurb: "本轮研究实际用到了哪些类型与规则",
     answers: "本轮使用了哪些知识节点与规则？",
@@ -31,7 +29,7 @@ export const TAB_GUIDE: TabGuide[] = [
   },
   {
     id: "catalog",
-    group: "run",
+    group: "use",
     label: "类型目录",
     blurb: "查某个类型的定义，以及本轮有没有实例",
     answers: "这个类型是什么、本轮有没有实例？",
@@ -39,17 +37,8 @@ export const TAB_GUIDE: TabGuide[] = [
     nextUse: "避免把「类型存在」当成「本轮已用」；有实例再回结构/证据页核对。",
   },
   {
-    id: "methods",
-    group: "run",
-    label: "方法与规范",
-    blurb: "各阶段可用的研究方法与规范（只读）",
-    answers: "各阶段有哪些研究方法与规范？",
-    sees: ["按阶段列出研究方法与规范", "每项方法的用途与摘要", "需要排查时再展开原始摘录"],
-    nextUse: "查研究口径；这里只读展示各阶段可选用的方法，不在这里编辑。",
-  },
-  {
     id: "comparability",
-    group: "cross",
+    group: "reuse",
     label: "跨研究口径",
     blurb: "同名正式变量能不能直接对比",
     answers: "这两个变量能不能直接比？",
@@ -58,7 +47,7 @@ export const TAB_GUIDE: TabGuide[] = [
   },
   {
     id: "queries",
-    group: "cross",
+    group: "reuse",
     label: "研究问题查询",
     blurb: "证据影响哪些判断、变量出现在哪些研究",
     answers: "证据/变量的下游影响是什么？",
@@ -67,7 +56,7 @@ export const TAB_GUIDE: TabGuide[] = [
   },
   {
     id: "governance",
-    group: "governance",
+    group: "publish",
     label: "知识缺口治理",
     blurb: "专家确认候选缺口，创建并跟踪正式变更提案",
     answers: "哪些本轮候选值得进入正式知识库？",
@@ -103,38 +92,4 @@ export function knowledgeCategoryLabel(category: string): string {
     Rule: "研究规则",
     Scenario: "研究场景",
   } as Record<string, string>)[category] || category;
-}
-
-function methodAssetTitle(file: string, title: string): string {
-  const source = `${file} ${title}`;
-  if (/runtime quality card/i.test(source)) return "本阶段质量检查标准";
-  if (/MCP通道注册/i.test(source)) return "数据取得通道与来源边界";
-  if (/MCP查询快速参考/i.test(source)) return "数据查询操作参考";
-  if (/表达审计模板/.test(source)) return "报告表达审计规范";
-  if (/证据/.test(source)) return "证据采集与核验规范";
-  if (/判断/.test(source)) return "判断形成与审阅规范";
-  if (/结构/.test(source)) return "研究结构设计规范";
-  if (/范围/.test(source)) return "研究范围界定规范";
-  if (/交付|报告/.test(source)) return "研究交付规范";
-  return title
-    .replace(/\.(md|ya?ml|json)$/i, "")
-    .replace(/^[A-Z]{1,5}\d*[_-]+/i, "")
-    .replace(/^\d+[A-Z]?[\s_-]+/i, "")
-    .replace(/投研本体框架/g, "研究知识框架")
-    .replace(/领域本体/g, "领域知识")
-    .replace(/[_-]+/g, " ");
-}
-
-type MethodAsset = ReturnType<typeof listKnowledgeAssets>[number];
-
-export function groupMethodAssets(assets: MethodAsset[]) {
-  const grouped = new Map<string, { stage: string; title: string; entries: MethodAsset[] }>();
-  for (const asset of assets) {
-    const title = methodAssetTitle(asset.file, asset.title);
-    const key = `${asset.stage}:${title}`;
-    const existing = grouped.get(key);
-    if (existing) existing.entries.push(asset);
-    else grouped.set(key, { stage: asset.stage, title, entries: [asset] });
-  }
-  return Array.from(grouped.values());
 }

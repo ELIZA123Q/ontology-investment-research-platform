@@ -42,6 +42,30 @@ describe("ontology_stage03_precheck", () => {
     expect(drafts[0].kind).toBe("gap");
   });
 
+  it("treats cutoff boundaries in the same second as equivalent without relaxing fact times", () => {
+    const base = {
+      id: "EV-CUTOFF",
+      kind: "fact_draft",
+      statement: "已核验经营事实",
+      directness: "direct",
+      observed_at: "2025-06-30T23:59:59+08:00",
+      valid_from: "2025-01-01T00:00:00+08:00",
+      published_at: "2025-06-30T23:59:59+08:00",
+      cutoff_at: "2025-06-30T23:59:59.999+08:00",
+    };
+    const equivalent = precheckStage03OntologyConstraints({
+      evidence_drafts: [base],
+      cutoff_at: "2025-06-30T23:59:59+08:00",
+    });
+    expect(equivalent.blocking_soft_count).toBe(0);
+
+    const trulyLate = precheckStage03OntologyConstraints({
+      evidence_drafts: [{ ...base, published_at: "2025-07-01T00:00:00+08:00" }],
+      cutoff_at: "2025-06-30T23:59:59+08:00",
+    });
+    expect(trulyLate.findings.some((item) => item.rule_ref === "evidence_scope_time_alignment")).toBe(true);
+  });
+
   it("is wired into the Stage03 approval recompute gate", () => {
     const groups = ["g1", "g2", "g3", "g1", "g2"];
     const sources = groups.map((group, index) => ({
@@ -124,6 +148,8 @@ describe("ontology_contribution_summary", () => {
         effects: [{
           id: "constraint:rule:RE-SYS-1",
           kind: "constraint",
+          status: "applied",
+          observed_contribution: true,
           title: "证据门槛：未通过",
           explanation: "请求 J2 超过证据上限",
           result: "限制：阻止判断越过当前证据与语义边界",

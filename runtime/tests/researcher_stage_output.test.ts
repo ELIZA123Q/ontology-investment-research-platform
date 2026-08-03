@@ -7,6 +7,7 @@ import {
   buildJudgmentResearcherView,
   buildEvidenceReadinessView,
   buildFormalDeliveryGate,
+  buildStageDecisionView,
   formatResearchDate,
   prepareReaderReportMarkdown,
   researcherLanguage,
@@ -14,6 +15,19 @@ import {
 } from "../app/lib/researcher-stage-output";
 
 describe("researcher stage output", () => {
+  it("keeps normal checks out of the main view and prioritizes actionable exceptions", () => {
+    expect(buildStageDecisionView({ outcome: "可以确认" })).toEqual({ outcome: "可以确认", exception: null });
+    expect(buildStageDecisionView({
+      outcome: "材料受限",
+      blockingReasons: ["待核对 2 项", "待核对 2 项"],
+      limitingReasons: ["最低证据组合未满足"],
+    }).exception).toEqual({ tone: "blocking", title: "确认前需处理", items: ["待核对 2 项"] });
+    expect(buildStageDecisionView({
+      outcome: "可形成弱判断",
+      limitingReasons: ["仅有单一来源组"],
+    }).exception?.tone).toBe("limiting");
+  });
+
   it("summarizes the scope as a compact researcher handoff", () => {
     const result = buildScopeStageSummary({
       normalized_question: "未来六个月库存是否改善？",
@@ -268,24 +282,44 @@ describe("researcher stage output", () => {
     expect(explicit.sections.find((item) => item.id === "known")?.emptyBody).toContain("本次没有");
   });
 
-  it("keeps formal export locked until review, todos, report and all stages pass", () => {
+  it("treats Stage05 approval as the delivery consistency gate", () => {
     const blocked = buildFormalDeliveryGate({
-      artifactApproved: true,
-      reviewPassed: false,
+      artifactApproved: false,
       pendingCount: 0,
       allStagesApproved: true,
     });
     expect(blocked.ready).toBe(false);
     expect(blocked.label).toBe("尚未达到正式发布条件");
-    expect(blocked.blockingReasons).toEqual(["独立审阅尚未通过"]);
+    expect(blocked.blockingReasons).toEqual(["05 尚未通过交付一致性检查"]);
 
     const ready = buildFormalDeliveryGate({
       artifactApproved: true,
-      reviewPassed: true,
       pendingCount: 0,
       allStagesApproved: true,
     });
     expect(ready.ready).toBe(true);
     expect(ready.label).toBe("可导出正式发布包");
+  });
+
+  it("blocks formal delivery when a stage is below high_quality_pass", () => {
+    const blocked = buildFormalDeliveryGate({
+      artifactApproved: true,
+      pendingCount: 0,
+      allStagesApproved: true,
+      allStagesHighQualityPass: false,
+    });
+    expect(blocked.ready).toBe(false);
+    expect(blocked.label).toBe("尚未达到正式发布条件");
+    expect(blocked.blockingReasons).toContain(
+      "存在阶段未达到高质量通过（high_quality_pass），不满足正式交付门槛",
+    );
+
+    // 未提供该信息时保持旧行为，不额外阻断
+    const legacy = buildFormalDeliveryGate({
+      artifactApproved: true,
+      pendingCount: 0,
+      allStagesApproved: true,
+    });
+    expect(legacy.ready).toBe(true);
   });
 });

@@ -17,6 +17,14 @@ type Candidate = {
   domains: string[];
   variable_ids: string[];
   definitions: string[];
+  anchors: string[];
+  similarities: Array<{
+    candidate_key: string;
+    name: string;
+    score: number;
+    confidence: "high" | "possible";
+    reason: string;
+  }>;
   review: {
     status: CandidateStatus;
     expert_name: string;
@@ -111,6 +119,14 @@ export function OntologyCandidateQueue() {
   const [expertName, setExpertName] = useState("");
   const [decisionNote, setDecisionNote] = useState("");
   const [targetId, setTargetId] = useState("");
+  const [formalName, setFormalName] = useState("");
+  const [formalDefinition, setFormalDefinition] = useState("");
+  const [anchors, setAnchors] = useState("");
+  const [evidenceProfileRef, setEvidenceProfileRef] = useState("");
+  const [decisionUse, setDecisionUse] = useState("");
+  const [observationGuidance, setObservationGuidance] = useState("");
+  const [counterEvidenceGuidance, setCounterEvidenceGuidance] = useState("");
+  const [memberKeys, setMemberKeys] = useState<string[]>([]);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
 
@@ -141,6 +157,14 @@ export function OntologyCandidateQueue() {
     setExpertName(selected.review.expert_name || "");
     setDecisionNote(selected.review.decision_note || "");
     setTargetId(selected.review.target_ontology_node_id || "");
+    setFormalName(selected.name || "");
+    setFormalDefinition(selected.definitions[0] || "");
+    setAnchors(selected.anchors.join(", "));
+    setEvidenceProfileRef("");
+    setDecisionUse("");
+    setObservationGuidance("");
+    setCounterEvidenceGuidance("");
+    setMemberKeys(selected.similarities.filter((item) => item.confidence === "high").map((item) => item.candidate_key));
   }, [selectedKey, selected?.review.updated_at]);
 
   async function decide(status: CandidateStatus) {
@@ -166,6 +190,38 @@ export function OntologyCandidateQueue() {
     await load(selected.candidate_key);
   }
 
+  async function promote() {
+    if (!selected) return;
+    setBusy(true);
+    setError("");
+    const response = await fetch(`/api/ontology/candidates/${encodeURIComponent(selected.candidate_key)}/promote`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        member_candidate_keys: memberKeys,
+        expert_name: expertName,
+        decision_note: decisionNote,
+        target_ontology_node_id: targetId,
+        name: formalName,
+        definition: formalDefinition,
+        category: selected.category,
+        variable_kind: selected.variable_kind,
+        anchors: anchors.split(/[,，、]/).map((item) => item.trim()).filter(Boolean),
+        evidence_profile_ref: evidenceProfileRef,
+        decision_use: decisionUse,
+        observation_guidance: observationGuidance,
+        counter_evidence_guidance: counterEvidenceGuidance,
+      }),
+    });
+    const json = await response.json();
+    setBusy(false);
+    if (!response.ok) {
+      setError(json.error || "自动入库失败，候选已停在可审计步骤");
+      return;
+    }
+    await load(selected.candidate_key);
+  }
+
   const pendingCount = candidates.filter((candidate) => candidate.review.status === "pending").length;
   const reusedCount = candidates.filter((candidate) => candidate.cross_task_reused).length;
   const releasedCount = candidates.filter((candidate) => candidate.change_request?.status === "released").length;
@@ -173,7 +229,7 @@ export function OntologyCandidateQueue() {
   return (
     <section className="ontology-governance">
       <div className="ontology-governance-metrics">
-        <article><strong>{candidates.length}</strong><span>当前本轮候选知识</span></article>
+        <article><strong>{candidates.length}</strong><span>全部研究候选知识</span></article>
         <article><strong>{reusedCount}</strong><span>跨任务重复出现</span></article>
         <article><strong>{pendingCount}</strong><span>等待专家确认</span></article>
         <article><strong>{releasedCount}</strong><span>已正式发布</span></article>
@@ -195,7 +251,7 @@ export function OntologyCandidateQueue() {
             >
               <span className={`candidate-status ${candidate.review.status}`}>{STATUS_LABELS[candidate.review.status]}</span>
               <strong>{candidate.name}</strong>
-              <small>{candidateCategoryLabel(candidate.category)} · {candidate.run_count} 个研究 · {candidate.occurrence_count} 次出现</small>
+              <small>{candidateCategoryLabel(candidate.category)} · {candidate.run_count} 个研究 · {candidate.occurrence_count} 次出现{candidate.run_count > 1 ? " · 建议治理" : ""}</small>
             </button>
           ))}
           {!busy && !candidates.length ? <p className="muted">当前研究没有待治理的本轮候选知识。</p> : null}
@@ -228,6 +284,15 @@ export function OntologyCandidateQueue() {
               <ul className="source-list">
                 {selected.definitions.map((definition) => <li key={definition}>{definition}</li>)}
               </ul>
+              {selected.similarities.length ? <>
+                <h3>近义候选</h3>
+                <div className="candidate-similarity-list">
+                  {selected.similarities.map((item) => <label key={item.candidate_key}>
+                    <input type="checkbox" checked={memberKeys.includes(item.candidate_key)} disabled={item.confidence !== "high" || Boolean(selected.change_request)} onChange={(event) => setMemberKeys((current) => event.target.checked ? [...current, item.candidate_key] : current.filter((key) => key !== item.candidate_key))} />
+                    <span><strong>{item.name}</strong><small>{item.confidence === "high" ? "高置信归组" : "可能相关，仅供参考"} · {(item.score * 100).toFixed(0)}% · {item.reason}</small></span>
+                  </label>)}
+                </div>
+              </> : null}
               <div className="ontology-review-form">
                 <div className="field">
                   <label>专家 / 知识库维护人</label>
@@ -238,12 +303,18 @@ export function OntologyCandidateQueue() {
                   <textarea value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} placeholder="说明稳定性、跨任务价值、边界或驳回原因（至少 8 字）" />
                 </div>
                 <div className="field">
-                  <label>拟正式知识编号（创建变更提案时必填）</label>
+                  <label>拟正式知识编号</label>
                   <input value={targetId} onChange={(event) => setTargetId(event.target.value)} placeholder="由知识库维护人填写" />
                 </div>
+                <div className="field"><label>正式名称</label><input value={formalName} onChange={(event) => setFormalName(event.target.value)} /></div>
+                <div className="field"><label>稳定定义</label><textarea value={formalDefinition} onChange={(event) => setFormalDefinition(event.target.value)} /></div>
+                <div className="field"><label>对象锚点（逗号分隔）</label><input value={anchors} onChange={(event) => setAnchors(event.target.value)} placeholder="Company, Product, Industry" /></div>
+                <div className="field"><label>证据画像 ID</label><input value={evidenceProfileRef} onChange={(event) => setEvidenceProfileRef(event.target.value)} placeholder="必须引用已有 EvidenceProfile" /></div>
+                <div className="field"><label>判断用途</label><textarea value={decisionUse} onChange={(event) => setDecisionUse(event.target.value)} placeholder="说明该变量支持什么稳定判断" /></div>
+                <div className="field"><label>观察指引</label><textarea value={observationGuidance} onChange={(event) => setObservationGuidance(event.target.value)} placeholder="说明应如何观察和核验" /></div>
+                <div className="field"><label>反证指引</label><textarea value={counterEvidenceGuidance} onChange={(event) => setCounterEvidenceGuidance(event.target.value)} placeholder="说明哪些情况会削弱或推翻该变量判断" /></div>
                 <div className="actions">
-                  <button className="button-secondary" disabled={busy || Boolean(selected.change_request)} onClick={() => decide("expert_confirmed")} type="button">确认这是知识缺口</button>
-                  <button className="button" disabled={busy || Boolean(selected.change_request)} onClick={() => decide("promoted")} type="button">创建变更提案</button>
+                  <button className="button" disabled={busy || selected.change_request?.status === "released"} onClick={promote} type="button">{busy ? "正在执行治理与校验…" : selected.change_request ? "继续自动入库" : "确认并加入本体"}</button>
                   <button className="button-quiet" disabled={busy || Boolean(selected.change_request)} onClick={() => decide("rejected")} type="button">驳回候选</button>
                 </div>
               </div>

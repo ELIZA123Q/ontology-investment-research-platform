@@ -43,6 +43,19 @@ class PackageKindTests(unittest.TestCase):
             (run_dir / "01-主题投研需求说明-2026-1.md").write_text("# req\n", encoding="utf-8")
             self.assertEqual(package_kind.detect_package_kind(run_dir), package_kind.KIND_FORMAL)
 
+    def test_new_audit_manifest_is_routed_to_full_chain_validator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            run_dir = Path(tmp)
+            (run_dir / "run_manifest.yaml").write_text(
+                yaml.safe_dump({
+                    "schema_name": "controlled_research_run_manifest",
+                    "schema_version": "1.3.0",
+                    "package_kind": "research_audit_pack",
+                }),
+                encoding="utf-8",
+            )
+            self.assertEqual(package_kind.detect_package_kind(run_dir), package_kind.KIND_AUDIT)
+
 
 if __name__ == "__main__":
     unittest.main()

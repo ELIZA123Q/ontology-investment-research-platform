@@ -23,7 +23,7 @@ export type ResearchStageJourney = {
 };
 
 export type ResearchReferenceScene = {
-  id: "history" | "object-set" | "compare";
+  id: "history" | "insights" | "object-set" | "compare";
   eyebrow: string;
   title: string;
   hint: string;
@@ -122,10 +122,16 @@ export const RESEARCH_REFERENCE_SCENES: readonly ResearchReferenceScene[] = [
     hint: "先看阶段进展与前后轮变化；原始文件、全部版本和系统校验记录收进审计档案。",
   },
   {
+    id: "insights",
+    eyebrow: "自动质量验证与研究增量",
+    title: "哪些结论可信，哪里最值得继续查？",
+    hint: "自动识别不可判断项、单点证据依赖、闲置证据、联动改判路径与跨研究复用机会。",
+  },
+  {
     id: "object-set",
-    eyebrow: "高级审计 · 不改变研究结论",
-    title: "本轮实例关系审计",
-    hint: "核对本轮具体对象的正式连接与关系缺口；知识类型和规则定义请到知识库查看。",
+    eyebrow: "判断链审计 · 不改变研究结论",
+    title: "02 的研究结构在哪里承接，断点应回到哪一环节？",
+    hint: "默认按判断核对范围与变量、必要证据、事实与假设、规则与结论；实体网络保留为高级视图。",
   },
   {
     id: "compare",

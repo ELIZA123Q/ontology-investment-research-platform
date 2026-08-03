@@ -18,6 +18,25 @@ export type OntologyNode = {
   parameters?: string[];
   logic_refs?: string[];
   rule_refs?: string[];
+  model?: string;
+  namespace?: string;
+  status?: string;
+  inverse_of?: string;
+  direction?: string;
+  source_cardinality?: string;
+  target_cardinality?: string;
+  applies_to?: string[];
+  input_types?: string[];
+  output_types?: string[];
+  required_object_types?: string[];
+  required_relation_types?: string[];
+  required_state_types?: string[];
+  required_evidence_types?: string[];
+  required_judgment_types?: string[];
+  entry_conditions?: string[];
+  completion_conditions?: string[];
+  invalidation_conditions?: string[];
+  update_triggers?: string[];
 };
 
 export function loadOntology() {
@@ -44,6 +63,25 @@ export function loadOntology() {
           parameters: raw.parameters as string[] | undefined,
           logic_refs: raw.logic_refs as string[] | undefined,
           rule_refs: raw.rule_refs as string[] | undefined,
+          model: String(raw.metadata?.model || ""),
+          namespace: String(raw.metadata?.namespace || ""),
+          status: String(raw.metadata?.status || "active"),
+          inverse_of: raw.inverse_of as string | undefined,
+          direction: raw.direction as string | undefined,
+          source_cardinality: raw.source_cardinality as string | undefined,
+          target_cardinality: raw.target_cardinality as string | undefined,
+          applies_to: raw.applies_to as string[] | undefined,
+          input_types: raw.input_types as string[] | undefined,
+          output_types: raw.output_types as string[] | undefined,
+          required_object_types: raw.required_object_types as string[] | undefined,
+          required_relation_types: raw.required_relation_types as string[] | undefined,
+          required_state_types: raw.required_state_types as string[] | undefined,
+          required_evidence_types: raw.required_evidence_types as string[] | undefined,
+          required_judgment_types: raw.required_judgment_types as string[] | undefined,
+          entry_conditions: raw.entry_conditions as string[] | undefined,
+          completion_conditions: raw.completion_conditions as string[] | undefined,
+          invalidation_conditions: raw.invalidation_conditions as string[] | undefined,
+          update_triggers: raw.update_triggers as string[] | undefined,
         });
       }
   }

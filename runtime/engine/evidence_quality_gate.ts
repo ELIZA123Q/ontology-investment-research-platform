@@ -8,6 +8,7 @@
  */
 
 import type { SourceRecord } from "./types";
+import { isReadableEvidenceText } from "./text_quality";
 
 type EvidenceDraft = {
   id: string;
@@ -19,6 +20,8 @@ type EvidenceDraft = {
   judgment_unit_ids?: string[];
   evidence_requirement_ids?: string[];
   scope_ref?: string;
+  statement?: string;
+  limitations?: string[];
 };
 
 type JudgmentUnit = {
@@ -109,7 +112,12 @@ function countSourceGroups(sources: SourceRecord[]): number {
   return new Set(sources.map(sourceGroup)).size;
 }
 
-function draftRole(draft: EvidenceDraft): EvidenceRequirementAssessment["evidence_role"] {
+type EvidenceRoleDraft = Pick<
+  EvidenceDraft,
+  "kind" | "evidence_role" | "direction" | "statement" | "limitations"
+>;
+
+function draftRole(draft: EvidenceRoleDraft): EvidenceRequirementAssessment["evidence_role"] {
   const explicit = String(draft.evidence_role || "");
   if (["support", "counter", "context", "boundary"].includes(explicit)) {
     // 显式 evidence_role 与 kind/direction 冲突时，以 kind 为准（LLM 常见误填）
@@ -121,6 +129,18 @@ function draftRole(draft: EvidenceDraft): EvidenceRequirementAssessment["evidenc
   if (draft.kind === "counter" || draft.kind === "conflict" || draft.direction === "weaken") return "counter";
   if (draft.direction === "neutral") return "context";
   return "support";
+}
+
+export function documentsCounterSearch(
+  draft: EvidenceRoleDraft,
+): boolean {
+  if (String(draft.kind || "") !== "gap" || draftRole(draft) !== "counter") return false;
+  const text = [draft.statement || "", ...(draft.limitations || [])].join(" ");
+  // 只有留下检索动作/范围及“未找到”的明确记录才算反证检查完成。
+  // 初始 gap 底稿只有“未取得来源”，仍应触发一次补证；不能靠占位 gap 过门。
+  const attempted = /检索|查询|搜索|公开来源|公告|数据库|当前权限|search|quer/i.test(text);
+  const noResult = /未发现|未找到|未取得.{0,30}核验|无可核验|未检出|no\s+(?:result|evidence)|not\s+found/i.test(text);
+  return attempted && noResult;
 }
 
 /**
@@ -154,7 +174,8 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
         && source.retrieval_status === "captured"
         // SQLite stores booleans as 0/1. Strict `=== true` silently erased
         // every genuinely verified persisted source from the quality gate.
-        && Boolean(source.quote_verified),
+        && Boolean(source.quote_verified)
+        && (source.source_quote === undefined || isReadableEvidenceText(source.source_quote)),
       )
       .map((source) => [source.id, source]),
   );
@@ -213,6 +234,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
     );
     const enoughSources = evidence.length > 0 && sourceGroupsForRequirement >= minimumSources;
     const ambiguousUnitBinding = unitIds.length !== 1;
+    const documentedCounterGap = role === "counter" && gaps.some(documentsCounterSearch);
     const status: EvidenceRequirementAssessment["status"] = ambiguousUnitBinding
       ? "blocked"
       : enoughSources
@@ -220,7 +242,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
         : evidence.length > 0
           ? "partial"
           : gaps.length > 0
-            ? "missing"
+            ? documentedCounterGap ? "partial" : "missing"
             : "blocked";
     const limitations = [
       ...(ambiguousUnitBinding ? ["一条 EvidenceRequirement 必须且只能绑定一个 JudgmentUnit"] : []),
@@ -229,7 +251,9 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
         : []),
       ...(!evidence.length && gaps.length
         ? [role === "counter"
-          ? "反证要求已显式登记为 gap，但尚未取得可核验反证材料"
+          ? documentedCounterGap
+            ? "反证检索已完成并显式登记为 gap；当前范围内未取得可核验反证材料"
+            : "反证要求已显式登记为 gap，但尚未留下完整检索记录"
           : "已显式登记缺口，尚未取得可核验证据"]
         : []),
       ...(!evidence.length && !gaps.length
@@ -314,7 +338,7 @@ export function evaluateEvidenceQuality(input: EvidenceGateInput): EvidenceGateR
   const hasBlocking = blockingRequirementIds.size > 0
     || gapDetails.some((detail) => detail.isBlocking && !detail.requirementId);
   const hasOpenCounterGap = requirementAssessments.some((assessment) =>
-    assessment.evidence_role === "counter" && assessment.status !== "met",
+    assessment.evidence_role === "counter" && (assessment.status === "missing" || assessment.status === "blocked"),
   );
   const belowFloor =
     usableDrafts.length < QUALITY_FLOOR_MIN_EVIDENCE || sourceGroups < QUALITY_FLOOR_MIN_GROUPS;

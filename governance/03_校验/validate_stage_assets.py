@@ -88,7 +88,10 @@ def validate_repository() -> list[str]:
             errors.append(f"runtime manifest {field} must be {expected}")
 
     package_kinds = yaml.safe_load((ROOT / "governance/02_合同/package_kinds.yaml").read_text(encoding="utf-8"))
-    for kind in ("formal_pack", "semantic_fixture", "workbench_export"):
+    for kind in (
+        "formal_pack", "formal_delivery_pack", "research_audit_pack",
+        "knowledge_baseline", "knowledge_task_slice", "semantic_fixture", "workbench_export",
+    ):
         if kind not in (package_kinds.get("kinds") or {}):
             errors.append(f"package_kinds.yaml missing kind {kind}")
 

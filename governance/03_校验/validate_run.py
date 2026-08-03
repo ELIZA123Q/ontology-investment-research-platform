@@ -30,6 +30,7 @@ from research_loop import (  # noqa: E402
     convergence_status,
 )
 from package_kind import (  # noqa: E402
+    KIND_AUDIT,
     KIND_FORMAL,
     KIND_UNKNOWN,
     detect_package_kind,
@@ -702,7 +703,7 @@ def derive_run_outcome(
 def validate_run(run_dir: str | Path, *, write_manifest: bool = True) -> dict[str, Any]:
     run_path = Path(run_dir).resolve()
     kind = detect_package_kind(run_path)
-    if kind not in {KIND_FORMAL, KIND_UNKNOWN}:
+    if kind not in {KIND_FORMAL, KIND_AUDIT, KIND_UNKNOWN}:
         raise ValueError(redirect_message(kind, run_path))
     artifacts = discover_artifacts(run_dir)
     manifest_path = artifacts.run_dir / MANIFEST_NAME

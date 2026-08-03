@@ -14,12 +14,20 @@ ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_KINDS_PATH = ROOT / "governance/02_合同/package_kinds.yaml"
 
 KIND_FORMAL = "formal_pack"
+KIND_AUDIT = "research_audit_pack"
+KIND_DELIVERY = "formal_delivery_pack"
+KIND_KNOWLEDGE_BASELINE = "knowledge_baseline"
+KIND_KNOWLEDGE_TASK = "knowledge_task_slice"
 KIND_V3 = "semantic_fixture"
 KIND_WORKBENCH = "workbench_export"
 KIND_UNKNOWN = "unknown"
 
 VALIDATORS = {
     KIND_FORMAL: "governance/03_校验/validate_run.py",
+    KIND_AUDIT: "governance/03_校验/validate_run.py",
+    KIND_DELIVERY: "runtime/engine/release_set.ts",
+    KIND_KNOWLEDGE_BASELINE: "runtime/engine/knowledge_package.ts",
+    KIND_KNOWLEDGE_TASK: "runtime/engine/knowledge_package.ts",
     KIND_V3: "governance/03_校验/validate_v3_samples.py",
     KIND_WORKBENCH: "governance/03_校验/validate_workbench_package.py",
 }
@@ -52,7 +60,7 @@ def _match_rule(rule: dict[str, Any], run_dir: Path, manifest: dict[str, Any]) -
         return current if current in {str(item) for item in package_kinds} else None
 
     kind = str(rule.get("then") or "")
-    if kind not in {KIND_FORMAL, KIND_V3, KIND_WORKBENCH}:
+    if kind not in {KIND_FORMAL, KIND_AUDIT, KIND_DELIVERY, KIND_KNOWLEDGE_BASELINE, KIND_KNOWLEDGE_TASK, KIND_V3, KIND_WORKBENCH}:
         return None
 
     schema_name = rule.get("if_manifest_schema_name")

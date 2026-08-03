@@ -68,6 +68,10 @@ export function getExperienceCohortCaseDefinition(caseId: string) {
   return item ? { cohort_id: document.cohort_id, ...item } : null;
 }
 
+export function isExperienceCohortRun(runId: string): boolean {
+  return getExperienceCohort().cases.some((item) => item.run_id === runId);
+}
+
 export class ExperienceCohortAlreadyEnrolledError extends Error {}
 
 export class ExperienceCohortIneligibleDatabaseError extends Error {

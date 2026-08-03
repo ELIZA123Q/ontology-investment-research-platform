@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aggregateTaskLocalCandidates,
+  candidateSimilarities,
   extractTaskLocalCandidateOccurrences,
   ontologyCandidateKey,
 } from "@/engine/ontology_candidates";
@@ -36,5 +37,40 @@ describe("task_local ontology candidates", () => {
       cross_task_reused: true,
     });
     expect(candidates[0].definitions).toHaveLength(2);
+  });
+
+  it("only groups conservative synonyms inside the same domain, category and variable kind", () => {
+    const base = {
+      occurrence_count: 1,
+      run_count: 1,
+      cross_task_reused: false,
+      run_ids: ["run-1"],
+      questions: ["问题"],
+      variable_ids: ["VAR"],
+      first_observed_at: "2026-08-01T00:00:00.000Z",
+      last_observed_at: "2026-08-01T00:00:00.000Z",
+    };
+    const source = {
+      ...base,
+      candidate_key: "source",
+      name: "单位收入折旧强度",
+      category: "cost",
+      variable_kind: "observed",
+      domains: ["semiconductor"],
+      definitions: ["单位收入对应的折旧费用强度"],
+      anchors: ["Company"],
+    };
+    const synonym = {
+      ...source,
+      candidate_key: "synonym",
+      name: "单位收入折旧强度指标",
+      definitions: ["单位收入对应的折旧费用强度"],
+    };
+    const otherDomain = { ...synonym, candidate_key: "other-domain", domains: ["healthcare"] };
+    const otherKind = { ...synonym, candidate_key: "other-kind", variable_kind: "inferred" };
+    const similarities = candidateSimilarities(source, [source, synonym, otherDomain, otherKind]);
+    expect(similarities).toHaveLength(1);
+    expect(similarities[0]).toMatchObject({ candidate_key: "synonym", confidence: "high" });
+    expect(similarities[0].reason).toMatch(/名称.*定义.*锚点/);
   });
 });

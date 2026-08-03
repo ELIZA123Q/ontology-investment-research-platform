@@ -10,6 +10,7 @@ import {
   type StageQualityIssue,
 } from "./stage_high_quality";
 import { evaluateEvidenceQuality } from "./evidence_quality_gate";
+import { demoteUnverifiedEvidenceDrafts } from "./evidence_draft_normalize";
 import {
   precheckFindingsAsWeakLinks,
   precheckStage03OntologyConstraints,
@@ -484,32 +485,65 @@ export function ensureEvidenceCompressionFields(data: any, structure?: any): voi
  */
 export function collectNumericGroundingWarnings(data: any): Stage03ConsistencyIssue[] {
   const warnings: Stage03ConsistencyIssue[] = [];
-  const sources = Array.isArray(data?.sources) ? data.sources : [];
-  const quotePool = sources.map((s: any) => String(s?.source_quote || "")).join("\n");
-  const summaryNums = (Array.isArray(data?.evidence_summaries) ? data.evidence_summaries : [])
-    .flatMap((s: any) => (Array.isArray(s?.numeric_values) ? s.numeric_values : []))
-    .map((n: any) => String(n?.value ?? ""));
-  const allowed = new Set([...summaryNums, ...extractNumericTokens(quotePool)]);
+  const issues = findStage03NumericGroundingIssues(data);
   const elevate = String(data?.quality_status || "") === "high_quality_pass";
-
-  for (const draft of Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : []) {
-    if (String(draft?.kind) === "gap") continue;
-    const statement = String(draft?.statement || "");
-    const nums = extractNumericTokens(statement);
-    const ungrounded = nums.filter((n) => !tokenGrounded(n, allowed, quotePool));
-    if (ungrounded.length) {
-      warnings.push({
-        severity: elevate ? "error" : "warning",
-        code: "numeric_ungrounded",
-        message: `${draft.id} 陈述中的数字未见于 source_quote 或 evidence_summaries.numeric_values：${ungrounded.join(", ")}`,
-      });
-    }
+  for (const issue of issues) {
+    warnings.push({
+      severity: elevate ? "error" : "warning",
+      code: "numeric_ungrounded",
+      message: `${issue.evidence_id} 陈述中的数字未见于 source_quote 或 evidence_summaries.numeric_values：${issue.tokens.join(", ")}`,
+    });
   }
   return warnings;
 }
 
+export type Stage03NumericGroundingIssue = {
+  evidence_id: string;
+  judgment_unit_ids: string[];
+  tokens: string[];
+};
+
+/**
+ * 返回可供补证调度消费的结构化数字落引问题。审批报错与补证目标必须使用
+ * 同一检测器，避免“门禁知道哪里错、调度器却只看覆盖率”的死循环。
+ */
+export function findStage03NumericGroundingIssues(data: any): Stage03NumericGroundingIssue[] {
+  const sources = Array.isArray(data?.sources) ? data.sources : [];
+  const sourceByKey = new Map<string, any>(
+    sources.map((source: any) => [String(source?.source_key || ""), source]),
+  );
+  const summaries = Array.isArray(data?.evidence_summaries) ? data.evidence_summaries : [];
+  const issues: Stage03NumericGroundingIssue[] = [];
+
+  for (const draft of Array.isArray(data?.evidence_drafts) ? data.evidence_drafts : []) {
+    if (String(draft?.kind) === "gap") continue;
+    const statement = String(draft?.statement || "");
+    // 数字必须落到“本条 EvidenceDraft 实际绑定”的引文，不能拿另一条证据的
+    // quote 或无关 Summary 全局串门过关。
+    const quotePool = asList(draft?.source_keys)
+      .map((key) => String(sourceByKey.get(key)?.source_quote || ""))
+      .join("\n");
+    const summaryNums = summaries
+      .filter((summary: any) => asList(summary?.evidence_draft_ids).includes(String(draft?.id || "")))
+      .flatMap((summary: any) => (Array.isArray(summary?.numeric_values) ? summary.numeric_values : []))
+      .map((value: any) => String(value?.value ?? ""));
+    const allowed = new Set([...summaryNums, ...extractNumericTokens(quotePool)]);
+    const nums = extractNumericTokens(statement);
+    const ungrounded = nums.filter((n) => !tokenGrounded(n, allowed, quotePool));
+    if (ungrounded.length) {
+      issues.push({
+        evidence_id: String(draft.id || ""),
+        judgment_unit_ids: asList(draft.judgment_unit_ids),
+        tokens: ungrounded,
+      });
+    }
+  }
+  return issues;
+}
+
 function extractNumericTokens(text: string): string[] {
-  const matches = text.match(/-?\d+(?:\.\d+)?%?/g) || [];
+  // “2025-2026”中的连接号不是负号；真正的负数（如 -4.7%）仍保留符号。
+  const matches = text.match(/(?<!\d)-?\d+(?:\.\d+)?%?/g) || [];
   return [...new Set(matches.filter((m) => m.replace(/[^\d]/g, "").length >= 2))];
 }
 
@@ -626,6 +660,13 @@ export function recomputeStage03EvidenceQualityGate(
 ): any {
   const next = data && typeof data === "object" ? { ...data } : {};
   const structure = options.structure || {};
+  const cutoffMs = parseableTime(options.cutoffAt)
+    ? Date.parse(String(options.cutoffAt))
+    : undefined;
+  Object.assign(next, demoteUnverifiedEvidenceDrafts(next, {
+    cutoffMs,
+    registrySources: options.sources || [],
+  }));
   bindStage03DraftsToRequirements(next, structure);
   const units = Array.isArray(structure.judgment_units) ? structure.judgment_units : [];
   const requirements = Array.isArray(structure.evidence_requirements) && structure.evidence_requirements.length

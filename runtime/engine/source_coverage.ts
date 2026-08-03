@@ -1,5 +1,7 @@
 import type { EvidenceRequirementProjection } from "./structure_candidates";
 import type { SourceRecord } from "./types";
+import { documentsCounterSearch } from "./evidence_quality_gate";
+import { isReadableEvidenceText } from "./text_quality";
 
 export type UnitGapSourceRef = {
   id: string;
@@ -26,7 +28,7 @@ export type UnitEvidenceCoverage = {
   meets_independence: boolean;
   has_support_evidence: boolean;
   has_counter_evidence: boolean;
-  counter_check_status: "observed" | "gap" | "not_recorded" | "not_required";
+  counter_check_status: "observed" | "searched_gap" | "gap" | "not_recorded" | "not_required";
   evidence_ceiling: "J0" | "J1" | "J2" | "J3";
   weakest_link: string;
   /** 无可用支持事实时的细分原因，便于工作台给出匹配动作。 */
@@ -113,6 +115,8 @@ type EvidenceDraftLike = {
   evidence_requirement_ids?: string[];
   source_ids?: string[];
   judgment_unit_ids?: string[];
+  statement?: string;
+  limitations?: string[];
 };
 
 function sourceTierNumber(value: SourceRecord["source_tier"]): number {
@@ -127,7 +131,8 @@ function sourceGroup(source: SourceRecord): string {
 function isUsableSource(source: SourceRecord) {
   return source.usability_status === "usable"
     && source.retrieval_status === "captured"
-    && Boolean(source.quote_verified);
+    && Boolean(source.quote_verified)
+    && (source.source_quote === undefined || isReadableEvidenceText(source.source_quote));
 }
 
 function evidenceRole(item: EvidenceDraftLike): EvidenceRequirementProjection["evidence_role"] {
@@ -161,6 +166,7 @@ function sourceCoverageSignature(source: SourceRecord): string {
     source.usability_status,
     source.retrieval_status,
     source.quote_verified ? 1 : 0,
+    source.source_quote === undefined || isReadableEvidenceText(source.source_quote) ? 1 : 0,
     source.source_tier,
     source.source_group || source.publisher || source.normalized_url || "",
   ].join("|");
@@ -174,7 +180,16 @@ function buildCoverageKey(input: {
 }): string {
   const src = input.sources.map(sourceCoverageSignature).sort().join(";");
   const ev = input.evidence
-    .map((e) => `${e.id}:${(e.source_ids || []).slice().sort().join("|")}`)
+    .map((e) => [
+      e.id,
+      e.kind,
+      e.direction || "",
+      e.evidence_role || "",
+      (e.evidence_requirement_ids || []).slice().sort().join("|"),
+      (e.judgment_unit_ids || []).slice().sort().join("|"),
+      (e.source_ids || []).slice().sort().join("|"),
+      e.kind === "gap" ? `${e.statement || ""}|${(e.limitations || []).join("|")}` : "",
+    ].join(":"))
     .sort()
     .join(";");
   const req = (input.requirements || []).map((r) => r.id).sort().join(",");
@@ -260,9 +275,17 @@ export function computeSourceCoverage(input: {
       };
     });
     const unmetRequirements = requirementCoverage.filter((item) => !item.met);
-    const minimum_independent_sources = unitRequirements.length
-      ? Math.max(...unitRequirements.map((item) => item.minimum_independent_sources))
-      : 1;
+    const mainRequirements = unitRequirements.filter((item) =>
+      item.evidence_role === "support" || item.evidence_role === "boundary",
+    );
+    const mainRequirementCoverage = requirementCoverage.filter((item) =>
+      item.requirement.evidence_role === "support" || item.requirement.evidence_role === "boundary",
+    );
+    const minimum_independent_sources = mainRequirements.length
+      ? Math.max(...mainRequirements.map((item) => item.minimum_independent_sources))
+      : unitRequirements.length
+        ? Math.max(...unitRequirements.map((item) => item.minimum_independent_sources))
+        : 1;
     const direct_fact_count = usableDrafts.filter((item) => item.directness === "direct").length;
     let ceiling = 0;
     if (usableDrafts.length && sourceGroups.size >= 1) ceiling = 1;
@@ -271,13 +294,18 @@ export function computeSourceCoverage(input: {
     const evidence_ceiling = `J${ceiling}` as UnitEvidenceCoverage["evidence_ceiling"];
     const counterRequired = unitRequirements.some((item) => item.evidence_role === "counter");
     const counterCoverage = requirementCoverage.filter((item) => item.requirement.evidence_role === "counter");
+    const documentedCounterGap = counterCoverage.some((item) =>
+      item.gaps.some((gap) => documentsCounterSearch(gap)),
+    );
     const counter_check_status: UnitEvidenceCoverage["counter_check_status"] = !counterRequired
       ? "not_required"
       : counterCoverage.some((item) => item.met)
         ? "observed"
-        : counterCoverage.some((item) => item.gaps.length > 0)
-          ? "gap"
-          : "not_recorded";
+        : documentedCounterGap
+          ? "searched_gap"
+          : counterCoverage.some((item) => item.gaps.length > 0)
+            ? "gap"
+            : "not_recorded";
 
     const boundSourceIds = new Set(nonGapDrafts.flatMap((item) => (item.source_ids || []).map(String)));
     const blocked_sources: UnitGapSourceRef[] = [];
@@ -338,8 +366,12 @@ export function computeSourceCoverage(input: {
       direct_fact_count,
       independent_source_groups: sourceGroups.size,
       minimum_independent_sources,
-      meets_independence: unitRequirements.length > 0
-        ? requirementCoverage.every((item) => item.met)
+      // Coverage/independence describes whether a bounded direction can be
+      // formed. Counter-search completion is tracked separately and gated by
+      // Stage03 quality; an honest "not found" must not keep support coverage
+      // permanently red or trigger repetitive supplementation.
+      meets_independence: mainRequirementCoverage.length > 0
+        ? mainRequirementCoverage.every((item) => item.met)
         : sourceGroups.size >= minimum_independent_sources,
       has_support_evidence: unitRequirements.some((item) =>
         item.evidence_role === "support" || item.evidence_role === "boundary",

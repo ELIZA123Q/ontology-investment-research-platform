@@ -1,5 +1,6 @@
 import "server-only";
 import type { SourceRecord } from "../../engine/types";
+import { isReadableEvidenceText } from "../../engine/text_quality";
 import { db } from "./connection";
 export function listSources(runId: string): SourceRecord[] {
   return db.prepare("SELECT * FROM source WHERE run_id=? ORDER BY accessed_at DESC").all(runId) as SourceRecord[];
@@ -20,10 +21,20 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
   if (prior) {
     const priorUsable = prior.usability_status === "usable"
       && prior.retrieval_status === "captured"
-      && Boolean(prior.quote_verified);
-    const nextUsable = (input.usability_status ?? prior.usability_status) === "usable"
-      && (input.retrieval_status ?? prior.retrieval_status) === "captured"
-      && Boolean(input.quote_verified === undefined ? prior.quote_verified : input.quote_verified);
+      && Boolean(prior.quote_verified)
+      && isReadableEvidenceText(prior.source_quote);
+    const nextQuote = input.source_quote ?? prior.source_quote ?? "";
+    const nextQuoteVerified = Boolean(input.quote_verified === undefined ? prior.quote_verified : input.quote_verified);
+    const nextRetrievalStatus = input.retrieval_status ?? prior.retrieval_status;
+    const requestedUsability = input.usability_status ?? prior.usability_status;
+    const unreadableVerifiedClaim = requestedUsability === "usable"
+      && nextRetrievalStatus === "captured"
+      && nextQuoteVerified
+      && !isReadableEvidenceText(nextQuote);
+    const nextUsable = requestedUsability === "usable"
+      && nextRetrievalStatus === "captured"
+      && nextQuoteVerified
+      && !unreadableVerifiedClaim;
     // 已核验可用的来源不得被同 URL 的未核验写入降级（含雷达候选与补证后写）。
     if (priorUsable && !nextUsable) {
       return prior;
@@ -39,20 +50,26 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
       input.locator ?? prior.locator ?? input.url,
       input.captured_at ?? prior.captured_at ?? new Date().toISOString(),
       input.content_hash ?? prior.content_hash ?? "",
-      input.usability_status ?? prior.usability_status ?? "candidate",
-      input.failure_category ?? prior.failure_category ?? "",
-      input.failure_detail ?? prior.failure_detail ?? "",
+      unreadableVerifiedClaim ? "limited" : (requestedUsability ?? "candidate"),
+      unreadableVerifiedClaim ? "source_acquisition_failure" : (input.failure_category ?? prior.failure_category ?? ""),
+      unreadableVerifiedClaim
+        ? "冻结引文含不可读编码字符；必须重新取得可读逐字原文后才能标记为可用"
+        : (input.failure_detail ?? prior.failure_detail ?? ""),
       input.final_url ?? prior.final_url ?? input.url,
       input.content_mime ?? prior.content_mime ?? "",
       input.http_status ?? prior.http_status ?? null,
-      input.retrieval_status ?? prior.retrieval_status ?? "not_attempted",
+      nextRetrievalStatus ?? "not_attempted",
       input.snapshot_text ?? prior.snapshot_text ?? "",
-      input.source_quote ?? prior.source_quote ?? "",
-      input.quote_verified === undefined ? (prior.quote_verified ? 1 : 0) : (input.quote_verified ? 1 : 0), prior.id,
+      nextQuote,
+      unreadableVerifiedClaim ? 0 : (nextQuoteVerified ? 1 : 0), prior.id,
     );
     return db.prepare("SELECT * FROM source WHERE id=?").get(prior.id) as SourceRecord;
   }
   const accessedAt = new Date().toISOString();
+  const unreadableVerifiedClaim = input.usability_status === "usable"
+    && input.retrieval_status === "captured"
+    && Boolean(input.quote_verified)
+    && !isReadableEvidenceText(input.source_quote);
   const row: SourceRecord = {
     id: crypto.randomUUID(),
     run_id: runId,
@@ -62,9 +79,11 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
     locator: input.locator || input.url,
     captured_at: input.captured_at || accessedAt,
     content_hash: input.content_hash || "",
-    usability_status: input.usability_status || "candidate",
-    failure_category: input.failure_category || "",
-    failure_detail: input.failure_detail || "",
+    usability_status: unreadableVerifiedClaim ? "limited" : (input.usability_status || "candidate"),
+    failure_category: unreadableVerifiedClaim ? "source_acquisition_failure" : (input.failure_category || ""),
+    failure_detail: unreadableVerifiedClaim
+      ? "冻结引文含不可读编码字符；必须重新取得可读逐字原文后才能标记为可用"
+      : (input.failure_detail || ""),
     final_url: input.final_url || input.url,
     content_mime: input.content_mime || "",
     http_status: input.http_status ?? null,
@@ -74,7 +93,7 @@ export function upsertSource(runId: string, input: Omit<SourceRecord, "id" | "ru
     source_group: input.source_group || sourceGroupFromUrl(input.url, input.publisher),
     snapshot_text: input.snapshot_text || "",
     source_quote: input.source_quote || "",
-    quote_verified: input.quote_verified ? 1 : 0,
+    quote_verified: unreadableVerifiedClaim ? 0 : (input.quote_verified ? 1 : 0),
   };
   db.prepare(`INSERT INTO source(
     id,run_id,normalized_url,url,title,publisher,published_at,accessed_at,source_type,search_excerpt,

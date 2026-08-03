@@ -37,7 +37,64 @@ export function repairEvidencePreparationDraft(data: any): any {
   if (!Array.isArray(normalized.method_applications) || !Array.isArray(normalized.evidence_drafts)) {
     return normalized;
   }
+  // Stage03 只能完成“选择/降级/阻断”取证方法，executed 属于 Stage04。
+  // 模型常把“已经取到材料”误写为 executed；在所有早退判断之前收敛，避免
+  // 质量门通过后才在跨阶段方法合同处报错。
+  normalized.method_applications = normalized.method_applications.map((application: any) => {
+    if (application?.capability_type === "adjudication" && application?.status === "candidate") {
+      return {
+        ...application,
+        input_evidence_refs: [],
+        output_signal_refs: [],
+        output_judgment_refs: [],
+        execution_summary: "",
+        precondition_checks: (Array.isArray(application.precondition_checks) ? application.precondition_checks : [])
+          .map((check: any) => ({
+            ...check,
+            result: "not_checked",
+            evidence_refs: [],
+            reason: "Stage03 仅保留裁决候选；证据前置条件由 Stage04 按实际 EvidenceDraft 重新检查",
+          })),
+      };
+    }
+    if (application?.capability_type !== "evidence" || application?.status !== "executed") return application;
+    const checks = Array.isArray(application.precondition_checks) ? application.precondition_checks : [];
+    const degraded = checks.some((check: any) => check?.result === "fail" || check?.result === "partial");
+    return {
+      ...application,
+      status: degraded ? "degraded" : "selected",
+      output_signal_refs: [],
+      output_judgment_refs: [],
+      execution_summary: "",
+      limitations: [
+        ...new Set([
+          ...(Array.isArray(application.limitations) ? application.limitations.map(String) : []),
+          "Stage03 仅完成证据准备；方法执行与裁决状态留待 Stage04 确认",
+        ]),
+      ],
+    };
+  });
   const drafts = normalized.evidence_drafts;
+  const draftIds = new Set(drafts.map((draft: any) => String(draft?.id || "")).filter(Boolean));
+  normalized.method_applications = normalized.method_applications.map((application: any) => {
+    const inputRefs = (Array.isArray(application.input_evidence_refs) ? application.input_evidence_refs : [])
+      .map(String)
+      .filter((ref: string) => draftIds.has(ref));
+    const precondition_checks = (Array.isArray(application.precondition_checks) ? application.precondition_checks : [])
+      .map((check: any) => {
+        const declared = (Array.isArray(check?.evidence_refs) ? check.evidence_refs : []).map(String);
+        const valid = declared.filter((ref: string) => draftIds.has(ref));
+        if (valid.length === declared.length) return check;
+        // 模型常把 MA ID、已被替换的旧 GAP ID 写进 evidence_refs。Stage03
+        // 以当前 input_evidence_refs 为唯一事实级回退，不合成不存在的证据。
+        return {
+          ...check,
+          evidence_refs: valid.length ? valid : inputRefs,
+          reason: `${String(check?.reason || "")}；Runtime 已移除不存在的证据引用`.replace(/^；/, ""),
+        };
+      });
+    return { ...application, input_evidence_refs: inputRefs, precondition_checks };
+  });
   const referenced = new Set<string>(
     normalized.method_applications.flatMap((item: any) => (
       Array.isArray(item?.input_evidence_refs) ? item.input_evidence_refs.map(String) : []

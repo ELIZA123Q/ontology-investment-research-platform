@@ -1,4 +1,5 @@
 import { ONTOLOGY_ENUMS, ONTOLOGY_SOURCE_TIERS } from "./ontology_vocabulary.generated";
+import { isReadableEvidenceText } from "./text_quality";
 
 /**
  * 模型常把“未改 / 不确定”写成 null 或 ""。Stage03 契约里大量字段是必填数组/非空字符串，
@@ -63,7 +64,8 @@ function nonEmpty(value: unknown): value is string {
 export function isCompleteSourceDraft(item: unknown): boolean {
   if (!isPlainObject(item)) return false;
   if (!SOURCE_TIERS.has(String(item.source_tier || ""))) return false;
-  return SOURCE_REQUIRED_NONEMPTY.every((key) => nonEmpty(item[key]));
+  return SOURCE_REQUIRED_NONEMPTY.every((key) => nonEmpty(item[key]))
+    && isReadableEvidenceText(item.source_quote);
 }
 
 export function normalizeMethodApplicationNulls(item: unknown): unknown {
@@ -527,31 +529,71 @@ export function reconcileMethodEvidenceRefs(data: any): any {
  * 抓取后：非 gap 事实若绑定来源全部未 quote_verified / 不可用，则降为 gap。
  * 避免未核验“事实”泄漏进 Stage04；失败源仍可通过 failed_sources 补修。
  */
-export function demoteUnverifiedEvidenceDrafts(data: any): any {
+export function demoteUnverifiedEvidenceDrafts(
+  data: any,
+  options: { cutoffMs?: number; registrySources?: Array<Record<string, any>> } = {},
+): any {
   if (!data || typeof data !== "object" || !Array.isArray(data.evidence_drafts) || !Array.isArray(data.sources)) {
     return data;
   }
-  const usableKeys = new Set(
-    data.sources
-      .filter((source: any) => (
-        source?.source_key
-        && source.quote_verified === true
-        && (source.usability_status === "usable" || source.retrieval_status === "captured")
-      ))
-      .map((source: any) => String(source.source_key)),
+  const registryById = new Map(
+    (options.registrySources || []).map((source: any) => [String(source.id || ""), source]),
   );
+  const sourceByKey = new Map<string, any>(
+    data.sources
+      .filter((source: any) => source?.source_key)
+      .map((source: any) => [String(source.source_key), source]),
+  );
+  const usableKeys = new Set<string>();
+  for (const [key, draftSource] of sourceByKey) {
+    const registry = registryById.get(String(draftSource.source_id || ""));
+    const source = registry || draftSource;
+    const statusOk = registry
+      ? source.usability_status === "usable"
+        && source.retrieval_status === "captured"
+        && Boolean(source.quote_verified)
+      : Boolean(source.quote_verified) && source.retrieval_status === "captured";
+    // Legacy/test registry projections may omit source_quote entirely; when the
+    // field is present, however, unreadable bytes are never eligible evidence.
+    const quoteReadable = source.source_quote === undefined
+      || isReadableEvidenceText(source.source_quote);
+    const publishedMs = Date.parse(String(source.published_at || ""));
+    const timeOk = !Number.isFinite(options.cutoffMs)
+      || (Number.isFinite(publishedMs) && publishedMs <= options.cutoffMs!);
+    if (statusOk && timeOk && quoteReadable) usableKeys.add(key);
+  }
   let changed = false;
   const demotedIds: string[] = [];
   const evidence_drafts = data.evidence_drafts.map((draft: any) => {
     if (!draft || typeof draft !== "object" || draft.kind === "gap") return draft;
     const keys = Array.isArray(draft.source_keys) ? draft.source_keys.map(String).filter(Boolean) : [];
-    if (keys.some((key: string) => usableKeys.has(key))) return draft;
+    const eligibleKeys = keys.filter((key: string) => usableKeys.has(key));
+    if (eligibleKeys.length) {
+      if (eligibleKeys.length === keys.length) return draft;
+      changed = true;
+      const removed = keys.filter((key: string) => !usableKeys.has(key));
+      const source_ids = eligibleKeys
+        .map((key: string) => sourceByKey.get(key)?.source_id)
+        .filter(Boolean)
+        .map(String);
+      return {
+        ...draft,
+        source_keys: eligibleKeys,
+        source_ids,
+        limitations: [
+          ...new Set([
+            ...(Array.isArray(draft.limitations) ? draft.limitations.map(String) : []),
+            `已移除不可核验、含乱码或晚于研究截止日的来源绑定：${removed.join(", ")}`,
+          ]),
+        ],
+      };
+    }
     changed = true;
     demotedIds.push(String(draft.id || ""));
     const priorKeys = keys;
     const limitations = Array.isArray(draft.limitations) ? draft.limitations.map(String).filter(Boolean) : [];
     if (priorKeys.length) {
-      limitations.push(`绑定来源 ${priorKeys.join(", ")} 抓取后未能 quote_verified，已降为 gap`);
+      limitations.push(`绑定来源 ${priorKeys.join(", ")} 不可核验、含乱码或晚于研究截止日，已降为 gap`);
     } else {
       limitations.push("未绑定任何可核验来源，已降为 gap");
     }

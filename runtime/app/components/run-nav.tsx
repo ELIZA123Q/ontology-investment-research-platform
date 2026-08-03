@@ -6,7 +6,7 @@ import { useParams, usePathname } from "next/navigation";
 import { RESEARCH_STAGE_JOURNEY, RESEARCH_REFERENCE_SCENES } from "@/app/lib/research-journey";
 
 const stageItems = [
-  { id: "overview", label: "概览", path: "", stageKind: null },
+  { id: "overview", label: "研究摘要", path: "", stageKind: null },
   ...RESEARCH_STAGE_JOURNEY.map((stage) => ({
     id: stage.id,
     label: stage.navLabel,
@@ -17,8 +17,8 @@ const stageItems = [
 
 const referenceItems = [
   { id: "history" as const, label: "历史", path: "/history" },
-  { id: "object-set" as const, label: "实例关系", path: "/object-set" },
-  { id: "compare" as const, label: "对照实验", path: "/compare" },
+  { id: "insights" as const, label: "质量与查询", path: "/insights" },
+  { id: "object-set" as const, label: "判断链审计", path: "/object-set" },
 ];
 
 export type StageNavStatus = "complete" | "needs_review" | "running" | "blocked" | "idle";
@@ -40,27 +40,32 @@ export function activeSceneFromPath(pathname: string): string {
   if (pathname.includes("/compare")) return "compare";
   if (pathname.includes("/history")) return "history";
   if (pathname.includes("/object-set")) return "object-set";
+  if (pathname.includes("/insights")) return "insights";
   return "overview";
 }
 
 function statusFromSnapshot(data: any, stageKind: string | null): StageNavStatus {
   if (!stageKind) return "idle";
-  const stageStatus = data?.manifest?.stages?.[stageKind]?.stage_status;
-  if (stageStatus === "complete") return "complete";
-  if (stageStatus === "blocked" || stageStatus === "returned") return "blocked";
   const artifacts = Array.isArray(data?.artifacts) ? data.artifacts : [];
   const latest = artifacts.find((item: any) => item.kind === stageKind);
-  if (latest?.status === "approved") return "complete";
-  if (latest?.status === "running") return "running";
-  if (latest?.status === "needs_review") return "needs_review";
-  if (latest?.status === "failed") return "blocked";
-  const jobs = Array.isArray(data?.jobs) ? data.jobs : Array.isArray(data?.active_jobs) ? data.active_jobs : [];
-  const job = jobs.find((item: any) => item.stage === stageKind && ["queued", "running", "retrying"].includes(item.status));
-  if (job) return "running";
   const workItems = Array.isArray(data?.work_items) ? data.work_items : [];
   if (workItems.some((item: any) => item.stage === stageKind && (item.status === "pending" || item.status === "rework"))) {
     return "needs_review";
   }
+  if (latest?.status === "needs_review") return "needs_review";
+  const jobs = Array.isArray(data?.jobs) ? data.jobs : Array.isArray(data?.active_jobs) ? data.active_jobs : [];
+  const job = jobs.find((item: any) => item.stage === stageKind && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(item.status));
+  const approved = artifacts.find((item: any) => item.kind === stageKind && item.status === "approved");
+  const jobIsNewerThanApproval = job && (!approved
+    || Date.parse(job.updated_at || job.created_at || "") > Date.parse(approved.approved_at || approved.created_at || ""));
+  if (jobIsNewerThanApproval) return ["queued", "running", "retrying"].includes(job.status) ? "running" : "blocked";
+  // 任一仍有效的已确认版本代表当前正式阶段；过期失败草稿不能覆盖它。
+  if (artifacts.some((item: any) => item.kind === stageKind && item.status === "approved")) return "complete";
+  if (latest?.status === "running") return "running";
+  if (latest?.status === "failed") return "blocked";
+  const stageStatus = data?.manifest?.stages?.[stageKind]?.stage_status;
+  if (stageStatus === "complete") return "complete";
+  if (stageStatus === "blocked" || stageStatus === "returned") return "blocked";
   return "idle";
 }
 
@@ -71,6 +76,7 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
   const resolvedActive = active || activeSceneFromPath(pathname);
   const [statuses, setStatuses] = useState<Record<string, StageNavStatus>>({});
   const [syncError, setSyncError] = useState(false);
+  const [showSummary, setShowSummary] = useState(resolvedActive === "overview");
 
   useEffect(() => {
     if (!resolvedRunId) return;
@@ -90,6 +96,7 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
           next[item.id] = statusFromSnapshot(data, item.stageKind);
         }
         setStatuses(next);
+        setShowSummary(Boolean(data?.summary_ready));
         setSyncError(false);
       } catch {
         if (!cancelled) setSyncError(true);
@@ -105,7 +112,7 @@ export function RunNav({ runId, active }: { runId?: string; active?: string }) {
 
   return (
     <nav className="run-scene-nav" aria-label="研究工作场景">
-      {stageItems.map((item) => {
+      {stageItems.filter((item) => item.id !== "overview" || showSummary).map((item) => {
         const status = item.stageKind ? (statuses[item.id] || "idle") : null;
         const statusText = status ? STATUS_LABEL[status] : "";
         const ariaLabel = statusText ? `${item.label} · ${statusText}` : item.label;

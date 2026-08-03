@@ -5,6 +5,7 @@ import type { MethodApplication, MethodCapabilityType } from "./types";
 
 export type RegisteredMethod = {
   method_id: string;
+  name: string;
   method_version: string;
   capability_type: MethodCapabilityType;
   file: string | null;
@@ -47,6 +48,12 @@ function unique(values: unknown[]): string[] {
   return [...new Set(values.filter((value): value is string => typeof value === "string" && value.length > 0))];
 }
 
+function methodDisplayName(methodId: string, raw: Record<string, any>): string {
+  if (raw.name || raw.label) return String(raw.name || raw.label);
+  const file = String(raw.file || "").split("/").at(-1)?.replace(/\.md$/, "") || "";
+  return file.replace(/^[A-Z]\d+(?:[-_][^_]*)?_?/, "").replaceAll("_", " ").trim() || methodId;
+}
+
 export function loadMethodRegistry(): Map<string, RegisteredMethod> {
   const root = parseYaml("methods/00_登记/method_assets.yaml") as MethodAssetRegistry;
   const result = new Map<string, RegisteredMethod>();
@@ -62,6 +69,7 @@ export function loadMethodRegistry(): Map<string, RegisteredMethod> {
       const outputGates = Object.keys(method.output_gates || {});
       result.set(methodId, {
         method_id: methodId,
+        name: methodDisplayName(methodId, method),
         method_version: String(structure.version),
         capability_type: "judgment_structure",
         file: structure.registry_ref,
@@ -89,6 +97,7 @@ export function loadMethodRegistry(): Map<string, RegisteredMethod> {
       const contract = method.contract || {};
       result.set(methodId, {
         method_id: methodId,
+        name: methodDisplayName(methodId, method),
         method_version: String(evidence.version),
         capability_type: "evidence",
         file: method.file ? `methods/03_取证/${method.file}` : evidence.registry_ref,
@@ -109,6 +118,7 @@ export function loadMethodRegistry(): Map<string, RegisteredMethod> {
   for (const method of adjudication?.methods || []) {
     result.set(method.id, {
       method_id: method.id,
+      name: methodDisplayName(method.id, method),
       method_version: String(adjudication?.version),
       capability_type: "adjudication",
       file: method.file || null,

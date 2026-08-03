@@ -15,7 +15,17 @@ export type ResearchGraphNode = {
   details: Record<string, unknown>;
 };
 
-export type ResearchGraphEdge = { id: string; source: string; target: string; tone?: ResearchGraphNode["tone"]; label?: string };
+export type ResearchGraphEdge = {
+  id: string;
+  source: string;
+  target: string;
+  tone?: ResearchGraphNode["tone"];
+  label?: string;
+  details?: Record<string, unknown>;
+  authority?: "formal" | "task_local";
+  dashed?: boolean;
+  usageCount?: number;
+};
 
 const colors: Record<string, string> = {
   support: "#168b78",

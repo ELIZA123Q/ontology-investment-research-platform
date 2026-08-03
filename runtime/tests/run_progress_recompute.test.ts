@@ -11,6 +11,16 @@ beforeAll(async () => {
 });
 
 describe("recomputeRunProgress 进度重算", () => {
+  it("读取列表时即使缓存字段未更新，也按批准产物显示真实进度", () => {
+    const run = db.createRun("进度读取投影", "semiconductor");
+    db.createArtifact(run.id, "stage_01", { status: "approved" });
+    db.createArtifact(run.id, "stage_05", { status: "approved" });
+
+    const visible = db.listRuns().find((item) => item.id === run.id)!;
+    expect(visible.current_stage).toBe(5);
+    expect(visible.status).toBe("complete");
+  });
+
   it("以实际已批准 stage 为真相源：supersede 降级已批准产出时进度回退", () => {
     const run = db.createRun("进度重算-基础", "semiconductor");
 

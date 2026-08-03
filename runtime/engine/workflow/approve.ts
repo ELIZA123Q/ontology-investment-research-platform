@@ -27,6 +27,7 @@ type BusinessInstanceGraph,
 } from "../instance_graph";
 import { buildStageSemanticContext } from "../semantic_context";
 import { ensureStage03DocumentFields,recomputeStage03EvidenceQualityGate } from "../stage03_documents";
+import { ensureStage05DocumentFields } from "../stage05_documents";
 import { parseJson,STAGES,type Artifact,type ArtifactKind,type StageKind } from "../types";
 import {
 recomputeStage04DeterministicRules,
@@ -79,6 +80,26 @@ export function approve(id: string) {
       updateArtifact(artifact.id, {
         json_content: JSON.stringify(recomputed, null, 2),
         markdown_content: String(recomputed.document_markdown || artifact.markdown_content || ""),
+      });
+      artifact = getArtifact(id)!;
+    }
+    if (artifact.kind === "stage_05") {
+      // 05 的确认就是交付一致性门：在这里重建表达审计，并把“已检查”
+      // 冻结到 05 自身。后续导出只验证这个已批准版本，不再另起一次审阅。
+      const run = getRun(artifact.run_id);
+      const stage04 = parseJson(
+        latestArtifact(artifact.run_id, "stage_04", ["approved"])?.json_content || "{}",
+        {},
+      );
+      const checked = ensureStage05DocumentFields(parseJson(artifact.json_content, {}), {
+        question: run?.question,
+        taskId: artifact.run_id,
+        stage04,
+      });
+      checked.semantic_review_status = "reviewed";
+      updateArtifact(artifact.id, {
+        json_content: JSON.stringify(checked, null, 2),
+        markdown_content: String(checked.document_markdown || artifact.markdown_content || ""),
       });
       artifact = getArtifact(id)!;
     }

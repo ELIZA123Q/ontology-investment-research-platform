@@ -285,7 +285,7 @@ describe("round4 quality drains", () => {
     expect(result.gapDetails.some((d) => d.missing.includes("反证角色未登记"))).toBe(true);
   });
 
-  it("records an explicit counter gap but caps the result below high quality", () => {
+  it("keeps an unsearched counter placeholder below high quality", () => {
     const sources = ["A", "B", "C"].map((group, index) => ({
       id: `SRC-${index + 1}`,
       publisher: group,
@@ -324,6 +324,49 @@ describe("round4 quality drains", () => {
     expect(result.passed).toBe(true);
     expect(result.qualityStatus).toBe("minimum_pass");
     expect(result.gapDetails.some((d) => d.missing.includes("反证要求已显式登记为 gap"))).toBe(true);
+  });
+
+  it("allows high quality when counter search is documented but no verifiable result exists", () => {
+    const sources = ["A", "B", "C"].map((group, index) => ({
+      id: `SRC-${index + 1}`,
+      publisher: group,
+      source_group: group,
+      url: `https://${group.toLowerCase()}.example`,
+      usability_status: "usable",
+      retrieval_status: "captured",
+      quote_verified: true,
+    })) as any[];
+    const result = evaluateEvidenceQuality({
+      evidenceDrafts: [
+        ...Array.from({ length: 5 }, (_, index) => ({
+          id: `EV-${index + 1}`,
+          kind: "fact_draft",
+          judgment_unit_ids: ["JU-1"],
+          source_ids: [`SRC-${(index % 3) + 1}`],
+          directness: index < 2 ? "direct" as const : "indirect" as const,
+        })),
+        {
+          id: "GAP-COUNTER",
+          kind: "gap",
+          evidence_role: "counter",
+          statement: "经公告与公开数据库检索，当前范围内未发现可核验反证材料",
+          limitations: ["检索截止到研究截止日；没有找到不等于反证不存在"],
+          judgment_unit_ids: ["JU-1"],
+          source_ids: [],
+        },
+      ],
+      sources,
+      judgmentUnits: [{ id: "JU-1" }],
+      evidenceRequirements: [{
+        id: "ER-C",
+        evidence_role: "counter",
+        minimum_independent_sources: 1,
+        judgment_unit_ids: ["JU-1"],
+      }],
+    });
+    expect(result.passed).toBe(true);
+    expect(result.qualityStatus).toBe("high_quality_pass");
+    expect(result.requirementAssessments[0]).toMatchObject({ status: "partial" });
   });
 
   it("does not let one broad fact satisfy multiple ERs in the same judgment unit", () => {

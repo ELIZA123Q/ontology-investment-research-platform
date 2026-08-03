@@ -468,18 +468,46 @@ export function syncStage03DraftSourcesFromRegistry(data: any, records: SourceRe
     return { data, changed: false };
   }
   const byId = new Map(records.map((record) => [record.id, record]));
+  const byUrl = new Map<string, SourceRecord>();
+  for (const record of records) {
+    for (const candidate of [record.url, record.final_url]) {
+      const identity = normalizedUrlIdentity(candidate);
+      if (identity && !byUrl.has(identity)) byUrl.set(identity, record);
+    }
+  }
   let changed = false;
   const sources = data.sources.map((source: any) => {
     if (!source || typeof source !== "object") return source;
-    const record = byId.get(String(source.source_id || ""));
+    // source_id 是首选稳定键；模型/旧补证稿漏填 source_id 时，用规范化 URL
+    // 无歧义回查 Registry。这样 locator/captured_at/final_url 等冻结字段不会因为
+    // patch 少写字段而在确认时变成格式错误。
+    const record = byId.get(String(source.source_id || ""))
+      || byUrl.get(normalizedUrlIdentity(source.url));
     if (!record) return source;
-    const next = applyRegistryFreezeFields(source, record);
+    const next = applyRegistryFreezeFields({ ...source, source_id: record.id }, record);
     if (!changed && freezeFieldsDiffer(source, next)) changed = true;
     return next;
   });
   const synced = changed ? { ...data, sources } : data;
   const deduped = dedupeStage03DraftSources(synced);
   return { data: deduped.data, changed: changed || deduped.changed };
+}
+
+function normalizedUrlIdentity(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
+      url.port = "";
+    }
+    url.pathname = url.pathname.replace(/\/+$/, "") || "/";
+    return url.toString();
+  } catch {
+    return raw.toLowerCase().replace(/\/+$/, "");
+  }
 }
 
 export function applyRegistryFreezeFields(source: Record<string, unknown>, record: SourceRecord): Record<string, unknown> {

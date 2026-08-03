@@ -13,6 +13,88 @@ beforeAll(async () => {
 });
 
 describe("evidence_draft_normalize", () => {
+  it("repairs Stage03 evidence methods that the model prematurely marked executed", () => {
+    const repaired = workflow.repairEvidencePreparationDraft({
+      method_applications: [{
+        application_id: "MA-EV-1",
+        capability_type: "evidence",
+        status: "executed",
+        precondition_checks: [{ precondition_id: "P-1", result: "pass", evidence_refs: ["EV-1"] }],
+        input_evidence_refs: ["EV-1"],
+        output_signal_refs: ["SIG-ILLEGAL"],
+        output_judgment_refs: [],
+        execution_summary: "模型错误地提前执行",
+        limitations: [],
+        target_judgment_unit_refs: ["JU-1"],
+        alternatives: [],
+      }],
+      evidence_drafts: [{ id: "EV-1", kind: "fact_draft", judgment_unit_ids: ["JU-1"] }],
+      sources: [],
+      unresolved_gaps: [],
+    });
+    expect(repaired.method_applications[0]).toMatchObject({
+      status: "selected",
+      output_signal_refs: [],
+      output_judgment_refs: [],
+      execution_summary: "",
+    });
+    expect(repaired.method_applications[0].limitations.join(" ")).toMatch(/Stage04/);
+  });
+
+  it("clears method IDs mistakenly placed in candidate adjudication evidence_refs", () => {
+    const repaired = workflow.repairEvidencePreparationDraft({
+      method_applications: [{
+        application_id: "MA-AD-1",
+        capability_type: "adjudication",
+        status: "candidate",
+        precondition_checks: [{
+          precondition_id: "P-1",
+          result: "pass",
+          evidence_refs: ["MA-EV-1"],
+          reason: "模型误把方法 ID 当证据 ID",
+        }],
+        input_evidence_refs: [],
+        output_signal_refs: [],
+        output_judgment_refs: [],
+        execution_summary: "",
+        limitations: [],
+        target_judgment_unit_refs: ["JU-1"],
+        alternatives: [],
+      }],
+      evidence_drafts: [{ id: "EV-1", kind: "fact_draft", judgment_unit_ids: ["JU-1"] }],
+      sources: [],
+      unresolved_gaps: [],
+    });
+    expect(repaired.method_applications[0].precondition_checks[0]).toMatchObject({
+      result: "not_checked",
+      evidence_refs: [],
+    });
+  });
+
+  it("replaces stale precondition evidence IDs with current method inputs", () => {
+    const repaired = workflow.repairEvidencePreparationDraft({
+      method_applications: [{
+        application_id: "MA-EV-1",
+        capability_type: "evidence",
+        status: "degraded",
+        precondition_checks: [{
+          precondition_id: "P-1",
+          result: "partial",
+          evidence_refs: ["GAP-DELETED"],
+          reason: "旧 gap 已被事实替换",
+        }],
+        input_evidence_refs: ["EV-1"],
+        limitations: ["仍有边界"],
+        target_judgment_unit_refs: ["JU-1"],
+        alternatives: [{ method_id: "kb03:A02", decision: "retained", reason: "保守保留" }],
+      }],
+      evidence_drafts: [{ id: "EV-1", kind: "fact_draft", judgment_unit_ids: ["JU-1"] }],
+      sources: [],
+      unresolved_gaps: [],
+    });
+    expect(repaired.method_applications[0].precondition_checks[0].evidence_refs).toEqual(["EV-1"]);
+  });
+
   it("把 MA/source 结构性 null 兜成合法空值并可通过 stage_03 schema", () => {
     const repaired = workflow.repairEvidencePreparationDraft({
       method_applications: [{
@@ -334,5 +416,56 @@ describe("evidence_draft_normalize", () => {
       source_ids: [],
     });
     expect(demoted.unresolved_gaps[0]).toMatch(/EV-2/);
+  });
+
+  it("裁掉晚于截止日的来源；仅在无合格来源时才把事实降为 gap", async () => {
+    const { demoteUnverifiedEvidenceDrafts } = await import("@/engine/evidence_draft_normalize");
+    const repaired: any = demoteUnverifiedEvidenceDrafts({
+      sources: [
+        { source_key: "SRC-OLD", source_id: "old", retrieval_status: "captured", quote_verified: true, published_at: "2025-01-01" },
+        { source_key: "SRC-LATE", source_id: "late", retrieval_status: "captured", quote_verified: true, published_at: "2026-01-01" },
+      ],
+      evidence_drafts: [
+        { id: "EV-KEEP", kind: "fact_draft", source_keys: ["SRC-OLD", "SRC-LATE"], source_ids: ["old", "late"], limitations: [] },
+        { id: "EV-DEMOTE", kind: "fact_draft", statement: "晚期资料", source_keys: ["SRC-LATE"], source_ids: ["late"], limitations: [] },
+      ],
+      unresolved_gaps: [],
+    }, {
+      cutoffMs: Date.parse("2025-06-30T23:59:59Z"),
+      registrySources: [
+        { id: "old", usability_status: "usable", retrieval_status: "captured", quote_verified: true, published_at: "2025-01-01" },
+        { id: "late", usability_status: "usable", retrieval_status: "captured", quote_verified: true, published_at: "2026-01-01" },
+      ],
+    });
+    expect(repaired.evidence_drafts[0]).toMatchObject({ source_keys: ["SRC-OLD"], source_ids: ["old"] });
+    expect(repaired.evidence_drafts[1]).toMatchObject({ kind: "gap", source_keys: [], source_ids: [] });
+  });
+
+  it("裁掉 Registry 中虽标 verified 但引文含编码乱码的来源", async () => {
+    const { demoteUnverifiedEvidenceDrafts } = await import("@/engine/evidence_draft_normalize");
+    const repaired: any = demoteUnverifiedEvidenceDrafts({
+      sources: [{ source_key: "SRC-BAD", source_id: "bad", source_quote: "��˾2024��Ӫҵ����" }],
+      evidence_drafts: [{
+        id: "EV-BAD",
+        kind: "fact_draft",
+        statement: "收入增长",
+        source_keys: ["SRC-BAD"],
+        source_ids: ["bad"],
+        limitations: [],
+      }],
+      unresolved_gaps: [],
+    }, {
+      cutoffMs: Date.parse("2025-06-30T23:59:59Z"),
+      registrySources: [{
+        id: "bad",
+        usability_status: "usable",
+        retrieval_status: "captured",
+        quote_verified: true,
+        source_quote: "��˾2024��Ӫҵ����",
+        published_at: "2025-01-01T00:00:00Z",
+      }],
+    });
+    expect(repaired.evidence_drafts[0]).toMatchObject({ kind: "gap", source_keys: [], source_ids: [] });
+    expect(repaired.evidence_drafts[0].limitations.join(" ")).toContain("乱码");
   });
 });

@@ -269,7 +269,7 @@ export function buildGenerationContext(input: {
                   ? "delivery/02_模板/05E_主题深度研究模板.md"
                   : "delivery/02_模板/05C_行业周期判断模板.md",
         expression_standard: "delivery/01_标准/05_投研表达标准.md",
-        quality_gate_note: "工作台确认 ≠ PUBLISHABLE；正式发布仍须 governance validate_05_outputs / validate_run。",
+        quality_gate_note: "05 确认将执行 04→05 交付一致性检查；通过后导出只复验批准版本、文件完整性与内容指纹。",
         gap_report_constraint: allowed05From03 === "gap_report_only"
           ? "上游仅允许缺口报告：只写缺口说明、补证建议与停止理由，不得包装为完整研究报告或方向性洞见。"
           : undefined,

@@ -565,6 +565,32 @@ describe("evidence_auto_supplement", () => {
     });
   });
 
+  it("recovers a missing source_id and freeze fields from an unambiguous Registry URL", () => {
+    const registry = source({
+      id: "uuid-url",
+      url: "https://example.com/report/",
+      final_url: "https://example.com/report/#section",
+      locator: "registry-locator",
+      source_quote: "registry quote verbatim",
+    });
+    const synced = syncStage03DraftSourcesFromRegistry({
+      sources: [{
+        source_key: "SRC-NEW",
+        source_id: null,
+        url: "https://EXAMPLE.com/report",
+        title: "公告",
+      }],
+      evidence_drafts: [{ id: "EV-1", source_keys: ["SRC-NEW"], source_ids: [] }],
+      unresolved_gaps: [],
+    }, [registry]);
+    expect(synced.changed).toBe(true);
+    expect(synced.data.sources[0]).toMatchObject({
+      source_id: "uuid-url",
+      locator: "registry-locator",
+      source_quote: "registry quote verbatim",
+    });
+  });
+
   it("merges draft sources that share one Registry source_id", () => {
     const deduped = dedupeStage03DraftSources({
       sources: [

@@ -11,6 +11,7 @@ import type {
 } from "../engine/types";
 import { parseManifest } from "../engine/manifest";
 import { getRun, getWorkbenchDb } from "./db";
+import { getRunProgress } from "./db";
 import { listResearchJobsForRun } from "./research_jobs";
 
 /**
@@ -257,6 +258,7 @@ export const listChildRuns = cache(function listChildRuns(parentRunId: string): 
 
 export type RunOverview = {
   run: ResearchRun;
+  progress: ReturnType<typeof getRunProgress>;
   manifest: ReturnType<typeof parseManifest>;
   pendingWorkItems: WorkItemReviewRow[];
   stage03Json: string;
@@ -275,6 +277,7 @@ export const getRunOverview = cache(function getRunOverview(id: string): RunOver
   const workItems = listWorkItemsForReview(id);
   return {
     run,
+    progress: getRunProgress(id),
     manifest: parseManifest(run.manifest_json, run),
     pendingWorkItems: workItems.filter((item) => item.status === "pending" || item.status === "rework"),
     stage03Json: latestArtifactPayload(id, "stage_03", ["approved", "needs_review"])?.json_content || "{}",
@@ -292,13 +295,18 @@ export const getRunStatusSnapshot = cache(function getRunStatusSnapshot(id: stri
   const run = getRun(id);
   if (!run) return null;
   const workItems = listWorkItemsForReview(id);
+  const progress = getRunProgress(id);
+  const artifacts = listArtifactLedger(id);
+  const pendingCount = workItems.filter((item) => item.status === "pending" || item.status === "rework").length;
   return {
     run,
+    progress,
     manifest: parseManifest(run.manifest_json, run),
-    artifacts: listArtifactLedger(id),
+    artifacts,
     sources: listSourcesForAttribution(id),
     work_items: workItems,
     jobs: listResearchJobsForRun(id),
-    pending_count: workItems.filter((item) => item.status === "pending" || item.status === "rework").length,
+    pending_count: pendingCount,
+    summary_ready: progress.completed_stage_count === 5 && pendingCount === 0,
   };
 });

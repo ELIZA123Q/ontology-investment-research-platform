@@ -57,6 +57,7 @@ export function SourceCoveragePanel({
 
   function counterStatusLabel(status: SourceCoverageSummary["unit_coverage"][number]["counter_check_status"]) {
     if (status === "observed") return "已有反证 / 削弱事实";
+    if (status === "searched_gap") return "已完成反向检索，当前范围未取得可核验反证";
     if (status === "gap") return "反证暂缺已登记";
     if (status === "not_recorded") return "反证尚未登记";
     return "本单元未要求反证";
@@ -130,7 +131,7 @@ export function SourceCoveragePanel({
       </div>
     </div>
 
-    <ol className="evidence-main-path" aria-label="证据主路径">
+    {!sources.length && !draftCount ? <ol className="evidence-main-path" aria-label="证据主路径">
       <li className={sources.length ? "done" : acquireOpen ? "current" : ""}>
         <em>1</em>
         <div>
@@ -152,12 +153,12 @@ export function SourceCoveragePanel({
           <small>逐条或批量确认后才能进判断</small>
         </div>
       </li>
-    </ol>
+    </ol> : null}
 
-    <p className="muted channel-note">
+    {!sources.length && !draftCount ? <p className="muted channel-note">
       自动补证会优先查询已接入的一手数据与官方来源；手动补证可粘贴公开 URL 并核验原文。
       覆盖率与核验率是<strong>进度指标</strong>：只要仍有单元尚缺项，系统不会仅凭覆盖率停补。
-    </p>
+    </p> : null}
 
     {(draftCount > 0) ? (
       <div className="notice evidence-next-step">
@@ -215,7 +216,6 @@ export function SourceCoveragePanel({
       <summary><strong>已登记来源</strong><span>{sources.length} 条 · 按需展开核对</span></summary>
       <ul className="source-list">
         {sources.map((source) => {
-          const bound = boundSourceIdSet.has(source.id);
           const lifecycle = deriveSourceResearchLifecycle({
             retrievalStatus: source.retrieval_status,
             quoteVerified: Boolean(source.quote_verified),

@@ -9,6 +9,7 @@ export type ReportSourceLike = {
   publisher?: string | null;
   published_at?: string | null;
   url: string;
+  locator?: string | null;
 };
 
 export type ReportClaimSourceEntry = {
@@ -19,6 +20,7 @@ export type ReportClaimSourceEntry = {
     publisher: string;
     publishedAt: string;
     url: string;
+    locator: string;
   }>;
 };
 
@@ -58,6 +60,7 @@ export function buildReportClaimSourceIndex(
         publisher: String(source.publisher || "未识别发布者").trim(),
         publishedAt: sourceDate(source.published_at),
         url: source.url,
+        locator: String(source.locator || source.url).trim(),
       }];
     });
     return {
@@ -78,7 +81,7 @@ export function appendReportClaimSourceIndex(
   const appendix = [
     "## 核心主张来源索引",
     "",
-    "> 下列索引只展示已绑定到报告主张的来源，便于逐条复核；完整引文、正文哈希与审计记录保留在正式包中。",
+    "> 下列索引只展示已绑定到报告主张的来源，便于逐条复核；完整引文、正文哈希与审计记录保留在同一 release_id 的内部研究审计包中。",
     "",
     ...entries.flatMap((entry, index) => [
       `### ${index + 1}. ${markdownText(entry.statement)}`,

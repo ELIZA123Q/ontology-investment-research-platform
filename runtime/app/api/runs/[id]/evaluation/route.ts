@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAttempts } from "@/adapters/db";
+import { isExperienceCohortRun } from "@/adapters/experience_cohort";
 import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/engine/metrics";
 import { EVALUATION_CRITERIA, evaluationSchema, evaluationSubmissionSchema } from "@/engine/schemas";
 import { parseJson } from "@/engine/types";
@@ -16,6 +17,10 @@ function blindedSideA(runId: string) {
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const runId = (await params).id;
+    const priorEvaluation = latestArtifact(runId, "evaluation", ["approved"]);
+    if (!priorEvaluation && !isExperienceCohortRun(runId)) {
+      throw new Error("任务级同证据盲评已移出研究主链；请先在独立评测中心登记任务");
+    }
     const submission = evaluationSubmissionSchema.parse(await request.json());
     const expectedKeys = new Set(EVALUATION_CRITERIA.flatMap((criterion) => [`A:${criterion}`, `B:${criterion}`]));
     const actualKeys = Object.keys(submission.scores);
@@ -27,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const stage03 = loadApprovedSemanticSnapshot(runId, "stage_03").artifact;
     const stage04 = loadApprovedSemanticSnapshot(runId, "stage_04").artifact;
     if (!baseline || !report) throw new Error("基线、证据、判断与报告都必须先确认");
-    if (latestArtifact(runId, "evaluation", ["approved"])) {
+    if (priorEvaluation) {
       throw new Error("盲评身份已揭示，当前输入组合不得重评；若产物改变，请重新生成并确认上游阶段");
     }
     const stage03Hash = createHash("sha256").update(stage03.json_content).digest("hex");

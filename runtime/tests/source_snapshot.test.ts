@@ -44,6 +44,20 @@ describe("verifiable source snapshots", () => {
     expect(request).toHaveBeenCalledWith("https://example.com/source", [publicAddress]);
   });
 
+  it("rejects an exactly matched quote when the frozen text contains encoding damage", async () => {
+    const damaged = "��˾2024��Ӫҵ����Լ90.65��Ԫ";
+    const snapshot = await captureSourceSnapshot({
+      url: "https://example.com/source",
+      source_quote: damaged,
+    }, dependencies(async () => new Response(`<p>${damaged.repeat(20)}</p>`, {
+      status: 200,
+      headers: { "content-type": "text/html" },
+    })));
+    expect(snapshot.quote_verified).toBe(false);
+    expect(snapshot.usability_status).toBe("limited");
+    expect(snapshot.failure_detail).toContain("编码乱码");
+  });
+
   it("does not mark a fetched page usable when the quote cannot be located", async () => {
     const snapshot = await captureSourceSnapshot({
       url: "https://example.com/source",
