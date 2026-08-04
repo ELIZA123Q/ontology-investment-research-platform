@@ -23,17 +23,56 @@ function asList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(String).map((item) => item.trim()).filter(Boolean) : [];
 }
 
+export interface Stage04ManifestContext {
+  sourceStage02Attempt?: number;
+  sourceStage03Attempt?: number;
+  currentStage04Attempt?: number;
+  supersedesStage04Attempt?: number | null;
+}
+
+/** Extract iteration_context data from a run's manifest. Accepts both full ResearchRun and minimal subsets. */
+export function manifestContextFromRun(run?: { manifest_json?: string | null } | null): Stage04ManifestContext {
+  if (!run?.manifest_json) return {};
+  try {
+    const manifest = JSON.parse(run.manifest_json);
+    return {
+      sourceStage02Attempt: manifest.stages?.stage_02?.attempt ?? 1,
+      sourceStage03Attempt: manifest.stages?.stage_03?.attempt ?? 1,
+      currentStage04Attempt: manifest.stages?.stage_04?.attempt ?? 1,
+      supersedesStage04Attempt: manifest.stages?.stage_04?.supersedes_attempt ?? null,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export function projectReasoningAuditYaml(
   data: any,
-  options: { taskId?: string; question?: string } = {},
+  options: { taskId?: string; question?: string; manifestCtx?: Stage04ManifestContext } = {},
 ): string {
   const judgments = Array.isArray(data?.judgments) ? data.judgments : [];
   const primary = judgments[0];
   const levels = judgments.map((item: any) => String(item?.strength || "J0"));
   const maxLevel = ["J4", "J3", "J2", "J1", "J0"].find((level) => levels.includes(level)) || "J0";
+  const ctx = options.manifestCtx || {};
   const payload = {
     document_type: "reasoning_audit",
-    schema_version: "5.0.0",
+    schema_version: "4.0.0",
+    iteration_context: {
+      evidence_wave_refs: [],
+      evidence_wave_hashes: [],
+      dependency_projection_ref: "",
+      dependency_projection_hash: "",
+      source_stage_attempts: {
+        stage_02: ctx.sourceStage02Attempt ?? 1,
+        stage_03: ctx.sourceStage03Attempt ?? 1,
+      },
+      current_stage_attempt: ctx.currentStage04Attempt ?? 1,
+      supersedes_stage_attempt: ctx.supersedesStage04Attempt ?? null,
+      critical_stale_refs_at_start: [],
+      critical_stale_refs_at_completion: [],
+      structural_checkpoint_ref: null,
+    },
     metadata: {
       task_id: nonEmpty(options.taskId, "JTASK-RUNTIME"),
       audit_ref: nonEmpty(data?.audit_ref, "04-推理审计.yaml"),
@@ -65,6 +104,7 @@ export function projectReasoningAuditYaml(
       statement: nonEmpty(item?.conclusion),
       strength: nonEmpty(item?.strength),
     })),
+    judgment_update_register: [],
     uncertainty_register: judgments.flatMap((item: any) => asList(item?.uncertainties).map((text, index) => ({
       uncertainty_id: `${item.id}-U${index + 1}`,
       statement: text,
@@ -92,7 +132,7 @@ export function projectReasoningAuditYaml(
 
 export function ensureStage04DocumentFields(
   data: any,
-  options: { question?: string; taskId?: string } = {},
+  options: { question?: string; taskId?: string; manifestCtx?: Stage04ManifestContext } = {},
 ): any {
   const next = data && typeof data === "object" ? data : {};
   const judgments = Array.isArray(next.judgments) ? next.judgments : [];
@@ -116,7 +156,7 @@ export function ensureStage04DocumentFields(
   next.judgment_as_of = nonEmpty(next.judgment_as_of, primary?.cutoff_at || new Date().toISOString());
   next.quality_status = nonEmpty(
     next.quality_status,
-    next.brief_quality_check_result === "pass" ? "minimum_pass" : "return_required",
+    next.brief_quality_check_result === "pass" ? "high_quality_pass" : "return_required",
   );
 
   const competing = Array.isArray(next.competing_explanations) ? next.competing_explanations : [];

@@ -16,7 +16,7 @@ import { applyDeterministicRuleEvaluations } from "../semantic_execution";
 import { parseJson,type MethodApplication } from "../types";
 
 import { syncStage04ReadableMarkdown } from "../readable_markdown";
-import { ensureStage04DocumentFields } from "../stage04_documents";
+import { ensureStage04DocumentFields, manifestContextFromRun } from "../stage04_documents";
 import {
 competingExplanationsForUnit,
 normalizeCompetingExplanations
@@ -365,7 +365,7 @@ export function createControlledJudgmentProjection(runId: string, inputs: Contro
   data.quality_status = "high_quality_pass";
   data.deterministic_check_status = "checked";
   data.reasoning_audit_yaml = "";
-  ensureStage04DocumentFields(data, { question: run.question, taskId: runId });
+  ensureStage04DocumentFields(data, { question: run.question, taskId: runId, manifestCtx: manifestContextFromRun(run) });
   syncStage04ReadableMarkdown(data, { question: run.question, taskId: runId, forceProjection: true });
   schemas.stage_04.parse(data);
   validateGeneratedSemanticDraft(runId, "stage_04", data);

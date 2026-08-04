@@ -245,7 +245,7 @@ export function ensureStage03DocumentFields(
     : (rate >= next.required_coverage_rate ? "ready" : "partial");
   next.snapshot_ref = nonEmpty(next.snapshot_ref, "03-证据快照摘要.yaml");
   // 缺口可带边界确认（gap_report_only）；仅当显式要求返工时才置 return_required。
-  next.quality_status = nonEmpty(next.quality_status, "minimum_pass");
+  next.quality_status = nonEmpty(next.quality_status, "high_quality_pass");
   next.return_required = Boolean(next.return_required ?? false);
   next.return_stage = next.return_stage == null || next.return_stage === ""
     ? (next.return_required ? "stage_03" : null)

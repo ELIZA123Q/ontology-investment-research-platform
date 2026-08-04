@@ -14,5 +14,10 @@ export default defineConfig({
       exclude: ["**/*.test.ts", ".next/**"],
     },
   },
-  resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL(".", import.meta.url)),
+      "server-only": fileURLToPath(new URL("./tests/server-only-stub.ts", import.meta.url)),
+    },
+  },
 });

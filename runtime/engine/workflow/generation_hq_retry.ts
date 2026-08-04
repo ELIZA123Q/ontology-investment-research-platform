@@ -1,4 +1,4 @@
-import { latestArtifact, listSources, updateArtifactIfStatus } from "../../adapters/db";
+import { getRun, latestArtifact, listSources, updateArtifactIfStatus } from "../../adapters/db";
 import { accumulateTokenUsage, type ResearchModelClient } from "../../adapters/deepseek";
 import { evaluateEvidenceQuality } from "../evidence_quality_gate";
 import { buildGenerationProgressHeartbeat } from "../generation_progress";
@@ -7,7 +7,7 @@ import { syncStage03ReadableMarkdown } from "../readable_markdown";
 import { schemas, type SchemaKind } from "../schemas";
 import { ensureStage02DocumentFields, repairStage02GenerationDraft } from "../stage02_documents";
 import { ensureStage03DocumentFields } from "../stage03_documents";
-import { ensureStage04DocumentFields } from "../stage04_documents";
+import { ensureStage04DocumentFields, manifestContextFromRun } from "../stage04_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
 import {
   applyUpstreamQualityFailure,
@@ -127,7 +127,7 @@ export async function runGenerationHighQualityRetry(input: {
                   judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
                   scopeRef: structure.research_scope?.id || null,
                 });
-                ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
+                ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id, manifestCtx: manifestContextFromRun(getRun(runId)) });
                 return repaired;
               }
               : kind === "stage_02"
@@ -239,7 +239,7 @@ export async function runGenerationHighQualityRetry(input: {
             judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
             scopeRef: structure.research_scope?.id || null,
           });
-          ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
+          ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id, manifestCtx: manifestContextFromRun(getRun(runId)) });
           data = repaired;
           schemas.stage_04.parse(data);
         } else if (kind === "stage_05") {

@@ -103,10 +103,12 @@ export async function validateStage02ForApproval(
     }
   }
 
-  // can_enter_03 / quality_status 是“生成器自检字段”（spec §7 质量门槛与返工规则），
-  // 并非结构合同缺陷；权威确认门禁 assertStage02ReadyForApproval
-  // （collectStage02ConsistencyIssues）并不读取二者，故模型结构校验不得因自检字段阻断确认。
-  const SELF_ASSESSMENT_CODES = new Set(["cannot_enter_03", "quality_status"]);
+  // can_enter_03 是“生成器自检字段”（spec §7 质量门槛与返工规则），并非结构合同缺陷，
+  // 模型结构校验不得因它阻断确认。但 quality_status 不同：各阶段交接前必须达到
+  // high_quality_pass（spec §7.1 已统一为交接即高质量），带 minimum_pass 的 02 不得
+  // 放行进入 03，故 quality_status 低于 hq 必须作为阻断项在 02 自身拦截，
+  // 而不是放行进 03、再攒到 05 导出时才翻旧账。
+  const SELF_ASSESSMENT_CODES = new Set(["cannot_enter_03"]);
   const isStructuralIssue = (issue: { code?: string | null }): boolean =>
     !SELF_ASSESSMENT_CODES.has(issue.code || "");
 
@@ -122,7 +124,7 @@ export async function validateStage02ForApproval(
     }
   }
 
-  // ok 仅由残留的结构性问题决定（不再受自检字段影响）。
+  // ok 由残留的结构性问题与质量门槛（quality_status 须 high_quality_pass）共同决定。
   result.ok = !result.issues.some((item) => item.severity === "error");
 
   if (result.ok) return { ...result };

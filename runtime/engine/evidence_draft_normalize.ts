@@ -314,6 +314,68 @@ export function normalizeEvidencePreparationNulls(data: unknown): unknown {
 }
 
 /**
+ * 补齐 evidencePreparationSchema 的顶层必填字段（重构后扩张的契约）。
+ * 仅填缺失项，不覆盖已存在的合法值；与 preparation_markdown/document_markdown
+ * 镜像约束保持一致（缺少 preparation_markdown 时以 document_markdown 镜像）。
+ * 取值为保守默认（blocked/return 草稿 → 低确定度、gap_report、return_required），
+ * 真实值由 Stage04 重写。
+ */
+export function fillEvidencePreparationDefaults(data: unknown): unknown {
+  if (!isPlainObject(data)) return data;
+  const next: Record<string, unknown> = { ...data };
+  const doc = typeof next.document_markdown === "string" ? next.document_markdown : "";
+  if (typeof next.preparation_markdown !== "string") next.preparation_markdown = doc;
+  if (!Array.isArray(next.unresolved_gaps)) next.unresolved_gaps = [];
+  if (typeof next.instance_manifest_yaml !== "string" || String(next.instance_manifest_yaml).length < 20) {
+    next.instance_manifest_yaml = [
+      "instance_manifest:",
+      "  repaired_by: repairEvidencePreparationDraft",
+      "  note: 结构性 null 已兜底，待 Stage04 补齐确定性元数据",
+    ].join("\n");
+  }
+  if (typeof next.stage_status !== "string") next.stage_status = "in_progress";
+  if (typeof next.quality_status !== "string") next.quality_status = "return_required";
+  if (typeof next.quality_gate_ref !== "string" || !String(next.quality_gate_ref).trim()) {
+    next.quality_gate_ref = "stage03_quality_gate_repaired";
+  }
+  if (!["not_checked", "checked", "failed"].includes(String(next.deterministic_check_status))) {
+    next.deterministic_check_status = "not_checked";
+  }
+  if (!["not_reviewed", "reviewed", "rejected"].includes(String(next.semantic_review_status))) {
+    next.semantic_review_status = "not_reviewed";
+  }
+  if (!["low", "medium", "high"].includes(String(next.confidence_ceiling))) next.confidence_ceiling = "low";
+  if (typeof next.coverage_unit_total !== "number") next.coverage_unit_total = 0;
+  if (typeof next.evidence_backed_unit_count !== "number") next.evidence_backed_unit_count = 0;
+  if (typeof next.evidence_coverage_rate !== "number") next.evidence_coverage_rate = 0;
+  if (typeof next.required_coverage_rate !== "number") next.required_coverage_rate = 0.7;
+  if (!["met", "partial", "not_met"].includes(String(next.critical_node_gate_status))) {
+    next.critical_node_gate_status = "not_met";
+  }
+  if (!["met", "partial", "insufficient"].includes(String(next.judgment_unit_gate_status))) {
+    next.judgment_unit_gate_status = "insufficient";
+  }
+  if (!["not_started", "in_progress", "threshold_met", "source_scarce"].includes(String(next.search_status))) {
+    next.search_status = "not_started";
+  }
+  if (!["full_report", "bounded_report", "gap_report_only"].includes(String(next.allowed_05_output))) {
+    next.allowed_05_output = "gap_report_only";
+  }
+  if (!["ready", "partial", "not_ready"].includes(String(next.evidence_readiness))) {
+    next.evidence_readiness = "not_ready";
+  }
+  if (!["ready", "partial", "not_ready"].includes(String(next.delivery_readiness))) {
+    next.delivery_readiness = "not_ready";
+  }
+  if (typeof next.snapshot_ref !== "string" || !String(next.snapshot_ref).trim()) {
+    next.snapshot_ref = "snapshot:repaired:none";
+  }
+  if (typeof next.return_required !== "boolean") next.return_required = true;
+  if (next.return_stage === undefined) next.return_stage = "stage_03";
+  return next;
+}
+
+/**
  * 丢掉 locator/source_quote 等必填仍为空的来源（不捏造正文），并登记缺口说明。
  * 同时剪掉证据草稿对已丢弃 source_key 的引用。
  */

@@ -71,6 +71,7 @@ stages:
       - delivery/01_标准/05_投研表达标准.md
       - governance/03_校验/00A_高质量产出判别标准.md
       - delivery/02_模板/05_表达审计模板.yaml
+      - delivery/02_模板/05_独立语义审查模板.yaml
     template_by_archetype:
       industry_cycle_report: delivery/02_模板/05C_行业周期判断模板.md
       event_commentary: delivery/02_模板/05A_事件点评模板.md

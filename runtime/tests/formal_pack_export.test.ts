@@ -161,7 +161,10 @@ describe("formal pack discovery and semantic review mapping", () => {
         semantic_review_status: "reviewed",
         research_value_review: { status: "pass" },
         expression_audit_yaml: YAML.stringify({
-          claim_expression_register: [{ claim_id: "RC-1", intensity_lifted: false }],
+          claim_expression_register: [{ source_claim_id: "RC-1", source_rcs: ["C-01"], semantic_strength_review: "pass" }],
+          main_judgment_check: { result: "pass" },
+          key_unknown_check: { result: "pass", all_key_unknowns_decision_relevant: true },
+          research_edge_check: { result: "pass", substantive_beyond_generic_research_discipline: "true" },
           overall_check: { result: "pass" },
         }),
       },

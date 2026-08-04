@@ -69,6 +69,7 @@ knowledge_expected:
     - delivery/01_标准/05_投研表达标准.md
     - governance/03_校验/00A_高质量产出判别标准.md
     - delivery/02_模板/05_表达审计模板.yaml
+    - delivery/02_模板/05_独立语义审查模板.yaml
     - delivery/02_模板/05C_行业周期判断模板.md
 
 assets:
@@ -207,6 +208,13 @@ assets:
     injection_mode: knowledge
     stages: [stage_05]
     critical: true
+
+  - id: DELIVERY-05-INDEPENDENT-REVIEW
+    path: delivery/02_模板/05_独立语义审查模板.yaml
+    injection_mode: knowledge
+    stages: [stage_05]
+    critical: true
+    note: "05 独立语义审查十项检查结构；04 人类独立审查仅覆盖前五项"
 
   - id: SCN-MEM-CYCLE
     path: methods/02_判断结构/行业框架库/半导体行业/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md

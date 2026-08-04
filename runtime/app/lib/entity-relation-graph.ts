@@ -362,17 +362,36 @@ export function buildReasoningPathGraph(loaded: GraphLoadResult) {
     const evaluation = loaded.graph.objects.find((object) => object.id === relation.targetId && object.type === "RuleEvaluation");
     if (evaluation) evaluationsByJudgment.set(relation.sourceId, [...(evaluationsByJudgment.get(relation.sourceId) || []), evaluation]);
   }
+  // 识别根问题：唯一对 JudgmentUnit 发出 questionDecomposesIntoUnit 的研究问题即本研究主问题；
+  // 其余研究问题节点为判断单元分解出的子问题。无单一根时回落到 Q-root 或首个研究问题。
+  const questionIds = new Set(objects.filter((item) => item.type === "ResearchQuestion").map((item) => item.id));
+  const rootSourceIds = new Set(
+    loaded.graph.relations
+      .filter((item) => item.type === "questionDecomposesIntoUnit" && questionIds.has(item.sourceId))
+      .map((item) => item.sourceId),
+  );
+  const rootQuestionId = rootSourceIds.size === 1
+    ? [...rootSourceIds][0]
+    : (objects.find((item) => item.type === "ResearchQuestion" && item.id === "Q-root")?.id
+      || objects.find((item) => item.type === "ResearchQuestion")?.id
+      || "");
+  const subQuestionIds: string[] = [];
   const rowByType = new Map<string, number>();
   const nodes = objects.map((object) => {
     const row = rowByType.get(object.type) || 0;
     rowByType.set(object.type, row + 1);
     const evidence = object.type === "JudgmentUnit" ? reachableEvidence(loaded, object.id) : [];
     const evaluations = evaluationsByJudgment.get(object.id) || [];
+    const isRootQuestion = object.type === "ResearchQuestion" && object.id === rootQuestionId;
+    if (object.type === "ResearchQuestion" && !isRootQuestion) subQuestionIds.push(object.id);
+    const questionRoleMeta = object.type === "ResearchQuestion"
+      ? isRootQuestion ? " · 主问题" : " · 子问题"
+      : "";
     return {
       id: object.id,
       label: objectLabel(object),
-      meta: `${objectTypeLabel(object.type)}${evidence.length ? ` · ${evidence.length} 条证据` : ""}${evaluations.length ? ` · ${evaluations.length} 项规则` : ""}`,
-      tone: reasoningTone(object.type, object.properties),
+      meta: `${objectTypeLabel(object.type)}${questionRoleMeta}${evidence.length ? ` · ${evidence.length} 条证据` : ""}${evaluations.length ? ` · ${evaluations.length} 项规则` : ""}`,
+      tone: object.type === "ResearchQuestion" ? (isRootQuestion ? "inherited" : "neutral") : reasoningTone(object.type, object.properties),
       x: (REASONING_COLUMNS[object.type] || 0) * 330,
       y: row * 145,
       details: {
@@ -386,6 +405,7 @@ export function buildReasoningPathGraph(loaded: GraphLoadResult) {
         成立条件: object.properties?.conditions || "—",
         失效条件: object.properties?.invalidation_conditions || "—",
         技术编号: object.id,
+        ...(object.type === "ResearchQuestion" ? { 角色: isRootQuestion ? "主问题（本研究核心问题）" : "子问题（判断单元分解）" } : {}),
       },
     } satisfies ResearchGraphNode;
   });
@@ -408,6 +428,20 @@ export function buildReasoningPathGraph(loaded: GraphLoadResult) {
       dashed: tone === "weaken" || tone === "danger",
       details: { 路径语义: role || relationTypeLabel(relation.type), 技术关系: relation.type, 属性: relation.properties || {} },
     });
+  }
+  // 将子问题显式挂接在根问题之下，明确它们属于同一研究而非多个独立研究。
+  if (rootQuestionId && subQuestionIds.length) {
+    for (const subId of subQuestionIds) {
+      edges.push({
+        id: `SYNTH-ROOT-SUB-${subId}`,
+        source: rootQuestionId,
+        target: subId,
+        label: relationTypeLabel("questionDecomposesIntoSubQuestion"),
+        tone: "inherited" as const,
+        dashed: true,
+        details: { 路径语义: "分解为子问题", 技术关系: "questionDecomposesIntoSubQuestion", 属性: {} },
+      });
+    }
   }
   return { nodes, edges, stats: { nodes: nodes.length, paths: edges.length, evidence: nodes.reduce((sum, node) => sum + Number(node.details.证据数量 || 0), 0) } };
 }

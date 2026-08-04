@@ -36,7 +36,7 @@ initializeStage03BatchCheckpoint,
 readStage03BatchCheckpoint,
 } from "../stage03_batch_checkpoint";
 import { ensureStage03DocumentFields,findStage03NumericGroundingIssues } from "../stage03_documents";
-import { ensureStage04DocumentFields } from "../stage04_documents";
+import { ensureStage04DocumentFields, manifestContextFromRun } from "../stage04_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
 import { projectEvidenceRequirementsFromStructure,resolveEvidenceRequirementsFromStructure } from "../structure_candidates";
 import { parseJson,STAGES,type ArtifactKind,type StageKind } from "../types";
@@ -450,7 +450,7 @@ export async function generateArtifact(
           data.fallback_reason = "stage03_all_gap_auto_j0";
           data.stage04_generation_mode = "deterministic_j0_gap_fallback";
           applyDeterministicRuleEvaluations(data, drafts, listSources(runId), structure);
-          ensureStage04DocumentFields(data, { question: run.question, taskId: run.id });
+          ensureStage04DocumentFields(data, { question: run.question, taskId: run.id, manifestCtx: manifestContextFromRun(run) });
           // 全缺口时表达许可必须收紧：05 只能写缺口报告。
           if (!data.expression_permission) data.expression_permission = {};
           data.expression_permission.max_expression_level = "J0";
@@ -483,7 +483,7 @@ export async function generateArtifact(
                 judgmentUnitIds: (structure.judgment_units || []).map((unit: any) => String(unit.id || "")).filter(Boolean),
                 scopeRef: structure.research_scope?.id || null,
               });
-              ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id });
+              ensureStage04DocumentFields(repaired, { question: run.question, taskId: run.id, manifestCtx: manifestContextFromRun(run) });
               return repaired;
             },
             onProgress: (event) => {

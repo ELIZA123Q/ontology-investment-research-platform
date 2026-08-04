@@ -60,6 +60,11 @@ export const independentReviewSchema = z.object({
       "incremental_update_is_local_first",
       "title_represents_major_scopes",
       "conditions_scope_and_prohibitions_preserved",
+      "main_judgment_is_clear_and_prioritized",
+      "maximal_valid_judgment_is_expressed",
+      "uncertainty_is_concentrated_not_overloaded",
+      "research_edge_is_substantive",
+      "key_unknowns_are_decision_relevant",
     ]),
     result: z.enum(["pass", "fail", "needs_human"]),
     reason: nonEmptyStringSchema,
@@ -89,11 +94,11 @@ export const independentReviewSchema = z.object({
       message: "模型独立审阅必须标记 reviewer_type=model",
     });
   }
-  if (value.verdict === "pass" && value.semantic_checks.length !== 5) {
+  if (value.verdict === "pass" && value.semantic_checks.length !== 5 && value.semantic_checks.length !== 10) {
     context.addIssue({
       code: "custom",
       path: ["semantic_checks"],
-      message: "verdict=pass 时必须填写全部五项 semantic_checks",
+      message: "verdict=pass 时必须填写全部五项（Stage04 独立审查）或十项（Stage05 独立语义审查）semantic_checks",
     });
   }
   for (const check of value.semantic_checks) {

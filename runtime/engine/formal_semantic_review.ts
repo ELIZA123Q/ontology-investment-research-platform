@@ -3,9 +3,11 @@
 import YAML from "yaml";
 import {
   SEMANTIC_REVIEW_CHECKS,
+  STAGE05_SEMANTIC_REVIEW_CHECKS,
   validateSemanticReview,
   type SemanticReviewCheck,
 } from "./semantic_review";
+import { hasTradingAdviceOverreach } from "./stage05_documents";
 
 /**
  * 禁止把工作台批量 verdict 伪投影为五项同结果。
@@ -46,7 +48,10 @@ export function mapIndependentReviewToSemanticYaml(input: {
     },
   );
 
-  const usable = validated.valid && normalizedChecks.length === SEMANTIC_REVIEW_CHECKS.length;
+  const usable = validated.valid && (normalizedChecks.length === SEMANTIC_REVIEW_CHECKS.length || normalizedChecks.length === STAGE05_SEMANTIC_REVIEW_CHECKS.length);
+  const expectedChecks = normalizedChecks.length === STAGE05_SEMANTIC_REVIEW_CHECKS.length
+    ? STAGE05_SEMANTIC_REVIEW_CHECKS
+    : SEMANTIC_REVIEW_CHECKS;
   const checks = usable
     ? normalizedChecks.map((check) => ({
       check_id: check.check_id,
@@ -54,12 +59,12 @@ export function mapIndependentReviewToSemanticYaml(input: {
       reason: check.reason,
       ...(check.result === "pass" ? {} : { return_to_stage: check.return_to_stage || "04" }),
     }))
-    : SEMANTIC_REVIEW_CHECKS.map((checkId) => ({
+    : expectedChecks.map((checkId) => ({
       check_id: checkId,
       result: "needs_human" as const,
       reason: validated.errors.length
-        ? `工作台未提交合格五项语义审查：${validated.errors.join("；")}`
-        : "工作台仅有批量 verdict，禁止映射补齐五项检查；须补逐项 semantic_checks",
+        ? `工作台未提交合格语义审查：${validated.errors.join("；")}`
+        : "工作台仅有批量 verdict，禁止映射补齐检查项；须补逐项 semantic_checks",
       return_to_stage: "04" as const,
     }));
 
@@ -121,9 +126,9 @@ export function mapStage05ConsistencyToSemanticYaml(input: {
     && data.research_value_review?.status === "pass";
   const expressionPassed = audit.overall_check?.result === "pass"
     && register.length === reportClaims.length
-    && register.every((item: any) => item?.intensity_lifted !== true);
+    && register.every((item: any) => item?.semantic_strength_review == null || item.semantic_strength_review === "pass");
 
-  const rawChecks: Array<{ check_id: (typeof SEMANTIC_REVIEW_CHECKS)[number]; pass: boolean; reason: string }> = [
+  const rawChecks: Array<{ check_id: (typeof STAGE05_SEMANTIC_REVIEW_CHECKS)[number]; pass: boolean; reason: string }> = [
     {
       check_id: "local_evidence_not_globalized",
       pass: reviewed && expressionPassed,
@@ -151,6 +156,32 @@ export function mapStage05ConsistencyToSemanticYaml(input: {
       pass: reviewed && qualityPassed && expressionPassed
         && (Array.isArray(data.limitations) && data.limitations.length > 0 || /限制|边界|风险|改判条件/.test(body)),
       reason: "表达审计、限制与边界章节及研究价值门均通过，未发现禁止表达或条件丢失。",
+    },
+    {
+      check_id: "main_judgment_is_clear_and_prioritized",
+      pass: reviewed && String(audit.main_judgment_check?.result || "") === "pass",
+      reason: "表达审计 main_judgment_check 已确认综合主判断清晰、主次分明且未越界。",
+    },
+    {
+      check_id: "maximal_valid_judgment_is_expressed",
+      pass: reviewed && qualityPassed && !hasTradingAdviceOverreach(body),
+      reason: "Stage05 在 04 许可内把已成立判断表达到位，未因过度谨慎无必要降格。",
+    },
+    {
+      check_id: "uncertainty_is_concentrated_not_overloaded",
+      pass: reviewed && String(audit.key_unknown_check?.result || "") === "pass",
+      reason: "表达审计 key_unknown_check 确认不确定性集中在决策相关变量、限制未压过主判断。",
+    },
+    {
+      check_id: "research_edge_is_substantive",
+      pass: reviewed && (String(audit.research_edge_check?.substantive_beyond_generic_research_discipline) === "true"
+        || String(audit.research_edge_check?.result || "") === "pass"),
+      reason: "表达审计 research_edge_check 确认 Research Edge 体现真实研究增量，非仅基础研究纪律。",
+    },
+    {
+      check_id: "key_unknowns_are_decision_relevant",
+      pass: reviewed && String(audit.key_unknown_check?.all_key_unknowns_decision_relevant) === "true",
+      reason: "表达审计确认关键未知收敛到 1—2 个真正改变主结论的变量。",
     },
   ];
   const checks = rawChecks.map((check) => ({

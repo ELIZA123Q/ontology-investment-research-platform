@@ -685,7 +685,7 @@ describe("v1.3 operational spine", () => {
     expect(data.judgments[0].conclusion).toContain("暂不升级强判断");
   });
 
-  it("flags title/question swaps while allowing the Stage02 minimum-pass handoff contract", async () => {
+  it("flags title/question swaps; Stage02 no longer allows minimum-pass handoff", async () => {
     const issues = workflow.heuristicStructureIssues({
       scope_label: "测试",
       units: [{
@@ -765,17 +765,19 @@ describe("v1.3 operational spine", () => {
     const ok = await workflow.validateStage02ForApproval(run.id, {
       validationResult: { ok: true, summary: "可通过", issues: [], suggested_patch: null },
     });
-    expect(ok.ok).toBe(true);
-    expect(ok.issues).not.toEqual(expect.arrayContaining([
+    // 即便模型自评 ok:true，平台仍按质量门禁拦截 minimum_pass 的 02（质量由平台强制，不由模型自评覆盖）。
+    expect(ok.ok).toBe(false);
+    expect(ok.issues).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: "quality_status" }),
     ]));
 
     const createClient = vi.fn(() => {
       throw new Error("人工受控结构不应调用付费模型校验");
     });
+    // 交接前必须高质量：minimum_pass 的 02 不再通过确定性确认（须在 02 自身拦截）。
     const deterministic = await workflow.validateStage02ForApproval(run.id, { createClient: createClient as any });
-    expect(deterministic.ok).toBe(true);
-    expect(deterministic.summary).toContain("已通过 Schema 与确定性确认前校验");
+    expect(deterministic.ok).toBe(false);
+    expect(deterministic.issues.some((item: any) => item.code === "quality_status")).toBe(true);
     expect(createClient).not.toHaveBeenCalled();
   });
 

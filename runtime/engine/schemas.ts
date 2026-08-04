@@ -64,7 +64,25 @@ export const judgmentStructureSchema = z.object({
     id: nonEmptyString,
     label: nonEmptyString,
     dimensions: z.record(z.string(), z.unknown()),
+    // 本研究显式实例化的核心业务对象（公司/产品/产业等）。以前端「实体关系图」可见为前提，
+    // 生成器必须把问题中点名的核心标的落入此处；平台会在规范化阶段兜底补齐。
+    core_objects: z.array(z.object({
+      id: nonEmptyString,
+      type: nonEmptyString,
+      name: nonEmptyString,
+    })).optional().default([]),
   }),
+  // 业务实体实例（Company / Product / Industry 等）。物质化阶段据此生成「实体关系图」节点；
+  // 缺省由平台规范化层从 Stage01 core_object 与研究问题兜底实例化，根治历史产物实体图空白。
+  ontology_instances: z.array(z.object({
+    id: nonEmptyString,
+    type: nonEmptyString,
+    name: nonEmptyString,
+    label: z.string().nullable().optional(),
+    ticker: z.string().nullable().optional(),
+    dimension: z.string().nullable().optional(),
+    properties: z.record(z.string(), z.unknown()).nullable().optional(),
+  })).optional().default([]),
   judgment_units: z.array(z.object({
     id: nonEmptyString,
     title: nonEmptyString,

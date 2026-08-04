@@ -127,6 +127,7 @@ export function KnowledgeGraphWorkspace({ views, initialView, queryKey }: { view
   const [relationDepth, setRelationDepth] = useState<RelationDepth>("1");
   const [focusOnly, setFocusOnly] = useState(false);
   const [onlyMatches, setOnlyMatches] = useState(false);
+  const [onlyAdopted, setOnlyAdopted] = useState(false);
   const [positions, setPositions] = useState<PositionMap>({});
   const [instance, setInstance] = useState<ReactFlowInstance<Node, Edge> | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -210,8 +211,13 @@ export function KnowledgeGraphWorkspace({ views, initialView, queryKey }: { view
       nodes = nodes.filter((node) => related.nodeIds.has(node.id));
       edges = edges.filter((edge) => related.edgeIds.has(edge.id));
     }
+    if (onlyAdopted && active.groupMode === "ontology") {
+      const adoptedIds = new Set(active.nodes.filter((node) => node.tone === "support").map((node) => node.id));
+      nodes = nodes.filter((node) => adoptedIds.has(node.id));
+      edges = edges.filter((edge) => adoptedIds.has(edge.source) && adoptedIds.has(edge.target));
+    }
     return { nodes, edges, primaryCount: primary.length, primaryIds };
-  }, [active, edgeStatus, edgeType, focusOnly, groupId, onlyMatches, query, related, selectedEdgeId, selectedNodeId, selectedPreset, selectedRule, type]);
+  }, [active, edgeStatus, edgeType, focusOnly, groupId, onlyAdopted, onlyMatches, query, related, selectedEdgeId, selectedNodeId, selectedPreset, selectedRule, type]);
 
   const flowNodes = useMemo<Node[]>(() => filtered.nodes.map((item) => {
     const hasSelection = Boolean(selectedNodeId || selectedEdgeId);
@@ -248,7 +254,7 @@ export function KnowledgeGraphWorkspace({ views, initialView, queryKey }: { view
   const activeGroup = groups.find((group) => group.id === groupId);
 
   useEffect(() => {
-    setSelectedNodeId(""); setSelectedEdgeId(""); setFocusOnly(false); setRelationDepth("1"); setPresetId(""); setRuleId(""); setQuery(""); setType(""); setEdgeType(""); setEdgeStatus(""); setOnlyMatches(false); setGroupId(active?.defaultGroup || "");
+    setSelectedNodeId(""); setSelectedEdgeId(""); setFocusOnly(false); setRelationDepth("1"); setPresetId(""); setRuleId(""); setQuery(""); setType(""); setEdgeType(""); setEdgeStatus(""); setOnlyMatches(false); setOnlyAdopted(false); setGroupId(active?.defaultGroup || "");
   }, [active?.defaultGroup, viewId]);
   useEffect(() => { const timer = window.setTimeout(() => instance?.fitView({ padding: .18, duration: 260 }), 80); return () => window.clearTimeout(timer); }, [edgeStatus, edgeType, focusOnly, groupId, instance, onlyMatches, presetId, query, ruleId, type, viewId]);
 
@@ -260,7 +266,7 @@ export function KnowledgeGraphWorkspace({ views, initialView, queryKey }: { view
     if (!active) return;
     setPositions((current) => mergeSessionNodePositions(active.id, current, changes));
   }
-  function resetFilters() { setQuery(""); setType(""); setEdgeType(""); setEdgeStatus(""); setGroupId(active?.defaultGroup || ""); setPresetId(""); setRuleId(""); setSelectedNodeId(""); setSelectedEdgeId(""); setFocusOnly(false); setRelationDepth("1"); setOnlyMatches(false); }
+  function resetFilters() { setQuery(""); setType(""); setEdgeType(""); setEdgeStatus(""); setGroupId(active?.defaultGroup || ""); setPresetId(""); setRuleId(""); setSelectedNodeId(""); setSelectedEdgeId(""); setFocusOnly(false); setRelationDepth("1"); setOnlyMatches(false); setOnlyAdopted(false); }
   function resetLayout() { if (!active) return; setPositions((current) => ({ ...current, [active.id]: {} })); window.setTimeout(() => instance?.fitView({ padding: .18, duration: 240 }), 40); }
   async function toggleFullscreen() { if (!shellRef.current) return; if (document.fullscreenElement) await document.exitFullscreen(); else await shellRef.current.requestFullscreen(); }
 
@@ -278,7 +284,7 @@ export function KnowledgeGraphWorkspace({ views, initialView, queryKey }: { view
       {active.rules?.length ? <label>规则约束<select value={ruleId} onChange={(event) => setRuleId(event.target.value)}><option value="">查看全部规则范围</option>{active.rules.map((rule) => <option value={rule.id} key={rule.id}>{rule.label}</option>)}</select></label> : null}
       {selectedPreset ? <span>{selectedPreset.description} · 进入条件 {selectedPreset.entryConditions.length} 项 · 完成条件 {selectedPreset.completionConditions.length} 项</span> : selectedRule ? <span>{selectedRule.description}</span> : <span>情景用于限定需要的对象和关系；规则用于定位其实际约束范围。</span>}
     </div> : null}
-    <div className="knowledge-graph-caption"><div><strong>{activeGroup?.label || active?.label}</strong><span>{activeGroup?.description || active?.hint}</span></div><b>{groupId || type || edgeType || edgeStatus || query || presetId || ruleId ? `${filtered.primaryCount} 个匹配 · ${filtered.nodes.length} 个含关联上下文` : `${filtered.nodes.length} 个节点`} · {filtered.edges.length} 条关系</b><label className="knowledge-only-matches"><input type="checkbox" checked={onlyMatches} onChange={(event) => setOnlyMatches(event.target.checked)} />只看匹配项</label></div>
+    <div className="knowledge-graph-caption"><div><strong>{activeGroup?.label || active?.label}</strong><span>{activeGroup?.description || active?.hint}</span></div><b>{onlyAdopted && !(groupId || type || edgeType || edgeStatus || query || presetId || ruleId) ? `${filtered.nodes.length} 个采用节点` : groupId || type || edgeType || edgeStatus || query || presetId || ruleId ? `${filtered.primaryCount} 个匹配 · ${filtered.nodes.length} 个含关联上下文` : `${filtered.nodes.length} 个节点`} · {filtered.edges.length} 条关系</b>{active?.groupMode === "ontology" ? <label className="knowledge-only-adopted"><input type="checkbox" checked={onlyAdopted} onChange={(event) => setOnlyAdopted(event.target.checked)} />只看本研究采用</label> : null}<label className="knowledge-only-matches"><input type="checkbox" checked={onlyMatches} onChange={(event) => setOnlyMatches(event.target.checked)} />只看匹配项</label></div>
     <div className={`knowledge-graph-contextbar${selectedNode || selectedEdge ? " has-selection" : ""}`}>
       {selectedNode ? <><span>当前对象</span><strong>{selectedNode.label}</strong><span>高亮 {Math.max(0, related.nodeIds.size - 1)} 个相关对象</span><label>关系范围<select value={relationDepth} onChange={(event) => setRelationDepth(event.target.value as RelationDepth)}><option value="1">直接相关</option><option value="2">两层关系</option><option value="all">完整关联链</option></select></label><button className={focusOnly ? "active" : ""} type="button" onClick={() => setFocusOnly((value) => !value)}>{focusOnly ? "返回全部" : "只看相关"}</button></> : selectedEdge ? <><span>当前关系</span><strong>{selectedEdge.label}</strong><span>已高亮关系两端对象</span><button className={focusOnly ? "active" : ""} type="button" onClick={() => setFocusOnly((value) => !value)}>{focusOnly ? "返回全部" : "只看这条关系"}</button></> : <><strong>如何阅读：</strong><span>先按分类或情景缩小范围；点击对象查看关联网络，点击连线查看关系定义。</span></>}
     </div>

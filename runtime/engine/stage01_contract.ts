@@ -343,7 +343,7 @@ export function ensureStage01ContractFields(data: any, question: string): any {
       ? "核心对象、比较范围、时间三件套、用途与交付深度已解析，可进入 02。"
       : "存在结构性歧义，需先完成澄清后再正式受理。",
   );
-  next.quality_status = nonEmpty(next.quality_status, disposition === "accepted" ? "minimum_pass" : "draft") as QualityStatus;
+  next.quality_status = nonEmpty(next.quality_status, disposition === "accepted" ? "high_quality_pass" : "draft") as QualityStatus;
   next.quality_gate_ref = nonEmpty(next.quality_gate_ref, STAGE01_QUALITY_GATE_REF);
   next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
   next.semantic_review_status = nonEmpty(next.semantic_review_status, "not_reviewed");

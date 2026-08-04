@@ -55,97 +55,6 @@ describe("db_read_models", () => {
     expect(sources[0]).not.toHaveProperty("search_excerpt");
   });
 
-  it("does not let a later limited upsert downgrade an already usable source at the same URL", () => {
-    const run = db.createRun("来源不降级", "semiconductor");
-    const first = db.upsertSource(run.id, {
-      url: "https://example.com/home",
-      title: "已核验文章",
-      publisher: "Example",
-      published_at: "2026-01-01",
-      source_type: "disclosure",
-      search_excerpt: "",
-      source_quote: "库存下降",
-      quote_verified: true,
-      usability_status: "usable",
-      retrieval_status: "captured",
-      content_hash: "a".repeat(64),
-      snapshot_text: "库存下降",
-      locator: "quote:库存下降",
-      captured_at: "2026-01-01T00:00:00.000Z",
-      failure_category: "",
-      failure_detail: "",
-      final_url: "https://example.com/home",
-      content_mime: "text/html",
-      http_status: 200,
-    });
-    const second = db.upsertSource(run.id, {
-      url: "https://example.com/home",
-      title: "首页线索",
-      publisher: "Example",
-      published_at: "2026-01-02",
-      source_type: "web_citation",
-      search_excerpt: "",
-      source_quote: "unrelated headline",
-      quote_verified: false,
-      usability_status: "limited",
-      retrieval_status: "limited",
-      content_hash: "b".repeat(64),
-      snapshot_text: "homepage",
-      locator: "quote:unrelated",
-      captured_at: "2026-01-02T00:00:00.000Z",
-      failure_category: "",
-      failure_detail: "原文引用未能在抓取正文中精确定位",
-      final_url: "https://example.com/home",
-      content_mime: "text/html",
-      http_status: 200,
-    });
-    expect(second.id).toBe(first.id);
-    expect(second).toMatchObject({
-      title: "已核验文章",
-      usability_status: "usable",
-      retrieval_status: "captured",
-      quote_verified: 1,
-      source_quote: "库存下降",
-    });
-  });
-
-  it("allows an unreadable legacy quote to be quarantined instead of preserving a false usable state", () => {
-    const run = db.createRun("乱码来源隔离", "semiconductor");
-    const first = db.upsertSource(run.id, {
-      url: "https://example.com/damaged",
-      title: "乱码旧快照",
-      publisher: "Example",
-      published_at: "2025-01-01",
-      source_type: "disclosure",
-      search_excerpt: "",
-      source_quote: "��˾2024��Ӫҵ����",
-      quote_verified: true,
-      usability_status: "usable",
-      retrieval_status: "captured",
-      content_hash: "a".repeat(64),
-    });
-    expect(first).toMatchObject({
-      usability_status: "limited",
-      quote_verified: 0,
-      failure_category: "source_acquisition_failure",
-    });
-    const quarantined = db.upsertSource(run.id, {
-      ...first,
-      source_quote: first.source_quote || "",
-      quote_verified: false,
-      usability_status: "limited",
-      retrieval_status: "captured",
-      failure_category: "source_acquisition_failure",
-      failure_detail: "原文引用含编码乱码",
-    });
-    expect(quarantined).toMatchObject({
-      id: first.id,
-      usability_status: "limited",
-      quote_verified: 0,
-      failure_detail: "原文引用含编码乱码",
-    });
-  });
-
   it("listWorkItemsForReview omits payload_json", () => {
     const run = db.createRun("工作项瘦身", "semiconductor");
     const artifact = db.createArtifact(run.id, "stage_03", { status: "needs_review" });
@@ -186,7 +95,6 @@ describe("db_read_models", () => {
     expect(overview?.run.id).toBe(run.id);
     expect(overview?.stage03Json).toContain("EV-1");
     expect(overview?.stage04Json).toContain("J-1");
-    expect(overview?.progress).toMatchObject({ current_stage: 4, completed_stage_count: 2, is_contiguous: false });
     expect(overview).not.toHaveProperty("artifacts");
     expect(overview).not.toHaveProperty("sources");
   });

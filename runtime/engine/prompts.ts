@@ -81,7 +81,7 @@ gap 必须填写 requirement 和 direction:unknown，source_keys 为空数组。
 - gap 必须填写 requirement（需要什么证据）和 direction:unknown
 - gap 必须在 evidence_requirement_ids 中原样引用对应 Stage02 ER；一个 gap 不得替多个语义不同的 ER 过门
 - evidence_summaries 按趋势/对比/异常三类组织，每条摘要绑定 supporting_draft_ids
-- **时间字段必须不晚于研究截止日**：observed_at / published_at / cutoff_at 均须 ≤ 输入中给出的 cutoff_at（任务时间范围 as_of）。若来源发布时间晚于截止日，该来源及依赖它的证据不得��记为 fact_draft，必须改为 gap
+- **时间字段必须不晚于研究截止日**：observed_at / published_at / cutoff_at 均须 ≤ 输入中给出的 cutoff_at（任务时间范围 as_of）。若来源发布时间晚于截止日，该来源及依赖它的证据不得标记为 fact_draft，必须改为 gap
 - **semiconductor_measurement 仅用于真正的产能/良率度量**：收入、订单金额、市占率、客户集中度、毛利率等财务/竞争类陈述不填此字段（设为 null）。仅当陈述的核心指标是产能（capacity）或良率（yield）且需设施/晶圆尺寸/制程/批次等口径时才填写，且必须六维齐全`,
   stage_04:`继承 03 的 method_applications 并收敛：执行完成的标记 executed，无法执行的标记 blocked/degraded/rejected。优先基于 Bundle/Summary 裁决。
 
@@ -124,13 +124,14 @@ export function promptFor(kind:ArtifactKind){
   if(kind==="baseline") return `你是一名审慎的投研分析师。只使用输入 frozen_evidence 中已冻结的来源和证据分析用户问题，不得联网搜索、不得补充外部常识或新来源。产出反证、限制和可读的 Markdown 报告。这是同证据直接生成基线，不使用本体和分阶段方法链。sources 必须原样引用 frozen_evidence.source_registry 中已存在的 URL、locator 和 source_quote。`;
   if(kind==="independent_review") return `你是独立投研审阅者，不参与原判断生成。只审阅输入中已确认的 02 判断结构、03 证据和 04 判断，不联网搜索、不补写新结论。逐条检查：是否跳过推理步骤、证据与判断是否错配、结论是否越过证据上限、是否遗漏竞争解释、Judgment 与 MethodApplication 是否可追溯。发现问题时明确退回 stage_02、stage_03 或 stage_04；没有实质问题才给 pass。reviewed_stage04_artifact_id 必须使用输入提供的 ID。
 
-正式语义审查（强制）：无论 pass/rework，都必须填写 semantic_checks，覆盖且仅覆盖以下五项，每项给独立 result 与 reason（不得五条复制同一理由冒充）：
+正式语义审查（强制）：无论 pass/rework，都必须填写 semantic_checks，覆盖且仅覆盖以下五项（此 Stage04 独立审查范围），每项给独立 result 与 reason（不得五条复制同一理由冒充）：
 1. local_evidence_not_globalized
 2. parent_aggregation_complete
 3. incremental_update_is_local_first
 4. title_represents_major_scopes
 5. conditions_scope_and_prohibitions_preserved
-未通过项必须写 return_to_stage（02/03/04/05）。verdict=pass 时五项必须全部 pass。`;
+未通过项必须写 return_to_stage（02/03/04/05）。verdict=pass 时五项必须全部 pass。
+（注：Stage05 独立语义审查按 delivery/02_模板/05_独立语义审查模板.yaml 使用十项检查，与此处 Stage04 审查不同，由 05 审查者单独提交。）`;
   return `${shared}\n\n阶段任务：${stage[kind as StageKind]}`;
 }
 

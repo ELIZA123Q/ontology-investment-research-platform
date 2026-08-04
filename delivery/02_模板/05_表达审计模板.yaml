@@ -1,19 +1,29 @@
 document_type: delivery_expression_audit
-schema_version: 3.0.0
+schema_version: "3.0.0"
 
 metadata:
   task_id: ""
   execution_id: ""
-  delivery_ref: "05-<核心主题>主题深度研究-<YYYYMMDD>-<当日序号>.md"
+  delivery_ref: "05-<核心主题>-<交付类型>-<YYYYMMDD>-<当日序号>.md"
   delivery_content_hash: "sha256:<05正文文件哈希>"
   source_04_brief_ref: "04-<核心主题>判断简报-<YYYYMMDD>-<当日序号>.md"
   source_04_audit_ref: "04-<核心主题>推理审计-<YYYYMMDD>-<当日序号>.yaml"
   source_04_audit_hash: "sha256:<04推理审计文件哈希>"
   stage_status: in_progress
   quality_status: draft
-  quality_gate_ref: "05_投研表达与交付规范.md#9-质量门槛与返工规则"
+  quality_gate_ref: "05_投研表达标准.md#9-质量门槛与返工规则"
   deterministic_check_status: not_checked
   semantic_review_status: not_reviewed
+
+# 报告级表达结构登记：
+# 用于证明05已经把04批准判断组织成“主判断—分项判断—关键未知—Research Edge”，
+# 不在此重新判断报告写得好不好；整体研究质量由独立语义审查负责。
+report_level_expression_map:
+  main_thesis_expression_ids: [EX-01]
+  supporting_judgment_expression_ids: []
+  key_unknown_expression_ids: []
+  research_edge_expression_ids: []
+  tracking_signal_expression_ids: []
 
 claim_expression_register:
   - expression_id: EX-01
@@ -35,6 +45,38 @@ claim_expression_register:
     scope_relation: same
     semantic_strength_review: pass
 
+# 综合主判断检查：
+# 05可以综合多个已批准Claim，但不得因综合而抬高强度、扩大范围或创造新因果。
+main_judgment_check:
+  integrated_main_judgment_present: false
+  main_judgment_expression_ids_registered: false
+  all_source_claims_mapped_to_04: false
+  weakest_inherited_strength_preserved: false
+  common_scope_not_expanded: false
+  decisive_conditions_preserved: false
+  no_new_causal_or_forecast_claim: false
+  result: fail
+
+# 判断强弱与主次：
+# 只检查05是否忠实呈现04已有强弱关系，不在05重新生成判断等级。
+judgment_priority_check:
+  supporting_judgments_registered: false
+  judgment_levels_traceable_to_04: false
+  no_lower_strength_written_as_equal_certainty: false
+  no_high_strength_judgment_unnecessarily_downgraded: false
+  result: fail
+
+# 关键未知登记：
+# 首页原则上突出1—2个真正影响主结论的关键未知。
+# 关键未知必须来自04已有未决项、条件或改判信号，不得由05新增研究问题。
+key_unknown_check:
+  key_unknowns_present: false
+  key_unknown_count_within_limit: false  # 原则上1—2个
+  all_key_unknowns_traceable_to_04: false
+  all_key_unknowns_decision_relevant: false
+  no_evidence_gap_list_used_as_key_unknowns: false
+  result: fail
+
 research_edge_check:
   reference_view_present: false
   differentiated_claim_mapped_to_04: false
@@ -42,16 +84,32 @@ research_edge_check:
   falsification_signal_observable: false
   evidence_boundary_disclosed: false
   no_fabricated_consensus: false
+  # Research Edge不得只由“相关不等于因果、订单不等于收入”等基础研究纪律构成
+  substantive_beyond_generic_research_discipline: false
   result: fail
 
+# 高可见位置覆盖检查：
+# 确保标题、投资要点、概览等关键表达都纳入EX登记和04→05一致性检查。
 high_risk_section_coverage:
   report_title: false
   investment_points: false
   conclusion_overview: false
+  key_unknowns: false
+  research_edge: false
   section_headings: false
   paragraph_leads: false
   chart_and_table_titles: false
   summary_conclusions: false
+
+# 表达质量的机器侧可检查项。
+# “整篇报告是否真正有用”不在此做最终裁决，由独立语义审查负责。
+expression_quality_alignment:
+  high_visibility_language_is_research_style: false
+  no_audit_register_tone_in_high_visibility_sections: false
+  same_limitation_not_repeated_across_multiple_high_visibility_sections: false
+  no_evidence_gap_inventory_as_main_narrative: false
+  tracking_signals_mapped_to_specific_claims: false
+  result: fail
 
 overall_check:
   all_expressions_mapped_to_04_claims: false
@@ -61,5 +119,10 @@ overall_check:
   no_condition_loss: false
   no_scope_expansion: false
   no_status_washing: false
+  report_level_structure_registered: false
+  main_judgment_check_passed: false
+  judgment_priority_check_passed: false
+  key_unknown_check_passed: false
+  research_edge_check_passed: false
   semantic_review_complete: false
   result: fail

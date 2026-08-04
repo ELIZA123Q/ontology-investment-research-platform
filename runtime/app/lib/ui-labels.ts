@@ -235,6 +235,7 @@ export function relationTypeLabel(type: string): string {
   return (
     {
       questionDecomposesIntoUnit: "拆分为判断单元",
+      questionDecomposesIntoSubQuestion: "分解为子问题",
       unitUsesScope: "使用研究范围",
       scopeIncludesObject: "范围包含",
       unitEvaluatesStateVariable: "评估状态变量",

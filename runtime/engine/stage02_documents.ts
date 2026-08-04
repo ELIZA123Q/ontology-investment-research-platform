@@ -211,9 +211,10 @@ export function projectOntologyViewYaml(data: any, options: { taskId?: string; q
 }
 
 /** 补齐 Stage02 门禁与双产物字段；markdown_content 以 research_logic_markdown 为准。原地写入。 */
-export function ensureStage02DocumentFields(data: any, options: { question?: string; taskId?: string } = {}): any {
+export function ensureStage02DocumentFields(data: any, options: { question?: string; taskId?: string; coreObject?: string } = {}): any {
   const next = data && typeof data === "object" ? data : {};
   normalizePathBindings(next);
+  ensureStage02BusinessInstances(next, options);
   applyEvidenceRequirementBindings(next);
   ensureTaskAnswerContract(next, options.question);
   const logicId = nonEmpty(next.logic_id, "RLOG-RUNTIME");
@@ -237,7 +238,7 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
   }
   next.quality_status = nonEmpty(
     next.quality_status,
-    next.can_enter_03 ? "minimum_pass" : "return_required",
+    next.can_enter_03 ? "high_quality_pass" : "return_required",
   );
   next.deterministic_check_status = nonEmpty(next.deterministic_check_status, "not_checked");
   next.semantic_review_status = nonEmpty(next.semantic_review_status, "not_reviewed");
@@ -275,6 +276,107 @@ export function ensureStage02DocumentFields(data: any, options: { question?: str
     const hqErrors = collectStage02HighQualityIssues(provisional);
     if (hqErrors.length) downgradeIfHighQualityFails(next, hqErrors);
     else next.deterministic_check_status = "checked";
+  }
+  return next;
+}
+
+/**
+ * 强制业务实体实例化（修复「实体关系图」对多数研究空白）。
+ *
+ * 业务实体（Company / Product / Industry 等）只有在 Stage02 显式实例化为
+ * `ontology_instances` 才会被物质化进 `instance_graph`，进而在「实体关系图」可见。
+ * 历史上生成器常漏填，导致大部分研究的实体图空白。这里从 Stage01 `core_object`
+ * 与研究问题兜底抽取明确点名的标的（A 股代码、刻蚀设备等），写入 `ontology_instances`
+ * 与 `research_scope.core_objects`，使物质化必然产出业务实体节点。仅在识别到具体
+ * 上市公司时才顺带抽取其明确业务线，避免宽泛主题研究产生虚假产品节点。
+ */
+const EQUITY_CODE_RE = /([\u4e00-\u9fa5]{2,10})\s*[（(]\s*(\d{6})\s*[.)]\s*(SH|SZ|BJ)\s*[）)]/;
+const PRODUCT_PHRASES = [
+  "刻蚀设备", "光刻设备", "CMP设备", "薄膜设备", "半导体设备",
+  "DRAM", "NAND", "HBM", "SRAM", "存储芯片", "晶圆", "碳化硅", "氮化镓",
+];
+const CUSTOMER_COMPANIES: Record<string, string> = {
+  "中芯国际": "SMIC", "华虹": "HuaHong", "华虹半导体": "HuaHong",
+  "长江存储": "YMTC", "长鑫存储": "CXMT", "合肥长鑫": "CXMT",
+  "中微公司": "AMEC", "北方华创": "NAURA", "盛美上海": "ACME",
+  "韦尔股份": "WillSemi", "兆易创新": "GigaDevice",
+};
+const KNOWN_REGIONS: Record<string, string> = {
+  "中国大陆": "中国-大陆", "美国": "美国", "日本": "日本",
+  "韩国": "韩国", "中国台湾": "中国-台湾", "欧洲": "欧洲",
+};
+
+function extractBusinessInstances(
+  text: string,
+  scopeDims?: Record<string, any>,
+): Array<{ id: string; type: string; name: string; ticker?: string }> {
+  const out: Array<{ id: string; type: string; name: string; ticker?: string }> = [];
+  if (!text) return out;
+  const m = text.match(EQUITY_CODE_RE);
+  if (m) {
+    const name = m[1];
+    const ticker = `${m[2]}.${m[3]}`;
+    out.push({ id: `company-${m[2]}`, type: "Company", name: `${name}（${ticker}）`, ticker });
+  }
+  if (out.length) {
+    for (const phrase of PRODUCT_PHRASES) {
+      if (text.includes(phrase)) {
+        out.push({ id: `product-${phrase}`, type: "Product", name: phrase });
+        break;
+      }
+    }
+  }
+  // 从研究范围维度提取更多业务实体
+  if (scopeDims) {
+    const customers = String(scopeDims.customers || "");
+    for (const [name] of Object.entries(CUSTOMER_COMPANIES)) {
+      if (customers.includes(name) && !out.some((c) => c.name === name)) {
+        out.push({ id: `customer-${name}`, type: "Company", name });
+      }
+    }
+    const geography = String(scopeDims.geography || "");
+    for (const [name] of Object.entries(KNOWN_REGIONS)) {
+      if (geography.includes(name) && !out.some((c) => c.name === name)) {
+        out.push({ id: `region-${name}`, type: "Region", name });
+      }
+    }
+    const valueChain = String(scopeDims.value_chain || "");
+    if (/制造/.test(valueChain)) {
+      const name = "半导体设备制造";
+      if (!out.some((c) => c.name === name)) out.push({ id: "industry-equip-mfg", type: "Industry", name });
+    }
+    if (/采购|晶圆厂/.test(valueChain)) {
+      const name = "晶圆制造";
+      if (!out.some((c) => c.name === name)) out.push({ id: "industry-wafer-fab", type: "Industry", name });
+    }
+  }
+  return out;
+}
+
+export function ensureStage02BusinessInstances(data: any, options: { question?: string; coreObject?: string } = {}): any {
+  const next = data && typeof data === "object" ? data : {};
+  const scope = next.research_scope && typeof next.research_scope === "object" ? next.research_scope : (next.research_scope = {});
+  if (!scope.id) return next;
+  const instances = Array.isArray(next.ontology_instances) ? next.ontology_instances : (next.ontology_instances = []);
+  const coreObjects = Array.isArray(scope.core_objects) ? scope.core_objects : (scope.core_objects = []);
+  const combined = [options?.coreObject, options?.question, scope.label, next.judgment_spine]
+    .filter((item): item is string => typeof item === "string" && Boolean(item.trim()))
+    .join(" ");
+  const candidates = extractBusinessInstances(combined, scope.dimensions as Record<string, any> | undefined);
+  if (!candidates.length) return next;
+  const existingIds = new Set(instances.map((item: any) => String(item?.id || "")));
+  const existingNames = new Set(instances.map((item: any) => String(item?.name || item?.label || "")));
+  for (const candidate of candidates) {
+    if (existingIds.has(candidate.id) || existingNames.has(candidate.name)) continue;
+    instances.push({
+      id: candidate.id,
+      type: candidate.type,
+      name: candidate.name,
+      ...(candidate.ticker ? { ticker: candidate.ticker } : {}),
+    });
+    coreObjects.push({ id: candidate.id, type: candidate.type, name: candidate.name });
+    existingIds.add(candidate.id);
+    existingNames.add(candidate.name);
   }
   return next;
 }
@@ -819,11 +921,9 @@ export function collectStage02ConsistencyIssues(data: any): Stage02ConsistencyIs
     });
   }
   const quality = nonEmpty(data?.quality_status);
-  // spec §7.1：minimum_pass 即可进入 03；high_quality_pass 仅用于正式交付（§7.2）。
-  // 因此确认门禁只应在生成器明确判定 return_required（未达最低完备度）时阻断，
-  // 不应因“非 high_quality_pass”而阻断——否则比 spec 更严，且会把生成器自检字段
-  // 当成结构合同缺陷，与 §7 质量门槛的“minimum_pass 可进入 03”相悖。
-  if (quality === "return_required") {
+  // 各阶段交接前必须达到 high_quality_pass：本阶段产出未达高质量，须在 02 自身拦截，
+  // 不允许带 minimum_pass 进入 03、再攒到 05 导出时才翻旧账（spec §7.1 已统一为交接即高质量）。
+  if (quality !== "high_quality_pass") {
     issues.push({
       severity: "error",
       code: "quality_status",

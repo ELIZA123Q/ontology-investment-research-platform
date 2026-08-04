@@ -26,6 +26,7 @@ type AuthorityStageInput,
 type BusinessInstanceGraph,
 } from "../instance_graph";
 import { buildStageSemanticContext } from "../semantic_context";
+import { ensureStage02DocumentFields } from "../stage02_documents";
 import { ensureStage03DocumentFields,recomputeStage03EvidenceQualityGate } from "../stage03_documents";
 import { ensureStage05DocumentFields } from "../stage05_documents";
 import { parseJson,STAGES,type Artifact,type ArtifactKind,type StageKind } from "../types";
@@ -40,6 +41,23 @@ export function approve(id: string) {
     let artifact = getArtifact(id);
     if (!artifact) throw new Error("产物不存在");
     if (artifact.status !== "needs_review") throw new Error("只有待确认产物可以确认");
+    if (artifact.kind === "stage_02") {
+      // 确认前补齐业务实体实例化（ensureStage02BusinessInstances），
+      // 确保 instance_graph 包含 Company/Product 等业务实体节点。
+      // 补齐结果持久化到 artifact，使下游阶段与图谱物化读取一致数据。
+      const run = getRun(artifact.run_id);
+      const taskArtifact = latestArtifact(artifact.run_id, "stage_01", ["approved"]);
+      const taskDefinition: any = parseJson(taskArtifact?.json_content || "{}", {});
+      const data = ensureStage02DocumentFields(
+        parseJson(artifact.json_content, {}),
+        { question: taskDefinition?.normalized_question || run?.question, taskId: artifact.run_id },
+      );
+      updateArtifact(artifact.id, {
+        json_content: JSON.stringify(data, null, 2),
+        markdown_content: String(data.document_markdown || artifact.markdown_content || ""),
+      });
+      artifact = getArtifact(id)!;
+    }
     if (artifact.kind === "stage_03") {
       // Registry 可能被补证/重新取得来源更新；确认前把冻结字段投影回草稿，再做严格核对。
       const synced = syncStage03DraftSourcesFromRegistry(

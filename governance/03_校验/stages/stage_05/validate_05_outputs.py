@@ -73,9 +73,10 @@ REQUIRED_CONTENT_FUNCTIONS = [
     ("来源|资料来源|参考", "需列明资料来源"),
 ]
 
-# 论点章节：至少1个二级标题即可，不限制编号格式
-MIN_ARGUMENT_CHAPTERS = 1
-MAX_ARGUMENT_CHAPTERS = 10
+# 论点章节：仅计「## 一、… 五、」编号章（与 runtime stage05_quality.ts 口径一致）。
+# 固定节（投资要点/核心结论概览/Research Edge 等）与尾节不计入论点章。
+MIN_ARGUMENT_CHAPTERS = 2
+MAX_ARGUMENT_CHAPTERS = 5
 
 # 仅禁止系统内部字段泄露到研究员可见正文
 FORBIDDEN_BODY_TERMS = [
@@ -157,8 +158,8 @@ def _header_text(body: str) -> str:
 
 
 def _count_argument_chapters(body: str) -> int:
-    """计数二级标题章节数，不限制编号格式。"""
-    return len(re.findall(r"^##\s+", body, re.MULTILINE))
+    """计数论点章节数：仅「## 一、… 五、」编号章（与 runtime 口径一致）。"""
+    return len(re.findall(r"^##\s+[一二三四五]、", body, re.MULTILINE))
 
 
 def _check_content_functions(body: str) -> None:

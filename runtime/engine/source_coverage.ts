@@ -1,5 +1,6 @@
 import type { EvidenceRequirementProjection } from "./structure_candidates";
 import type { SourceRecord } from "./types";
+import { AUTHORITY_TYPES, CORE_AUTHORITY_TYPES } from "./authority_types";
 import { documentsCounterSearch } from "./evidence_quality_gate";
 import { isReadableEvidenceText } from "./text_quality";
 
@@ -46,6 +47,10 @@ export type SourceCoverageSummary = {
   coverage_gap_count: number;
   coverage_rate: number;
   verification_rate: number;
+  /** 核心权威类型（官方 / 公司披露 / 产业一线）中，可用来源未覆盖者。 */
+  missing_core_types: string[];
+  /** 各权威类型的覆盖情况（基于可用来源）。 */
+  authority_coverage: Array<{ authority_type: string; present: boolean }>;
 };
 
 export type EvidenceStopThresholds = {
@@ -215,6 +220,12 @@ export function computeSourceCoverage(input: {
   });
   const usableSourceById = new Map(usableSources.map((source) => [source.id, source]));
   const public_secondary_count = usableSources.filter((source) => source.authority_type === "public_secondary").length;
+  const presentAuthorityTypes = new Set(usableSources.map((source) => source.authority_type));
+  const missing_core_types = CORE_AUTHORITY_TYPES.filter((type) => !presentAuthorityTypes.has(type));
+  const authority_coverage = AUTHORITY_TYPES.map((type) => ({
+    authority_type: type,
+    present: presentAuthorityTypes.has(type),
+  }));
 
   const requirements = input.requirements || [];
   const unitIds = [...new Set([
@@ -327,7 +338,7 @@ export function computeSourceCoverage(input: {
     if (unmetMainRequirements.length) {
       const first = unmetMainRequirements[0];
       if (first.usable.length > 0) {
-        weakest_link = `${first.requirement.id} 独立来源组不足（${first.sourceGroupCount}/${first.requirement.minimum_independent_sources}）`;
+        weakest_link = `独立来源组不足（${first.sourceGroupCount}/${first.requirement.minimum_independent_sources}）`;
       } else {
         support_gap_kind = nonGapDrafts.length > 0 && blocked_sources.length > 0
           ? "unverified_bound_sources"
@@ -398,6 +409,8 @@ export function computeSourceCoverage(input: {
     coverage_gap_count,
     coverage_rate,
     verification_rate,
+    missing_core_types,
+    authority_coverage,
   };
   coverageCache = { key: cacheKey, result };
   return result;

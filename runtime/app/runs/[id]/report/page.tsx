@@ -46,7 +46,7 @@ export default async function Report({ params }: { params: Promise<{ id: string 
       const d: any = parseJson(a.json_content || "{}", {});
       return String(d.quality_status || "") === "high_quality_pass" ? null : s;
     })
-    .filter((x): x is string => x !== null);
+    .filter((x): x is "stage_01" | "stage_02" | "stage_03" | "stage_04" | "stage_05" => x !== null);
   const allStagesHighQualityPass = stagesBelowHq.length === 0;
   const deliveryGate = buildFormalDeliveryGate({
     artifactApproved: artifact.status === "approved",

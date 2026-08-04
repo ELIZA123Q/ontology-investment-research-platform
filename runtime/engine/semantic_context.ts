@@ -133,6 +133,15 @@ const SINGULAR_REFERENCE_KEYS = new Set([
 // 不是 Source 实例或本体语义 ID；不得被宽泛的 *_refs 规则误收。
 const NON_SEMANTIC_REFERENCE_LIST_KEYS = new Set(["source_refs"]);
 
+// Stage03 的取证批次编排元数据（stage03_batch_checkpoint /
+// stage03_batch_execution / stage03_supplement_rounds）使用批级内部 ID
+// （如 EB-01、EB-02、EB-03）标识证据获取批次。这些是运行内编排标识，
+// 不是本体对象、实例图对象或 task_local 引用，绝不应进入语义引用解析集合；
+// 否则会在生产正式包导出时被 requireComplete 门误判为“未解析语义引用”。
+// 注意：同结构内的 target_unit_ids（JU-xx）、unchanged_evidence_ids（EV-/GAP-xx）
+// 仍是合法语义引用，必须继续被跟踪，因此只排除批次计划 ID 列表本身。
+const NON_SEMANTIC_ORCHESTRATION_ID_LIST_KEYS = new Set(["planned_batch_ids"]);
+
 function addString(target: Set<string>, value: unknown) {
   if (typeof value !== "string") return;
   const normalized = value.trim();
@@ -153,6 +162,7 @@ function walk(value: unknown, declared: Set<string>, referenced: Set<string>) {
     if (SINGULAR_REFERENCE_KEYS.has(key)) addString(referenced, item);
     if (
       !NON_SEMANTIC_REFERENCE_LIST_KEYS.has(key)
+      && !NON_SEMANTIC_ORCHESTRATION_ID_LIST_KEYS.has(key)
       && (key.endsWith("_refs") || key.endsWith("_ids"))
       && Array.isArray(item)
     ) {

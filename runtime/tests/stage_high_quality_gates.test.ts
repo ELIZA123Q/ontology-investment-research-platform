@@ -198,7 +198,7 @@ describe("per-stage high_quality_pass gates", () => {
     expect(minIssues.some((item) => item.code === "quality_status")).toBe(true);
   });
 
-  it("stage02 minimum remains approvable for the Stage03 handoff contract", () => {
+  it("stage02 handoff requires high_quality_pass (minimum_pass no longer approvable)", () => {
     const data = ensureStage02DocumentFields({
       judgment_units: [
         { id: "JU-1", title: "HBM", question: "是否扩张", judgment_type: "cycle_phase", scope_ref: "S1", ontology_node_ids: [], evidence_requirements: ["ER-1"] },
@@ -222,6 +222,7 @@ describe("per-stage high_quality_pass gates", () => {
       ontology_gap_scan_status: "minor_gap",
     });
     data.ontology_view_yaml = `judgment_units:\n  - id: JU-1\n  - id: JU-2\nquality_control:\n  can_enter_03: true\n`;
-    expect(() => assertStage02ReadyForApproval(data)).not.toThrow();
+    // 交接前必须高质量：minimum_pass 不再是 03 交接放行条件，须在 02 自身拦截。
+    expect(() => assertStage02ReadyForApproval(data)).toThrow(/可交接密度|quality_status/);
   });
 });

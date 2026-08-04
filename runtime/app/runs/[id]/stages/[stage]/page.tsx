@@ -193,7 +193,12 @@ export default async function StagePage({ params }: { params: Promise<{ id: stri
   if (!run || n < 1 || n > 5) notFound();
   const journey = researchStage(n)!;
   const kind = STAGES[n - 1];
-  const artifactRow = latestArtifactPayload(id, kind);
+  // 优先取活跃草稿（running/needs_review），回退到已审批版本（approved），
+  // 最后才取 failed —— 避免取消生成后 failed 产物的空内容覆盖用户的上次有效结果
+  const artifactRow =
+    latestArtifactPayload(id, kind, ["running", "needs_review"])
+    || latestArtifactPayload(id, kind, ["approved"])
+    || latestArtifactPayload(id, kind);
   const artifact = artifactRow ? artifactForWorkspace(artifactRow) : undefined;
   const latestStageJob = latestJobForStage(listResearchJobsForRun(id), kind);
   const activeJob = latestStageJob && ["queued", "running", "retrying", "waiting_for_input", "blocked"].includes(latestStageJob.status)

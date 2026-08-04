@@ -81,7 +81,7 @@ describe("memory-cycle formal_pack Stage05 gold structure + density fixture", ()
       }],
       limitations: ["公开材料不足"],
       document_markdown: skeleton,
-      expression_audit_yaml: "document_type: expression_audit\nmetadata: {}\n",
+      expression_audit_yaml: "document_type: delivery_expression_audit\nmetadata: {}\n",
       quality_status: "high_quality_pass",
       stage_status: "complete",
       quality_gate_ref: "test",

@@ -36,12 +36,10 @@
 - 触发点：`approveArtifact` / `supersedeDownstream` / `supersedeOtherArtifactAttempts`（artifacts.ts），覆盖所有批准与取代入口。
 - 存量漂移修复：`npm run recompute:run-progress`（runtime/scripts/recompute-run-progress.ts，纯 node:sqlite）。
 
-## 正式交付/审计包导出门槛（易踩坑）
-- 两套独立门槛，且发布前 UI 判定与发布时真实校验不一致，易造成"按钮可点但导出失败"：
-  - 02→03 放行：`assertStage02ReadyForApproval` 只拦 `quality_status==="return_required"`；`minimum_pass`/`high_quality_pass` 都放行（spec §7.1：minimum_pass 即可进 03）。
-  - 正式包导出：`exportFormalPack`（被 `publishReleaseSetAndValidate` 调用）强制 01–05 全部 `quality_status==="high_quality_pass"`（formal_pack_export.ts:84），依据 spec §7.2。
-  - 发布前按钮判定 `buildFormalDeliveryGate`（researcher-stage-output.ts:622）只查"五阶段全 approved + 无 pending"，不查 high_quality_pass → 按钮显示"可导出正式发布包"但点击被 hq 检查拦下。
-- quality_status 默认回退为 minimum_pass（stage02_documents.ts:238）；只有生成器自评 high_quality_pass 且通过 §7.2 检查（collectStage02HighQualityIssues）才保留，否则 `downgradeIfHighQualityFails` 降级回 minimum_pass。
-- 导出循环按 01→05 顺序，第一个非 hq 即抛"阶段 X 尚未达到可交接密度"——看到 02 不代表 03/04/05 已过。
-- 修复路径：回各阶段重生成/补强到 high_quality_pass；重生成早期阶段会 supersede 旧 artifact，下游 03/04/05 可能需一并重跑保持契约一致。
-- **已落地（2026-08-03）**：`buildFormalDeliveryGate` 增加可选 `allStagesHighQualityPass` 入参；`report/page.tsx` 计算 01–05 各阶段 quality_status，未达 hq 则按钮隐藏（release-toolbar 仅在 gate.ready 时渲染）并在 StageExceptionNotice 列出具体阶段（如"阶段 02 未达到高质量通过"），对齐 exportFormalPack 真实规则。测试见 researcher_stage_output.test.ts。
+## 正式交付/审计包导出门槛（质量在生成时即强制）
+- **设计原则（2026-08-03 全量改造后）**：每个阶段在进入下一阶段前产出即须 `high_quality_pass`；质量验证在 AI 生成时完成，绝不在 05 导出时才暴露早期阶段问题。
+- 01/02/03/04/05 生成默认门槛现已统一为 `high_quality_pass`（见各 `stageXX_documents.ts` / `stage01_contract.ts`）；02→03 交接门（stage2_review.ts）与正式导出门（formal_pack_export.ts:84）均要求 hq，二门合一。
+- **关键修复（死代码陷阱）**：审批/校验实际走 `stage2_review.ts` 的 `validateStage02ForApproval`，其 `SELF_ASSESSMENT_CODES` 曾把 `quality_status` 排除（过滤掉质量报错）→ 已改为仅 `["cannot_enter_03"]`，让 quality_status 真正阻断 02 交接。
+- 发布前按钮判定 `buildFormalDeliveryGate`（researcher-stage-output.ts）带 `allStagesHighQualityPass` 入参，未达 hq 时按钮隐藏 + StageExceptionNotice 列具体阶段，与 exportFormalPack 真实规则对齐。
+- 若 §7.2 检查失败仍会 `downgradeIfHighQualityFails` 降级并 fail-fast 阻断（低质量不会放行到下一阶段）。旧 minimum_pass 历史产物重审/重生成会被新门拦下（符合预期）。
+- 全量测试：`93 files / 561 tests passed`。代码改动需 `npm run prod:rebuild`（或重启 dev）后 UI 生效。

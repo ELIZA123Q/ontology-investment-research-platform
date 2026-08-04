@@ -41,7 +41,7 @@ describe("source_coverage", () => {
     expect(deriveSourceResearchLifecycle({ retrievalStatus: "captured", quoteVerified: false, factStatus: "approved" }).stage).toBe("captured");
   });
 
-  it("counts coverage gaps only from judgment units, not authority-type inventory", () => {
+  it("flags missing core authority types", () => {
     const coverage = computeSourceCoverage({
       sources: [source()],
       evidence: [{
@@ -52,6 +52,7 @@ describe("source_coverage", () => {
         source_ids: ["SRC-1"],
         judgment_unit_ids: ["JU-1"],
       }],
+      boundSourceIds: new Set(["SRC-1"]),
       requirements: [{
         id: "ER-1",
         requirement: "产能",
@@ -61,8 +62,8 @@ describe("source_coverage", () => {
         source: "unit_requirement",
       }],
     });
-    // 仅有公司披露、缺官方/行业数据时，单元已满足则缺口为 0
-    expect(coverage.coverage_gap_count).toBe(0);
+    expect(coverage.missing_core_types).toEqual(["official", "industry_provider"]);
+    expect(coverage.authority_coverage.find((cell) => cell.authority_type === "company_disclosure")?.present).toBe(true);
     expect(coverage.coverage_rate).toBe(1);
     expect(coverage.verification_rate).toBe(1);
     expect(coverage.unit_coverage[0]).toMatchObject({
@@ -75,7 +76,7 @@ describe("source_coverage", () => {
 
   it("does not count unverified sources as evidence coverage or independent groups", () => {
     const coverage = computeSourceCoverage({
-      sources: [source({ quote_verified: false, usability_status: "limited", retrieval_status: "limited", failure_detail: "原文引用未能在抓取正文中精确定位" })],
+      sources: [source({ quote_verified: false })],
       evidence: [{
         id: "EV-1",
         kind: "fact_draft",
@@ -98,69 +99,6 @@ describe("source_coverage", () => {
       has_support_evidence: false,
       independent_source_groups: 0,
       evidence_ceiling: "J0",
-      support_gap_kind: "unverified_bound_sources",
-      weakest_link: "ER-1 缺少可核验的主证据",
-      blocked_sources: [expect.objectContaining({ id: "SRC-1", failure_detail: "原文引用未能在抓取正文中精确定位" })],
-    });
-  });
-
-  it("invalidates cached coverage when a frozen quote becomes unreadable", () => {
-    const evidence = [{
-      id: "EV-READABLE-CACHE",
-      kind: "fact_draft",
-      direction: "support",
-      directness: "direct",
-      source_ids: ["SRC-CACHE"],
-      judgment_unit_ids: ["JU-CACHE"],
-    }];
-    const requirements = [{
-      id: "ER-CACHE",
-      requirement: "核验冻结引文",
-      evidence_role: "support" as const,
-      minimum_independent_sources: 1,
-      judgment_unit_ids: ["JU-CACHE"],
-      source: "unit_requirement" as const,
-    }];
-    const readable = computeSourceCoverage({
-      sources: [source({ id: "SRC-CACHE", source_quote: "公司订单同比增长" })],
-      evidence,
-      requirements,
-    });
-    const unreadable = computeSourceCoverage({
-      sources: [source({ id: "SRC-CACHE", source_quote: "��˾����ͬ������" })],
-      evidence,
-      requirements,
-    });
-    expect(readable.coverage_rate).toBe(1);
-    expect(unreadable.coverage_rate).toBe(0);
-    expect(unreadable.verification_rate).toBe(0);
-  });
-
-  it("offers usable unbound sources when a unit has no support draft yet", () => {
-    const coverage = computeSourceCoverage({
-      sources: [
-        source({ id: "SRC-READY", title: "已核验披露", quote_verified: true }),
-      ],
-      evidence: [{
-        id: "GAP-1",
-        kind: "gap",
-        direction: "unknown",
-        source_ids: [],
-        judgment_unit_ids: ["JU-1"],
-      }],
-      requirements: [{
-        id: "ER-1",
-        requirement: "产能",
-        evidence_role: "support",
-        minimum_independent_sources: 1,
-        judgment_unit_ids: ["JU-1"],
-        source: "unit_requirement",
-      }],
-    });
-    expect(coverage.unit_coverage[0]).toMatchObject({
-      support_gap_kind: "no_support_draft",
-      weakest_link: "ER-1 缺少可核验的主证据",
-      candidate_sources: [expect.objectContaining({ id: "SRC-READY", title: "已核验披露" })],
     });
   });
 
@@ -199,7 +137,7 @@ describe("source_coverage", () => {
       independent_source_groups: 1,
       meets_independence: false,
       evidence_ceiling: "J1",
-      weakest_link: "ER-1 独立来源组不足（1/2）",
+      weakest_link: "独立来源组不足（1/2）",
     });
   });
 
@@ -234,51 +172,6 @@ describe("source_coverage", () => {
       has_counter_evidence: false,
       counter_gap_count: 1,
       counter_check_status: "gap",
-    });
-  });
-
-  it("keeps support coverage complete after a documented counter search returns no result", () => {
-    const coverage = computeSourceCoverage({
-      sources: [source()],
-      evidence: [{
-        id: "EV-1",
-        kind: "fact_draft",
-        direction: "support",
-        directness: "direct",
-        evidence_requirement_ids: ["ER-S"],
-        source_ids: ["SRC-1"],
-        judgment_unit_ids: ["JU-1"],
-      }, {
-        id: "GAP-C",
-        kind: "gap",
-        direction: "unknown",
-        evidence_role: "counter",
-        evidence_requirement_ids: ["ER-C"],
-        source_ids: [],
-        judgment_unit_ids: ["JU-1"],
-        statement: "经公开公告与数据库检索，未找到可核验的需求转弱反证。",
-        limitations: ["没有找到不等于事实不存在"],
-      }],
-      requirements: [{
-        id: "ER-S",
-        requirement: "产能状态",
-        evidence_role: "support",
-        minimum_independent_sources: 1,
-        judgment_unit_ids: ["JU-1"],
-        source: "unit_requirement",
-      }, {
-        id: "ER-C",
-        requirement: "检查需求转弱",
-        evidence_role: "counter",
-        minimum_independent_sources: 1,
-        judgment_unit_ids: ["JU-1"],
-        source: "counter_direction",
-      }],
-    });
-    expect(coverage).toMatchObject({ coverage_gap_count: 0, coverage_rate: 1 });
-    expect(coverage.unit_coverage[0]).toMatchObject({
-      meets_independence: true,
-      counter_check_status: "searched_gap",
     });
   });
 

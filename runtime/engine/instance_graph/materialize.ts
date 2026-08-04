@@ -47,6 +47,102 @@ function parseTypedScopeMemberRef(objectId: string): { type: string; name: strin
   };
 }
 
+/**
+ * 为同一研究范围内的业务实体自动生成商业语义关系。
+ *
+ * 当多个业务实体（Company / Product / Industry / Region）通过 ontology_instances
+ * 注册到同一 ResearchScope 时，它们之间仅存在 scopeIncludesObject 连接——在
+ * 「实体关系图」中这些关系会被过滤（两端必须都是业务实体类型）。本函数补齐：
+ *   - Company "produces" Product
+ *   - Company "supplies_to" Company（区分研究主体与下游客户）
+ *   - Industry "contains" Company / Product
+ *   - Company "located_in" Region
+ */
+function generateEntityRelations(
+  slice: { objects: BusinessInstanceGraph["objects"]; relations: BusinessInstanceGraph["relations"] },
+  scopeId: string,
+) {
+  const businessTypes = new Set(["Company", "Product", "Industry", "Region"]);
+  const scopeObjects = slice.objects.filter((obj) => businessTypes.has(obj.type));
+
+  // 按类型分组
+  const companies = scopeObjects.filter((obj) => obj.type === "Company");
+  const products = scopeObjects.filter((obj) => obj.type === "Product");
+  const industries = scopeObjects.filter((obj) => obj.type === "Industry");
+  const regions = scopeObjects.filter((obj) => obj.type === "Region");
+
+  const existingRelationIds = new Set(slice.relations.map((r) => r.id));
+
+  const ensureRelation = (
+    sourceId: string,
+    targetId: string,
+    relationType: string,
+    properties: Record<string, unknown> = {},
+  ) => {
+    const id = `ENTREL-${scopeId}-${sourceId}-${relationType}-${targetId}`;
+    if (existingRelationIds.has(id)) return;
+    slice.relations.push({ id, type: relationType, sourceId, targetId, properties });
+    existingRelationIds.add(id);
+  };
+
+  // 研究主体公司（通过 A 股代码匹配的）→ Product(s)
+  const subjectCompanies = companies.filter((c) => c.id.startsWith("company-"));
+  for (const company of subjectCompanies) {
+    for (const product of products) {
+      ensureRelation(company.id, product.id, "produces", {
+        authority: "ontology_instance_inference",
+        scope_ref: scopeId,
+      });
+    }
+  }
+
+  // 研究主体公司 → 客户公司（下游客户，ID 以 customer- 开头）
+  const customerCompanies = companies.filter((c) => c.id.startsWith("customer-"));
+  for (const company of subjectCompanies) {
+    for (const customer of customerCompanies) {
+      ensureRelation(company.id, customer.id, "supplies_to", {
+        authority: "ontology_instance_inference",
+        scope_ref: scopeId,
+      });
+    }
+  }
+
+  // Industry 包含同一范围内的 Company / Product
+  for (const industry of industries) {
+    for (const company of companies) {
+      ensureRelation(industry.id, company.id, "contains", {
+        authority: "ontology_instance_inference",
+        scope_ref: scopeId,
+      });
+    }
+    for (const product of products) {
+      ensureRelation(industry.id, product.id, "contains", {
+        authority: "ontology_instance_inference",
+        scope_ref: scopeId,
+      });
+    }
+  }
+
+  // Company / Industry → Region（仅在中国大陆场景下生成，避免误挂政策上下文中的外国地域）
+  // 地理位置关系对确定性推断来说噪声过高，仅当 scope 明确以中国大陆为主时才生成
+  const hasChinaRegion = regions.some((r) => r.id.startsWith("region-中国大陆"));
+  if (hasChinaRegion) {
+    const chinaRegion = regions.find((r) => r.id.startsWith("region-中国大陆"))!;
+    for (const company of companies) {
+      ensureRelation(company.id, chinaRegion.id, "located_in", {
+        authority: "ontology_instance_inference",
+        scope_ref: scopeId,
+      });
+    }
+    for (const industry of industries) {
+      ensureRelation(industry.id, chinaRegion.id, "located_in", {
+        authority: "ontology_instance_inference",
+        scope_ref: scopeId,
+      });
+    }
+  }
+}
+
 export function materializeStageIntoGraph(
   current: BusinessInstanceGraph,
   stageKind: string,
@@ -214,6 +310,10 @@ export function materializeStageIntoGraph(
           String(instance?.dimension || "ontology_instance"),
         );
       }
+      // 生成实体间业务关系：检测同一研究范围内 co-occurring 的实体类型组合，
+      // 自动添加 Company↔Product、Company↔Customer 等业务语义关系，
+      // 使「实体关系图」展示的不仅是指定范围，还有实体间的商业联系。
+      generateEntityRelations(slice, scopeId);
       for (const unit of (Array.isArray(stageJson.judgment_units) ? stageJson.judgment_units as any[] : [])) {
         for (const nodeId of unit.ontology_node_ids || unit.target_ontology_object_refs || []) {
           const id = String(nodeId || "").trim();

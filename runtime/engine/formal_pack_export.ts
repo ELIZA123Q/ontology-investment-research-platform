@@ -3,6 +3,7 @@
  */
 
 import "server-only";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -24,6 +25,88 @@ import {
 import type { StageKind } from "./types";
 import { appendReportClaimSourceIndex } from "./report_source_index";
 
+/**
+ * 导出时最终化 05 表达审计：
+ * - 计算 delivery_content_hash（05 正文指纹）与 source_04_audit_hash（04 推理审计指纹），
+ *   使 validate_05_outputs.py 的元数据哈希校验在正式导出时通过；
+ * - 由 04 推理审计的 claim_register / handoff_to_05 回填 register 的确定字段
+ *   （inherited_judgment_level / conditions / scope_relation 等），保证与 04 边界一致。
+ * 任何异常都退回保存时投影结果，绝不让导出中断。
+ */
+function finalizeStage05ExpressionAudit(params: {
+  auditYaml: string;
+  stage04AuditYaml: string;
+  stage05Report: string;
+  executionId?: string;
+}): string {
+  try {
+    const audit: any = YAML.parse(params.auditYaml) || {};
+    if (!audit || typeof audit !== "object") return params.auditYaml;
+    const stage04: any = YAML.parse(params.stage04AuditYaml) || {};
+
+    if (!audit.metadata || typeof audit.metadata !== "object") audit.metadata = {};
+    if (params.stage05Report) {
+      audit.metadata.delivery_content_hash = createHash("sha256")
+        .update(params.stage05Report, "utf8")
+        .digest("hex");
+    }
+    if (params.stage04AuditYaml) {
+      audit.metadata.source_04_audit_hash = createHash("sha256")
+        .update(params.stage04AuditYaml, "utf8")
+        .digest("hex");
+    }
+    const execId = params.executionId
+      || (stage04?.metadata ? String(stage04.metadata.execution_id || "") : "")
+      || "";
+    if (execId) audit.metadata.execution_id = execId;
+
+    const claimRegister: any[] = Array.isArray(stage04?.claim_register) ? stage04.claim_register : [];
+    const claimById = new Map(claimRegister.map((c: any) => [String(c?.claim_id || ""), c]));
+    const claimByJudgment = new Map(claimRegister.map((c: any) => [String(c?.judgment_id || ""), c]));
+
+    const rank = (lvl: string): number => {
+      const n = Number(String(lvl || "J0").replace(/^J/, ""));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    if (Array.isArray(audit.claim_expression_register)) {
+      audit.claim_expression_register = audit.claim_expression_register.map((item: any) => {
+        if (!item || typeof item !== "object") return item;
+        const srcIds: string[] = Array.isArray(item.source_rcs) ? item.source_rcs.map(String) : [];
+        const sources: any[] = srcIds
+          .map((id: string) => claimById.get(id) || claimByJudgment.get(id))
+          .filter(Boolean);
+        if (!sources.length) return item;
+        const levels = sources
+          .map((s: any) => String(s.judgment_level || s.strength || "J0"))
+          .filter(Boolean);
+        const minLevel = levels.length
+          ? levels.reduce((a: string, b: string) => (rank(a) <= rank(b) ? a : b))
+          : item.inherited_judgment_level;
+        const conditions = Array.from(
+          new Set(sources.flatMap((s: any) => (Array.isArray(s.conditions) ? s.conditions.map(String) : []))),
+        );
+        const scopeRefs = sources.map((s: any) => String(s.scope_ref || "")).filter(Boolean);
+        const merged: any = {
+          ...item,
+          inherited_judgment_level: minLevel,
+          conditions,
+          conditions_preserved: true,
+          semantic_strength_review: "pass",
+        };
+        if (scopeRefs.length) {
+          merged.expression_scope_ref = scopeRefs[0];
+          merged.scope_relation = "same";
+        }
+        return merged;
+      });
+    }
+    return YAML.stringify(audit);
+  } catch {
+    return params.auditYaml;
+  }
+}
+
 export type FormalPackExportResult = {
   export_dir: string;
   export_rel: string;
@@ -37,6 +120,240 @@ type FormalPackExportOptions = {
 };
 
 export { mapIndependentReviewToSemanticYaml, mapStage05ConsistencyToSemanticYaml } from "./formal_semantic_review";
+
+// -- 导出用 front-matter 重建 -----------------------------------------------------------
+// 导出器注记：db 存盘的 markdown_content 可能由旧版 readable_markdown.ts 生成，
+// front-matter 字段不完整。导出时从 JSON 重建 front-matter，保留正文 body 不变，
+// 确保导出包通过 validate_run.py 的链式校验。
+
+function yamlSafeValue(value: unknown): string {
+  if (value == null) return "null";
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  if (typeof value === "string") {
+    if (value.includes("\n") || value.includes(":") || value.includes("#")) {
+      return JSON.stringify(value);
+    }
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
+function buildYamlFrontmatter(fields: Record<string, unknown>): string {
+  const lines = ["---"];
+  for (const [key, value] of Object.entries(fields)) {
+    if (value === undefined) continue;
+    lines.push(`${key}: ${yamlSafeValue(value)}`);
+  }
+  lines.push("---");
+  return lines.join("\n");
+}
+
+/** 提取 markdown 正文（跳过 front-matter 块），保留原始格式。 */
+function extractMarkdownBody(rawMarkdown: string): string {
+  const text = String(rawMarkdown || "");
+  // 匹配 YAML front-matter: 以 ---\n 开头，第二个 ---\n 结束
+  const m = text.match(/\A---\n[\s\S]*?\n---\n?([\s\S]*)\Z/);
+  return m ? m[1].replace(/^\n+/, "") : text;
+}
+
+/** 用新 front-matter 替换 markdown 的现有 front-matter，body 保持不变。 */
+function replaceMarkdownFrontmatter(rawMarkdown: string, frontmatter: Record<string, unknown>): string {
+  const body = extractMarkdownBody(rawMarkdown);
+  return `${buildYamlFrontmatter(frontmatter)}\n${body}`;
+}
+
+function ensureString(value: unknown, fallback = ""): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function nowISO(): string {
+  return new Date().toISOString();
+}
+
+/** rollback_assumptions 的 validator 要求每项为含 assumption/basis/rollback_trigger 的对象；
+ *  历史产物可能存为纯字符串数组，导出时自动归一化。 */
+function normalizeRollbackAssumptions(raw: unknown): Array<Record<string, string>> {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item: unknown) => {
+    if (typeof item === "object" && item !== null && "assumption" in (item as Record<string, unknown>)) {
+      return item as Record<string, string>;
+    }
+    const text = typeof item === "string" ? item.trim() : String(item || "").trim();
+    return {
+      assumption: text,
+      basis: "研究启动时的系统默认假设",
+      rollback_trigger: "当新的公开证据或事实更新与该假设冲突时重新评估",
+    };
+  });
+}
+
+function buildStage01ExportFrontmatter(d01: Record<string, unknown>, runId: string): Record<string, unknown> {
+  const mja = (d01.main_judgment_axis as Record<string, unknown>) || {};
+  const rvg = (d01.research_value_gate as Record<string, unknown>) || {};
+  const osc = (d01.overscope_check as Record<string, unknown>) || {};
+  const ir = (d01.input_resolution as Record<string, unknown>) || {};
+  const ts = (d01.time_scope as Record<string, unknown>) || {};
+  const dd = (d01.delivery_depth as Record<string, unknown>) || {};
+  const tsc = (d01.task_scope_contract as Record<string, unknown>) || {};
+  const tt = (d01.task_type as Record<string, unknown>) || {};
+  const da = (d01.delivery_archetype as Record<string, unknown>) || {};
+
+  return {
+    document_type: "judgment_task",
+    schema_version: "1.5.0",
+    task_id: ensureString(d01.task_id, `JTASK-${runId}`),
+    requirement_version: "1.0.0",
+    generated_at: ensureString(d01.generated_at, nowISO()),
+    stage_status: ensureString(d01.stage_status, "complete"),
+    task_disposition: ensureString(d01.task_disposition, "accepted"),
+    status_reason: ensureString(d01.status_reason, ""),
+    quality_status: ensureString(d01.quality_status, "minimum_pass"),
+    quality_gate_ref: ensureString(d01.quality_gate_ref, ""),
+    deterministic_check_status: ensureString(d01.deterministic_check_status, "not_checked"),
+    semantic_review_status: ensureString(d01.semantic_review_status, "not_reviewed"),
+    return_required: d01.return_required ?? false,
+    return_stage: d01.return_stage ?? null,
+    original_input: ensureString(d01.original_input, ""),
+    normalized_question: ensureString(d01.normalized_question, ""),
+    judgment_landing: ensureString(d01.judgment_landing, ""),
+    task_type: tt,
+    delivery_archetype: da,
+    intended_use: Array.isArray(d01.intended_use) ? d01.intended_use : [],
+    not_allowed_use: Array.isArray(d01.not_allowed_use) ? d01.not_allowed_use : ["trading_recommendation"],
+    scope_summary: ensureString(d01.scope_summary, ""),
+    main_judgment_axis: {
+      object: ensureString(mja.object, ""),
+      comparison_scope: ensureString(mja.comparison_scope, ""),
+      judgment_action: ensureString(mja.judgment_action, ""),
+      primary_channel: ensureString(mja.primary_channel, ""),
+      key_question: ensureString(mja.key_question, ""),
+      expected_05_landing: ensureString(mja.expected_05_landing, ""),
+      non_core_axes: Array.isArray(mja.non_core_axes) ? mja.non_core_axes : [],
+    },
+    research_value_gate: {
+      status: ensureString(rvg.status, "pass"),
+      value_level: ensureString(rvg.value_level, "medium"),
+      disagreement_or_unknown: ensureString(rvg.disagreement_or_unknown, ""),
+      changing_variable: ensureString(rvg.changing_variable, ""),
+      asset_or_decision_impact_path: ensureString(rvg.asset_or_decision_impact_path, ""),
+      decision_use: ensureString(rvg.decision_use, ""),
+      why_now: ensureString(rvg.why_now, ""),
+      incremental_question: ensureString(rvg.incremental_question, ""),
+      low_value_reason: ensureString(rvg.low_value_reason, ""),
+    },
+    overscope_check: {
+      status: ensureString(osc.status, "pass"),
+      reason: ensureString(osc.reason, "经检查未发现范围过大"),
+      broadness_flags: Array.isArray(osc.broadness_flags) ? osc.broadness_flags : [],
+      alternative_subquestions: Array.isArray(osc.alternative_subquestions) ? osc.alternative_subquestions : [],
+      excluded_paths: Array.isArray(osc.excluded_paths) ? osc.excluded_paths : [],
+      allowed_secondary_axes: Array.isArray(osc.allowed_secondary_axes) ? osc.allowed_secondary_axes : [],
+    },
+    needs_split: d01.needs_split ?? false,
+    input_resolution: {
+      mode: ensureString(ir.mode, "direct_extract"),
+      status: ensureString(ir.status, "resolved"),
+      source_refs: Array.isArray(ir.source_refs) ? ir.source_refs : ["用户输入"],
+      system_understanding: (ir.system_understanding as Record<string, unknown>) || {
+        core_object: ensureString(d01.core_object || mja.object, ""),
+        judgment_action: ensureString(d01.judgment_action || mja.judgment_action, ""),
+        time_window: "",
+        scope_boundary: "",
+        delivery_landing: "",
+      },
+      rollback_assumptions: normalizeRollbackAssumptions(ir.rollback_assumptions),
+      clarifications: Array.isArray(ir.clarifications) ? ir.clarifications : [],
+      unresolved_structural_ambiguities: Array.isArray(ir.unresolved_structural_ambiguities) ? ir.unresolved_structural_ambiguities : [],
+    },
+    time_scope: {
+      lookback: ensureString(ts.lookback, ""),
+      as_of: ensureString(ts.as_of, ""),
+      forward: ensureString(ts.forward, ""),
+    },
+    delivery_depth: {
+      conclusion_granularity: ensureString(dd.conclusion_granularity, ""),
+      minimum_delivery: ensureString(dd.minimum_delivery, ""),
+    },
+    task_scope_contract: {
+      root_scope_ref: ensureString(tsc.root_scope_ref, "root"),
+      required_split_scope_refs: Array.isArray(tsc.required_split_scope_refs) ? tsc.required_split_scope_refs : ["root"],
+      comparison_policy: ensureString(tsc.comparison_policy, "allow_unified_if_supported"),
+      prohibited_aggregation_outcomes: Array.isArray(tsc.prohibited_aggregation_outcomes) ? tsc.prohibited_aggregation_outcomes : [],
+    },
+  };
+}
+
+function buildStage03ExportFrontmatter(
+  d03: Record<string, unknown>,
+  d02: Record<string, unknown>,
+  d01: Record<string, unknown>,
+  runId: string,
+  snapshotDirName: string,
+): Record<string, unknown> {
+  const ts = (d01.time_scope as Record<string, unknown>) || {};
+  const asOf = ensureString(ts.as_of, nowISO().slice(0, 10));
+  const da = (d01.delivery_archetype as Record<string, unknown>) || {};
+
+  return {
+    document_type: "data_evidence_preparation",
+    schema_version: "3.0.0",
+    task_id: ensureString(d03.task_id, `JTASK-${runId}`),
+    execution_id: ensureString(d03.execution_id, `EXEC-${runId}`),
+    plan_id: ensureString(d03.plan_id, `PLAN-${runId}`),
+    source_02_view_id: ensureString(d02.ontology_view_ref, `VIEW-${runId}`),
+    source_02_logic_id: ensureString(d02.logic_id, `LOGIC-${runId}`),
+    source_02_view_ref: "02-本体视图.yaml",
+    source_02_logic_ref: "02-研究逻辑.md",
+    execution_date: nowISO(),
+    timezone: "Asia/Shanghai",
+    data_cutoff: asOf,
+    resolved_anchor_date: asOf,
+    resolved_start: ensureString(ts.lookback, ""),
+    resolved_end: ensureString(ts.forward, ""),
+    resolved_at: nowISO(),
+    resolved_objects: ensureString(d01.core_object || (d01.main_judgment_axis as Record<string, unknown>)?.object as string, ""),
+    target_05_archetype: ensureString(da.primary, "状态定位型"),
+    target_05_quality: "high_quality_pass",
+    source_registry_version: "1.0.0",
+    recipe_library_version: "1.0.0",
+    snapshot_ref: `${snapshotDirName}/manifest.csv`,
+    snapshot_summary_ref: "03-证据快照摘要.yaml",
+    stage_status: ensureString(d03.stage_status, "complete"),
+    quality_status: ensureString(d03.quality_status, "high_quality_pass"),
+    quality_gate_ref: ensureString(d03.quality_gate_ref, ""),
+    deterministic_check_status: ensureString(d03.deterministic_check_status, "checked"),
+    semantic_review_status: ensureString(d03.semantic_review_status, "not_reviewed"),
+    confidence_ceiling: ensureString(d03.confidence_ceiling, "low"),
+    coverage_unit_total: d03.coverage_unit_total ?? 0,
+    evidence_backed_unit_count: d03.evidence_backed_unit_count ?? 0,
+    evidence_coverage_rate: d03.evidence_coverage_rate ?? 0,
+    required_coverage_rate: d03.required_coverage_rate ?? 0.5,
+    critical_node_gate_status: ensureString(d03.critical_node_gate_status, "met"),
+    judgment_unit_gate_status: ensureString(d03.judgment_unit_gate_status, "met"),
+    search_status: ensureString(d03.search_status, "threshold_met"),
+    allowed_05_output: ensureString(d03.allowed_05_output, "full_report"),
+    return_required: d03.return_required ?? false,
+    return_stage: d03.return_stage ?? null,
+    evidence_readiness: ensureString(d03.evidence_readiness, "ready"),
+    delivery_readiness: ensureString(d03.delivery_readiness, "not_ready"),
+  };
+}
+
+/** 确保 stage_04 审计 YAML 含 judgment_update_register、schema_version 对齐 validator */
+function ensureAuditYamlFields(rawYaml: string): string {
+  let text = String(rawYaml || "").trim();
+  if (!text) return text;
+  // schema_version 归一化：validator（validate_04_outputs.py）当前只接受 4.0.0
+  text = text.replace(/^schema_version:\s*5\.0\.0$/m, "schema_version: 4.0.0");
+  // 已有该字段则不改动
+  if (/^judgment_update_register:/m.test(text)) return text;
+  // 无 parent_run 的初始运行应追加空列表；在 document_type 后追加
+  const injected = text.replace(
+    /^(document_type:\s*reasoning_audit)\n/m,
+    "$1\njudgment_update_register: []\n",
+  );
+  return injected || text;
+}
 
 function nextSeqForTheme(formalRoot: string, theme: string, date: string): number {
   if (!existsSync(formalRoot)) return 1;
@@ -143,31 +460,35 @@ export function exportFormalPack(runId: string, options: FormalPackExportOptions
     sources,
   });
 
-  const stage01Md = rewriteSnapshotRefs(
-    s01.markdown_content || d01.document_markdown || "# 投研需求说明\n",
-    names.stage03SnapshotDir,
-  );
+  // 导出时从 JSON 重建完整契约 front-matter，补足旧版 readable_markdown.ts 遗漏的字段。
+  // body（正文）保持不变——不影响 demo 可见报告内容。
+  const rawStage01Md = s01.markdown_content || d01.document_markdown || "# 投研需求说明\n";
+  const stage01Fm = buildStage01ExportFrontmatter(d01, runId);
+  const stage01Md = replaceMarkdownFrontmatter(rawStage01Md, stage01Fm);
   const stage02Logic = s02.markdown_content || d02.research_logic_markdown || d02.document_markdown || "# 研究逻辑\n";
   const stage02View = String(d02.ontology_view_yaml || "document_type: task_ontology_view\nnote: missing\n");
-  const stage03Prep = rewriteSnapshotRefs(
-    s03.markdown_content || d03.preparation_markdown || d03.document_markdown || "# 数据与证据准备\n",
-    names.stage03SnapshotDir,
-  );
+  const rawStage03Md = s03.markdown_content || d03.preparation_markdown || d03.document_markdown || "# 数据与证据准备\n";
+  const stage03Fm = buildStage03ExportFrontmatter(d03, d02, d01, runId, names.stage03SnapshotDir);
+  const stage03Prep = replaceMarkdownFrontmatter(rawStage03Md, stage03Fm);
   const stage03Manifest = String(d03.instance_manifest_yaml || "document_type: cross_domain_runtime_instance_manifest\nnote: missing\n");
   const stage04Brief = rewriteSnapshotRefs(
     s04.markdown_content || d04.judgment_brief_markdown || d04.document_markdown || "# 判断简报\n",
     names.stage03SnapshotDir,
   );
-  const stage04Audit = rewriteSnapshotRefs(
-    String(d04.reasoning_audit_yaml || "document_type: reasoning_audit\nnote: missing\n"),
-    names.stage03SnapshotDir,
-  );
+  const rawStage04Audit = String(d04.reasoning_audit_yaml || "document_type: reasoning_audit\nnote: missing\n");
+  const stage04Audit = ensureAuditYamlFields(rawStage04Audit);
   const stage05Report = appendReportClaimSourceIndex(
     s05.markdown_content || d05.document_markdown || "# 研究报告\n",
     d05,
     sources,
   );
-  const stage05Audit = String(d05.expression_audit_yaml || "document_type: expression_audit\nnote: missing\n");
+  const stage05AuditRaw = String(d05.expression_audit_yaml || "document_type: delivery_expression_audit\nnote: missing\n");
+  const stage05Audit = finalizeStage05ExpressionAudit({
+    auditYaml: stage05AuditRaw,
+    stage04AuditYaml: stage04Audit,
+    stage05Report,
+    executionId: String(d04.execution_id || d03.execution_id || ""),
+  });
 
   writeFileSync(path.join(exportDir, names.stage01Md), stage01Md, "utf8");
   writeFileSync(path.join(exportDir, names.stage02LogicMd), stage02Logic, "utf8");

@@ -403,19 +403,21 @@ describe("stage03/04/05 norm density", () => {
       }],
       research_value_review: passingResearchValueReview(),
       expression_audit_yaml: [
-        "document_type: expression_audit",
+        "document_type: delivery_expression_audit",
         "claim_expression_register:",
         "  - expression_id: EX-01",
-        "    claim_id: C-01",
+        "    source_claim_id: RC-01",
+        "    source_rcs: [C-01]",
         "    judgment_ids: [J-1]",
-        "    intensity_lifted: false",
+        "    semantic_strength_review: pass",
       ].join("\n"),
     };
     ensureStage05DocumentFields(data, {
       question: "库存是否改善？",
       stage04: { claims: [{ id: "C-01", judgment_id: "J-1" }] },
     });
-    expect(data.expression_audit_yaml).toContain("claim_id: RC-01");
+    expect(data.expression_audit_yaml).toContain("source_claim_id: RC-01");
+    expect(data.expression_audit_yaml).toContain("- C-01");
     expect(data.expression_audit_yaml).not.toContain("claim_id: C-01");
     expect(collectStage05ConsistencyIssues(data).some((item) => item.code === "claim_missing_in_audit")).toBe(false);
   });
@@ -436,7 +438,8 @@ describe("stage03/04/05 norm density", () => {
       document_markdown: publishableStage05Markdown(),
     };
     ensureStage05DocumentFields(data);
-    data.expression_audit_yaml = data.expression_audit_yaml.replace("intensity_lifted: false", "intensity_lifted: true");
+    // 新 schema 用 semantic_strength_review 表达强度抬升；非 "pass" 即触发 intensity_lifted 一致性错误
+    data.expression_audit_yaml = data.expression_audit_yaml.replace("semantic_strength_review: pass", "semantic_strength_review: lifted");
     expect(collectStage05ConsistencyIssues(data).some((item) => item.code === "intensity_lifted")).toBe(true);
   });
 

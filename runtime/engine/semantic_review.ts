@@ -19,6 +19,23 @@ export const SEMANTIC_REVIEW_CHECKS = [
   "conditions_scope_and_prohibitions_preserved",
 ] as const;
 
+/**
+ * 05 独立语义审查的十项检查（在 04 五项忠实性检查之上，新增五项 05 整体研究质量检查）。
+ * 04 人类独立审查仅覆盖前五项（SEMANTIC_REVIEW_CHECKS）；05 独立语义审查覆盖全部十项。
+ */
+export const STAGE05_SEMANTIC_REVIEW_CHECKS = [
+  "local_evidence_not_globalized",
+  "parent_aggregation_complete",
+  "incremental_update_is_local_first",
+  "title_represents_major_scopes",
+  "conditions_scope_and_prohibitions_preserved",
+  "main_judgment_is_clear_and_prioritized",
+  "maximal_valid_judgment_is_expressed",
+  "uncertainty_is_concentrated_not_overloaded",
+  "research_edge_is_substantive",
+  "key_unknowns_are_decision_relevant",
+] as const;
+
 type CheckId = (typeof SEMANTIC_REVIEW_CHECKS)[number];
 type CheckResult = "pass" | "fail" | "needs_human";
 
@@ -63,7 +80,7 @@ export function validateSemanticReview(
   // 2. 五项检查完整性
   const checkMap = new Map<string, SemanticReviewCheck>();
   for (const check of review.checks) {
-    if (!SEMANTIC_REVIEW_CHECKS.includes(check.check_id as CheckId)) {
+    if (!(STAGE05_SEMANTIC_REVIEW_CHECKS as readonly string[]).includes(check.check_id)) {
       errors.push(`无效的审查 ID: ${check.check_id}`);
       continue;
     }
@@ -80,8 +97,8 @@ export function validateSemanticReview(
     checkMap.set(check.check_id, check);
   }
 
-  if (checkMap.size !== SEMANTIC_REVIEW_CHECKS.length) {
-    errors.push(`审查必须完整覆盖全部 ${SEMANTIC_REVIEW_CHECKS.length} 项检查，当前仅 ${checkMap.size} 项`);
+  if (checkMap.size !== SEMANTIC_REVIEW_CHECKS.length && checkMap.size !== STAGE05_SEMANTIC_REVIEW_CHECKS.length) {
+    errors.push(`审查必须完整覆盖 5 或 10 项检查（04 为 5 项，05 为 10 项），当前仅 ${checkMap.size} 项`);
   }
 
   // 3. 派生 verdict

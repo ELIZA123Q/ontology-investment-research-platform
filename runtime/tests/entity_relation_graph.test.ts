@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildBusinessEntityGraph, buildLayeredEntityNetwork, buildReasoningPathGraph } from "@/app/lib/entity-relation-graph";
+import { ensureStage02BusinessInstances } from "@/engine/stage02_documents";
 
 const loaded: any = {
   authority: "formal",
@@ -57,5 +58,74 @@ describe("layered entity network", () => {
     expect(reasoning.nodes.map((node) => node.id)).not.toContain("RE-1");
     expect(reasoning.nodes.find((node) => node.id === "J-1")?.details.规则评估).toEqual([expect.objectContaining({ 规则: "threshold", 结果: "pass" })]);
     expect(reasoning.edges.find((edge) => edge.id === "r6")).toMatchObject({ source: "H-1", target: "J-1", tone: "support" });
+  });
+});
+
+describe("reasoning path graph distinguishes root vs sub questions", () => {
+  const multi: any = {
+    authority: "formal",
+    source: "test",
+    provisional: false,
+    graph: {
+      schema_name: "ontology_business_instance_graph",
+      schema_version: "1.0.0",
+      authority: "test",
+      objects: [
+        { id: "Q-root", type: "ResearchQuestion", properties: { question: "本研究主问题" } },
+        { id: "Q-01", type: "ResearchQuestion", properties: { question: "子问题一" } },
+        { id: "Q-02", type: "ResearchQuestion", properties: { question: "子问题二" } },
+        { id: "JU-1", type: "JudgmentUnit", properties: { statement: "判断单元" } },
+      ],
+      relations: [
+        { id: "r1", type: "questionDecomposesIntoUnit", sourceId: "Q-root", targetId: "JU-1" },
+      ],
+    },
+  };
+
+  it("labels the root question and synthesizes sub-question decomposition edges", () => {
+    const graph = buildReasoningPathGraph(multi);
+    const root = graph.nodes.find((n) => n.id === "Q-root");
+    const sub = graph.nodes.find((n) => n.id === "Q-01");
+    expect(root?.meta).toContain("主问题");
+    expect((root?.details as any).角色).toContain("主问题");
+    expect(sub?.meta).toContain("子问题");
+    expect((sub?.details as any).角色).toContain("子问题");
+
+    const synth = graph.edges.filter((e) => e.id.startsWith("SYNTH-ROOT-SUB-"));
+    expect(synth).toHaveLength(2);
+    expect(synth.every((e) => e.source === "Q-root" && e.dashed)).toBe(true);
+  });
+});
+
+describe("stage02 business instance enforcement", () => {
+  it("extracts the listed company and its product line from the research question", () => {
+    const data: any = { research_scope: { id: "RS-1", label: "某研究范围" } };
+    const out = ensureStage02BusinessInstances(data, {
+      question: "美国收紧出口管制后，中微公司（688012.SH）在刻蚀设备环节的国产替代进度如何？",
+    });
+    const instances = out.ontology_instances as any[];
+    expect(instances.find((i) => i.type === "Company")?.name).toBe("中微公司（688012.SH）");
+    expect(instances.find((i) => i.type === "Product")?.name).toBe("刻蚀设备");
+    expect((out.research_scope as any).core_objects).toHaveLength(2);
+  });
+
+  it("does not invent entities for broad-theme questions without a listed company", () => {
+    const data: any = { research_scope: { id: "RS-2", label: "宏观研究" } };
+    const out = ensureStage02BusinessInstances(data, {
+      question: "未来六个月DRAM与NAND价格和库存周期是否改善？",
+    });
+    expect((out.ontology_instances as any[]).length).toBe(0);
+  });
+
+  it("is idempotent and preserves existing instances", () => {
+    const data: any = {
+      research_scope: { id: "RS-3", label: "研究" },
+      ontology_instances: [{ id: "company-688012", type: "Company", name: "中微公司（688012.SH）" }],
+    };
+    const out = ensureStage02BusinessInstances(data, {
+      question: "中微公司（688012.SH）在刻蚀设备环节进展如何？",
+    });
+    const companies = (out.ontology_instances as any[]).filter((i) => i.type === "Company");
+    expect(companies).toHaveLength(1);
   });
 });

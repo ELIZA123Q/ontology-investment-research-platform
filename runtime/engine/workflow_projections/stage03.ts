@@ -8,6 +8,7 @@ listSources
 } from "../../adapters/db";
 import {
 dropIncompleteSources,
+fillEvidencePreparationDefaults,
 normalizeEvidencePreparationNulls,
 prepareEvidenceForSourceCapture,
 reconcileMethodEvidenceRefs,
@@ -35,7 +36,7 @@ export function repairEvidencePreparationDraft(data: any): any {
   normalized = normalizeEvidencePreparationNulls(normalized);
   normalized = reconcileMethodEvidenceRefs(normalized);
   if (!Array.isArray(normalized.method_applications) || !Array.isArray(normalized.evidence_drafts)) {
-    return normalized;
+    return fillEvidencePreparationDefaults(normalized);
   }
   // Stage03 只能完成“选择/降级/阻断”取证方法，executed 属于 Stage04。
   // 模型常把“已经取到材料”误写为 executed；在所有早退判断之前收敛，避免
@@ -104,7 +105,7 @@ export function repairEvidencePreparationDraft(data: any): any {
   const needsAlternatives = normalized.method_applications.some((item: any) => (
     ["blocked", "rejected"].includes(String(item?.status || "")) && !(item.alternatives || []).length
   ));
-  if (!unbound.length && !needsAlternatives) return normalized;
+  if (!unbound.length && !needsAlternatives) return fillEvidencePreparationDefaults(normalized);
 
   const applications = normalized.method_applications.map((application: any) => {
     let input_evidence_refs = Array.isArray(application.input_evidence_refs)
@@ -141,7 +142,7 @@ export function repairEvidencePreparationDraft(data: any): any {
     }
   }
 
-  return { ...normalized, method_applications: applications };
+  return fillEvidencePreparationDefaults({ ...normalized, method_applications: applications });
 }
 
 export function buildEvidenceGapFallback(structure: any, reason: string) {

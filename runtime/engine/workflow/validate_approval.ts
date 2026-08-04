@@ -51,6 +51,7 @@ import {
 import {
   assertStage04ReadyForApproval,
   ensureStage04DocumentFields,
+  manifestContextFromRun,
 } from "../stage04_documents";
 import {
   assertStage05ReadyForApproval,
@@ -121,7 +122,7 @@ export function validateApproval(artifact: Artifact) {
   } else if (artifact.kind === "stage_04") {
     const run = getRun(artifact.run_id);
     recomputeStage04DeterministicRules(artifact.run_id, data);
-    ensureStage04DocumentFields(data, { question: run?.question, taskId: artifact.run_id });
+    ensureStage04DocumentFields(data, { question: run?.question, taskId: artifact.run_id, manifestCtx: manifestContextFromRun(run) });
     schemas.stage_04.parse(data);
     assertStage04ReadyForApproval(data);
   } else if (artifact.kind === "stage_05") {
