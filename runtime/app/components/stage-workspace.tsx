@@ -160,26 +160,36 @@ export function StageWorkspace({
     String(parsedStageJson?.task_disposition || "") === "needs_clarification"
     || pendingClarifications.length > 0
   );
-  const clarificationItems = pendingClarifications.map((item: any, index: number) => {
-    const topicKey = (item?.topic === "structural_ambiguity" && unresolvedAmbiguities[index])
-      ? unresolvedAmbiguities[index]
-      : (item?.topic || unresolvedAmbiguities[index] || "");
-    const raw = String(item?.question || "").trim();
-    const humanQuestion = isHumanClarificationQuestion(raw)
-      ? raw
-      : synthesizeClarificationQuestion({
+  const clarificationItems = (() => {
+    const items = pendingClarifications.map((item: any, index: number) => {
+      const topicKey = (item?.topic === "structural_ambiguity" && unresolvedAmbiguities[index])
+        ? unresolvedAmbiguities[index]
+        : (item?.topic || unresolvedAmbiguities[index] || "");
+      const raw = String(item?.question || "").trim();
+      const humanQuestion = isHumanClarificationQuestion(raw)
+        ? raw
+        : synthesizeClarificationQuestion({
+          topic: topicKey,
+          unresolved: unresolvedAmbiguities,
+          understanding: systemUnderstanding,
+          original_input: parsedStageJson?.original_input || question,
+        });
+      return {
+        question_id: String(item?.question_id || `UC-${String(index + 1).padStart(2, "0")}`),
         topic: topicKey,
-        unresolved: unresolvedAmbiguities,
-        understanding: systemUnderstanding,
-        original_input: parsedStageJson?.original_input || question,
-      });
-    return {
-      question_id: String(item?.question_id || `UC-${String(index + 1).padStart(2, "0")}`),
-      topic: topicKey,
-      question: humanQuestion,
-      impact: clarificationImpactHint(topicKey),
-    };
-  });
+        question: humanQuestion,
+        impact: clarificationImpactHint(topicKey),
+      };
+    });
+    // 去重：语义等价 topic 可能产生相同问句，合并为一条
+    const seen = new Set<string>();
+    return items.filter((item: { question: string }) => {
+      const normalized = item.question.replace(/\s+/g, "").replace(/[？?。；;]+$/g, "");
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    });
+  })();
   const allClarifyAnswersFilled = clarificationItems.length > 0
     && clarificationItems.every((item: { question_id: string }) => Boolean(String(clarifyAnswers[item.question_id] || "").trim()));
   const ontologyYamlPreview = String(parsedStageJson?.ontology_view_yaml || "");

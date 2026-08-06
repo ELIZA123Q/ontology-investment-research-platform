@@ -162,6 +162,35 @@ export function isHumanClarificationQuestion(question: unknown): boolean {
   return true;
 }
 
+/**
+ * 将语义等价的 topic 归一化到规范名，避免不同名字生成相同问句 → 列表展示多个重复条目。
+ * 归一化后，equivalentTopics 相同 topic 在去重时会被视为同一个。
+ */
+export function normalizeClarificationTopic(topic: string): string {
+  switch (topic) {
+    case "core_object":
+    case "object":
+    case "comparison_scope":
+      return "core_object";
+    case "judgment_action":
+    case "judgment_type":
+      return "judgment_action";
+    case "time_scope":
+    case "time_window":
+    case "event_scope_and_time_window":
+      return "time_scope";
+    case "intended_use":
+    case "delivery_landing":
+    case "delivery_depth":
+      return "delivery_landing";
+    case "scope_boundary":
+    case "main_axis":
+      return "scope_boundary";
+    default:
+      return topic;
+  }
+}
+
 /** 从主题 / 原问题 / 系统理解合成一句短人话追问（模型漏写时兜底；气质对齐 7/13）。 */
 export function synthesizeClarificationQuestion(input: {
   topic?: unknown;
@@ -258,7 +287,17 @@ export function ensureStage01ContractFields(data: any, question: string): any {
   const previousResolution = next.input_resolution && typeof next.input_resolution === "object"
     ? next.input_resolution
     : {};
-  const unresolved = stringList(previousResolution.unresolved_structural_ambiguities);
+  const unresolvedRaw = stringList(previousResolution.unresolved_structural_ambiguities);
+  // 语义等价 topic 去重（如 core_object / comparison_scope 指向同一维度）
+  const unresolved = (() => {
+    const seen = new Set<string>();
+    return unresolvedRaw.filter((topic) => {
+      const canonical = normalizeClarificationTopic(topic);
+      if (seen.has(canonical)) return false;
+      seen.add(canonical);
+      return true;
+    });
+  })();
   const understandingSeed = previousResolution.system_understanding && typeof previousResolution.system_understanding === "object"
     ? previousResolution.system_understanding
     : {};
@@ -326,6 +365,21 @@ export function ensureStage01ContractFields(data: any, question: string): any {
       disposition = clarifications.every((item) => Boolean(item.answer))
         ? "needs_clarification"
         : "accepted";
+    }
+  }
+  // 去重：相同问句（LLM 重复生成 / topic 语义等价导致同一句追问出现多次）合并为一条
+  {
+    const seen = new Set<string>();
+    const deduped: ClarificationItem[] = [];
+    for (const item of clarifications) {
+      const normalized = item.question.replace(/\s+/g, "").replace(/[？?。；;]+$/g, "");
+      if (!normalized || seen.has(normalized)) continue;
+      seen.add(normalized);
+      deduped.push(item);
+    }
+    if (deduped.length !== clarifications.length) {
+      clarifications = deduped;
+      unanswered = clarifications.filter((item) => !item.answer);
     }
   }
   const unresolvedFinal = stringList(
