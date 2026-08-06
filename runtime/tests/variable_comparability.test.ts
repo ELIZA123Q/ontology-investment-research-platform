@@ -5,7 +5,7 @@ import {
   compareVariableObservations,
   extractVariableObservations,
   type VariableObservation,
-} from "@/engine/variable_comparability";
+} from "@/skills/ontology/variable_comparability_engine";
 
 function observation(overrides: Partial<VariableObservation> = {}): VariableObservation {
   return {

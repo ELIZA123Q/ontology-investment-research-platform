@@ -157,10 +157,10 @@ _SCAN_ALLOWLIST_SUFFIXES = {
 def _scan_duplicate_authority(errors: list[str]) -> None:
     scan_roots = [
         ROOT / "governance/03_校验",
-        ROOT / "workflow/stages/02_结构",
-        ROOT / "workflow/stages/03_证据",
-        ROOT / "workflow/stages/04_判断",
-        ROOT / "workflow/stages/05_表达",
+        ROOT / "runtime/workflow/stage_specs/02_结构",
+        ROOT / "runtime/workflow/stage_specs/03_证据",
+        ROOT / "runtime/workflow/stage_specs/04_判断",
+        ROOT / "runtime/workflow/stage_specs/05_表达",
         ROOT / "governance",
         ROOT / "ontology/01_通用",
         ROOT / "ontology/02_领域/semiconductor",
@@ -228,7 +228,7 @@ def main() -> int:
     }
 
     task_views = [
-        ROOT / "workflow/stages/02_结构" / "模板" / "02_任务本体视图模板.yaml"
+        ROOT / "runtime/workflow/stage_specs/02_结构" / "模板" / "02_任务本体视图模板.yaml"
     ]
     for path in task_views:
         data = yaml.safe_load(path.read_text(encoding="utf-8-sig"))

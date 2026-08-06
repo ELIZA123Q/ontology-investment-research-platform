@@ -1,4 +1,4 @@
-import { stripInternalReferencePrefix } from "@/engine/research_overview";
+import { stripInternalReferencePrefix } from "@/runner/research_overview";
 
 type UnknownRecord = Record<string, any>;
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStageSemanticContext, validateStageSemanticContext } from "@/engine/semantic_context";
+import { buildStageSemanticContext, validateStageSemanticContext } from "@/skills/ontology/semantic_context";
 
 describe("stage semantic context", () => {
   it("records formal ontology fingerprint and resolves task object references", () => {

@@ -1,4 +1,4 @@
-import { refreshMarketRadar } from "@/engine/market_radar";
+import { refreshMarketRadar } from "@/market_radar";
 
 export const runtime = "nodejs";
 

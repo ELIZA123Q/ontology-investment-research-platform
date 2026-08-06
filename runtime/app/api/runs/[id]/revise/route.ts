@@ -1,4 +1,4 @@
-import { reviseRunStage, normalizeTargetStage } from "@/engine/workflow";
+import { reviseRunStage, normalizeTargetStage } from "@/workflow/stage_transitions";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;

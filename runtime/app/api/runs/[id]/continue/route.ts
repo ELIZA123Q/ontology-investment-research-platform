@@ -1,9 +1,9 @@
 import { after } from "next/server";
-import { getRun, latestArtifact, listWorkItems } from "@/adapters/db";
-import { listResearchJobsForRun } from "@/adapters/research_jobs";
-import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
-import { STAGES } from "@/engine/types";
-import { workItemHref } from "@/engine/research_overview";
+import { getRun, latestArtifact, listWorkItems } from "@/storage/db";
+import { listResearchJobsForRun } from "@/runner/research_jobs";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/runner/research_job_runner";
+import { STAGES } from "@/schemas/types";
+import { workItemHref } from "@/runner/research_overview";
 import { latestJobForStage } from "@/app/lib/ui-labels";
 
 export const runtime = "nodejs";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { comparisonMetrics, runDifferenceAttribution } from "@/engine/metrics";
-import type { Artifact, SourceRecord } from "@/engine/types";
+import { comparisonMetrics, runDifferenceAttribution } from "@/metrics";
+import type { Artifact, SourceRecord } from "@/schemas/types";
 
 function artifact(data: unknown, overrides: Partial<Artifact> = {}): Artifact {
   return {

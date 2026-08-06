@@ -1,6 +1,6 @@
 import type { ResearchGraphEdge, ResearchGraphNode } from "@/app/components/research-graph";
 import { objectTypeLabel, relationTypeLabel } from "@/app/lib/ui-labels";
-import { type GraphLoadResult } from "@/engine/instance_graph";
+import { type GraphLoadResult } from "@/skills/ontology/instance_graph";
 
 const PROCESS_TYPES = new Set([
   "ResearchQuestion",

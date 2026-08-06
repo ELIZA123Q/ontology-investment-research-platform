@@ -1,0 +1,9 @@
+schema_name: governance_eval_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: evaluation
+entrypoints:
+  - evaluation/README.md
+  - evaluation/01_协议
+  - evaluation/02_案例
+compat_mode: true

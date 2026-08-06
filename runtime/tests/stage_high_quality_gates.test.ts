@@ -5,22 +5,22 @@ import {
   assertStage01ReadyForApproval,
   collectStage01HighQualityIssues,
   ensureStage01ContractFields,
-} from "@/engine/stage01_contract";
+} from "@/agents/01_intake/input_contract";
 import {
   assertStage02ReadyForApproval,
   collectStage02HighQualityIssues,
   ensureStage02DocumentFields,
-} from "@/engine/stage02_documents";
+} from "@/agents/02_structure/input_contract";
 import {
   collectStage03HighQualityIssues,
   collectStage03ConsistencyIssues,
-} from "@/engine/stage03_documents";
+} from "@/agents/03_evidence/input_contract";
 import {
   collectStage04HighQualityIssues,
   collectStage04ConsistencyIssues,
   ensureStage04DocumentFields,
-} from "@/engine/stage04_documents";
-import { syncStage01ReadableMarkdown } from "@/engine/readable_markdown";
+} from "@/agents/04_judgment/input_contract";
+import { syncStage01ReadableMarkdown } from "@/skills/expression_audit/readable_markdown";
 
 describe("per-stage high_quality_pass gates", () => {
   it("stage01: placeholder value gate cannot stay high_quality_pass", () => {

@@ -1,5 +1,5 @@
 import { strToU8, zipSync } from "fflate";
-import { buildKnowledgePackage, knowledgePackageDigest } from "@/engine/knowledge_package";
+import { buildKnowledgePackage, knowledgePackageDigest } from "@/skills/method_selection/knowledge_package";
 
 export const runtime = "nodejs";
 

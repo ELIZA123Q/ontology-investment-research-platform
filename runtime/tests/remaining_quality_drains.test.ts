@@ -5,11 +5,11 @@ import {
   shouldPreserveStage02Markdown,
   shouldPreserveStage03Markdown,
   shouldPreserveStage04Markdown,
-} from "@/engine/readable_markdown";
-import { evaluateEvidenceQuality } from "@/engine/evidence_quality_gate";
-import { evaluateEvidenceStopCondition } from "@/engine/source_coverage";
-import { shouldPreserveStage05Markdown, stage05SectionPresent } from "@/engine/stage05_quality";
-import { heuristicResearchValueReview } from "@/engine/research_value_review";
+} from "@/skills/expression_audit/readable_markdown";
+import { evaluateEvidenceQuality } from "@/skills/evidence_evaluation/quality_gate";
+import { evaluateEvidenceStopCondition } from "@/skills/evidence_evaluation/source_coverage";
+import { shouldPreserveStage05Markdown, stage05SectionPresent } from "@/agents/05_delivery/quality_gate";
+import { heuristicResearchValueReview } from "@/runner/value_review";
 
 describe("remaining quality drains", () => {
   it("preserves dense model stage03/04 bodies instead of inventory templates", () => {

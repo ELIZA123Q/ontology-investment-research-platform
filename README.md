@@ -42,9 +42,9 @@
 1. **读本页**，理解五步怎么分工
 2. **看一份成品**：[存储周期研报](instances/02_V3样例/01_memory-cycle-run-002/05_report.md)
 3. **再看它背后的判断**：[判断简报](instances/02_V3样例/01_memory-cycle-run-002/04_judgment.yaml)，理解「结论—依据—边界—改判条件」如何落盘
-4. 真要研究时，按 [`workflow/`](workflow) 的 01—05 推进，方法在 [`methods/`](methods)
+4. 真要研究时，按 `runtime/workflow/` 的 01—05（Deep Research）推进，方法在 [`methods/`](methods)。仓库正迁向五域骨架（`semantic/` `tasks/` `capabilities/` `execution/` + `governance/`），见 [`00_五域系统骨架.md`](governance/01_架构/00_五域系统骨架.md)；壳目录尚非机器权威。
 
-暂时可跳过：`ontology/`（语义维护）、`governance/`（合同与校验）、`runtime/engine/`（产品开发）、`evaluation/`（正式评测）。这些不是理解项目的前置阅读。
+暂时可跳过：`ontology/`（语义维护）、`governance/`（合同与校验）、`runtime/` 引擎细节、`evaluation/`（正式评测）。这些不是理解项目的前置阅读。
 
 完整目录职责见 [`仓库地图与文件治理`](governance/01_架构/02_仓库地图与文件治理.md)。
 
@@ -62,11 +62,11 @@
 
 | 目录 | 你什么时候打开 |
 |------|----------------|
-| [`workflow/`](workflow) | 做研究——01—05 每一步写什么、交什么 |
+| [`workflow/`](runtime/workflow) | 做研究——01—05 每一步写什么、交什么 |
 | [`methods/`](methods) | 选框架、选取证方法、选裁决方法 |
 | [`ontology/`](ontology) | 查概念定义——对象/关系/变量叫什么、什么含义（偶尔翻） |
 | [`instances/`](instances) | 看完整研究样例 |
-| [`delivery/`](delivery) | 研报模板与表达标准（写 05 时才用） |
+| [`methods/05_表达/`](methods/05_表达) | 研报模板与表达标准（写 05 时才用） |
 | [`evaluation/`](evaluation) | 验证这套流程有没有用（可选） |
 | [`runtime/`](runtime) | 本机工作台（产品界面） |
 | [`governance/`](governance) | 项目定位、质量标准（维护用，不常翻） |
@@ -101,9 +101,9 @@ npm --prefix runtime run ontology:audit
 | 方法资产 | `methods/` | 怎样判断、要什么证据、能裁到哪 |
 | AI 运行时 | `runtime/` | 本次怎样选方法、绑证据、应用规则 |
 | 研究记录 | `instances/` | 本次实际做了什么、得出什么判断 |
-| 表达交付 | `delivery/` | 结果怎样写给不同读者 |
+| 表达交付 | `methods/05_表达/` | 结果怎样写给不同读者 |
 
-`workflow/` 是阶段合同，`governance/` 是上位约束。
+`runtime/workflow/` 是阶段合同，`governance/` 是上位约束。
 
 ### AI 工具上下文
 
@@ -111,6 +111,5 @@ npm --prefix runtime run ontology:audit
 |------|-------------|
 | Claude Code | `CLAUDE.md` |
 | Cursor | `.cursor/rules/03-evidence-sources.mdc` |
-| WorkBuddy | `.workbuddy/project.md` |
 
 以上三份含相同核心信息，新增/移除 MCP 通道时须同步。

@@ -6,22 +6,22 @@ import {
   judgmentDecisionSchema,
   researchExpressionSchema,
   taskDefinitionSchema,
-} from "@/engine/schemas";
-import { ensureStage01ContractFields } from "@/engine/stage01_contract";
-import { ensureStage03DocumentFields } from "@/engine/stage03_documents";
-import { ensureStage05DocumentFields } from "@/engine/stage05_documents";
-import { syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "@/engine/readable_markdown";
+} from "@/schemas/schemas";
+import { ensureStage01ContractFields } from "@/agents/01_intake/input_contract";
+import { ensureStage03DocumentFields } from "@/agents/03_evidence/input_contract";
+import { ensureStage05DocumentFields } from "@/agents/05_delivery/input_contract";
+import { syncStage01ReadableMarkdown, syncStage03ReadableMarkdown, syncStage04ReadableMarkdown } from "@/skills/expression_audit/readable_markdown";
 import {
   validateExpressionMethodBindings,
   validateJudgmentCapabilityCoverage,
   validateJudgmentMethodBindings,
   validateMethodApplications,
-} from "@/engine/method_application";
-import type { MethodApplication } from "@/engine/types";
-import { validateReasoningTraceBindings } from "@/engine/reasoning_trace";
-import { applyDeterministicRuleEvaluations } from "@/engine/semantic_execution";
-import { emptyGraph, materializeStageIntoGraph } from "@/engine/instance_graph";
-import { validateRuntimeGraph } from "@/engine/graph_contract";
+} from "@/skills/method_selection/method_application";
+import type { MethodApplication } from "@/schemas/types";
+import { validateReasoningTraceBindings } from "@/schemas/reasoning_trace";
+import { applyDeterministicRuleEvaluations } from "@/skills/ontology/semantic_execution";
+import { emptyGraph, materializeStageIntoGraph } from "@/skills/ontology/instance_graph";
+import { validateRuntimeGraph } from "@/schemas/graph_contract";
 
 function application(status: MethodApplication["status"], stage: MethodApplication["provenance"]["stage"]): MethodApplication {
   return {

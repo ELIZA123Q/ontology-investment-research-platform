@@ -1,0 +1,12 @@
+schema_name: governance_identity_registry
+schema_version: 1.0.0
+status: shell
+identities:
+  - id: researcher
+    description: 研究员
+  - id: reviewer
+    description: 独立审阅者
+  - id: system_job
+    description: 系统运行任务
+notes:
+  - 本轮只冻结身份契约，不引入RBAC实现。

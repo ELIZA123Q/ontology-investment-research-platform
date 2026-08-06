@@ -3,7 +3,7 @@ import path from "node:path";
 import YAML from "yaml";
 
 const repositoryRoot = path.resolve(import.meta.dirname, "../..");
-const targetFile = path.join(repositoryRoot, "runtime/engine/ontology_vocabulary.generated.ts");
+const targetFile = path.join(repositoryRoot, "runtime/skills/ontology/vocabulary.ts");
 const modelRegistry = YAML.parse(
   readFileSync(path.join(repositoryRoot, "ontology/01_通用/model_registry.yaml"), "utf8"),
 ) as Record<string, unknown>;

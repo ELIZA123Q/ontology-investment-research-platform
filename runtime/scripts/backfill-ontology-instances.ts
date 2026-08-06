@@ -126,8 +126,8 @@ function applyBusinessInstances(data: any, question: string): { changed: boolean
 // Step 2: 重建 instance_graph（使用引擎函数，含 generateEntityRelations）
 // ============================================================
 
-import { buildAuthorityGraphCandidate } from "../engine/instance_graph/authority";
-import type { AuthorityStageInput, AuthorityGraphStage } from "../engine/instance_graph/authority";
+import { buildAuthorityGraphCandidate } from "../skills/ontology/instance_graph/authority";
+import type { AuthorityStageInput, AuthorityGraphStage } from "../skills/ontology/instance_graph/authority";
 
 // ============================================================
 // Main

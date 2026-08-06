@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
-import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAttempts } from "@/adapters/db";
-import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/engine/metrics";
-import { evaluationSchema } from "@/engine/schemas";
-import { parseJson } from "@/engine/types";
-import { loadApprovedSemanticSnapshot } from "@/engine/semantic_reads";
+import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAttempts } from "@/storage/db";
+import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/metrics";
+import { evaluationSchema } from "@/schemas/schemas";
+import { parseJson } from "@/schemas/types";
+import { loadApprovedSemanticSnapshot } from "@/skills/ontology/semantic_reads";
 
 export const runtime = "nodejs";
 

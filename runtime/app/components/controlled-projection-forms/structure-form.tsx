@@ -3,7 +3,7 @@
 import {
 researcherLanguage
 } from "@/app/lib/researcher-stage-output";
-import { ONTOLOGY_JUDGMENT_TYPES } from "@/engine/ontology_vocabulary.generated";
+import { ONTOLOGY_JUDGMENT_TYPES } from "@/skills/ontology/vocabulary";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { forwardRef,useCallback,useEffect,useImperativeHandle,useMemo,useState } from "react";

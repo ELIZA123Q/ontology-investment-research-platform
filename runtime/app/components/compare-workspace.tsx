@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { ArtifactPayload } from "@/adapters/db_read_models";
-import { EVALUATION_CRITERIA as criteria } from "@/engine/schemas";
-import { parseJson } from "@/engine/types";
+import type { ArtifactPayload } from "@/storage/db_read_models";
+import { EVALUATION_CRITERIA as criteria } from "@/schemas/schemas";
+import { parseJson } from "@/schemas/types";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { researcherMarkdown } from "@/app/lib/researcher-stage-output";
 

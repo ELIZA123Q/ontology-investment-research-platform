@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { mergeStage03Patch } from "@/engine/change_set";
-import { syncStage03DraftSourcesFromRegistry, dedupeStage03DraftSources } from "@/engine/evidence_supplement_pure";
+import { mergeStage03Patch } from "@/skills/replan/change_set";
+import { syncStage03DraftSourcesFromRegistry, dedupeStage03DraftSources } from "@/skills/gap_detection/supplement_pure";
 import {
   buildCapturePriorityKeys,
   buildSupplementBrief,
@@ -10,9 +10,9 @@ import {
   findUnchangedEvidenceIds,
   orderByCapturePriority,
   selectEvidenceSnapshotExcerpt,
-} from "@/engine/evidence_supplement_pure";
-import { evaluateEvidenceStopCondition } from "@/engine/source_coverage";
-import type { SourceRecord } from "@/engine/types";
+} from "@/skills/gap_detection/supplement_pure";
+import { evaluateEvidenceStopCondition } from "@/skills/evidence_evaluation/source_coverage";
+import type { SourceRecord } from "@/schemas/types";
 import {
   enforceStage03AcquisitionHonesty,
   buildStage03AcquisitionQueries,
@@ -22,7 +22,7 @@ import {
   selectFrozenStage03CandidateSources,
   scopeStage03DataForBatch,
   stage03AcquisitionCallCount,
-} from "@/engine/evidence_auto_supplement";
+} from "@/skills/gap_detection/gap_analyzer";
 
 function source(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {
@@ -617,6 +617,8 @@ describe("evidence_auto_supplement", () => {
 
   it("builds brief focused on failed sources and gap units", () => {
     const coverage = {
+      missing_core_types: [] as string[],
+      authority_coverage: [] as { authority_type: string; present: boolean }[],
       public_secondary_count: 0,
       unit_coverage: [{
         unit_id: "JU-1",
@@ -791,7 +793,7 @@ describe("evaluateEvidenceStopCondition", () => {
   });
 
   it("injects selected_method_guidance into supplement model payload", async () => {
-    const { runEvidenceSupplementRound } = await import("@/engine/evidence_auto_supplement");
+    const { runEvidenceSupplementRound } = await import("@/skills/gap_detection/gap_analyzer");
     let capturedInput = "";
     const client = {
       generateStructured: async (
@@ -844,7 +846,7 @@ describe("evaluateEvidenceStopCondition", () => {
         document_markdown: "补证基座",
         stage_status: "in_progress",
         quality_status: "draft",
-        quality_gate_ref: "workflow/stages/03_证据/03_数据与证据准备规范.md",
+        quality_gate_ref: "runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md",
         deterministic_check_status: "not_checked",
         semantic_review_status: "not_reviewed",
         confidence_ceiling: "low",

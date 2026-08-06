@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeSourceAcquisitionInput } from "@/engine/source_acquisition_input";
+import { normalizeSourceAcquisitionInput } from "@/skills/evidence_evaluation/source_acquisition_input";
 
 describe("source acquisition authority_type", () => {
   it("requires a non-unknown authority type", () => {

@@ -1,4 +1,4 @@
-import { executeApprovedAction } from "@/engine/ontology_tools";
+import { executeApprovedAction } from "@/skills/ontology/tools";
 
 export const runtime = "nodejs";
 

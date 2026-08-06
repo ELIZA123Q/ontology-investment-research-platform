@@ -3,8 +3,8 @@ import {
   analyzeOntologyImpact,
   buildOntologySemanticManifest,
   buildOntologySemanticManifestFromModelSources,
-} from "../engine/ontology_impact";
-import { ONTOLOGY_MODEL_FILES } from "../engine/ontology_catalog";
+} from "../skills/ontology/impact";
+import { ONTOLOGY_MODEL_FILES } from "../skills/ontology/catalog_loader";
 
 const refIndex = process.argv.indexOf("--git-base");
 const gitBase = refIndex >= 0 ? String(process.argv[refIndex + 1] || "HEAD") : "HEAD";

@@ -1,5 +1,5 @@
 import type { ResearchGraphEdge, ResearchGraphNode } from "@/app/components/research-graph";
-import type { OntologyNode } from "@/adapters/ontology";
+import type { OntologyNode } from "@/skills/ontology/catalog_loader_adapter";
 
 export type OntologyGraphPreset = {
   id: string;

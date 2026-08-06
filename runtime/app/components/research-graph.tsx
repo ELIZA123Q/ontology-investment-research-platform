@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Background, BackgroundVariant, Controls, MarkerType, Position, ReactFlow, useEdgesState, useNodesState, type Edge, type Node } from "@xyflow/react";
-import type { ResearchWorkItem } from "@/engine/types";
+import type { ResearchWorkItem } from "@/schemas/types";
 
 export type ResearchGraphNode = {
   id: string;

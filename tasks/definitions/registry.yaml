@@ -1,0 +1,34 @@
+schema_name: task_definition_registry
+schema_version: 1.0.0
+status: active
+
+source_basis:
+  - runtime/workflow/stage_specs/01_受理/01_投研判断任务受理与整理规范.md
+  - evaluation/02_案例
+  - methods/02_研究框架
+
+task_definitions:
+  - task_id: cycle_judgement
+    name: 周期判断
+    objective: 判断给定时间窗内行业或子行业状态是否进入上行/下行周期或拐点区间
+    default_roles: [industry_analyst, evidence_reviewer, judgment_reviewer]
+    recommended_workflow: deep_research
+    required_skills: [method_selection, evidence_evaluation, gap_detection, semantic_review]
+  - task_id: event_impact
+    name: 事件影响判断
+    objective: 判断事件对对象状态变量与资产影响路径的方向、强度与时滞
+    default_roles: [industry_analyst, evidence_reviewer, investment_reviewer]
+    recommended_workflow: deep_research
+    required_skills: [method_selection, evidence_evaluation, ontology, semantic_review]
+  - task_id: company_analysis
+    name: 公司分析
+    objective: 在给定范围内评估公司经营与业绩判断的证据充分性、边界与改判条件
+    default_roles: [industry_analyst, evidence_reviewer, investment_reviewer]
+    recommended_workflow: deep_research
+    required_skills: [method_selection, evidence_evaluation, expression_audit, semantic_review]
+  - task_id: evidence_verification
+    name: 证据核验
+    objective: 对候选来源执行抓取、留痕、去重、可回溯核验与覆盖评估
+    default_roles: [evidence_reviewer]
+    recommended_workflow: deep_research
+    required_skills: [financial_data, evidence_evaluation, gap_detection]

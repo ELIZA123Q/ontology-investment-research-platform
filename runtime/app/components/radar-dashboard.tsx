@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { EventImpact, MarketEvent, ResearchRun, ResearchWorkItem } from "@/engine/types";
-import { workItemHref } from "@/engine/research_overview";
+import type { EventImpact, MarketEvent, ResearchRun, ResearchWorkItem } from "@/schemas/types";
+import { workItemHref } from "@/runner/research_overview";
 import { runStatusLabel } from "@/app/lib/ui-labels";
 import { researcherLanguage } from "@/app/lib/researcher-stage-output";
 

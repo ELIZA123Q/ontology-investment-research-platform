@@ -11,7 +11,7 @@ metadata:
   preparation_ref: 03-存储芯片周期数据与证据准备-20260715-1.md
   snapshot_ref: 03-存储芯片周期数据与证据快照-20260715-1/manifest.csv
   stage_status: complete
-  quality_gate_ref: workflow/stages/04_判断/04_推理输出规范.md#10-质量门槛与返工规则
+  quality_gate_ref: runtime/workflow/stage_specs/04_判断/04_推理输出规范.md#10-质量门槛与返工规则
   quality_status: high_quality_pass
   deterministic_check_status: checked
   semantic_review_status: reviewed

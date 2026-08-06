@@ -1,12 +1,12 @@
-import { createRun, listRuns, deleteRuns } from "@/adapters/db";
-import { listActiveResearchJobs } from "@/adapters/research_jobs";
+import { createRun, listRuns, deleteRuns } from "@/storage/db";
+import { listActiveResearchJobs } from "@/runner/research_jobs";
 import {
   createExperienceCohortRun,
   ExperienceCohortAlreadyEnrolledError,
   ExperienceCohortIneligibleDatabaseError,
   getExperienceCohortCaseDefinition,
-} from "@/adapters/experience_cohort";
-import { defaultExamplePackages } from "@/engine/instance_graph";
+} from "@/runner/experience_cohort_adapter";
+import { defaultExamplePackages } from "@/skills/ontology/instance_graph";
 
 export const runtime = "nodejs";
 

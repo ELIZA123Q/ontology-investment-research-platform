@@ -1,12 +1,12 @@
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runDatabaseMigrations } from "@/adapters/db_migrations";
-import type { Artifact, ResearchJob } from "@/engine/types";
+import { runDatabaseMigrations } from "@/storage/db_migrations";
+import type { Artifact, ResearchJob } from "@/schemas/types";
 
 vi.mock("server-only", () => ({}));
 
 let connection: DatabaseSync;
-let store: import("@/adapters/research_jobs").ResearchJobStore;
+let store: import("@/runner/research_jobs").ResearchJobStore;
 
 function insertRun() {
   const now = new Date().toISOString();
@@ -31,7 +31,7 @@ beforeEach(async () => {
   connection.exec("PRAGMA foreign_keys = ON");
   runDatabaseMigrations(connection);
   insertRun();
-  const { ResearchJobStore } = await import("@/adapters/research_jobs");
+  const { ResearchJobStore } = await import("@/runner/research_jobs");
   store = new ResearchJobStore(connection);
 });
 
@@ -48,7 +48,7 @@ describe("replayable research job runner", () => {
     });
     const claimed = store.claimNext({ workerId: "worker-test", leaseMs: 3_600_000, now })!;
     const artifact = insertArtifact("artifact-worker");
-    const { executeClaimedGenerationJob } = await import("@/engine/research_job_runner");
+    const { executeClaimedGenerationJob } = await import("@/runner/research_job_runner");
 
     const completed = await executeClaimedGenerationJob(claimed, store, async (_runId, _kind, options) => {
       options?.executionLease?.assertActive();
@@ -66,7 +66,7 @@ describe("replayable research job runner", () => {
   });
 
   it("detects missing or changed frozen inputs before replay", async () => {
-    const { verifyFrozenJobInputs } = await import("@/engine/research_job_runner");
+    const { verifyFrozenJobInputs } = await import("@/runner/research_job_runner");
     const artifact = { id: "a-1", kind: "stage_02", version: 2, json_content: "{\"changed\":true}" } as Artifact;
     const inputArtifactsJson = JSON.stringify([{ artifact_id: "a-1", artifact_hash: "sha256:stale" }]);
     const payloadJson = "{}";
@@ -101,7 +101,7 @@ describe("replayable research job runner", () => {
     });
     const claimed = store.claimNext({ workerId: "worker-budget", leaseMs: 60_000, now })!;
     const artifact = insertArtifact("artifact-over-budget");
-    const { executeClaimedGenerationJob } = await import("@/engine/research_job_runner");
+    const { executeClaimedGenerationJob } = await import("@/runner/research_job_runner");
     const result = await executeClaimedGenerationJob(claimed, store, async (_runId, _kind, options) => {
       expect(options?.maxSourceCount).toBeUndefined();
       options?.executionLease?.onArtifactCreated?.(artifact.id);
@@ -128,7 +128,7 @@ describe("replayable research job runner", () => {
       now,
     });
     const claimed = store.claimNext({ workerId: "worker-timeout", leaseMs: 60_000, now })!;
-    const { executeClaimedGenerationJob } = await import("@/engine/research_job_runner");
+    const { executeClaimedGenerationJob } = await import("@/runner/research_job_runner");
     const result = await executeClaimedGenerationJob(claimed, store, async () => new Promise<Artifact>(() => undefined));
 
     expect(result).toMatchObject({ id: queued.id, status: "waiting_for_input" });
@@ -154,7 +154,7 @@ describe("replayable research job runner", () => {
     });
     const artifact = insertArtifact("artifact-after-retry");
     let executions = 0;
-    const { runResearchJobUntilSettled } = await import("@/engine/research_job_runner");
+    const { runResearchJobUntilSettled } = await import("@/runner/research_job_runner");
 
     const result = await runResearchJobUntilSettled(queued.id, {
       store,

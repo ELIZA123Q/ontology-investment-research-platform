@@ -1,6 +1,6 @@
-import { getRun } from "@/adapters/db";
-import { loadGraphForRun, queryObjectSet, buildProvisionalProjection, summarizeGraph } from "@/engine/instance_graph";
-import { supportedActions } from "@/engine/action_executor";
+import { getRun } from "@/storage/db";
+import { loadGraphForRun, queryObjectSet, buildProvisionalProjection, summarizeGraph } from "@/skills/ontology/instance_graph";
+import { supportedActions } from "@/governance/ontology_changes/action_executor";
 
 export const runtime = "nodejs";
 

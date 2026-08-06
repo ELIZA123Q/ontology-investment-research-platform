@@ -4,7 +4,7 @@ import {
   candidateSimilarities,
   extractTaskLocalCandidateOccurrences,
   ontologyCandidateKey,
-} from "@/engine/ontology_candidates";
+} from "@/governance/ontology_changes/candidates";
 
 describe("task_local ontology candidates", () => {
   it("uses a stable semantic key and aggregates exact cross-run reuse", () => {

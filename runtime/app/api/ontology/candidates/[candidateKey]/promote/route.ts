@@ -1,4 +1,4 @@
-import { promoteOntologyCandidateGroup } from "@/adapters/ontology_candidates";
+import { promoteOntologyCandidateGroup } from "@/governance/ontology_changes/candidates_adapter";
 
 export const runtime = "nodejs";
 

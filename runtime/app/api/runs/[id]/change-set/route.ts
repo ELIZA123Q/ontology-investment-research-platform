@@ -1,4 +1,4 @@
-import { applyIncrementalChangeSet } from "@/engine/workflow";
+import { applyIncrementalChangeSet } from "@/workflow/stage_transitions";
 
 export const runtime = "nodejs";
 

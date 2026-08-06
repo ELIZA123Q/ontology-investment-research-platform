@@ -1,4 +1,4 @@
-import { getRunStatusSnapshot } from "@/adapters/db_read_models";
+import { getRunStatusSnapshot } from "@/storage/db_read_models";
 
 export const runtime = "nodejs";
 

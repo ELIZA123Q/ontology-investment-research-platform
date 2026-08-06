@@ -1,0 +1,12 @@
+schema_name: governance_permission_registry
+schema_version: 1.0.0
+status: shell
+source_fragments:
+  - governance/02_合同/judgment_threshold_policy.yaml
+  - methods/03_取证/B00_来源选择与使用边界.md
+permission_axes:
+  - expression_strength
+  - source_access_scope
+  - approval_gate
+notes:
+  - 本轮只定义权限维度，不改运行时鉴权实现。

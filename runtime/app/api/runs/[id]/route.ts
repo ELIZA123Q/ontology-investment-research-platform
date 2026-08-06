@@ -1,4 +1,4 @@
-import { deleteRun, getRun, getRunBundle } from "@/adapters/db";
+import { deleteRun, getRun, getRunBundle } from "@/storage/db";
 
 export const runtime = "nodejs";
 

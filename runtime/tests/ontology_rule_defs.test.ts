@@ -5,13 +5,13 @@ import {
   evalCondition,
   formalRuleDef,
   loadFormalOntologyRules,
-} from "@/engine/ontology_rule_defs";
+} from "@/skills/ontology/rule_defs";
 import {
   STAGE03_PRECHECK_RULES,
   assertPredicateCatalogCoversRequiredRules,
   buildRulePredicateCatalog,
   predicateKeysForRule,
-} from "@/engine/ontology_rule_predicates";
+} from "@/skills/ontology/rule_predicates";
 
 describe("ontology_rule_defs", () => {
   it("loads formal rules from ontology YAML models", () => {

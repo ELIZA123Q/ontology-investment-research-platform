@@ -1,19 +1,19 @@
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
-import { latestArtifactPayload } from "@/adapters/db_read_models";
+import { getRun } from "@/storage/db";
+import { latestArtifactPayload } from "@/storage/db_read_models";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
 import { buildStructureReviewGraph } from "@/app/lib/structure-graph";
 import { buildStageDecisionView, buildStructureResearcherView, buildStructureStageSummary } from "@/app/lib/researcher-stage-output";
-import { formalStateVariableDisplayNames, scopeDimensionKeyLabel } from "@/engine/ontology_display_labels";
-import { buildOntologyStructureReview } from "@/engine/ontology_structure_review";
-import { parseJson } from "@/engine/types";
+import { formalStateVariableDisplayNames, scopeDimensionKeyLabel } from "@/skills/ontology/display_labels";
+import { buildOntologyStructureReview } from "@/skills/ontology/structure_review";
+import { parseJson } from "@/schemas/types";
 import Link from "next/link";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
 import { journeyEditHref } from "@/app/lib/research-journey";
-import { adaptArtifactForRead } from "@/engine/artifact_read_adapter";
+import { adaptArtifactForRead } from "@/skills/semantic_review/artifact_read_adapter";
 import { DeepLinkFocus } from "@/app/components/deep-link-focus";
 import { StageExceptionNotice } from "@/app/components/stage-exception-notice";
 

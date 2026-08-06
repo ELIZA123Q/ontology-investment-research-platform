@@ -92,7 +92,7 @@ for (const f of govFiles) {
 
 // ─── 5. Runtime Context 注册表验证 ───
 console.log("\n=== Runtime Context 注册表 ===");
-const registryPath = repoPath("governance/01_架构/runtime_contexts.yaml");
+const registryPath = repoPath("governance/architecture/runtime_contexts.yaml");
 if (!existsSync(registryPath)) {
   console.error("  ✗ 运行时上下文注册表缺失！");
 } else {

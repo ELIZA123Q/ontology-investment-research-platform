@@ -1,5 +1,5 @@
-import { clarifyStage01 } from "@/engine/workflow";
-import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
+import { clarifyStage01 } from "@/workflow/stage_transitions";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/runner/research_job_runner";
 import { after } from "next/server";
 
 export const runtime = "nodejs";

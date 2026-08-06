@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
-import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAttempts } from "@/adapters/db";
-import { isExperienceCohortRun } from "@/adapters/experience_cohort";
-import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/engine/metrics";
-import { EVALUATION_CRITERIA, evaluationSchema, evaluationSubmissionSchema } from "@/engine/schemas";
-import { parseJson } from "@/engine/types";
-import { loadApprovedSemanticSnapshot } from "@/engine/semantic_reads";
+import { createArtifact, latestArtifact, listSources, supersedeOtherArtifactAttempts } from "@/storage/db";
+import { isExperienceCohortRun } from "@/runner/experience_cohort_adapter";
+import { COMPARISON_METRICS_VERSION, comparisonMetrics } from "@/metrics";
+import { EVALUATION_CRITERIA, evaluationSchema, evaluationSubmissionSchema } from "@/schemas/schemas";
+import { parseJson } from "@/schemas/types";
+import { loadApprovedSemanticSnapshot } from "@/skills/ontology/semantic_reads";
 
 export const runtime = "nodejs";
 

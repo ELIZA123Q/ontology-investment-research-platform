@@ -3,7 +3,7 @@ import {
   attachResearchValueReview,
   buildStage05RetryContext,
   heuristicResearchValueReview,
-} from "@/engine/research_value_review";
+} from "@/runner/value_review";
 
 describe("research_value_review", () => {
   it("fails thin shells lacking research edge and tracking", () => {

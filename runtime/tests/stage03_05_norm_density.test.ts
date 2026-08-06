@@ -5,26 +5,26 @@ import {
   evidencePreparationSchema,
   judgmentDecisionSchema,
   researchExpressionSchema,
-} from "@/engine/schemas";
+} from "@/schemas/schemas";
 import {
   assertStage03ReadyForApproval,
   collectStage03ConsistencyIssues,
   ensureStage03DocumentFields,
-} from "@/engine/stage03_documents";
+} from "@/agents/03_evidence/input_contract";
 import {
   assertStage04ReadyForApproval,
   collectStage04ConsistencyIssues,
-} from "@/engine/stage04_documents";
+} from "@/agents/04_judgment/input_contract";
 import {
   assertStage05ReadyForApproval,
   collectStage05ConsistencyIssues,
   ensureStage05DocumentFields,
-} from "@/engine/stage05_documents";
+} from "@/agents/05_delivery/input_contract";
 import {
   syncStage03ReadableMarkdown,
   syncStage04ReadableMarkdown,
   syncStage05ReadableMarkdown,
-} from "@/engine/readable_markdown";
+} from "@/skills/expression_audit/readable_markdown";
 
 const longMd = "# 标题\n\n".padEnd(80, "正文内容足够长以通过 markdown 最小长度约束。");
 
@@ -514,8 +514,8 @@ describe("stage03/04/05 archive naming", () => {
   it("uses Chinese dual-product filenames", async () => {
     process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-archive-norm-${process.pid}.sqlite`;
     process.env.WORKBENCH_EXPORT_ROOT = `/tmp/ontology-workbench-archive-norm-exports-${process.pid}`;
-    const db = await import("@/adapters/db");
-    const { buildRunArchive } = await import("@/engine/run_archive");
+    const db = await import("@/storage/db");
+    const { buildRunArchive } = await import("@/runner/run_archive");
     const run = db.createRun("归档命名", "semiconductor");
     const s03: any = leanStage03();
     syncStage03ReadableMarkdown(s03);

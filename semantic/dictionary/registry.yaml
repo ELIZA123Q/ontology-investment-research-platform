@@ -1,0 +1,13 @@
+schema_name: semantic_dictionary_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: ontology/01_通用
+
+entries:
+  - ontology/01_通用/00_投研本体框架概述.md
+  - ontology/01_通用/01_投研本体对象层说明.md
+  - ontology/01_通用/02_投研本体关系层说明.md
+  - ontology/01_通用/03_投研本体语义约束规则说明.md
+
+notes:
+  - 词典负责口径解释，不平行维护机器枚举。

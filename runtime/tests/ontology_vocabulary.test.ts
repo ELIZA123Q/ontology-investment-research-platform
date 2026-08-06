@@ -1,14 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import YAML from "yaml";
-import { repositoryPath } from "@/adapters/repo-paths";
+import { repositoryPath } from "@/storage/repo_paths";
 import {
   ONTOLOGY_CONFIDENCE_LEVELS,
   ONTOLOGY_ENUMS,
   ONTOLOGY_JUDGMENT_LEVELS,
   ONTOLOGY_JUDGMENT_TYPES,
   ONTOLOGY_SOURCE_TIERS,
-} from "@/engine/ontology_vocabulary.generated";
+} from "@/skills/ontology/vocabulary";
 
 function ontologyModel(file: string) {
   return YAML.parse(

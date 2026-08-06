@@ -1,4 +1,4 @@
-import { buildRunArchive } from "@/engine/run_archive";
+import { buildRunArchive } from "@/runner/run_archive";
 
 export const runtime = "nodejs";
 

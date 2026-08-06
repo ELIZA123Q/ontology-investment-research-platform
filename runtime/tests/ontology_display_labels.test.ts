@@ -10,7 +10,7 @@ import {
   variableCategoryLabel,
   variableKindLabel,
   variableRoleLabel,
-} from "../engine/ontology_display_labels";
+} from "../skills/ontology/display_labels";
 
 describe("ontology_display_labels", () => {
   it("合同枚举值映射为研究员中文", () => {

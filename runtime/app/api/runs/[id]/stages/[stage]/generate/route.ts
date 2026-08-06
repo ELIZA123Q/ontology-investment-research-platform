@@ -6,9 +6,9 @@ import {
   createJudgmentGapFallback,
   createStage01DeterministicProjection,
   createStage05DeterministicProjection,
-} from "@/engine/workflow";
-import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
-import { STAGES } from "@/engine/types";
+} from "@/workflow/stage_transitions";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/runner/research_job_runner";
+import { STAGES } from "@/schemas/types";
 import { after } from "next/server";
 
 export const runtime = "nodejs";

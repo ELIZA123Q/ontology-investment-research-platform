@@ -5,14 +5,14 @@ import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-import { buildFormalPackNames, formalThemeSlug } from "../engine/formal_pack_naming";
-import { formalStageHash } from "../engine/formal_pack_hash";
-import { projectFormalSnapshot, SNAPSHOT_CSV_LAYOUT } from "../engine/formal_snapshot_project";
+import { buildFormalPackNames, formalThemeSlug } from "../export/formal_pack_naming";
+import { formalStageHash } from "../export/formal_pack_hash";
+import { projectFormalSnapshot, SNAPSHOT_CSV_LAYOUT } from "../export/formal_snapshot_project";
 import {
   buildQualityRetryNotes,
   markGenerationBelowHighQuality,
   meetsHighQualityForReview,
-} from "../engine/stage_hq_retry";
+} from "../agents/shared/hq_retry";
 
 const tempDirs: string[] = [];
 
@@ -146,7 +146,7 @@ describe("stage HQ retry helpers", () => {
 
 describe("formal pack discovery and semantic review mapping", () => {
   it("exports the already-approved Stage05 consistency gate without starting another review", async () => {
-    const { mapStage05ConsistencyToSemanticYaml } = await import("../engine/formal_semantic_review");
+    const { mapStage05ConsistencyToSemanticYaml } = await import("../skills/semantic_review/formal_semantic_review");
     const YAML = (await import("yaml")).default;
     const yamlText = mapStage05ConsistencyToSemanticYaml({
       stage05Data: {
@@ -179,7 +179,7 @@ describe("formal pack discovery and semantic review mapping", () => {
   });
 
   it("refuses batch verdict mapping without semantic_checks", async () => {
-    const { mapIndependentReviewToSemanticYaml } = await import("../engine/formal_semantic_review");
+    const { mapIndependentReviewToSemanticYaml } = await import("../skills/semantic_review/formal_semantic_review");
     const YAML = (await import("yaml")).default;
     const yamlText = mapIndependentReviewToSemanticYaml({
       reviewData: {
@@ -208,7 +208,7 @@ describe("formal pack discovery and semantic review mapping", () => {
   });
 
   it("exports real semantic_checks when complete", async () => {
-    const { mapIndependentReviewToSemanticYaml } = await import("../engine/formal_semantic_review");
+    const { mapIndependentReviewToSemanticYaml } = await import("../skills/semantic_review/formal_semantic_review");
     const YAML = (await import("yaml")).default;
     const checks = [
       "local_evidence_not_globalized",

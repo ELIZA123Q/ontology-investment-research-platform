@@ -1,6 +1,6 @@
-import { loadOntology } from "@/adapters/ontology";
-import { loadOntologyCatalog } from "@/engine/ontology_catalog";
-import { loadDataMappingRegistry } from "@/engine/data_mapping_profiles";
+import { loadOntology } from "@/skills/ontology/catalog_loader_adapter";
+import { loadOntologyCatalog } from "@/skills/ontology/catalog_loader";
+import { loadDataMappingRegistry } from "@/skills/financial_data/data_mapping";
 export const runtime="nodejs";
 export async function GET(){
   const catalog = loadOntologyCatalog();

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { buildEvidenceSupplementSummary, evidenceChangeBadge } from "@/engine/evidence_supplement_diff";
+import { buildEvidenceSupplementSummary, evidenceChangeBadge } from "@/skills/gap_detection/supplement_diff";
 
 describe("evidence_supplement_diff", () => {
   it("returns hidden summary when no batch and no previous diff", () => {

@@ -5,7 +5,7 @@ process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-source-budget-${process
 
 describe("run-level source budget", () => {
   it("keeps over-budget candidates as explicit gaps without fetching or registering them", async () => {
-    const { applyStage03SourceSnapshots } = await import("@/engine/evidence_auto_supplement");
+    const { applyStage03SourceSnapshots } = await import("@/skills/gap_detection/gap_analyzer");
     const data = {
       sources: [{
         source_id: null,
@@ -51,7 +51,7 @@ describe("run-level source budget", () => {
   it("captures higher-priority keys first when budget is tight", async () => {
     const captureOrder: string[] = [];
     vi.resetModules();
-    vi.doMock("@/engine/source_snapshot", () => ({
+    vi.doMock("@/skills/evidence_evaluation/source_snapshot", () => ({
       captureSourceSnapshot: async (input: { url: string }) => {
         captureOrder.push(input.url);
         return {
@@ -71,9 +71,9 @@ describe("run-level source budget", () => {
         };
       },
     }));
-    const db = await import("@/adapters/db");
+    const db = await import("@/storage/db");
     const run = db.createRun("来源预算优先级测试", "semiconductor");
-    const { applyStage03SourceSnapshots } = await import("@/engine/evidence_auto_supplement");
+    const { applyStage03SourceSnapshots } = await import("@/skills/gap_detection/gap_analyzer");
     const mk = (key: string, url: string) => ({
       source_id: null,
       source_key: key,
@@ -121,9 +121,9 @@ describe("run-level source budget", () => {
 
   it("registers and deterministically quote-freezes Runtime-discovered candidates without any model call", async () => {
     vi.resetModules();
-    const db = await import("@/adapters/db");
+    const db = await import("@/storage/db");
     const run = db.createRun("Runtime 确定性候选来源登记", "semiconductor");
-    const { preAcquireStage03CandidateSources } = await import("@/engine/evidence_auto_supplement");
+    const { preAcquireStage03CandidateSources } = await import("@/skills/gap_detection/gap_analyzer");
     const acquired = await preAcquireStage03CandidateSources({
       runId: run.id,
       question: "未来六个月存储价格周期",
@@ -167,9 +167,9 @@ describe("run-level source budget", () => {
 
   it("spends the first candidate slot across distinct queries before taking duplicate-query hits", async () => {
     vi.resetModules();
-    const db = await import("@/adapters/db");
+    const db = await import("@/storage/db");
     const run = db.createRun("Runtime 查询多样性", "semiconductor");
-    const { preAcquireStage03CandidateSources } = await import("@/engine/evidence_auto_supplement");
+    const { preAcquireStage03CandidateSources } = await import("@/skills/gap_detection/gap_analyzer");
     const requirements = [
       ["ER-1-S", "HBM 价格库存主证", "support", "JU-1"],
       ["ER-1-C", "HBM 需求转弱反证", "counter", "JU-1"],
@@ -224,7 +224,7 @@ describe("run-level source budget", () => {
   it("re-verifies an existing Runtime candidate without consuming new-source budget", async () => {
     const captureOrder: string[] = [];
     vi.resetModules();
-    vi.doMock("@/engine/source_snapshot", () => ({
+    vi.doMock("@/skills/evidence_evaluation/source_snapshot", () => ({
       captureSourceSnapshot: async (input: { url: string; source_quote?: string }) => {
         captureOrder.push(input.url);
         return {
@@ -244,7 +244,7 @@ describe("run-level source budget", () => {
         };
       },
     }));
-    const db = await import("@/adapters/db");
+    const db = await import("@/storage/db");
     const run = db.createRun("候选来源二次核验", "semiconductor");
     const prior = db.upsertSource(run.id, {
       url: "https://example.com/candidate",
@@ -269,7 +269,7 @@ describe("run-level source budget", () => {
       source_quote: "",
       quote_verified: false,
     });
-    const { applyStage03SourceSnapshots } = await import("@/engine/evidence_auto_supplement");
+    const { applyStage03SourceSnapshots } = await import("@/skills/gap_detection/gap_analyzer");
     const data = {
       sources: [{
         source_id: prior.id,

@@ -3,12 +3,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-candidates-${process.pid}.sqlite`;
 
-let db: typeof import("@/adapters/db");
-let repository: typeof import("@/adapters/ontology_candidates");
+let db: typeof import("@/storage/db");
+let repository: typeof import("@/governance/ontology_changes/candidates_adapter");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  repository = await import("@/adapters/ontology_candidates");
+  db = await import("@/storage/db");
+  repository = await import("@/governance/ontology_changes/candidates_adapter");
 });
 
 describe("ontology candidate governance repository", () => {
@@ -155,7 +155,7 @@ describe("ontology candidate governance repository", () => {
       decisionNote: "影响分析列出的必跑检查已经全部通过",
       validationResults: { validate_v3: "pass", validate_project: "pass" },
     });
-    const { loadOntologyCatalog } = await import("@/engine/ontology_catalog");
+    const { loadOntologyCatalog } = await import("@/skills/ontology/catalog_loader");
     const released = repository.applyOntologyGovernanceAction({
       requestId: proposed.id,
       actionId: "ReleaseOntologyBaseline",

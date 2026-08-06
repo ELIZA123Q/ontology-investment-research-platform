@@ -2,6 +2,7 @@
 @import "./styles/workflow-scenes.css";
 @import "./styles/ontology.css";
 @import "./styles/knowledge.css";
+@import "./styles/workspace-layout.css";
 
 @import "@xyflow/react/dist/style.css";
 

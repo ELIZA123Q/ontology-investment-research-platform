@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { strFromU8, unzipSync } from "fflate";
-import { repositoryPath } from "@/adapters/repo-paths";
-import { validateKnowledgePackageFiles } from "@/engine/knowledge_package";
+import { repositoryPath } from "@/storage/repo_paths";
+import { validateKnowledgePackageFiles } from "@/skills/method_selection/knowledge_package";
 
 export const runtime = "nodejs";
 

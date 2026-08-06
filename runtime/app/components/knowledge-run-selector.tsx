@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ResearchRun } from "@/engine/types";
+import type { ResearchRun } from "@/schemas/types";
 import { runStatusLabel } from "@/app/lib/ui-labels";
 
 export function KnowledgeRunSelector({ runs, selectedRun, action, children }: { runs: ResearchRun[]; selectedRun?: ResearchRun; action: string; children?: React.ReactNode }) {

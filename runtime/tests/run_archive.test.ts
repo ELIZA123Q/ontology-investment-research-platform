@@ -2,13 +2,13 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-let db: typeof import("../adapters/db");
-let buildRunArchive: typeof import("../engine/run_archive").buildRunArchive;
-let getArchiveFilePayload: typeof import("../engine/run_archive").getArchiveFilePayload;
+let db: typeof import("../storage/db");
+let buildRunArchive: typeof import("../runner/run_archive").buildRunArchive;
+let getArchiveFilePayload: typeof import("../runner/run_archive").getArchiveFilePayload;
 
 beforeAll(async () => {
-  db = await import("../adapters/db");
-  ({ buildRunArchive, getArchiveFilePayload } = await import("../engine/run_archive"));
+  db = await import("../storage/db");
+  ({ buildRunArchive, getArchiveFilePayload } = await import("../runner/run_archive"));
 });
 
 describe("run_archive", () => {

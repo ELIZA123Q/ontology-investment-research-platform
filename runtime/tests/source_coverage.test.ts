@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { computeSourceCoverage, deriveSourceResearchLifecycle } from "@/engine/source_coverage";
-import type { SourceRecord } from "@/engine/types";
+import { computeSourceCoverage, deriveSourceResearchLifecycle } from "@/skills/evidence_evaluation/source_coverage";
+import type { SourceRecord } from "@/schemas/types";
 
 function source(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {
@@ -52,7 +52,6 @@ describe("source_coverage", () => {
         source_ids: ["SRC-1"],
         judgment_unit_ids: ["JU-1"],
       }],
-      boundSourceIds: new Set(["SRC-1"]),
       requirements: [{
         id: "ER-1",
         requirement: "产能",

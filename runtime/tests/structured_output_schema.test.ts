@@ -3,8 +3,8 @@ import { z } from "zod";
 import {
   assertModelStructuredSchema,
   MODEL_STRUCTURED_SCHEMAS,
-} from "@/engine/structured_output_schema";
-import { classifyRuntimeFailure } from "@/engine/workflow_support";
+} from "@/schemas/structured_output_schema";
+import { classifyRuntimeFailure } from "@/workflow/support";
 
 describe("model structured output schema contract", () => {
   it("registers every generateStructured schema and passes zodFunction", () => {

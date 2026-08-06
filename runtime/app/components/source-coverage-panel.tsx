@@ -3,11 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { deriveSourceResearchLifecycle, type SourceCoverageSummary, type SourceFactStatus } from "@/engine/source_coverage";
-import type { SourceRecord } from "@/engine/types";
+import { deriveSourceResearchLifecycle, type SourceCoverageSummary, type SourceFactStatus } from "@/skills/evidence_evaluation/source_coverage";
+import type { SourceRecord } from "@/schemas/types";
 import { authorityTypeLabel, retrievalLabel, sourceTierLabel, usabilityLabel } from "@/app/lib/ui-labels";
 import { judgmentStrengthLabel, researcherLanguage } from "@/app/lib/researcher-stage-output";
-import { ONTOLOGY_SOURCE_TIERS } from "@/engine/ontology_vocabulary.generated";
+import { ONTOLOGY_SOURCE_TIERS } from "@/skills/ontology/vocabulary";
 
 type UnitOption = { id: string; title: string };
 type SourceRow = Pick<SourceRecord, "id" | "title" | "publisher" | "published_at" | "url" | "locator" | "usability_status" | "retrieval_status" | "authority_type" | "source_tier" | "quote_verified" | "failure_detail" | "source_type"> & { fact_status: SourceFactStatus };

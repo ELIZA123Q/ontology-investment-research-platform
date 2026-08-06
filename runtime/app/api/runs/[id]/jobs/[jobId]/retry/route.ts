@@ -1,5 +1,5 @@
-import { retryResearchJobNow, getResearchJobStore } from "@/adapters/research_jobs";
-import { runResearchJobUntilSettled } from "@/engine/research_job_runner";
+import { retryResearchJobNow, getResearchJobStore } from "@/runner/research_jobs";
+import { runResearchJobUntilSettled } from "@/runner/research_job_runner";
 import { after } from "next/server";
 
 export const runtime = "nodejs";

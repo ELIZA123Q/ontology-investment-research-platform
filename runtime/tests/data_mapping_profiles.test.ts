@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 import {
   dataMappingProfileForConnector,
   loadDataMappingRegistry,
-} from "@/engine/data_mapping_profiles";
+} from "@/skills/financial_data/data_mapping";
 
 describe("ontology data mapping profiles", () => {
   it("registers every wired evidence connector against active ontology targets", () => {

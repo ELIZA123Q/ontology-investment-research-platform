@@ -1,16 +1,16 @@
 import "server-only";
-import { listArtifacts, listRuns } from "@/adapters/db";
-import { loadOntology } from "@/adapters/ontology";
-import { listOntologyCandidates } from "@/adapters/ontology_candidates";
-import { listVariableUsageQueries } from "@/adapters/ontology_research_queries";
-import { listCrossRunVariableComparability } from "@/adapters/variable_comparability";
+import { listArtifacts, listRuns } from "@/storage/db";
+import { loadOntology } from "@/skills/ontology/catalog_loader_adapter";
+import { listOntologyCandidates } from "@/governance/ontology_changes/candidates_adapter";
+import { listVariableUsageQueries } from "@/skills/ontology/research_queries";
+import { listCrossRunVariableComparability } from "@/skills/ontology/variable_comparability";
 import type { KnowledgeUsageRow } from "@/app/components/knowledge-usage-table";
-import { buildKnowledgePackage } from "@/engine/knowledge_package";
-import { buildRunKnowledgeDashboard } from "@/engine/knowledge_dashboard";
-import { collectRunOntologyTouchpoints } from "@/engine/knowledge_browser";
-import { loadDataMappingRegistry } from "@/engine/data_mapping_profiles";
-import { loadOntologyCatalog } from "@/engine/ontology_catalog";
-import { affectedRunsByOntologyFingerprint } from "@/engine/ontology_impact";
+import { buildKnowledgePackage } from "@/skills/method_selection/knowledge_package";
+import { buildRunKnowledgeDashboard } from "@/skills/method_selection/knowledge_dashboard";
+import { collectRunOntologyTouchpoints } from "@/skills/method_selection/knowledge_browser";
+import { loadDataMappingRegistry } from "@/skills/financial_data/data_mapping";
+import { loadOntologyCatalog } from "@/skills/ontology/catalog_loader";
+import { affectedRunsByOntologyFingerprint } from "@/skills/ontology/impact";
 import { applyUsageHeatToOntologyGraph, buildCandidateGapGraph, buildOntologyNetworkGraph } from "@/app/lib/ontology-network-graph";
 
 export function knowledgeRuns() {

@@ -1,0 +1,19 @@
+schema_name: semantic_ontology_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: ontology
+
+model_registry: ontology/01_通用/model_registry.yaml
+meta_schema: ontology/01_通用/meta_schema.yaml
+core_models:
+  - ontology/01_通用/models/semantic.yaml
+  - ontology/01_通用/models/state_event.yaml
+  - ontology/01_通用/models/evidence.yaml
+  - ontology/01_通用/models/judgment.yaml
+  - ontology/01_通用/models/scenario.yaml
+
+domain_extensions:
+  - ontology/02_领域/semiconductor
+
+notes:
+  - 波次2先建立权威索引，波次2后半段再做物理迁移。

@@ -1,6 +1,6 @@
-import { createArtifact, updateArtifactIfStatus } from "../../adapters/db";
-import { runNextResearchJob } from "../../engine/research_job_runner";
-import type { Artifact } from "../../engine/types";
+import { createArtifact, updateArtifactIfStatus } from "../../storage/db";
+import { runNextResearchJob } from "../../runner/research_job_runner";
+import type { Artifact } from "../../schemas/types";
 
 const mode = process.env.RESEARCH_WORKER_FIXTURE_MODE;
 const workerId = process.env.RESEARCH_WORKER_ID || `fixture-worker-${process.pid}`;

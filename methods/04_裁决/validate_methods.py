@@ -99,7 +99,7 @@ REQUIRED_FILES = {
 BOUNDARY_FILES = {
     "methods/02_判断结构/README.md": ["methods/03_取证", "methods/04_裁决"],
     "methods/03_取证/README.md": ["methods/02_判断结构", "methods/04_裁决"],
-    "workflow/stages/04_判断/04_推理输出规范.md": [
+    "runtime/workflow/stage_specs/04_判断/04_推理输出规范.md": [
         "methods/04_裁决/README.md",
         "不新增判断路径",
         "四份附录",
@@ -312,12 +312,12 @@ def check_path_result_status_contract(errors: list[str]) -> None:
     if re.search(r"(?m)^\|\s*条件成立\s*\|", section_text):
         errors.append("附录1 不得把“条件成立”定义为正式路径状态")
 
-    output_spec = (PROJECT_ROOT / "workflow/stages/04_判断/04_推理输出规范.md").read_text(
+    output_spec = (PROJECT_ROOT / "runtime/workflow/stage_specs/04_判断/04_推理输出规范.md").read_text(
         encoding="utf-8"
     )
     missing_in_spec = PATH_RESULT_STATUS_CODES - table_status_codes(output_spec)
     if missing_in_spec:
-        errors.append(f"workflow/stages/04_判断/04_推理输出规范.md 缺少路径状态码：{sorted(missing_in_spec)}")
+        errors.append(f"runtime/workflow/stage_specs/04_判断/04_推理输出规范.md 缺少路径状态码：{sorted(missing_in_spec)}")
 
 
 def check_rule_scenarios(errors: list[str]) -> None:

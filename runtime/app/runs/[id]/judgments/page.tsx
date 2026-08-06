@@ -1,19 +1,19 @@
 import Link from "next/link";
-import { latestArtifactPayload, listWorkItemsForReview } from "@/adapters/db_read_models";
+import { latestArtifactPayload, listWorkItemsForReview } from "@/storage/db_read_models";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
 import { workItemForGraph } from "@/app/lib/client-rows";
 import { buildJudgmentReviewGraph } from "@/app/lib/judgment-graph";
 import { buildJudgmentResearcherView, buildJudgmentStageSummary, researcherLanguage } from "@/app/lib/researcher-stage-output";
-import { parseJson } from "@/engine/types";
+import { parseJson } from "@/schemas/types";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
 import {
   buildOntologyContributionSummary,
-} from "@/engine/ontology_contribution_summary";
-import { getRunOntologyResearchValue } from "@/engine/knowledge_browser";
-import { adaptArtifactForRead } from "@/engine/artifact_read_adapter";
+} from "@/skills/ontology/contribution_summary";
+import { getRunOntologyResearchValue } from "@/skills/method_selection/knowledge_browser";
+import { adaptArtifactForRead } from "@/skills/semantic_review/artifact_read_adapter";
 import { journeyEditHref } from "@/app/lib/research-journey";
 import { DeepLinkFocus } from "@/app/components/deep-link-focus";
 import { StageExceptionNotice } from "@/app/components/stage-exception-notice";

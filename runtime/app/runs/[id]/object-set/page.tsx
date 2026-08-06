@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
-import { latestArtifactPayload } from "@/adapters/db_read_models";
-import { listVariableUsageQueries } from "@/adapters/ontology_research_queries";
+import { getRun } from "@/storage/db";
+import { latestArtifactPayload } from "@/storage/db_read_models";
+import { listVariableUsageQueries } from "@/skills/ontology/research_queries";
 import { JudgmentRelationAuditPanel } from "@/app/components/judgment-relation-audit";
 import { ResearchGraphLazy } from "@/app/components/research-graph-lazy";
 import { buildLayeredEntityNetwork, entityLayerTypes, type EntityNetworkLayer } from "@/app/lib/entity-relation-graph";
 import { authorityLabel, objectTypeLabel } from "@/app/lib/ui-labels";
-import { loadGraphForRun } from "@/engine/instance_graph";
-import { formalStateVariableDisplayNames } from "@/engine/ontology_display_labels";
-import { buildOntologyStructureReview } from "@/engine/ontology_structure_review";
-import { parseJson } from "@/engine/types";
+import { loadGraphForRun } from "@/skills/ontology/instance_graph";
+import { formalStateVariableDisplayNames } from "@/skills/ontology/display_labels";
+import { buildOntologyStructureReview } from "@/skills/ontology/structure_review";
+import { parseJson } from "@/schemas/types";
 import { ReferenceSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";

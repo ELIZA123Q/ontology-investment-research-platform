@@ -1,5 +1,5 @@
-import { createStoredActionProposal, getStoredActionProposals, runOntologyTool, type OntologyToolName } from "@/engine/ontology_tools";
-import { supportedActions } from "@/engine/action_executor";
+import { createStoredActionProposal, getStoredActionProposals, runOntologyTool, type OntologyToolName } from "@/skills/ontology/tools";
+import { supportedActions } from "@/governance/ontology_changes/action_executor";
 
 export const runtime = "nodejs";
 

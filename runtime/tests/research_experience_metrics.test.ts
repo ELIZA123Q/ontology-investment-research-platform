@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeResearchExperienceMetrics } from "@/engine/research_experience_metrics";
+import { computeResearchExperienceMetrics } from "@/runner/experience_metrics";
 
 const baseTime = "2026-07-22T00:00:00.000Z";
 

@@ -1,0 +1,318 @@
+# MCP 通道注册 — 03 取证方法的唯一通道权威来源
+# 代码（mcp_registry.ts）和文档（B03）都从此派生。
+# 新增/移除/修改通道时只改这里。
+schema: mcp_channel_registry
+version: 1.0.0
+description: >
+  MCP、API、数据库终端和 AI 工具是获取通道，不是来源生产者（03规范 2.5节）。
+  每次 MCP 调用必须按 03附录2 记录留痕。
+
+channels:
+  # ===== 法定披露 =====
+  - id: cninfo
+    transport: stdio
+    upstream: 巨潮资讯网
+    category: 法定披露
+    authority_type: company_disclosure
+    access_scope: public
+    provides:
+      - A股公告列表
+      - 定期报告全文
+      - 临时公告
+      - 问询函原文
+    limitations:
+      - 行业数据产品/衍生指标
+      - 截面字段需自行提取
+    ops_ref: QP-MCP-01
+    tools:
+      - query_cninfo
+    fallback: cninfo MCP 不可用 → 巨潮官网 http://www.cninfo.com.cn → 通用 OPS 公司披露
+
+  - id: china-policy
+    transport: stdio
+    upstream: 中央政策数据库（国务院/部委）
+    category: 法定披露
+    authority_type: official
+    access_scope: public
+    provides:
+      - 中央政策原文全文
+    limitations:
+      - 地方细则
+      - 解读文件
+      - 执行情况
+    ops_ref: QP-MCP-03
+    tools:
+      - query_china_policy
+    fallback: china-policy MCP 不可用 → 中国政府网政策库 → 通用 OPS 中国法规
+
+  # ===== 金融行情与财务（通联数据 DataYes） =====
+  - id: datayes-stock-info-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: company_disclosure
+    access_scope: authorized
+    provides:
+      - 公司基本信息
+      - 股东概况
+      - 机构持仓概况
+    limitations:
+      - 详细财务数据
+      - 行情序列
+    ops_ref: QP-MCP-06
+    tools:
+      - get_data
+    fallback: 通联 stock-info MCP 不可用 → cninfo 定期报告 → 公开网页搜索
+
+  - id: datayes-stock-finoper-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: company_disclosure
+    access_scope: authorized
+    provides:
+      - 利润表（多期）
+      - 资产负债表（多期）
+      - 现金流量表（多期）
+    limitations:
+      - 非标准科目需对回公告
+      - 行情数据
+    ops_ref: QP-MCP-07
+    tools:
+      - query_datayes_finoper
+    fallback: datayes-stock-finoper MCP 不可用 → cninfo 定期报告原文 → 通用 OPS A股披露
+
+  - id: datayes-stock-mkt-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - A股日/周/月K线
+      - 分时数据
+      - 技术指标
+    limitations:
+      - 港股/美股行情
+    ops_ref: QP-MCP-08
+    tools:
+      - get_data
+    fallback: 通联 stock-mkt MCP 不可用 → 交易所公开行情 → 公开网页搜索
+
+  - id: datayes-stock-eqhld-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 机构持仓明细
+    limitations:
+      - 散户持仓
+      - 北向分席位
+    ops_ref: QP-MCP-09
+    tools:
+      - get_data
+    fallback: 通联 stock-eqhld MCP 不可用 → cninfo 定期报告（前十大股东） → 公开网页搜索
+
+  - id: datayes-stock-event-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: company_disclosure
+    access_scope: authorized
+    provides:
+      - 公司事件摘要
+    limitations:
+      - 全文公告需回 cninfo
+    ops_ref: QP-MCP-10
+    tools:
+      - get_data
+    fallback: 通联 stock-event MCP 不可用 → cninfo 公告原文 → 公开网页搜索
+
+  - id: datayes-macro-mcp
+    transport: streamablehttp
+    upstream: 通联数据（国家统计局/央行/海关等）
+    category: 金融数据
+    authority_type: official
+    access_scope: authorized
+    provides:
+      - GDP
+      - CPI
+      - PMI
+      - 贸易数据
+      - 工业产出
+      - 消费指标
+    limitations:
+      - 高频自定义口径
+    ops_ref: QP-MCP-11
+    tools:
+      - get_data
+    fallback: 通联 macro MCP 不可用 → 国家统计局/央行/海关官网 → 公开网页搜索
+
+  - id: datayes-index-info-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 指数成分
+      - 指数权重
+      - 编制规则
+    limitations:
+      - 行情K线序列
+    ops_ref: QP-MCP-12
+    tools:
+      - get_data
+    fallback: 通联 index-info MCP 不可用 → 交易所指数页面 → 公开网页搜索
+
+  - id: datayes-index-mktanl-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 指数行情
+      - 指数估值
+      - 分析指标
+    limitations:
+      - 成分股个股详情
+    ops_ref: QP-MCP-13
+    tools:
+      - get_data
+    fallback: 通联 index-mktanl MCP 不可用 → 交易所行情 → 公开网页搜索
+
+  - id: datayes-fund-master-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 基金基本信息
+      - 基金经理
+    limitations:
+      - 基金业绩
+      - 基金持仓
+    ops_ref: QP-MCP-14
+    tools:
+      - get_data
+    fallback: 通联 fund-master MCP 不可用 → 基金公司官网 → 公开网页搜索
+
+  - id: datayes-fund-perf-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 基金净值
+      - 业绩指标
+    limitations:
+      - 基金持仓明细
+    ops_ref: QP-MCP-14
+    tools:
+      - get_data
+    fallback: 通联 fund-perf MCP 不可用 → 基金公司官网 → 公开网页搜索
+
+  - id: datayes-fund-holding-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 基金持仓明细
+      - 行业配置
+    limitations:
+      - 基金经理信息
+    ops_ref: QP-MCP-14
+    tools:
+      - get_data
+    fallback: 通联 fund-holding MCP 不可用 → 基金季报 → 公开网页搜索
+
+  - id: datayes-fund-fincap-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 基金财务数据
+    limitations:
+      - 基金业绩指标
+    ops_ref: QP-MCP-14
+    tools:
+      - get_data
+    fallback: 通联 fund-fincap MCP 不可用 → 基金公司官网 → 公开网页搜索
+
+  - id: datayes-fund-analytics-mcp
+    transport: streamablehttp
+    upstream: 通联数据
+    category: 金融数据
+    authority_type: industry_provider
+    access_scope: authorized
+    provides:
+      - 基金分析指标
+    limitations:
+      - 原始净值序列
+    ops_ref: QP-MCP-14
+    tools:
+      - get_data
+    fallback: 通联 fund-analytics MCP 不可用 → 公开网页搜索
+
+  # ===== 研报与资讯 =====
+  - id: htsc_research_mcp
+    transport: streamablehttp
+    upstream: 华泰证券研究所
+    category: 研报与资讯
+    authority_type: public_secondary
+    access_scope: authorized
+    provides:
+      - 华泰研报原文
+      - 行业观点
+      - 个股研究
+      - 估值模型
+    limitations:
+      - 不能替代法定披露
+      - 不能作为独立测量
+    ops_ref: QP-MCP-02
+    tools:
+      - search
+    fallback: 华泰研报 MCP 不可用 → 公开研报平台 → 公开网页搜索（研报观点不代表事实，需交叉核验）
+
+  - id: caixin-news
+    transport: sse
+    upstream: 财新传媒
+    category: 研报与资讯
+    authority_type: public_secondary
+    access_scope: authorized
+    provides:
+      - 财新新闻原文
+    limitations:
+      - 政策/财务/行业状态唯一证据
+    ops_ref: QP-MCP-04
+    tools:
+      - search
+    fallback: 财新 MCP 不可用 → 公开新闻搜索
+
+  - id: jina-reader
+    transport: streamablehttp
+    upstream: —（网页获取工具）
+    category: 研报与资讯
+    authority_type: public_secondary
+    access_scope: public
+    provides:
+      - 网页内容提取
+      - 联网搜索
+    limitations:
+      - 不产生原始内容
+      - 不是来源生产者
+    ops_ref: QP-MCP-05
+    tools:
+      - read
+      - fetch
+      - extract
+    fallback: jina-reader MCP 不可用 → fetch_public_pages（snapshot 直连抓取）

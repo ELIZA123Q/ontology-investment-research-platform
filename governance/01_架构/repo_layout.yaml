@@ -1,49 +1,95 @@
 schema_name: layered_repository_layout
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
+skeleton_ref: governance/01_架构/00_五域系统骨架.md
+migration_ledger: governance/04_路线图/2026-08-06_五域迁移资产账本.md
 
+# 五域为目标权威；aliases 为过渡期机器入口（物理迁移完成前不得删除）
 authority_domains:
   architecture: governance/01_架构
+  semantic: semantic
+  task: tasks
+  capability: capabilities
+  execution: execution
+  governance: governance
+  # 过渡期仍生效的旧入口
   public_contracts: governance/02_合同
   validation: governance/03_校验
   ontology: ontology
   methods: methods
-  workflow: workflow
+  workflow: runtime/workflow
   runtime: runtime
   run_instances: instances
-  delivery: delivery
+  delivery: methods/05_表达
   evaluation: evaluation
+  app_ui: runtime/app
+
+aliases:
+  semantic/ontology: ontology
+  semantic/dictionary: ontology/01_通用
+  semantic/evidence: methods/03_取证
+  tasks/workflows/deep_research: runtime/workflow/stage_specs
+  capabilities/agents: runtime/agents
+  capabilities/skills: runtime/skills
+  capabilities/protocols/mcp: methods/03_取证
+  execution/workspace: instances
+  execution/runtime: runtime
+  governance/rules: governance/02_合同
+  governance/verifiers: governance/03_校验
+  governance/evals: evaluation
 
 layers:
+  semantic:
+    purpose: 领域世界模型——对象、关系、概念口径、图合同、证据 provenance
+    target_paths: [semantic/ontology, semantic/dictionary, semantic/knowledge_graph, semantic/evidence]
+    may_define: [object_types, relation_types, action_types, semantic_constraint_rules, concept_glossary, graph_contracts, evidence_provenance_contracts]
+    must_not_define: [research_procedures, stage_gates, prompts, single_run_judgments]
+  task:
+    purpose: 场景、标准任务、角色与推荐工作流（含 Deep Research 01—05）
+    target_paths: [tasks/scenarios, tasks/definitions, tasks/roles, tasks/workflows]
+    may_define: [scenarios, task_definitions, roles, workflow_specs, stage_inputs, stage_outputs, return_conditions]
+    must_not_define: [ontology_meanings, tool_implementations, evaluation_protocols]
+  capability:
+    purpose: Agent 组织与可调用能力（Skill / Tool / 协议）
+    target_paths: [capabilities/agents, capabilities/skills, capabilities/tools, capabilities/protocols]
+    may_define: [agent_contracts, skills, tools, mcp_channel_registration, a2a_protocol_boundaries]
+    must_not_define: [world_model, single_run_workspace_artifacts]
+  execution:
+    purpose: 单次运行的 Context / Memory / Workspace / Runtime
+    target_paths: [execution/context, execution/memory, execution/workspace, execution/runtime]
+    may_define: [context_assembly, memory_contracts, run_records, job_orchestration, storage]
+    must_not_define: [reusable_method_truth, parallel_ontology, parallel_public_contracts]
   governance:
-    purpose: 项目架构、公共合同与治理规则
-    may_define: [asset_boundaries, public_contracts, status_protocols, validation_rules]
-    must_not_define: [ontology_meanings, method_content, run_facts]
+    purpose: 规则、身份、权限、质量评测与确定性校验
+    target_paths: [governance/rules, governance/identity, governance/permissions, governance/evals, governance/verifiers]
+    may_define: [asset_boundaries, public_contracts, status_protocols, validation_rules, eval_protocols, identity_permission_matrices]
+    must_not_define: [ontology_meanings, method_content, run_facts, production_answers]
+  # —— 以下为过渡期兼容层描述（物理权威仍在旧路径）——
   ontology:
-    purpose: 稳定投研对象、关系、动作、变量与语义/约束型规则
+    purpose: "COMPAT: 正式本体仍在 ontology/；目标迁入 semantic/"
     may_define: [object_types, relation_types, action_types, semantic_constraint_rules]
     must_not_define: [single_run_observations, single_run_judgments, method_procedures, stage_contracts, run_evaluations]
   methods:
-    purpose: 可复用的判断结构、证据和裁决方法
+    purpose: "COMPAT: 方法正文拆入 task/capability；过渡期仍可读 methods/"
     may_define: [method_metadata, applicability, failure_conditions, candidate_routes]
     must_not_define: [single_run_method_selection, single_run_judgments]
   workflow:
-    purpose: 01—05阶段合同、输入输出、质量门槛与返工协议
+    purpose: "COMPAT: Deep Research 阶段合同仍在 runtime/workflow；目标 tasks/workflows/deep_research"
     may_define: [stage_inputs, stage_outputs, stage_actions, return_conditions]
     must_not_define: [duplicated_method_content, single_run_results]
   runtime:
-    purpose: 本次任务的编排、方法选择、规则应用、返工与回放；规则应用结果写入 instances
+    purpose: "COMPAT: 编排与引擎仍在 runtime/；目标拆入 capabilities + execution"
     may_define: [execution_state, adapters, orchestration, method_selection]
     must_not_define: [parallel_public_contracts, parallel_ontology]
   instances:
-    purpose: 实际运行产物、证据、方法应用、判断和历史
+    purpose: "COMPAT: 运行产物仍在 instances/；目标 execution/workspace"
     may_define: [run_records, rule_evaluations, judgments, reasoning_traces]
     must_not_define: [reusable_method_truth]
   delivery:
-    purpose: 可复用表达标准、模板和导出资产
+    purpose: "COMPAT: 表达标准仍在 methods/05_表达"
     may_define: [expression_standards, report_templates]
     must_not_define: [new_facts, new_judgments]
   evaluation:
-    purpose: 研究质量与相对价值评测
+    purpose: "COMPAT: 评测仍在 evaluation/；目标 governance/evals"
     may_define: [test_cases, protocols, harnesses, reports]
     must_not_define: [production_answers]

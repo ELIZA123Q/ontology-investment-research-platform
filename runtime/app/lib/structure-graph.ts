@@ -2,7 +2,7 @@ import type { ResearchGraphEdge, ResearchGraphNode } from "@/app/components/rese
 import {
   normalizeCompetingExplanations,
   normalizeCounterEvidenceDirections,
-} from "@/engine/structure_candidates";
+} from "@/agents/02_structure/structure_candidates";
 import {
   anchorLabels,
   buildJudgmentUnitConcepts,
@@ -20,7 +20,7 @@ import {
   variableCategoryLabel,
   variableKindLabel,
   variableRoleLabel,
-} from "@/engine/ontology_display_labels";
+} from "@/skills/ontology/display_labels";
 
 export type StructureGraphTone = ResearchGraphNode["tone"];
 

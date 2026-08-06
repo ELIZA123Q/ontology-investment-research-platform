@@ -8,14 +8,14 @@ import {
   countArgumentChapters,
   hasPublishableStage05Structure,
   looksLikeDeterministicSkeleton,
-} from "@/engine/stage05_quality";
+} from "@/agents/05_delivery/quality_gate";
 import {
   assertStage05ReadyForApproval,
   collectStage05ConsistencyIssues,
   ensureStage05DocumentFields,
-} from "@/engine/stage05_documents";
-import { buildStage05SkeletonMarkdown } from "@/engine/stage05_quality";
-import { heuristicResearchValueReview } from "@/engine/research_value_review";
+} from "@/agents/05_delivery/input_contract";
+import { buildStage05SkeletonMarkdown } from "@/agents/05_delivery/quality_gate";
+import { heuristicResearchValueReview } from "@/runner/value_review";
 
 const goldPath = resolve(
   process.cwd(),

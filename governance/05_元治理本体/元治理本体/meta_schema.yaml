@@ -1,0 +1,64 @@
+schema_name: ontology_governance_meta_schema
+schema_version: 2.0.0
+status: active
+authority: governance_control_plane
+description: 本体演进治理控制面的机器权威元模式；允许对象、关系、接口、共享属性、Action 和治理规则，但禁止承载投研业务语义。
+
+namespaces:
+  shared: gov.shared
+  asset: gov.asset
+  change: gov.change
+  action: gov.action
+  policy: gov.policy
+
+common_metadata:
+  required: [id, namespace, label_zh, label_en, definition, model, version, status]
+  status_values: [draft, active, deprecated]
+  model_values: [shared, asset, change, relation, action, policy]
+  id_pattern: '^[A-Za-z][A-Za-z0-9_.-]*$'
+  semver_pattern: '^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$'
+
+shared_property_type_contract:
+  required: [metadata, type, required, description]
+  scalar_types: [string, integer, number, boolean, date, datetime, uri, object, array, enum]
+
+interface_type_contract:
+  required: [metadata, required_properties]
+
+object_type_contract:
+  required: [metadata, implements, primary_key, title_property, attributes, constraints]
+  attribute_required: [type, required, cardinality, value_role, description]
+  scalar_types: [string, integer, number, boolean, date, datetime, uri]
+  compound_types: [array, object, enum, object_ref]
+  cardinalities: ['0..1', '1..1', '0..*', '1..*']
+  value_roles: [identity, fact, state, calculated, metadata, audit]
+
+relation_type_contract:
+  required: [metadata, source_types, target_types, source_cardinality, target_cardinality, direction, inverse_of, attributes, invalidation_policy]
+  directions: [directed, undirected]
+  invalidation_policies: [retain_history, invalidate_downstream, block_delete]
+
+action_type_contract:
+  required: [metadata, applies_to, parameters, permission, submission_criteria, state_transition, writes, action_log]
+  parameter_required: [type, required, description]
+  permission_required: [roles, policy]
+  state_transition_required: [object_type, property, from, to]
+  action_log_required: [object_type, version, immutable]
+  rule: Action 是治理对象状态变化的唯一写入口；每次成功执行必须生成不可变 ActionLog。
+
+rule_contract:
+  required: [metadata, rule_class, applies_to, predicate, failure_message]
+  allowed_rule_classes: [boundary, authority, lifecycle, impact, approval, validation, migration, release, audit]
+
+instance_graph_contract:
+  required: [schema_name, schema_version, status, ontology_ref, objects, relations]
+  object_required: [id, type, properties]
+  relation_required: [id, type, source_id, target_id, properties]
+
+boundary:
+  formal_ontology_registry: ontology/01_通用/model_registry.yaml
+  governance_model_registry: governance/05_元治理本体/model_registry.yaml
+  formal_registration_allowed: false
+  business_instance_projection_allowed: false
+  commercial_rule_evaluation_allowed: false
+  cross_plane_reference_types: [stable_asset_id, ontology_element_id, run_id, repository_ref, content_fingerprint]

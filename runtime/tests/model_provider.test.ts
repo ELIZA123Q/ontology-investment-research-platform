@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { resolveModelProvider, listConfiguredProviders } from "@/adapters/model_provider";
+import { resolveModelProvider, listConfiguredProviders } from "@/skills/model_client/model_provider";
 
 const KEYS = [
   "RESEARCH_MODEL_PROVIDER",
@@ -59,7 +59,7 @@ describe("resolveModelProvider", () => {
 
   it("keeps long stage leases from being capped too aggressively", async () => {
     clearKeys();
-    const { generationLeaseMs } = await import("@/adapters/model_provider");
+    const { generationLeaseMs } = await import("@/skills/model_client/model_provider");
     expect(generationLeaseMs()).toBe(3_600_000);
     process.env.DEEPSEEK_GENERATION_TIMEOUT_MS = "7200000";
     expect(generationLeaseMs()).toBe(7_200_000);
@@ -67,7 +67,7 @@ describe("resolveModelProvider", () => {
 
   it("uses a short renewable worker lease independent of the generation timeout", async () => {
     clearKeys();
-    const { researchJobLeaseMs } = await import("@/adapters/model_provider");
+    const { researchJobLeaseMs } = await import("@/skills/model_client/model_provider");
     expect(researchJobLeaseMs()).toBe(60_000);
     process.env.DEEPSEEK_GENERATION_TIMEOUT_MS = "7200000";
     expect(researchJobLeaseMs()).toBe(60_000);

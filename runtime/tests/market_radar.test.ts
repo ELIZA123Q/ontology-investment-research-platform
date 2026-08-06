@@ -7,18 +7,18 @@ vi.mock("node:dns/promises", () => ({
 }));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-radar-${process.pid}.sqlite`;
 
-let db: typeof import("@/adapters/db");
-let radar: typeof import("@/engine/market_radar");
-let workflow: typeof import("@/engine/workflow");
-let instanceGraph: typeof import("@/engine/instance_graph");
-let sourceSnapshot: typeof import("@/engine/source_snapshot");
+let db: typeof import("@/storage/db");
+let radar: typeof import("@/market_radar");
+let workflow: typeof import("@/workflow/stage_transitions");
+let instanceGraph: typeof import("@/skills/ontology/instance_graph");
+let sourceSnapshot: typeof import("@/skills/evidence_evaluation/source_snapshot");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  radar = await import("@/engine/market_radar");
-  workflow = await import("@/engine/workflow");
-  instanceGraph = await import("@/engine/instance_graph");
-  sourceSnapshot = await import("@/engine/source_snapshot");
+  db = await import("@/storage/db");
+  radar = await import("@/market_radar");
+  workflow = await import("@/workflow/stage_transitions");
+  instanceGraph = await import("@/skills/ontology/instance_graph");
+  sourceSnapshot = await import("@/skills/evidence_evaluation/source_snapshot");
 });
 
 afterEach(() => {
@@ -43,7 +43,7 @@ describe("event-driven research radar", () => {
       approved_at: new Date().toISOString(),
     });
 
-    const provider: import("@/engine/market_radar").MarketEventProvider = {
+    const provider: import("@/market_radar").MarketEventProvider = {
       name: "fake_provider",
       async discover() {
         return [{

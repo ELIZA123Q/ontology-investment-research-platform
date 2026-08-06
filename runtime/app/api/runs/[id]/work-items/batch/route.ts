@@ -1,6 +1,6 @@
-import { getWorkItem, latestArtifact, listWorkItems, updateWorkItem, upsertWorkItem } from "@/adapters/db";
-import { validateWorkItemReviewPatch } from "@/engine/work_item_review";
-import type { WorkItemStatus } from "@/engine/types";
+import { getWorkItem, latestArtifact, listWorkItems, updateWorkItem, upsertWorkItem } from "@/storage/db";
+import { validateWorkItemReviewPatch } from "@/runner/work_item_review";
+import type { WorkItemStatus } from "@/schemas/types";
 
 export const runtime = "nodejs";
 

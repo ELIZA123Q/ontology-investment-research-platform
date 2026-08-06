@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
-import { latestArtifactPayload } from "@/adapters/db_read_models";
-import { parseJson } from "@/engine/types";
+import { getRun } from "@/storage/db";
+import { latestArtifactPayload } from "@/storage/db_read_models";
+import { parseJson } from "@/schemas/types";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";

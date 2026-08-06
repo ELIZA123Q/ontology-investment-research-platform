@@ -1,5 +1,5 @@
-import type { ArtifactPayload } from "@/adapters/db_read_models";
-import type { ResearchWorkItem, SourceRecord } from "@/engine/types";
+import type { ArtifactPayload } from "@/storage/db_read_models";
+import type { ResearchWorkItem, SourceRecord } from "@/schemas/types";
 
 /** Slim source row for client boards — never include snapshot_text / search_excerpt. */
 export function sourceRowForClient(source: Pick<

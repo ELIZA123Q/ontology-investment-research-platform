@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { applyDeterministicRuleEvaluations, REQUIRED_RULES } from "@/engine/semantic_execution";
+import { applyDeterministicRuleEvaluations, REQUIRED_RULES } from "@/skills/ontology/semantic_execution";
 
 const cutoff = "2026-07-18T08:00:00Z";
 

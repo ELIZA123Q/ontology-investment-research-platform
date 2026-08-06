@@ -1,5 +1,5 @@
-import { getArtifact } from "@/adapters/db";
-import { editArtifact } from "@/engine/workflow";
+import { getArtifact } from "@/storage/db";
+import { editArtifact } from "@/workflow/stage_transitions";
 
 export const runtime = "nodejs";
 

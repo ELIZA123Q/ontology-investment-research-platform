@@ -7,7 +7,7 @@ import remarkGfm from "remark-gfm";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { SourceCoveragePanel } from "@/app/components/source-coverage-panel";
 import { researcherMarkdown } from "@/app/lib/researcher-stage-output";
-import type { EvidenceSupplementSummary } from "@/engine/evidence_supplement_view";
+import type { EvidenceSupplementSummary } from "@/skills/gap_detection/supplement_view";
 import type {
   Stage3SourceCoverageProps,
   WorkspaceArtifact,

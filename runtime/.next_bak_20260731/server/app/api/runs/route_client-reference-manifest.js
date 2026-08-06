@@ -1,1 +1,0 @@
-globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/runs/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"/Users/luyao/Documents/基于本体的投研推理平台/runtime/app/api/runs/route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};

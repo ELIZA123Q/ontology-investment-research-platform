@@ -1,5 +1,5 @@
 import type { ResearchGraphEdge, ResearchGraphNode } from "@/app/components/research-graph";
-import type { ResearchWorkItem } from "@/engine/types";
+import type { ResearchWorkItem } from "@/schemas/types";
 import {
   judgmentDecisionStatusLabel,
   judgmentStrengthLabel,

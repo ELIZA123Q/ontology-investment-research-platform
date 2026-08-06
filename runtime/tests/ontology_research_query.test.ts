@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { queryEvidenceImpact } from "@/engine/ontology_research_query";
-import { traceReachableDownstream, type BusinessInstanceGraph } from "@/engine/instance_graph";
+import { queryEvidenceImpact } from "@/skills/ontology/research_query";
+import { traceReachableDownstream, type BusinessInstanceGraph } from "@/skills/ontology/instance_graph";
 
 const graph: BusinessInstanceGraph = {
   schema_name: "ontology_business_instance_graph",

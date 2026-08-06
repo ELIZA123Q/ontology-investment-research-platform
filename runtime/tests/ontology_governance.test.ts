@@ -5,7 +5,7 @@ import {
   assertOntologyChangeTransition,
   governanceActionDefinition,
   ontologyGovernanceActionForTransition,
-} from "@/engine/ontology_governance";
+} from "@/skills/ontology/governance";
 
 const impact = {
   changed_element_ids: ["depreciation_intensity"],

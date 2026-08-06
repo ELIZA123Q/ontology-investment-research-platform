@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
-import { taskDefinitionSchema, judgmentStructureSchema } from "@/engine/schemas";
+import { taskDefinitionSchema, judgmentStructureSchema } from "@/schemas/schemas";
 import {
   applyClarificationAnswer,
   applyClarificationAnswers,
   assertStage01ReadyForApproval,
   ensureStage01ContractFields,
-} from "@/engine/stage01_contract";
+} from "@/agents/01_intake/input_contract";
 import {
   assertStage02AnswersStage01,
   assertStage02ReadyForApproval,
@@ -15,8 +15,8 @@ import {
   ensureStage02DocumentFields,
   projectOntologyViewYaml,
   repairStage02GenerationDraft,
-} from "@/engine/stage02_documents";
-import { syncStage01ReadableMarkdown, syncStage02ReadableMarkdown } from "@/engine/readable_markdown";
+} from "@/agents/02_structure/input_contract";
+import { syncStage01ReadableMarkdown, syncStage02ReadableMarkdown } from "@/skills/expression_audit/readable_markdown";
 
 function baseStage01() {
   const data: any = {

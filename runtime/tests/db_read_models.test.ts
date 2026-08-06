@@ -4,12 +4,12 @@ vi.mock("server-only", () => ({}));
 
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-read-models-${process.pid}.sqlite`;
 
-let db: typeof import("@/adapters/db");
-let read: typeof import("@/adapters/db_read_models");
+let db: typeof import("@/storage/db");
+let read: typeof import("@/storage/db_read_models");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  read = await import("@/adapters/db_read_models");
+  db = await import("@/storage/db");
+  read = await import("@/storage/db_read_models");
 });
 
 describe("db_read_models", () => {

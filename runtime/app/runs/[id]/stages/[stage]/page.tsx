@@ -1,16 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
-import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview, previousArtifactPayload } from "@/adapters/db_read_models";
+import { getRun } from "@/storage/db";
+import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview, previousArtifactPayload } from "@/storage/db_read_models";
 import { StageWorkspaceLazy } from "@/app/components/stage-workspace-lazy";
-import { listResearchJobsForRun } from "@/adapters/research_jobs";
+import { listResearchJobsForRun } from "@/runner/research_jobs";
 import type { Stage3SourceCoverageProps, Stage4JudgmentProps } from "@/app/components/stage-workspace";
 import { artifactForWorkspace } from "@/app/lib/client-rows";
-import { computeSourceCoverage } from "@/engine/source_coverage";
-import { buildEvidenceSupplementSummary } from "@/engine/evidence_supplement_diff";
-import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure, type EvidenceRequirementProjection } from "@/engine/structure_candidates";
-import { STAGES, parseJson } from "@/engine/types";
-import type { SourceRecord } from "@/engine/types";
+import { computeSourceCoverage } from "@/skills/evidence_evaluation/source_coverage";
+import { buildEvidenceSupplementSummary } from "@/skills/gap_detection/supplement_diff";
+import { normalizeCompetingExplanations, projectEvidenceRequirementsFromStructure, type EvidenceRequirementProjection } from "@/agents/02_structure/structure_candidates";
+import { STAGES, parseJson } from "@/schemas/types";
+import type { SourceRecord } from "@/schemas/types";
 import { researchStage } from "@/app/lib/research-journey";
 import { latestJobForStage } from "@/app/lib/ui-labels";
 

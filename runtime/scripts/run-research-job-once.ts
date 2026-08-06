@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { runResearchJobById } from "../engine/research_job_runner";
+import { runResearchJobById } from "../runner/research_job_runner";
 
 function clearInheritedProxyEnv() {
   for (const key of [

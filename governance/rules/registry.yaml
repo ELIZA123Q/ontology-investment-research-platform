@@ -1,0 +1,12 @@
+schema_name: governance_rules_registry
+schema_version: 1.0.0
+status: active
+source_of_truth:
+  contracts: governance/02_合同
+  architecture_rules: governance/01_架构
+critical_assets:
+  - governance/02_合同/public_contract.yaml
+  - governance/02_合同/rule_authority_registry.yaml
+  - governance/02_合同/parameter_authority_matrix.yaml
+  - governance/02_合同/judgment_threshold_policy.yaml
+compat_mode: true

@@ -3,9 +3,9 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-semantic-reads-${process.pid}.sqlite`;
 
-let db: typeof import("@/adapters/db");
-let graph: typeof import("@/engine/instance_graph");
-let reads: typeof import("@/engine/semantic_reads");
+let db: typeof import("@/storage/db");
+let graph: typeof import("@/skills/ontology/instance_graph");
+let reads: typeof import("@/skills/ontology/semantic_reads");
 
 const structure = {
   research_scope: { id: "SCOPE-1", label: "测试范围", dimensions: { domain: "semiconductor" } },
@@ -21,9 +21,9 @@ const structure = {
 };
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  graph = await import("@/engine/instance_graph");
-  reads = await import("@/engine/semantic_reads");
+  db = await import("@/storage/db");
+  graph = await import("@/skills/ontology/instance_graph");
+  reads = await import("@/skills/ontology/semantic_reads");
 });
 
 describe("approved semantic snapshot authority", () => {

@@ -1,4 +1,4 @@
-import { listRuns, radarBundle } from "@/adapters/db";
+import { listRuns, radarBundle } from "@/storage/db";
 import { RadarDashboard } from "@/app/components/radar-dashboard";
 
 export const dynamic = "force-dynamic";

@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Artifact, ResearchJob } from "@/engine/types";
+import type { Artifact, ResearchJob } from "@/schemas/types";
 import {
   initializeStage03BatchCheckpoint,
   isResumableStage03Artifact,
   readStage03BatchCheckpoint,
   terminalStage03BatchIds,
   updateStage03BatchCheckpoint,
-} from "@/engine/stage03_batch_checkpoint";
-import { resolveStage03ResumeArtifactId } from "@/engine/research_job_runner";
+} from "@/agents/03_evidence/batch_checkpoint";
+import { resolveStage03ResumeArtifactId } from "@/runner/research_job_runner";
 
 vi.mock("server-only", () => ({}));
 

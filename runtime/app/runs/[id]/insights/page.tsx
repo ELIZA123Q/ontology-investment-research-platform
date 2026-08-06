@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
-import { latestArtifactPayload } from "@/adapters/db_read_models";
-import { listEvidenceImpactQueries, listEvidenceRequirementQueries, listVariableUsageQueries } from "@/adapters/ontology_research_queries";
-import { parseJson } from "@/engine/types";
-import { buildResearchAdvancedAnalysis } from "@/engine/research_advanced_analysis";
+import { getRun } from "@/storage/db";
+import { latestArtifactPayload } from "@/storage/db_read_models";
+import { listEvidenceImpactQueries, listEvidenceRequirementQueries, listVariableUsageQueries } from "@/skills/ontology/research_queries";
+import { parseJson } from "@/schemas/types";
+import { buildResearchAdvancedAnalysis } from "@/runner/advanced_analysis";
 import { judgmentStrengthLabel, researcherLanguage } from "@/app/lib/researcher-stage-output";
 
 export const dynamic = "force-dynamic";

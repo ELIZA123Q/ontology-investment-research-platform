@@ -1,6 +1,6 @@
-import { getRun } from "@/adapters/db";
-import { loadGraphForRun } from "@/engine/instance_graph";
-import { formalRelationOptionsForSource } from "@/engine/ontology_relation_options";
+import { getRun } from "@/storage/db";
+import { loadGraphForRun } from "@/skills/ontology/instance_graph";
+import { formalRelationOptionsForSource } from "@/skills/ontology/relation_options";
 
 export const runtime = "nodejs";
 

@@ -1,5 +1,5 @@
 import { strFromU8, unzipSync } from "fflate";
-import { validateKnowledgePackageFiles } from "@/engine/knowledge_package";
+import { validateKnowledgePackageFiles } from "@/skills/method_selection/knowledge_package";
 
 export const runtime = "nodejs";
 

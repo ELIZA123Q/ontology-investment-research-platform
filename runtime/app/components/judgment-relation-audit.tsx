@@ -6,8 +6,8 @@ import {
   relationRepairHref,
   type JudgmentRelationAudit,
   type RelationAuditStatus,
-} from "@/engine/relation_audit";
-import type { GraphObject } from "@/engine/instance_graph";
+} from "@/skills/semantic_review/relation_audit";
+import type { GraphObject } from "@/skills/ontology/instance_graph";
 
 const STATUS_COPY: Record<RelationAuditStatus, { label: string; note: string }> = {
   complete: { label: "关系完整", note: "正式范围、证据和推理链均可追溯。" },

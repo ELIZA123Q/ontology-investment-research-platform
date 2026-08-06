@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { runResearchWorkerLoop } from "../engine/research_job_runner";
+import { runResearchWorkerLoop } from "../runner/research_job_runner";
 
 /**
  * Cursor / 沙箱常注入失效的 HTTP(S)_PROXY；Node 会走代理导致 DeepSeek Connection error。

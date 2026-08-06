@@ -1,0 +1,12 @@
+schema_name: semantic_evidence_registry
+schema_version: 1.0.0
+status: active
+
+source_of_truth:
+  ontology_model: ontology/01_通用/models/evidence.yaml
+  provenance_contract: runtime/workflow/stage_specs/03_证据/03_附录2_取数留痕与材料处理操作手册.md
+  source_admission: methods/03_取证/B00_来源选择与使用边界.md
+
+notes:
+  - MCP 是获取通道，不是来源生产者。
+  - 证据语义定义在本体，采集流程定义在 Task/Workflow。

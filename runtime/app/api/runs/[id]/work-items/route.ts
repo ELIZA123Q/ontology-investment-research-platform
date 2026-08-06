@@ -1,4 +1,4 @@
-import { latestArtifact, listWorkItems, upsertWorkItem } from "@/adapters/db";
+import { latestArtifact, listWorkItems, upsertWorkItem } from "@/storage/db";
 
 export const runtime = "nodejs";
 

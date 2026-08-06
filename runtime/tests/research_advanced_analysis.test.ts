@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildResearchAdvancedAnalysis } from "@/engine/research_advanced_analysis";
+import { buildResearchAdvancedAnalysis } from "@/runner/advanced_analysis";
 
 describe("research advanced analysis", () => {
   it("turns graph queries into decision-relevant incremental findings", () => {

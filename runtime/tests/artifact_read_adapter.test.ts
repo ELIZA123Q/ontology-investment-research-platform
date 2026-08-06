@@ -5,7 +5,7 @@ import {
   projectExpressionsFromReportClaims,
   stripLegacyWriteFields,
   toExpressionAuditInputs,
-} from "../engine/artifact_read_adapter";
+} from "../skills/semantic_review/artifact_read_adapter";
 
 describe("artifact read adapter", () => {
   it("maps Stage02 formal path aliases without guessing missing bindings", () => {

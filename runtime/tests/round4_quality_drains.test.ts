@@ -5,11 +5,11 @@ import {
   collectStage03ConsistencyIssues,
   ensureStage03DocumentFields,
   recomputeStage03EvidenceQualityGate,
-} from "@/engine/stage03_documents";
-import { evaluateEvidenceQuality } from "@/engine/evidence_quality_gate";
-import { buildEvidenceGapFallback } from "@/engine/workflow_projections";
-import { mapIndependentReviewToSemanticYaml } from "@/engine/formal_semantic_review";
-import { clipUpstreamJsonSoft } from "@/engine/context_assembler";
+} from "@/agents/03_evidence/input_contract";
+import { evaluateEvidenceQuality } from "@/skills/evidence_evaluation/quality_gate";
+import { buildEvidenceGapFallback } from "@/workflow/projections";
+import { mapIndependentReviewToSemanticYaml } from "@/skills/semantic_review/formal_semantic_review";
+import { clipUpstreamJsonSoft } from "@/workflow/context_assembler";
 import YAML from "yaml";
 
 describe("round4 quality drains", () => {

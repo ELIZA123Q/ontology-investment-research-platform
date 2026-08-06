@@ -1,0 +1,30 @@
+schema_name: execution_domain_registry
+schema_version: 1.0.0
+status: active
+
+source_of_truth:
+  context_assembly: runtime/workflow/context_assembler.ts
+  runtime_engine: runtime/runner
+  runtime_storage: runtime/storage
+  workspace_records: instances
+
+subdomains:
+  context:
+    target: execution/context
+    source: runtime/workflow
+    status: migrating
+  memory:
+    target: execution/memory
+    source: null
+    status: shell
+  workspace:
+    target: execution/workspace
+    source: instances
+    status: migrating
+  runtime:
+    target: execution/runtime
+    source: runtime
+    status: migrating
+
+notes:
+  - Execution 只描述本次运行状态，不定义可复用方法真理。

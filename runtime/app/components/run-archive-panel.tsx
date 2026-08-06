@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { RunArchive } from "@/engine/run_archive";
+import type { RunArchive } from "@/runner/run_archive";
 import { artifactKindLabel, artifactStatusLabel } from "@/app/lib/ui-labels";
 
 export function RunArchivePanel({ runId, archive }: { runId: string; archive: RunArchive }) {

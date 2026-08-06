@@ -1,0 +1,9 @@
+schema_name: governance_verifier_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: governance/03_校验
+entrypoints:
+  - governance/03_校验/validate_project.py
+  - governance/03_校验/validate_stage_assets.py
+  - governance/03_校验/validate_rule_authority.py
+compat_mode: true

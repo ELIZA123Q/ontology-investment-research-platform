@@ -1,4 +1,4 @@
-import { listOntologyCandidates } from "@/adapters/ontology_candidates";
+import { listOntologyCandidates } from "@/governance/ontology_changes/candidates_adapter";
 
 export const runtime = "nodejs";
 

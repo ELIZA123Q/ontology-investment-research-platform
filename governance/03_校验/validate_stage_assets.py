@@ -11,16 +11,16 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = {
-    "02": (ROOT / "workflow/stages/02_结构/模板/02_任务本体视图模板.yaml", "3.0.0"),
-    "03": (ROOT / "workflow/stages/03_证据/模板/03_语义域与证据域实例清单模板.yaml", "3.0.0"),
-    "04": (ROOT / "workflow/stages/04_判断/模板/04_推理审计模板.yaml", "5.0.0"),
-    "05": (ROOT / "delivery/02_模板/05_表达审计模板.yaml", "3.0.0"),
+    "02": (ROOT / "methods/templates/02_任务本体视图模板.yaml", "3.0.0"),
+    "03": (ROOT / "methods/templates/03_语义域与证据域实例清单模板.yaml", "3.0.0"),
+    "04": (ROOT / "methods/templates/04_推理审计模板.yaml", "5.0.0"),
+    "05": (ROOT / "methods/05_表达/templates/05_表达审计模板.yaml", "3.0.0"),
 }
 SPECS = {
-    "02": ROOT / "workflow/stages/02_结构/02_判断结构与本体视图规范.md",
-    "03": ROOT / "workflow/stages/03_证据/03_数据与证据准备规范.md",
-    "04": ROOT / "workflow/stages/04_判断/04_推理输出规范.md",
-    "05": ROOT / "workflow/stages/05_表达/05_投研表达与交付规范.md",
+    "02": ROOT / "tasks/workflows/deep_research/stages/02_structure.md",
+    "03": ROOT / "tasks/workflows/deep_research/stages/03_evidence.md",
+    "04": ROOT / "tasks/workflows/deep_research/stages/04_judgment.md",
+    "05": ROOT / "tasks/workflows/deep_research/stages/05_delivery.md",
 }
 DEPRECATED_METHOD_FIELDS = {
     "method_application_candidates", "method_input_bindings", "method_application_register",
@@ -77,7 +77,7 @@ def validate_repository() -> list[str]:
             if marker not in text:
                 errors.append(f"stage {stage} spec lacks required boundary marker {marker}")
 
-    runtime_manifest = yaml.safe_load((ROOT / "runtime/engine/templates/run_manifest.template.yaml").read_text(encoding="utf-8"))
+    runtime_manifest = yaml.safe_load((ROOT / "runtime/workflow/templates/run_manifest.template.yaml").read_text(encoding="utf-8"))
     expected_runtime_versions = {
         "contract": "1.3.0", "ontology": "3.0.0", "stage_02_view_schema": "3.0.0",
         "stage_03_schema": "3.0.0", "stage_04_audit_schema": "5.0.0", "stage_05_audit_schema": "3.0.0",
@@ -97,7 +97,7 @@ def validate_repository() -> list[str]:
 
     contract = yaml.safe_load((ROOT / "governance/02_合同/public_contract.yaml").read_text(encoding="utf-8"))
     required_ma_fields = (contract.get("method_application_contract") or {}).get("required_fields") or []
-    zod_text = (ROOT / "runtime/engine/schemas.ts").read_text(encoding="utf-8")
+    zod_text = (ROOT / "runtime/schemas/schemas.ts").read_text(encoding="utf-8")
     for field in required_ma_fields:
         if f"{field}:" not in zod_text:
             errors.append(f"runtime Zod schemas.ts missing MethodApplication field {field}")

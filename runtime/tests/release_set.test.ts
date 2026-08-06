@@ -2,15 +2,15 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-let createRun: typeof import("@/adapters/db").createRun;
-let createArtifact: typeof import("@/adapters/db").createArtifact;
-let buildKnowledgeLock: typeof import("@/engine/release_set").buildKnowledgeLock;
-let buildKnowledgePackage: typeof import("@/engine/knowledge_package").buildKnowledgePackage;
+let createRun: typeof import("@/storage/db").createRun;
+let createArtifact: typeof import("@/storage/db").createArtifact;
+let buildKnowledgeLock: typeof import("@/export/release_set").buildKnowledgeLock;
+let buildKnowledgePackage: typeof import("@/skills/method_selection/knowledge_package").buildKnowledgePackage;
 
 beforeAll(async () => {
-  ({ createRun, createArtifact } = await import("@/adapters/db"));
-  ({ buildKnowledgeLock } = await import("@/engine/release_set"));
-  ({ buildKnowledgePackage } = await import("@/engine/knowledge_package"));
+  ({ createRun, createArtifact } = await import("@/storage/db"));
+  ({ buildKnowledgeLock } = await import("@/export/release_set"));
+  ({ buildKnowledgePackage } = await import("@/skills/method_selection/knowledge_package"));
 });
 
 function methodApplication(capability: "judgment_structure" | "evidence" | "adjudication") {
@@ -40,7 +40,7 @@ describe("release knowledge binding", () => {
     createArtifact(run.id, "stage_02", { status: "approved", json_content: JSON.stringify({
       judgment_units: [{ id: "JU-1", ontology_node_ids: ["StateVariable"] }],
       variables: [{ id: "V-1", ontology_node_id: "StateVariable" }], method_applications: methods,
-    }), input_context: JSON.stringify({ injected_assets: { knowledge_files: ["methods/02_判断结构/README.md"] } }) });
+    }), input_context: JSON.stringify({ injected_assets: { knowledge_files: ["knowledge/frameworks/README.md"] } }) });
     createArtifact(run.id, "stage_03", { status: "approved", json_content: JSON.stringify({ method_applications: methods }) });
     createArtifact(run.id, "stage_04", { status: "approved", json_content: JSON.stringify({ method_applications: methods }) });
     createArtifact(run.id, "stage_05", { status: "approved", json_content: JSON.stringify({}) });
@@ -54,6 +54,6 @@ describe("release knowledge binding", () => {
     expect(lock.release_id).toBe("REL-TEST");
     expect(lock.task_slice.fingerprint).toBe(task.fingerprint);
     expect(lock.used_methods.map((item) => item.method_id)).toEqual(expect.arrayContaining(["BF-SD-01", "kb03:A03", "kb04:A03"]));
-    expect(lock.injected_knowledge_by_stage.stage_02).toContain("methods/02_判断结构/README.md");
+    expect(lock.injected_knowledge_by_stage.stage_02).toContain("knowledge/frameworks/README.md");
   });
 });

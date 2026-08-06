@@ -121,12 +121,12 @@ governance_rules:
   REASONING-MEANING-001: {source_ref: governance/03_校验/requirements_coverage.yaml, business_support_allowed: false}
   GOV-RULE-EVALUATION-EXPLICIT-001: {source_ref: governance/02_合同/public_contract.yaml#rule_usage_contract, business_support_allowed: false}
   GOV-REASONING-TRACE-001: {source_ref: governance/02_合同/public_contract.yaml#replay_contract, business_support_allowed: false}
-  GOV-RULE-EVALUATION-TRACE-001: {source_ref: workflow/stages/04_判断/04_推理输出规范.md, business_support_allowed: false}
+  GOV-RULE-EVALUATION-TRACE-001: {source_ref: runtime/workflow/stage_specs/04_判断/04_推理输出规范.md, business_support_allowed: false}
   REASONING-REVISION-001: {source_ref: governance/03_校验/requirements_coverage.yaml, business_support_allowed: false}
   GOV-VALIDATION-OUTCOME-001: {source_ref: governance/02_合同/public_contract.yaml#replay_contract, business_support_allowed: false}
   GOV-VALIDATION-TIME-001: {source_ref: governance/02_合同/public_contract.yaml#replay_contract, business_support_allowed: false}
   GOV-SOURCE-TRACE-001: {source_ref: governance/02_合同/public_contract.yaml#cross_stage_objects, business_support_allowed: false}
-  GOV-SOURCE-ACCESS-001: {source_ref: workflow/stages/03_证据/03_数据与证据准备规范.md, business_support_allowed: false}
+  GOV-SOURCE-ACCESS-001: {source_ref: runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md, business_support_allowed: false}
   GOV-CLAIM-STRUCTURE-001: {source_ref: governance/02_合同/public_contract.yaml#node_contract, business_support_allowed: false}
   GOV-STAGE-04-READINESS-001: {source_ref: governance/02_合同/public_contract.yaml#method_application_contract, business_support_allowed: false}
   GOV-ACTION-APPROVAL-001: {source_ref: runtime/engine/runtime_operations.yaml#actions.LinkOntologyObjects, business_support_allowed: false}

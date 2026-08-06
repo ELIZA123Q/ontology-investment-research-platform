@@ -1,4 +1,4 @@
-import { acquirePublicSource } from "@/engine/source_acquisition";
+import { acquirePublicSource } from "@/skills/evidence_evaluation/source_acquisition";
 
 export const runtime = "nodejs";
 

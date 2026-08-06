@@ -3,12 +3,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-experience-cohort-${process.pid}.sqlite`;
 
-let db: typeof import("@/adapters/db");
-let cohort: typeof import("@/adapters/experience_cohort");
+let db: typeof import("@/storage/db");
+let cohort: typeof import("@/runner/experience_cohort_adapter");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  cohort = await import("@/adapters/experience_cohort");
+  db = await import("@/storage/db");
+  cohort = await import("@/runner/experience_cohort_adapter");
 });
 
 describe("prospective experience cohort", () => {

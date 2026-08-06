@@ -3,7 +3,7 @@ import { researcherLanguage } from "@/app/lib/researcher-stage-output";
 import {
   ontologyContributionKindLabel,
   type OntologyContributionSummary,
-} from "@/engine/ontology_contribution_summary";
+} from "@/skills/ontology/contribution_summary";
 
 type OntologyContributionPanelProps = {
   summary: OntologyContributionSummary;

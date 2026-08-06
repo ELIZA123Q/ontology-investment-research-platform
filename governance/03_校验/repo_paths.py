@@ -9,13 +9,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 RUN_DIR = Path(__file__).resolve().parent
 STAGE_DIRS = (
-    RUN_DIR / "stages" / "stage_01",
-    RUN_DIR / "stages" / "stage_02",
-    RUN_DIR / "stages" / "stage_03",
-    RUN_DIR / "stages" / "stage_04",
-    RUN_DIR / "stages" / "stage_05",
-    ROOT / "runtime" / "engine",
-    ROOT / "runtime" / "adapters",
+    RUN_DIR / "stage_validators" / "stage_01",
+    RUN_DIR / "stage_validators" / "stage_02",
+    RUN_DIR / "stage_validators" / "stage_03",
+    RUN_DIR / "stage_validators" / "stage_04",
+    RUN_DIR / "stage_validators" / "stage_05",
+    # New paths
+    ROOT / "runtime" / "skills" / "ontology",
+    ROOT / "runtime" / "skills" / "evidence_evaluation",
+    ROOT / "runtime" / "skills" / "financial_data",
+    ROOT / "runtime" / "skills" / "model_client",
+    ROOT / "runtime" / "agents" / "shared",
+    ROOT / "runtime" / "runner",
+    ROOT / "runtime" / "schemas",
 )
 
 

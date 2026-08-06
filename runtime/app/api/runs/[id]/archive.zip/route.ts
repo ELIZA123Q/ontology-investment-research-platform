@@ -1,5 +1,5 @@
 import { zipSync, strToU8 } from "fflate";
-import { archiveDigest, buildRunArchive, getArchiveFilePayload } from "@/engine/run_archive";
+import { archiveDigest, buildRunArchive, getArchiveFilePayload } from "@/runner/run_archive";
 
 export const runtime = "nodejs";
 

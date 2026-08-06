@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildResearchOverview, stripInternalReferencePrefix } from "@/engine/research_overview";
+import { buildResearchOverview, stripInternalReferencePrefix } from "@/runner/research_overview";
 
 describe("research_overview", () => {
   it("turns an all-J0 result into an explicit stop conclusion", () => {

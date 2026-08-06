@@ -1,5 +1,5 @@
-import { getWorkItem, updateWorkItem } from "@/adapters/db";
-import { validateWorkItemReviewPatch } from "@/engine/work_item_review";
+import { getWorkItem, updateWorkItem } from "@/storage/db";
+import { validateWorkItemReviewPatch } from "@/runner/work_item_review";
 
 export const runtime = "nodejs";
 

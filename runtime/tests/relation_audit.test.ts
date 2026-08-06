@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildJudgmentRelationAudits, relationRepairHref } from "@/engine/relation_audit";
-import type { BusinessInstanceGraph, GraphObject, GraphRelation } from "@/engine/instance_graph/types";
+import { buildJudgmentRelationAudits, relationRepairHref } from "@/skills/semantic_review/relation_audit";
+import type { BusinessInstanceGraph, GraphObject, GraphRelation } from "@/skills/ontology/instance_graph/types";
 
 function graph(objects: GraphObject[], relations: GraphRelation[]): BusinessInstanceGraph {
   return { schema_name: "ontology_business_instance_graph", schema_version: "1.0.0", authority: "test", objects, relations };

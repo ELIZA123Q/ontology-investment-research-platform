@@ -4,10 +4,10 @@ vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/recompute-progress-test-${process.pid}.sqlite`;
 process.env.WORKBENCH_EXPORT_ROOT = `/tmp/recompute-progress-test-exports-${process.pid}`;
 
-let db: typeof import("@/adapters/db");
+let db: typeof import("@/storage/db");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
+  db = await import("@/storage/db");
 });
 
 describe("recomputeRunProgress 进度重算", () => {

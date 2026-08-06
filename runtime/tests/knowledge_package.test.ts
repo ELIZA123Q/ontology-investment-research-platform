@@ -2,13 +2,13 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-let buildKnowledgePackage: typeof import("@/engine/knowledge_package").buildKnowledgePackage;
-let validateKnowledgePackageFiles: typeof import("@/engine/knowledge_package").validateKnowledgePackageFiles;
-let db: typeof import("@/adapters/db");
+let buildKnowledgePackage: typeof import("@/skills/method_selection/knowledge_package").buildKnowledgePackage;
+let validateKnowledgePackageFiles: typeof import("@/skills/method_selection/knowledge_package").validateKnowledgePackageFiles;
+let db: typeof import("@/storage/db");
 
 beforeAll(async () => {
-  ({ buildKnowledgePackage, validateKnowledgePackageFiles } = await import("@/engine/knowledge_package"));
-  db = await import("@/adapters/db");
+  ({ buildKnowledgePackage, validateKnowledgePackageFiles } = await import("@/skills/method_selection/knowledge_package"));
+  db = await import("@/storage/db");
 });
 
 describe("portable knowledge package", () => {
@@ -22,7 +22,7 @@ describe("portable knowledge package", () => {
     expect(names).toContain("catalog/research-method-catalog.json");
     expect(names).toContain("catalog/data-mapping-registry.json");
     expect(names.some((name) => name.startsWith("ontology/models/") && name.endsWith(".yaml"))).toBe(true);
-    expect(names).toContain("methods/00_登记/method_assets.yaml");
+    expect(names).toContain("governance/knowledge_changes/method_assets.yaml");
     expect(names).not.toContain("context/task-local-ontology.json");
     const manifest = JSON.parse(bundle.files.find((file) => file.file_name === "manifest.json")!.content);
     expect(manifest.schema_name).toBe("portable_research_knowledge_manifest");

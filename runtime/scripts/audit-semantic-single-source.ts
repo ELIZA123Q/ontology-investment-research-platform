@@ -73,12 +73,12 @@ checks.runtime_model_access = {
   allowed_infrastructure_readers: [...allowedDirectModelReferences].sort(),
 };
 
-const mapping = YAML.parse(read("governance/02_合同/ontology_data_mapping_profiles.yaml")) as Record<string, any>;
+const mapping = YAML.parse(read("governance/contracts/ontology_data_mapping_profiles.yaml")) as Record<string, any>;
 const requiredConnectors: string[] = (mapping.required_connectors || []).map(String);
 const activeConnectors: string[] = (mapping.profiles || [])
   .filter((profile: Record<string, unknown>) => profile.status === "active")
   .map((profile: Record<string, unknown>) => String(profile.connector));
-const mcpSource = read("runtime/adapters/mcp_evidence.ts");
+const mcpSource = read("runtime/skills/financial_data/mcp_registry.ts");
 const channelBlock = mcpSource.match(/EVIDENCE_MCP_CHANNELS\s*=\s*\[([\s\S]*?)\]\s*as const/)?.[1] || "";
 const wiredConnectors = [...channelBlock.matchAll(/"([^"]+)"/g)].map((match) => match[1]);
 const connectorMissing = wiredConnectors.filter((connector) => !activeConnectors.includes(connector));
@@ -99,12 +99,12 @@ checks.external_mapping = {
 };
 
 const requiredMarkers: Array<[string, string, string]> = [
-  ["runtime/engine/workflow/generate.ts", "buildStageSemanticContext", "生成阶段语义封套"],
-  ["runtime/engine/workflow/approve.ts", "buildStageSemanticContext", "批准阶段语义封套"],
-  ["runtime/engine/formal_pack_export.ts", "buildProductionSemanticBaseline", "生产正式发布语义基线"],
-  ["governance/03_校验/validate_run.py", "validate_semantic_baseline", "正式发布 Python 语义门"],
-  ["runtime/engine/action_executor.ts", "assertFormalRelationChoice", "关系写入正式端点门"],
-  ["runtime/engine/semantic_reads.ts", "formal_graph_verified", "已批准阶段语义读取门"],
+  ["runtime/workflow/orchestrator.ts", "buildStageSemanticContext", "生成阶段语义封套"],
+  ["runtime/workflow/approval.ts", "buildStageSemanticContext", "批准阶段语义封套"],
+  ["runtime/export/formal_pack_export.ts", "buildProductionSemanticBaseline", "生产正式发布语义基线"],
+  ["governance/validation/validate_run.py", "validate_semantic_baseline", "正式发布 Python 语义门"],
+  ["runtime/governance/ontology_changes/action_executor.ts", "assertFormalRelationChoice", "关系写入正式端点门"],
+  ["runtime/skills/ontology/semantic_reads.ts", "formal_graph_verified", "已批准阶段语义读取门"],
 ];
 const missingMarkers = requiredMarkers
   .filter(([file, marker]) => !read(file).includes(marker))

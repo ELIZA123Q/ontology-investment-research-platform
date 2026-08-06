@@ -3,16 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { registeredFiles } from "@/engine/knowledge";
+import { registeredFiles } from "@/skills/method_selection/knowledge_loader";
 import {
   applyUpstreamQualityFailure,
   forceHighQualityTarget,
   meetsHighQualityForReview,
   shouldPreserveUpstreamQualityFailure,
-} from "@/engine/stage_hq_retry";
-import { collectStage02HighQualityIssues } from "@/engine/stage02_documents";
-import { assertStage03ReadyForApproval } from "@/engine/stage03_documents";
-import { attachResearchValueReview } from "@/engine/research_value_review";
+} from "@/agents/shared/hq_retry";
+import { collectStage02HighQualityIssues } from "@/agents/02_structure/input_contract";
+import { assertStage03ReadyForApproval } from "@/agents/03_evidence/input_contract";
+import { attachResearchValueReview } from "@/runner/value_review";
 
 /**
  * 验收：堵住「结构全绿、实质仍弱」的假绿路径。
@@ -153,15 +153,15 @@ describe("quality enforcement acceptance", () => {
   });
 
   it("01–04 knowledge injects 00A card and key appendices", () => {
-    expect(registeredFiles("stage_01")).toContain("governance/03_校验/00A_runtime_quality_card.md");
-    expect(registeredFiles("stage_02")).toContain("workflow/stages/02_结构/02_附录2_本体缺口扫描矩阵与处理细则.md");
-    expect(registeredFiles("stage_03")).toContain("workflow/stages/03_证据/03_附录2_取数留痕与材料处理操作手册.md");
-    expect(registeredFiles("stage_04")).toContain("governance/03_校验/00A_runtime_quality_card.md");
+    expect(registeredFiles("stage_01")).toContain("governance/validation/00A_runtime_quality_card.md");
+    expect(registeredFiles("stage_02")).toContain("runtime/workflow/stage_specs/02_结构/02_附录2_本体缺口扫描矩阵与处理细则.md");
+    expect(registeredFiles("stage_03")).toContain("runtime/workflow/stage_specs/03_证据/03_附录2_取数留痕与材料处理操作手册.md");
+    expect(registeredFiles("stage_04")).toContain("governance/validation/00A_runtime_quality_card.md");
   });
 
   it("validate_run.py remains the formal publish authority", () => {
     const root = join(__dirname, "../..");
-    const validateRun = join(root, "governance/03_校验/validate_run.py");
+    const validateRun = join(root, "governance/validation/validate_run.py");
     expect(existsSync(validateRun)).toBe(true);
     // 工作台确认只保证 TS 门禁；正式 PUBLISHABLE 仍须跑 validate_run。
   });

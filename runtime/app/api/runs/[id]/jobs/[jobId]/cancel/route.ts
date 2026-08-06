@@ -1,5 +1,5 @@
-import { cancelResearchJob, getResearchJobStore } from "@/adapters/research_jobs";
-import { getArtifact, updateArtifactIfStatus } from "@/adapters/db";
+import { cancelResearchJob, getResearchJobStore } from "@/runner/research_jobs";
+import { getArtifact, updateArtifactIfStatus } from "@/storage/db";
 
 export const runtime = "nodejs";
 

@@ -4,12 +4,12 @@ vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-readable-${process.pid}.sqlite`;
 process.env.WORKBENCH_EXPORT_ROOT = `/tmp/ontology-workbench-readable-exports-${process.pid}`;
 
-let db: typeof import("@/adapters/db");
-let workflow: typeof import("@/engine/workflow");
+let db: typeof import("@/storage/db");
+let workflow: typeof import("@/workflow/stage_transitions");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  workflow = await import("@/engine/workflow");
+  db = await import("@/storage/db");
+  workflow = await import("@/workflow/stage_transitions");
 });
 
 describe("save structured JSON rewrites readable markdown", () => {

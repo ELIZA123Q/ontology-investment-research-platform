@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveRunProgress, projectRunStatus } from "@/engine/run_progress";
+import { deriveRunProgress, projectRunStatus } from "@/runner/run_progress";
 
 describe("run progress projection", () => {
   it("derives the visible stage from approved artifacts instead of stale caches", () => {

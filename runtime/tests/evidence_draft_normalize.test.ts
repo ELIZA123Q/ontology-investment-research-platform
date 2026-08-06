@@ -2,13 +2,13 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { normalizeEvidencePreparationNulls } from "@/engine/evidence_draft_normalize";
-import { evidencePreparationSchema } from "@/engine/schemas";
+import { normalizeEvidencePreparationNulls } from "@/skills/evidence_evaluation/draft_normalize";
+import { evidencePreparationSchema } from "@/schemas/schemas";
 
-let workflow: typeof import("@/engine/workflow");
+let workflow: typeof import("@/workflow/stage_transitions");
 
 beforeAll(async () => {
-  workflow = await import("@/engine/workflow");
+  workflow = await import("@/workflow/stage_transitions");
 });
 
 describe("evidence_draft_normalize", () => {
@@ -92,7 +92,7 @@ describe("evidence_draft_normalize", () => {
   });
 
   it("非法 authority_type 降为 unknown，残缺来源仍丢弃", async () => {
-    const { normalizeSourceDraftNulls, dropIncompleteSources, reconcileMethodEvidenceRefs } = await import("@/engine/evidence_draft_normalize");
+    const { normalizeSourceDraftNulls, dropIncompleteSources, reconcileMethodEvidenceRefs } = await import("@/skills/evidence_evaluation/draft_normalize");
     const normalized: any = normalizeSourceDraftNulls({
       source_key: "SRC-01",
       authority_type: "媒体报道",

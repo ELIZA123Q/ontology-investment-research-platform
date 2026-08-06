@@ -6,7 +6,7 @@ import {
   compileEvidenceAcquisitionPlan,
   governedProducerForUrl,
   loadEvidenceSourceRoutes,
-} from "@/engine/evidence_source_routes";
+} from "@/skills/gap_detection/source_routes";
 
 describe("machine-executable evidence source routes", () => {
   it("loads the method-layer registry and keeps mutable producers out of the ontology contract", () => {

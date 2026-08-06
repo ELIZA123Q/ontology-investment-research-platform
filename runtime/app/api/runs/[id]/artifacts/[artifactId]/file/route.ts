@@ -1,4 +1,4 @@
-import { getArtifactFormatContent } from "@/engine/run_archive";
+import { getArtifactFormatContent } from "@/runner/run_archive";
 
 export const runtime = "nodejs";
 

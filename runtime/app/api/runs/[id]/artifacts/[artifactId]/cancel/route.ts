@@ -1,5 +1,5 @@
-import { getArtifact } from "@/adapters/db";
-import { cancelGeneration } from "@/engine/workflow";
+import { getArtifact } from "@/storage/db";
+import { cancelGeneration } from "@/workflow/stage_transitions";
 
 export const runtime = "nodejs";
 

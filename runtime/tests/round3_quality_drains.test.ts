@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
-import { sanitizeAuditVoice } from "@/engine/expression_audit";
+import { sanitizeAuditVoice } from "@/skills/expression_audit/expression_audit";
 import {
   compactStage03ForUpstream,
   shouldAbortStage03Batching,
   shouldRetryRuntimeFailure,
-} from "@/engine/workflow_support";
-import { collectStage03ConsistencyIssues } from "@/engine/stage03_documents";
-import { looksLikePlaceholder } from "@/engine/stage_high_quality";
-import { ensureStage04DocumentFields } from "@/engine/stage04_documents";
+} from "@/workflow/support";
+import { collectStage03ConsistencyIssues } from "@/agents/03_evidence/input_contract";
+import { looksLikePlaceholder } from "@/agents/shared/high_quality_gate";
+import { ensureStage04DocumentFields } from "@/agents/04_judgment/input_contract";
 
 describe("round3 quality drains", () => {
   it("aborts remaining Stage03 batches on provider-wide or lease failures", () => {

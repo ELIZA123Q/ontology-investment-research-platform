@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { prioritizeEvidenceGaps, type EvidenceReviewSuggestion } from "@/engine/evidence_review_assist";
+import { prioritizeEvidenceGaps, type EvidenceReviewSuggestion } from "@/skills/evidence_evaluation/review_assist";
 import {
   evidenceChangeBadge,
   evidenceChangeIds,
   type EvidenceSupplementSummary,
-} from "@/engine/evidence_supplement_view";
-import { stripInternalReferencePrefix } from "@/engine/research_overview";
+} from "@/skills/gap_detection/supplement_view";
+import { stripInternalReferencePrefix } from "@/runner/research_overview";
 import { matchesEvidenceQuickFilter, sortByEvidencePriority, type EvidenceQuickFilter } from "@/app/lib/evidence-view";
 
 type ClientSource = {

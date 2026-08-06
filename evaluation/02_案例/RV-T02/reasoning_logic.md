@@ -10,7 +10,7 @@ framework_library_ref: methods/02_判断结构/README.md
 framework_library_version: 2.0.0
 stage_status: complete
 quality_status: high_quality_pass
-quality_gate_ref: workflow/stages/02_结构/02_判断结构与本体视图规范.md#8-质量门槛与返工规则
+quality_gate_ref: runtime/workflow/stage_specs/02_结构/02_判断结构与本体视图规范.md#8-质量门槛与返工规则
 ontology_gap_scan_status: no_gap
 can_enter_03: true
 framework_usage_ref: 02-美国管制与国产设备替代本体视图-20260715-1.yaml#research_framework.framework_execution

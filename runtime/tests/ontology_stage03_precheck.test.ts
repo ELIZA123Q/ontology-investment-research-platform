@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { precheckStage03OntologyConstraints, precheckFindingsAsWeakLinks } from "@/engine/ontology_stage03_precheck";
-import { recomputeStage03EvidenceQualityGate } from "@/engine/stage03_documents";
-import { buildEvidenceProfileGapHints, profileHintsAsGapPriorities } from "@/engine/evidence_profile_gaps";
-import { buildOntologyContributionSummary } from "@/engine/ontology_contribution_summary";
+import { precheckStage03OntologyConstraints, precheckFindingsAsWeakLinks } from "@/skills/ontology/stage03_precheck";
+import { recomputeStage03EvidenceQualityGate } from "@/agents/03_evidence/input_contract";
+import { buildEvidenceProfileGapHints, profileHintsAsGapPriorities } from "@/skills/evidence_evaluation/profile_gaps";
+import { buildOntologyContributionSummary } from "@/skills/ontology/contribution_summary";
 
 describe("ontology_stage03_precheck", () => {
   it("flags proxy facts missing disclosure as blocking_soft", () => {

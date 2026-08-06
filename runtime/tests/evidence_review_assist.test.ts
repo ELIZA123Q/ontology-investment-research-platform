@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildEvidenceReviewSuggestions, prioritizeEvidenceGaps, suggestionToDecision } from "@/engine/evidence_review_assist";
-import type { SourceRecord } from "@/engine/types";
+import { buildEvidenceReviewSuggestions, prioritizeEvidenceGaps, suggestionToDecision } from "@/skills/evidence_evaluation/review_assist";
+import type { SourceRecord } from "@/schemas/types";
 
 function source(overrides: Partial<SourceRecord> = {}): SourceRecord {
   return {

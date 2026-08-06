@@ -1,5 +1,5 @@
-import { applyOntologyGovernanceAction } from "@/adapters/ontology_candidates";
-import type { OntologyGovernanceActionId } from "@/engine/ontology_governance";
+import { applyOntologyGovernanceAction } from "@/governance/ontology_changes/candidates_adapter";
+import type { OntologyGovernanceActionId } from "@/skills/ontology/governance";
 
 export const runtime = "nodejs";
 

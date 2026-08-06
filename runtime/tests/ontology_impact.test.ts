@@ -7,8 +7,8 @@ import {
   analyzeOntologyImpact,
   buildOntologySemanticManifest,
   loadOntologyConsumers,
-} from "@/engine/ontology_impact";
-import type { Artifact } from "@/engine/types";
+} from "@/skills/ontology/impact";
+import type { Artifact } from "@/schemas/types";
 
 describe("ontology change impact analysis", () => {
   it("maps a semantic element change to declared consumers and checks", () => {

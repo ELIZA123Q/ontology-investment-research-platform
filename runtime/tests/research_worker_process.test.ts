@@ -6,7 +6,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runDatabaseMigrations } from "@/adapters/db_migrations";
+import { runDatabaseMigrations } from "@/storage/db_migrations";
 
 vi.mock("server-only", () => ({}));
 
@@ -79,7 +79,7 @@ describe("real worker process recovery", () => {
     setup.prepare(
       "INSERT INTO research_runs(id,question,domain,current_stage,status,manifest_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
     ).run("run-process-recovery", "真实 worker 故障恢复", "semiconductor", 0, "draft", "{}", now, now);
-    const { ResearchJobStore } = await import("@/adapters/research_jobs");
+    const { ResearchJobStore } = await import("@/runner/research_jobs");
     const setupStore = new ResearchJobStore(setup);
     const queued = setupStore.enqueue({
       runId: "run-process-recovery",

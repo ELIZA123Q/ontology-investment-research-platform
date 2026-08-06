@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { registeredFiles } from "@/engine/knowledge";
+import { registeredFiles } from "@/skills/method_selection/knowledge_loader";
 import {
   criticalMissingAssets,
   expectedKnowledgeMismatch,
   knowledgeCoverageGaps,
   loadRuntimeAssetCoverage,
   missingCriticalPaths,
-} from "@/engine/runtime_asset_coverage";
+} from "@/runtime_asset_coverage";
 
 describe("runtime asset coverage matrix", () => {
   it("loads coverage schema and has no missing_critical critical assets", () => {
@@ -26,8 +26,8 @@ describe("runtime asset coverage matrix", () => {
 
   it("Stage03 knowledge includes B03 and OPS_MCP", () => {
     const files = registeredFiles("stage_03");
-    expect(files).toContain("methods/03_取证/B03_MCP通道注册.md");
-    expect(files).toContain("methods/03_取证/OPS_MCP查询快速参考.md");
+    expect(files).toContain("knowledge/evidence_strategy/B03_MCP通道注册.md");
+    expect(files).toContain("knowledge/evidence_strategy/OPS_MCP查询快速参考.md");
   });
 
   it("knowledge-mode critical assets are registered for their stages", () => {

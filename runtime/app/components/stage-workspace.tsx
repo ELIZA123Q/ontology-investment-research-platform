@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ResearchJobStatus, SourceRecord } from "@/engine/types";
-import type { ArtifactPayload } from "@/adapters/db_read_models";
+import type { ResearchJobStatus, SourceRecord } from "@/schemas/types";
+import type { ArtifactPayload } from "@/storage/db_read_models";
 import {
   ControlledScopeProjectionForm,
   ControlledStructureProjectionForm,
@@ -20,13 +20,13 @@ import { artifactStatusLabel, researchJobIssueMessage, researchJobStatusLabel } 
 import {
   isGenerationProgressStale,
   parseGenerationProgress,
-} from "@/engine/generation_progress";
-import type { SourceCoverageSummary, SourceFactStatus } from "@/engine/source_coverage";
+} from "@/runner/generation_progress";
+import type { SourceCoverageSummary, SourceFactStatus } from "@/skills/evidence_evaluation/source_coverage";
 import {
   clarificationImpactHint,
   isHumanClarificationQuestion,
   synthesizeClarificationQuestion,
-} from "@/engine/stage01_contract";
+} from "@/agents/01_intake/input_contract";
 import {
   buildJudgmentStageSummary,
   buildScopeStageSummary,
@@ -35,7 +35,7 @@ import {
   researcherMarkdown,
 } from "@/app/lib/researcher-stage-output";
 import { formatJourneyOutput, journeyReviewHref, researchStage } from "@/app/lib/research-journey";
-import type { EvidenceSupplementSummary } from "@/engine/evidence_supplement_view";
+import type { EvidenceSupplementSummary } from "@/skills/gap_detection/supplement_view";
 import {
   Stage3WorkspacePanel,
   Stage5WorkspacePanel,

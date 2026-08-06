@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
+import { getRun } from "@/storage/db";
 import {
   latestArtifactPayload,
   listArtifactLedger,
   listChildRuns,
   listSourcesForAttribution,
-} from "@/adapters/db_read_models";
+} from "@/storage/db_read_models";
 import { RunArchivePanel } from "@/app/components/run-archive-panel";
 import { artifactKindLabel, artifactStatusLabel, differenceCauseLabel } from "@/app/lib/ui-labels";
-import { runDifferenceAttribution } from "@/engine/metrics";
-import { evidenceBoundSources } from "@/engine/evidence_sources";
-import { parseJson, type Artifact } from "@/engine/types";
-import { buildRunArchive } from "@/engine/run_archive";
+import { runDifferenceAttribution } from "@/metrics";
+import { evidenceBoundSources } from "@/skills/evidence_evaluation/sources";
+import { parseJson, type Artifact } from "@/schemas/types";
+import { buildRunArchive } from "@/runner/run_archive";
 import { ReferenceSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";

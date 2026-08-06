@@ -1,5 +1,5 @@
-import { getArtifact } from "@/adapters/db";
-import { approve, validateStage02ForApproval } from "@/engine/workflow";
+import { getArtifact } from "@/storage/db";
+import { approve, validateStage02ForApproval } from "@/workflow/stage_transitions";
 
 export const runtime = "nodejs";
 export const maxDuration = 800;

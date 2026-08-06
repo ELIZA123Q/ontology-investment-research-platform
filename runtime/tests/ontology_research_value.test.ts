@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveOntologyResearchValue } from "@/engine/ontology_research_value";
+import { deriveOntologyResearchValue } from "@/skills/ontology/research_value";
 
 describe("ontology research value", () => {
   it("explains formal completion, task-local constraint, rule boundary and graph connection", () => {

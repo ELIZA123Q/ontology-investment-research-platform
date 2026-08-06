@@ -5,8 +5,8 @@ vi.mock("server-only", () => ({}));
 describe("structured MCP evidence snapshots", () => {
   it("freezes a URL-less mapped response as a replayable registry source", async () => {
     vi.resetModules();
-    const db = await import("@/adapters/db");
-    const { enrichMcpResult } = await import("@/adapters/deepseek");
+    const db = await import("@/storage/db");
+    const { enrichMcpResult } = await import("@/skills/model_client/deepseek_client");
     const run = db.createRun("结构化 MCP 快照契约", "semiconductor");
     const enriched = await enrichMcpResult({
       ok: true,

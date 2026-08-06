@@ -5,9 +5,9 @@ import {
   parsePairedQualityMeasurement,
   type CohortCaseMeasurement,
   type PairedQualityMeasurement,
-} from "@/engine/research_experience_cohort";
-import type { ResearchExperienceMetrics } from "@/engine/research_experience_metrics";
-import { EVALUATION_CRITERIA } from "@/engine/schemas";
+} from "@/runner/experience_cohort";
+import type { ResearchExperienceMetrics } from "@/runner/experience_metrics";
+import { EVALUATION_CRITERIA } from "@/schemas/schemas";
 
 function experience(overrides: Partial<ResearchExperienceMetrics> = {}): ResearchExperienceMetrics {
   return {

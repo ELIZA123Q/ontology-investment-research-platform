@@ -1,0 +1,25 @@
+schema_name: repository_compat_policy
+schema_version: 1.0.0
+status: active
+
+principles:
+  - legacy_paths_remain_readable
+  - new_writes_go_to_five_domains_first
+  - no_destructive_deletes_in_boundary_rewrite
+
+legacy_roots:
+  ontology:
+    mode: compat
+    target: semantic/ontology
+  methods:
+    mode: compat
+    target: tasks+capabilities
+  runtime:
+    mode: compat
+    target: capabilities+execution+app
+  instances:
+    mode: compat
+    target: execution/workspace
+  evaluation:
+    mode: compat
+    target: governance/evals

@@ -12,7 +12,7 @@ audit_ref: 04-存储芯片周期推理审计-20260715-1.yaml
 judgment_as_of: '2026-07-15T21:30:00+08:00'
 stage_status: complete
 quality_status: high_quality_pass
-quality_gate_ref: workflow/stages/04_判断/04_推理输出规范.md#10-质量门槛与返工规则
+quality_gate_ref: runtime/workflow/stage_specs/04_判断/04_推理输出规范.md#10-质量门槛与返工规则
 deterministic_check_status: checked
 semantic_review_status: reviewed
 confidence: medium

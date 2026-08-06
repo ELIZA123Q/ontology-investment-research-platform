@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { formatElapsedMs } from "@/engine/generation_progress";
+import { formatElapsedMs } from "@/runner/generation_progress";
 import { researcherLanguage } from "@/app/lib/researcher-stage-output";
 import { researchJobStatusLabel } from "@/app/lib/ui-labels";
-import type { ResearchJobStatus } from "@/engine/types";
+import type { ResearchJobStatus } from "@/schemas/types";
 
 export type ValidationIssue = {
   severity: "error" | "warning";

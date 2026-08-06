@@ -52,7 +52,7 @@ def validate_repository() -> list[str]:
     evidence_model = load(ROOT / "ontology/01_通用/models/evidence.yaml")
     if "no_direct_evidence_to_judgment" not in (evidence_model.get("rules") or {}):
         errors.append("formal ontology lacks no_direct_evidence_to_judgment")
-    template = load(ROOT / "delivery/02_模板/05_表达审计模板.yaml")
+    template = load(ROOT / "methods/05_表达/templates/05_表达审计模板.yaml")
     checks = template.get("overall_check") or {}
     for key in ("all_evidence_mapped_to_04_judgments", "all_methods_mapped_to_executed_04_applications"):
         if key not in checks:

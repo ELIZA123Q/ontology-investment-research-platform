@@ -5,16 +5,16 @@ vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-v13-${process.pid}.sqlite`;
 process.env.WORKBENCH_EXPORT_ROOT = `/tmp/ontology-workbench-v13-exports-${process.pid}`;
 
-let db: typeof import("@/adapters/db");
-let instanceGraph: typeof import("@/engine/instance_graph");
-let actionExecutor: typeof import("@/engine/action_executor");
-let ontologyTools: typeof import("@/engine/ontology_tools");
-let ontologyAdapter: typeof import("@/adapters/ontology");
-let publish: typeof import("@/adapters/publish_package");
-let workflow: typeof import("@/engine/workflow");
-let deepseek: typeof import("@/adapters/deepseek");
-let evidenceSources: typeof import("@/engine/evidence_sources");
-let semanticExecution: typeof import("@/engine/semantic_execution");
+let db: typeof import("@/storage/db");
+let instanceGraph: typeof import("@/skills/ontology/instance_graph");
+let actionExecutor: typeof import("@/governance/ontology_changes/action_executor");
+let ontologyTools: typeof import("@/skills/ontology/tools");
+let ontologyAdapter: typeof import("@/skills/ontology/catalog_loader_adapter");
+let publish: typeof import("@/export/publish_package");
+let workflow: typeof import("@/workflow/stage_transitions");
+let deepseek: typeof import("@/skills/model_client/deepseek_client");
+let evidenceSources: typeof import("@/skills/evidence_evaluation/sources");
+let semanticExecution: typeof import("@/skills/ontology/semantic_execution");
 let approveRoute: typeof import("@/app/api/runs/[id]/artifacts/[artifactId]/approve/route");
 let editRoute: typeof import("@/app/api/runs/[id]/artifacts/[artifactId]/route");
 let reportRoute: typeof import("@/app/api/runs/[id]/report.md/route");
@@ -22,16 +22,16 @@ let workItemRoute: typeof import("@/app/api/runs/[id]/work-items/[itemId]/route"
 let evaluationRoute: typeof import("@/app/api/runs/[id]/evaluation/route");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  instanceGraph = await import("@/engine/instance_graph");
-  actionExecutor = await import("@/engine/action_executor");
-  ontologyTools = await import("@/engine/ontology_tools");
-  ontologyAdapter = await import("@/adapters/ontology");
-  publish = await import("@/adapters/publish_package");
-  workflow = await import("@/engine/workflow");
-  deepseek = await import("@/adapters/deepseek");
-  evidenceSources = await import("@/engine/evidence_sources");
-  semanticExecution = await import("@/engine/semantic_execution");
+  db = await import("@/storage/db");
+  instanceGraph = await import("@/skills/ontology/instance_graph");
+  actionExecutor = await import("@/governance/ontology_changes/action_executor");
+  ontologyTools = await import("@/skills/ontology/tools");
+  ontologyAdapter = await import("@/skills/ontology/catalog_loader_adapter");
+  publish = await import("@/export/publish_package");
+  workflow = await import("@/workflow/stage_transitions");
+  deepseek = await import("@/skills/model_client/deepseek_client");
+  evidenceSources = await import("@/skills/evidence_evaluation/sources");
+  semanticExecution = await import("@/skills/ontology/semantic_execution");
   approveRoute = await import("@/app/api/runs/[id]/artifacts/[artifactId]/approve/route");
   editRoute = await import("@/app/api/runs/[id]/artifacts/[artifactId]/route");
   reportRoute = await import("@/app/api/runs/[id]/report.md/route");
@@ -879,8 +879,8 @@ describe("v1.3 operational spine", () => {
     expect(repaired.method_applications[0].alternatives).toEqual([
       expect.objectContaining({ method_id: "kb03:A02", decision: "retry_after_source_acquisition" }),
     ]);
-    const { evidencePreparationSchema } = await import("@/engine/schemas");
-    const { syncStage03ReadableMarkdown } = await import("@/engine/readable_markdown");
+    const { evidencePreparationSchema } = await import("@/schemas/schemas");
+    const { syncStage03ReadableMarkdown } = await import("@/skills/expression_audit/readable_markdown");
     syncStage03ReadableMarkdown(repaired);
     expect(() => evidencePreparationSchema.parse(repaired)).not.toThrow();
   });
@@ -1080,7 +1080,7 @@ describe("v1.3 operational spine", () => {
     expect(nodes.some((node) => node.category === "Action" || node.category === "Function" || node.category === "Logic")).toBe(false);
     expect(nodes.some((node) => node.id === "MarketExpectation" && node.category === "Object")).toBe(true);
     const actions = actionExecutor.listActionTypes();
-    expect(actions.every((action) => action.source_file === "runtime/engine/runtime_operations.yaml")).toBe(true);
+    expect(actions.every((action) => action.source_file === "governance/contracts/runtime_operations.yaml")).toBe(true);
     expect(actions.every((action) => !("rule_refs" in action))).toBe(true);
     expect(actions.every((action) => Array.isArray(action.formal_rule_refs))).toBe(true);
     expect(actions.every((action) => Array.isArray(action.method_refs))).toBe(true);

@@ -1,26 +1,26 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
-import { repositoryPath } from "@/adapters/repo-paths";
+import { repositoryPath } from "@/storage/repo_paths";
 
 vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-stage04-recompute-${process.pid}.sqlite`;
 process.env.WORKBENCH_EXPORT_ROOT = `/tmp/ontology-workbench-stage04-recompute-exports-${process.pid}`;
 
-let db: typeof import("@/adapters/db");
-let workflowShared: typeof import("@/engine/workflow_shared");
-let semanticExecution: typeof import("@/engine/semantic_execution");
-let graphContract: typeof import("@/engine/graph_contract");
-let instanceGraph: typeof import("@/engine/instance_graph");
+let db: typeof import("@/storage/db");
+let workflowShared: typeof import("@/workflow/shared");
+let semanticExecution: typeof import("@/skills/ontology/semantic_execution");
+let graphContract: typeof import("@/schemas/graph_contract");
+let instanceGraph: typeof import("@/skills/ontology/instance_graph");
 
 const cutoff = "2026-07-18T08:00:00Z";
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  workflowShared = await import("@/engine/workflow_shared");
-  semanticExecution = await import("@/engine/semantic_execution");
-  graphContract = await import("@/engine/graph_contract");
-  instanceGraph = await import("@/engine/instance_graph");
+  db = await import("@/storage/db");
+  workflowShared = await import("@/workflow/shared");
+  semanticExecution = await import("@/skills/ontology/semantic_execution");
+  graphContract = await import("@/schemas/graph_contract");
+  instanceGraph = await import("@/skills/ontology/instance_graph");
 });
 
 function forgePassRules(judgmentId: string) {

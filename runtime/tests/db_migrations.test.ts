@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
-import { LATEST_DATABASE_SCHEMA_VERSION, databaseSchemaVersion, recoverOrphanedRunningArtifacts, runDatabaseMigrations } from "@/adapters/db_migrations";
+import { LATEST_DATABASE_SCHEMA_VERSION, databaseSchemaVersion, recoverOrphanedRunningArtifacts, runDatabaseMigrations } from "@/storage/db_migrations";
 
 describe("database migrations", () => {
   it("initializes a clean database to the latest explicit schema and is idempotent", () => {

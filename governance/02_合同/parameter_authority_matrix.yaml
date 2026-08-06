@@ -178,4 +178,4 @@ not_promoted:
     stays_at: ontology/01_通用/models/semiconductor_extension.yaml#domain_guides.commercialization_stages
   - id: stage04_handoff_and_audit_enums
     reason: handoff_to_05 / permitted_role / delivery_archetype 等属 04→05 阶段审计与表达合同，非业务强度参数
-    stays_at: workflow/stages/04_判断/模板/04_推理审计模板.yaml#handoff_to_05
+    stays_at: runtime/workflow/stage_specs/04_判断/模板/04_推理审计模板.yaml#handoff_to_05

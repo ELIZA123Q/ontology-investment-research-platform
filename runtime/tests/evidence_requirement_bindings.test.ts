@@ -4,11 +4,11 @@ vi.mock("server-only", () => ({}));
 
 import {
   bindEvidenceRequirementsToOntology,
-} from "@/engine/evidence_requirement_bindings";
+} from "@/skills/evidence_evaluation/requirement_bindings";
 import {
   emptyGraph,
   materializeStageIntoGraph,
-} from "@/engine/instance_graph";
+} from "@/skills/ontology/instance_graph";
 
 describe("EvidenceRequirement ontology bindings", () => {
   it("materializes explicit EvidenceProfile, EvidenceRecipe and derivation refs", () => {

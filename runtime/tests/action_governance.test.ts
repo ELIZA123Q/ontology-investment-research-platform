@@ -3,12 +3,12 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 process.env.WORKBENCH_DB_PATH = `/tmp/ontology-workbench-actions-${process.pid}.sqlite`;
 
-let db: typeof import("@/adapters/db");
-let tools: typeof import("@/engine/ontology_tools");
+let db: typeof import("@/storage/db");
+let tools: typeof import("@/skills/ontology/tools");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
-  tools = await import("@/engine/ontology_tools");
+  db = await import("@/storage/db");
+  tools = await import("@/skills/ontology/tools");
 });
 
 describe("approved and idempotent Action execution", () => {

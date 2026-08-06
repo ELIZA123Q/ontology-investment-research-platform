@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendReportClaimSourceIndex,
   buildReportClaimSourceIndex,
-} from "../engine/report_source_index";
+} from "../report_source_index";
 
 const sources = [
   {

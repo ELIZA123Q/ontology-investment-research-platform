@@ -11,7 +11,7 @@ import {
   resolveMaxToolRounds,
   shouldEnableProviderReasoning,
   shouldForceEvidenceAcquisition,
-} from "@/adapters/deepseek";
+} from "@/skills/model_client/deepseek_client";
 
 describe("DeepSeek structured-output recovery", () => {
   const schema = z.object({ decision: z.enum(["supported", "indeterminate"]), evidence_ids: z.array(z.string()) });
@@ -101,7 +101,7 @@ describe("DeepSeek structured-output recovery", () => {
   });
 
   it("records onProgress-shaped events into heartbeat payloads", async () => {
-    const { buildGenerationProgressHeartbeat } = await import("@/engine/generation_progress");
+    const { buildGenerationProgressHeartbeat } = await import("@/runner/generation_progress");
     const events: Array<{ phase: string; message: string }> = [];
     const onProgress = (event: {
       phase: string;

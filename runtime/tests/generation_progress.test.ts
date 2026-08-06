@@ -4,7 +4,7 @@ import {
   formatElapsedMs,
   isGenerationProgressStale,
   parseGenerationProgress,
-} from "@/engine/generation_progress";
+} from "@/runner/generation_progress";
 
 describe("generation progress heartbeat", () => {
   it("builds and parses an in-progress heartbeat payload", () => {

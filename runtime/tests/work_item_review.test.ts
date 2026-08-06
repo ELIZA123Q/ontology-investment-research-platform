@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { validateWorkItemReviewPatch } from "@/engine/work_item_review";
-import type { ResearchWorkItem } from "@/engine/types";
+import { validateWorkItemReviewPatch } from "@/runner/work_item_review";
+import type { ResearchWorkItem } from "@/schemas/types";
 
 function workItem(overrides: Partial<ResearchWorkItem> = {}): ResearchWorkItem {
   return {

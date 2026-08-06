@@ -1,4 +1,4 @@
-import { createStoredActionProposal, getStoredActionProposals } from "@/engine/ontology_tools";
+import { createStoredActionProposal, getStoredActionProposals } from "@/skills/ontology/tools";
 
 export const runtime = "nodejs";
 

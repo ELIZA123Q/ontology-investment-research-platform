@@ -8,7 +8,7 @@ import {
   queryChinaPolicy,
   queryEvidenceMcp,
   setMcpEvidenceCallerForTests,
-} from "@/adapters/mcp_evidence";
+} from "@/skills/financial_data/mcp_registry";
 
 afterEach(() => {
   setMcpEvidenceCallerForTests(null);

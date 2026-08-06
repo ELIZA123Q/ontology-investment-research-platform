@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mergeChangeSet, mergeStage03Patch, mergeUpsertObject } from "@/engine/change_set";
+import { mergeChangeSet, mergeStage03Patch, mergeUpsertObject } from "@/skills/replan/change_set";
 
 const contract = {
   base_artifact_id: "artifact-1",

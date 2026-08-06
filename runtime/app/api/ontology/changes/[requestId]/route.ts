@@ -1,4 +1,4 @@
-import { advanceOntologyChangeRequest } from "@/adapters/ontology_candidates";
+import { advanceOntologyChangeRequest } from "@/governance/ontology_changes/candidates_adapter";
 
 export const runtime = "nodejs";
 

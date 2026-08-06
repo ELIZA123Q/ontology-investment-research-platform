@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildBusinessEntityGraph, buildLayeredEntityNetwork, buildReasoningPathGraph } from "@/app/lib/entity-relation-graph";
-import { ensureStage02BusinessInstances } from "@/engine/stage02_documents";
+import { ensureStage02BusinessInstances } from "@/agents/02_structure/input_contract";
 
 const loaded: any = {
   authority: "formal",

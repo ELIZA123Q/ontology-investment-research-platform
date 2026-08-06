@@ -6,7 +6,7 @@ import {
   recallRegisteredMethodCandidates,
   validateMethodRoutes,
   validateRegisteredMethodApplications,
-} from "@/engine/method_registry";
+} from "@/skills/method_selection/method_registry";
 import {
   buildStageGenerationGuidance,
   enrichPromptMethodCards,
@@ -18,9 +18,9 @@ import {
   loadSelectedMethodGuidance,
   loadScenarioCardGuidance,
   matchScenarioCards,
-} from "@/engine/method_guidance";
-import { registeredFiles } from "@/engine/knowledge";
-import type { MethodApplication } from "@/engine/types";
+} from "@/skills/method_selection/method_guidance";
+import { registeredFiles } from "@/skills/method_selection/knowledge_loader";
+import type { MethodApplication } from "@/schemas/types";
 
 function application(overrides: Partial<MethodApplication> = {}): MethodApplication {
   return {
@@ -280,38 +280,38 @@ describe("method guidance injection", () => {
 describe("runtime knowledge contexts", () => {
   it("loads stage_01 template and stage_02 appendix", () => {
     expect(registeredFiles("stage_01")).toEqual(expect.arrayContaining([
-      "workflow/stages/01_受理/模板/01_投研需求说明模板.md",
+      "runtime/workflow/stage_specs/01_受理/模板/01_投研需求说明模板.md",
     ]));
     expect(registeredFiles("stage_02")).toEqual(expect.arrayContaining([
-      "workflow/stages/02_结构/02_附录1_框架裁剪与选用细则.md",
+      "runtime/workflow/stage_specs/02_结构/02_附录1_框架裁剪与选用细则.md",
     ]));
   });
 
   it("loads B00/B01/B03/OPS for stage_03 and omits routes yaml from stage_04 knowledge", () => {
     expect(registeredFiles("stage_03")).toEqual(expect.arrayContaining([
-      "methods/03_取证/B00_来源选择与使用边界.md",
-      "methods/03_取证/B01_通用来源速查.md",
-      "methods/03_取证/B03_MCP通道注册.md",
-      "methods/03_取证/OPS_MCP查询快速参考.md",
+      "knowledge/evidence_strategy/B00_来源选择与使用边界.md",
+      "knowledge/evidence_strategy/B01_通用来源速查.md",
+      "knowledge/evidence_strategy/B03_MCP通道注册.md",
+      "knowledge/evidence_strategy/OPS_MCP查询快速参考.md",
     ]));
-    expect(registeredFiles("stage_04")).not.toContain("governance/02_合同/judgment_method_routes.yaml");
+    expect(registeredFiles("stage_04")).not.toContain("governance/contracts/judgment_method_routes.yaml");
   });
 
   it("injects the blocking protocol for all Stage04 judgment types", () => {
     const without = registeredFiles("stage_04", { judgmentTypes: ["trend_direction"] });
     const withPath = registeredFiles("stage_04", { judgmentTypes: ["transmission_path"] });
-    expect(without).toContain("methods/04_裁决/A00-附录1_路径与阻断协议.md");
-    expect(withPath).toContain("methods/04_裁决/A00-附录1_路径与阻断协议.md");
+    expect(without).toContain("knowledge/adjudication/A00-附录1_路径与阻断协议.md");
+    expect(withPath).toContain("knowledge/adjudication/A00-附录1_路径与阻断协议.md");
   });
 
   it("loads only the matching stage_05 archetype template", () => {
     const cycle = registeredFiles("stage_05", { deliveryArchetype: "industry_cycle_report" });
     const event = registeredFiles("stage_05", { deliveryArchetype: "event_commentary" });
     expect(cycle.filter((file) => /delivery\/02_模板\/05[A-E]_/.test(file))).toEqual([
-      "delivery/02_模板/05C_行业周期判断模板.md",
+      "knowledge/expression/templates/05C_行业周期判断模板.md",
     ]);
     expect(event.filter((file) => /delivery\/02_模板\/05[A-E]_/.test(file))).toEqual([
-      "delivery/02_模板/05A_事件点评模板.md",
+      "knowledge/expression/templates/05A_事件点评模板.md",
     ]);
   });
 });

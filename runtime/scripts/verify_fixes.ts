@@ -2,16 +2,16 @@
  * 验证修复效果的轻量级脚本
  * 直接调用引擎核心函数，不需要启动 web server
  */
-import { methodCandidatesForPrompt } from "../engine/workflow_shared";
+import { methodCandidatesForPrompt } from "../workflow/shared";
 import {
   methodDisciplineDigest,
   buildStageGenerationGuidance,
-} from "../engine/method_guidance";
-import { ontologyDefinitionSummary } from "../engine/ontology_tools";
-import { CONTEXT_SLOT_BUDGETS } from "../engine/context_assembler";
-import { promptFor, promptForEvidenceSupplement } from "../engine/prompts";
-import { loadKnowledge } from "../engine/knowledge";
-import { inferJudgmentTypesFromTask } from "../engine/method_registry";
+} from "../skills/method_selection/method_guidance";
+import { ontologyDefinitionSummary } from "../skills/ontology/tools";
+import { CONTEXT_SLOT_BUDGETS } from "../workflow/context_assembler";
+import { promptFor, promptForEvidenceSupplement } from "../agents/shared/prompts_source";
+import { loadKnowledge } from "../skills/method_selection/knowledge_loader";
+import { inferJudgmentTypesFromTask } from "../skills/method_selection/method_registry";
 
 const SEP = "=".repeat(70);
 

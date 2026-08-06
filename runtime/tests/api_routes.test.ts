@@ -16,26 +16,26 @@ process.env.WORKBENCH_EXPORT_ROOT = resolve(
   `../instances/00_本机运行/.vitest-api-exports-${process.pid}`,
 );
 
-let db: typeof import("@/adapters/db");
+let db: typeof import("@/storage/db");
 let objectSetRoute: typeof import("@/app/api/runs/[id]/object-set/route");
 let changeSetRoute: typeof import("@/app/api/runs/[id]/change-set/route");
 let publishRoute: typeof import("@/app/api/runs/[id]/publish/route");
 let runRoute: typeof import("@/app/api/runs/[id]/route");
 let continueRoute: typeof import("@/app/api/runs/[id]/continue/route");
 let runsRoute: typeof import("@/app/api/runs/route");
-let experienceCohort: typeof import("@/adapters/experience_cohort");
-let researchJobs: typeof import("@/adapters/research_jobs");
+let experienceCohort: typeof import("@/runner/experience_cohort_adapter");
+let researchJobs: typeof import("@/runner/research_jobs");
 
 beforeAll(async () => {
-  db = await import("@/adapters/db");
+  db = await import("@/storage/db");
   objectSetRoute = await import("@/app/api/runs/[id]/object-set/route");
   changeSetRoute = await import("@/app/api/runs/[id]/change-set/route");
   publishRoute = await import("@/app/api/runs/[id]/publish/route");
   runRoute = await import("@/app/api/runs/[id]/route");
   continueRoute = await import("@/app/api/runs/[id]/continue/route");
   runsRoute = await import("@/app/api/runs/route");
-  experienceCohort = await import("@/adapters/experience_cohort");
-  researchJobs = await import("@/adapters/research_jobs");
+  experienceCohort = await import("@/runner/experience_cohort_adapter");
+  researchJobs = await import("@/runner/research_jobs");
 });
 
 describe("critical API routes", () => {

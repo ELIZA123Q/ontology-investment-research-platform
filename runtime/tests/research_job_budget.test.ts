@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateResearchJobBudget, parseResearchJobBudget, summarizeTokenUsage } from "@/engine/research_job_budget";
+import { evaluateResearchJobBudget, parseResearchJobBudget, summarizeTokenUsage } from "@/runner/job_budget";
 
 describe("research job budgets", () => {
   it("normalizes OpenAI and DeepSeek token usage shapes", () => {

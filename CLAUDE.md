@@ -10,97 +10,127 @@ AI 上下文文件。打开此仓库时自动加载，提供项目身份、可�
 - **运行端口：** `http://127.0.0.1:3000`（不要用 localhost）
 - **三层公式：** 可靠判断 = 确定性计算 + 本体语义/约束 + 受约束的开放推理（LLM）
 
+## 架构
+
+Agent-native 五域骨架（目标权威；细则见 `governance/01_架构/00_五域系统骨架.md`）：
+
+```
+Intent → Task → Context → Agent → Skill/Tool/Knowledge → Workspace → Result
+```
+
+| 域 | 目标目录 | 过渡期机器权威 |
+|----|----------|----------------|
+| Semantic | `semantic/` | `ontology/` 等 |
+| Task | `tasks/`（含 `workflows/deep_research` = 原 01—05） | `runtime/workflow/stage_specs/`、场景卡 |
+| Capability | `capabilities/` | `runtime/agents|skills`、`methods/` |
+| Execution | `execution/` | `runtime/` 引擎、`instances/` |
+| Governance | `governance/`（rules/evals/verifiers 等壳） | `02_合同`、`03_校验`、`evaluation/` |
+
+深度研究推荐路径（Deep Research，非仓库骨架）：
+
+```
+                        Research Controller
+                              │
+         ┌──────────┬─────────┼─────────┬──────────┐
+         ↓          ↓         ↓         ↓          ↓
+     01_intake  02_struct  03_evidence 04_judge  05_deliver
+                              │
+                         Skill Layer
+```
+
+## 目录结构
+
+| 目录 | 用途 |
+|------|------|
+| `semantic/` | 五域壳：本体/词典/图合同/证据 provenance（壳；权威仍多在 `ontology/`） |
+| `tasks/` | 五域壳：场景/任务定义/角色/deep_research |
+| `capabilities/` | 五域壳：agents/skills/tools/protocols |
+| `execution/` | 五域壳：context/memory/workspace/runtime |
+| `ontology/` | **过渡期权威**语义本体（机器可读 YAML） |
+| `methods/` | **过渡期权威**方法正文（框架、取证、裁决、表达） |
+| `governance/` | 治理（合同、校验、评测、元治理、五域架构文档） |
+| `runtime/` | **过渡期权威**运行时（Next.js、agents、skills、workflow、存储） |
+| `instances/` | 运行实例（SQLite、正式包；目标 `execution/workspace`） |
+| `evaluation/` | 研究价值评测（目标 `governance/evals`） |
+
+迁移账本：`governance/04_路线图/2026-08-06_五域迁移资产账本.md`。无顶层 `knowledge/`（已并入 `methods/` / 五域壳）。
+
+### runtime/ 内部结构（过渡期仍有效）
+
+| 目录 | 用途 |
+|------|------|
+| `runtime/agents/` | 研究 Agent（01-05 + reviewer + baseline + controller）→ 目标 `capabilities/agents` |
+| `runtime/skills/` | 可调用能力 → 目标 `capabilities/skills` |
+| `runtime/workflow/` | 研究编排；`stage_specs` → 目标 `tasks/workflows/deep_research` |
+| `runtime/runner/` | 研究执行器 → 目标 `execution/runtime` |
+| `runtime/storage/` | 持久化（SQLite） |
+| `runtime/export/` | 导出（formal_pack、workbench_export） |
+| `runtime/schemas/` | 共享类型定义 |
+| `runtime/app/` | Next.js App Router（UI + API；根级 `app/` 缓建） |
+| `runtime/tests/` | 测试 |
+
 ## 五阶段研究流程
 
 ```
 01 受理 → 02 结构 → 03 证据 → 04 判断 → 05 表达
 ```
 
-工作规范在 `workflow/stages/`，取证方法在 `methods/03_取证/`。`02` 搭结构，`03` 备事实与计算，`04` 做判断；本体贯穿但不替代任一阶段。推理发生在 04 与 `runtime/`，不是本体自动推出结论。
+阶段规范在 `runtime/workflow/stage_specs/`。`02` 搭结构，`03` 备事实与计算，`04` 做判断；本体贯穿但不替代任一阶段。
 
 ## 可用金融数据通道
 
-本项目配置了以下 MCP 数据通道。**MCP、API、数据库终端和 AI 工具是获取通道，不是来源生产者**（03规范 2.5节）。
+本项目配置了以下 MCP 数据通道。**MCP、API、数据库终端和 AI 工具是获取通道，不是来源生产者**。
 
 ### 法定披露
-| MCP | 数据源 | 能取到什么 | 不能取什么 |
-|-----|--------|-----------|-----------|
-| `cninfo` | 巨潮资讯网 | A股公告列表、定期报告、临时公告、问询函原文 | 数据产品/衍生指标；截面字段需自行提取 |
-| `china-policy` | 国务院/部委 | 中央政策原文全文 | 地方细则、解读、执行情况 |
+| MCP | 数据源 | 能取到什么 |
+|-----|--------|-----------|
+| `cninfo` | 巨潮资讯网 | A股公告列表、定期报告、临时公告、问询函原文 |
+| `china-policy` | 国务院/部委 | 中央政策原文全文 |
 
 ### 金融行情与财务（通联数据 DataYes）
-| MCP | 能取到什么 | 不能取什么 |
-|-----|-----------|-----------|
-| `datayes-stock-mkt` | A股日/周/月K线、分时、技术指标 | 港股/美股行情 |
-| `datayes-stock-finoper` | 利润表、资产负债表、现金流量表（多期） | 非标准科目需对回公告 |
-| `datayes-stock-info` | 公司基本信息、股东 | 实时变更 |
-| `datayes-stock-eqhld` | 机构持仓明细 | 散户持仓、北向分席位 |
-| `datayes-stock-event` | 公司事件摘要 | 全文公告（需回 cninfo） |
-| `datayes-macro` | GDP/CPI/PMI/贸易/工业/消费等宏观指标 | 高频自定义口径 |
-| `datayes-index-info` | 指数成分与权重 | — |
-| `datayes-index-mktanl` | 指数行情与估值 | — |
-| `datayes-fund-*` | 基金信息/业绩/持仓/财务/分析 | — |
+| MCP | 能取到什么 |
+|-----|-----------|
+| `datayes-stock-mkt` | A股日/周/月K线、分时、技术指标 |
+| `datayes-stock-finoper` | 利润表、资产负债表、现金流量表 |
+| `datayes-stock-info` | 公司基本信息、股东 |
+| `datayes-stock-eqhld` | 机构持仓明细 |
+| `datayes-stock-event` | 公司事件摘要 |
+| `datayes-macro` | GDP/CPI/PMI/贸易/工业/消费等宏观指标 |
+| `datayes-index-*` | 指数成分、行情与估值 |
+| `datayes-fund-*` | 基金信息/业绩/持仓/财务/分析 |
 
 ### 研报与资讯
 | MCP | 数据源 | 能取到什么 |
 |-----|--------|-----------|
 | `htsc_research_mcp` | 华泰证券研究所 | 研报、行业观点、估值模型 |
 | `caixin-news` | 财新 | 财经新闻 |
-
-### 网页获取
-| MCP | 用途 |
-|-----|------|
-| `jina-reader` | 网页内容提取与搜索，MCP 不可用时的回退通道 |
+| `jina-reader` | 网页 | 内容提取与搜索 |
 
 ## 数据使用核心规则
 
-1. **来源可追溯：** 每次调用记录 connector 名称、上游来源、查询参数、原始响应、字段血缘、权限范围、获取时间
+1. **来源可追溯：** 每次调用记录 connector、上游来源、查询参数、原始响应、字段血缘、权限范围、获取时间
 2. **回放能力：** 同一参数是否可复现
-3. **回退机制：** MCP 不可用时 → `methods/03_取证/OPS_MCP查询快速参考.md` 回退链 → `methods/03_取证/OPS_*` 手册 Web 路径
-4. **留痕模板：**
-
-```yaml
-mcp_call_log:
-  connector: "cninfo"           # MCP名称
-  upstream_source: "巨潮资讯网"  # 原始生产者
-  query_params: {}              # 完整调用参数
-  raw_response_ref: ""          # 原始响应保存位置
-  field_lineage: {}             # 关键字段→原始响应字段路径
-  access_scope: "公开"          # 权限范围
-  replay_capable: true          # 是否可复现
-  obtained_at: "2026-07-23T..." # ISO 8601 时间
-```
-
-## 03阶段取证标准流程
-
-做03阶段取证时按以下步骤：
-
-1. 从 `methods/03_取证/B01_通用来源速查.md` 或 `B02_半导体来源速查.md` 确定"要找什么"
-2. 查 `methods/03_取证/B03_MCP通道注册.md` 映射到对应 MCP
-3. 查 `methods/03_取证/OPS_MCP查询快速参考.md` 获取操作参数
-4. 调用 MCP 获取数据
-5. 按留痕模板记录
-6. 按 `methods/03_取证/A01—A09` 方法评价证据质量
+3. **回退机制：** MCP 不可用时 → `knowledge/evidence_strategy/OPS_MCP查询快速参考.md` 回退链
+4. **留痕模板：** 见 `runtime/workflow/stage_specs/03_证据/03_附录2_取数留痕与材料处理操作手册.md`
 
 ## 关键文件索引
 
 | 文件 | 用途 |
 |------|------|
-| `governance/01_架构/00_项目定位与边界.md` | 项目定位与边界 |
-| `methods/03_取证/README.md` | 取证库总入口 |
-| `methods/03_取证/B00_来源选择与使用边界.md` | 来源准入原则 |
-| `methods/03_取证/B01_通用来源速查.md` | 通用来源→首选来源→MCP通道映射 |
-| `methods/03_取证/B02_半导体来源速查.md` | 半导体专用来源→MCP通道映射 |
-| `methods/03_取证/B03_MCP通道注册.md` | MCP通道完整注册表 |
-| `methods/03_取证/OPS_MCP查询快速参考.md` | MCP操作卡片（QP-MCP-01~16） |
-| `methods/03_取证/OPS_通用真实来源查询与回退手册.md` | Web回退路径 |
-| `methods/03_取证/03_registry.yaml` | 取证方法注册中心 |
-| `workflow/stages/03_证据/03_数据与证据准备规范.md` | 03阶段规范 |
-| `workflow/stages/03_证据/03_附录2_取数留痕与材料处理操作手册.md` | 取数留痕操作手冊 |
-| `governance/03_校验/00A_高质量产出判别标准.md` | 质量自检标准 |
-
-## 数据源限制
-
-- 本项目不自带数据库，不保证能拿到所有行业数据
-- 可用数据限于当时有权限、可核对原文的材料
-- 缺数据时，合格结果是"边界清楚的弱判断或缺口说明"，不是编一个方向
+| `governance/architecture/00_项目定位与边界.md` | 项目定位与边界 |
+| `governance/contracts/public_contract.yaml` | 公共合同（跨阶段主链标识） |
+| `governance/contracts/rule_authority_registry.yaml` | 规则权威注册表 |
+| `governance/contracts/judgment_threshold_policy.yaml` | 判断阈值策略 |
+| `governance/validation/00A_高质量产出判别标准.md` | 质量自检标准 |
+| `governance/validation/status_derivation.py` | 结论强度派生逻辑 |
+| `ontology/01_通用/model_registry.yaml` | 本体模型注册表 |
+| `knowledge/evidence_strategy/README.md` | 取证库总入口 |
+| `knowledge/evidence_strategy/B00_来源选择与使用边界.md` | 来源准入原则 |
+| `knowledge/evidence_strategy/B01_通用来源速查.md` | 通用来源→MCP通道映射 |
+| `knowledge/evidence_strategy/B02_半导体来源速查.md` | 半导体来源→MCP通道映射 |
+| `knowledge/evidence_strategy/B03_MCP通道注册.md` | MCP通道注册表 |
+| `knowledge/evidence_strategy/OPS_MCP查询快速参考.md` | MCP操作卡片 |
+| `knowledge/evidence_strategy/03_registry.yaml` | 取证方法注册中心 |
+| `knowledge/frameworks/registry.yaml` | 框架依赖注册表 |
+| `knowledge/adjudication/A00_裁决总则.md` | 裁决方法总则 |
+| `runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md` | 03阶段规范 |

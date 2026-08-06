@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildOntologyStructureReview, structureReviewActionHref } from "@/engine/ontology_structure_review";
-import type { BusinessInstanceGraph } from "@/engine/instance_graph/types";
+import { buildOntologyStructureReview, structureReviewActionHref } from "@/skills/ontology/structure_review";
+import type { BusinessInstanceGraph } from "@/skills/ontology/instance_graph/types";
 
 const formal = new Map([["formal_price", "产品价格"]]);
 

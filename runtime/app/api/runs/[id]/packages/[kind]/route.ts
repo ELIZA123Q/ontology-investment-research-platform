@@ -1,8 +1,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { zipSync } from "fflate";
-import { getRun } from "@/adapters/db";
-import { parseJson } from "@/engine/types";
+import { getRun } from "@/storage/db";
+import { parseJson } from "@/schemas/types";
 
 export const runtime = "nodejs";
 

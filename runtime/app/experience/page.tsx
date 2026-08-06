@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { getExperienceCohort, type ExperienceCohortCase } from "@/adapters/experience_cohort";
-import { getWorkbenchDatabaseIdentity } from "@/adapters/db";
+import { getExperienceCohort, type ExperienceCohortCase } from "@/runner/experience_cohort_adapter";
+import { getWorkbenchDatabaseIdentity } from "@/storage/db";
 import { researcherLanguage } from "@/app/lib/researcher-stage-output";
 
 export const dynamic = "force-dynamic";

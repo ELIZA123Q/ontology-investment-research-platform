@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { resolveRunLanding } from "@/engine/run_landing";
-import { deriveRunProgress } from "@/engine/run_progress";
+import { resolveRunLanding } from "@/runner/run_landing";
+import { deriveRunProgress } from "@/runner/run_progress";
 
 const base = {
   runId: "run-1",

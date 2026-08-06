@@ -1,5 +1,5 @@
-import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/engine/research_job_runner";
-import { isExperienceCohortRun } from "@/adapters/experience_cohort";
+import { enqueueArtifactGeneration, runResearchJobUntilSettled } from "@/runner/research_job_runner";
+import { isExperienceCohortRun } from "@/runner/experience_cohort_adapter";
 import { after } from "next/server";
 
 export const runtime = "nodejs";

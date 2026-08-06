@@ -17,8 +17,8 @@ OPERATIONS = ROOT / "runtime/engine/runtime_operations.yaml"
 MODEL_FILES = tuple((ROOT / "ontology/01_通用/models").glob("*.yaml"))
 SAMPLE_FILES = tuple((ROOT / "instances/02_V3样例").glob("*/04_judgment.yaml"))
 CURRENT_TEMPLATES = (
-    ROOT / "workflow/stages/02_结构/模板/02_任务本体视图模板.yaml",
-    ROOT / "workflow/stages/04_判断/模板/04_推理审计模板.yaml",
+    ROOT / "runtime/workflow/stage_specs/02_结构/模板/02_任务本体视图模板.yaml",
+    ROOT / "runtime/workflow/stage_specs/04_判断/模板/04_推理审计模板.yaml",
 )
 METHOD_ID = re.compile(r"^(?:A|kb0[234]:A)[0-9]{2}$")
 AUTHORITY_SECTIONS = (

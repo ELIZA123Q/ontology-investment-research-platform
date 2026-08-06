@@ -4,7 +4,7 @@ import {
   activeOntologyRelations,
   loadOntologyCatalog,
   ontologyEnumValues,
-} from "@/engine/ontology_catalog";
+} from "@/skills/ontology/catalog_loader";
 
 describe("formal ontology catalog", () => {
   it("provides one typed runtime entry point for the formal ontology", () => {

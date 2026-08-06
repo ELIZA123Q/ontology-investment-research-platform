@@ -8,7 +8,7 @@
 3. **优先去哪找**——哪个来源最快、最权威
 4. **完备度能到哪**——充分、受限、观察、还是不可用
 
-单次研究的具体取证步骤见 [`workflow/stages/03_证据/`](../../workflow/stages/03_证据/)。
+单次研究的具体取证步骤见 [`runtime/workflow/stage_specs/03_证据/`](../../runtime/workflow/stage_specs/03_证据/)。
 
 ## 九种取证方法
 

@@ -1,20 +1,20 @@
 import { notFound } from "next/navigation";
-import { getRun } from "@/adapters/db";
+import { getRun } from "@/storage/db";
 import {
   latestArtifactPayload,
   listSourcesForReview,
   listWorkItemsForReview,
   previousArtifactPayload,
-} from "@/adapters/db_read_models";
+} from "@/storage/db_read_models";
 import { EvidenceBoard } from "@/app/components/evidence-board";
 import type { EvidenceQuickFilter } from "@/app/lib/evidence-view";
 import { sourceRowForClient, workItemForClient } from "@/app/lib/client-rows";
-import { buildEvidenceReviewSuggestions } from "@/engine/evidence_review_assist";
-import { buildEvidenceSupplementSummary } from "@/engine/evidence_supplement_diff";
-import { buildEvidenceProfileGapHints, profileHintsAsGapPriorities } from "@/engine/evidence_profile_gaps";
-import { precheckFindingsAsWeakLinks, precheckStage03OntologyConstraints } from "@/engine/ontology_stage03_precheck";
-import { projectEvidenceRequirementsFromStructure } from "@/engine/structure_candidates";
-import { parseJson } from "@/engine/types";
+import { buildEvidenceReviewSuggestions } from "@/skills/evidence_evaluation/review_assist";
+import { buildEvidenceSupplementSummary } from "@/skills/gap_detection/supplement_diff";
+import { buildEvidenceProfileGapHints, profileHintsAsGapPriorities } from "@/skills/evidence_evaluation/profile_gaps";
+import { precheckFindingsAsWeakLinks, precheckStage03OntologyConstraints } from "@/skills/ontology/stage03_precheck";
+import { projectEvidenceRequirementsFromStructure } from "@/agents/02_structure/structure_candidates";
+import { parseJson } from "@/schemas/types";
 import Link from "next/link";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";

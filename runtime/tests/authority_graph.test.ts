@@ -7,8 +7,8 @@ import {
   emptyGraph,
   materializeStageIntoGraph,
   type AuthorityStageInput,
-} from "@/engine/instance_graph";
-import { validateRuntimeGraph } from "@/engine/graph_contract";
+} from "@/skills/ontology/instance_graph";
+import { validateRuntimeGraph } from "@/schemas/graph_contract";
 
 function stage(
   kind: AuthorityStageInput["kind"],

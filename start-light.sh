@@ -8,6 +8,10 @@
 # ============================================================================
 set -u
 
+# 清除 HTTP 代理，避免 curl 检测本地服务时走代理导致空响应
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy 2>/dev/null || true
+unset SOCKS_PROXY SOCKS5_PROXY socks_proxy socks5_proxy 2>/dev/null || true
+
 RUNTIME_DIR="/Users/luyao/Documents/基于本体的投研推理平台/runtime"
 PORT=3000
 HOST="127.0.0.1"
@@ -36,14 +40,14 @@ fi
 echo "==> [2/4] 进入运行目录 & 检查生产构建 ..."
 cd "$RUNTIME_DIR" || { echo "错误: 无法进入 $RUNTIME_DIR"; exit 1; }
 
-# 关键修复: 仅判断 .next 目录存在是不够的, 必须存在非空的 BUILD_ID 才是有效生产构建。
-# 否则 next start 会报 "Could not find a production build" 并立即退出(表现为双击打不开)。
-if [ -s .next/BUILD_ID ]; then
-  echo "    发现有效生产构建(BUILD_ID 存在), 直接启动(跳过构建)。"
+# 关键修复: Next.js 16+ 不再生成 .next/BUILD_ID，改用 .next/package.json 判断构建完成。
+# .next/package.json 仅在 next build 成功后生成，是可靠的构建完成标志。
+if [ -f .next/package.json ]; then
+  echo "    发现有效生产构建(package.json 存在), 直接启动(跳过构建)。"
   LAUNCH_CMD="npm run prod:singleton"
   MAX_WAIT=30
 else
-  echo "    ⚠ 未找到有效生产构建(.next/BUILD_ID 缺失/为空), 将自动执行 prod:rebuild(先 next build 再启动)。"
+  echo "    ⚠ 未找到有效生产构建(.next/package.json 缺失), 将自动执行 prod:rebuild(先 next build 再启动)。"
   echo "    构建为内存高峰且较慢(约数分钟), 请耐心等待, 期间尽量少开重型应用。"
   LAUNCH_CMD="npm run prod:rebuild"
   MAX_WAIT=600

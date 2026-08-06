@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listRuns } from "@/adapters/db";
+import { listRuns } from "@/storage/db";
 import { RunList } from "@/app/components/run-list";
 
 export const dynamic = "force-dynamic";

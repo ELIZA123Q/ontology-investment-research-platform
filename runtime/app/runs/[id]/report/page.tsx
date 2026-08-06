@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview, listWorkItemsForReview } from "@/adapters/db_read_models";
+import { latestArtifactMeta, latestArtifactPayload, listSourcesForReview, listWorkItemsForReview } from "@/storage/db_read_models";
 import { PublishButton } from "@/app/components/publish-button";
 import { ReportMarkdown } from "@/app/components/report-markdown";
-import { parseJson } from "@/engine/types";
+import { parseJson } from "@/schemas/types";
 import { StageApprovalButton } from "@/app/components/stage-approval-button";
 import { StageSceneChrome } from "@/app/components/stage-scene-chrome";
 import { StageStatusBadge } from "@/app/components/stage-status-badge";
 import { EmptyState } from "@/app/components/empty-state";
 import { buildDeliveryResearcherView, buildFormalDeliveryGate } from "@/app/lib/researcher-stage-output";
 import { journeyEditHref } from "@/app/lib/research-journey";
-import { buildReportClaimSourceIndex } from "@/engine/report_source_index";
+import { buildReportClaimSourceIndex } from "@/report_source_index";
 import { StageExceptionNotice } from "@/app/components/stage-exception-notice";
 
 export const dynamic = "force-dynamic";

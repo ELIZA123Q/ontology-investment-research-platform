@@ -1,11 +1,11 @@
 import { DatabaseSync } from "node:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { runDatabaseMigrations } from "@/adapters/db_migrations";
+import { runDatabaseMigrations } from "@/storage/db_migrations";
 
 vi.mock("server-only", () => ({}));
 
 let connection: DatabaseSync;
-let store: import("@/adapters/research_jobs").ResearchJobStore;
+let store: import("@/runner/research_jobs").ResearchJobStore;
 
 const t0 = "2026-07-22T00:00:00.000Z";
 
@@ -16,7 +16,7 @@ beforeEach(async () => {
   connection.prepare(
     "INSERT INTO research_runs(id,question,domain,current_stage,status,manifest_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
   ).run("run-1", "job test", "semiconductor", 0, "draft", "{}", t0, t0);
-  const { ResearchJobStore } = await import("@/adapters/research_jobs");
+  const { ResearchJobStore } = await import("@/runner/research_jobs");
   store = new ResearchJobStore(connection);
 });
 

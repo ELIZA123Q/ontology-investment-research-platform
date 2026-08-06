@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   formalOntologyRuleIds,
   repairJudgmentPreparationDraft,
-} from "@/engine/judgment_draft_normalize";
-import { validateReasoningTraceBindings } from "@/engine/reasoning_trace";
+} from "@/agents/04_judgment/draft_normalize";
+import { validateReasoningTraceBindings } from "@/schemas/reasoning_trace";
 
 describe("repairJudgmentPreparationDraft", () => {
   it("exposes formal ontology rule ids from the authority registry", () => {

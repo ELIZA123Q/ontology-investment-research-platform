@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { captureSourceSnapshot, parsePublicDohAnswers } from "@/engine/source_snapshot";
+import { captureSourceSnapshot, parsePublicDohAnswers } from "@/skills/evidence_evaluation/source_snapshot";
 
 type TestAddress = { address: string; family: 4 | 6 };
 const publicAddress: TestAddress = { address: "93.184.216.34", family: 4 };

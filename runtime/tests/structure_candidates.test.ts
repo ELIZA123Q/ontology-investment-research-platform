@@ -6,7 +6,7 @@ import {
   normalizeCounterEvidenceDirections,
   projectEvidenceRequirementsFromStructure,
   resolveEvidenceRequirementsFromStructure,
-} from "../engine/structure_candidates";
+} from "../agents/02_structure/structure_candidates";
 
 describe("structure_candidates", () => {
   it("升格旧 string[] 并保留对象绑定与区分性证据", () => {

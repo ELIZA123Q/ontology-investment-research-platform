@@ -5,7 +5,7 @@ import { buildBusinessEntityGraph, buildReasoningPathGraph } from "@/app/lib/ent
 import { addTaskLocalCandidatesToOntologyGraph, buildOntologyNetworkGraph, selectRelevantOntologyNodes } from "@/app/lib/ontology-network-graph";
 import { loadTaskKnowledgePage } from "@/app/lib/knowledge-page-data";
 import { runStatusLabel, stageLabel } from "@/app/lib/ui-labels";
-import { parseJson } from "@/engine/types";
+import { parseJson } from "@/schemas/types";
 
 export const dynamic = "force-dynamic";
 

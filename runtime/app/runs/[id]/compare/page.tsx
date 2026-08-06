@@ -1,13 +1,13 @@
 import Link from "next/link";
-import { isExperienceCohortRun } from "@/adapters/experience_cohort";
-import { latestArtifactPayload, listSourcesForReview } from "@/adapters/db_read_models";
-import { listResearchJobsForRun } from "@/adapters/research_jobs";
+import { isExperienceCohortRun } from "@/runner/experience_cohort_adapter";
+import { latestArtifactPayload, listSourcesForReview } from "@/storage/db_read_models";
+import { listResearchJobsForRun } from "@/runner/research_jobs";
 import { BaselineButton } from "@/app/components/baseline-button";
 import { CompareWorkspaceLazy } from "@/app/components/compare-workspace-lazy";
 import { ReportMarkdown } from "@/app/components/report-markdown";
 import { artifactForWorkspace } from "@/app/lib/client-rows";
 import { latestJobForStage, researchJobIssueMessage, researchJobStatusLabel } from "@/app/lib/ui-labels";
-import { comparisonMetrics } from "@/engine/metrics";
+import { comparisonMetrics } from "@/metrics";
 import { ReferenceSceneChrome } from "@/app/components/stage-scene-chrome";
 
 export const dynamic = "force-dynamic";
