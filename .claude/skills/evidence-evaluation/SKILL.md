@@ -20,8 +20,8 @@ allowed-tools: Read, Bash, WebFetch
 ## 使用流程
 
 1. 从 Stage02 获取 `evidence_requirements`（证据需求投影）
-2. 确定取证配方：读取 `methods/03_取证/B01_通用来源速查.md` 或 `B02_半导体来源速查.md`
-3. 匹配 MCP 通道：读取 `methods/03_取证/B03_MCP通道注册.md`
+2. 确定取证配方：读取 `90_compat/methods/03_取证/B01_通用来源速查.md` 或 `B02_半导体来源速查.md`
+3. 匹配 MCP 通道：读取 `90_compat/methods/03_取证/B03_MCP通道注册.md`
 4. 获取来源数据（WebFetch / MCP），每次调用后填写留痕
 5. 执行最低质量门检查
 6. 计算覆盖分析（独立来源组数、反证覆盖率、证据上限）
@@ -51,17 +51,17 @@ obtained_at: ""         # ISO 8601
 
 | 需要什么 | 读取位置 |
 |---------|---------|
-| 通用来源速查 | `methods/03_取证/B01_通用来源速查.md` |
-| 半导体来源速查 | `methods/03_取证/B02_半导体来源速查.md` |
-| MCP通道注册 | `methods/03_取证/B03_MCP通道注册.md` |
-| MCP操作参数 | `methods/03_取证/OPS_MCP查询快速参考.md` |
-| Web回退路径 | `methods/03_取证/OPS_通用真实来源查询与回退手册.md` |
-| 证据质量评价方法 | `methods/03_取证/A01—A09/` |
-| 来源准入原则 | `methods/03_取证/B00_来源选择与使用边界.md` |
-| 03阶段规范 | `runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md` |
-| 取数留痕手册 | `runtime/workflow/stage_specs/03_证据/03_附录2_取数留痕与材料处理操作手册.md` |
+| 通用来源速查 | `90_compat/methods/03_取证/B01_通用来源速查.md` |
+| 半导体来源速查 | `90_compat/methods/03_取证/B02_半导体来源速查.md` |
+| MCP通道注册 | `90_compat/methods/03_取证/B03_MCP通道注册.md` |
+| MCP操作参数 | `90_compat/methods/03_取证/OPS_MCP查询快速参考.md` |
+| Web回退路径 | `90_compat/methods/03_取证/OPS_通用真实来源查询与回退手册.md` |
+| 证据质量评价方法 | `90_compat/methods/03_取证/A01—A09/` |
+| 来源准入原则 | `90_compat/methods/03_取证/B00_来源选择与使用边界.md` |
+| 03阶段规范 | `tasks/workflows/deep_research/stages/03_evidence.md` |
+| 取数留痕手册 | `tasks/workflows/deep_research/supporting/03_evidence_provenance_manual.md` |
 | 数据映射配置 | `governance/02_合同/ontology_data_mapping_profiles.yaml` |
-| 实现代码 | `runtime/skills/evidence_evaluation/` |
+| 实现代码 | `07_07_runtime/skills/evidence_evaluation/` |
 
 ## 质量门禁
 

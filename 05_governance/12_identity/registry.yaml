@@ -1,0 +1,41 @@
+schema_name: governance_identity_registry
+schema_version: 1.2.0
+status: migrating
+
+authority:
+  answers: 身份模型（你是谁）；不替代 permissions。
+  write_entry: 05_governance/12_identity/
+  read_primary: 05_governance/12_identity/registry.yaml
+
+authentication:
+  status: deferred
+  note: 本机工作台默认单用户；未引入登录/SSO/RBAC 实现。
+
+identities:
+  - id: researcher
+    description: 研究员（创建/推进研究、确认阶段产物）
+    maps_to_roles:
+      - 02_tasks/03_roles:intake_analyst
+      - 02_tasks/03_roles:structure_analyst
+      - 02_tasks/03_roles:delivery_editor
+    default_permissions_profile: researcher
+  - id: reviewer
+    description: 独立审阅者
+    maps_to_roles:
+      - 02_tasks/03_roles:independent_reviewer
+      - 02_tasks/03_roles:evidence_reviewer
+      - 02_tasks/03_roles:judgment_reviewer
+    default_permissions_profile: reviewer
+  - id: system_job
+    description: 系统运行任务（worker/job）
+    maps_to_roles: []
+    default_permissions_profile: system_job
+
+binding_rules:
+  - 每次 Action / 批准须记录 identity（或 system_job）与角色
+  - system_job 不得冒充 researcher 完成人工门
+  - reviewer 独立审阅不得与 producer 共用同一模型调用上下文冒充分离
+
+notes:
+  - wave4: 身份契约与 Task roles 对齐
+  - wave5: 补充 authentication=deferred 与绑定规则；仍不实现登录系统

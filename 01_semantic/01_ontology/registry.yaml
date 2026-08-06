@@ -1,0 +1,32 @@
+schema_name: semantic_ontology_registry
+schema_version: 1.3.0
+status: active
+
+authority:
+  answers: 正式本体机器权威在 01_semantic/01_ontology/；90_compat/ontology 为 compat 镜像。
+  write_entry_registry: 01_semantic/01_ontology/registry.yaml
+  write_entry_models: 01_semantic/01_ontology/models/
+  read_primary: 01_semantic/01_ontology/
+  compat_read:
+    - 90_compat/ontology/
+  mirror_policy: hash_locked
+  mirror_validator: 05_governance/03_校验/validate_no_semantic_ontology_double_write.py
+
+source_of_truth: 01_semantic/01_ontology
+
+model_registry: 01_semantic/01_ontology/model_registry.yaml
+meta_schema: 01_semantic/01_ontology/meta_schema.yaml
+core_models:
+  - 01_semantic/01_ontology/models/semantic.yaml
+  - 01_semantic/01_ontology/models/state_event.yaml
+  - 01_semantic/01_ontology/models/evidence.yaml
+  - 01_semantic/01_ontology/models/judgment.yaml
+  - 01_semantic/01_ontology/models/scenario.yaml
+
+domain_extensions:
+  - 01_semantic/01_ontology/domains/semiconductor
+
+notes:
+  - 编号五域迁移后，机器 YAML 真源落在 01_semantic/01_ontology/。
+  - 新增/修改模型 YAML 只写入 01_semantic/；禁止只改 90_compat 副本。
+  - 90_compat/ontology 若存在须与 semantic 字节一致（双写守卫）。

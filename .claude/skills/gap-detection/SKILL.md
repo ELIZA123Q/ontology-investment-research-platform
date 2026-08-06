@@ -37,11 +37,11 @@ allowed-tools: Read, Bash, WebFetch
 
 | 需要什么 | 读取位置 |
 |---------|---------|
-| 来源选择 | `methods/03_取证/B01_通用来源速查.md` |
-| MCP通道能力 | `methods/03_取证/B03_MCP通道注册.md` |
-| Web回退路径 | `methods/03_取证/OPS_通用真实来源查询与回退手册.md` |
-| 03阶段规范 | `runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md` |
-| 实现代码 | `runtime/skills/gap_detection/` |
+| 来源选择 | `90_compat/methods/03_取证/B01_通用来源速查.md` |
+| MCP通道能力 | `90_compat/methods/03_取证/B03_MCP通道注册.md` |
+| Web回退路径 | `90_compat/methods/03_取证/OPS_通用真实来源查询与回退手册.md` |
+| 03阶段规范 | `tasks/workflows/deep_research/stages/03_evidence.md` |
+| 实现代码 | `07_07_runtime/skills/gap_detection/` |
 
 ## 输出规范
 

@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""Ensure stage packages and 05_governance/03_校验 are importable after the directory split.
+
+Also provides five-domain path resolution: prefer new write/read entries, fall back to
+compat/legacy paths so validators do not fail solely because an old path moved.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+RUN_DIR = Path(__file__).resolve().parent
+STAGE_DIRS = (
+    RUN_DIR / "stage_validators" / "stage_01",
+    RUN_DIR / "stage_validators" / "stage_02",
+    RUN_DIR / "stage_validators" / "stage_03",
+    RUN_DIR / "stage_validators" / "stage_04",
+    RUN_DIR / "stage_validators" / "stage_05",
+    # New paths
+    ROOT / "07_runtime" / "skills" / "ontology",
+    ROOT / "07_runtime" / "skills" / "evidence_evaluation",
+    ROOT / "07_runtime" / "skills" / "financial_data",
+    ROOT / "07_runtime" / "skills" / "model_client",
+    ROOT / "07_runtime" / "agents" / "shared",
+    ROOT / "07_runtime" / "runner",
+    ROOT / "07_runtime" / "schemas",
+)
+
+# Stage YAML templates: 90_compat/methods/templates is the sole write/read primary.
+STAGE_YAML_TEMPLATES = {
+    "02": (
+        ROOT / "90_compat/methods/templates/02_任务本体视图模板.yaml",
+    ),
+    "03": (
+        ROOT / "90_compat/methods/templates/03_语义域与证据域实例清单模板.yaml",
+    ),
+    "04": (
+        ROOT / "90_compat/methods/templates/04_推理审计模板.yaml",
+    ),
+}
+
+STAGE_SPEC_SCAN_ROOTS = (
+    ROOT / "02_tasks/04_workflows/deep_research",
+    ROOT / "90_compat/methods/templates",
+)
+
+
+def _insert(path: Path) -> None:
+    text = str(path)
+    if text not in sys.path:
+        sys.path.insert(0, text)
+
+
+def ensure_run_path() -> Path:
+    _insert(RUN_DIR)
+    for stage_dir in STAGE_DIRS:
+        _insert(stage_dir)
+    return RUN_DIR
+
+
+def ensure_stage_path(stage_dir: Path) -> Path:
+    ensure_run_path()
+    _insert(stage_dir)
+    return stage_dir
+
+
+def ensure_all_validator_paths() -> Path:
+    ensure_run_path()
+    return ROOT
+
+
+def resolve_existing(*candidates: Path) -> Path | None:
+    """Return the first existing path among candidates (new → compat order)."""
+    for path in candidates:
+        if path.is_file() or path.is_dir():
+            return path
+    return None
+
+
+def require_existing(*candidates: Path) -> Path:
+    found = resolve_existing(*candidates)
+    if found is None:
+        joined = ", ".join(str(path.relative_to(ROOT)) if path.is_absolute() and ROOT in path.parents else str(path) for path in candidates)
+        raise FileNotFoundError(f"asset not found in any candidate path: {joined}")
+    return found
+
+
+def stage_yaml_template(stage: str) -> Path:
+    candidates = STAGE_YAML_TEMPLATES.get(stage)
+    if not candidates:
+        raise KeyError(f"unknown stage yaml template key: {stage}")
+    return require_existing(*candidates)
+
+
+def resolve_asset_rel(*relative_candidates: str) -> tuple[Path, str] | None:
+    """Resolve first existing repo-relative candidate.
+
+    Returns (absolute_path, relative_hit) or None.
+    """
+    for rel in relative_candidates:
+        path = ROOT / rel
+        if path.is_file() or path.is_dir():
+            return path, rel.replace("\\", "/")
+    return None
+
+
+def require_asset_rel(*relative_candidates: str) -> tuple[Path, str]:
+    found = resolve_asset_rel(*relative_candidates)
+    if found is None:
+        joined = ", ".join(relative_candidates)
+        raise FileNotFoundError(f"asset not found in any candidate path: {joined}")
+    return found
+
+
+# Dictionary / domain prose: five-domain primary, ontology compat.
+DICTIONARY_ASSET_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "00_投研本体框架概述.md": (
+        "01_semantic/02_dictionary/00_投研本体框架概述.md",
+        "90_compat/ontology/01_通用/00_投研本体框架概述.md",
+    ),
+    "01_语义结构域规范.md": (
+        "01_semantic/02_dictionary/01_语义结构域规范.md",
+        "90_compat/ontology/01_通用/01_语义结构域规范.md",
+    ),
+    "02_判断推理域规范.md": (
+        "01_semantic/02_dictionary/02_判断推理域规范.md",
+        "90_compat/ontology/01_通用/02_判断推理域规范.md",
+    ),
+    "03_证据域规范.md": (
+        "01_semantic/02_dictionary/03_证据域规范.md",
+        "90_compat/ontology/01_通用/03_证据域规范.md",
+    ),
+}
+
+# Ontology machine YAML: 01_semantic/01_ontology is write/read truth.
+ONTOLOGY_MODEL_CANDIDATES = (
+    "01_semantic/01_ontology/models",
+    "90_compat/ontology/01_通用/models",
+)

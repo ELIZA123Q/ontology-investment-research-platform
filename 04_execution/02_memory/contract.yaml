@@ -1,0 +1,49 @@
+schema_name: execution_memory_contract
+schema_version: 1.1.0
+status: migrating
+
+authority:
+  answers: 跨任务可保留什么 / 不可把什么当长期真理
+  write_entry: 04_execution/02_memory/
+  read_primary: 04_execution/02_memory/contract.yaml
+  implementation: deferred
+
+scopes:
+  - id: user_preferences
+    description: 研究员偏好（默认交付原型、展示语言、确认习惯）
+    retention: until_user_reset
+    promotion_required: false
+  - id: researched_theme_history
+    description: 曾研究过的主题/对象索引（不含单次结论正文）
+    retention: rolling_12_months
+    promotion_required: false
+  - id: validated_failure_modes
+    description: 已验证的失败模式与误用标签（供 Context 装配提示）
+    retention: until_superseded
+    promotion_required: true
+    promotion_path: 05_governance/14_evals or knowledge candidate queue
+
+may_persist:
+  - user_preferences
+  - researched_theme_history
+  - validated_failure_modes
+
+must_not_persist_as_truth:
+  - single_run_judgments
+  - unverified_evidence_drafts
+  - secrets_or_credentials
+  - raw_model_chain_of_thought
+  - unauthorized_or_non_public_materials
+
+write_rules:
+  - Memory 写入不得绕过 Workspace 追溯（须能指出来源 run_id / artifact）
+  - 单次 Judgment / ReportClaim 不得直接写成长期 Memory 真理
+  - 候选知识贡献须走元治理/候选队列，不得静默写回正式本体或 methods
+
+read_rules:
+  - Context 装配可读取 Memory，但必须标注 memory_ref 与新鲜度
+  - Memory 缺失时不得伪造历史偏好或历史结论
+
+notes:
+  - wave5: 契约深化完成；不实现 SQLite/向量库等存储。
+  - 与 Workspace（本次产物）严格分离。

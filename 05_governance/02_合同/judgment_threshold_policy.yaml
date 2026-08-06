@@ -1,0 +1,34 @@
+schema_name: judgment_threshold_runtime_policy
+schema_version: 1.0.0
+status: active
+formal_rule_ref: 01_semantic/01_ontology/models/judgment.yaml#rules.judgment_evidence_threshold
+description: 将证据等级、反证结果和路径就绪状态投影为运行期最大判断等级及表达权限；本文件属于跨阶段合同，不属于正式本体规则参数。
+
+evidence_grade_caps: {Q0: J0, Q1: J1, Q2: J2, Q3: J3, Q4: J4}
+counterevidence_caps: {cleared: J4, weakened: J2, contested: J1, decisive: J0, not_checked: J1, not_applicable: J4}
+path_readiness_caps: {ready: J4, restricted: J2, blocked: J0, not_applicable: J4}
+path_result_statuses: [established, partially_established, weakened, blocked, insufficient_evidence, contested, not_applicable]
+source_authority_levels: [unknown, indirect, informed_secondary, authoritative_secondary, primary]
+operational_basket_roles: [primary_support, cross_validation, counter_evidence, blocking_condition, proxy_indicator, background_evidence]
+quality_language_to_evidence_grades:
+  sufficient: [Q3, Q4]
+  limited: [Q2]
+  observation: [Q1]
+  unusable: [Q0]
+evidence_method_role_to_basket_role:
+  primary: primary_support
+  baseline: background_evidence
+  mechanism: cross_validation
+  cross_check: cross_validation
+  counter: counter_evidence
+level_outputs:
+  J0: {evidence_permission: prohibited, allowed_04_output: insufficient, allowed_expression: 只说明缺口，不形成方向}
+  J1: {evidence_permission: background_only, allowed_04_output: observation_only, allowed_expression: 只作事实观察或线索}
+  J2: {evidence_permission: conditional_judgment, allowed_04_output: conditional_only, allowed_expression: 保留条件的方向判断}
+  J3: {evidence_permission: directional_judgment, allowed_04_output: directional_only, allowed_expression: 方向判断或高概率判断}
+  J4: {evidence_permission: core_judgment, allowed_04_output: full_reasoning_ready, allowed_expression: 在明确范围内形成确认判断}
+
+invariants:
+  - 最大判断等级取 evidence、counterevidence、path readiness 三个上限中的最低值。
+  - allowed_04_output 与 allowed_expression 只能由本策略派生，不得人工填写。
+  - 本策略不得作为商业判断的支撑规则；商业判断仍引用 formal_rule_ref 和具体 RuleEvaluation。

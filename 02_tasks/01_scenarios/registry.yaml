@@ -1,0 +1,34 @@
+schema_name: scenario_registry
+schema_version: 1.1.0
+status: active
+
+authority:
+  answers: 场景卡归属索引在本文件；新增场景登记写入 02_tasks/01_scenarios/，正文过渡期仍在 methods 场景卡目录。
+  write_entry: 02_tasks/01_scenarios/
+  read_primary: 02_tasks/01_scenarios/registry.yaml
+  compat_read:
+    - 90_compat/methods/02_研究框架/行业/半导体/场景卡/
+    - 01_semantic/01_ontology/models/scenario.yaml
+
+source_of_truth:
+  scenario_cards: 90_compat/methods/02_研究框架/行业/半导体/场景卡
+  ontology_catalog: 01_semantic/01_ontology/models/scenario.yaml
+
+scenario_groups:
+  - group_id: semiconductor
+    name: 半导体
+    cards:
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-LOC-EQP_国产设备突破场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-LOC-MAT_国产材料放量场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-GEO_地缘政治冲击影响半导体场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-AI-AI计算芯片系统供给场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-OPTO_光电子芯片与硅光场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-PKG-BTL_先进封装瓶颈场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-PWR-SIC_SiC渗透与供给场景卡.md
+      - 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-AUTO_车规芯片认证与装车场景卡.md
+
+notes:
+  - 波次2先登记索引，避免一次性移动造成链接断裂。
+  - 物理迁移在后续波次按账本逐组执行。

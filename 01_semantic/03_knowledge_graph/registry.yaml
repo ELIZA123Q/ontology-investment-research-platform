@@ -1,0 +1,25 @@
+schema_name: semantic_kg_registry
+schema_version: 1.2.0
+status: active
+
+authority:
+  answers: 图合同与投影定义归 Semantic/knowledge_graph；单次图物化归 Execution/workspace。
+  write_entry: 01_semantic/03_knowledge_graph/
+  read_primary: 01_semantic/03_knowledge_graph/contracts/
+  compat_read:
+    - 07_runtime/skills/ontology/instance_graph/
+
+source_of_truth:
+  graph_contracts:
+    - 01_semantic/03_knowledge_graph/contracts/authority.ts
+    - 01_semantic/03_knowledge_graph/contracts/projection.ts
+    - 01_semantic/03_knowledge_graph/contracts/types.ts
+    - 01_semantic/03_knowledge_graph/contracts/load.ts
+    - 01_semantic/03_knowledge_graph/contracts/trace.ts
+  materialization:
+    - 01_semantic/03_knowledge_graph/contracts/materialize.ts
+    - 01_semantic/03_knowledge_graph/contracts/materialize_stage04.ts
+
+notes:
+  - 定义权威在本目录 contracts/；07_runtime/.../instance_graph 仅为 re-export 兼容入口。
+  - 单次图物化结果归 04_execution/03_workspace。

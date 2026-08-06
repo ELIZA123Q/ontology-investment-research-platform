@@ -1,0 +1,8 @@
+package_kind: formal_pack
+layout: chinese_named_md_yaml
+validator: 05_governance/03_校验/validate_run.py
+publishable: true
+contract_ref:
+  schema_name: controlled_research_run_manifest
+  schema_version: 1.3.0
+note: 由历史正式样例迁移得到的合同回归黄金包；独立审查使用 test_fixture 身份，不替代真实发布审查。

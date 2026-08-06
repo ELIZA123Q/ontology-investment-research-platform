@@ -44,4 +44,4 @@ OPENAI_COMPAT_MODEL=...
 | 需要什么 | 读取位置 |
 |---------|---------|
 | 运行时支持配置 | `governance/02_合同/runtime_supported_profile.yaml` |
-| 实现代码 | `runtime/skills/model_client/` |
+| 实现代码 | `07_07_runtime/skills/model_client/` |

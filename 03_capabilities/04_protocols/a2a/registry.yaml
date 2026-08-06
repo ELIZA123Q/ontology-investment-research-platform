@@ -1,0 +1,27 @@
+schema_name: capability_a2a_protocol_registry
+schema_version: 1.0.0
+status: shell
+
+authority:
+  answers: A2A 仅边界与启用条件；未实现。
+  write_entry: 03_capabilities/04_protocols/a2a/
+  read_primary:
+    - 03_capabilities/04_protocols/a2a/BOUNDARY.md
+    - 03_capabilities/04_protocols/a2a/registry.yaml
+
+implementation_allowed: false
+boundary_doc: 03_capabilities/04_protocols/a2a/BOUNDARY.md
+
+forbidden_until_enabled:
+  - network_a2a_transport
+  - fake_peer_agent_stubs
+  - claiming_a2a_production_ready
+  - treating_deep_research_stages_as_a2a
+
+enable_when:
+  - real_multi_agent_collaboration_needed
+  - five_domain_entry_layer_stable
+  - replayable_handoff_contract_exists
+
+notes:
+  - wave5: 边界契约已冻结；禁止假实现。

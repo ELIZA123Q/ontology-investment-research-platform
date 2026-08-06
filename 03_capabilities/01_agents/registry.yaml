@@ -1,0 +1,45 @@
+schema_name: capability_agents_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: 07_runtime/agents
+agents:
+  - agent_id: 01_intake
+    source: 07_runtime/agents/01_intake
+    mirror: 03_capabilities/01_agents/01_intake/AGENT.md
+    status: migrating
+  - agent_id: 02_structure
+    source: 07_runtime/agents/02_structure
+    mirror: 03_capabilities/01_agents/02_structure/AGENT.md
+    status: migrating
+  - agent_id: 03_evidence
+    source: 07_runtime/agents/03_evidence
+    mirror: 03_capabilities/01_agents/03_evidence/AGENT.md
+    status: migrating
+  - agent_id: 04_judgment
+    source: 07_runtime/agents/04_judgment
+    mirror: 03_capabilities/01_agents/04_judgment/AGENT.md
+    status: migrating
+  - agent_id: 05_delivery
+    source: 07_runtime/agents/05_delivery
+    mirror: 03_capabilities/01_agents/05_delivery/AGENT.md
+    status: migrating
+  - agent_id: baseline
+    source: 07_runtime/agents/baseline
+    mirror: 03_capabilities/01_agents/baseline/AGENT.md
+    status: migrating
+  - agent_id: controller
+    source: 07_runtime/agents/controller
+    mirror: 03_capabilities/01_agents/controller/AGENT.md
+    status: migrating
+  - agent_id: reviewer
+    source: 07_runtime/agents/reviewer
+    mirror: 03_capabilities/01_agents/reviewer/AGENT.md
+    status: migrating
+  - agent_id: shared
+    source: 07_runtime/agents/shared
+    mirror: 03_capabilities/01_agents/shared/AGENT.md
+    status: migrating
+
+notes:
+  - 本目录只镜像 AGENT.md 合同与索引；可执行实现仍在 07_runtime/agents。
+  - Deep Research 阶段角色与 02_tasks/03_roles 对齐，不在此重复定义 Task 目标。

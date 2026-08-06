@@ -1,0 +1,101 @@
+schema_name: runtime_supported_semantic_profile
+schema_version: 1.0.0
+status: active
+authority: public_contract_1.3
+description: >-
+  工作台实例图在 Ontology 3.0 之上允许的最小运行投影。
+  未在本表登记的运行对象和关系不得写入 business_instance_graph。
+
+runtime_object_types:
+  MethodApplication:
+    source_ref: 05_governance/02_合同/public_contract.yaml#method_application_contract
+    required_properties: [application_id, method_id, method_version, status]
+
+runtime_relation_types:
+  runtimeMethodApplicationTargets:
+    source_types: [MethodApplication]
+    target_types: [JudgmentUnit]
+    source_ref: 05_governance/02_合同/public_contract.yaml#method_application_contract
+  runtimeJudgmentUsesMethodApplication:
+    source_types: [Judgment]
+    target_types: [MethodApplication]
+    source_ref: 05_governance/02_合同/public_contract.yaml#method_application_contract
+  sourceDocumentUsesProfile:
+    source_types: [SourceDocument]
+    target_types: [EvidenceProfile]
+    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.RegisterSource
+  sourcePublishedBy:
+    source_types: [SourceDocument]
+    target_types: [Organization, Company]
+    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.RegisterSource
+  claimAbout:
+    source_types: [EvidenceClaim]
+    target_types:
+      - Organization
+      - Company
+      - Industry
+      - ValueChainSegment
+      - Product
+      - Technology
+      - Region
+      - Metric
+      - Application
+      - Material
+      - ProcessStep
+      - PolicyInstrument
+      - StateVariable
+      - Observation
+      - Event
+      - ResearchScope
+      - Chip
+      - WaferFab
+      - TechnologyRoute
+      - ProcessNode
+      - CapacityMetric
+      - YieldMetric
+      - SemiconductorEquipment
+      - SemiconductorMaterial
+      - ManufacturingFacility
+      - ProductionLine
+    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.NormalizeClaim
+  assessmentEvaluatesFact:
+    source_types: [EvidenceAssessment]
+    target_types: [EvidenceClaim, EvidenceFact]
+    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.AssessEvidenceForUse
+  requirementUsesEvidenceProfile:
+    source_types: [EvidenceRequirement]
+    target_types: [EvidenceProfile]
+    source_ref: 01_semantic/01_ontology/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_profile_refs
+  evidenceProfileConfiguresRequirement:
+    source_types: [EvidenceProfile]
+    target_types: [EvidenceRequirement]
+    source_ref: 01_semantic/01_ontology/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_profile_refs
+  requirementGovernedByRecipe:
+    source_types: [EvidenceRequirement]
+    target_types: [EvidenceRecipe]
+    source_ref: 01_semantic/01_ontology/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_recipe_ref
+  evidenceRecipeGovernsRequirement:
+    source_types: [EvidenceRecipe]
+    target_types: [EvidenceRequirement]
+    source_ref: 01_semantic/01_ontology/models/evidence.yaml#object_types.EvidenceRequirement.attributes.evidence_recipe_ref
+
+executable_method_profile:
+  kb04:A01:
+    minimum_evidence_facts: 1
+    minimum_independent_source_groups: 1
+    required_preconditions: [state_variable_defined, observation_scope_aligned]
+  kb04:A02:
+    # 一条直接披露可已经包含同口径基准与同比方向；跨指标比较任务仍由
+    # Judgment 的显式 evidence refs 和证据上限规则约束，不以文档条数冒充独立性。
+    minimum_evidence_facts: 1
+    minimum_independent_source_groups: 1
+    required_preconditions: [state_measurement_or_equivalent_baseline]
+  kb04:A03:
+    minimum_evidence_facts: 2
+    minimum_independent_source_groups: 1
+    required_preconditions: [state_and_trend_baseline]
+
+prohibitions:
+  - EvidenceClaim 或 EvidenceFact 不得与 Judgment 建立直达关系。
+  - 旧关系 judgmentBasedOn、signalDerivedFromEvidence、traceForJudgment、traceIncludesRuleEvaluation 不得出现。
+  - MethodApplication 只是运行合同投影，不得被宣称为 Ontology 3.0 正式对象类型。

@@ -1,0 +1,47 @@
+schema_name: execution_domain_registry
+schema_version: 1.1.0
+status: active
+
+authority:
+  answers: Execution 权威入口是本文件；上下文白名单权威为 05_governance/01_架构/runtime_contexts.yaml。
+  write_entry: 04_execution/
+  read_primary:
+    - 04_execution/registry.yaml
+    - 05_governance/01_架构/runtime_contexts.yaml
+  compat_read:
+    - 07_runtime/
+    - 90_compat/instances/
+    - 90_compat/governance_mirrors/architecture/runtime_contexts.yaml
+
+source_of_truth:
+  context_assembly: 07_runtime/workflow/context_assembler.ts
+  context_registry: 05_governance/01_架构/runtime_contexts.yaml
+  runtime_engine: 07_runtime/runner
+  runtime_storage: 07_runtime/storage
+  workspace_records: instances
+
+subdomains:
+  context:
+    target: 04_execution/01_context
+    source: 07_runtime/workflow
+    status: migrating
+  memory:
+    target: 04_execution/02_memory
+    source: null
+    status: migrating
+    contract: 04_execution/02_memory/contract.yaml
+    implementation: deferred
+  workspace:
+    target: 04_execution/03_workspace
+    source: instances
+    status: migrating
+  runtime:
+    target: 04_execution/04_runtime
+    source: runtime
+    status: migrating
+
+notes:
+  - Execution 只描述本次运行状态，不定义可复用方法真理。
+  - 新增上下文白名单改动写入 05_governance/01_架构/runtime_contexts.yaml，不写 compat 副本。
+  - wave3: context/workspace/runtime 子注册表与 memory 契约已落地；物理实现仍在 07_runtime/instances。
+  - wave5: memory 契约深化（scopes/write_rules）；存储仍 deferred。

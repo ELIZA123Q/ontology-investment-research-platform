@@ -1,0 +1,29 @@
+schema_name: semantic_domain_registry
+schema_version: 1.2.0
+status: active
+
+authority:
+  answers: Semantic 权威入口是本文件与子域 registry；机器正文在 01_semantic/01_ontology 等 write_entry。
+  write_entry: 01_semantic/
+  read_primary: 01_semantic/**/registry.yaml
+  compat_read:
+    - 90_compat/ontology/
+    - 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+
+subdomains:
+  ontology:
+    registry: 01_semantic/01_ontology/registry.yaml
+    status: active
+  dictionary:
+    registry: 01_semantic/02_dictionary/registry.yaml
+    status: active
+  knowledge_graph:
+    registry: 01_semantic/03_knowledge_graph/registry.yaml
+    status: active
+  evidence:
+    registry: 01_semantic/04_evidence/registry.yaml
+    status: active
+
+notes:
+  - 不在本域写研究步骤、阶段门或单次结论。
+  - 本体机器 YAML 权威：01_semantic/01_ontology/；取证正文权威：90_compat/methods/03_取证/。

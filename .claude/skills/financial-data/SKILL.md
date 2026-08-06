@@ -35,9 +35,9 @@ allowed-tools: Read, Bash
 
 ## 使用流程
 
-1. 确定要找什么：读取 `methods/03_取证/B01_通用来源速查.md`
-2. 映射到 MCP：读取 `methods/03_取证/B03_MCP通道注册.md`
-3. 获取操作参数：读取 `methods/03_取证/OPS_MCP查询快速参考.md`
+1. 确定要找什么：读取 `90_compat/methods/03_取证/B01_通用来源速查.md`
+2. 映射到 MCP：读取 `90_compat/methods/03_取证/B03_MCP通道注册.md`
+3. 获取操作参数：读取 `90_compat/methods/03_取证/OPS_MCP查询快速参考.md`
 4. 调用 MCP 获取数据
 5. 映射到本体属性：读取 `governance/02_合同/ontology_data_mapping_profiles.yaml`
 6. 按留痕模板记录
@@ -51,11 +51,11 @@ allowed-tools: Read, Bash
 
 | 需要什么 | 读取位置 |
 |---------|---------|
-| 通用来源速查 | `methods/03_取证/B01_通用来源速查.md` |
-| 半导体来源速查 | `methods/03_取证/B02_半导体来源速查.md` |
-| MCP通道注册 | `methods/03_取证/B03_MCP通道注册.md` |
-| MCP操作参数 | `methods/03_取证/OPS_MCP查询快速参考.md` |
-| Web回退路径 | `methods/03_取证/OPS_通用真实来源查询与回退手册.md` |
+| 通用来源速查 | `90_compat/methods/03_取证/B01_通用来源速查.md` |
+| 半导体来源速查 | `90_compat/methods/03_取证/B02_半导体来源速查.md` |
+| MCP通道注册 | `90_compat/methods/03_取证/B03_MCP通道注册.md` |
+| MCP操作参数 | `90_compat/methods/03_取证/OPS_MCP查询快速参考.md` |
+| Web回退路径 | `90_compat/methods/03_取证/OPS_通用真实来源查询与回退手册.md` |
 | 数据映射配置 | `governance/02_合同/ontology_data_mapping_profiles.yaml` |
 | 可用通道总览 | `CLAUDE.md` |
-| 实现代码 | `runtime/skills/financial_data/` |
+| 实现代码 | `07_07_runtime/skills/financial_data/` |

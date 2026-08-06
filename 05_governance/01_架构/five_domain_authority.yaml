@@ -1,0 +1,109 @@
+schema_name: five_domain_authority_index
+schema_version: 1.0.0
+status: active
+skeleton_ref: 05_governance/01_架构/00_五域系统骨架.md
+layout_ref: 05_governance/01_架构/repo_layout.yaml
+compat_ref: 05_governance/01_架构/compat_policy.yaml
+migration_ledger: 05_governance/04_路线图/2026-08-06_五域迁移资产账本.md
+
+rule: |
+  新增改动写入 write_entry；运行时与校验器默认读 read_primary（或其镜像）；
+  compat_read 仅用于回放与过渡，不再作为新增改动入口。
+  “权威在哪”优先查本文件 + 各域 registry.yaml，不查旧顶层目录习惯。
+
+domains:
+  semantic:
+    registry: 01_semantic/registry.yaml
+    write_entry: 01_semantic/
+    read_primary:
+      - 01_semantic/01_ontology/registry.yaml
+      - 01_semantic/02_dictionary/registry.yaml
+      - 01_semantic/03_knowledge_graph/registry.yaml
+      - 01_semantic/04_evidence/registry.yaml
+    compat_read:
+      - 90_compat/ontology/
+      - 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+  task:
+    registry: 02_tasks/registry.yaml
+    write_entry: 02_tasks/
+    read_primary:
+      - 02_tasks/04_workflows/deep_research/registry.yaml
+      - 02_tasks/01_scenarios/registry.yaml
+      - 02_tasks/02_definitions/registry.yaml
+      - 02_tasks/03_roles/registry.yaml
+    compat_read:
+      - 07_runtime/workflow/stage_specs/
+      - 90_compat/methods/02_研究框架/行业/*/场景卡/
+  capability:
+    registry: 03_capabilities/registry.yaml
+    write_entry: 03_capabilities/
+    read_primary:
+      - 03_capabilities/registry.yaml
+      - 03_capabilities/01_agents/registry.yaml
+      - 03_capabilities/02_skills/registry.yaml
+      - 03_capabilities/03_tools/registry.yaml
+      - 03_capabilities/04_protocols/mcp/registry.yaml
+      - 03_capabilities/04_protocols/a2a/registry.yaml
+      - 03_capabilities/04_protocols/a2a/BOUNDARY.md
+    compat_read:
+      - 07_runtime/agents/
+      - 07_runtime/skills/
+      - 90_compat/methods/03_取证/
+  execution:
+    registry: 04_execution/registry.yaml
+    write_entry: 04_execution/
+    read_primary:
+      - 04_execution/registry.yaml
+      - 04_execution/01_context/registry.yaml
+      - 04_execution/02_memory/contract.yaml
+      - 04_execution/03_workspace/registry.yaml
+      - 04_execution/04_runtime/registry.yaml
+      - 05_governance/01_架构/runtime_contexts.yaml
+    compat_read:
+      - 07_runtime/
+      - 90_compat/instances/
+  governance:
+    registry: 05_governance/registry.yaml
+    write_entry: 05_governance/{11_rules,14_evals,15_verifiers,12_identity,13_permissions}/
+    read_primary:
+      - 05_governance/registry.yaml
+      - 05_governance/11_rules/registry.yaml
+      - 05_governance/15_verifiers/registry.yaml
+      - 05_governance/14_evals/registry.yaml
+      - 05_governance/12_identity/registry.yaml
+      - 05_governance/13_permissions/registry.yaml
+    compat_read:
+      - 05_governance/02_合同/
+      - 05_governance/03_校验/
+      - 90_compat/evaluation/
+      - 90_compat/governance_mirrors/contracts/
+      - 90_compat/governance_mirrors/validation/
+      - 90_compat/governance_mirrors/architecture/
+  app:
+    registry: 06_app/registry.yaml
+    write_entry: 06_app/
+    read_primary:
+      - 06_app/registry.yaml
+      - 06_app/README.md
+    compat_read:
+      - 07_runtime/app/
+
+runtime_consumption:
+  context_registry_primary: 05_governance/01_架构/runtime_contexts.yaml
+  context_registry_compat:
+    - 90_compat/governance_mirrors/architecture/runtime_contexts.yaml
+  asset_coverage_primary: 05_governance/03_校验/runtime_asset_coverage.yaml
+  asset_coverage_compat:
+    - 90_compat/governance_mirrors/validation/runtime_asset_coverage.yaml
+  stage_spec_primary: 02_tasks/04_workflows/deep_research/
+  stage_spec_compat:
+    - 07_runtime/workflow/stage_specs/
+  stage_yaml_template_primary: 90_compat/methods/templates/
+  stage_yaml_template_compat:
+    - 07_runtime/workflow/stage_specs/ # stub only; YAML 正文在 90_compat/methods/templates/
+
+done_criteria_this_wave:
+  - 五域 registry 可独立回答权威在哪
+  - runtime context + 校验器默认读新路径或新镜像
+  - 旧路径仍可回放，但不再作为新增改动入口
+  - validate_project 不因路径不存在新增失败

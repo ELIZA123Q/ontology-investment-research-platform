@@ -46,18 +46,18 @@ allowed-tools: Read
 
 | 层 | 内容 | 位置 |
 |---|------|------|
-| 通用域 | 通用概念、时间、因果等 | `ontology/01_通用/` |
-| 金融域 | 金融工具、公司、市场等 | `ontology/02_金融域/` |
-| 半导体域 | 存储、设备、代工等 | `ontology/03_半导体域/` |
-| 业务专项 | 产业链关系等 | `ontology/04_业务专项/` |
+| 通用域 | 通用概念、时间、因果等 | `90_compat/ontology/01_通用/` |
+| 金融域 | 金融工具、公司、市场等 | `90_compat/ontology/02_金融域/` |
+| 半导体域 | 存储、设备、代工等 | `90_compat/ontology/03_半导体域/` |
+| 业务专项 | 产业链关系等 | `90_compat/ontology/04_业务专项/` |
 
 ## 知识库引用（不复制，直接读取）
 
 | 需要什么 | 读取位置 |
 |---------|---------|
-| 本体定义（四层） | `ontology/01_通用/` `ontology/02_金融域/` `ontology/03_半导体域/` `ontology/04_业务专项/` |
+| 本体定义（四层） | `90_compat/ontology/01_通用/` `90_compat/ontology/02_金融域/` `90_compat/ontology/03_半导体域/` `90_compat/ontology/04_业务专项/` |
 | 本体规则语义 | `governance/02_合同/ontology_rule_semantics_v3.yaml` |
 | 基础投影规则 | `governance/02_合同/ontology_base_projection.yaml` |
 | 本体版本变更 | `governance/02_合同/ontology_version_compatibility.yaml` |
 | O1-O9 规范 | `governance/03_校验/` |
-| 实现代码 | `runtime/skills/ontology/` |
+| 实现代码 | `07_07_runtime/skills/90_compat/ontology/` |

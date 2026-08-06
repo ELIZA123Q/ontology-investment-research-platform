@@ -44,6 +44,6 @@ allowed-tools: Read
 
 | 需要什么 | 读取位置 |
 |---------|---------|
-| 阶段规范 | `runtime/workflow/stage_specs/` |
+| 阶段规范 | `tasks/workflows/deep_research/stages/` |
 | 变更集 Schema | `governance/02_合同/change_set_schema.yaml` |
-| 实现代码 | `runtime/skills/replan/` |
+| 实现代码 | `07_07_runtime/skills/replan/` |

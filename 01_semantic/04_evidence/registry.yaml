@@ -1,0 +1,23 @@
+schema_name: semantic_evidence_registry
+schema_version: 1.2.0
+status: active
+
+authority:
+  answers: 证据语义在本体；来源准入与 provenance 合同由本 registry 索引；采集流程在 Task/Workflow。
+  write_entry: 01_semantic/04_evidence/
+  read_primary: 01_semantic/04_evidence/registry.yaml
+  compat_read:
+    - 01_semantic/01_ontology/models/evidence.yaml
+    - 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+    - 02_tasks/04_workflows/deep_research/supporting/
+
+source_of_truth:
+  ontology_model: 01_semantic/01_ontology/models/evidence.yaml
+  provenance_contract: 02_tasks/04_workflows/deep_research/supporting/03_evidence_provenance_manual.md
+  provenance_contract_compat: 07_runtime/workflow/stage_specs/
+  source_admission: 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+
+notes:
+  - MCP 是获取通道，不是来源生产者。
+  - 证据语义定义在本体，采集流程定义在 Task/Workflow。
+  - B00–B03 / OPS 正文权威在 90_compat/methods/03_取证/；本目录不保留实体副本。

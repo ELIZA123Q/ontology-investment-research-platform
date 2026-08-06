@@ -1,0 +1,63 @@
+schema_name: ontology_consumer_registry
+schema_version: 1.0.0
+status: active
+description: 本体元素变化时必须检查的下游消费面；用于生成影响清单，不定义研究逻辑。
+
+consumers:
+  - id: runtime_semantic_catalog
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - 07_runtime/engine/ontology_catalog.ts
+      - 07_runtime/adapters/ontology.ts
+    required_checks: [ontology:check, typecheck]
+
+  - id: runtime_schema_and_ui_vocabulary
+    watches: [object_types]
+    paths:
+      - 07_runtime/engine/ontology_vocabulary.generated.ts
+      - 07_runtime/engine/schemas.ts
+      - 07_runtime/engine/revise_schemas.ts
+      - 07_runtime/app
+    required_checks: [ontology:check, test:ontology_vocabulary]
+
+  - id: instance_graph_contract_and_materializer
+    watches: [object_types, relation_types, rules, evidence_constraints]
+    paths:
+      - 07_runtime/engine/graph_contract.ts
+      - 07_runtime/engine/instance_graph
+      - 07_runtime/engine/action_executor.ts
+    required_checks: [test:authority_graph, test:operational]
+
+  - id: workflow_semantic_envelopes
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - 07_runtime/engine/semantic_context.ts
+      - 07_runtime/engine/semantic_reads.ts
+      - 07_runtime/engine/workflow
+      - 90_compat/workflow/stages
+    required_checks: [test:semantic_context, test:semantic_reads, test:schemas]
+
+  - id: method_assets_and_routes
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - methods
+      - 07_runtime/engine/method_application.ts
+      - 07_runtime/engine/method_registry.ts
+      - 07_runtime/engine/method_guidance.ts
+    required_checks: [validate_method_assets, test:method_registry]
+
+  - id: external_data_mapping_profiles
+    watches: [object_types, relation_types]
+    paths:
+      - 05_governance/02_合同/ontology_data_mapping_profiles.yaml
+      - 07_runtime/engine/data_mapping_profiles.ts
+      - 07_runtime/adapters/mcp_evidence.ts
+    required_checks: [test:data_mapping_profiles, test:mcp_evidence]
+
+  - id: formal_packages_and_regression_instances
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - instances
+      - 05_governance/03_校验
+      - 07_runtime/engine/formal_pack_export.ts
+    required_checks: [validate_v3, validate_project]

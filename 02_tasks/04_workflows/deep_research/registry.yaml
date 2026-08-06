@@ -1,0 +1,37 @@
+schema_name: deep_research_workflow_registry
+schema_version: 1.1.0
+status: active
+workflow_id: deep_research
+workflow_name: Deep Research Workflow
+
+authority:
+  answers: Deep Research 阶段规范新增改动写入 02_tasks/04_workflows/deep_research/；runtime stage_specs 仅 compat 回放。
+  write_entry: 02_tasks/04_workflows/deep_research/
+  read_primary: 02_tasks/04_workflows/deep_research/
+  compat_read:
+    - 07_runtime/workflow/stage_specs/
+
+source_of_truth: 02_tasks/04_workflows/deep_research
+compat_source: 07_runtime/workflow/stage_specs
+
+stages:
+  - stage_id: 01_intake
+    stage_path: 02_tasks/04_workflows/deep_research/stages/01_intake.md
+    compat_path: 07_runtime/workflow/stage_specs/
+  - stage_id: 02_structure
+    stage_path: 02_tasks/04_workflows/deep_research/stages/02_structure.md
+    compat_path: 07_runtime/workflow/stage_specs/
+  - stage_id: 03_evidence
+    stage_path: 02_tasks/04_workflows/deep_research/stages/03_evidence.md
+    compat_path: 07_runtime/workflow/stage_specs/
+  - stage_id: 04_judgment
+    stage_path: 02_tasks/04_workflows/deep_research/stages/04_judgment.md
+    compat_path: 07_runtime/workflow/stage_specs/
+  - stage_id: 05_delivery
+    stage_path: 02_tasks/04_workflows/deep_research/stages/05_delivery.md
+    compat_path: 07_runtime/workflow/stage_specs/
+
+notes:
+  - 01—05 为 Task 域下的推荐路径，不是系统一级骨架。
+  - runtime_contexts / coverage 默认读 stage_path（tasks 镜像）。
+  - YAML 阶段模板优先 90_compat/methods/templates/；stage_specs 正文已 stub，仅留 compat 桥。

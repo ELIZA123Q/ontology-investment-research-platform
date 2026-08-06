@@ -50,6 +50,6 @@ allowed-tools: Read
 | 需要什么 | 读取位置 |
 |---------|---------|
 | 高质量判别标准 | `governance/03_校验/00A_高质量产出判别标准.md` |
-| 05阶段规范 | `runtime/workflow/stage_specs/05_表达/05_投研表达与交付规范.md` |
+| 05阶段规范 | `tasks/workflows/deep_research/stages/05_delivery.md` |
 | 等级−表达映射 | `governance/02_合同/judgment_threshold_policy.yaml` |
-| 实现代码 | `runtime/skills/semantic_review/` |
+| 实现代码 | `07_07_runtime/skills/semantic_review/` |

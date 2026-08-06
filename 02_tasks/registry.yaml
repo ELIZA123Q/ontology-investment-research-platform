@@ -1,0 +1,29 @@
+schema_name: task_domain_registry
+schema_version: 1.1.0
+status: active
+
+authority:
+  answers: Task 权威入口是本文件与子域 registry；Deep Research 阶段规范新增改动写入 02_tasks/04_workflows/deep_research/。
+  write_entry: 02_tasks/
+  read_primary: 02_tasks/**/registry.yaml
+  compat_read:
+    - 07_runtime/workflow/stage_specs/
+    - 90_compat/methods/02_研究框架/行业/*/场景卡/
+
+subdomains:
+  scenarios:
+    registry: 02_tasks/01_scenarios/registry.yaml
+    status: migrating
+  definitions:
+    registry: 02_tasks/02_definitions/registry.yaml
+    status: active
+  roles:
+    registry: 02_tasks/03_roles/registry.yaml
+    status: migrating
+  workflows_deep_research:
+    registry: 02_tasks/04_workflows/deep_research/registry.yaml
+    status: migrating
+
+notes:
+  - 01—05 是推荐 workflow，不是仓库一级骨架。
+  - runtime_contexts 默认注入 02_tasks/04_workflows/deep_research 镜像路径。

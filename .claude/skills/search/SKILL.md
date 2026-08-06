@@ -30,4 +30,4 @@ allowed-tools: Read, Bash
 | 关键文件索引 | `CLAUDE.md` 关键文件索引表 |
 
 > **状态：planned** — 搜索功能由 Claude Code 内置的 Glob/Grep 工具提供。
-> 本 skill 作为占位符保留，后续可能基于 `runtime/skills/search/` 扩展项目自定义索引。
+> 本 skill 作为占位符保留，后续可能基于 `07_07_runtime/skills/search/` 扩展项目自定义索引。

@@ -1,9 +1,0 @@
-schema_name: source_route_registry
-schema_version: 1.0.0
-status: compat
-
-notes:
-  - 兼容桥接文件：旧入口 knowledge/evidence_strategy/source_routes.yaml
-  - 权威定义在 methods/03_取证/03_registry.yaml 的 source_route_registry_ref 指向 methods/03_取证/source_routes.yaml。
-
-routes: []
