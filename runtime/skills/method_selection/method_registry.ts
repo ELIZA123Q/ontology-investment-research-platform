@@ -141,7 +141,7 @@ export function registeredMethodCandidates() {
 }
 
 export function methodRoutesForPrompt() {
-  const routeRegistry = parseYaml("governance/contracts/judgment_method_routes.yaml");
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
   const routes: Record<string, {
     default_kb03_method: string;
     allowed_kb03_methods: string[];
@@ -175,7 +175,7 @@ export function methodRoutesForPrompt() {
 }
 
 export function defaultMethodIdsForJudgmentType(judgmentType: string) {
-  const routeRegistry = parseYaml("governance/contracts/judgment_method_routes.yaml");
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
   const route = routeRegistry.routes?.[judgmentType];
   if (!route?.default_kb03_method || !route?.default_kb04_method) {
     throw new Error(`判断类型 ${judgmentType} 没有登记默认取证/裁决方法`);
@@ -222,7 +222,7 @@ export function recallRegisteredMethodCandidates(taskText: string) {
   const text = taskText.toLowerCase();
   const types = new Set(inferJudgmentTypesFromTask(taskText));
   const matches = (pattern: RegExp) => pattern.test(text);
-  const routeRegistry = parseYaml("governance/contracts/judgment_method_routes.yaml");
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
   const methodIds = new Set<string>(routeRegistry.global_optional_reasoning_methods || []);
   for (const type of types) {
     const route = routeRegistry.routes?.[type] || {};
@@ -281,7 +281,7 @@ export function validateMethodRoutes(
   applications: MethodApplication[],
   judgmentUnits: Array<{ id: string; judgment_type: string }>,
 ) {
-  const routeRegistry = parseYaml("governance/contracts/judgment_method_routes.yaml");
+  const routeRegistry = parseYaml("governance/02_合同/judgment_method_routes.yaml");
   const globalOptional = routeRegistry.global_optional_reasoning_methods || [];
   const units = new Map(judgmentUnits.map((unit) => [unit.id, unit]));
   for (const application of applications) {

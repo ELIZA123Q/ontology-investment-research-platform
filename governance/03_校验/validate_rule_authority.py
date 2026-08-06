@@ -11,14 +11,16 @@ from typing import Any
 import yaml
 
 
+from repo_paths import stage_yaml_template
+
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "governance/02_合同/rule_authority_registry.yaml"
 OPERATIONS = ROOT / "runtime/engine/runtime_operations.yaml"
 MODEL_FILES = tuple((ROOT / "ontology/01_通用/models").glob("*.yaml"))
 SAMPLE_FILES = tuple((ROOT / "instances/02_V3样例").glob("*/04_judgment.yaml"))
 CURRENT_TEMPLATES = (
-    ROOT / "runtime/workflow/stage_specs/02_结构/模板/02_任务本体视图模板.yaml",
-    ROOT / "runtime/workflow/stage_specs/04_判断/模板/04_推理审计模板.yaml",
+    stage_yaml_template("02"),
+    stage_yaml_template("04"),
 )
 METHOD_ID = re.compile(r"^(?:A|kb0[234]:A)[0-9]{2}$")
 AUTHORITY_SECTIONS = (

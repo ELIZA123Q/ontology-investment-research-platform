@@ -102,7 +102,7 @@ const requiredMarkers: Array<[string, string, string]> = [
   ["runtime/workflow/orchestrator.ts", "buildStageSemanticContext", "生成阶段语义封套"],
   ["runtime/workflow/approval.ts", "buildStageSemanticContext", "批准阶段语义封套"],
   ["runtime/export/formal_pack_export.ts", "buildProductionSemanticBaseline", "生产正式发布语义基线"],
-  ["governance/validation/validate_run.py", "validate_semantic_baseline", "正式发布 Python 语义门"],
+  ["governance/03_校验/validate_run.py", "validate_semantic_baseline", "正式发布 Python 语义门"],
   ["runtime/governance/ontology_changes/action_executor.ts", "assertFormalRelationChoice", "关系写入正式端点门"],
   ["runtime/skills/ontology/semantic_reads.ts", "formal_graph_verified", "已批准阶段语义读取门"],
 ];

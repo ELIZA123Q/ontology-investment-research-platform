@@ -1,0 +1,29 @@
+schema_name: semantic_domain_registry
+schema_version: 1.1.0
+status: active
+
+authority:
+  answers: Semantic 权威入口是本文件与子域 registry；机器正文过渡期仍指向 ontology/ 等 compat_read。
+  write_entry: semantic/
+  read_primary: semantic/**/registry.yaml
+  compat_read:
+    - ontology/
+    - methods/03_取证/B00_来源选择与使用边界.md
+
+subdomains:
+  ontology:
+    registry: semantic/ontology/registry.yaml
+    status: migrating
+  dictionary:
+    registry: semantic/dictionary/registry.yaml
+    status: migrating
+  knowledge_graph:
+    registry: semantic/knowledge_graph/registry.yaml
+    status: migrating
+  evidence:
+    registry: semantic/evidence/registry.yaml
+    status: migrating
+
+notes:
+  - 不在本域写研究步骤、阶段门或单次结论。
+  - 物理迁移未完成前，source_of_truth 指向旧路径；新增语义定义先登记到本域 registry。

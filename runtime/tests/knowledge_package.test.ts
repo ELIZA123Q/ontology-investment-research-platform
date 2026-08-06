@@ -22,7 +22,7 @@ describe("portable knowledge package", () => {
     expect(names).toContain("catalog/research-method-catalog.json");
     expect(names).toContain("catalog/data-mapping-registry.json");
     expect(names.some((name) => name.startsWith("ontology/models/") && name.endsWith(".yaml"))).toBe(true);
-    expect(names).toContain("governance/knowledge_changes/method_assets.yaml");
+    expect(names).toContain("governance/05_元治理本体/method_assets.yaml");
     expect(names).not.toContain("context/task-local-ontology.json");
     const manifest = JSON.parse(bundle.files.find((file) => file.file_name === "manifest.json")!.content);
     expect(manifest.schema_name).toBe("portable_research_knowledge_manifest");

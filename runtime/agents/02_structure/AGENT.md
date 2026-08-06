@@ -66,7 +66,7 @@ skills: [ontology, method-selection, gap-detection, semantic-review, replan]
 
 | 文件 | 用途 |
 |------|------|
-| `runtime/workflow/stage_specs/02_结构/02_判断结构与本体视图规范.md` | 阶段规范与质量门槛 |
+| `tasks/workflows/deep_research/stages/02_structure.md` | 阶段规范与质量门槛 |
 | `methods/02_判断结构/基础框架库/` | 15类通用分析框架 |
 | `methods/02_判断结构/行业框架库/` | 半导体主框架与场景卡 |
 | `governance/02_合同/judgment_method_routes.yaml` | 方法路由 |

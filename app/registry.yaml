@@ -1,0 +1,25 @@
+schema_name: app_surface_registry
+schema_version: 1.0.0
+status: shell
+source_of_truth: runtime/app
+workbench_url: http://127.0.0.1:3000
+routes:
+  - path: /
+    file: runtime/app/page.tsx
+  - path: /runs
+    file: runtime/app/runs/page.tsx
+  - path: /runs/new
+    file: runtime/app/runs/new/page.tsx
+  - path: /runs/[id]
+    file: runtime/app/runs/[id]/page.tsx
+  - path: /runs/[id]/stages/[stage]
+    file: runtime/app/runs/[id]/stages/[stage]/page.tsx
+  - path: /knowledge
+    file: runtime/app/knowledge/page.tsx
+  - path: /experience
+    file: runtime/app/experience/page.tsx
+  - path: /ontology
+    file: runtime/app/ontology/page.tsx
+notes:
+  - 不建 workspace-ui/task-ui/knowledge-ui/agent-ui 空切片。
+  - UI 权威仍在 runtime/app；本目录为产品面登记。

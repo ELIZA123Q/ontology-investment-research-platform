@@ -153,7 +153,7 @@ export function buildWorkbenchManifest(
       publishable: false,
       publish_status: "exported_pending_validate",
     },
-    validation_target: "governance/validation/validate_workbench_package.py",
+    validation_target: "governance/03_校验/validate_workbench_package.py",
     artifacts: [
       "package_kind.yaml",
       "01_task.yaml",

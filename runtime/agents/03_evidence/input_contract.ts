@@ -19,7 +19,7 @@ import { projectEvidenceRequirementsFromStructure } from "../02_structure/struct
 import type { SourceRecord } from "../../schemas/types";
 
 export const STAGE03_QUALITY_GATE_REF =
-  "runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md#3-质量门槛与返工";
+  "tasks/workflows/deep_research/stages/03_evidence.md#3-质量门槛与返工";
 
 function nonEmpty(value: unknown, fallback = ""): string {
   return nonEmptyText(value, fallback);

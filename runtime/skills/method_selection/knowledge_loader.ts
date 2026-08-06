@@ -5,7 +5,7 @@ import { repositoryPath } from "../../storage/repo_paths";
 import { logger } from "../../lib/logger";
 import type { StageKind } from "../../schemas/types";
 
-const contextRegistryPath = "governance/architecture/runtime_contexts.yaml";
+const contextRegistryPath = "governance/01_架构/runtime_contexts.yaml";
 
 export type LoadKnowledgeOptions = {
   deliveryArchetype?: string | null;

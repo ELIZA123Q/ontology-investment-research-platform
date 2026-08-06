@@ -15,7 +15,7 @@ import { normalizeMethodApplicationNulls } from "../../skills/evidence_evaluatio
 import { applyEvidenceRequirementBindings } from "../../skills/evidence_evaluation/requirement_bindings";
 
 export const STAGE02_QUALITY_GATE_REF =
-  "runtime/workflow/stage_specs/02_结构/02_判断结构与本体视图规范.md#7-质量门槛与返工规则";
+  "tasks/workflows/deep_research/stages/02_structure.md#7-质量门槛与返工规则";
 
 function nonEmpty(value: unknown, fallback = ""): string {
   return nonEmptyText(value, fallback);

@@ -1,0 +1,187 @@
+schema_name: ontology_governance_change_model
+schema_version: 2.0.0
+meta_schema_version: 2.0.0
+status: active
+namespace: gov.change
+model: change
+description: 分支、提案、影响、批准、检查、迁移、发布、例外和动作日志。
+
+object_types:
+  OntologyBranch:
+    metadata: {id: OntologyBranch, namespace: gov.change, label_zh: 本体变更分支, label_en: Ontology Branch, definition: 相对一个正式本体基线隔离保存拟议差异、冲突与 rebase 状态的治理对象。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: branch_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 分支 ID。}
+      branch_ref: {type: string, required: true, cardinality: '1..1', value_role: identity, description: Git 分支或候选隔离引用。}
+      base_fingerprint: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 创建或最近 rebase 时的正式本体指纹。}
+      candidate_fingerprint: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 拟议内容指纹。}
+      diff_summary: {type: object, required: true, cardinality: '1..1', value_role: fact, description: 新增、修改、废弃、拆分和合并的元素摘要。}
+      conflicts: {type: array, required: true, cardinality: '0..*', value_role: state, description: 尚未解决的冲突。}
+      rebase_required: {type: boolean, required: true, cardinality: '1..1', value_role: calculated, description: 当前基线变化后是否需要 rebase。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 分支责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 分支模式版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [open, merged, abandoned], description: 分支状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [branch_ref], mutually_exclusive: [], lifecycle: open_to_merged_or_abandoned}
+
+  ChangeProposal:
+    metadata: {id: ChangeProposal, namespace: gov.change, label_zh: 本体变更提案, label_en: Ontology Change Proposal, definition: 对受治理资产提出明确变更并经过影响、批准、实现、检查和发布生命周期的对象。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource, ReviewableProposal]
+    primary_key: id
+    title_property: target_ontology_node_id
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 提案 ID。}
+      candidate_key: {type: string, required: false, cardinality: '0..1', value_role: metadata, description: 来源候选键。}
+      target_ontology_node_id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 拟正式本体元素 ID。}
+      change_kind: {type: enum, required: true, cardinality: '1..1', value_role: fact, allowed_values: [add, modify, deprecate, split, merge], description: 变更种类。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [proposed, impact_assessed, approved, implemented, validated, released, rejected], description: 提案状态；只能由注册 Action 迁移。}
+      base_fingerprint: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 提案基线指纹。}
+      candidate_fingerprint: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 拟议内容指纹。}
+      proposal_note: {type: string, required: true, cardinality: '1..1', value_role: fact, description: 变更目的与边界。}
+      breaking_change: {type: boolean, required: true, cardinality: '1..1', value_role: fact, description: 是否破坏现有消费者契约。}
+      implementation_ref: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 仓库内实现引用。}
+      release_fingerprint: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 发布时正式本体指纹。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 提案责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 提案版本。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+      released_at: {type: datetime, required: false, cardinality: '0..1', value_role: audit, description: 发布完成时间。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: action_defined_state_machine}
+
+  ImpactAssessment:
+    metadata: {id: ImpactAssessment, namespace: gov.change, label_zh: 影响评估, label_en: Impact Assessment, definition: 对拟议差异涉及的元素、消费者、运行、检查和破坏性风险形成的冻结快照。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: proposal_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 评估 ID。}
+      proposal_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, reference_target: ChangeProposal, description: 所属提案。}
+      assessed_fingerprint: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 影响冻结时的基线指纹。}
+      changed_element_ids: {type: array, required: true, cardinality: '1..*', value_role: fact, description: 拟变更元素 ID。}
+      affected_consumer_ids: {type: array, required: true, cardinality: '0..*', value_role: fact, description: 受影响消费者 ID。}
+      affected_run_ids: {type: array, required: true, cardinality: '0..*', value_role: fact, description: 受影响运行 ID。}
+      required_checks: {type: array, required: true, cardinality: '1..*', value_role: fact, description: 发布前必跑检查。}
+      breaking_change: {type: boolean, required: true, cardinality: '1..1', value_role: fact, description: 破坏性判断。}
+      rationale: {type: string, required: true, cardinality: '1..1', value_role: fact, description: 判断依据。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 评估责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 评估版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [frozen, stale, superseded], description: 评估状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: frozen_to_stale_or_superseded}
+
+  ApprovalTask:
+    metadata: {id: ApprovalTask, namespace: gov.change, label_zh: 批准任务, label_en: Approval Task, definition: 按批准策略分配给明确角色并形成追加式决定的审阅对象。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: policy_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 任务 ID。}
+      proposal_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, reference_target: ChangeProposal, description: 所属提案。}
+      policy_ref: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 批准策略 ID。}
+      reviewer_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 所需审阅角色。}
+      reviewer_name: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 实际审阅人。}
+      decision_note: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 决定理由。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 任务责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 任务版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [pending, approved, rejected, superseded], description: 决定状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: pending_to_approved_or_rejected_or_superseded}
+
+  ValidationRun:
+    metadata: {id: ValidationRun, namespace: gov.change, label_zh: 检查运行, label_en: Validation Run, definition: 对冻结实现和基线执行一组检查后形成的不可变结果。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: implementation_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 检查运行 ID。}
+      proposal_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, reference_target: ChangeProposal, description: 所属提案。}
+      implementation_ref: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 被检查实现引用。}
+      ontology_fingerprint: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 检查时正式本体指纹。}
+      required_checks: {type: array, required: true, cardinality: '1..*', value_role: fact, description: 应执行检查。}
+      results: {type: object, required: true, cardinality: '1..1', value_role: audit, description: 检查 ID 到 pass 或 fail 的映射。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 检查责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 运行版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [passed, failed], description: 汇总状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 与创建时间一致。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: immutable}
+
+  MigrationTask:
+    metadata: {id: MigrationTask, namespace: gov.change, label_zh: 迁移任务, label_en: Migration Task, definition: 破坏性变更对受影响消费者实施兼容、数据或语义迁移的工作对象。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: migration_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 迁移任务 ID。}
+      proposal_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, reference_target: ChangeProposal, description: 所属提案。}
+      migration_ref: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 仓库内迁移账本或实现引用。}
+      affected_consumer_ids: {type: array, required: true, cardinality: '1..*', value_role: fact, description: 迁移对象。}
+      completion_evidence: {type: object, required: false, cardinality: '0..1', value_role: audit, description: 完成证据。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 迁移责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 任务版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [pending, in_progress, completed, cancelled], description: 迁移状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [migration_ref], mutually_exclusive: [], lifecycle: pending_to_in_progress_to_completed}
+
+  ReleaseBaseline:
+    metadata: {id: ReleaseBaseline, namespace: gov.change, label_zh: 发布基线, label_en: Release Baseline, definition: 正式发布时资产版本集合、本体指纹和提案集合的不可变快照。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: ontology_fingerprint
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 基线 ID。}
+      ontology_fingerprint: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 正式本体内容指纹。}
+      asset_versions: {type: object, required: true, cardinality: '1..1', value_role: audit, description: 资产 ID 到版本的映射。}
+      proposal_ids: {type: array, required: true, cardinality: '1..*', value_role: audit, description: 本次发布包含的提案。}
+      release_ref: {type: string, required: true, cardinality: '1..1', value_role: audit, description: Git tag、清单或其他发布引用。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 发布责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 基线版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [current, superseded], description: 基线状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 发布时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 与创建时间一致。}
+    constraints: {unique: [ontology_fingerprint, release_ref], mutually_exclusive: [], lifecycle: current_to_superseded}
+
+  GovernanceException:
+    metadata: {id: GovernanceException, namespace: gov.change, label_zh: 治理例外, label_en: Governance Exception, definition: 对非语义性治理规则在明确范围、责任人与失效时间内作出的临时例外。, model: change, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: rule_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 例外 ID。}
+      rule_ref: {type: string, required: true, cardinality: '1..1', value_role: fact, description: 被例外的治理规则 ID。}
+      scope_ref: {type: string, required: true, cardinality: '1..1', value_role: fact, description: 例外适用资产或提案。}
+      reason: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 例外理由。}
+      expires_at: {type: datetime, required: true, cardinality: '1..1', value_role: state, description: 强制失效时间。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 例外责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 例外版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [active, expired, revoked], description: 例外状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: active_to_expired_or_revoked}
+
+  GovernanceActionLog:
+    metadata: {id: GovernanceActionLog, namespace: gov.change, label_zh: 治理动作日志, label_en: Governance Action Log, definition: 每次成功 Action 的类型、版本、执行者、输入、结果、编辑对象和前后指纹记录。, model: change, version: 2.0.0, status: active}
+    implements: [AuditableAction]
+    primary_key: id
+    title_property: action_type
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 日志 ID。}
+      request_id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 提案 ID。}
+      action_type: {type: string, required: true, cardinality: '1..1', value_role: audit, description: Action Type ID。}
+      action_version: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 执行时 Action 版本。}
+      actor_name: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 执行者。}
+      actor_role: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 执行角色。}
+      decision_note: {type: string, required: true, cardinality: '1..1', value_role: audit, description: 执行理由。}
+      input_snapshot: {type: object, required: true, cardinality: '1..1', value_role: audit, description: 执行输入快照。}
+      result_snapshot: {type: object, required: true, cardinality: '1..1', value_role: audit, description: 执行结果快照。}
+      edited_object_ids: {type: array, required: true, cardinality: '1..*', value_role: audit, description: 被写对象 ID。}
+      prior_fingerprint: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 执行前指纹。}
+      result_fingerprint: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 执行后指纹。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 执行时间。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: immutable}

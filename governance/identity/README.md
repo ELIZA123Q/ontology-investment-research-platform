@@ -1,7 +1,6 @@
 # governance/identity
 
-- **回答什么：** 你是谁（研究员 / reviewer / 系统 job 等身份模型）。
-- **不放什么：** 权限矩阵细节（见 permissions）、业务判断结论。
-- **当前权威资产：** 弱/未产品化；本轮先冻结身份契约。
-- **status:** shell
-- **registry:** `governance/identity/registry.yaml`
+- **回答什么：** 你是谁（researcher / reviewer / system_job）及与 Task roles 的映射。
+- **不放什么：** 权限矩阵细节（见 permissions）、登录实现。
+- **status:** migrating（`authentication: deferred`）
+- **registry:** [`registry.yaml`](./registry.yaml)

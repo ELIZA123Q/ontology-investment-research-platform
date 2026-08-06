@@ -133,9 +133,9 @@ governance_rules:
 
 runtime_rules:
   RT-OPERATION-REGISTRY-001: {source_ref: runtime/engine/runtime_operations.yaml, business_support_allowed: false}
-  RT-METHOD-STATUS-001: {source_ref: runtime/engine/method_application.ts, business_support_allowed: false}
-  RT-METHOD-NO-SILENT-DROP-001: {source_ref: runtime/engine/method_application.ts, business_support_allowed: false}
-  RT-STAGE-TRANSITION-001: {source_ref: runtime/engine/workflow.ts, business_support_allowed: false}
+  RT-METHOD-STATUS-001: {source_ref: runtime/skills/method_selection/method_application.ts, business_support_allowed: false}
+  RT-METHOD-NO-SILENT-DROP-001: {source_ref: runtime/skills/method_selection/method_application.ts, business_support_allowed: false}
+  RT-STAGE-TRANSITION-001: {source_ref: runtime/workflow/stage_transitions.ts, business_support_allowed: false}
 
 retired_rule_ids:
   rule_evaluation_is_explicit:

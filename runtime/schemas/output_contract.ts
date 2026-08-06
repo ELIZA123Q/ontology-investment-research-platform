@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * 输出合同校验器 — 对标 governance/validation/ 体系
+ * 输出合同校验器 — 对标 governance/03_校验/ 体系
  *
  * 在 Runtime 层面强制执行三项核心合同:
  * 1. 派生字段禁止人工填写 (status_derivation.py DERIVED_LIMIT_FIELDS)
@@ -19,7 +19,7 @@ import { createHash } from "node:crypto";
 
 /**
  * 只能由确定性规则计算的字段，LLM 不得直接填写。
- * 来源: governance/validation/status_derivation.py DERIVED_LIMIT_FIELDS + RETIRED_PARALLEL_FIELDS
+ * 来源: governance/03_校验/status_derivation.py DERIVED_LIMIT_FIELDS + RETIRED_PARALLEL_FIELDS
  */
 export const DERIVED_LIMIT_FIELDS = [
   "maximum_judgment_level",

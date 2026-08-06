@@ -59,12 +59,12 @@ export type ScenarioCardSpec = {
 export const SEMICONDUCTOR_SCENARIO_CARDS: ScenarioCardSpec[] = [
   {
     scenario_id: "SCN-MEM-CYCLE",
-    file: "knowledge/frameworks/行业/半导体/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md",
+    file: "methods/02_研究框架/行业/半导体/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md",
     keywords: ["存储周期", "DRAM", "NAND", "见顶", "周期反转", "内存周期", "存储芯片周期", "稀缺定价"],
   },
   {
     scenario_id: "SCN-MEM-HBM",
-    file: "knowledge/frameworks/行业/半导体/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md",
+    file: "methods/02_研究框架/行业/半导体/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md",
     keywords: ["HBM", "高带宽内存", "资源挤占", "HBM供需"],
   },
 ];
@@ -132,12 +132,12 @@ function listMarkdownFiles(dirAbs: string): string[] {
   return out;
 }
 
-/** Map BF-/IF- ids to framework markdown paths under methods/02_判断结构. */
+/** Map BF-/IF- ids to framework markdown paths under methods/02_研究框架. */
 export function frameworkMarkdownIndex(): Map<string, string> {
   if (frameworkMarkdownCache) return frameworkMarkdownCache;
   const roots = [
-    "knowledge/frameworks/基础",
-    "methods/02_判断结构/行业框架库",
+    "methods/02_研究框架/基础",
+    "methods/02_研究框架/行业",
   ];
   const index = new Map<string, string>();
   for (const root of roots) {
@@ -192,8 +192,8 @@ export function enrichPromptMethodCards(
   methods: RegisteredMethod[],
   judgmentTypes: string[] = [],
 ): MethodPromptCard[] {
-  const frameworkRegistry = parseYaml("knowledge/frameworks/registry.yaml");
-  const evidenceRegistry = parseYaml("knowledge/evidence_strategy/03_registry.yaml");
+  const frameworkRegistry = parseYaml("methods/02_研究框架/registry.yaml");
+  const evidenceRegistry = parseYaml("methods/03_取证/03_registry.yaml");
   const frameworks = {
     ...(frameworkRegistry.frameworks || {}),
     ...(frameworkRegistry.industry_overlays || {}),
@@ -513,7 +513,7 @@ export function loadSelectedMethodGuidance(
 }
 
 export function judgmentThresholdCapsForPrompt(): ThresholdCapsProjection {
-  const policy = parseYaml("governance/contracts/judgment_threshold_policy.yaml");
+  const policy = parseYaml("governance/02_合同/judgment_threshold_policy.yaml");
   return {
     formal_rule_ref: String(policy.formal_rule_ref || ""),
     evidence_grade_caps: { ...(policy.evidence_grade_caps || {}) },
@@ -526,7 +526,7 @@ export function judgmentThresholdCapsForPrompt(): ThresholdCapsProjection {
 }
 
 export function evidenceJudgmentTypeCardsForPrompt(judgmentTypes: string[]) {
-  const registry = parseYaml("knowledge/evidence_strategy/03_registry.yaml");
+  const registry = parseYaml("methods/03_取证/03_registry.yaml");
   const rows = registry.judgment_types || {};
   const types = judgmentTypes.length ? judgmentTypes : Object.keys(rows);
   return Object.fromEntries(

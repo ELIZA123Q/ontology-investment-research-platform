@@ -846,7 +846,7 @@ describe("evaluateEvidenceStopCondition", () => {
         document_markdown: "补证基座",
         stage_status: "in_progress",
         quality_status: "draft",
-        quality_gate_ref: "runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md",
+        quality_gate_ref: "tasks/workflows/deep_research/stages/03_evidence.md",
         deterministic_check_status: "not_checked",
         semantic_review_status: "not_reviewed",
         confidence_ceiling: "low",

@@ -47,17 +47,17 @@ export type KnowledgePackage = {
 };
 
 const KNOWLEDGE_VERSION = "1.0.0";
-const METHOD_ASSET_ROOTS = ["methods/02_判断结构", "methods/03_取证", "knowledge/adjudication"];
+const METHOD_ASSET_ROOTS = ["methods/02_研究框架", "methods/03_取证", "methods/04_裁决"];
 const ALWAYS_INCLUDED_METHOD_FILES = [
-  "knowledge/README.md",
-  "governance/knowledge_changes/method_assets.yaml",
-  "knowledge/frameworks/README.md",
-  "knowledge/frameworks/registry.yaml",
-  "knowledge/evidence_strategy/README.md",
-  "knowledge/evidence_strategy/03_registry.yaml",
-  "knowledge/evidence_strategy/source_routes.yaml",
-  "knowledge/adjudication/README.md",
-  "governance/contracts/judgment_method_routes.yaml",
+  "methods/README.md",
+  "governance/05_元治理本体/method_assets.yaml",
+  "methods/02_研究框架/README.md",
+  "methods/02_研究框架/registry.yaml",
+  "methods/03_取证/README.md",
+  "methods/03_取证/03_registry.yaml",
+  "methods/03_取证/source_routes.yaml",
+  "methods/04_裁决/README.md",
+  "governance/02_合同/judgment_method_routes.yaml",
 ];
 
 function json(value: unknown): string {
@@ -293,7 +293,7 @@ function baselineFiles(): KnowledgePackageFile[] {
     ...ALWAYS_INCLUDED_METHOD_FILES,
     ...METHOD_ASSET_ROOTS.flatMap(collectFiles),
     ...collectFiles("ontology/02_领域/semiconductor"),
-    "governance/contracts/ontology_data_mapping_profiles.yaml",
+    "governance/02_合同/ontology_data_mapping_profiles.yaml",
   ]);
   for (const file of [...assets].sort()) files.push(readRepoFile(file));
   return files;

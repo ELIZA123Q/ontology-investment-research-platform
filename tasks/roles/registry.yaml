@@ -1,6 +1,14 @@
 schema_name: task_role_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
+
+authority:
+  answers: 角色合同索引在本文件；Agent 实现过渡期仍在 runtime/agents/。
+  write_entry: tasks/roles/
+  read_primary: tasks/roles/registry.yaml
+  compat_read:
+    - runtime/agents/
+
 source_of_truth: runtime/agents
 
 roles:

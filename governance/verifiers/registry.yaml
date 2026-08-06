@@ -1,9 +1,42 @@
 schema_name: governance_verifier_registry
-schema_version: 1.0.0
+schema_version: 1.2.0
 status: active
+
+authority:
+  answers: Verifier 契约入口在本文件；确定性校验脚本过渡期仍在 governance/03_校验/。
+  write_entry: governance/verifiers/
+  read_primary: governance/03_校验
+  compat_read:
+    - governance/03_校验/
+    - governance/validation/
+
 source_of_truth: governance/03_校验
 entrypoints:
   - governance/03_校验/validate_project.py
   - governance/03_校验/validate_stage_assets.py
   - governance/03_校验/validate_rule_authority.py
+  - governance/03_校验/validate_run.py
+
+validators:
+  - governance/03_校验/validate_deprecated_terms.py
+  - governance/03_校验/validate_governance_control_plane.py
+  - governance/03_校验/validate_incremental_update_contract.py
+  - governance/03_校验/validate_markdown_language.py
+  - governance/03_校验/validate_method_application_contract.py
+  - governance/03_校验/validate_method_assets.py
+  - governance/03_校验/validate_parameter_authority.py
+  - governance/03_校验/validate_project.py
+  - governance/03_校验/validate_publish.py
+  - governance/03_校验/validate_reasoning_trace_contract.py
+  - governance/03_校验/validate_requirements_coverage.py
+  - governance/03_校验/validate_rule_authority.py
+  - governance/03_校验/validate_run.py
+  - governance/03_校验/validate_semantic_baseline.py
+  - governance/03_校验/validate_stage_assets.py
+  - governance/03_校验/validate_v3_samples.py
+  - governance/03_校验/validate_workbench_package.py
+
 compat_mode: true
+notes:
+  - wave4: 校验脚本已编目；不搬迁实现。
+  - Verifier 只做确定性检查，不做研究质量洞察打分。

@@ -62,7 +62,7 @@ skills: [ontology, method-selection, semantic-review]
 
 | 文件 | 用途 |
 |------|------|
-| `runtime/workflow/stage_specs/01_受理/01_投研判断任务受理与整理规范.md` | 阶段规范与质量门槛 |
+| `tasks/workflows/deep_research/stages/01_intake.md` | 阶段规范与质量门槛 |
 | `governance/02_合同/judgment_method_routes.yaml` | 判断方法路由 |
 | `governance/02_合同/package_kinds.yaml` | 包类型定义 |
 | `governance/01_架构/00_项目定位与边界.md` | 项目边界与超范围判定依据 |

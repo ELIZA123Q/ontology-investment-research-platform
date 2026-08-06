@@ -1,0 +1,416 @@
+schema_name: ontology_data_mapping_registry
+schema_version: 1.1.0
+status: active
+formal_ontology_version: 3.0.0
+description: 外部连接器字段到正式投研本体对象的版本化语义映射。映射只负责语义对齐，不执行研究推理。
+
+required_provenance_fields:
+  - connector
+  - upstream_producer
+  - query_parameters
+  - tool_name
+  - response_fingerprint
+  - mapping_profile_id
+  - mapping_profile_version
+  - field_lineage_note
+  - access_scope
+  - replayability
+
+required_connectors:
+  - cninfo
+  - datayes-stock-finoper-mcp
+  - datayes-stock-info-mcp
+  - datayes-stock-mkt-mcp
+  - datayes-stock-eqhld-mcp
+  - datayes-stock-event-mcp
+  - datayes-macro-mcp
+  - datayes-index-info-mcp
+  - datayes-index-mktanl-mcp
+  - datayes-fund-master-mcp
+  - datayes-fund-perf-mcp
+  - datayes-fund-holding-mcp
+  - datayes-fund-fincap-mcp
+  - datayes-fund-analytics-mcp
+  - china-policy
+  - htsc_research_mcp
+  - caixin-news
+  - jina-reader
+
+profiles:
+  - id: cninfo_source_document
+    version: 1.0.0
+    status: active
+    connector: cninfo
+    source_grain: one_disclosure_document
+    description: 巨潮公告检索结果先登记为来源文档；不得由连接器响应直接形成 EvidenceFact 或 Judgment。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: candidate_only
+        identity_source_paths: [announcementId, announcement_id, url]
+        fields:
+          - {target_attribute: title, source_paths: [announcementTitle, title], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [url, adjunctUrl], transform: normalize_uri}
+          - {target_attribute: published_at, source_paths: [announcementTime, published_at], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [EvidenceFact, Signal, Judgment]
+
+  - id: datayes_finoper_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-stock-finoper-mcp
+    source_grain: one_company_financial_metric_period
+    description: 通联财务行映射为带业务时间的观测候选；主体、指标、单位、范围和研究截止时间必须由调用上下文显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [ticker, secID, endDate, reportType, field]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [endDate, reportDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [endDate, reportDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [publishDate, actPubtime], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [subject_ref, metric_ref, unit, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+      - target_type: SourceDocument
+        materialization: requires_context
+        identity_source_paths: [ticker, endDate, reportType]
+        fields:
+          - {target_attribute: title, source_paths: [$context.source_title], transform: constant_or_context}
+          - {target_attribute: uri, source_paths: [$context.source_uri], transform: constant_or_context}
+          - {target_attribute: published_at, source_paths: [publishDate, actPubtime], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        required_context_bindings: [source_title, source_uri, source_tier]
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [Signal, Hypothesis, Judgment]
+
+  - id: china_policy_document_event
+    version: 1.0.0
+    status: active
+    connector: china-policy
+    source_grain: one_official_policy_document
+    description: 中央政策检索结果先登记官方来源；政策发布事件和政策工具只有在发生、生效、管辖与适用对象明确后才能物化。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: candidate_only
+        identity_source_paths: [document_id, policy_id, url]
+        fields:
+          - {target_attribute: title, source_paths: [title, name], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [url, source_url], transform: normalize_uri}
+          - {target_attribute: published_at, source_paths: [published_at, publish_date], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        completeness_gate: [title, uri, published_at, source_tier]
+      - target_type: Event
+        materialization: requires_context
+        identity_source_paths: [document_id, policy_id]
+        fields:
+          - {target_attribute: name, source_paths: [title, name], transform: first_non_empty}
+          - {target_attribute: event_type, source_paths: [$constant.policy], transform: constant_or_context}
+          - {target_attribute: occurred_at, source_paths: [issued_at, published_at], transform: normalize_datetime}
+          - {target_attribute: effective_at, source_paths: [effective_at], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [published_at, publish_date], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [cutoff_at, jurisdiction_ref, applies_to_refs]
+        completeness_gate: [name, event_type, occurred_at, effective_at, cutoff_at]
+    forbidden_direct_targets: [Signal, Hypothesis, Judgment]
+
+  - id: datayes_stock_info_company
+    version: 1.0.0
+    status: active
+    connector: datayes-stock-info-mcp
+    source_grain: one_listed_company_record
+    description: 公司基础记录只形成 Company 身份候选；证券代码必须归一到稳定公司 ID，禁止把名称相似当成同一主体。
+    target_mappings:
+      - target_type: Company
+        materialization: requires_context
+        identity_source_paths: [partyID, secID, ticker, secCode]
+        fields:
+          - {target_attribute: name, source_paths: [partyShortName, secShortName, companyName, secFullName], transform: first_non_empty}
+          - {target_attribute: issuer_identifiers, source_paths: [partyID, secID, ticker, secCode], transform: collect_identifiers}
+        required_context_bindings: [stable_company_id]
+        completeness_gate: [name]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_stock_market_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-stock-mkt-mcp
+    source_grain: one_security_market_metric_time
+    description: 股票行情、估值和资金流只形成观测候选；证券到公司/资产、指标、单位、复权和交易日口径必须由上下文绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [secID, ticker, tradeDate, field]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [tradeDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [tradeDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [dataDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [subject_ref, metric_ref, unit, adjustment_basis, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_equity_holding_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-stock-eqhld-mcp
+    source_grain: one_holder_company_reporting_period
+    description: 股东、质押和机构持股数据只形成带主体与报告期的观测候选；持有人身份、分母和股份口径必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [secID, ticker, holderName, endDate, reportDate]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [endDate, reportDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [endDate, reportDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [publishDate, actPubtime], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [subject_ref, holder_ref, metric_ref, denominator, unit, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_stock_event
+    version: 1.0.0
+    status: active
+    connector: datayes-stock-event-mcp
+    source_grain: one_company_event_record
+    description: 分红、回购、诉讼、融资等记录只形成事件候选；事件类型、主体、发生和生效时间必须经上下文与原公告核对。
+    target_mappings:
+      - target_type: Event
+        materialization: requires_context
+        identity_source_paths: [secID, ticker, eventID, announcementId]
+        fields:
+          - {target_attribute: name, source_paths: [eventName, title, announcementTitle, eventType], transform: first_non_empty}
+          - {target_attribute: event_type, source_paths: [$context.event_type], transform: constant_or_context}
+          - {target_attribute: occurred_at, source_paths: [eventDate, publishDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: effective_at, source_paths: [effectiveDate, eventDate, publishDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [publishDate, actPubtime], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [subject_ref, event_type, scope_ref, cutoff_at, source_document_ref]
+        completeness_gate: [name, event_type, occurred_at, effective_at, cutoff_at]
+    forbidden_direct_targets: [Signal, Hypothesis, Judgment]
+
+  - id: datayes_macro_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-macro-mcp
+    source_grain: one_macro_indicator_period_region
+    description: 宏观指标值只形成观测候选；指标代码、地区、频率、单位、季调和发布版本必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [indicatorID, id, region, periodDate, dataDate]
+        fields:
+          - {target_attribute: label, source_paths: [indicatorName, name, $context.metric_label], transform: first_non_empty}
+          - {target_attribute: value, source_paths: [value, actValue, $context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [periodDate, dataDate, endDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [periodDate, dataDate, endDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [publishDate, releaseDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [metric_ref, region_ref, frequency, unit, seasonal_adjustment, vintage, scope_ref, cutoff_at]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_index_info_document
+    version: 1.0.0
+    status: active
+    connector: datayes-index-info-mcp
+    source_grain: one_index_definition_or_constituent_snapshot
+    description: 指数定义、成分和权重结果先登记为来源文档候选；项目通用本体尚无独立 Index 类型，不得伪装成 Company 或 Industry。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: requires_context
+        identity_source_paths: [indexID, ticker, tradeDate, dataDate]
+        fields:
+          - {target_attribute: title, source_paths: [indexName, secShortName, $context.source_title], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [$context.source_uri], transform: constant_or_context}
+          - {target_attribute: published_at, source_paths: [tradeDate, dataDate, $context.published_at], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        required_context_bindings: [source_title, source_uri, source_tier, published_at]
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_index_market_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-index-mktanl-mcp
+    source_grain: one_index_market_metric_time
+    description: 指数行情、估值和资金流只形成观测候选；指数身份、指标、单位和交易时间口径必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [indexID, ticker, tradeDate, field]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [tradeDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [tradeDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [dataDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [subject_ref, metric_ref, unit, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_fund_master_document
+    version: 1.0.0
+    status: active
+    connector: datayes-fund-master-mcp
+    source_grain: one_fund_master_record
+    description: 基金档案和管理人记录先登记为来源文档候选；通用本体尚无 Fund 类型，禁止把基金身份误写为 Company。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: requires_context
+        identity_source_paths: [fundID, secID, ticker]
+        fields:
+          - {target_attribute: title, source_paths: [secShortName, fundName, $context.source_title], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [$context.source_uri], transform: constant_or_context}
+          - {target_attribute: published_at, source_paths: [publishDate, establishDate, $context.published_at], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        required_context_bindings: [source_title, source_uri, source_tier, published_at]
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_fund_performance_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-fund-perf-mcp
+    source_grain: one_fund_performance_metric_period
+    description: 基金净值、收益和业绩指标只形成观测候选；基金身份、复权、区间、基准和单位必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [fundID, secID, ticker, endDate, tradeDate, field]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [endDate, tradeDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [endDate, tradeDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [dataDate, publishDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [subject_ref, metric_ref, unit, adjustment_basis, benchmark_ref, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_fund_holding_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-fund-holding-mcp
+    source_grain: one_fund_holding_asset_reporting_period
+    description: 基金持仓、资产和行业配置只形成观测候选；基金、标的、资产分类、分母与报告期必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [fundID, secID, holdingSecID, endDate, reportDate]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [endDate, reportDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [endDate, reportDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [publishDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [fund_ref, asset_ref, metric_ref, denominator, unit, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_fund_fincap_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-fund-fincap-mcp
+    source_grain: one_fund_financial_metric_period
+    description: 基金财务、份额和持有人结构只形成观测候选；基金身份、指标、分母、单位和报告期必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [fundID, secID, endDate, reportDate, field]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [endDate, reportDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [endDate, reportDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [publishDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [fund_ref, metric_ref, denominator, unit, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: datayes_fund_analytics_observation
+    version: 1.0.0
+    status: active
+    connector: datayes-fund-analytics-mcp
+    source_grain: one_fund_analytics_metric_period
+    description: 风险收益、归因和风格分析只形成观测候选；算法口径、窗口、基准、单位和样本期必须显式绑定。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [fundID, secID, beginDate, endDate, field]
+        fields:
+          - {target_attribute: label, source_paths: [$context.metric_label], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [$context.value_field], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [endDate, reportDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [endDate, reportDate, dataDate], transform: normalize_datetime}
+          - {target_attribute: published_at, source_paths: [dataDate, publishDate], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [$context.cutoff_at], transform: constant_or_context}
+        required_context_bindings: [fund_ref, metric_ref, methodology, window, benchmark_ref, unit, scope_ref, cutoff_at, value_field, metric_label]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: htsc_research_document
+    version: 1.0.0
+    status: active
+    connector: htsc_research_mcp
+    source_grain: one_research_report_or_metric_release
+    description: 华泰研报与研究指标先登记为二手来源文档候选；观点不得直接物化为事实，结构化指标也必须绑定方法口径后另行形成 Observation 候选。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: candidate_only
+        identity_source_paths: [report_id, document_id, url]
+        fields:
+          - {target_attribute: title, source_paths: [title, report_title, name], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [url, source_url, report_url], transform: normalize_uri}
+          - {target_attribute: published_at, source_paths: [publish_date, published_at, report_date], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: caixin_news_document
+    version: 1.0.0
+    status: active
+    connector: caixin-news
+    source_grain: one_news_article
+    description: 财新文章只登记为二手来源文档候选；新闻摘要不可直接生成事实或判断，必须回到可定位正文并完成原文摘录。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: candidate_only
+        identity_source_paths: [article_id, url]
+        fields:
+          - {target_attribute: title, source_paths: [title, name], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [url, source_url], transform: normalize_uri}
+          - {target_attribute: published_at, source_paths: [published_at, publish_date], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
+
+  - id: jina_reader_document
+    version: 1.0.0
+    status: active
+    connector: jina-reader
+    source_grain: one_fetched_web_document
+    description: 网页阅读器只把目标网页登记为来源文档候选；发布主体、时间、权限和正文哈希仍须从目标网页核验。
+    target_mappings:
+      - target_type: SourceDocument
+        materialization: requires_context
+        identity_source_paths: [url, source_url]
+        fields:
+          - {target_attribute: title, source_paths: [title, $context.source_title], transform: first_non_empty}
+          - {target_attribute: uri, source_paths: [url, source_url], transform: normalize_uri}
+          - {target_attribute: published_at, source_paths: [published_at, publish_date, $context.published_at], transform: normalize_datetime}
+          - {target_attribute: source_tier, source_paths: [$context.source_tier], transform: constant_or_context}
+        required_context_bindings: [source_title, published_at, source_tier, publisher, content_hash, access_scope]
+        completeness_gate: [title, uri, published_at, source_tier]
+    forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]

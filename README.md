@@ -42,11 +42,19 @@
 1. **读本页**，理解五步怎么分工
 2. **看一份成品**：[存储周期研报](instances/02_V3样例/01_memory-cycle-run-002/05_report.md)
 3. **再看它背后的判断**：[判断简报](instances/02_V3样例/01_memory-cycle-run-002/04_judgment.yaml)，理解「结论—依据—边界—改判条件」如何落盘
-4. 真要研究时，按 `runtime/workflow/` 的 01—05（Deep Research）推进，方法在 [`methods/`](methods)。仓库正迁向五域骨架（`semantic/` `tasks/` `capabilities/` `execution/` + `governance/`），见 [`00_五域系统骨架.md`](governance/01_架构/00_五域系统骨架.md)；壳目录尚非机器权威。
+4. 真要研究时，按 Deep Research（`tasks/workflows/deep_research/`，兼容旧入口 `runtime/workflow/`）推进；方法在 [`methods/`](methods)。仓库骨架是五域：`semantic/` `tasks/` `capabilities/` `execution/` + `governance/`，产品面入口见 [`app/`](app)，权威索引见 [`five_domain_authority.yaml`](governance/01_架构/five_domain_authority.yaml)。
 
-暂时可跳过：`ontology/`（语义维护）、`governance/`（合同与校验）、`runtime/` 引擎细节、`evaluation/`（正式评测）。这些不是理解项目的前置阅读。
+暂时可跳过：`ontology/`（语义维护）、`governance/` 合同细节、`runtime/` 引擎细节、`evaluation/`（正式评测）。这些不是理解项目的前置阅读。
 
 完整目录职责见 [`仓库地图与文件治理`](governance/01_架构/02_仓库地图与文件治理.md)。
+
+## Legacy 路径策略（compat）
+
+旧顶层（`ontology/` `methods/` `runtime/` `instances/` `evaluation/` 及 `knowledge/` `delivery/` `workflow/` 等）**保留可读、不删除**，但：
+
+- **新增写入优先落五域**：`semantic/` `tasks/` `capabilities/` `execution/` + `governance/` 目标壳
+- 旧路径带 `README.compat.md`（`mode=compat` / `deny_new_writes`）
+- 兼容策略权威：[`governance/01_架构/compat_policy.yaml`](governance/01_架构/compat_policy.yaml)
 
 ## 能问什么、不适合问什么
 
@@ -62,14 +70,14 @@
 
 | 目录 | 你什么时候打开 |
 |------|----------------|
-| [`workflow/`](runtime/workflow) | 做研究——01—05 每一步写什么、交什么 |
+| [`tasks/workflows/deep_research/`](tasks/workflows/deep_research) | 做研究——01—05 每一步写什么、交什么（新增改动入口） |
 | [`methods/`](methods) | 选框架、选取证方法、选裁决方法 |
-| [`ontology/`](ontology) | 查概念定义——对象/关系/变量叫什么、什么含义（偶尔翻） |
+| [`semantic/`](semantic) / [`ontology/`](ontology) | 查概念定义与语义归属（本体正文过渡期仍在 ontology） |
 | [`instances/`](instances) | 看完整研究样例 |
 | [`methods/05_表达/`](methods/05_表达) | 研报模板与表达标准（写 05 时才用） |
 | [`evaluation/`](evaluation) | 验证这套流程有没有用（可选） |
 | [`runtime/`](runtime) | 本机工作台（产品界面） |
-| [`governance/`](governance) | 项目定位、质量标准（维护用，不常翻） |
+| [`governance/`](governance) | 项目定位、质量标准、五域权威索引 |
 
 研究主链：`01 受理 → 02 结构 → 03 证据 → 04 判断 → 05 表达`
 
@@ -93,17 +101,18 @@ npm --prefix runtime run ontology:audit
 
 校验通过只说明写法合规，不代替对数据真伪和研究价值的判断。
 
-### 五层架构
+### 五域骨架（目标权威）
 
-| 层 | 目录 | 职责 |
+| 域 | 目录 | 职责 |
 |----|------|------|
-| 语义本体 | `ontology/` | 稳定对象、关系、状态与约束 |
-| 方法资产 | `methods/` | 怎样判断、要什么证据、能裁到哪 |
-| AI 运行时 | `runtime/` | 本次怎样选方法、绑证据、应用规则 |
-| 研究记录 | `instances/` | 本次实际做了什么、得出什么判断 |
-| 表达交付 | `methods/05_表达/` | 结果怎样写给不同读者 |
+| Semantic | `semantic/` | 世界模型、词典、图合同、证据 provenance |
+| Task | `tasks/` | 场景、任务定义、角色、Deep Research |
+| Capability | `capabilities/` | Agent / Skill / Tool / 协议 |
+| Execution | `execution/` | Context / Memory / Workspace / Runtime |
+| Governance | `governance/` | Rules / Identity / Permissions / Evals / Verifiers |
 
-`runtime/workflow/` 是阶段合同，`governance/` 是上位约束。
+权威怎么查：[`governance/01_架构/five_domain_authority.yaml`](governance/01_架构/five_domain_authority.yaml) + 各域 `registry.yaml`。  
+旧顶层（`ontology/` `methods/` `runtime/workflow/stage_specs/` 等）为 compat 回放，不再作为新增改动入口。
 
 ### AI 工具上下文
 
@@ -112,4 +121,4 @@ npm --prefix runtime run ontology:audit
 | Claude Code | `CLAUDE.md` |
 | Cursor | `.cursor/rules/03-evidence-sources.mdc` |
 
-以上三份含相同核心信息，新增/移除 MCP 通道时须同步。
+以上文件含相同核心信息，新增/移除 MCP 通道时须同步。

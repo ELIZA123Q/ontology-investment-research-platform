@@ -84,7 +84,7 @@ export function exportRunPackage(
     YAML.stringify({
       package_kind: "workbench_export",
       layout: "compact_v3_yaml",
-      validator: "governance/validation/validate_workbench_package.py",
+      validator: "governance/03_校验/validate_workbench_package.py",
       publishable: false,
       contract_ref: {
         schema_name: "controlled_research_run_manifest",
@@ -278,7 +278,7 @@ export function publishAndValidate(runId: string): PublishResult {
     publishable: false,
     publish_status: validateOk ? "workbench_validate_passed" : "workbench_validate_failed",
     package_kind: "workbench_export",
-    validator: "governance/validation/validate_workbench_package.py",
+    validator: "governance/03_校验/validate_workbench_package.py",
     exit_code: result.status,
     checked_at: new Date().toISOString(),
     export_rel: exportRel,

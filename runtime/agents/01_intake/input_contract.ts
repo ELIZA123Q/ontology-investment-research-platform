@@ -11,7 +11,7 @@ import {
 } from "../shared/high_quality_gate";
 
 export const STAGE01_QUALITY_GATE_REF =
-  "runtime/workflow/stage_specs/01_受理/01_投研判断任务受理与整理规范.md#5-质量门槛与返工";
+  "tasks/workflows/deep_research/stages/01_intake.md#5-质量门槛与返工";
 
 export type TaskDisposition =
   | "accepted"

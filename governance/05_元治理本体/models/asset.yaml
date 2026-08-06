@@ -1,0 +1,78 @@
+schema_name: ontology_governance_asset_model
+schema_version: 2.0.0
+meta_schema_version: 2.0.0
+status: active
+namespace: gov.asset
+model: asset
+description: 受治理资产、责任、消费者与使用观测。
+
+object_types:
+  GovernedAsset:
+    metadata: {id: GovernedAsset, namespace: gov.asset, label_zh: 受治理资产, label_en: Governed Asset, definition: 具有唯一机器权威、版本、责任角色和消费者的项目资产。, model: asset, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: label
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 稳定资产 ID。}
+      label: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 人类可读名称。}
+      asset_kind: {type: enum, required: true, cardinality: '1..1', value_role: fact, allowed_values: [governance_model, ontology_registry, formal_ontology, domain_business_parameters, public_contract, authority_registry, impact_registry, mapping_registry, method_registry, runtime_registry], description: 资产种类。}
+      authority_ref: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 仓库内唯一机器权威引用。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 问责角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 资产版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [active, deprecated, retired], description: 资产生命周期状态。}
+      validation_profile: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 检查组合 ID。}
+      content_fingerprint: {type: string, required: false, cardinality: '0..1', value_role: audit, description: 最近冻结的内容指纹。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [authority_ref], mutually_exclusive: [], lifecycle: active_to_deprecated_to_retired}
+
+  AuthorityAssignment:
+    metadata: {id: AuthorityAssignment, namespace: gov.asset, label_zh: 权威责任分配, label_en: Authority Assignment, definition: 受治理资产的问责角色和权威引用声明。, model: asset, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: owner_role
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 分配 ID。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: fact, description: 问责角色。}
+      authority_ref: {type: string, required: true, cardinality: '1..1', value_role: fact, description: 唯一机器权威引用。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 分配版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [active, superseded], description: 分配状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [authority_ref], mutually_exclusive: [], lifecycle: active_to_superseded}
+
+  GovernanceConsumer:
+    metadata: {id: GovernanceConsumer, namespace: gov.asset, label_zh: 治理消费者, label_en: Governance Consumer, definition: 读取或依赖受治理资产的运行、合同、方法、界面或发布物。, model: asset, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: label
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 消费者 ID。}
+      label: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 消费者名称。}
+      consumer_kind: {type: enum, required: true, cardinality: '1..1', value_role: fact, allowed_values: [runtime, workflow, api, ui, method, package, validator, external_mapping], description: 消费者种类。}
+      repository_refs: {type: array, required: true, cardinality: '1..*', value_role: metadata, description: 实现引用集合。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 问责角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 消费者版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [active, inactive], description: 消费状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [label], mutually_exclusive: [], lifecycle: active_or_inactive}
+
+  UsageObservation:
+    metadata: {id: UsageObservation, namespace: gov.asset, label_zh: 使用观测, label_en: Usage Observation, definition: 某消费者在明确时间窗口内对资产或本体元素的可复算使用记录。, model: asset, version: 2.0.0, status: active}
+    implements: [GovernableResource]
+    primary_key: id
+    title_property: subject_ref
+    attributes:
+      id: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 观测 ID。}
+      subject_ref: {type: string, required: true, cardinality: '1..1', value_role: identity, description: 被使用资产或元素 ID。}
+      observation_window: {type: object, required: true, cardinality: '1..1', value_role: fact, description: 起止时间窗口。}
+      read_count: {type: integer, required: true, cardinality: '1..1', value_role: calculated, description: 读取次数。}
+      write_count: {type: integer, required: true, cardinality: '1..1', value_role: calculated, description: 写入次数。}
+      last_used_at: {type: datetime, required: false, cardinality: '0..1', value_role: fact, description: 最近使用时间。}
+      owner_role: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 观测责任角色。}
+      version: {type: string, required: true, cardinality: '1..1', value_role: metadata, description: 观测版本。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, allowed_values: [current, expired], description: 观测状态。}
+      created_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 创建时间。}
+      updated_at: {type: datetime, required: true, cardinality: '1..1', value_role: audit, description: 更新时间。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: current_to_expired}

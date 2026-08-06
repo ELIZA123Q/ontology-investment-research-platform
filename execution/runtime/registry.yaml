@@ -1,0 +1,17 @@
+schema_name: execution_runtime_registry
+schema_version: 1.0.0
+status: active
+source_of_truth:
+  runner: runtime/runner
+  storage: runtime/storage
+  workflow: runtime/workflow
+  app: runtime/app
+components:
+  - id: research_job_runner
+    source: runtime/runner
+  - id: sqlite_storage
+    source: runtime/storage
+  - id: workflow_orchestrator
+    source: runtime/workflow
+notes:
+  - Runtime 负责真正跑起来；不存可复用方法正文或正式本体权威。

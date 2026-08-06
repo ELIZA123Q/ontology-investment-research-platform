@@ -45,15 +45,15 @@ describe("context_assembler", () => {
       deliveryArchetype: "industry_cycle_report",
       maxTotalChars: 5_000,
     });
-    expect(routed.context).toContain("## runtime/workflow/stage_specs/05_表达/05_投研表达与交付规范.md");
+    expect(routed.context).toContain("## tasks/workflows/deep_research/stages/05_delivery.md");
     expect(routed.context).toContain("## 研究员先看什么");
     expect(routed.context).toContain("05 回答：");
     expect(routed.context).toContain("## 9. 质量门槛与返工规则");
-    expect(routed.files).toContain("runtime/workflow/stage_specs/05_表达/05_投研表达与交付规范.md");
+    expect(routed.files).toContain("tasks/workflows/deep_research/stages/05_delivery.md");
     expect(routed.stats.loaded).toBe(routed.files.length);
     expect(routed.stats.omitted_by_budget).toBeGreaterThan(0);
     const injection = routed.file_injections.find(
-      (item) => item.file === "runtime/workflow/stage_specs/05_表达/05_投研表达与交付规范.md",
+      (item) => item.file === "tasks/workflows/deep_research/stages/05_delivery.md",
     );
     expect(injection?.loaded).toBe(true);
     expect(injection?.included_chars).toBeGreaterThan(0);

@@ -1,0 +1,210 @@
+schema_name: ontology_governance_action_model
+schema_version: 2.0.0
+meta_schema_version: 2.0.0
+status: active
+namespace: gov.action
+model: action
+description: 治理控制面的类型化写操作；参数、权限、提交条件、状态迁移、写集合和日志版本一体定义。
+
+action_types:
+  ProposeOntologyChange:
+    metadata: {id: ProposeOntologyChange, namespace: gov.action, label_zh: 发起本体变更, label_en: Propose Ontology Change, definition: 从已确认候选或治理输入创建隔离分支和变更提案。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      candidate_key: {type: string, required: false, description: 来源候选键。}
+      target_ontology_node_id: {type: string, required: true, description: 拟正式本体元素 ID。}
+      change_kind: {type: enum, required: true, allowed_values: [add, modify, deprecate, split, merge], description: 变更种类。}
+      branch_ref: {type: string, required: true, description: 隔离分支引用。}
+      base_fingerprint: {type: string, required: true, description: 当前正式本体指纹。}
+      proposal_note: {type: string, required: true, description: 变更目的与边界。}
+    permission: {roles: [ontology_steward, governance_owner], policy: any_role}
+    submission_criteria:
+      - {rule_ref: unique_asset_authority, required: true}
+      - {rule_ref: governance_formal_ontology_separation, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [none], to: proposed}
+    writes:
+      creates: [OntologyBranch, ChangeProposal, ApprovalTask, GovernanceActionLog]
+      updates: []
+      links: [proposalUsesBranch, proposalChangesAsset, proposalRequiresApproval, actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  FreezeImpactAssessment:
+    metadata: {id: FreezeImpactAssessment, namespace: gov.action, label_zh: 冻结影响评估, label_en: Freeze Impact Assessment, definition: 保存变更元素、消费者、运行和必跑检查的影响快照。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      changed_element_ids: {type: array, required: true, description: 拟变更元素 ID。}
+      affected_consumer_ids: {type: array, required: true, description: 受影响消费者 ID。}
+      affected_run_ids: {type: array, required: true, description: 受影响运行 ID。}
+      required_checks: {type: array, required: true, description: 发布前必跑检查。}
+      breaking_change: {type: boolean, required: true, description: 破坏性判断。}
+      rationale: {type: string, required: true, description: 影响判断依据。}
+    permission: {roles: [ontology_steward, runtime_owner], policy: any_role}
+    submission_criteria:
+      - {rule_ref: impact_snapshot_complete, required: true}
+      - {rule_ref: proposal_baseline_current, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [proposed], to: impact_assessed}
+    writes:
+      creates: [ImpactAssessment, GovernanceActionLog]
+      updates: [ChangeProposal]
+      links: [proposalHasImpactAssessment, impactAffectsConsumer, actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  RebaseOntologyProposal:
+    metadata: {id: RebaseOntologyProposal, namespace: gov.action, label_zh: 重建提案基线, label_en: Rebase Ontology Proposal, definition: 将提案差异重放到当前正式本体基线并记录冲突结果。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      new_base_fingerprint: {type: string, required: true, description: 新正式本体指纹。}
+      resolved_conflict_ids: {type: array, required: true, description: 已解决冲突 ID。}
+      remaining_conflicts: {type: array, required: true, description: rebase 后剩余冲突。}
+      diff_summary: {type: object, required: true, description: 重放后的差异摘要。}
+    permission: {roles: [ontology_steward], policy: any_role}
+    submission_criteria:
+      - {rule_ref: action_only_mutation, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [proposed, impact_assessed], to: proposed}
+    writes:
+      creates: [GovernanceActionLog]
+      updates: [OntologyBranch, ChangeProposal, ImpactAssessment, ApprovalTask]
+      links: [actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  ApproveOntologyChange:
+    metadata: {id: ApproveOntologyChange, namespace: gov.action, label_zh: 批准本体变更, label_en: Approve Ontology Change, definition: 按批准策略形成批准决定并在条件满足后推进提案。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      approval_task_ids: {type: array, required: true, description: 被处理的批准任务。}
+      reviewer_name: {type: string, required: true, description: 审阅人。}
+      decision_note: {type: string, required: true, description: 批准理由。}
+    permission: {roles: [ontology_steward, runtime_owner, independent_reviewer], policy: assigned_reviewer_role}
+    submission_criteria:
+      - {rule_ref: proposal_baseline_current, required: true}
+      - {rule_ref: required_approvals_satisfied, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [impact_assessed], to: approved}
+    writes:
+      creates: [GovernanceActionLog]
+      updates: [ApprovalTask, ChangeProposal]
+      links: [actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  RejectOntologyChange:
+    metadata: {id: RejectOntologyChange, namespace: gov.action, label_zh: 拒绝本体变更, label_en: Reject Ontology Change, definition: 在发布前以明确理由终止提案并保留全部历史。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      reviewer_name: {type: string, required: true, description: 决定人。}
+      decision_note: {type: string, required: true, description: 拒绝理由。}
+    permission: {roles: [ontology_steward, governance_owner, runtime_owner, independent_reviewer], policy: any_role}
+    submission_criteria:
+      - {rule_ref: immutable_action_history, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [proposed, impact_assessed, approved], to: rejected}
+    writes:
+      creates: [GovernanceActionLog]
+      updates: [ChangeProposal, OntologyBranch, ApprovalTask]
+      links: [actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  RecordOntologyImplementation:
+    metadata: {id: RecordOntologyImplementation, namespace: gov.action, label_zh: 登记本体实现, label_en: Record Ontology Implementation, definition: 将已批准提案绑定到仓库内实际实现引用。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      implementation_ref: {type: string, required: true, description: 仓库内实现引用。}
+      candidate_fingerprint: {type: string, required: false, description: 拟议实现内容指纹。}
+    permission: {roles: [ontology_steward], policy: any_role}
+    submission_criteria:
+      - {rule_ref: implementation_ref_resolves, required: true}
+      - {rule_ref: proposal_baseline_current, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [approved], to: implemented}
+    writes:
+      creates: [GovernanceActionLog]
+      updates: [ChangeProposal, OntologyBranch]
+      links: [actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  AttestValidationResults:
+    metadata: {id: AttestValidationResults, namespace: gov.action, label_zh: 证明检查结果, label_en: Attest Validation Results, definition: 保存不可变检查运行并在全部必跑检查通过后推进提案。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      validation_results: {type: object, required: true, description: 检查 ID 到 pass 或 fail 的映射。}
+      ontology_fingerprint: {type: string, required: true, description: 检查时正式本体指纹。}
+    permission: {roles: [runtime_owner, ontology_steward], policy: any_role}
+    submission_criteria:
+      - {rule_ref: all_required_checks_pass, required: true}
+      - {rule_ref: proposal_baseline_current, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [implemented], to: validated}
+    writes:
+      creates: [ValidationRun, GovernanceActionLog]
+      updates: [ChangeProposal]
+      links: [proposalHasValidationRun, actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  CreateMigrationTask:
+    metadata: {id: CreateMigrationTask, namespace: gov.action, label_zh: 创建迁移任务, label_en: Create Migration Task, definition: 为破坏性提案创建或更新消费者迁移任务。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      migration_ref: {type: string, required: true, description: 仓库内迁移账本或实现引用。}
+      affected_consumer_ids: {type: array, required: true, description: 迁移消费者 ID。}
+      completion_evidence: {type: object, required: false, description: 完成证据。}
+      migration_status: {type: enum, required: true, allowed_values: [pending, in_progress, completed, cancelled], description: 迁移任务状态。}
+    permission: {roles: [ontology_steward, runtime_owner], policy: any_role}
+    submission_criteria:
+      - {rule_ref: implementation_ref_resolves, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [approved, implemented, validated], to: same}
+    writes:
+      creates: [MigrationTask, GovernanceActionLog]
+      updates: [MigrationTask]
+      links: [proposalRequiresMigration, actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  ReleaseOntologyBaseline:
+    metadata: {id: ReleaseOntologyBaseline, namespace: gov.action, label_zh: 发布本体基线, label_en: Release Ontology Baseline, definition: 在所有批准、检查、迁移和基线条件满足后创建新发布基线。, model: action, version: 2.0.0, status: active}
+    applies_to: ChangeProposal
+    parameters:
+      release_fingerprint: {type: string, required: true, description: 发布时当前正式本体指纹。}
+      release_ref: {type: string, required: true, description: Git tag 或发布清单引用。}
+      asset_versions: {type: object, required: true, description: 资产 ID 到发布版本映射。}
+    permission: {roles: [governance_owner, ontology_steward], policy: all_roles}
+    submission_criteria:
+      - {rule_ref: target_resolves, required: true}
+      - {rule_ref: proposal_baseline_current, required: true}
+      - {rule_ref: required_approvals_satisfied, required: true}
+      - {rule_ref: all_required_checks_pass, required: true}
+      - {rule_ref: breaking_change_migration_complete, required: true}
+      - {rule_ref: release_fingerprint_current, required: true}
+    state_transition: {object_type: ChangeProposal, property: status, from: [validated], to: released}
+    writes:
+      creates: [ReleaseBaseline, GovernanceActionLog]
+      updates: [ChangeProposal, OntologyBranch, ReleaseBaseline]
+      links: [proposalReleasedAsBaseline, actionLogForProposal]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  GrantGovernanceException:
+    metadata: {id: GrantGovernanceException, namespace: gov.action, label_zh: 授予治理例外, label_en: Grant Governance Exception, definition: 对允许例外的非语义治理规则授予有期限的临时例外。, model: action, version: 2.0.0, status: active}
+    applies_to: GovernedAsset
+    parameters:
+      rule_ref: {type: string, required: true, description: 治理规则 ID。}
+      scope_ref: {type: string, required: true, description: 资产或提案范围。}
+      reason: {type: string, required: true, description: 例外理由。}
+      expires_at: {type: datetime, required: true, description: 失效时间。}
+    permission: {roles: [governance_owner], policy: any_role}
+    submission_criteria:
+      - {rule_ref: exceptions_cannot_override_semantics, required: true}
+    state_transition: {object_type: GovernanceException, property: status, from: [none], to: active}
+    writes:
+      creates: [GovernanceException, GovernanceActionLog]
+      updates: []
+      links: [exceptionAppliesToAsset]
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}
+
+  ExpireGovernanceException:
+    metadata: {id: ExpireGovernanceException, namespace: gov.action, label_zh: 失效治理例外, label_en: Expire Governance Exception, definition: 到期或主动撤销一个临时治理例外。, model: action, version: 2.0.0, status: active}
+    applies_to: GovernanceException
+    parameters:
+      expiration_reason: {type: string, required: true, description: 到期或撤销说明。}
+      next_status: {type: enum, required: true, allowed_values: [expired, revoked], description: 终止状态。}
+    permission: {roles: [governance_owner], policy: any_role}
+    submission_criteria:
+      - {rule_ref: immutable_action_history, required: true}
+    state_transition: {object_type: GovernanceException, property: status, from: [active], to_parameter: next_status, to: dynamic}
+    writes:
+      creates: [GovernanceActionLog]
+      updates: [GovernanceException]
+      links: []
+    action_log: {object_type: GovernanceActionLog, version: 2.0.0, immutable: true}

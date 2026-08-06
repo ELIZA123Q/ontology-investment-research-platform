@@ -1,0 +1,41 @@
+schema_name: governance_domain_registry
+schema_version: 1.0.0
+status: active
+
+authority:
+  answers: Governance 总入口；子域见 rules/verifiers/evals/identity/permissions。
+  write_entry: governance/{rules,evals,verifiers,identity,permissions}/
+  read_primary:
+    - governance/registry.yaml
+    - governance/rules/registry.yaml
+    - governance/verifiers/registry.yaml
+    - governance/evals/registry.yaml
+    - governance/identity/registry.yaml
+    - governance/permissions/registry.yaml
+
+subdomains:
+  rules:
+    target: governance/rules
+    source: governance/02_合同
+    status: migrating
+  verifiers:
+    target: governance/verifiers
+    source: governance/03_校验
+    status: migrating
+  evals:
+    target: governance/evals
+    source: evaluation
+    status: migrating
+  identity:
+    target: governance/identity
+    source: null
+    status: migrating
+  permissions:
+    target: governance/permissions
+    source: governance/02_合同/judgment_threshold_policy.yaml
+    status: migrating
+
+notes:
+  - Verifier ≠ Eval。
+  - 01_架构 / 05_元治理本体 仍属 governance，但不并入五子壳。
+  - 旧路径 02_合同 / 03_校验 / evaluation 保留 compat 可读。

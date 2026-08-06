@@ -34,7 +34,7 @@ export function formalArtifactSha256(artifact: string): string {
   return `sha256:${digest.digest("hex")}`;
 }
 
-/** 与 governance/validation/validate_run.py::_stage_hash 完全一致。 */
+/** 与 governance/03_校验/validate_run.py::_stage_hash 完全一致。 */
 export function formalStageHash(exportDir: string, artifacts: string[]): string {
   const payload = [...artifacts].sort().map((relative) => ({
     path: relative,

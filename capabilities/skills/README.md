@@ -1,6 +1,7 @@
 # capabilities/skills
 
-- **回答什么：** 可版本化 Skill（框架、取证、裁决、表达、ontology、审查等程序性能力）。
+- **回答什么：** 可版本化 Skill（取证、裁决、表达、ontology、审查等）。
 - **不放什么：** 世界模型 YAML、单次证据快照、UI。
-- **当前权威资产：** `runtime/skills/`；`methods/02|03|04|05` 程序性正文（待并入）。
-- **status:** shell
+- **当前权威资产：** `runtime/skills/`（实现）；`methods/*` 程序性正文（归属指针）。
+- **status:** migrating
+- **registry:** [`registry.yaml`](./registry.yaml)

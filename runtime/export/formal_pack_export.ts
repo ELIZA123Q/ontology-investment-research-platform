@@ -653,7 +653,7 @@ export function exportFormalPack(runId: string, options: FormalPackExportOptions
   writeFileSync(path.join(exportDir, "package_kind.yaml"), YAML.stringify({
     package_kind: packageKind,
     layout: packageKind === "research_audit_pack" ? "internal_full_chain" : "chinese_named_md_yaml",
-    validator: "governance/validation/validate_run.py",
+    validator: "governance/03_校验/validate_run.py",
     publishable: true,
     contract_ref: { schema_name: "controlled_research_run_manifest", schema_version: "1.3.0" },
     note: packageKind === "research_audit_pack"
@@ -672,7 +672,7 @@ export function exportFormalPack(runId: string, options: FormalPackExportOptions
       packageKind === "research_audit_pack"
         ? "本目录保存完整 01—05、证据快照、语义基线和内部审计链；不得作为普通对外交付包。"
         : "本目录为历史格式；新发布流程使用 formal_delivery_pack + research_audit_pack。",
-      "发布状态以 `python3 governance/validation/validate_run.py <本目录>` 派生为准。",
+      "发布状态以 `python3 governance/03_校验/validate_run.py <本目录>` 派生为准。",
       "",
       "## 产物",
       "",
@@ -731,7 +731,7 @@ export function publishFormalPackAndValidate(runId: string): FormalPublishResult
     publishable,
     publish_status: publishStatus,
     package_kind: "formal_pack",
-    validator: "governance/validation/validate_run.py",
+    validator: "governance/03_校验/validate_run.py",
     exit_code: result.status,
     checked_at: new Date().toISOString(),
     export_rel: exported.export_rel,

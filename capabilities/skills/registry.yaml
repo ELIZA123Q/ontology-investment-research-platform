@@ -1,0 +1,63 @@
+schema_name: capability_skills_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: runtime/skills
+skills:
+  - skill_id: evidence_evaluation
+    source: runtime/skills/evidence_evaluation
+    mirror: capabilities/skills/evidence_evaluation/SKILL.md
+    status: migrating
+  - skill_id: expression_audit
+    source: runtime/skills/expression_audit
+    mirror: capabilities/skills/expression_audit/SKILL.md
+    status: migrating
+  - skill_id: financial_data
+    source: runtime/skills/financial_data
+    mirror: capabilities/skills/financial_data/SKILL.md
+    status: migrating
+  - skill_id: gap_detection
+    source: runtime/skills/gap_detection
+    mirror: capabilities/skills/gap_detection/SKILL.md
+    status: migrating
+  - skill_id: method_selection
+    source: runtime/skills/method_selection
+    mirror: capabilities/skills/method_selection/SKILL.md
+    status: migrating
+  - skill_id: model_client
+    source: runtime/skills/model_client
+    mirror: capabilities/skills/model_client/SKILL.md
+    status: migrating
+  - skill_id: ontology
+    source: runtime/skills/ontology
+    mirror: capabilities/skills/ontology/SKILL.md
+    status: migrating
+  - skill_id: replan
+    source: runtime/skills/replan
+    mirror: capabilities/skills/replan/SKILL.md
+    status: migrating
+  - skill_id: search
+    source: runtime/skills/search
+    mirror: capabilities/skills/search/SKILL.md
+    status: migrating
+  - skill_id: semantic_review
+    source: runtime/skills/semantic_review
+    mirror: capabilities/skills/semantic_review/SKILL.md
+    status: migrating
+
+method_body_sources:
+  - capability: judgment_structure
+    source: methods/02_研究框架
+    target_skill: method_selection
+  - capability: evidence
+    source: methods/03_取证
+    target_skill: evidence_evaluation
+  - capability: adjudication
+    source: methods/04_裁决
+    target_skill: semantic_review
+  - capability: expression
+    source: methods/05_表达
+    target_skill: expression_audit
+
+notes:
+  - Skill 实现代码仍在 runtime/skills；本域登记归属与 SKILL.md 镜像。
+  - methods 程序性正文暂不物理搬迁，仅登记 target_skill 归属。

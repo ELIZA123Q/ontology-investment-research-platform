@@ -65,7 +65,7 @@ skills: [ontology, method-selection, evidence-evaluation, semantic-review, repla
 
 | 文件 | 用途 |
 |------|------|
-| `runtime/workflow/stage_specs/04_判断/04_推理输出规范.md` | 阶段规范与质量门槛 |
+| `tasks/workflows/deep_research/stages/04_judgment.md` | 阶段规范与质量门槛 |
 | `methods/04_裁决/A00—A10/` | 裁决方法正文 |
 | `governance/02_合同/judgment_threshold_policy.yaml` | 判断等级阈值政策（J0-J4 证据要求） |
 | `governance/02_合同/judgment_method_routes.yaml` | 方法路由 |

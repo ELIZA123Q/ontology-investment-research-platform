@@ -13,7 +13,7 @@ import {
 } from "../shared/high_quality_gate";
 
 export const STAGE04_QUALITY_GATE_REF =
-  "runtime/workflow/stage_specs/04_判断/04_推理输出规范.md#6-质量门槛与返工";
+  "tasks/workflows/deep_research/stages/04_judgment.md#6-质量门槛与返工";
 
 function nonEmpty(value: unknown, fallback = ""): string {
   return nonEmptyText(value, fallback);

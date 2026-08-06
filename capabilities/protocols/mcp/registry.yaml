@@ -1,0 +1,13 @@
+schema_name: capability_mcp_protocol_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: methods/03_取证
+mirrored:
+  - capabilities/protocols/mcp/B03_MCP通道注册.md
+  - capabilities/protocols/mcp/OPS_MCP查询快速参考.md
+  - capabilities/protocols/mcp/mcp_channels.yaml
+  - capabilities/protocols/mcp/source_routes.yaml
+runtime_adapter: runtime/skills/financial_data/mcp_registry.ts
+notes:
+  - MCP 是获取通道，不是来源生产者。
+  - 权威登记过渡期仍可读 methods/03_取证；本目录为 Capability 域落点镜像。

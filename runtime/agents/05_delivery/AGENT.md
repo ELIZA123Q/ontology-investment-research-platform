@@ -65,7 +65,7 @@ skills: [expression-audit, semantic-review, evidence-evaluation, method-selectio
 
 | 文件 | 用途 |
 |------|------|
-| `runtime/workflow/stage_specs/05_表达/05_投研表达与交付规范.md` | 阶段规范与质量门槛 |
+| `tasks/workflows/deep_research/stages/05_delivery.md` | 阶段规范与质量门槛 |
 | `methods/05_表达/standards/` | 表达语气、边界、结构标准 |
 | `methods/05_表达/templates/` | 05A—05E 报告模板 |
 | `governance/02_合同/judgment_threshold_policy.yaml` | 判断等级→允许表达范围的映射 |

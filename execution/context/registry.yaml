@@ -1,0 +1,10 @@
+schema_name: execution_context_registry
+schema_version: 1.0.0
+status: active
+source_of_truth:
+  assembler: runtime/workflow/context_assembler.ts
+  whitelist: governance/01_架构/runtime_contexts.yaml
+  coverage: governance/03_校验/runtime_asset_coverage.yaml
+notes:
+  - Context 是动态组装数据包，不是 context.md 知识库。
+  - 白名单改动写入 governance/01_架构/runtime_contexts.yaml。

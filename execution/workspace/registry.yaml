@@ -1,0 +1,11 @@
+schema_name: execution_workspace_registry
+schema_version: 1.0.0
+status: active
+source_of_truth: instances
+layout:
+  local_runs: instances/00_本机运行
+  v3_fixtures: instances/02_V3样例
+  regression: instances/03_回归
+notes:
+  - Workspace 是本次任务产物落点；权威仍为 instances/（compat）。
+  - 目标路径 execution/workspace，本轮只登记不搬迁 SQLite。

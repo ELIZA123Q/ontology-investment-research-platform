@@ -1,0 +1,503 @@
+schema_name: investment_research_semantic_model
+schema_version: 3.0.0
+meta_schema_version: 1.0.0
+status: active
+namespace: core.semantic
+model: semantic
+description: 跨行业稳定的投研对象、属性和结构关系。
+
+object_types:
+  Organization:
+    metadata: &organization_meta
+      {id: Organization, namespace: core.semantic, label_zh: 组织, label_en: Organization, aliases: [机构], definition: 可独立识别并承担经济或公共职能的组织主体。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [监管机构], counter_examples: [临时项目组]}
+    primary_key: id
+    title_property: name
+    attributes: &named_attributes
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
+    constraints: &standard_constraints {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  Company:
+    extends: Organization
+    metadata: {id: Company, namespace: core.semantic, label_zh: 公司, label_en: Company, aliases: [企业], definition: 以商业经营为主要身份的组织主体。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [上市公司], counter_examples: [行业协会]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
+      primary_listing_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示未冻结主挂牌引用。, reference_target: Listing, description: 公司主挂牌引用。}
+      issuer_identifiers: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: null 表示未冻结发行人标识集合。, description: 可归一发行人标识集合（如 ISIN/其他代码）。}
+    constraints: *standard_constraints
+  Industry:
+    metadata: {id: Industry, namespace: core.semantic, label_zh: 行业, label_en: Industry, aliases: [产业], definition: 具有共同供需和竞争结构的经济活动集合。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [半导体行业], counter_examples: [单一公司]}
+    primary_key: id
+    title_property: name
+    attributes: *named_attributes
+    constraints: *standard_constraints
+  ValueChainSegment:
+    metadata: {id: ValueChainSegment, namespace: core.semantic, label_zh: 产业链环节, label_en: Value Chain Segment, aliases: [环节, Segment], definition: 在产业价值创造中承担稳定功能的位置。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [设备环节], counter_examples: [季度收入]}
+    primary_key: id
+    title_property: name
+    attributes: *named_attributes
+    constraints: *standard_constraints
+  Product:
+    metadata: {id: Product, namespace: core.semantic, label_zh: 产品, label_en: Product, aliases: [产品类别], definition: 可被生产、交易、使用或交付的产品或产品类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [存储芯片], counter_examples: [库存水平]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
+      product_category: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示未冻结分类口径。, description: 产品类别或子口径（非百科长文）。}
+      primary_application_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要应用锚点。, reference_target: Application, description: 该产品在研究中最常用的主要应用锚点。}
+    constraints: *standard_constraints
+  Technology:
+    metadata: {id: Technology, namespace: core.semantic, label_zh: 技术, label_en: Technology, aliases: [技术路线], definition: 可稳定识别、具有能力边界的技术或技术体系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [先进封装], counter_examples: [技术成熟度上升]}
+    primary_key: id
+    title_property: name
+    attributes: *named_attributes
+    constraints: *standard_constraints
+  Region:
+    metadata: {id: Region, namespace: core.semantic, label_zh: 地区, label_en: Region, aliases: [管辖区], definition: 可稳定引用的地理、经济或监管范围。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [中国大陆], counter_examples: [全球需求走强]}
+    primary_key: id
+    title_property: name
+    attributes: *named_attributes
+    constraints: *standard_constraints
+  Metric:
+    metadata: {id: Metric, namespace: core.semantic, label_zh: 指标, label_en: Metric, aliases: [度量], definition: 具有稳定定义、单位与口径的可观测或可计算量。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [库存周转天数], counter_examples: [库存处于低位]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 指标名称。}
+      unit: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示无量纲或单位尚未冻结。, description: 标准单位。}
+      time_basis: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 时点、期间或滚动口径。}
+      comparability_basis: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示暂无可比性口径。, description: 用于跨公司/跨期间可比的口径基准。}
+    constraints: *standard_constraints
+  Application:
+    metadata: {id: Application, namespace: core.semantic, label_zh: 应用场景, label_en: Application, aliases: [下游应用], definition: 产品或技术被使用并产生业务价值的稳定用途分类。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [数据中心训练], counter_examples: [公司本季度增加采购]}
+    primary_key: id
+    title_property: name
+    attributes: *named_attributes
+    constraints: *standard_constraints
+  Material:
+    extends: Product
+    metadata: {id: Material, namespace: core.semantic, label_zh: 材料, label_en: Material, aliases: [原材料], definition: 被生产过程消耗、转化或沉积并进入产品或制造过程的产品类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [电子特气], counter_examples: [设备维护服务]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 材料名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
+      specification: {type: string, required: false, cardinality: '0..1', value_role: fact, nullable_semantics: null 表示规格尚未冻结。, description: 关键规格或纯度口径。}
+    constraints: *standard_constraints
+  ProcessStep:
+    metadata: {id: ProcessStep, namespace: core.semantic, label_zh: 工艺步骤, label_en: Process Step, aliases: [制造步骤], definition: 在生产过程中具有明确输入、输出和功能边界的稳定步骤类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [刻蚀], counter_examples: [某日设备停机]}
+    primary_key: id
+    title_property: name
+    attributes: *named_attributes
+    constraints: *standard_constraints
+  PolicyInstrument:
+    metadata: {id: PolicyInstrument, namespace: core.semantic, label_zh: 政策工具, label_en: Policy Instrument, aliases: [监管工具], definition: 由有权机构发布并对对象行为、准入或资源配置形成稳定约束的政策手段类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [出口管制清单], counter_examples: [政策发布事件]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 政策工具名称。}
+      instrument_type: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [restriction, subsidy, tax, standard, licensing, disclosure, other], description: 政策工具类型。}
+      jurisdiction_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要管辖区。, reference_target: Region, description: 政策适用的主要管辖区（可选）。}
+    constraints: *standard_constraints
+  Asset:
+    metadata: {id: Asset, namespace: core.semantic, label_zh: 资产, label_en: Asset, aliases: [经济资产], definition: 可识别、可归属且能够承载经济利益或风险的资产类别；作为设施类（如 ManufacturingFacility）和金融工具（FinancialInstrument）的公共投影父类。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [公司股权, 半导体制造设施], counter_examples: [看多观点, 市场情绪]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 资产名称。}
+      asset_class: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 资产类别。}
+    constraints: *standard_constraints
+  FinancialInstrument:
+    extends: Asset
+    metadata: {id: FinancialInstrument, namespace: core.semantic, label_zh: 金融工具, label_en: Financial Instrument, aliases: [证券], definition: 体现一方金融资产与另一方权益或负债关系、可被稳定识别的资产。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [上市公司普通股], counter_examples: [公司利润]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 金融工具名称。}
+      instrument_type: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [equity, debt, fund, derivative, depositary_receipt, other], description: 金融工具类型。}
+      identifier: {type: string, required: false, cardinality: '0..1', value_role: identity, nullable_semantics: null 表示尚无统一市场代码。, description: 市场代码或标准标识。}
+    constraints: {unique: [identifier], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  TradingVenue:
+    extends: Organization
+    metadata: {id: TradingVenue, namespace: core.semantic, label_zh: 交易场所, label_en: Trading Venue, aliases: [交易所], definition: 提供金融工具挂牌或交易制度并可稳定识别的组织。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [证券交易所], counter_examples: [证券代码]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 规范名称。}
+      aliases: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: 空列表表示无已知别名。, description: 可归一别名。}
+      mic_or_code: {type: string, required: false, cardinality: '0..1', value_role: identity, nullable_semantics: null 表示无国际标准代码或代码尚未冻结。, description: MIC 或市场通用代码。}
+    constraints: *standard_constraints
+  Listing:
+    metadata: {id: Listing, namespace: core.semantic, label_zh: 上市挂牌, label_en: Listing, aliases: [挂牌关系], definition: 金融工具由发行主体在交易场所挂牌的一项具有有效期的可识别安排。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [某公司普通股在交易所挂牌], counter_examples: [股价上涨]}
+    primary_key: id
+    title_property: ticker
+    attributes:
+      ticker: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 挂牌代码。}
+      listed_at: {type: date, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, time_basis: effective_time, description: 上市或挂牌生效日期。}
+      delisted_at: {type: date, required: false, cardinality: '0..1', value_role: fact, nullable_semantics: null 表示仍有效。, time_basis: effective_time, description: 终止挂牌日期。}
+    constraints: {unique: [ticker], mutually_exclusive: [], lifecycle: listed_at_lte_delisted_at}
+  ResearchScope:
+    metadata: {id: ResearchScope, namespace: core.semantic, label_zh: 研究范围, label_en: Research Scope, aliases: [Scope], definition: 对象、地域、客户、指标与时间边界的可引用集合。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [中国存储芯片行业2026年], counter_examples: [值得关注]}
+    primary_key: id
+    title_property: label
+    attributes:
+      label: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 范围标签。}
+      dimensions: {type: object, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 对象、地域、客户、指标和时间维度。}
+    constraints: {unique: [label], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+
+relation_types:
+  belongsTo:
+    metadata: &belongs_meta {id: belongsTo, namespace: core.semantic, label_zh: 属于, label_en: belongs to, aliases: [隶属], definition: 源对象在稳定分类或结构上属于目标对象。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [公司属于行业], counter_examples: [收入同比上升]}
+    source_types: [Company, Product, ValueChainSegment, Technology]
+    target_types: [Industry, ValueChainSegment]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: contains
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  contains:
+    metadata: {id: contains, namespace: core.semantic, label_zh: 包含, label_en: contains, aliases: [包括], definition: belongsTo 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [行业包含环节], counter_examples: [公司生产产品]}
+    source_types: [Industry, ValueChainSegment]
+    target_types: [Company, Product, ValueChainSegment, Technology]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: belongsTo
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  produces:
+    metadata: {id: produces, namespace: core.semantic, label_zh: 生产, label_en: produces, aliases: [提供], definition: 组织在明确范围内生产或提供产品。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [公司生产芯片], counter_examples: [芯片价格上涨]}
+    source_types: [Company]
+    target_types: [Product]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: producedBy
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  producedBy:
+    metadata: {id: producedBy, namespace: core.semantic, label_zh: 由其生产, label_en: produced by, aliases: [], definition: produces 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [芯片由公司生产], counter_examples: [公司属于行业]}
+    source_types: [Product]
+    target_types: [Company]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: produces
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  competesWith:
+    metadata: {id: competesWith, namespace: core.semantic, label_zh: 竞争于, label_en: competes with, aliases: [竞争关系], definition: 两个同类经济对象在重叠范围内争夺需求或资源。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [两家公司竞争], counter_examples: [上下游供应]}
+    source_types: [Company, Product, Technology]
+    target_types: [Company, Product, Technology]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: undirected
+    inverse_of: competesWith
+    symmetric: true
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  supplies:
+    metadata: {id: supplies, namespace: core.semantic, label_zh: 供应给, label_en: supplies, aliases: [供货], definition: 源公司向目标公司提供产品或服务。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [设备商供应晶圆厂], counter_examples: [两家公司竞争]}
+    source_types: [Company]
+    target_types: [Company]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: suppliedBy
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  suppliedBy:
+    metadata: {id: suppliedBy, namespace: core.semantic, label_zh: 由其供应, label_en: supplied by, aliases: [], definition: supplies 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [晶圆厂由设备商供应], counter_examples: [产品属于行业]}
+    source_types: [Company]
+    target_types: [Company]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: supplies
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  dependsOn:
+    metadata: {id: dependsOn, namespace: core.semantic, label_zh: 依赖于, label_en: depends on, aliases: [依存], definition: 源对象的正常能力对目标对象存在结构性依赖。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [产品依赖关键材料], counter_examples: [事件导致价格上涨]}
+    source_types: [Company, Product, Technology, ValueChainSegment]
+    target_types: [Company, Product, Technology, ValueChainSegment]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: dependedOnBy
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  dependedOnBy:
+    metadata: {id: dependedOnBy, namespace: core.semantic, label_zh: 被依赖, label_en: depended on by, aliases: [], definition: dependsOn 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [材料被产品依赖], counter_examples: [产品由公司生产]}
+    source_types: [Company, Product, Technology, ValueChainSegment]
+    target_types: [Company, Product, Technology, ValueChainSegment]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: dependsOn
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  scopeIncludesObject:
+    metadata: {id: scopeIncludesObject, namespace: core.semantic, label_zh: 范围包含对象, label_en: scope includes object, aliases: [研究对象边界], definition: 研究范围显式包含一个可识别的语义对象，且包含关系受范围有效期约束。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [中国存储行业范围包含样本公司], counter_examples: [研究范围包含一个结论]}
+    source_types: [ResearchScope]
+    target_types: [Organization, Company, Industry, ValueChainSegment, Product, Technology, Region, Metric, Application, Material, ProcessStep, PolicyInstrument, Asset, FinancialInstrument, TradingVenue, Listing]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: objectInScope
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {dimension: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 对象在范围中的维度角色。}}
+    invalidation_policy: invalidate_downstream
+  objectInScope:
+    metadata: {id: objectInScope, namespace: core.semantic, label_zh: 对象位于范围, label_en: object in scope, aliases: [纳入研究范围], definition: scopeIncludesObject 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [样本公司位于公司研究范围], counter_examples: [判断位于范围]}
+    source_types: [Organization, Company, Industry, ValueChainSegment, Product, Technology, Region, Metric, Application, Material, ProcessStep, PolicyInstrument, Asset, FinancialInstrument, TradingVenue, Listing]
+    target_types: [ResearchScope]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: scopeIncludesObject
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {dimension: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 对象在范围中的维度角色。}}
+    invalidation_policy: invalidate_downstream
+  usedInApplication:
+    metadata: {id: usedInApplication, namespace: core.semantic, label_zh: 用于应用, label_en: used in application, aliases: [面向应用], definition: 产品、材料或技术在明确边界下用于目标应用场景。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [加速芯片用于数据中心训练], counter_examples: [公司研究应用场景]}
+    source_types: [Product, Material, Technology]
+    target_types: [Application]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: applicationUses
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  applicationUses:
+    metadata: {id: applicationUses, namespace: core.semantic, label_zh: 应用使用, label_en: application uses, aliases: [], definition: usedInApplication 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [数据中心训练使用加速芯片], counter_examples: [应用属于公司]}
+    source_types: [Application]
+    target_types: [Product, Material, Technology]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: usedInApplication
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  processConsumes:
+    metadata: {id: processConsumes, namespace: core.semantic, label_zh: 工艺消耗, label_en: process consumes, aliases: [工艺使用], definition: 工艺步骤需要消耗或使用材料、产品或技术能力。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [刻蚀步骤使用电子特气], counter_examples: [公司供应材料]}
+    source_types: [ProcessStep]
+    target_types: [Material, Product, Technology]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: consumedByProcess
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  consumedByProcess:
+    metadata: {id: consumedByProcess, namespace: core.semantic, label_zh: 被工艺消耗, label_en: consumed by process, aliases: [], definition: processConsumes 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [电子特气被刻蚀步骤使用], counter_examples: [材料生产工艺]}
+    source_types: [Material, Product, Technology]
+    target_types: [ProcessStep]
+    source_cardinality: '0..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: processConsumes
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  policyAppliesTo:
+    metadata: {id: policyAppliesTo, namespace: core.semantic, label_zh: 政策适用于, label_en: policy applies to, aliases: [政策覆盖], definition: 政策工具在明确地域、对象与有效时间内适用于目标对象。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [出口管制适用于特定技术], counter_examples: [公告影响股价]}
+    source_types: [PolicyInstrument]
+    target_types: [Company, Industry, Product, Technology, Material, Region, Application]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: governedByPolicy
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  governedByPolicy:
+    metadata: {id: governedByPolicy, namespace: core.semantic, label_zh: 受政策约束, label_en: governed by policy, aliases: [], definition: policyAppliesTo 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-stage3-closure, examples: [特定技术受出口管制约束], counter_examples: [政策由公司生产]}
+    source_types: [Company, Industry, Product, Technology, Material, Region, Application]
+    target_types: [PolicyInstrument]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: policyAppliesTo
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  listingOfCompany:
+    metadata: {id: listingOfCompany, namespace: core.semantic, label_zh: 挂牌对应公司, label_en: listing of company, aliases: [], definition: 上市挂牌安排对应其发行或上市公司。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [挂牌安排对应发行公司], counter_examples: [公司属于行业]}
+    source_types: [Listing]
+    target_types: [Company]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: companyHasListing
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  companyHasListing:
+    metadata: {id: companyHasListing, namespace: core.semantic, label_zh: 公司具有挂牌, label_en: company has listing, aliases: [], definition: listingOfCompany 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [发行公司具有挂牌安排], counter_examples: [公司具有行业]}
+    source_types: [Company]
+    target_types: [Listing]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: listingOfCompany
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  listingForInstrument:
+    metadata: {id: listingForInstrument, namespace: core.semantic, label_zh: 挂牌对应金融工具, label_en: listing for instrument, aliases: [], definition: 上市挂牌安排对应被挂牌的金融工具。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [挂牌安排对应普通股], counter_examples: [股价属于挂牌]}
+    source_types: [Listing]
+    target_types: [FinancialInstrument]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: instrumentHasListing
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  instrumentHasListing:
+    metadata: {id: instrumentHasListing, namespace: core.semantic, label_zh: 金融工具具有挂牌, label_en: instrument has listing, aliases: [], definition: listingForInstrument 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [普通股具有挂牌安排], counter_examples: [金融工具由公司生产]}
+    source_types: [FinancialInstrument]
+    target_types: [Listing]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: listingForInstrument
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  listingAtVenue:
+    metadata: {id: listingAtVenue, namespace: core.semantic, label_zh: 挂牌位于交易场所, label_en: listing at venue, aliases: [], definition: 上市挂牌安排发生于指定交易场所。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [普通股挂牌位于证券交易所], counter_examples: [交易场所供应公司]}
+    source_types: [Listing]
+    target_types: [TradingVenue]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: venueHostsListing
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+  venueHostsListing:
+    metadata: {id: venueHostsListing, namespace: core.semantic, label_zh: 交易场所承载挂牌, label_en: venue hosts listing, aliases: [], definition: listingAtVenue 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [交易所承载普通股挂牌], counter_examples: [交易所生产金融工具]}
+    source_types: [TradingVenue]
+    target_types: [Listing]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: listingAtVenue
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: retain_history
+
+rules:
+  semantic_endpoint_compatibility:
+    metadata: {id: semantic_endpoint_compatibility, namespace: core.semantic, label_zh: 关系端点兼容, label_en: Relation endpoint compatibility, aliases: [], definition: 关系实例的端点类型必须落在关系定义允许范围内。执行面是 Runtime 实例图物化（validateRuntimeGraph），不是 stage_04 判断链引用检查；后者见 judgment_reference_integrity。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [Company produces Product], counter_examples: [Event produces Region]}
+    rule_class: semantic_constraint
+    applies_to: [relation_instance]
+    input_types: [relation_instance]
+    output_types: [validation_result]
+    preconditions: [relation_type_exists]
+    condition: source.type in relation.source_types and target.type in relation.target_types
+    counter_conditions: [dangling_endpoint, incompatible_endpoint]
+    failure_result: reject
+    priority: blocking
+    test_case_role: design_intent
+    test_cases: [{id: SEM-R-01-P, input: {relation_type: produces, source_type: Company, target_type: Product, endpoints_exist: true}, expected: pass}, {id: SEM-R-01-N, input: {relation_type: produces, source_type: Event, target_type: Region, endpoints_exist: true}, expected: reject}]
+  value_chain_propagation_consistency:
+    metadata: {id: value_chain_propagation_consistency, namespace: core.semantic, label_zh: 产业链传导一致性, label_en: Value chain propagation consistency, aliases: [传导路径一致性], definition: 每个传导/机制/影响类判断单元必须显式绑定至少一条含两个及以上状态变量的任务路径，路径变量通过 unitEvaluatesStateVariable 落到同一判断单元；不得以任务中其他判断单元的全局路径替代。若声明正式 stateVariableInfluences 边，则相关边必须具备机制与方向，且同端点对不得出现冲突方向。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-29', valid_to: null, replaced_by: [], source: ontology-3.0-path-binding-closure, examples: [transmission_path 判断显式绑定由两个状态变量组成的路径], counter_examples: [机制判断借用另一判断单元的无关路径通过门禁]}
+    rule_class: semantic_constraint
+    applies_to: [Judgment]
+    input_types: [Judgment, JudgmentUnit, StateVariable]
+    output_types: [validation_result]
+    preconditions: [judgment_unit_bound]
+    condition: non_propagation_type_or_path_consistent
+    counter_conditions: [propagation_type_without_path, path_variables_unlinked, influence_sign_conflict]
+    failure_result: reject_or_downgrade
+    priority: blocking
+    test_case_role: executable
+    test_cases:
+      - {id: SEM-R-02-P, input: {non_propagation_type_or_path_consistent: true, propagation_type_without_path: false, path_variables_unlinked: false, influence_sign_conflict: false}, expected: pass}
+      - {id: SEM-R-02-N, input: {non_propagation_type_or_path_consistent: false, propagation_type_without_path: true, path_variables_unlinked: false, influence_sign_conflict: false}, expected: reject}

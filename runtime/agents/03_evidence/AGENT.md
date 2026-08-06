@@ -65,8 +65,8 @@ skills: [evidence-evaluation, financial-data, gap-detection, ontology, method-se
 
 | 文件 | 用途 |
 |------|------|
-| `runtime/workflow/stage_specs/03_证据/03_数据与证据准备规范.md` | 阶段规范与质量门槛 |
-| `runtime/workflow/stage_specs/03_证据/03_附录2_取数留痕与材料处理操作手册.md` | 取数留痕操作手册 |
+| `tasks/workflows/deep_research/stages/03_evidence.md` | 阶段规范与质量门槛 |
+| `tasks/workflows/deep_research/supporting/03_evidence_provenance_manual.md` | 取数留痕操作手册 |
 | `methods/03_取证/B01_通用来源速查.md` | 通用来源→首选来源→MCP通道 |
 | `methods/03_取证/B02_半导体来源速查.md` | 半导体专用来源映射 |
 | `methods/03_取证/B03_MCP通道注册.md` | MCP通道完整注册表 |

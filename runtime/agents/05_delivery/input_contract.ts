@@ -12,7 +12,7 @@ import {
 } from "./quality_gate";
 
 export const STAGE05_QUALITY_GATE_REF =
-  "runtime/workflow/stage_specs/05_表达/05_投研表达与交付规范.md#9-质量门槛与返工";
+  "tasks/workflows/deep_research/stages/05_delivery.md#9-质量门槛与返工";
 
 function nonEmpty(value: unknown, fallback = ""): string {
   const text = String(value ?? "").trim();

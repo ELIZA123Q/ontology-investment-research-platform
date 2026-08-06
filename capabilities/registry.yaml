@@ -1,6 +1,15 @@
 schema_name: capability_domain_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
+
+authority:
+  answers: Capability 权威入口是本文件；Agent/Skill 实现过渡期仍在 runtime/，本域只登记归属与协议边界。
+  write_entry: capabilities/
+  read_primary: capabilities/registry.yaml
+  compat_read:
+    - runtime/agents/
+    - runtime/skills/
+    - methods/03_取证/
 
 source_of_truth:
   agents: runtime/agents
@@ -20,7 +29,7 @@ subdomains:
   tools:
     target: capabilities/tools
     source: runtime/skills
-    status: shell
+    status: migrating
   protocols_mcp:
     target: capabilities/protocols/mcp
     source:
@@ -31,7 +40,13 @@ subdomains:
     target: capabilities/protocols/a2a
     source: null
     status: shell
+    registry: capabilities/protocols/a2a/registry.yaml
+    boundary: capabilities/protocols/a2a/BOUNDARY.md
+    implementation_allowed: false
 
 notes:
   - Agent 组织能力；Skill/Tool 是能力本体；MCP/A2A 是协议边界。
   - 波次边界内仅重写入口层，不重写 runtime 业务实现。
+  - 新增能力登记写入本域；勿在旧顶层另开平行权威。
+  - wave3: agents/skills/tools/mcp 子注册表与合同镜像已落地；实现仍在 runtime。
+  - wave5: A2A 仅边界+registry；禁止假实现。

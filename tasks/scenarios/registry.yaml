@@ -1,6 +1,14 @@
 schema_name: scenario_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
+
+authority:
+  answers: 场景卡归属索引在本文件；新增场景登记写入 tasks/scenarios/，正文过渡期仍在 methods 场景卡目录。
+  write_entry: tasks/scenarios/
+  read_primary: tasks/scenarios/registry.yaml
+  compat_read:
+    - methods/02_研究框架/行业/半导体/场景卡/
+    - ontology/01_通用/models/scenario.yaml
 
 source_of_truth:
   scenario_cards: methods/02_研究框架/行业/半导体/场景卡
@@ -23,4 +31,4 @@ scenario_groups:
 
 notes:
   - 波次2先登记索引，避免一次性移动造成链接断裂。
-  - 物理迁移在波次2后半段按账本逐组执行。
+  - 物理迁移在后续波次按账本逐组执行。

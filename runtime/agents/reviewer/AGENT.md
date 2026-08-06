@@ -47,4 +47,4 @@ skills: [semantic-review, expression-audit, ontology]
 |------|------|
 | `governance/02_合同/governance_control_contract.yaml` | 治理控制合同 |
 | `governance/03_校验/00A_高质量产出判别标准.md` | 高质量判别标准 |
-| `runtime/workflow/stage_specs/` | 各阶段质量门槛 |
+| `tasks/workflows/deep_research/stages/` | 各阶段质量门槛 |

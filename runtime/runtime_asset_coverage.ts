@@ -8,7 +8,7 @@ import { repositoryPath } from "./storage/repo_paths";
 import { registeredFiles } from "./skills/method_selection/knowledge_loader";
 import type { StageKind } from "./schemas/types";
 
-const COVERAGE_PATH = "governance/validation/runtime_asset_coverage.yaml";
+const COVERAGE_PATH = "governance/03_校验/runtime_asset_coverage.yaml";
 
 export type InjectionMode =
   | "knowledge"

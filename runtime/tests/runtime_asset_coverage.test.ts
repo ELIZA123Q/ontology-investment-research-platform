@@ -26,8 +26,8 @@ describe("runtime asset coverage matrix", () => {
 
   it("Stage03 knowledge includes B03 and OPS_MCP", () => {
     const files = registeredFiles("stage_03");
-    expect(files).toContain("knowledge/evidence_strategy/B03_MCP通道注册.md");
-    expect(files).toContain("knowledge/evidence_strategy/OPS_MCP查询快速参考.md");
+    expect(files).toContain("methods/03_取证/B03_MCP通道注册.md");
+    expect(files).toContain("methods/03_取证/OPS_MCP查询快速参考.md");
   });
 
   it("knowledge-mode critical assets are registered for their stages", () => {

@@ -417,11 +417,13 @@ def validate_expression_projection(
 
 
 def validate_repository() -> list[str]:
+    from repo_paths import stage_yaml_template
+
     errors = validate_contract_data(load(CONTRACT_PATH))
     required_templates = (
-        ROOT / "runtime/workflow/stage_specs/02_结构/模板/02_任务本体视图模板.yaml",
-        ROOT / "runtime/workflow/stage_specs/03_证据/模板/03_语义域与证据域实例清单模板.yaml",
-        ROOT / "runtime/workflow/stage_specs/04_判断/模板/04_推理审计模板.yaml",
+        stage_yaml_template("02"),
+        stage_yaml_template("03"),
+        stage_yaml_template("04"),
     )
     for path in required_templates:
         text = path.read_text(encoding="utf-8")
