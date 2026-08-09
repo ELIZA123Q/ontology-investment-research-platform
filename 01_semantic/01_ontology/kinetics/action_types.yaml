@@ -1,0 +1,279 @@
+schema_name: ontology_action_catalog
+schema_version: 4.0.0
+status: active
+namespace: core.kinetic
+defaults: &defaults
+  allowed_actors: [researcher, agent, system]
+  reads: []
+  writes: []
+  preconditions: []
+  submission_policy: FormalWritesViaActionsOnly
+  function_ref: null
+  ontology_edits: []
+  post_commit_effects: [append_domain_event]
+  approval_policy: {mode: never}
+  postconditions: [action_execution_logged]
+  idempotency: required
+  conflict_control: expected_versions_required_for_existing_targets
+  audit_fields: [action_type, action_version, actor, parameters, target_refs, approval_ref, edits, output_refs, invalidated_refs, submitted_at, completed_at]
+  compensation: append_compensating_action
+  automation_allowed: false
+
+actions:
+  CreateResearchCase:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 创建研究案例
+    description: 为一个研究目标创建长期 ResearchCase 聚合根。
+    target_types: []
+    parameters:
+      title: {type: string, required: true}
+      goal: {type: string, required: true}
+      conversationRef: {type: string, required: true}
+    writes: [ResearchCase]
+    ontology_edits: [create_ResearchCase]
+    handler: create-research-case
+  ReviseResearchScope:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 修订研究范围
+    description: 创建新 ResearchScope 版本并使受影响的正式判断进入失效范围。
+    target_types: [ResearchCase]
+    parameters:
+      label: {type: string, required: true}
+      dimensions: {type: object, required: true}
+      reason: {type: string, required: true}
+    reads: [ResearchCase, ResearchScope, Judgment]
+    writes: [ResearchScope, caseHasScope, Judgment]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [create_ResearchScope, create_caseHasScope, invalidate_affected_Judgment]
+    post_commit_effects: [append_domain_event, enqueue_impact_analysis]
+    approval_policy: {mode: always, kind: plan_confirmation}
+    handler: revise-research-scope
+  CaptureSource:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 获取并冻结来源
+    description: 创建 SourceDocument 与不可变 SourceSnapshot，并绑定 ResearchCase。
+    target_types: [ResearchCase]
+    parameters:
+      title: {type: string, required: true}
+      uri: {type: string, required: true}
+      publishedAt: {type: datetime, required: true}
+      sourceTier: {type: string, required: true}
+      locator: {type: string, required: true}
+      contentHash: {type: string, required: true}
+      capturedAt: {type: datetime, required: true}
+      accessScope: {type: string, required: true}
+      quote: {type: string, required: false}
+    reads: [ResearchCase]
+    writes: [SourceDocument, SourceSnapshot, caseCapturesSnapshot, snapshotOfDocument]
+    preconditions: [target_exists, expected_version_matches, source_is_locatable]
+    ontology_edits: [upsert_SourceDocument, create_SourceSnapshot, create_caseCapturesSnapshot, create_snapshotOfDocument]
+    post_commit_effects: [append_domain_event, enqueue_update_judgment_task]
+    automation_allowed: true
+    handler: capture-source
+  AcceptClaim:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 接受来源主张
+    description: 接受 Function 生成的主张候选并写入可追溯 EvidenceClaim。
+    target_types: [SourceSnapshot]
+    parameters:
+      statement: {type: string, required: true}
+      locator: {type: string, required: true}
+      cutoffAt: {type: datetime, required: true}
+      semanticRefs: {type: array, required: false}
+    reads: [SourceSnapshot, SourceDocument]
+    writes: [EvidenceClaim, claimCitesSnapshot]
+    preconditions: [target_exists, expected_version_matches, snapshot_not_rejected]
+    function_ref: NormalizeClaimValue
+    ontology_edits: [create_EvidenceClaim, create_claimCitesSnapshot]
+    automation_allowed: true
+    handler: accept-claim
+  VerifySourceSnapshot:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 核验来源快照
+    description: 在 locator、哈希、时间和权限边界通过确定性校验后标记快照为 verified 或 rejected。
+    target_types: [SourceSnapshot]
+    parameters:
+      decision: {type: string, required: true}
+      note: {type: string, required: true}
+    allowed_actors: [researcher, system]
+    reads: [SourceSnapshot]
+    writes: [SourceSnapshot]
+    preconditions: [target_exists, expected_version_matches, capture_fields_complete]
+    ontology_edits: [update_SourceSnapshot_verification_status]
+    automation_allowed: true
+    handler: verify-source-snapshot
+  PromoteEvidenceFact:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 晋级证据事实
+    description: 将可定位且通过核验的 EvidenceClaim 晋级为 EvidenceFact。
+    target_types: [EvidenceClaim]
+    parameters:
+      statement: {type: string, required: true}
+      subjectRef: {type: string, required: true}
+      scopeRef: {type: string, required: true}
+      cutoffAt: {type: datetime, required: true}
+    reads: [EvidenceClaim, SourceSnapshot]
+    writes: [EvidenceFact, factDerivedFromClaim]
+    preconditions: [target_exists, expected_version_matches, claim_has_verified_snapshot]
+    ontology_edits: [create_EvidenceFact, create_factDerivedFromClaim]
+    automation_allowed: true
+    handler: promote-evidence-fact
+  RecordEvidenceAssessment:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 记录证据评估
+    description: 将只读 Function 的评估结果写为 EvidenceAssessment。
+    target_types: [EvidenceFact]
+    parameters:
+      assessment: {type: string, required: true}
+      directness: {type: string, required: true}
+      limitations: {type: array, required: true}
+    reads: [EvidenceFact, SourceSnapshot]
+    writes: [EvidenceAssessment, assessmentEvaluatesFact]
+    preconditions: [target_exists, expected_version_matches]
+    function_ref: AssessEvidenceUsability
+    ontology_edits: [create_EvidenceAssessment, create_assessmentEvaluatesFact]
+    automation_allowed: true
+    handler: record-evidence-assessment
+  AcceptHypothesis:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 接受研究假设
+    description: 将可证伪的假设候选写入 ResearchCase。
+    target_types: [ResearchCase]
+    parameters:
+      statement: {type: string, required: true}
+      judgmentUnitRef: {type: string, required: true}
+      direction: {type: string, required: true}
+      timeHorizon: {type: string, required: true}
+      falsificationConditions: {type: array, required: true}
+    reads: [ResearchCase, JudgmentUnit]
+    writes: [Hypothesis, unitHasHypothesis]
+    preconditions: [target_exists, expected_version_matches, judgment_unit_belongs_to_case]
+    function_ref: GenerateHypothesisCandidates
+    ontology_edits: [create_Hypothesis, create_unitHasHypothesis]
+    automation_allowed: true
+    handler: accept-hypothesis
+  ApproveJudgment:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 批准研究判断
+    description: 将判断提案作为正式 Judgment 写入，并分离知识状态与生命周期状态。
+    target_types: [ResearchCase]
+    parameters:
+      statement: {type: string, required: true}
+      epistemicStatus: {type: string, required: true}
+      confidence: {type: string, required: true}
+      scopeRef: {type: string, required: true}
+      cutoffAt: {type: datetime, required: true}
+      evidenceRefs: {type: array, required: true}
+      hypothesisRefs: {type: array, required: true}
+      conditions: {type: array, required: true}
+      invalidationConditions: {type: array, required: true}
+    reads: [ResearchCase, EvidenceFact, Hypothesis, RuleEvaluation]
+    writes: [Judgment, caseProducesJudgment]
+    preconditions: [target_exists, expected_version_matches, supported_requires_verified_evidence]
+    function_ref: ComputeJudgmentProposal
+    ontology_edits: [create_Judgment, create_caseProducesJudgment]
+    approval_policy: {mode: always, kind: judgment_confirmation}
+    handler: approve-judgment
+  SupersedeJudgment:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 替代研究判断
+    description: 保留历史并把既有 Judgment 标记为 superseded。
+    target_types: [Judgment]
+    parameters:
+      reason: {type: string, required: true}
+      replacementRef: {type: string, required: false}
+    reads: [Judgment]
+    writes: [Judgment]
+    preconditions: [target_exists, expected_version_matches, judgment_not_superseded]
+    ontology_edits: [update_Judgment_lifecycle_status]
+    approval_policy: {mode: always, kind: judgment_confirmation}
+    handler: supersede-judgment
+  PublishDeliverable:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 发布研究交付物
+    description: 发布已验证且经批准的 ResearchDeliverable。
+    target_types: [ResearchDeliverable]
+    parameters:
+      publicationNote: {type: string, required: true}
+    reads: [ResearchDeliverable, Judgment]
+    writes: [ResearchDeliverable, Judgment]
+    preconditions: [target_exists, expected_version_matches, deliverable_is_verified_or_approved]
+    ontology_edits: [update_ResearchDeliverable_published, update_included_Judgment_published]
+    post_commit_effects: [append_domain_event, publish_internal_artifact]
+    approval_policy: {mode: always, kind: publish_confirmation}
+    handler: publish-deliverable
+  CreateResearchDeliverable:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 创建研究交付物
+    description: 从 Runtime Artifact 创建受本体治理的 ResearchDeliverable 草稿。
+    target_types: [ResearchCase]
+    parameters:
+      title: {type: string, required: true}
+      artifactRef: {type: string, required: true}
+      judgmentRefs: {type: array, required: true}
+    reads: [ResearchCase, Judgment]
+    writes: [ResearchDeliverable, caseHasDeliverable, deliverableIncludesJudgment]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [create_ResearchDeliverable, create_caseHasDeliverable, create_deliverableIncludesJudgment]
+    automation_allowed: true
+    handler: create-research-deliverable
+  VerifyResearchDeliverable:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 核验研究交付物
+    description: 确定性审计通过后将 ResearchDeliverable 标记为 verified。
+    target_types: [ResearchDeliverable]
+    parameters:
+      verifierRef: {type: string, required: true}
+      passed: {type: boolean, required: true}
+    allowed_actors: [researcher, system]
+    reads: [ResearchDeliverable]
+    writes: [ResearchDeliverable]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [update_ResearchDeliverable_verified]
+    automation_allowed: true
+    handler: verify-research-deliverable
+  CreateMonitoringRule:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 创建判断监控
+    description: 将一项改判条件登记为默认暂停、可显式启用的 MonitoringRule。
+    target_types: [Judgment]
+    parameters:
+      condition: {type: string, required: true}
+      stateVariableRef: {type: string, required: false}
+      enabled: {type: boolean, required: true}
+    reads: [Judgment, StateVariable]
+    writes: [MonitoringRule, judgmentHasMonitor]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [create_MonitoringRule, create_judgmentHasMonitor]
+    handler: create-monitoring-rule
+  TriggerJudgmentReassessment:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 触发判断重评
+    description: 监控条件命中时使关联判断失效并排队局部更新任务。
+    target_types: [MonitoringRule]
+    parameters:
+      observedRef: {type: string, required: true}
+      reason: {type: string, required: true}
+    allowed_actors: [researcher, system]
+    reads: [MonitoringRule, Judgment, Observation, Event]
+    writes: [MonitoringRule, Judgment]
+    preconditions: [target_exists, expected_version_matches, monitoring_rule_active]
+    ontology_edits: [update_MonitoringRule_triggered, invalidate_Judgment]
+    post_commit_effects: [append_domain_event, enqueue_update_judgment_task]
+    automation_allowed: true
+    handler: trigger-judgment-reassessment

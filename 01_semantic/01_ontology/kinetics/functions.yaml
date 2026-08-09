@@ -1,0 +1,56 @@
+schema_name: ontology_function_catalog
+schema_version: 4.0.0
+status: active
+namespace: core.kinetic
+functions:
+  ExtractClaims:
+    version: 1.0.0
+    label_zh: 主张候选抽取
+    description: 从来源快照的指定内容中返回原子主张候选，不写正式对象。
+    inputs: {snapshotRef: object_ref, content: string}
+    outputs: {claimCandidates: array}
+    reads: [SourceSnapshot]
+    deterministic: false
+    side_effects: false
+    implementation: ontology-function/extract-claims
+  NormalizeClaimValue:
+    version: 1.0.0
+    label_zh: 主张口径归一
+    description: 归一对象、时间、单位和数值表达，不改变原始陈述。
+    inputs: {statement: string, semanticRefs: array, unit: string, businessTime: datetime}
+    outputs: {normalizedClaim: object}
+    reads: [EvidenceClaim, ontology_object]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/normalize-claim
+  AssessEvidenceUsability:
+    version: 1.0.0
+    label_zh: 证据可用性评估
+    description: 根据快照核验、范围和独立来源计算证据是否足以支撑当前用途。
+    inputs: {evidenceRefs: array, judgmentUnitRefs: array}
+    outputs: {sufficient: boolean, qualifiedEvidenceCount: integer, rationale: string}
+    reads: [SourceSnapshot, EvidenceFact, JudgmentUnit]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/assess-evidence
+  GenerateHypothesisCandidates:
+    version: 1.0.0
+    label_zh: 假设候选生成
+    description: 围绕判断单元和状态变量生成可证伪候选，候选本身不是正式对象。
+    inputs: {caseRef: object_ref, statement: string, stateVariableRef: object_ref}
+    outputs: {hypothesisCandidates: array}
+    reads: [ResearchCase, JudgmentUnit, StateVariable, EvidenceFact]
+    deterministic: false
+    side_effects: false
+    implementation: ontology-function/generate-hypotheses
+  ComputeJudgmentProposal:
+    version: 1.0.0
+    label_zh: 判断提案计算
+    description: 从已核验证据和假设生成判断提案；正式 Judgment 必须由 ApproveJudgment 提交。
+    inputs: {caseRef: object_ref, evidenceRefs: array, hypothesisRefs: array, statement: string}
+    outputs: {judgmentProposal: object}
+    reads: [ResearchCase, EvidenceFact, Hypothesis, Signal, RuleEvaluation]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/compute-judgment
+

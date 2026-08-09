@@ -9,8 +9,9 @@ assets:
   - 03_capabilities/04_protocols/mcp/source_routes.yaml
 runtime_tool: financial.mcp
 executable_manifest: 07_runtime/src/capabilities/registry.ts
-adapter_status: planned_vnext_2
+adapter_status: common_contract_ready_connector_planned
 notes:
   - MCP 是获取通道，不是来源生产者。
   - 机器权威：mcp_channels.yaml / source_routes.yaml；人类操作卡：B03 / OPS_MCP。
   - 来源准入 B00–B02 在 01_semantic/04_evidence/，不在本目录。
+  - 统一结果合同已在 07_runtime/src/tools/source-result-adapter.ts 落地；真实 connector 仍需把上游发布主体与获取通道分开映射。

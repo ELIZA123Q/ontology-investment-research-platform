@@ -8,9 +8,12 @@
     "build": "next build --webpack",
     "start": "next start -H 127.0.0.1 -p 3000",
     "start:all": "bash scripts/start-all.sh",
-    "worker": "tsx src/worker.ts",
+    "worker": "node --import tsx src/worker.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "ontology:validate": "python3 ../01_semantic/01_ontology/validate_v4.py",
+    "ontology:sync": "python3 scripts/generate-ontology-catalog.py",
+    "ontology:check": "python3 scripts/generate-ontology-catalog.py --check",
     "audit:cutover": "node --import tsx scripts/audit-cutover.ts"
   },
   "dependencies": {

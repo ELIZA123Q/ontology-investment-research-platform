@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
+import "./styles/tokens.css";
 import "./globals.css";
+import "./styles/layout.css";
+import "./styles/components.css";
 
 export const metadata: Metadata = {
-  title: "投研判断工作台 vNext",
-  description: "本地优先、目标驱动的投研研究搭档",
+  title: "判断 · AI 投研工作台",
+  description: "从研究问题到可核验判断的 AI 原生工作台",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

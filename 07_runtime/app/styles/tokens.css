@@ -1,0 +1,30 @@
+:root {
+  color-scheme: light;
+  --canvas: #f5f5f1;
+  --canvas-deep: #efefe9;
+  --surface: #fffefb;
+  --surface-raised: #ffffff;
+  --ink: #1b221e;
+  --ink-soft: #39443e;
+  --muted: #6e7872;
+  --muted-2: #909892;
+  --line: #dde1dc;
+  --line-strong: #cdd3cd;
+  --green: #1d6047;
+  --green-strong: #174d3a;
+  --green-soft: #dfece5;
+  --green-pale: #eef5f1;
+  --amber: #9b6724;
+  --amber-soft: #f6ead6;
+  --red: #a33f38;
+  --red-soft: #f7e5e2;
+  --blue-soft: #e7eef5;
+  --shadow-sm: 0 1px 2px rgb(24 36 28 / 5%);
+  --shadow-md: 0 12px 36px rgb(25 37 29 / 8%);
+  --shadow-lg: 0 24px 70px rgb(20 30 24 / 14%);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-editorial: Iowan Old Style, "Songti SC", "STSong", Georgia, serif;
+}

@@ -8,6 +8,7 @@ export interface PlannedNode {
   title: string;
   agent: AgentId;
   dependsOn: string[];
+  budget?: Partial<Budget>;
 }
 
 export interface ResearchPlan {
@@ -71,7 +72,9 @@ export function planResearch(goal: string): ResearchPlan {
     nodes: [
       { key: "impact", kind: "impact_analysis", title: "识别新材料影响范围", agent: "research-lead", dependsOn: [] },
       { key: "context", kind: "semantic_context", title: "装配受影响判断的上下文", agent: "research-lead", dependsOn: ["impact"] },
-      { key: "evaluate", kind: "evidence_evaluation", title: "核验新增证据", agent: "research-lead", dependsOn: ["context"] },
+      { key: "discover", kind: "evidence_discovery", title: "定位新增材料或需刷新来源", agent: "research-lead", dependsOn: ["context"] },
+      { key: "capture", kind: "evidence_capture", title: "保存新增来源快照与定位", agent: "research-lead", dependsOn: ["discover"] },
+      { key: "evaluate", kind: "evidence_evaluation", title: "核验新增证据", agent: "research-lead", dependsOn: ["capture"] },
       { key: "adjudicate", kind: "judgment", title: "重裁受影响判断", agent: "research-lead", dependsOn: ["evaluate"] },
       { key: "audit", kind: "audit", title: "确定性检查改判边界", agent: "research-lead", dependsOn: ["adjudicate"] },
     ],
@@ -108,7 +111,7 @@ export function materializeNodes(taskId: string, plan: ResearchPlan, budget: Bud
     return ({
     id: ids.get(node.key)!, taskId, kind: node.kind, title: node.title, capabilityType: type.capabilityType, capabilityId: type.capabilityId,
     assignedAgent: node.agent, dependsOn: node.dependsOn.map((key) => ids.get(key)!), status: node.dependsOn.length ? "pending" : "ready",
-    budget: { maxModelCalls: Math.max(1, Math.floor(budget.maxModelCalls / plan.nodes.length)), maxToolCalls: Math.max(1, Math.floor(budget.maxToolCalls / plan.nodes.length)) },
+    budget: node.budget || { maxModelCalls: Math.max(1, Math.floor(budget.maxModelCalls / plan.nodes.length)), maxToolCalls: Math.max(1, Math.floor(budget.maxToolCalls / plan.nodes.length)), maxCostUsd: budget.maxCostUsd / plan.nodes.length },
     inputArtifactIds: [], outputArtifactIds: [],
     });
   });

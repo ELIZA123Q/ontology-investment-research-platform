@@ -1,79 +1,41 @@
 # 投研判断工作台
 
-本地优先、可云化、面向单研究员的 AI 原生研究搭档。研究员只表达目标、补充材料、审阅关键判断和调整方向，不需要理解五域、五阶段、Agent 或本体结构。
+本地优先的 AI 研究搭档：你说清目标、补充材料、审阅关键判断并调整方向；证据不够时会诚实降级为「暂不可判断」。
 
-> **确定性负责边界，Agent 负责路径。**
+## 先读这个
 
-## 产品入口
+**对项目一无所知？从这里开始 → [`新手导读.md`](新手导读.md)**  
+遇到词不懂 → [`术语速查.md`](术语速查.md)
+
+## 30 秒启动
 
 ```bash
 bash start-light.sh
 ```
 
-访问 `http://127.0.0.1:3000`。启动脚本同时运行 Next.js 工作台与独立 Runtime worker。
+浏览器打开 **`http://127.0.0.1:3000`**（不要用 `localhost`）。
 
-开发模式：
+## 你属于哪一类
 
-```bash
-cd 07_runtime
-npm install
-npm run dev
-```
-
-另开终端运行 `npm run worker`。
-
-## 用户如何工作
-
-主界面只有三部分：
-
-- 左侧：研究主题与长期会话。
-- 中间：研究员与 Research Lead 的连续对话、计划和执行状态。
-- 右侧：证据矩阵、假设、判断卡、报告与审计时间线等动态可信制品。
-
-用户可以直接说“只补一手来源”“把时间改成未来六个月”“从历史判断创建分支”。Runtime 不强制重新执行完整 01—05。
-
-## 当前架构
-
-```text
-Intent → Task → constrained TaskGraph → Skill / Tool / Policy / Verifier
-       → Event + key Checkpoint → Artifact → trusted UI surface
-```
-
-- vNext.1 只有一个活动 Agent：Research Lead。
-- 5 个 Skill：research-framing、research-method、evidence-assessment、hypothesis-analysis、research-writing。
-- Context Builder 是 Runtime Service；Source Capture 是 Tool；引用审计是 Verifier；重规划是 Lead Policy。
-- Message 与 Trace 从 append-only Event 投影；ContextPackage 是临时对象。
-- 没有合格 Evidence 时，Claim 不能标记 supported，Judgment 必须降级为“暂不可判断”。
-- 自有 agent loop 通过 adapter 接入 OpenAI-compatible/DeepSeek、OpenAI 和 Anthropic。
-
-## 仓库职责
-
-| 目录 | 权威职责 |
+| 我是… | 去哪 |
 |---|---|
-| `01_semantic/` | 本体、语义词典、Domain Semantic Graph、证据语义 |
-| `02_tasks/` | Intent、Task 定义、场景与可选 Deep Research 模板 |
-| `03_capabilities/` | Agent/Skill/Tool 治理索引、方法库和 MCP 配置 |
-| `04_execution/` | Context/Memory 合同、历史 Workspace 与 Runtime 索引 |
-| `05_governance/` | 架构、规则、权限、Verifier、Eval 和迁移路线 |
-| `06_app/` | 产品路由与可信组件登记 |
-| `07_runtime/` | 唯一可执行 App、Agent Kernel、Store、Worker 和测试 |
+| 主要做研究 / 用产品 | [新手导读 · 路径 A](新手导读.md#路径-a--我主要做研究再约-5-分钟) |
+| 要改代码或维护仓库 | [新手导读 · 路径 B](新手导读.md#路径-b--我要改仓库--维护系统再约-20-分钟) |
 
-权威入口：[five_domain_authority.yaml](05_governance/01_架构/five_domain_authority.yaml)。五域只作为后台职责边界，不建设成五个 UI 中心。
+---
 
-## 研究资产
+## 仓库地图（读完导读再看）
 
-- 半导体场景与历史样例继续保留在 `01_semantic`、`02_tasks`、`03_capabilities/05_method_libraries` 和 `04_execution/03_workspace`。
-- 原 01—05 内容保留为方法模板、历史回放和配对评测基线，不是 Runtime 状态机。
-- Domain Semantic Graph 与 Research Provenance Graph 分开治理，通过混合检索接口关联。
+目录编号是整理用的，**不是**做研究时必须走的阶段顺序。唯一能跑起来的应用在 `07_runtime/`。
 
-## 验证
+| 目录 | 人话 |
+|---|---|
+| [`01_semantic/`](01_semantic/README.md) | 概念、词典、证据语义 |
+| [`02_tasks/`](02_tasks/README.md) | 场景与任务定义 |
+| [`03_capabilities/`](03_capabilities/README.md) | 方法库、能力登记、数据通道 |
+| [`04_execution/`](04_execution/README.md) | 执行合同与历史工作区 |
+| [`05_governance/`](05_governance/README.md) | 边界、合同、校验、评测 |
+| [`06_app/`](06_app/README.md) | 产品面说明（实现在 Runtime） |
+| [`07_runtime/`](07_runtime/README.md) | 唯一可执行应用与后台 |
 
-```bash
-cd 07_runtime
-npm test
-npm run typecheck
-npm run build
-npm audit --omit=dev
-```
-
-下一轮优化路线见：[2026-08-09_vNext2真实研究闭环.md](05_governance/04_路线图/2026-08-09_vNext2真实研究闭环.md)。
+更细说明见 [`05_governance/01_架构/02_仓库地图与文件治理.md`](05_governance/01_架构/02_仓库地图与文件治理.md)。权威索引：[`five_domain_authority.yaml`](05_governance/01_架构/five_domain_authority.yaml)。

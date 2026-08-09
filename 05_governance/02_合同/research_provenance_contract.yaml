@@ -1,0 +1,57 @@
+schema_name: research_provenance_contract
+schema_version: 1.1.0
+status: active
+
+purpose: >-
+  约束 SourceCandidate → SourceSnapshot → EvidenceFact → Artifact 的最小晋级链，
+  防止把搜索结果、历史正文或模型改写直接当作事实。
+
+objects:
+  SourceCandidate:
+    identity: stable asset id or external discovery id
+    required: [id, uri, title, source_type, discovery_reason, discovered_at]
+    formal_evidence: false
+  SourceSnapshot:
+    identity: sha256(candidate_id + content_hash)
+    required: [candidate_id, uri, locator, quote, body, content_hash, captured_at, permission_scope, verification, acquisition]
+    acquisition_required: [connector_id, upstream_source_id, request_fingerprint, request_parameters, raw_response_hash, retrieved_at]
+    verification_means: 快照完整性、定位和使用权限通过确定性检查，不代表外部陈述必然为真
+  EvidenceFact:
+    identity: sha256(snapshot_id + statement)
+    required: [snapshot_id, statement, fact_type, confidence, status, created_at]
+    v1_promotion_rule: statement 必须等于快照中可定位的短引文；任何归一化改写必须在后续版本单独审查
+  ProvenanceEdge:
+    predicates: [captured_as, derived_from, supports, contradicts, included_in, adjudicated_into]
+
+invariants:
+  - Candidate 不能直接支持 Claim 或 Judgment。
+  - 未保存 body、locator、quote、content_hash 和 captured_at 的对象不是 SourceSnapshot。
+  - Connector 只说明如何获取数据；upstream_source_id 与 publisher_id 才说明谁生产了来源，不得把 MCP 或 API 当成发布主体。
+  - 外部 Tool 结果必须记录请求参数指纹、原始响应哈希与获取时间；raw_response_hash 必须能复核捕获正文。
+  - quote 必须能在捕获 body 中逐字定位，content_hash 必须与 body 一致。
+  - restricted 权限的快照不能晋级 EvidenceFact。
+  - EvidenceFact 的 verified 仅表示晋级链可重复验证；研究可信度仍由证据评估和 Eval 判断。
+  - evidence sufficient 至少要求两个不同发布主体的已验证快照；数量门槛不能替代质量评估。
+  - 历史 structured_evidence_packet 属于 governed historical capture，不等同于重新抓取的网页、PDF 或接口原始响应。
+  - FTS、structured query 与图遍历可以组合，但图检索不得替代全文和结构化查询。
+
+runtime_mapping:
+  contracts: 07_runtime/src/contracts.ts
+  semantic_gateway: 07_runtime/src/semantic/local-gateway.ts
+  provenance_store: 07_runtime/src/semantic/provenance-store.ts
+  source_adapter: 07_runtime/src/tools/local-source-gateway.ts
+  unified_tool_result_adapter: 07_runtime/src/tools/source-result-adapter.ts
+  deterministic_verifier: 07_runtime/src/governance/provenance-verifier.ts
+  node_executor: 07_runtime/src/runtime/kernel.ts
+
+current_scope:
+  supported:
+    - 本体、词典、来源指南、方法库和历史 Artifact 的只读增量索引
+    - SQLite FTS5 可用时的全文召回与确定性词项复核
+    - 历史 governed capture 的重新登记、哈希校验、定位校验和 EvidenceFact 晋级
+    - 网页、PDF、金融 MCP 与用户材料可共同采用的统一 Source Tool Result 适配合同
+  not_yet_supported:
+    - 实时互联网网页或 PDF 抓取
+    - 金融 MCP connector 的真实调用与凭据配置
+    - EvidenceFact 归一化改写的语义等价 verifier
+    - 新鲜度失效传播与局部重算

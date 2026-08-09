@@ -8,6 +8,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => ({})) as { title?: string };
-  return NextResponse.json(getRuntimeStore().createConversation(body.title?.trim() || "新的研究主题"), { status: 201 });
+  const body = await request.json().catch(() => ({})) as { title?: string; tenantId?: string; userId?: string };
+  return NextResponse.json(getRuntimeStore().createConversation(body.title?.trim() || "新的研究主题", { tenantId: body.tenantId, userId: body.userId }), { status: 201 });
 }

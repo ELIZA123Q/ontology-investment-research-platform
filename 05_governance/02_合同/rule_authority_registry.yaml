@@ -129,10 +129,10 @@ governance_rules:
   GOV-SOURCE-ACCESS-001: {source_ref: 02_tasks/04_workflows/deep_research/stages/03_evidence.md, business_support_allowed: false}
   GOV-CLAIM-STRUCTURE-001: {source_ref: 05_governance/02_合同/public_contract.yaml#node_contract, business_support_allowed: false}
   GOV-STAGE-04-READINESS-001: {source_ref: 05_governance/02_合同/public_contract.yaml#method_application_contract, business_support_allowed: false}
-  GOV-ACTION-APPROVAL-001: {source_ref: 05_governance/11_rules/runtime_operations.yaml#actions.LinkOntologyObjects, business_support_allowed: false}
+  GOV-ACTION-APPROVAL-001: {source_ref: 01_semantic/01_ontology/kinetics/policies.yaml#policies.HighRiskResearcherApproval, business_support_allowed: false}
 
 runtime_rules:
-  RT-OPERATION-REGISTRY-001: {source_ref: 05_governance/11_rules/runtime_operations.yaml, business_support_allowed: false}
+  RT-OPERATION-REGISTRY-001: {source_ref: 01_semantic/01_ontology/kinetics/action_types.yaml, business_support_allowed: false}
   RT-METHOD-STATUS-001: {source_ref: 07_runtime/src/runtime/node-catalog.ts, business_support_allowed: false}
   RT-METHOD-NO-SILENT-DROP-001: {source_ref: 07_runtime/src/runtime/node-catalog.ts, business_support_allowed: false}
   RT-TASK-NODE-TRANSITION-001: {source_ref: 07_runtime/src/runtime/kernel.ts, business_support_allowed: false}

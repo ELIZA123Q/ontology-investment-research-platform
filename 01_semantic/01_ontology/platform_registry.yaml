@@ -1,0 +1,28 @@
+schema_name: ontology_platform_registry
+schema_version: 4.0.0
+status: active
+source_of_truth: 01_semantic/01_ontology
+meta_schema: meta_schema.yaml
+legacy_semantic_baseline:
+  version: 3.0.0
+  registry: model_registry.yaml
+  mode: read_only_compatibility
+semantic_models:
+  - models/semantic.yaml
+  - models/state_event.yaml
+  - models/evidence.yaml
+  - models/judgment.yaml
+  - models/scenario.yaml
+  - models/semiconductor_extension.yaml
+operational_models:
+  - models/operational.yaml
+kinetic_models:
+  actions: kinetics/action_types.yaml
+  functions: kinetics/functions.yaml
+  policies: kinetics/policies.yaml
+  triggers: kinetics/triggers.yaml
+runtime_projection: 07_runtime/src/ontology/generated.ts
+rules:
+  - 新运行只写 Ontology 4.0；Ontology 3.0 实例保持只读，不双写。
+  - 正式语义对象和关系只能通过 Action Service 写入。
+  - Task、TaskNode、队列、重试、缓存与 Checkpoint 不进入业务本体。

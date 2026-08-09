@@ -12,7 +12,7 @@ audit_ref: 04-美国管制与国产设备替代推理审计-20260715-1.yaml
 judgment_as_of: '2026-07-15'
 stage_status: complete
 quality_status: high_quality_pass
-quality_gate_ref: 07_runtime/workflow/stage_specs/04_判断/04_推理输出规范.md#10-质量门槛与返工规则
+quality_gate_ref: 02_tasks/04_workflows/deep_research/stages/04_judgment.md#10-质量门槛与返工规则
 deterministic_check_status: checked
 semantic_review_status: reviewed
 confidence: medium

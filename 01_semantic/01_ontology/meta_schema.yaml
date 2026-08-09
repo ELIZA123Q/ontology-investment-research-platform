@@ -1,8 +1,11 @@
-schema_name: investment_research_ontology_meta_schema
+schema_name: investment_research_ontology_platform_meta_schema
 schema_version: 1.0.0
+platform_version: 4.0.0
 status: active
 authority: formal_ontology
-description: 投研本体 3.0 的机器权威元模型；正式本体只描述对象、状态、证据、判断约束与研究场景，不描述执行动作、函数或工作流。
+description: >-
+  Ontology 4.0 的统一机器元模型。models 保持纯语义，kinetics 定义受治理的
+  Action、只读 Function、Policy 与 Trigger；TaskGraph 仍属于 Runtime 编排。
 
 namespaces:
   core.semantic: ir.core.semantic
@@ -10,12 +13,14 @@ namespaces:
   core.evidence: ir.core.evidence
   core.judgment: ir.core.judgment
   core.scenario: ir.core.scenario
+  core.operational: ir.core.operational
+  core.kinetic: ir.core.kinetic
   semiconductor: ir.domain.semiconductor
 
 common_metadata:
   required: [id, namespace, label_zh, label_en, aliases, definition, model, version, status, valid_from, valid_to, replaced_by, source, examples, counter_examples]
   status_values: [draft, active, deprecated]
-  model_values: [semantic, state_event, evidence, judgment, scenario]
+  model_values: [semantic, state_event, evidence, judgment, scenario, operational]
   rules:
     - id 与 namespace 组合后必须全局唯一且版本内稳定。
     - deprecated 元素必须填写非空 replaced_by；active/draft 元素的 replaced_by 必须为空列表。
@@ -59,7 +64,29 @@ scenario_contract:
   rules:
     - scenario_types.enforcement 必须为 catalog_only：场景类型是任务枚举/设计清单，不是 Runtime 可写对象或入口门禁。
 
-forbidden_top_level_sections: [action_types, functions, logic_flows]
+action_type_contract:
+  required: [version, label_zh, description, target_types, parameters, allowed_actors, reads, writes, preconditions, submission_policy, function_ref, ontology_edits, post_commit_effects, approval_policy, postconditions, idempotency, conflict_control, audit_fields, compensation, automation_allowed, handler]
+  approval_modes: [never, always, conditional]
+  actor_values: [researcher, agent, system, ontology_admin]
+  effect_phases: [atomic, post_commit]
+  rules:
+    - Action 是正式语义状态的唯一写入口；Skill、Tool、Function 和 TaskNode 不得直接写正式对象或关系。
+    - ontology_edits 必须原子提交；post_commit_effects 失败不得回滚已经提交的语义事务。
+    - 评级、仓位、订单和交易动作不在平台允许边界内。
+
+function_type_contract:
+  required: [version, label_zh, description, inputs, outputs, reads, deterministic, side_effects, implementation]
+  rules:
+    - Function 只读本体并返回计算结果，side_effects 必须为 false。
+    - 需要改变对象或关系时必须由 Action 提交 Function 结果。
+
+policy_type_contract:
+  required: [version, label_zh, description, applies_to, effect, failure_message]
+
+trigger_type_contract:
+  required: [version, label_zh, description, observes, condition, action_ref, run_as, enabled_by_default]
+
+forbidden_top_level_sections: []
 extension_contract:
   event_taxonomy_required: [extends_object, extends_attribute, allowed_extensions, event_type_taxonomy]
   independent_relation_rationale_field: subproperty_rationale

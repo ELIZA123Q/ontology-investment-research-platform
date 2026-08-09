@@ -1,0 +1,101 @@
+schema_name: investment_research_operational_model
+schema_version: 4.0.0
+meta_schema_version: 1.0.0
+status: active
+namespace: core.operational
+model: operational
+description: 研究闭环中具有长期业务身份和生命周期的运营对象。
+
+object_types:
+  ResearchCase:
+    label_zh: 研究案例
+    label_en: Research Case
+    description: 连接范围、问题、证据、判断、交付和监控的一项长期研究业务身份。
+    primary_key: id
+    title_property: title
+    attributes:
+      title: {type: string, required: true}
+      goal: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [draft, scoped, researching, review_ready, completed, reopened, archived]}
+      conversation_ref: {type: string, required: true}
+      created_by: {type: string, required: true}
+  SourceSnapshot:
+    label_zh: 来源快照
+    label_en: Source Snapshot
+    description: 某一来源在一次实际获取时冻结的可定位内容版本。
+    primary_key: id
+    title_property: locator
+    attributes:
+      source_ref: {type: object_ref, required: true, reference_target: SourceDocument}
+      locator: {type: string, required: true}
+      content_hash: {type: string, required: true}
+      captured_at: {type: datetime, required: true}
+      access_scope: {type: string, required: true}
+      quote: {type: string, required: false}
+      verification_status: {type: enum, required: true, allowed_values: [unverified, verified, rejected]}
+  ResearchDeliverable:
+    label_zh: 研究交付物
+    label_en: Research Deliverable
+    description: 由正式判断投影形成并具有审核、发布和替代生命周期的研究制品。
+    primary_key: id
+    title_property: title
+    attributes:
+      title: {type: string, required: true}
+      artifact_ref: {type: string, required: true}
+      lifecycle_status: {type: enum, required: true, allowed_values: [draft, verified, approved, published, superseded]}
+      published_at: {type: datetime, required: false}
+  MonitoringRule:
+    label_zh: 判断监控规则
+    label_en: Monitoring Rule
+    description: 把判断的改判或失效条件转换为可执行的持续观察条件。
+    primary_key: id
+    title_property: condition
+    attributes:
+      judgment_ref: {type: object_ref, required: true, reference_target: Judgment}
+      state_variable_ref: {type: object_ref, required: false, reference_target: StateVariable}
+      condition: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [active, triggered, paused, retired]}
+      last_evaluated_at: {type: datetime, required: false}
+  ActionExecution:
+    label_zh: 动作执行记录
+    label_en: Action Execution
+    description: 一次 Action 提交的版本、参数、操作者、审批、编辑结果与失败信息。
+    primary_key: id
+    title_property: action_type
+    attributes:
+      action_type: {type: string, required: true}
+      action_version: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [previewed, applied, rejected, failed]}
+      actor_type: {type: enum, required: true, allowed_values: [researcher, agent, system, ontology_admin]}
+      actor_id: {type: string, required: true}
+      submitted_at: {type: datetime, required: true}
+      completed_at: {type: datetime, required: false}
+      idempotency_key: {type: string, required: true}
+      parameters: {type: object, required: true}
+      edits: {type: array, required: true}
+      error: {type: string, required: false}
+
+relation_types:
+  caseHasScope: {source_types: [ResearchCase], target_types: [ResearchScope], inverse_of: scopeForCase}
+  scopeForCase: {source_types: [ResearchScope], target_types: [ResearchCase], inverse_of: caseHasScope}
+  caseAddressesQuestion: {source_types: [ResearchCase], target_types: [ResearchQuestion], inverse_of: questionForCase}
+  questionForCase: {source_types: [ResearchQuestion], target_types: [ResearchCase], inverse_of: caseAddressesQuestion}
+  caseHasJudgmentUnit: {source_types: [ResearchCase], target_types: [JudgmentUnit], inverse_of: judgmentUnitForCase}
+  judgmentUnitForCase: {source_types: [JudgmentUnit], target_types: [ResearchCase], inverse_of: caseHasJudgmentUnit}
+  caseCapturesSnapshot: {source_types: [ResearchCase], target_types: [SourceSnapshot], inverse_of: snapshotCapturedForCase}
+  snapshotCapturedForCase: {source_types: [SourceSnapshot], target_types: [ResearchCase], inverse_of: caseCapturesSnapshot}
+  snapshotOfDocument: {source_types: [SourceSnapshot], target_types: [SourceDocument], inverse_of: documentHasSnapshot}
+  documentHasSnapshot: {source_types: [SourceDocument], target_types: [SourceSnapshot], inverse_of: snapshotOfDocument}
+  claimCitesSnapshot: {source_types: [EvidenceClaim], target_types: [SourceSnapshot], inverse_of: snapshotHasClaim}
+  snapshotHasClaim: {source_types: [SourceSnapshot], target_types: [EvidenceClaim], inverse_of: claimCitesSnapshot}
+  caseProducesJudgment: {source_types: [ResearchCase], target_types: [Judgment], inverse_of: judgmentForCase}
+  judgmentForCase: {source_types: [Judgment], target_types: [ResearchCase], inverse_of: caseProducesJudgment}
+  caseHasDeliverable: {source_types: [ResearchCase], target_types: [ResearchDeliverable], inverse_of: deliverableForCase}
+  deliverableForCase: {source_types: [ResearchDeliverable], target_types: [ResearchCase], inverse_of: caseHasDeliverable}
+  deliverableIncludesJudgment: {source_types: [ResearchDeliverable], target_types: [Judgment], inverse_of: judgmentIncludedInDeliverable}
+  judgmentIncludedInDeliverable: {source_types: [Judgment], target_types: [ResearchDeliverable], inverse_of: deliverableIncludesJudgment}
+  judgmentHasMonitor: {source_types: [Judgment], target_types: [MonitoringRule], inverse_of: monitorForJudgment}
+  monitorForJudgment: {source_types: [MonitoringRule], target_types: [Judgment], inverse_of: judgmentHasMonitor}
+  actionEditedObject: {source_types: [ActionExecution], target_types: [ontology_object], inverse_of: objectEditedByAction}
+  objectEditedByAction: {source_types: [ontology_object], target_types: [ActionExecution], inverse_of: actionEditedObject}
+

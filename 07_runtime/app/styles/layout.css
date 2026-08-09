@@ -1,0 +1,81 @@
+.app-frame { min-height: 100vh; }
+.global-header { position: sticky; z-index: 40; top: 0; height: 64px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 28px; border-bottom: 1px solid color-mix(in srgb, var(--line) 84%, transparent); background: color-mix(in srgb, var(--canvas) 92%, transparent); backdrop-filter: blur(18px); }
+.product-mark { display: inline-flex; align-items: center; gap: 10px; width: max-content; }
+.product-mark > span:last-child { display: grid; }
+.product-mark strong { font-size: 15px; letter-spacing: .08em; }
+.product-mark small { margin-top: 1px; color: var(--muted); font-size: 9px; letter-spacing: .08em; }
+.product-glyph { width: 34px; height: 34px; display: grid; place-items: center; color: #f4fbf6; background: var(--ink); border-radius: 11px; }
+.product-glyph svg { width: 17px; }
+.global-nav { display: flex; align-items: center; gap: 5px; padding: 4px; border: 1px solid var(--line); background: rgb(255 255 255 / 60%); border-radius: 12px; }
+.global-nav a { display: flex; align-items: center; gap: 7px; padding: 7px 12px; color: var(--muted); border-radius: 8px; font-size: 12px; }
+.global-nav a.active { color: var(--ink); background: var(--surface); box-shadow: var(--shadow-sm); }
+.global-nav svg { width: 15px; height: 15px; }
+.account-menu { position: relative; justify-self: end; }
+.account-menu summary { list-style: none; cursor: pointer; }
+.account-menu summary::-webkit-details-marker { display: none; }
+.account-menu summary span { width: 33px; height: 33px; display: grid; place-items: center; color: var(--green-strong); background: var(--green-soft); border: 1px solid #ccddd3; border-radius: 50%; font-size: 12px; font-weight: 700; }
+.account-menu > div { position: absolute; top: 43px; right: 0; width: 210px; padding: 15px; border: 1px solid var(--line); background: var(--surface-raised); border-radius: 13px; box-shadow: var(--shadow-md); }
+.account-menu > div strong, .account-menu > div small { display: block; }
+.account-menu > div strong { font-size: 13px; }.account-menu > div small { margin-top: 3px; color: var(--muted); font-size: 10px; }
+.account-menu > div a { display: block; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--green); font-size: 11px; }
+
+.home-page { max-width: 1240px; margin: 0 auto; padding: 72px 32px 96px; }
+.home-hero { max-width: 850px; margin: 0 auto 70px; text-align: center; }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+.home-main-column { display: grid; gap: 24px; }.home-side-column { display: grid; gap: 24px; }
+
+.compact-shell { height: 100dvh; overflow: hidden; }
+.compact-shell .global-header { height: 56px; }
+.compact-shell .global-nav { display: none; }
+.compact-shell .workspace-page { height: calc(100dvh - 56px); }
+.workspace-page { display: grid; grid-template-columns: minmax(0, 1fr) 0; grid-template-rows: 68px minmax(0, 1fr); overflow: hidden; background: var(--surface); transition: grid-template-columns .24s ease; }
+.workspace-page.dock-open { grid-template-columns: minmax(540px, 1fr) minmax(390px, 44%); }
+.workspace-header { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 24px; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.conversation-column { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr) auto; background: #fdfdfb; }
+.conversation-scroll { overflow: auto; padding: 36px max(28px, calc((100% - 760px) / 2)) 24px; scroll-behavior: smooth; }
+.artifact-dock { min-width: 0; min-height: 0; display: grid; grid-template-rows: 63px auto minmax(0, 1fr); overflow: hidden; border-left: 1px solid var(--line); background: var(--canvas); opacity: 0; pointer-events: none; transform: translateX(18px); transition: opacity .18s, transform .24s; }
+.dock-open .artifact-dock { opacity: 1; pointer-events: auto; transform: none; }
+.artifact-scroll { overflow: auto; }
+.mobile-workspace-nav { display: none; }
+
+.library-page { max-width: 1320px; margin: 0 auto; padding: 58px 32px 90px; }
+.library-layout { min-height: 650px; display: grid; grid-template-columns: minmax(420px, .9fr) minmax(470px, 1.1fr); overflow: hidden; border: 1px solid var(--line); background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-sm); }
+.library-browser { min-width: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); border-right: 1px solid var(--line); }
+.library-list { max-height: 720px; overflow: auto; }
+.knowledge-detail { max-height: 800px; overflow: auto; padding: 32px; }
+
+.admin-login { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--canvas); }
+.admin-login > section { width: min(480px, 100%); padding: 38px; border: 1px solid var(--line); background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-md); }
+.admin-page { max-width: 1500px; margin: 0 auto; padding: 36px 30px 90px; }
+.admin-header { display: flex; justify-content: space-between; align-items: start; gap: 28px; }
+.admin-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 28px 0 20px; }
+.admin-layout { min-height: 720px; display: grid; grid-template-columns: 330px minmax(0, 1fr); overflow: hidden; border: 1px solid var(--line); background: var(--surface); border-radius: 18px; }
+.candidate-queue { min-width: 0; border-right: 1px solid var(--line); }
+.candidate-detail { min-width: 0; padding: 28px; overflow: auto; }
+
+@media (max-width: 1100px) {
+  .workspace-page.dock-open { grid-template-columns: minmax(0, 1fr); }
+  .artifact-dock { position: fixed; z-index: 50; top: 56px; right: 0; bottom: 0; width: min(520px, 88vw); box-shadow: var(--shadow-lg); }
+  .home-grid { grid-template-columns: 1fr; }.home-side-column { grid-template-columns: 1fr 1fr; }
+  .library-layout { grid-template-columns: 380px minmax(0, 1fr); }
+  .admin-layout { grid-template-columns: 290px minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .global-header { height: 56px; grid-template-columns: 1fr auto; padding: 0 15px; backdrop-filter: none; }
+  .global-nav { position: fixed; z-index: 45; right: 12px; bottom: 12px; left: 12px; justify-content: space-around; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: var(--shadow-md); }
+  .global-nav a { flex: 1; justify-content: center; }.account-menu { display: none; }
+  .product-mark small { display: none; }
+  .home-page { padding: 44px 16px 100px; }.home-hero { margin-bottom: 44px; }.home-grid { display: block; }.home-side-column { display: grid; grid-template-columns: 1fr; margin-top: 20px; }
+  .compact-shell .global-header { display: none; }.compact-shell .workspace-page { height: 100dvh; }
+  .workspace-page, .workspace-page.dock-open { display: grid; grid-template-columns: 1fr; grid-template-rows: 66px minmax(0, 1fr) 54px; }
+  .workspace-header { grid-column: 1; grid-template-columns: minmax(0, 1fr) auto; padding: 0 12px; }.workspace-progress { display: none; }.workspace-actions > button:not(.icon-button) { display: none; }
+  .conversation-column, .artifact-dock { display: none; grid-row: 2; }
+  .conversation-column.mobile-active { display: grid; }.artifact-dock.mobile-active { display: grid; }
+  .artifact-dock { position: static; width: auto; opacity: 1; pointer-events: auto; transform: none; border-left: 0; box-shadow: none; }
+  .artifact-dock > header .icon-button { display: none; }
+  .mobile-workspace-nav { grid-row: 3; display: grid; grid-template-columns: 1fr 1fr; padding: 6px; border-top: 1px solid var(--line); background: var(--surface); }
+  .mobile-workspace-nav button { border: 0; background: transparent; border-radius: 8px; color: var(--muted); font-size: 12px; }.mobile-workspace-nav button.active { color: var(--green); background: var(--green-pale); font-weight: 700; }
+  .conversation-scroll { padding: 24px 16px; }.workspace-composer { margin: 0 10px 10px; }
+  .library-page { padding: 40px 16px 100px; }.library-layout { display: block; border-radius: 15px; }.library-browser { border: 0; }.knowledge-detail { max-height: none; border-top: 1px solid var(--line); padding: 24px 18px; }
+  .admin-page { min-width: 1024px; }.admin-login > section { padding: 28px 22px; }
+}

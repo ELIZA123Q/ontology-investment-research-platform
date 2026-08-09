@@ -16,7 +16,8 @@ from repo_paths import stage_yaml_template
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "05_governance/02_合同/rule_authority_registry.yaml"
-OPERATIONS = ROOT / "05_governance/11_rules/runtime_operations.yaml"
+OPERATIONS = ROOT / "01_semantic/01_ontology/kinetics/action_types.yaml"
+KINETIC_POLICIES = ROOT / "01_semantic/01_ontology/kinetics/policies.yaml"
 MODEL_FILES = tuple((ROOT / "01_semantic/01_ontology/models").glob("*.yaml"))
 SAMPLE_FILES = tuple((ROOT / "04_execution/03_workspace/02_V3样例").glob("*/04_judgment.yaml"))
 CURRENT_TEMPLATES = (
@@ -148,25 +149,20 @@ def validate_rule_authority(
     if missing_governance:
         errors.append(f"requirements_coverage rules missing governance ownership: {missing_governance}")
 
-    if operations.get("schema_name") != "runtime_operation_registry" or operations.get("authority") != "runtime":
-        errors.append("runtime operation registry authority mismatch")
-    ref_contract = {
-        "formal_rule_refs": authority_ids.get("formal_ontology_rules", set()),
-        "method_refs": authority_ids.get("method_assets", set()),
-        "governance_rule_refs": authority_ids.get("governance_rules", set()),
-        "runtime_rule_refs": authority_ids.get("runtime_rules", set()),
-    }
+    if operations.get("schema_name") != "ontology_action_catalog" or operations.get("schema_version") != "4.0.0":
+        errors.append("Ontology 4.0 action catalog authority mismatch")
     for action_id, action in (operations.get("actions") or {}).items():
         if "rule_refs" in action:
-            errors.append(f"runtime action {action_id} uses ambiguous rule_refs")
-        for field, allowed_refs in ref_contract.items():
-            refs = action.get(field)
-            if not isinstance(refs, list):
-                errors.append(f"runtime action {action_id} missing {field}")
-                continue
-            unresolved = sorted(set(map(str, refs)) - allowed_refs)
-            if unresolved:
-                errors.append(f"runtime action {action_id} unresolved {field}: {unresolved}")
+            errors.append(f"ontology action {action_id} uses ambiguous rule_refs")
+        if action.get("submission_policy") != "FormalWritesViaActionsOnly":
+            errors.append(f"ontology action {action_id} must use FormalWritesViaActionsOnly")
+    policies = load(KINETIC_POLICIES).get("policies") or {}
+    high_risk = set((policies.get("HighRiskResearcherApproval") or {}).get("applies_to") or [])
+    missing_actions = sorted(high_risk - set(operations.get("actions") or {}))
+    if missing_actions:
+        errors.append(f"HighRiskResearcherApproval unresolved actions: {missing_actions}")
+    if high_risk and "GOV-ACTION-APPROVAL-001" not in authority_ids.get("governance_rules", set()):
+        errors.append("HighRiskResearcherApproval missing governance authority GOV-ACTION-APPROVAL-001")
 
     for path in CURRENT_TEMPLATES:
         ambiguous = sorted(nested_keys(load(path)) & {"rule_refs", "inference_rule_refs"})

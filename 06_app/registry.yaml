@@ -18,6 +18,17 @@ routes:
     file: 07_runtime/app/vnext/approvals/[id]/decision/route.ts
   - path: /vnext/artifacts/{id}
     file: 07_runtime/app/vnext/artifacts/[id]/route.ts
+  - path: /ontology/objects/{type}/{id}/actions
+    file: 07_runtime/app/ontology/objects/[type]/[id]/actions/route.ts
+  - path: /ontology/actions/{actionType}/preview
+    file: 07_runtime/app/ontology/actions/[actionType]/preview/route.ts
+  - path: /ontology/actions/{actionType}/apply
+    file: 07_runtime/app/ontology/actions/[actionType]/apply/route.ts
+  - path: /ontology/action-executions/{id}
+    file: 07_runtime/app/ontology/action-executions/[id]/route.ts
+  - path: /ontology/research-cases/{id}/graph
+    file: 07_runtime/app/ontology/research-cases/[id]/graph/route.ts
 notes:
   - 主界面只有研究主题、连续对话与动态可信画布。
   - Ontology/Agent/Skill/Tool/Eval 不作为研究员主导航。
+  - 正式语义写入只能经过 Ontology Action preview/apply 接口。

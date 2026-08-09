@@ -14,6 +14,8 @@ CHECKS = (
     ("Markdown 用语", [sys.executable, "05_governance/03_校验/validate_markdown_language.py"]),
     ("规范覆盖矩阵", [sys.executable, "05_governance/03_校验/validate_requirements_coverage.py"]),
     ("Ontology 3.0 冻结门", [sys.executable, "01_semantic/01_ontology/validate_v3.py"]),
+    ("Ontology 4.0 统一目录", [sys.executable, "01_semantic/01_ontology/validate_v4.py"]),
+    ("Ontology 4.0 Runtime 投影防漂移", ["npm", "--prefix", "07_runtime", "run", "ontology:check"]),
     ("Ontology 3.0 负向回归", [sys.executable, "05_governance/03_校验/tests/test_ontology_v3.py"]),
     ("直接迁移台账负向回归", [sys.executable, "05_governance/03_校验/tests/test_migration_ledger.py"]),
     ("废弃关系名守卫", [sys.executable, "05_governance/03_校验/validate_deprecated_terms.py"]),
@@ -21,6 +23,7 @@ CHECKS = (
     ("本体元治理控制面负向回归", [sys.executable, "05_governance/03_校验/tests/test_governance_control_plane.py"]),
     ("规则唯一权威", [sys.executable, "05_governance/03_校验/validate_rule_authority.py"]),
     ("规则归属负向回归", [sys.executable, "05_governance/03_校验/tests/test_rule_authority.py"]),
+    ("知识沉淀闭环机器合同", [sys.executable, "05_governance/03_校验/validate_knowledge_learning_contract.py"]),
     ("Semantic↔Ontology 双写守卫", [sys.executable, "05_governance/03_校验/validate_no_semantic_ontology_double_write.py"]),
     ("统一方法资产", [sys.executable, "05_governance/03_校验/validate_method_assets.py"]),
     ("方法资产负向回归", [sys.executable, "05_governance/03_校验/tests/test_method_assets.py"]),
@@ -81,7 +84,7 @@ def main() -> int:
         return 1
 
     print(
-        "\nPROJECT_ENGINEERING_PASS: Ontology 3.0、公共合同 1.3、知识库、运行回归、"
+        "\nPROJECT_ENGINEERING_PASS: Ontology 3.0 只读兼容、Ontology 4.0 统一目录、公共合同 1.3、知识库、运行回归、"
         "两个 run-002 样例、真实工作台链冻结回归、正式发布包黄金回归、mock 评测协议烟测及"
         "研究员体验前瞻队列合同全部通过。"
     )

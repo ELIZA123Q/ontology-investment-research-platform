@@ -16,6 +16,8 @@ export type AgentId = "research-lead" | "evidence-investigator" | "analysis-spec
 export interface Conversation {
   id: Id;
   title: string;
+  tenantId: string;
+  userId: string;
   status: "active" | "archived";
   createdAt: IsoDate;
   updatedAt: IsoDate;
@@ -33,6 +35,7 @@ export interface Message {
 export interface Task {
   id: Id;
   conversationId: Id;
+  researchCaseId: Id;
   parentTaskId?: Id;
   goal: string;
   intent: ResearchIntent;
@@ -56,7 +59,7 @@ export interface TaskNode {
   taskId: Id;
   kind: string;
   title: string;
-  capabilityType: "skill" | "service" | "tool" | "policy" | "verifier";
+  capabilityType: "skill" | "service" | "tool" | "function" | "action" | "policy" | "verifier";
   capabilityId: string;
   assignedAgent: AgentId;
   dependsOn: Id[];
@@ -84,6 +87,67 @@ export interface SourceReference {
   quote: string;
   contentHash: string;
   verification: "unverified" | "verified" | "rejected";
+  sourceType?: "primary" | "secondary";
+  publisherId?: string;
+  publishedAt?: IsoDate;
+}
+
+export interface SourceCandidate {
+  id: Id;
+  uri: string;
+  title: string;
+  sourceType: "primary" | "secondary";
+  repositoryPath?: string;
+  locator?: string;
+  discoveryReason: string;
+  discoveredAt: IsoDate;
+}
+
+export interface SourceAcquisition {
+  connectorId: string;
+  upstreamSourceId: string;
+  requestFingerprint: string;
+  requestParameters: Record<string, unknown>;
+  rawResponseHash: string;
+  retrievedAt: IsoDate;
+}
+
+export interface SourceSnapshot {
+  id: Id;
+  candidateId: Id;
+  uri: string;
+  title: string;
+  sourceType: "primary" | "secondary";
+  repositoryPath?: string;
+  locator: string;
+  quote: string;
+  body: string;
+  contentHash: string;
+  capturedAt: IsoDate;
+  publishedAt?: IsoDate;
+  publisherId?: string;
+  permissionScope: "public_research_use" | "user_supplied" | "restricted";
+  verification: "unverified" | "verified" | "rejected";
+  acquisition: SourceAcquisition;
+}
+
+export interface EvidenceFact {
+  id: Id;
+  snapshotId: Id;
+  statement: string;
+  factType: "reported_fact" | "measurement" | "occurrence" | "forecast";
+  businessTime?: IsoDate;
+  confidence: "low" | "medium" | "high";
+  status: "verified" | "rejected";
+  createdAt: IsoDate;
+}
+
+export interface ProvenanceEdge {
+  id: Id;
+  fromId: Id;
+  toId: Id;
+  predicate: "captured_as" | "derived_from" | "supports" | "contradicts" | "included_in" | "adjudicated_into";
+  createdAt: IsoDate;
 }
 
 export interface Artifact<T = unknown> {
@@ -107,12 +171,16 @@ export interface ContextReference {
   version?: number;
   reason: string;
   freshnessAt?: IsoDate;
+  assetRef?: AssetRef;
 }
 
 export interface ContextPackage {
   id: Id;
   taskId: Id;
   nodeId: Id;
+  knowledgeLockId: Id;
+  asOf: IsoDate;
+  releaseIds: { global: Id; tenant?: Id; user?: Id };
   references: ContextReference[];
   tokenBudget: number;
   assembledAt: IsoDate;
@@ -201,14 +269,85 @@ export type TrustedComponentKind =
   | "branch_card"
   | "execution_timeline";
 
-export interface UiSurface {
+export interface SurfacePlanNode {
   id: Id;
-  component: TrustedComponentKind;
   title: string;
-  data: Record<string, unknown>;
+  kind: string;
+  capability?: string;
+  dependsOn: Id[];
+}
+
+export interface ResearchPlanSurfaceData {
+  intent: ResearchIntent;
+  rationale: string;
+  nodes: SurfacePlanNode[];
+  parallelGroups: string[][];
+  stopConditions: string[];
+  principle: string;
+}
+
+export interface EvidenceMatrixSurfaceData {
+  rows: EvidenceFact[];
+  sufficient: boolean;
+  gap?: string;
+}
+
+export interface HypothesisCandidateSurfaceData {
+  statement: string;
+  falsificationConditions: string[];
+  status: string;
+}
+
+export interface HypothesisMapSurfaceData {
+  hypotheses: HypothesisCandidateSurfaceData[];
+  status?: string;
+}
+
+export interface JudgmentSurfaceData {
+  statement: string;
+  confidence?: string;
+  epistemicStatus?: EpistemicStatus;
+  lifecycleStatus?: JudgmentLifecycleStatus;
+  disposition?: string;
+  evidenceRefs?: string[];
+  changeConditions: string[];
+}
+
+export interface ReportSurfaceData {
+  summary: string;
+  boundary?: string;
+  claims?: Array<{ text: string; sourceIds: string[] }>;
+  ontologyDeliverableRef?: string;
+}
+
+export interface ClarificationSurfaceData { questions: string[] }
+export interface ComparisonSurfaceData { columns: string[]; rows: Array<Record<string, string | number | null>> }
+export interface ChartSurfaceData { chartType: "bar" | "line" | "area"; xKey: string; series: Array<{ key: string; label: string }>; rows: Array<Record<string, string | number | null>> }
+export interface ApprovalSurfaceData { prompt: string; kind: ApprovalRequest["kind"] }
+export interface BranchSurfaceData { parentTaskId: Id; revisedGoal: string }
+export interface TimelineSurfaceData { eventIds: Id[] }
+
+interface UiSurfaceBase<C extends TrustedComponentKind, D> {
+  id: Id;
+  component: C;
+  title: string;
+  data: D;
   editableFields: string[];
   artifactId?: Id;
 }
+
+export type UiSurface =
+  | UiSurfaceBase<"clarification_form", ClarificationSurfaceData>
+  | UiSurfaceBase<"research_plan", ResearchPlanSurfaceData>
+  | UiSurfaceBase<"evidence_matrix", EvidenceMatrixSurfaceData>
+  | UiSurfaceBase<"hypothesis_map", HypothesisMapSurfaceData>
+  | UiSurfaceBase<"judgment_card", JudgmentSurfaceData>
+  | UiSurfaceBase<"comparison_table", ComparisonSurfaceData>
+  | UiSurfaceBase<"chart", ChartSurfaceData>
+  | UiSurfaceBase<"report_editor", ReportSurfaceData>
+  | UiSurfaceBase<"approval_card", ApprovalSurfaceData>
+  | UiSurfaceBase<"branch_card", BranchSurfaceData>
+  | UiSurfaceBase<"execution_timeline", TimelineSurfaceData>;
 
 export interface Checkpoint {
   id: Id;
@@ -217,4 +356,331 @@ export interface Checkpoint {
   phase: "before" | "after" | "failure" | "pause";
   state: Record<string, unknown>;
   createdAt: IsoDate;
+}
+
+export type OntologyActorType = "researcher" | "agent" | "system" | "ontology_admin";
+export type EpistemicStatus = "supported" | "contested" | "blocked" | "indeterminate" | "invalidated";
+export type JudgmentLifecycleStatus = "proposed" | "review_required" | "approved" | "published" | "superseded";
+
+export interface OntologyObjectRef {
+  id: Id;
+  type: string;
+}
+
+export interface OntologyObject extends OntologyObjectRef {
+  version: number;
+  status: "active" | "superseded" | "deleted";
+  properties: Record<string, unknown>;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export interface OntologyLink {
+  id: Id;
+  type: string;
+  sourceRef: OntologyObjectRef;
+  targetRef: OntologyObjectRef;
+  version: number;
+  properties: Record<string, unknown>;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export type OntologyEdit =
+  | { operation: "create_object"; ref: OntologyObjectRef; properties: Record<string, unknown> }
+  | { operation: "update_object"; ref: OntologyObjectRef; properties: Record<string, unknown> }
+  | { operation: "create_link"; id: Id; type: string; sourceRef: OntologyObjectRef; targetRef: OntologyObjectRef; properties: Record<string, unknown> };
+
+export interface ActionContext {
+  actorType: OntologyActorType;
+  actorId: string;
+  conversationId?: Id;
+  taskId?: Id;
+}
+
+export interface ActionPreviewRequest {
+  targetRefs: OntologyObjectRef[];
+  parameters: Record<string, unknown>;
+  expectedVersions: Record<string, number>;
+  idempotencyKey: string;
+  knowledgeLockId?: Id;
+  approvalToken?: Id;
+}
+
+export interface ActionPreview {
+  actionType: string;
+  actionVersion: string;
+  eligible: boolean;
+  errors: string[];
+  warnings: string[];
+  requiresApproval: boolean;
+  approvalKind?: ApprovalRequest["kind"];
+  edits: OntologyEdit[];
+  outputRefs: OntologyObjectRef[];
+  invalidatedRefs: OntologyObjectRef[];
+  postCommitEffects: string[];
+  catalogFingerprint: string;
+}
+
+export interface ActionExecution {
+  id: Id;
+  actionType: string;
+  actionVersion: string;
+  status: "applied" | "rejected" | "failed";
+  actorType: OntologyActorType;
+  actorId: string;
+  conversationId?: Id;
+  taskId?: Id;
+  idempotencyKey: string;
+  knowledgeLockId?: Id;
+  approvalId?: Id;
+  request: ActionPreviewRequest;
+  preview: ActionPreview;
+  edits: OntologyEdit[];
+  outputRefs: OntologyObjectRef[];
+  invalidatedRefs: OntologyObjectRef[];
+  error?: string;
+  createdAt: IsoDate;
+  completedAt?: IsoDate;
+}
+
+export interface ActionApplyResult {
+  execution: ActionExecution;
+  objects: OntologyObject[];
+  links: OntologyLink[];
+  queuedTaskIds: Id[];
+  reused: boolean;
+}
+
+export type RuntimeJobKind =
+  | "execute"
+  | "resume"
+  | "mine_assets"
+  | "evaluate_candidate"
+  | "publish_release"
+  | "rebuild_knowledge_index";
+
+export type KnowledgeScope =
+  | { kind: "global" }
+  | { kind: "tenant"; tenantId: string }
+  | { kind: "user"; tenantId: string; userId: string };
+
+export type AssetKind =
+  | "temporal_fact"
+  | "ontology"
+  | "dictionary"
+  | "data_mapping"
+  | "source_profile"
+  | "method"
+  | "rule"
+  | "prompt"
+  | "template"
+  | "workflow"
+  | "case"
+  | "eval_case"
+  | "failure_pattern"
+  | "skill"
+  | "preference"
+  | "topic_index";
+
+export interface AssetRef {
+  assetId: Id;
+  kind: AssetKind;
+  identityKey?: string;
+  scope: KnowledgeScope;
+  version: number;
+  fingerprint: string;
+  authorityRef?: string;
+}
+
+export interface KnowledgeLock {
+  id: Id;
+  taskId: Id;
+  scope: KnowledgeScope;
+  globalReleaseId: Id;
+  tenantReleaseId?: Id;
+  userReleaseId?: Id;
+  userMemoryVersion?: number;
+  asOf: IsoDate;
+  assetRefs: AssetRef[];
+  fingerprint: string;
+  createdAt: IsoDate;
+}
+
+export interface AssetRevision {
+  id: Id;
+  assetId: Id;
+  kind: AssetKind;
+  scope: KnowledgeScope;
+  version: number;
+  status: "candidate" | "released" | "deprecated";
+  content: Record<string, unknown>;
+  contentRef?: string;
+  fingerprint: string;
+  provenanceRefs: string[];
+  validFrom?: IsoDate;
+  validTo?: IsoDate;
+  supersedes: Id[];
+  createdAt: IsoDate;
+}
+
+export type CandidateOperation = "add" | "modify" | "split" | "merge" | "deprecate" | "monitor" | "reject" | "no_op";
+export type CandidateStatus =
+  | "observed"
+  | "normalized"
+  | "proposed"
+  | "evaluating"
+  | "review_required"
+  | "approved"
+  | "rejected"
+  | "released"
+  | "superseded"
+  | "monitor";
+
+export interface MiningRun {
+  id: Id;
+  taskId: Id;
+  status: "queued" | "running" | "completed" | "failed";
+  extractorVersion: string;
+  knowledgeLockId: Id;
+  candidateCount: number;
+  error?: string;
+  startedAt?: IsoDate;
+  completedAt?: IsoDate;
+  createdAt: IsoDate;
+}
+
+export interface AssetCandidate {
+  id: Id;
+  miningRunId: Id;
+  taskId: Id;
+  scope: KnowledgeScope;
+  assetKind: AssetKind;
+  operation: CandidateOperation;
+  identityKey: string;
+  targetAssetRef?: AssetRef;
+  proposedRevisionId: Id;
+  provenanceRefs: string[];
+  runBaselineFingerprint: string;
+  currentBaselineFingerprint: string;
+  riskLevel: 0 | 1 | 2 | 3;
+  confidence: number;
+  novelty: number;
+  conflicts: string[];
+  status: CandidateStatus;
+  evaluationSummary?: EvaluationSummary;
+  decisionNote?: string;
+  reviewedBy?: string;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export interface CandidateOccurrence {
+  id: Id;
+  candidateId: Id;
+  taskId: Id;
+  artifactId?: Id;
+  eventSequence?: number;
+  observedAt: IsoDate;
+}
+
+export interface CandidateDecision {
+  id: Id;
+  candidateId: Id;
+  reviewer: string;
+  reviewerRole: "governance_owner" | "ontology_steward" | "method_owner" | "runtime_owner" | "independent_reviewer";
+  decision: "approved" | "rejected";
+  note: string;
+  createdAt: IsoDate;
+}
+
+export interface EvaluationCase {
+  id: Id;
+  scope: KnowledgeScope;
+  sourceTaskId: Id;
+  name: string;
+  inputSnapshot: Record<string, unknown>;
+  assertions: Array<{ metric: string; operator: "gte" | "lte" | "eq"; expected: number | string | boolean }>;
+  status: "candidate" | "active" | "retired";
+  deidentified: boolean;
+  createdAt: IsoDate;
+}
+
+export interface EvaluationSummary {
+  passed: boolean;
+  scoreDelta: number;
+  severeRegressions: number;
+  metrics: Record<string, number>;
+}
+
+export interface EvaluationRun {
+  id: Id;
+  candidateId: Id;
+  status: "running" | "passed" | "failed";
+  caseIds: Id[];
+  baselineReleaseId: Id;
+  summary: EvaluationSummary;
+  createdAt: IsoDate;
+  completedAt?: IsoDate;
+}
+
+export interface AssetRelease {
+  id: Id;
+  scope: KnowledgeScope;
+  parentReleaseId?: Id;
+  rollbackOfReleaseId?: Id;
+  status: "building" | "current" | "superseded" | "failed";
+  candidateIds: Id[];
+  assetRefs: AssetRef[];
+  fingerprint: string;
+  createdBy: string;
+  createdAt: IsoDate;
+}
+
+export interface UsageObservation {
+  id: Id;
+  taskId: Id;
+  assetRef: AssetRef;
+  selectedReason: string;
+  outcome: "selected" | "used" | "helpful" | "regression";
+  observedAt: IsoDate;
+}
+
+export interface TemporalFact {
+  subjectRef: string;
+  predicate: string;
+  value: unknown;
+  validFrom?: IsoDate;
+  validTo?: IsoDate;
+  recordedAt: IsoDate;
+  sourceRefs: string[];
+  applicabilityScope: string;
+  supersedes: string[];
+  confidence: number;
+}
+
+export interface KnowledgeMiningContext {
+  task: Task;
+  conversation: Conversation;
+  artifacts: Artifact[];
+  events: RunEvent[];
+  knowledgeLock: KnowledgeLock;
+}
+
+export interface KnowledgeMinerOutput {
+  assetKind: AssetKind;
+  identityKey: string;
+  content: Record<string, unknown>;
+  provenanceRefs: string[];
+  confidence: number;
+  suggestedOperation?: CandidateOperation;
+  riskLevel: 0 | 1 | 2 | 3;
+  validFrom?: IsoDate;
+  validTo?: IsoDate;
+}
+
+export interface KnowledgeMiner {
+  id: string;
+  version: string;
+  mine(context: KnowledgeMiningContext): KnowledgeMinerOutput[];
 }

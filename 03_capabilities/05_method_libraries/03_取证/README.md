@@ -1,6 +1,6 @@
 # 取证方法库
 
-当你进入 03 阶段——需要找数据、核验事实、判断"证据够不够"时，来这里。
+当你需要找数据、核验事实、判断「证据够不够」时，来这里。
 
 这里回答四件事：
 1. **要证明什么**——对应哪种取证方法
@@ -8,7 +8,24 @@
 3. **优先去哪找**——哪个来源最快、最权威
 4. **完备度能到哪**——充分、受限、观察、还是不可用
 
-单次研究由 `source.discover`、`source.capture` Tool 和 `evidence-assessment` Skill 动态组合；执行边界见 `07_runtime/src/runtime/node-catalog.ts`。
+## 给谁看
+
+研究员日常主入口；维护者改方法卡与校验时查阅。
+
+## 材料从哪来
+
+- 方法卡 A01–A09、来源速查与 OPS：本目录
+- MCP 通道清单与操作：[`../../04_protocols/mcp/`](../../04_protocols/mcp/README.md)
+- 证据语义索引：[`01_semantic/04_evidence/`](../../../01_semantic/04_evidence/README.md)
+- 单次研究由 `source.discover` / `source.capture` 与 `evidence-assessment` 动态组合；执行边界见 `07_runtime/src/runtime/node-catalog.ts`
+
+## 怎么用
+
+见下方「九种取证方法」「快速选方法」；选通道后务必核验原文。
+
+## 怎么维护
+
+改正文后跑 `python3 03_capabilities/05_method_libraries/03_取证/validate_03.py`；通道变更同步 MCP 目录，不在本库复制通道表。
 
 ## 九种取证方法
 

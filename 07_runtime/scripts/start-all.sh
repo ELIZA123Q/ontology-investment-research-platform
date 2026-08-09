@@ -2,6 +2,7 @@
 set -euo pipefail
 
 RUNTIME_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+APP_PORT="${VNEXT_PORT:-3000}"
 cd "$RUNTIME_DIR"
 
 npm run worker &
@@ -12,4 +13,4 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-npm start
+./node_modules/.bin/next start -H 127.0.0.1 -p "$APP_PORT"

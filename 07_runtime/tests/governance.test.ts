@@ -14,7 +14,7 @@ describe("deterministic governance", () => {
   });
 
   it("only accepts approved non-executable UI surfaces", () => {
-    expect(verifyUiSurface({ id: "1", component: "judgment_card", title: "判断", data: { statement: "暂不可判断" }, editableFields: [] }).passed).toBe(true);
-    expect(verifyUiSurface({ id: "2", component: "report_editor", title: "报告", data: { body: "<script>alert(1)</script>" }, editableFields: [] }).passed).toBe(false);
+    expect(verifyUiSurface({ id: "1", component: "judgment_card", title: "判断", data: { statement: "暂不可判断", changeConditions: [] }, editableFields: [] }).passed).toBe(true);
+    expect(verifyUiSurface({ id: "2", component: "report_editor", title: "报告", data: { summary: "<script>alert(1)</script>" }, editableFields: [] }).passed).toBe(false);
   });
 });

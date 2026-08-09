@@ -50,7 +50,7 @@ objects:
     properties: {label: 方法资产登记, asset_kind: method_registry, authority_ref: 03_capabilities/05_method_libraries/00_登记/method_assets.yaml, owner_role: method_owner, version: 1.0.0, status: active, validation_profile: method_assets, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
   - id: runtime.operation_registry
     type: GovernedAsset
-    properties: {label: Runtime 操作登记, asset_kind: runtime_registry, authority_ref: 05_governance/11_rules/runtime_operations.yaml, owner_role: runtime_owner, version: 1.0.0, status: active, validation_profile: runtime_contract, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-08-09T00:00:00+08:00'}
+    properties: {label: Ontology 4.0 动作目录, asset_kind: runtime_registry, authority_ref: 01_semantic/01_ontology/kinetics/action_types.yaml, owner_role: runtime_owner, version: 4.0.0, status: active, validation_profile: runtime_contract, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-08-09T00:00:00+08:00'}
 
   - id: consumer.runtime_semantic_catalog
     type: GovernanceConsumer

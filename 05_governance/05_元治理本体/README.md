@@ -1,34 +1,45 @@
-# 本体演进治理本体
+# 本体演进治理（元治理）
 
-> **面向开发者，研究员可跳过。** 这里是管理"投研知识体系本身如何变化"的规则库——当需要修改某个研究概念的定义或关系时，在这里发起变更请求，研究员通常不直接操作这里。
+> **面向开发者，研究员可跳过。**
+> 这里管理「投研知识体系本身如何被修改」：谁提出变更、影响谁、如何检查与批准、何时成为新基线。日常做行业研究通常不需要打开本目录。
 
-本目录是投研本体的治理控制面，采用与 `01_semantic/01_ontology/` 相似的"元模式—模型注册表—模型文件—实例图"组织方式，但不属于投研正式本体。
+## 给谁看
 
-它借鉴 Palantir Ontology 的四个核心思想：
+仅维护者 / 本体治理相关开发者。
 
-1. 用对象类型和关系类型表达可治理资源及其影响网络；
-2. 用 Action Type 作为唯一写入口，把参数、权限、提交条件、状态迁移和日志绑定在一起；
-3. 用 Branch、Proposal、Diff、Check、Approval、Rebase、Release 表达变更闭环；
-4. 用 Action Log、Usage Observation 和 Release Baseline 保留可追溯历史。
+## 材料从哪来
 
-## 权威入口
+| 入口 | 用途 |
+|---|---|
+| [`00_本体演进治理框架概述.md`](00_本体演进治理框架概述.md)（若在嵌套树）/ 概述与模型文件 | 设计原则与闭环 |
+| [`meta_schema.yaml`](meta_schema.yaml) | 治理本体元模式 |
+| [`model_registry.yaml`](model_registry.yaml) | 治理模型唯一注册表 |
+| [`models/`](models) | 对象、关系、Action、规则等 |
+| [`元治理本体/`](元治理本体/README.md) | 历史嵌套布局；**勿双写**，权威以本目录根文件为准 |
 
-- [`00_本体演进治理框架概述.md`](00_本体演进治理框架概述.md)：设计原则、闭环和执行方式。
-- [`meta_schema.yaml`](meta_schema.yaml)：治理本体元模式。
-- [`model_registry.yaml`](model_registry.yaml)：治理模型文件的唯一注册表。
-- [`models/`](models)：共享属性、接口、对象、关系、Action 和规则。
-- [`04_execution/03_workspace/governance_instance_graph.yaml`](04_execution/03_workspace/governance_instance_graph.yaml)：治理控制面的种子对象与关系。
+组织方式类似正式本体，但**不属于**投研业务本体。正式业务本体在 [`01_semantic/01_ontology/`](../../01_semantic/01_ontology/README.md)。
 
-## 与正式本体的关系
+**路径别名：** `05_governance/knowledge_changes` 是指向本目录的符号链接（同一棵树），不是第二套权威。
 
-`01_semantic/01_ontology/` 回答“投研世界里有什么、如何关联、什么判断成立”；本目录回答“这些定义由谁负责、如何提出变更、影响谁、经过什么检查与批准、何时成为新基线”。
+## 怎么用
 
-治理对象只能通过稳定资产 ID、本体元素 ID、运行 ID、仓库引用和内容指纹引用业务面。治理对象、治理关系和治理 Action 不得注册到 `01_semantic/01_ontology/model_registry.yaml`，也不得进入投研业务实例图或商业规则求值。
+1. 需要改某个研究概念的定义或关系时，按概述走 Branch → Proposal → 检查 → 审批 → Release。
+2. 治理对象只能通过稳定 ID / 指纹引用业务面，不把治理 Action 注册进正式本体 registry。
+3. 研究员继续用方法库与工作台；不要把元治理当成业务分析方法。
 
-## 机器检查
+## 怎么维护
+
+- 正文与模型只维护一份（本目录）；不要在嵌套 `元治理本体/` 平行扩写。
+- 改完运行：
 
 ```bash
 python3 05_governance/03_校验/validate_governance_control_plane.py
 ```
 
-Runtime 从本目录读取 ChangeProposal 状态和 Action 状态迁移；旧的 `05_governance/02_合同/governance_control_contract.yaml` 与 `governed_asset_registry.yaml` 仅保留为兼容投影，不再是状态机事实源。
+- 旧合同 `02_合同/governance_control_contract.yaml` 等可为兼容投影，不是状态机事实源。
+
+---
+
+## 维护者附录（可跳过）
+
+借鉴思路：对象/关系表达影响网；Action Type 为唯一写入口；Branch/Proposal/Diff/Check/Approval/Rebase/Release 闭环；Action Log 与 Release Baseline 可追溯。

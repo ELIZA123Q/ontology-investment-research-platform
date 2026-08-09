@@ -1,32 +1,65 @@
-# 治理（定位 · 合同 · 校验 · 元治理本体）
+# 治理域
 
-维护项目边界和质量规则。研究员日常做研究时，通常只需要两份：
+> 还不了解本项目？先读仓库根目录 [新手导读.md](../新手导读.md)。
+
+这里维护「项目边界与质量规则」：做什么、不做什么、跨阶段合同、校验怎么跑、评测与权限如何登记。
+
+日常做研究时，你通常**不必**先读完整本目录。
+
+## 给谁看
+
+- **研究员**：两份高频材料即可（见下）
+- **维护者**：架构、合同、校验、路线图、元治理与 Eval
+
+## 材料从哪来
+
+研究员日常优先：
 
 1. [`01_架构/00_项目定位与边界.md`](01_架构/00_项目定位与边界.md) — 做什么、不做什么
 2. [`03_校验/00A_高质量产出判别标准.md`](03_校验/00A_高质量产出判别标准.md) — 高质量自检
 
-五域权威索引：[`01_架构/five_domain_authority.yaml`](01_架构/five_domain_authority.yaml)。  
-Governance 域总入口：[`registry.yaml`](registry.yaml)。  
-“权威在哪”先查该索引与各域 `registry.yaml`，旧顶层仅 compat。
+知识如何从单次研究进入长期资产：
 
-**写入策略：** 新增合同/校验/架构入口优先写入现权威目录（`01_架构` `02_合同` `03_校验`）或五域目标壳；旧英文路径（`contracts/` `validation/` `architecture/` `05_governance/14_evals/`）只作 compat 桥接，见 [`01_架构/compat_policy.yaml`](01_架构/compat_policy.yaml)。
+- 人类可读：[`01_架构/03_知识沉淀闭环.md`](01_架构/03_知识沉淀闭环.md)
+- 机器合同：[`02_合同/knowledge_learning_contract.yaml`](02_合同/knowledge_learning_contract.yaml)
 
-| 编号 | 目录 | 内容 | status |
-|------|------|------|--------|
-| 00 | [`01_架构/00_五域系统骨架.md`](01_架构/00_五域系统骨架.md) | Agent-native 五域职责与目录评估 | active |
-| 01 | [`01_架构`](01_架构) | 项目定位、分层布局、[仓库地图](01_架构/02_仓库地图与文件治理.md)、路径权威 | active |
-| 02 | [`02_合同`](02_合同) | 跨阶段公共字段、状态、方法路由、回放合同 | active（目标壳 `rules/`） |
-| 03 | [`03_校验`](03_校验) | 全局/阶段/发布校验 | active（目标壳 `verifiers/`） |
-| 04 | [`04_路线图`](04_路线图/README.md) | 优化目标与实施账本（含五域迁移账本） | active |
-| 05 | [`05_元治理本体`](05_元治理本体/README.md) | 本体演进的对象、关系、Action、规则与治理实例图 | active |
-| 壳 | [`rules/`](rules) [`identity/`](identity) [`permissions/`](permissions) [`evals/`](evals) [`verifiers/`](verifiers) | 五域 Governance 内部分层契约 | 全部=`migrating`（wave4） |
+| 目录 | 白话含义 |
+|---|---|
+| [`01_架构/`](01_架构/README.md) | 定位、仓库地图、五域权威 |
+| [`02_合同/`](02_合同/README.md) | 跨阶段字段、状态、学习闭环等合同 |
+| [`03_校验/`](03_校验/README.md) | 校验脚本与判别标准 |
+| [`04_路线图/`](04_路线图/README.md) | 工程目标与实施账本（研究员可跳过） |
+| [`05_元治理本体/`](05_元治理本体/README.md) | 本体如何演进、如何审批发布 |
+| [`14_evals/`](14_evals/README.md) | 评测案例与体验基线 |
+| [`11_rules/`](11_rules/README.md) 等壳目录 | 迁移中的治理分层占位 |
 
-规则归属以 [`02_合同/rule_authority_registry.yaml`](02_合同/rule_authority_registry.yaml) 为唯一登记表：正式本体约束通过 `RuleEvaluation` 执行，A01—A10 等研究方法通过 `MethodApplication` 使用，治理检查与运行控制不得支撑商业判断。执行 `python3 05_governance/03_校验/validate_rule_authority.py` 可检查正式约束、退役规则登记与 Runtime 分栏引用。
+## 怎么用
 
-本体演进由 [`05_元治理本体`](05_元治理本体/README.md) 管理，不新增第四个投研业务本体域。
-它用对象、关系、Action、规则和实例图表达 Branch—Proposal—Impact—Approval—Validation—Migration—Release 闭环。
-`02_合同/governance_control_contract.yaml` 与 `governed_asset_registry.yaml` 仅为旧调用方保留兼容指针。
-执行 `python3 05_governance/03_校验/validate_governance_control_plane.py` 可检查治理模型闭包、
-Action 生命周期、实例关系、资产权威与正式本体隔离。
+1. 不确定项目边界 → 读「项目定位与边界」。
+2. 交稿前自检 → 用「高质量产出判别标准」。
+3. 查「权威文件在哪」→ [`01_架构/five_domain_authority.yaml`](01_架构/five_domain_authority.yaml) 与各域 `registry.yaml`。
+4. 工程进度与历史决策 → [`04_路线图/`](04_路线图/README.md)（标明可跳过）。
 
-本层不写业务方法正文，也不保存单次研究结论。
+## 怎么维护
+
+- **新合同 / 架构入口**：写入 `01_架构`、`02_合同`、`03_校验` 等现权威目录；旧英文路径仅作兼容桥接，见 [`01_架构/compat_policy.yaml`](01_架构/compat_policy.yaml)。
+- 规则归属以 [`02_合同/rule_authority_registry.yaml`](02_合同/rule_authority_registry.yaml) 为唯一登记表。
+- 常用校验：
+
+```bash
+python3 05_governance/03_校验/validate_project.py
+python3 05_governance/03_校验/validate_rule_authority.py
+python3 05_governance/03_校验/validate_governance_control_plane.py
+```
+
+- 本层不写业务方法正文，也不保存单次研究结论。
+
+---
+
+## 维护者附录（可跳过）
+
+- 域总入口：[`registry.yaml`](registry.yaml)
+- 壳目录 `rules/` `identity/` `permissions/` `evals/` `verifiers/` 状态为 migrating（wave4）
+- 正式本体约束经 RuleEvaluation；研究方法经 MethodApplication；治理检查不得支撑商业判断
+- `governance_control_contract.yaml` 与 `governed_asset_registry.yaml` 可为旧调用方兼容指针
+- 本体演进只在 [`05_元治理本体`](05_元治理本体/README.md)，不新增第四个投研业务本体域

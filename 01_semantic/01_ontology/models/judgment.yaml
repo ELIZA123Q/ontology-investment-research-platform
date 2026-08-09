@@ -75,7 +75,9 @@ object_types:
       statement: {type: string, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, description: 结论。}
       level: {type: enum, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, allowed_values: [J0, J1, J2, J3, J4], description: 判断等级。}
       confidence: {type: enum, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, allowed_values: [low, medium, high], description: 置信度。}
-      decision_status: {type: enum, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, allowed_values: [draft, supported, contested, blocked, indeterminate, invalidated], description: 判断的语义状态；indeterminate 明确表示证据不足以判断。}
+      decision_status: {type: enum, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, allowed_values: [draft, supported, contested, blocked, indeterminate, invalidated], description: Ontology 3.0 历史兼容字段；新运行不得写入，读取时投影为 epistemic_status。}
+      epistemic_status: {type: enum, required: false, cardinality: '0..1', value_role: judgment, nullable_semantics: null 仅用于 Ontology 3.0 历史实例。, allowed_values: [supported, contested, blocked, indeterminate, invalidated], description: 判断在证据与反证约束下的知识状态。}
+      lifecycle_status: {type: enum, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 仅用于 Ontology 3.0 历史实例。, allowed_values: [proposed, review_required, approved, published, superseded], description: 判断从提案、审核、批准、发布到替代的运营生命周期。}
       conflict_status: {type: enum, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, allowed_values: [none, unresolved, resolved, decisive], description: 冲突证据处理状态。}
       not_judgeable_reason: {type: string, required: false, cardinality: '0..1', value_role: judgment, nullable_semantics: null 仅允许用于非 blocked 或 indeterminate 状态。, description: 不可判断或阻断时的具体原因。}
       scope_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: ResearchScope, description: 判断适用范围。}

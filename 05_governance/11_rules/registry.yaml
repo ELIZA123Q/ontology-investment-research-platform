@@ -34,7 +34,6 @@ contract_catalog:
   - 05_governance/02_合同/public_contract.yaml
   - 05_governance/02_合同/rule_authority_registry.yaml
   - 05_governance/02_合同/runtime_mapping_v3.yaml
-  - 05_governance/02_合同/runtime_operations.yaml
   - 05_governance/02_合同/runtime_supported_profile.yaml
 
 compat_mode: true

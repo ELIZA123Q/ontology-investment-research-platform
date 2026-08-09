@@ -1,0 +1,34 @@
+schema_name: ontology_policy_catalog
+schema_version: 4.0.0
+status: active
+namespace: core.kinetic
+policies:
+  FormalWritesViaActionsOnly:
+    version: 1.0.0
+    label_zh: 正式写入只经 Action
+    description: 正式对象和关系的新增、修改与删除必须来自已登记 ActionExecution。
+    applies_to: [ontology_object, ontology_relation]
+    effect: block_direct_write
+    failure_message: 正式语义状态只能通过 Ontology Action 写入。
+  EvidenceBeforeSupportedJudgment:
+    version: 1.0.0
+    label_zh: 支持性判断证据门
+    description: supported 判断必须至少引用一个已核验 EvidenceFact。
+    applies_to: [ApproveJudgment]
+    effect: require_verified_evidence
+    failure_message: 没有已核验证据时不能批准 supported Judgment。
+  HighRiskResearcherApproval:
+    version: 1.0.0
+    label_zh: 高风险动作人工批准
+    description: 范围冻结或修订、判断批准或推翻、正式发布必须由研究员批准。
+    applies_to: [ReviseResearchScope, ApproveJudgment, SupersedeJudgment, PublishDeliverable]
+    effect: require_approved_token
+    failure_message: 该动作需要研究员明确批准。
+  NoInvestmentExecution:
+    version: 1.0.0
+    label_zh: 禁止投资执行
+    description: 平台不得登记评级、目标价、仓位、订单或交易执行 Action。
+    applies_to: [action_catalog]
+    effect: reject_forbidden_action
+    failure_message: 当前产品边界不允许投资或交易执行动作。
+

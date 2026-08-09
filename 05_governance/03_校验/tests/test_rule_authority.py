@@ -36,7 +36,7 @@ class RuleAuthorityTests(unittest.TestCase):
 
     def test_runtime_action_cannot_use_ambiguous_rule_refs(self) -> None:
         operations = copy.deepcopy(self.operations)
-        operations["actions"]["FormJudgment"]["rule_refs"] = ["judgment_evidence_threshold"]
+        operations["actions"]["ApproveJudgment"]["rule_refs"] = ["judgment_evidence_threshold"]
         errors = self.errors(operations=operations, refs=[])
         self.assertTrue(any("ambiguous rule_refs" in error for error in errors), errors)
 
@@ -46,8 +46,7 @@ class RuleAuthorityTests(unittest.TestCase):
         errors = self.errors(registry=registry, refs=[])
         self.assertTrue(
             any(
-                "LinkOntologyObjects unresolved governance_rule_refs" in error
-                and "GOV-ACTION-APPROVAL-001" in error
+                "HighRiskResearcherApproval missing governance authority" in error
                 for error in errors
             ),
             errors,

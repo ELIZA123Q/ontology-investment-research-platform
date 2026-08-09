@@ -1,0 +1,47 @@
+schema_name: research_planning_contract
+schema_version: 1.0.0
+status: active
+
+principle: 模型提出候选路径，确定性编译器负责边界，Runtime 只执行编译后的 TaskGraph。
+
+planner_proposal:
+  required: [intent, rationale, nodes, stop_conditions]
+  node_fields: [key, kind, title, depends_on, budget, reason]
+  forbidden:
+    - 自定义 Node kind、Capability ID 或执行代码
+    - 指定未启用 Agent
+    - 把 Candidate 直接写成 EvidenceFact、Claim 或 Judgment
+    - 绕过 Source Capture
+    - 申请超过 Task 总预算的节点预算
+
+compiler:
+  catalog_authority: 07_runtime/src/runtime/node-catalog.ts
+  implementation: 07_runtime/src/runtime/plan-compiler.ts
+  checks:
+    - intent 必须与确定性意图分类一致
+    - key 唯一且依赖只能引用计划内节点
+    - TaskGraph 无环
+    - full_research、evidence_only、update_judgment 均保留 discover → capture → evaluate 证据链
+    - Judgment 必须位于 evidence evaluation 下游
+    - 节点预算合计不超过 Task 预算
+  repair_policy:
+    attempts: 1
+    allowed_repairs: [删除未知节点, 重命名重复 key, 删除无效依赖, 插入强制边界节点, 收紧节点预算]
+    on_remaining_error: deterministic_fallback
+
+model_adapter:
+  implementation: 07_runtime/src/runtime/model-planner.ts
+  enabled_when: VNEXT_MODEL_PLANNING_ENABLED=true 且已配置 provider
+  cache: request fingerprint
+  failure_behavior: 记录 planner.model_failed Event 后使用确定性 planner
+
+runtime_events:
+  - planner.model_completed
+  - planner.model_failed
+  - planner.compiled
+  - plan.proposed
+
+current_boundary:
+  - 默认仍使用确定性 planner；模型规划必须显式启用。
+  - 模型规划只决定候选路径，不拥有权限、预算、节点执行器或 Artifact schema。
+  - 当前 repair 是确定性结构修复，不进行第二次模型调用。

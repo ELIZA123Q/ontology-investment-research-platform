@@ -1,5 +1,5 @@
 schema_name: semantic_ontology_registry
-schema_version: 1.3.0
+schema_version: 4.0.0
 status: active
 
 authority:
@@ -14,6 +14,7 @@ authority:
 
 source_of_truth: 01_semantic/01_ontology
 
+platform_registry: 01_semantic/01_ontology/platform_registry.yaml
 model_registry: 01_semantic/01_ontology/model_registry.yaml
 meta_schema: 01_semantic/01_ontology/meta_schema.yaml
 core_models:
@@ -22,11 +23,19 @@ core_models:
   - 01_semantic/01_ontology/models/evidence.yaml
   - 01_semantic/01_ontology/models/judgment.yaml
   - 01_semantic/01_ontology/models/scenario.yaml
+operational_models:
+  - 01_semantic/01_ontology/models/operational.yaml
+kinetic_models:
+  - 01_semantic/01_ontology/kinetics/action_types.yaml
+  - 01_semantic/01_ontology/kinetics/functions.yaml
+  - 01_semantic/01_ontology/kinetics/policies.yaml
+  - 01_semantic/01_ontology/kinetics/triggers.yaml
 
 domain_extensions:
   - 01_semantic/01_ontology/domains/semiconductor
 
 notes:
+  - Ontology 4.0 由 platform_registry 统一登记语义与动力元素；model_registry 仅保存 3.0 历史语义基线。
   - 编号五域迁移后，机器 YAML 真源落在 01_semantic/01_ontology/。
   - 新增/修改模型 YAML 只写入 01_semantic/；禁止在非 01_semantic 路径另建平行 ontology models。
   - 01_semantic/01_ontology 若存在须与 semantic 字节一致（双写守卫）。

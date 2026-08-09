@@ -3,6 +3,8 @@ set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 RUNTIME_DIR="$PROJECT_DIR/07_runtime"
+VNEXT_PORT="${VNEXT_PORT:-3000}"
+export VNEXT_PORT
 
 unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy 2>/dev/null || true
 unset SOCKS_PROXY SOCKS5_PROXY socks_proxy socks5_proxy 2>/dev/null || true
@@ -20,5 +22,5 @@ if [ ! -f .next/package.json ]; then
 fi
 
 echo "==> 启动 Research Lead Runtime 与工作台"
-echo "    http://127.0.0.1:3000"
+echo "    http://127.0.0.1:$VNEXT_PORT"
 exec npm run start:all

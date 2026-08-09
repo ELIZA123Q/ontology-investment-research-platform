@@ -7,6 +7,10 @@ authority:
   write_entry: 05_governance/{rules,evals,verifiers,identity,permissions}/
   read_primary:
     - 05_governance/registry.yaml
+    - 05_governance/01_架构/03_知识沉淀闭环.md
+    - 05_governance/02_合同/knowledge_learning_contract.yaml
+    - 05_governance/02_合同/research_provenance_contract.yaml
+    - 05_governance/02_合同/research_planning_contract.yaml
     - 05_governance/11_rules/registry.yaml
     - 05_governance/15_verifiers/registry.yaml
     - 05_governance/14_evals/registry.yaml
@@ -39,3 +43,6 @@ notes:
   - Verifier ≠ Eval。
   - 01_架构 / 05_元治理本体 仍属 governance，但不并入五子壳。
   - 旧路径 02_合同 / 03_校验 / evaluation 保留 compat 可读。
+  - 知识沉淀闭环由人工可读架构与机器合同共同约束；Runtime 只消费，不平行定义值域。
+  - SourceCandidate → SourceSnapshot → EvidenceFact 的确定性晋级边界见 research_provenance_contract.yaml。
+  - PlannerProposal → Deterministic Compiler 的执行边界见 research_planning_contract.yaml。
