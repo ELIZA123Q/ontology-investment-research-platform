@@ -55,8 +55,8 @@ ownership:
     - researcher_readable_explanations
   notes:
     - 运行路由枚举（stage_status / task_disposition / quality_status）保持运行合同，不新建治理域本体。
-    - 90_compat/methods/00_登记 声明方法能力、适用条件和候选关系；本合同只约束跨阶段合法性与允许路由值域。
-    - 本次方法选择与应用由 07_runtime/engine 执行，选择理由和结果写入 instances；合同层不得预先写死本次选择。
+    - 03_capabilities/05_method_libraries/00_登记 声明方法能力、适用条件和候选关系；本合同只约束跨阶段合法性与允许路由值域。
+    - 本次方法选择由 07_runtime/src/runtime/planner.ts 提议、由 kernel 执行并写入 Artifact 与 RunEvent；合同层不得预先写死本次选择。
     - judgment_method_routes 为跨阶段方法路由合法性合同；judgment_type 值域仍由一级本体类型约束。
     - 参数归属清单见 parameter_authority_matrix.yaml；覆盖率指已登记参数权威唯一，不是一切皆本体。
     - 二级 evidence_quality_dimensions / event_type_taxonomy 与 04 handoff 审计枚举见矩阵 not_promoted，本期不升格为 ontology_rule_param。
@@ -332,7 +332,7 @@ rule_usage_contract:
   authority_registry: 05_governance/02_合同/rule_authority_registry.yaml
   design_time:
     ontology_rules: 本体中的语义约束、证据约束与状态一致性约束；声明适用边界，不预置本次结论。
-    method_rules: 90_compat/methods/02–04 中的判断结构、取证策略与裁决原则；可复用、可版本化。
+    method_rules: 03_capabilities/05_method_libraries/02–04 中的判断结构、取证策略与裁决原则；可复用、可版本化。
   runtime:
     method_application: 本次实际选用与应用的方法记录（MA-nn）；02 建 candidate，03 绑定证据，04 确认 executed/rejected/blocked/degraded。
     rule_evaluation: 本次规则执行结果（RE-nn）；记录规则引用、版本、输入、逐项条件结果与证据引用。
@@ -345,7 +345,7 @@ replay_contract:
   version_tracking: run_manifest.versions 记录 contract、ontology、kb02、kb03、kb04 与各阶段 schema 版本；阶段产物 hash 与 attempt 支持波次回放。
   replay_without_markdown: 仅凭 run_manifest + 各阶段结构化产物，应能回答本次对象、所用方法版本、绑定证据、裁决边界与结论强度，无需阅读 05 研报正文。
   reference_samples:
-    v3_with_method_application: 90_compat/instances/02_V3样例
+    v3_with_method_application: 04_execution/03_workspace/02_V3样例
 
 runtime_objects:
   - Task

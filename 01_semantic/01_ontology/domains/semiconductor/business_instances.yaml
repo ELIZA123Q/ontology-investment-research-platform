@@ -1,7 +1,7 @@
 # 人读目录见同目录 *.md；本文件为机器权威定义。
 # 分区注释仅便于浏览，不改变 schema。
-# 资产边界：type: EvidenceRecipe 条目仅为领域索引/投影（指向 90_compat/methods/03_取证 策略正文），
-# 取证配方的权威定义在 90_compat/methods/03_取证（A0x + 03_registry），不得将本文件当作方法正文权威。
+# 资产边界：type: EvidenceRecipe 条目仅为领域索引/投影（指向 03_capabilities/05_method_libraries/03_取证 策略正文），
+# 取证配方的权威定义在 03_capabilities/05_method_libraries/03_取证（A0x + 03_registry），不得将本文件当作方法正文权威。
 # 影子类型契约（参数图非正式本体 Object/Relation）：
 # - 本文件中的 EvidenceProfile / PropagationTemplate / ProxyIndicator / ScenarioTemplate / SourceProfile / EvidenceRecipe
 #   / JudgmentLevelCriterionTemplate / BusinessScenarioTag 等，仅作为“业务参数图”节点/模板被 Runtime 只读合并到任务视图。
@@ -11,12 +11,12 @@
 schema_name: semiconductor_domain_business_instances
 schema_version: 1.1.0
 depends_on:
-- ../../01_通用/models/semantic.yaml
-- ../../01_通用/models/state_event.yaml
-- ../../01_通用/models/evidence.yaml
-- ../../01_通用/models/judgment.yaml
-- ../../01_通用/models/scenario.yaml
-- ../../01_通用/models/semiconductor_extension.yaml
+- ../../models/semantic.yaml
+- ../../models/state_event.yaml
+- ../../models/evidence.yaml
+- ../../models/judgment.yaml
+- ../../models/scenario.yaml
+- ../../models/semiconductor_extension.yaml
 business_instance_graph:
   schema_name: ontology_business_instance_graph
   schema_version: 1.0.0
@@ -2973,7 +2973,7 @@ business_instance_graph:
       id: recipe_cycle_phase
       recipeName: 周期阶段判断取证配方
       judgmentType: cycle_phase
-      strategyLibraryRef: 90_compat/methods/03_取证/A03_趋势与阶段判断.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A03_趋势与阶段判断.md
       strategyVersion: 3.2.0
       requiredBasketTypes:
       - primary_support
@@ -2996,7 +2996,7 @@ business_instance_graph:
       id: recipe_transmission_path
       recipeName: 传导路径判断取证配方
       judgmentType: transmission_path
-      strategyLibraryRef: 90_compat/methods/03_取证/A04_机制传导验证.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A04_机制传导验证.md
       strategyVersion: 3.2.0
       requiredBasketTypes:
       - primary_support
@@ -3019,7 +3019,7 @@ business_instance_graph:
       id: recipe_state_measurement
       recipeName: 状态度量判断取证配方
       judgmentType: state_measurement
-      strategyLibraryRef: 90_compat/methods/03_取证/A02_状态变量测量.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A02_状态变量测量.md
       strategyVersion: 3.2.0
       requiredBasketTypes:
       - primary_support
@@ -3042,7 +3042,7 @@ business_instance_graph:
       id: recipe_trend_direction
       recipeName: 趋势方向判断取证配方
       judgmentType: trend_direction
-      strategyLibraryRef: 90_compat/methods/03_取证/A03_趋势与阶段判断.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A03_趋势与阶段判断.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, cross_validation, counter_evidence]
@@ -3057,7 +3057,7 @@ business_instance_graph:
       id: recipe_mechanism_validation
       recipeName: 机制验证取证配方
       judgmentType: mechanism_validation
-      strategyLibraryRef: 90_compat/methods/03_取证/A04_机制传导验证.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A04_机制传导验证.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, cross_validation, counter_evidence]
@@ -3072,7 +3072,7 @@ business_instance_graph:
       id: recipe_causal_attribution
       recipeName: 因果归因取证配方
       judgmentType: causal_attribution
-      strategyLibraryRef: 90_compat/methods/03_取证/A04_机制传导验证.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A04_机制传导验证.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, cross_validation, counter_evidence]
@@ -3087,7 +3087,7 @@ business_instance_graph:
       id: recipe_object_differentiation
       recipeName: 对象分化比较取证配方
       judgmentType: object_differentiation
-      strategyLibraryRef: 90_compat/methods/03_取证/A05_对象分化比较.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A05_对象分化比较.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
@@ -3102,7 +3102,7 @@ business_instance_graph:
       id: recipe_impact_realization
       recipeName: 影响兑现取证配方
       judgmentType: impact_realization
-      strategyLibraryRef: 90_compat/methods/03_取证/A06_财务影响测算.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A06_财务影响测算.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
@@ -3117,7 +3117,7 @@ business_instance_graph:
       id: recipe_expectation_gap
       recipeName: 预期差取证配方
       judgmentType: expectation_gap
-      strategyLibraryRef: 90_compat/methods/03_取证/A07_市场预期与定价.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A07_市场预期与定价.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]
@@ -3132,7 +3132,7 @@ business_instance_graph:
       id: recipe_valuation_impact
       recipeName: 估值影响取证配方
       judgmentType: valuation_impact
-      strategyLibraryRef: 90_compat/methods/03_取证/A07_市场预期与定价.md
+      strategyLibraryRef: 03_capabilities/05_method_libraries/03_取证/A07_市场预期与定价.md
       strategyVersion: 3.2.0
       requiredBasketTypes: [primary_support, background_evidence, cross_validation, counter_evidence]
       mandatoryBasketTypes: [primary_support, background_evidence, counter_evidence]

@@ -16,7 +16,7 @@ objects:
     properties: {owner_role: runtime_owner, authority_ref: runtime, version: 1.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
   - id: role.method_owner
     type: AuthorityAssignment
-    properties: {owner_role: method_owner, authority_ref: 90_compat/methods/00_登记/method_assets.yaml, version: 1.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
+    properties: {owner_role: method_owner, authority_ref: 03_capabilities/05_method_libraries/00_登记/method_assets.yaml, version: 1.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
 
   - id: governance.meta_ontology
     type: GovernedAsset
@@ -47,17 +47,17 @@ objects:
     properties: {label: 数据映射配置, asset_kind: mapping_registry, authority_ref: 05_governance/02_合同/ontology_data_mapping_profiles.yaml, owner_role: runtime_owner, version: 1.0.0, status: active, validation_profile: runtime_contract, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
   - id: methods.registry
     type: GovernedAsset
-    properties: {label: 方法资产登记, asset_kind: method_registry, authority_ref: 90_compat/methods/00_登记/method_assets.yaml, owner_role: method_owner, version: 1.0.0, status: active, validation_profile: method_assets, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
+    properties: {label: 方法资产登记, asset_kind: method_registry, authority_ref: 03_capabilities/05_method_libraries/00_登记/method_assets.yaml, owner_role: method_owner, version: 1.0.0, status: active, validation_profile: method_assets, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
   - id: runtime.operation_registry
     type: GovernedAsset
-    properties: {label: Runtime 操作登记, asset_kind: runtime_registry, authority_ref: 07_runtime/engine/runtime_operations.yaml, owner_role: runtime_owner, version: 1.0.0, status: active, validation_profile: runtime_contract, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
+    properties: {label: Runtime 操作登记, asset_kind: runtime_registry, authority_ref: 05_governance/11_rules/runtime_operations.yaml, owner_role: runtime_owner, version: 1.0.0, status: active, validation_profile: runtime_contract, content_fingerprint: '', created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-08-09T00:00:00+08:00'}
 
   - id: consumer.runtime_semantic_catalog
     type: GovernanceConsumer
-    properties: {label: Runtime 语义目录, consumer_kind: runtime, repository_refs: [07_runtime/engine/ontology_catalog.ts], owner_role: runtime_owner, version: 1.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
+    properties: {label: Runtime 语义合同, consumer_kind: runtime, repository_refs: [07_runtime/src/semantic/graph-contracts.ts], owner_role: runtime_owner, version: 2.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-08-09T00:00:00+08:00'}
   - id: consumer.workflow_semantic_envelopes
     type: GovernanceConsumer
-    properties: {label: 工作流语义封装, consumer_kind: workflow, repository_refs: [07_runtime/engine/workflow.ts], owner_role: runtime_owner, version: 1.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}
+    properties: {label: 任务图语义封装, consumer_kind: workflow, repository_refs: [07_runtime/src/runtime/planner.ts, 07_runtime/src/runtime/node-catalog.ts], owner_role: runtime_owner, version: 2.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-08-09T00:00:00+08:00'}
   - id: consumer.formal_packages
     type: GovernanceConsumer
     properties: {label: 正式包与回归实例, consumer_kind: package, repository_refs: [packages/formal], owner_role: governance_owner, version: 1.0.0, status: active, created_at: '2026-07-29T00:00:00+08:00', updated_at: '2026-07-29T00:00:00+08:00'}

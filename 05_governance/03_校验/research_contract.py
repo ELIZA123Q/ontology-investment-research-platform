@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "07_runtime" / "skills" / "ontology"))
+sys.path.insert(0, str(ROOT / "01_semantic" / "03_knowledge_graph" / "validators"))
 
 from ontology_instance_graph import materialize_document
 from validator_utils import load_yaml_file, split_refs
@@ -20,8 +20,8 @@ PUBLIC_CONTRACT_PATH = ROOT / "05_governance" / "02_合同" / "public_contract.y
 ROUTE_REGISTRY_PATH = ROOT / "05_governance" / "02_合同" / "judgment_method_routes.yaml"
 ONTOLOGY_CONTRACT_PATH = ROOT / "01_semantic/01_ontology" / "meta_schema.yaml"
 ONTOLOGY_REASONING_PATH = ROOT / "01_semantic/01_ontology" / "models" / "judgment.yaml"
-KB02_REGISTRY_PATH = ROOT / "90_compat/methods/02_研究框架" / "registry.yaml"
-KB03_REGISTRY_PATH = ROOT / "90_compat/methods/03_取证" / "03_registry.yaml"
+KB02_REGISTRY_PATH = ROOT / "03_capabilities/05_method_libraries/02_研究框架" / "registry.yaml"
+KB03_REGISTRY_PATH = ROOT / "03_capabilities/05_method_libraries/03_取证" / "03_registry.yaml"
 
 SCOPE_DIMENSIONS = {"object", "geography", "customer", "metric", "time"}
 

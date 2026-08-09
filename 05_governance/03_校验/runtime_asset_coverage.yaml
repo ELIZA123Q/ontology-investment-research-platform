@@ -32,7 +32,7 @@ knowledge_expected:
     - 01_semantic/01_ontology/domains/semiconductor/00_半导体领域本体概述.md
     - 01_semantic/01_ontology/domains/semiconductor/01_半导体语义结构域说明.md
     - 01_semantic/01_ontology/domains/semiconductor/02_半导体判断推理域说明.md
-    - 90_compat/methods/02_研究框架/README.md
+    - 03_capabilities/05_method_libraries/02_研究框架/README.md
     - 02_tasks/04_workflows/deep_research/templates/02_structure_logic_template.md
   stage_03:
     - 05_governance/03_校验/00A_runtime_quality_card.md
@@ -40,15 +40,15 @@ knowledge_expected:
     - 02_tasks/04_workflows/deep_research/supporting/03_evidence_provenance_manual.md
     - 01_semantic/02_dictionary/03_证据域规范.md
     - 01_semantic/01_ontology/domains/semiconductor/03_半导体证据域说明.md
-    - 90_compat/methods/03_取证/00_证据质量与结论上限.md
-    - 90_compat/methods/03_取证/B00_来源选择与使用边界.md
-    - 90_compat/methods/03_取证/B01_通用来源速查.md
-    - 90_compat/methods/03_取证/B02_半导体来源速查.md
+    - 03_capabilities/05_method_libraries/03_取证/00_证据质量与结论上限.md
+    - 01_semantic/04_evidence/B00_来源选择与使用边界.md
+    - 01_semantic/04_evidence/B01_通用来源速查.md
+    - 01_semantic/04_evidence/B02_半导体来源速查.md
     - 03_capabilities/04_protocols/mcp/B03_MCP通道注册.md
     - 03_capabilities/04_protocols/mcp/OPS_MCP查询快速参考.md
-    - 90_compat/methods/03_取证/OPS_通用真实来源查询与回退手册.md
-    - 90_compat/methods/03_取证/OPS_半导体真实来源查询与口径手册.md
-    - 90_compat/methods/03_取证/OPS_地缘规则与冲击查询手册.md
+    - 03_capabilities/05_method_libraries/03_取证/OPS_通用真实来源查询与回退手册.md
+    - 03_capabilities/05_method_libraries/03_取证/OPS_半导体真实来源查询与口径手册.md
+    - 03_capabilities/05_method_libraries/03_取证/OPS_地缘规则与冲击查询手册.md
     - 02_tasks/04_workflows/deep_research/supporting/03_evidence_requirements_reference.md
     - 02_tasks/04_workflows/deep_research/supporting/03_delivery_materials_checklist.md
     - 02_tasks/04_workflows/deep_research/templates/03_evidence_prep_template.md
@@ -57,20 +57,20 @@ knowledge_expected:
     - 02_tasks/04_workflows/deep_research/stages/04_judgment.md
     - 01_semantic/02_dictionary/02_判断推理域规范.md
     - 01_semantic/01_ontology/domains/semiconductor/02_半导体判断推理域说明.md
-    - 90_compat/methods/04_裁决/A00_裁决总则.md
-    - 90_compat/methods/04_裁决/A00-附录1_路径与阻断协议.md
-    - 90_compat/methods/04_裁决/A00-附录2_反证与竞争解释协议.md
-    - 90_compat/methods/04_裁决/A00-附录3_改判与版本协议.md
-    - 90_compat/methods/04_裁决/A00-附录4_通用认知错误与误用索引.md
+    - 03_capabilities/05_method_libraries/04_裁决/A00_裁决总则.md
+    - 03_capabilities/05_method_libraries/04_裁决/A00-附录1_路径与阻断协议.md
+    - 03_capabilities/05_method_libraries/04_裁决/A00-附录2_反证与竞争解释协议.md
+    - 03_capabilities/05_method_libraries/04_裁决/A00-附录3_改判与版本协议.md
+    - 03_capabilities/05_method_libraries/04_裁决/A00-附录4_通用认知错误与误用索引.md
     - 02_tasks/04_workflows/deep_research/templates/04_judgment_brief_template.md
   stage_05:
     - 05_governance/03_校验/00A_runtime_quality_card.md
     - 02_tasks/04_workflows/deep_research/stages/05_delivery.md
-    - 90_compat/methods/05_表达/standards/05_投研表达标准.md
+    - 03_capabilities/05_method_libraries/05_表达/standards/05_投研表达标准.md
     - 05_governance/03_校验/00A_高质量产出判别标准.md
-    - 90_compat/methods/05_表达/templates/05_表达审计模板.yaml
-    - 90_compat/methods/05_表达/templates/05_独立语义审查模板.yaml
-    - 90_compat/methods/05_表达/templates/05C_行业周期判断模板.md
+    - 03_capabilities/05_method_libraries/05_表达/templates/05_表达审计模板.yaml
+    - 03_capabilities/05_method_libraries/05_表达/templates/05_独立语义审查模板.yaml
+    - 03_capabilities/05_method_libraries/05_表达/templates/05C_行业周期判断模板.md
 
 assets:
   - id: WF-01-SPEC
@@ -116,19 +116,19 @@ assets:
     critical: true
 
   - id: KB03-B00
-    path: 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+    path: 01_semantic/04_evidence/B00_来源选择与使用边界.md
     injection_mode: knowledge
     stages: [stage_03]
     critical: true
 
   - id: KB03-B01
-    path: 90_compat/methods/03_取证/B01_通用来源速查.md
+    path: 01_semantic/04_evidence/B01_通用来源速查.md
     injection_mode: knowledge
     stages: [stage_03]
     critical: true
 
   - id: KB03-B02
-    path: 90_compat/methods/03_取证/B02_半导体来源速查.md
+    path: 01_semantic/04_evidence/B02_半导体来源速查.md
     injection_mode: knowledge
     stages: [stage_03]
     critical: true
@@ -147,32 +147,32 @@ assets:
     critical: true
 
   - id: KB03-OPS-WEB
-    path: 90_compat/methods/03_取证/OPS_通用真实来源查询与回退手册.md
+    path: 03_capabilities/05_method_libraries/03_取证/OPS_通用真实来源查询与回退手册.md
     injection_mode: knowledge
     stages: [stage_03]
     critical: true
     note: "公开原始来源与 MCP 通道同级，来源质量按生产者/可核验性判断"
 
   - id: KB03-OPS-SEMI
-    path: 90_compat/methods/03_取证/OPS_半导体真实来源查询与口径手册.md
+    path: 03_capabilities/05_method_libraries/03_取证/OPS_半导体真实来源查询与口径手册.md
     injection_mode: knowledge
     stages: [stage_03]
     critical: true
 
   - id: KB03-OPS-GEO
-    path: 90_compat/methods/03_取证/OPS_地缘规则与冲击查询手册.md
+    path: 03_capabilities/05_method_libraries/03_取证/OPS_地缘规则与冲击查询手册.md
     injection_mode: knowledge
     stages: [stage_03]
     critical: true
 
   - id: KB04-A00
-    path: 90_compat/methods/04_裁决/A00_裁决总则.md
+    path: 03_capabilities/05_method_libraries/04_裁决/A00_裁决总则.md
     injection_mode: knowledge
     stages: [stage_04]
     critical: true
 
   - id: KB04-A00-CE
-    path: 90_compat/methods/04_裁决/A00-附录2_反证与竞争解释协议.md
+    path: 03_capabilities/05_method_libraries/04_裁决/A00-附录2_反证与竞争解释协议.md
     injection_mode: knowledge
     stages: [stage_04]
     critical: true
@@ -204,27 +204,27 @@ assets:
     critical: true
 
   - id: DELIVERY-05-STD
-    path: 90_compat/methods/05_表达/standards/05_投研表达标准.md
+    path: 03_capabilities/05_method_libraries/05_表达/standards/05_投研表达标准.md
     injection_mode: knowledge
     stages: [stage_05]
     critical: true
 
   - id: DELIVERY-05-INDEPENDENT-REVIEW
-    path: 90_compat/methods/05_表达/templates/05_独立语义审查模板.yaml
+    path: 03_capabilities/05_method_libraries/05_表达/templates/05_独立语义审查模板.yaml
     injection_mode: knowledge
     stages: [stage_05]
     critical: true
     note: "05 独立语义审查十项检查结构；04 人类独立审查仅覆盖前五项"
 
   - id: SCN-MEM-CYCLE
-    path: 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
+    path: 03_capabilities/05_method_libraries/02_研究框架/行业/半导体/场景卡/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
     injection_mode: guidance_excerpt
     stages: [stage_02]
     critical: true
     note: "任务命中存储周期关键词时强制进入 selected_method_guidance"
 
   - id: SCN-MEM-HBM
-    path: 90_compat/methods/02_研究框架/行业/半导体/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
+    path: 03_capabilities/05_method_libraries/02_研究框架/行业/半导体/场景卡/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
     injection_mode: guidance_excerpt
     stages: [stage_02]
     critical: true
@@ -237,13 +237,13 @@ assets:
     critical: true
 
   - id: FRAMEWORK-DEP-REG
-    path: 90_compat/methods/02_研究框架/registry.yaml
+    path: 03_capabilities/05_method_libraries/02_研究框架/registry.yaml
     injection_mode: registry_routed
     stages: [stage_02]
     critical: true
 
   - id: KB03-REGISTRY
-    path: 90_compat/methods/03_取证/03_registry.yaml
+    path: 03_capabilities/05_method_libraries/03_取证/03_registry.yaml
     injection_mode: registry_routed
     stages: [stage_03]
     critical: true
@@ -262,14 +262,14 @@ assets:
     note: "ontology_tools 切片之外，相关领域规范正文也经 runtime_contexts 进入 02–04"
 
   - id: KB03-A01-A09
-    path: 90_compat/methods/03_取证
+    path: 03_capabilities/05_method_libraries/03_取证
     injection_mode: guidance_excerpt
     stages: [stage_03]
     critical: true
     note: "A01–A09 正文经 selected_method_guidance 按 MA 截断注入"
 
   - id: KB04-A01-A10
-    path: 90_compat/methods/04_裁决
+    path: 03_capabilities/05_method_libraries/04_裁决
     injection_mode: guidance_excerpt
     stages: [stage_04]
     critical: true
@@ -277,5 +277,5 @@ assets:
 
 # 已知非缺口（故意不进默认 knowledge）
 intentionally_excluded:
-  - path: 90_compat/ontology/
+  - path: 01_semantic/01_ontology/
     reason: "整库不硬塞；相关规范正文 + semantic_route 切片按阶段进入 Runtime"

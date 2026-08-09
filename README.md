@@ -1,124 +1,79 @@
 # 投研判断工作台
 
-用本体约束语义、用证据与计算打底、用模型做受控判断——把投研问题收成**可核对、可反证、可复盘**的判断：依据是什么、能说到多强、什么情况下要改判。
+本地优先、可云化、面向单研究员的 AI 原生研究搭档。研究员只表达目标、补充材料、审阅关键判断和调整方向，不需要理解五域、五阶段、Agent 或本体结构。
 
-当前主要在**半导体**有完整样例（存储周期、管制与国产替代），不是全行业自动投研产品。
+> **确定性负责边界，Agent 负责路径。**
 
-## 这个项目帮你做什么
-
-传统写研报的问题：结论和依据对不上、判断边界模糊、证据不够时容易硬撑。
-
-这个工作台强制你按五步走：
-
-1. **受理** — 明确要判断什么、能不能判
-2. **搭结构** — 选分析框架，拆成可验证的子判断
-3. **找证据** — 调 MCP 通道取数据，核验原文，标注完备度
-4. **做判断** — 每条结论标注"说到多强、边界在哪、什么信号要改判"
-5. **写报告** — 按模板输出，表达不新增未经 03/04 确认的事实
-
-每一步的结果都落盘为可追溯文件。不会比人想得更聪明，但会比人更一致、更不跳步、更不硬撑。
-
-## 你会得到什么
-
-做完一次研究，主要产出两份：
-
-| 文件 | 内容 |
-|------|------|
-| **研报（05_report）** | 当前判断、主要依据、适用范围、还要跟踪什么 |
-| **判断简报（04_judgment）** | 每条结论能说到多强、最大限制、改判的触发信号 |
-
-前面的需求说明、分析框架、证据材料是过程底稿——核对「问题有没有偷换、证据够不够」时才翻。
-
-读结果时有四件事要看：
-- 现在的判断是什么
-- 凭什么（关键依据，不是材料堆砌）
-- 边界在哪
-- 证据不够时有没有硬撑——说不清就应写「暂不可判断」并标注缺什么
-
-## 15 分钟上手
-
-先形成直觉，不要从 YAML 或代码开始：
-
-1. **读本页**，理解五步怎么分工
-2. **看一份成品**：[存储周期研报](instances/02_V3样例/01_memory-cycle-run-002/05_report.md)
-3. **再看它背后的判断**：[判断简报](instances/02_V3样例/01_memory-cycle-run-002/04_judgment.yaml)，理解「结论—依据—边界—改判条件」如何落盘
-4. 真要研究时，按 Deep Research（`tasks/workflows/deep_research/`，兼容旧入口 `runtime/workflow/`）推进；方法在 [`methods/`](methods)。仓库骨架是五域：`semantic/` `tasks/` `capabilities/` `execution/` + `governance/`，产品面入口见 [`app/`](app)，权威索引见 [`five_domain_authority.yaml`](governance/01_架构/five_domain_authority.yaml)。
-
-暂时可跳过：`ontology/`（语义维护）、`governance/` 合同细节、`runtime/` 引擎细节、`evaluation/`（正式评测）。这些不是理解项目的前置阅读。
-
-完整目录职责见 [`仓库地图与文件治理`](governance/01_架构/02_仓库地图与文件治理.md)。
-
-## Legacy 路径策略（compat）
-
-旧顶层（`ontology/` `methods/` `runtime/` `instances/` `evaluation/` 及 `knowledge/` `delivery/` `workflow/` 等）**保留可读、不删除**，但：
-
-- **新增写入优先落五域**：`semantic/` `tasks/` `capabilities/` `execution/` + `governance/` 目标壳
-- 旧路径带 `README.compat.md`（`mode=compat` / `deny_new_writes`）
-- 兼容策略权威：[`governance/01_架构/compat_policy.yaml`](governance/01_架构/compat_policy.yaml)
-
-## 能问什么、不适合问什么
-
-| 适合问 | 不适合问 |
-|--------|----------|
-| 供需趋势会不会变 | 纯粹查数 |
-| 事件有没有影响、冲击怎么传导 | 买卖建议 |
-| 某个假设还成不成立 | 必须给出确定价格或涨跌 |
-
-更多样例：[记忆芯片周期](instances/02_V3样例/01_memory-cycle-run-002) · [美国管制与国产替代](instances/02_V3样例/02_us-controls-localization-run-002)。
-
-## 仓库怎么找东西
-
-| 目录 | 你什么时候打开 |
-|------|----------------|
-| [`tasks/workflows/deep_research/`](tasks/workflows/deep_research) | 做研究——01—05 每一步写什么、交什么（新增改动入口） |
-| [`methods/`](methods) | 选框架、选取证方法、选裁决方法 |
-| [`semantic/`](semantic) / [`ontology/`](ontology) | 查概念定义与语义归属（本体正文过渡期仍在 ontology） |
-| [`instances/`](instances) | 看完整研究样例 |
-| [`methods/05_表达/`](methods/05_表达) | 研报模板与表达标准（写 05 时才用） |
-| [`evaluation/`](evaluation) | 验证这套流程有没有用（可选） |
-| [`runtime/`](runtime) | 本机工作台（产品界面） |
-| [`governance/`](governance) | 项目定位、质量标准、五域权威索引 |
-
-研究主链：`01 受理 → 02 结构 → 03 证据 → 04 判断 → 05 表达`
-
-## 数据来源
-
-工作台可调 MCP 通道自动取数（18 个通道，覆盖巨潮公告、华泰研报、通联行情/财务/宏观、财新新闻等）。取到的是线索/摘录，写证据前须核验可核对原文。
-
-缺数据时，合格结果往往是「边界清楚的弱判断或缺口说明」，而不是编一个方向。
-
----
-
-## 维护者附录（研究员可跳过）
-
-### 工程校验
+## 产品入口
 
 ```bash
-python3 governance/03_校验/validate_project.py
-python3 governance/03_校验/validate_v3_samples.py
-npm --prefix runtime run ontology:audit
+bash start-light.sh
 ```
 
-校验通过只说明写法合规，不代替对数据真伪和研究价值的判断。
+访问 `http://127.0.0.1:3000`。启动脚本同时运行 Next.js 工作台与独立 Runtime worker。
 
-### 五域骨架（目标权威）
+开发模式：
 
-| 域 | 目录 | 职责 |
-|----|------|------|
-| Semantic | `semantic/` | 世界模型、词典、图合同、证据 provenance |
-| Task | `tasks/` | 场景、任务定义、角色、Deep Research |
-| Capability | `capabilities/` | Agent / Skill / Tool / 协议 |
-| Execution | `execution/` | Context / Memory / Workspace / Runtime |
-| Governance | `governance/` | Rules / Identity / Permissions / Evals / Verifiers |
+```bash
+cd 07_runtime
+npm install
+npm run dev
+```
 
-权威怎么查：[`governance/01_架构/five_domain_authority.yaml`](governance/01_架构/five_domain_authority.yaml) + 各域 `registry.yaml`。  
-旧顶层（`ontology/` `methods/` `runtime/workflow/stage_specs/` 等）为 compat 回放，不再作为新增改动入口。
+另开终端运行 `npm run worker`。
 
-### AI 工具上下文
+## 用户如何工作
 
-| 工具 | 自动加载文件 |
-|------|-------------|
-| Claude Code | `CLAUDE.md` |
-| Cursor | `.cursor/rules/03-evidence-sources.mdc` |
+主界面只有三部分：
 
-以上文件含相同核心信息，新增/移除 MCP 通道时须同步。
+- 左侧：研究主题与长期会话。
+- 中间：研究员与 Research Lead 的连续对话、计划和执行状态。
+- 右侧：证据矩阵、假设、判断卡、报告与审计时间线等动态可信制品。
+
+用户可以直接说“只补一手来源”“把时间改成未来六个月”“从历史判断创建分支”。Runtime 不强制重新执行完整 01—05。
+
+## 当前架构
+
+```text
+Intent → Task → constrained TaskGraph → Skill / Tool / Policy / Verifier
+       → Event + key Checkpoint → Artifact → trusted UI surface
+```
+
+- vNext.1 只有一个活动 Agent：Research Lead。
+- 5 个 Skill：research-framing、research-method、evidence-assessment、hypothesis-analysis、research-writing。
+- Context Builder 是 Runtime Service；Source Capture 是 Tool；引用审计是 Verifier；重规划是 Lead Policy。
+- Message 与 Trace 从 append-only Event 投影；ContextPackage 是临时对象。
+- 没有合格 Evidence 时，Claim 不能标记 supported，Judgment 必须降级为“暂不可判断”。
+- 自有 agent loop 通过 adapter 接入 OpenAI-compatible/DeepSeek、OpenAI 和 Anthropic。
+
+## 仓库职责
+
+| 目录 | 权威职责 |
+|---|---|
+| `01_semantic/` | 本体、语义词典、Domain Semantic Graph、证据语义 |
+| `02_tasks/` | Intent、Task 定义、场景与可选 Deep Research 模板 |
+| `03_capabilities/` | Agent/Skill/Tool 治理索引、方法库和 MCP 配置 |
+| `04_execution/` | Context/Memory 合同、历史 Workspace 与 Runtime 索引 |
+| `05_governance/` | 架构、规则、权限、Verifier、Eval 和迁移路线 |
+| `06_app/` | 产品路由与可信组件登记 |
+| `07_runtime/` | 唯一可执行 App、Agent Kernel、Store、Worker 和测试 |
+
+权威入口：[five_domain_authority.yaml](05_governance/01_架构/five_domain_authority.yaml)。五域只作为后台职责边界，不建设成五个 UI 中心。
+
+## 研究资产
+
+- 半导体场景与历史样例继续保留在 `01_semantic`、`02_tasks`、`03_capabilities/05_method_libraries` 和 `04_execution/03_workspace`。
+- 原 01—05 内容保留为方法模板、历史回放和配对评测基线，不是 Runtime 状态机。
+- Domain Semantic Graph 与 Research Provenance Graph 分开治理，通过混合检索接口关联。
+
+## 验证
+
+```bash
+cd 07_runtime
+npm test
+npm run typecheck
+npm run build
+npm audit --omit=dev
+```
+
+下一轮优化路线见：[2026-08-09_vNext2真实研究闭环.md](05_governance/04_路线图/2026-08-09_vNext2真实研究闭环.md)。

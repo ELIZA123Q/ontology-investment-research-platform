@@ -1,6 +1,6 @@
 # 校验说明
 
-跨阶段校验工具在这里；各阶段模板在对应 `90_compat/methods/templates/` 下。
+跨阶段校验工具在这里；各阶段模板在对应 `02_tasks/04_workflows/deep_research/templates/` 下。
 
 研究员日常用到的：
 

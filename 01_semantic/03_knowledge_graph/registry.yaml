@@ -1,13 +1,12 @@
 schema_name: semantic_kg_registry
-schema_version: 1.2.0
+schema_version: 2.0.0
 status: active
 
 authority:
   answers: 图合同与投影定义归 Semantic/knowledge_graph；单次图物化归 Execution/workspace。
   write_entry: 01_semantic/03_knowledge_graph/
   read_primary: 01_semantic/03_knowledge_graph/contracts/
-  compat_read:
-    - 07_runtime/skills/ontology/instance_graph/
+  runtime_boundary: 07_runtime/src/semantic/graph-contracts.ts
 
 source_of_truth:
   graph_contracts:
@@ -21,5 +20,5 @@ source_of_truth:
     - 01_semantic/03_knowledge_graph/contracts/materialize_stage04.ts
 
 notes:
-  - 定义权威在本目录 contracts/；07_runtime/.../instance_graph 仅为 re-export 兼容入口。
+  - Domain Semantic Graph 与 Research Provenance Graph 分开治理；禁止建立万能知识图谱。
   - 单次图物化结果归 04_execution/03_workspace。

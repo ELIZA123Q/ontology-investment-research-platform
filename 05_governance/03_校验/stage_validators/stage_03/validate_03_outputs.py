@@ -77,8 +77,8 @@ from snapshot_layout_03 import SCHEMA_VERSION_03, SNAPSHOT_CSV_LAYOUT, snapshot_
 REQUIRED_CSV_FILES: list[str] = list(SNAPSHOT_CSV_LAYOUT.keys())
 
 WORKSPACE = Path(__file__).resolve().parents[4]
-TEMPLATE_DIR = WORKSPACE / "workflow" / "stages" / "03_证据" / "模板" / "03_数据与证据快照模板"
-STRATEGY_ROOT = WORKSPACE / "90_compat/methods/03_取证"
+TEMPLATE_DIR = WORKSPACE / "02_tasks/04_workflows/deep_research/templates/03_数据与证据快照模板"
+STRATEGY_ROOT = WORKSPACE / "03_capabilities/05_method_libraries/03_取证"
 STRATEGY_REGISTRY_PATH = STRATEGY_ROOT / "03_registry.yaml"
 
 REQUIRED_PREP_META = [
@@ -336,7 +336,7 @@ def _validate_normalized_evidence_graph(rows: dict[str, list[dict[str, str]]]) -
 def _load_strategy_knowledge() -> tuple[dict[str, object], dict[str, object], dict[str, object]]:
     registry = load_yaml_file(STRATEGY_REGISTRY_PATH)
     if not isinstance(registry, dict):
-        fail("90_compat/methods/03_取证/03_registry.yaml 必须是 YAML 对象")
+        fail("03_capabilities/05_method_libraries/03_取证/03_registry.yaml 必须是 YAML 对象")
     methods = registry.get("methods", {})
     judgment_types = registry.get("judgment_types", {})
     roles = registry.get("evidence_roles", {})
@@ -370,9 +370,9 @@ def _resolve_strategy_library_ref(raw_ref: str, label: str) -> Path:
             try:
                 path.resolve().relative_to(STRATEGY_ROOT.resolve())
             except ValueError:
-                fail(f"{label}.strategy_library_ref 必须落在90_compat/methods/03_取证目录内: {text}")
+                fail(f"{label}.strategy_library_ref 必须落在03_capabilities/05_method_libraries/03_取证目录内: {text}")
             return path
-    fail(f"{label}.strategy_library_ref 无法解析到90_compat/methods/03_取证文件: {text}")
+    fail(f"{label}.strategy_library_ref 无法解析到03_capabilities/05_method_libraries/03_取证文件: {text}")
 
 
 def _validate_strategy_library_bindings(

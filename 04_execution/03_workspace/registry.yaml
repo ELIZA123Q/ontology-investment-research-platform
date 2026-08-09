@@ -1,11 +1,11 @@
 schema_name: execution_workspace_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
-source_of_truth: instances
+source_of_truth: 04_execution/03_workspace
 layout:
-  local_runs: 90_compat/instances/00_本机运行
-  v3_fixtures: 90_compat/instances/02_V3样例
-  regression: 90_compat/instances/03_回归
+  local_runs: 04_execution/03_workspace/00_本机运行
+  v3_fixtures: 04_execution/03_workspace/02_V3样例
+  regression: 04_execution/03_workspace/03_回归
 notes:
-  - Workspace 是本次任务产物落点；权威仍为 90_compat/instances/（compat）。
-  - 目标路径 04_execution/03_workspace，本轮只登记不搬迁 SQLite。
+  - Workspace 是本次任务产物落点（含 SQLite、V3 样例、回归包）。
+  - 自旧顶层 instances 物理并入；禁止再落盘顶层 instances / 90_* 目录。

@@ -1,7 +1,8 @@
-# 03_capabilities/01_agents
+# Agent 注册
 
-- **回答什么：** Agent 合同与组织方式（何时调 Skill/Tool）。
-- **不放什么：** 正式本体、单次 workspace 产物、评测协议。
-- **当前权威资产：** `07_runtime/agents/`（实现）；本目录镜像 `AGENT.md`。
-- **status:** migrating
-- **registry:** [`registry.yaml`](./registry.yaml)
+这里登记产品 Agent 的治理视图，不保存第二份 Agent prompt。
+
+- vNext.1 唯一活动 Agent：`research-lead`
+- `evidence-investigator`、`analysis-specialist`、`independent-critic` 仅为 planned，不参与运行
+- 可执行 manifest：`07_runtime/src/capabilities/registry.ts`
+- Research Lead 始终保持用户对话控制权；内部节点执行不是 A2A handoff

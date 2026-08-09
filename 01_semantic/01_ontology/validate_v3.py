@@ -23,7 +23,7 @@ MODEL_DIR = CORE_DIR / "models"
 MODEL_FILES = ("semantic.yaml", "state_event.yaml", "evidence.yaml", "judgment.yaml", "scenario.yaml")
 EXTENSION = MODEL_DIR / "semiconductor_extension.yaml"
 PUBLIC_CONTRACT = ROOT / "05_governance/02_合同/public_contract.yaml"
-MIGRATION_LEDGER = ROOT / "90_compat/ontology/03_迁移/2x_to_3_ledger.yaml"
+MIGRATION_LEDGER = ROOT / "05_governance/05_元治理本体/迁移账本/2x_to_3_ledger.yaml"
 RULE_REGISTRY = ROOT / "05_governance/02_合同/rule_authority_registry.yaml"
 PSEUDO_TYPES = {
     "core_object",
@@ -687,7 +687,7 @@ def validate_migration_ledger(
     for field in ("legacy_samples_retained", "legacy_publish_compatible", "legacy_source_files_retained"):
         if retirement.get(field) is not False:
             errors.append(f"migration ledger retirement_policy.{field} must be false")
-    if (ROOT / "90_compat/instances/01_正式样例").exists():
+    if (ROOT / "04_execution/03_workspace/01_正式样例").exists():
         errors.append("legacy sample directory must be removed after direct-to-latest migration")
     return errors
 

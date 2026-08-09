@@ -123,14 +123,14 @@ parameters:
     label: 取证方法五角色（说明层）
     stages: [03]
     authority_kind: knowledge_base_ref
-    authority_ref: 90_compat/methods/03_取证/03_registry.yaml#evidence_roles
+    authority_ref: 03_capabilities/05_method_libraries/03_取证/03_registry.yaml#evidence_roles
     must_point_to: 05_governance/02_合同/judgment_threshold_policy.yaml#evidence_method_role_to_basket_role
 
   - id: kb03_quality_language
     label: 完备度四档用语（说明层）
     stages: [03]
     authority_kind: knowledge_base_ref
-    authority_ref: 90_compat/methods/03_取证/03_registry.yaml#quality_language
+    authority_ref: 03_capabilities/05_method_libraries/03_取证/03_registry.yaml#quality_language
     must_point_to: 05_governance/02_合同/judgment_threshold_policy.yaml#quality_language_to_evidence_grades
 
   - id: judgment_method_routes
@@ -178,4 +178,4 @@ not_promoted:
     stays_at: 01_semantic/01_ontology/models/semiconductor_extension.yaml#domain_guides.commercialization_stages
   - id: stage04_handoff_and_audit_enums
     reason: handoff_to_05 / permitted_role / delivery_archetype 等属 04→05 阶段审计与表达合同，非业务强度参数
-    stays_at: 90_compat/methods/templates/04_推理审计模板.yaml#handoff_to_05
+    stays_at: 02_tasks/04_workflows/deep_research/templates/04_推理审计模板.yaml#handoff_to_05

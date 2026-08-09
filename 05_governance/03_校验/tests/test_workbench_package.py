@@ -277,7 +277,7 @@ class WorkbenchPackageTests(unittest.TestCase):
             self.assertEqual(validator.validate_workbench_package(run_dir), [])
 
     def test_rejects_v3_sample_directory(self) -> None:
-        sample = ROOT / "90_compat/instances/02_V3样例/01_memory-cycle-run-002"
+        sample = ROOT / "04_execution/03_workspace/02_V3样例/01_memory-cycle-run-002"
         errors = validator.validate_workbench_package(sample)
         self.assertTrue(errors)
         self.assertTrue(any("semantic_fixture" in error or "validate_v3_samples" in error for error in errors))

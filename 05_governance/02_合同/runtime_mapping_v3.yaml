@@ -9,11 +9,11 @@ description: Ontology 3.0 与 Public Contract 1.3 的 Runtime 映射；MethodApp
 mapping:
   ontology_objects: 07_runtime/adapters/ontology.ts
   external_data_profiles: 05_governance/02_合同/ontology_data_mapping_profiles.yaml
-  external_data_profile_runtime: 07_runtime/engine/data_mapping_profiles.ts
-  method_application: 07_runtime/engine/method_application.ts
-  runtime_operations: 07_runtime/engine/runtime_operations.yaml
-  evidence_wave: 07_runtime/engine/templates/evidence_wave.template.yaml
-  invalidation_projection: 07_runtime/engine/templates/dependency_projection.template.yaml
+  external_data_profile_runtime: 07_runtime/src/semantic/graph-contracts.ts
+  method_application: 07_runtime/src/runtime/kernel.ts
+  runtime_operations: 05_governance/11_rules/runtime_operations.yaml
+  evidence_wave: 02_tasks/04_workflows/deep_research/templates/evidence_wave.template.yaml
+  invalidation_projection: 02_tasks/04_workflows/deep_research/templates/dependency_projection.template.yaml
   incremental_update_validator: 05_governance/03_校验/incremental_update.py
 
 moved_legacy_resources:
@@ -25,7 +25,7 @@ moved_legacy_resources:
     rule: 确定性、读写范围与副作用由 Runtime 类型约束。
   logic_flows:
     target: method_or_workflow_orchestrator
-    rule: 研究方法进入 methods，阶段路由进入 07_runtime/workflow。
+    rule: 研究方法进入 method_libraries，运行路径由 typed node catalog 与 planner 编译。
 
 implemented_types:
   MethodApplication:

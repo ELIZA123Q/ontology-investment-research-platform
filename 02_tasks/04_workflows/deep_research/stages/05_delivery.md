@@ -10,7 +10,7 @@
 
 ## 1. 阶段职责
 
-05只负责把04已批准的判断转换为指定交付原型，不新增事实、判断、路径、强度或投资主张。可复用写作规则以[`90_compat/methods/05_表达/standards/05_投研表达标准.md`](../../../90_compat/methods/05_表达/standards/05_投研表达标准.md)为唯一权威，模板以[`90_compat/methods/05_表达/templates/`](../../../90_compat/methods/05_表达/02_模板)为唯一权威。
+05只负责把04已批准的判断转换为指定交付原型，不新增事实、判断、路径、强度或投资主张。可复用写作规则以[`03_capabilities/05_method_libraries/05_表达/standards/05_投研表达标准.md`](../../../03_capabilities/05_method_libraries/05_表达/standards/05_投研表达标准.md)为唯一权威，模板以[`03_capabilities/05_method_libraries/05_表达/templates/`](../../../03_capabilities/05_method_libraries/05_表达/02_模板)为唯一权威。
 
 表达完成不等于正式发布；发布状态仍由[`05_governance/03_校验/`](../../../05_governance/03_校验)根据公共合同、全链规则校验和独立语义审查派生。
 
@@ -36,10 +36,10 @@
 
 05不调用02/03/04方法正文，也不选择新的裁决方法。运行时只可按稳定引用加载：
 
-- 表达标准：`delivery.standard:research-expression-v1`，当前实现见[`05_投研表达标准.md`](../../../90_compat/methods/05_表达/standards/05_投研表达标准.md)；
-- 报告模板：`delivery.template:05A`—`delivery.template:05E`，当前实现见[`90_compat/methods/05_表达/templates/`](../../../90_compat/methods/05_表达/02_模板)；
-- 表达审计模板：[`05_表达审计模板.yaml`](../../../90_compat/methods/05_表达/templates/05_表达审计模板.yaml)；
-- 独立语义审查模板：[`05_独立语义审查模板.yaml`](../../../90_compat/methods/05_表达/templates/05_独立语义审查模板.yaml)。
+- 表达标准：`delivery.standard:research-expression-v1`，当前实现见[`05_投研表达标准.md`](../../../03_capabilities/05_method_libraries/05_表达/standards/05_投研表达标准.md)；
+- 报告模板：`delivery.template:05A`—`delivery.template:05E`，当前实现见[`03_capabilities/05_method_libraries/05_表达/templates/`](../../../03_capabilities/05_method_libraries/05_表达/02_模板)；
+- 表达审计模板：[`05_表达审计模板.yaml`](../../../03_capabilities/05_method_libraries/05_表达/templates/05_表达审计模板.yaml)；
+- 独立语义审查模板：[`05_独立语义审查模板.yaml`](../../../03_capabilities/05_method_libraries/05_表达/templates/05_独立语义审查模板.yaml)。
 
 本次实际加载的标准与模板版本应记录在本次运行记录中。
 

@@ -113,10 +113,10 @@ export function loadDomainBusinessGraph(): BusinessInstanceGraph | null {
 
 export function loadGraphFromPackage(packageRelPath: string): BusinessInstanceGraph | null {
   const normalized = packageRelPath.replaceAll("\\", "/").replace(/^\.\//, "");
-  if (!normalized.startsWith("90_compat/instances/") || normalized.includes("../")) {
-    throw new Error("样例包路径必须位于 90_compat/instances/ 内");
+  if (!normalized.startsWith("04_execution/03_workspace/") || normalized.includes("../")) {
+    throw new Error("样例包路径必须位于 04_execution/03_workspace/ 内");
   }
-  const root = instancesPath(normalized.slice("90_compat/instances/".length));
+  const root = instancesPath(normalized.slice("04_execution/03_workspace/".length));
   if (!existsSync(root)) return null;
   const files = readdirSync(root).filter((name) => name.includes("本体视图") && name.endsWith(".yaml"));
   for (const file of files) {

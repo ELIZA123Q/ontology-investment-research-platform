@@ -13,37 +13,37 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 RUN_DIR = Path(__file__).resolve().parent
 STAGE_DIRS = (
+    # SSOT: stages/; stage_validators/ must stay hash-identical (see validate_stage_validator_mirrors.py)
+    RUN_DIR / "stages" / "stage_01",
+    RUN_DIR / "stages" / "stage_02",
+    RUN_DIR / "stages" / "stage_03",
+    RUN_DIR / "stages" / "stage_04",
+    RUN_DIR / "stages" / "stage_05",
     RUN_DIR / "stage_validators" / "stage_01",
     RUN_DIR / "stage_validators" / "stage_02",
     RUN_DIR / "stage_validators" / "stage_03",
     RUN_DIR / "stage_validators" / "stage_04",
     RUN_DIR / "stage_validators" / "stage_05",
-    # New paths
-    ROOT / "07_runtime" / "skills" / "ontology",
-    ROOT / "07_runtime" / "skills" / "evidence_evaluation",
-    ROOT / "07_runtime" / "skills" / "financial_data",
-    ROOT / "07_runtime" / "skills" / "model_client",
-    ROOT / "07_runtime" / "agents" / "shared",
-    ROOT / "07_runtime" / "runner",
-    ROOT / "07_runtime" / "schemas",
+    ROOT / "01_semantic" / "03_knowledge_graph" / "validators",
+    ROOT / "05_governance" / "03_校验",
 )
 
-# Stage YAML templates: 90_compat/methods/templates is the sole write/read primary.
+# Stage YAML templates: 02_tasks/04_workflows/deep_research/templates is the sole write/read primary.
 STAGE_YAML_TEMPLATES = {
     "02": (
-        ROOT / "90_compat/methods/templates/02_任务本体视图模板.yaml",
+        ROOT / "02_tasks/04_workflows/deep_research/templates/02_任务本体视图模板.yaml",
     ),
     "03": (
-        ROOT / "90_compat/methods/templates/03_语义域与证据域实例清单模板.yaml",
+        ROOT / "02_tasks/04_workflows/deep_research/templates/03_语义域与证据域实例清单模板.yaml",
     ),
     "04": (
-        ROOT / "90_compat/methods/templates/04_推理审计模板.yaml",
+        ROOT / "02_tasks/04_workflows/deep_research/templates/04_推理审计模板.yaml",
     ),
 }
 
 STAGE_SPEC_SCAN_ROOTS = (
     ROOT / "02_tasks/04_workflows/deep_research",
-    ROOT / "90_compat/methods/templates",
+    ROOT / "02_tasks/04_workflows/deep_research/templates",
 )
 
 
@@ -118,24 +118,24 @@ def require_asset_rel(*relative_candidates: str) -> tuple[Path, str]:
 DICTIONARY_ASSET_CANDIDATES: dict[str, tuple[str, ...]] = {
     "00_投研本体框架概述.md": (
         "01_semantic/02_dictionary/00_投研本体框架概述.md",
-        "90_compat/ontology/01_通用/00_投研本体框架概述.md",
+        "01_semantic/02_dictionary/00_投研本体框架概述.md",
     ),
     "01_语义结构域规范.md": (
         "01_semantic/02_dictionary/01_语义结构域规范.md",
-        "90_compat/ontology/01_通用/01_语义结构域规范.md",
+        "01_semantic/02_dictionary/01_语义结构域规范.md",
     ),
     "02_判断推理域规范.md": (
         "01_semantic/02_dictionary/02_判断推理域规范.md",
-        "90_compat/ontology/01_通用/02_判断推理域规范.md",
+        "01_semantic/02_dictionary/02_判断推理域规范.md",
     ),
     "03_证据域规范.md": (
         "01_semantic/02_dictionary/03_证据域规范.md",
-        "90_compat/ontology/01_通用/03_证据域规范.md",
+        "01_semantic/02_dictionary/03_证据域规范.md",
     ),
 }
 
 # Ontology machine YAML: 01_semantic/01_ontology is write/read truth.
 ONTOLOGY_MODEL_CANDIDATES = (
     "01_semantic/01_ontology/models",
-    "90_compat/ontology/01_通用/models",
+    "01_semantic/01_ontology/models",
 )

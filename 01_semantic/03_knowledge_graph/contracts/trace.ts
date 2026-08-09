@@ -89,5 +89,5 @@ export function defaultExamplePackages(): string[] {
   if (!existsSync(root)) return [];
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join("instances", "02_V3样例", entry.name));
+    .map((entry) => path.join("04_execution", "03_workspace", "02_V3样例", entry.name));
 }

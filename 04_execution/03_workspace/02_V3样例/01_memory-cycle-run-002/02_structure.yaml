@@ -1,0 +1,153 @@
+stage: '02'
+schema_version: 3.0.0
+ontology_refs:
+  - 01_semantic/01_ontology/models/semantic.yaml
+  - 01_semantic/01_ontology/models/state_event.yaml
+  - 01_semantic/01_ontology/models/evidence.yaml
+  - 01_semantic/01_ontology/models/judgment.yaml
+  - 01_semantic/01_ontology/models/scenario.yaml
+  - 01_semantic/01_ontology/models/semiconductor_extension.yaml
+ontology_instances:
+  - {id: IND-MEM, type: Industry, name: 存储芯片}
+  - {id: CHIP-DRAM, type: Chip, name: DRAM, chip_category: memory}
+  - {id: CHIP-NAND, type: Chip, name: NAND, chip_category: memory}
+  - {id: MET-INV-DAYS, type: Metric, name: 库存周转天数, unit: day, time_basis: quarter_end}
+  - {id: MET-CONTRACT-PRICE, type: Metric, name: DRAM合约价格, unit: USD/Gb, time_basis: month}
+  - {id: MET-CAP-WAFER, type: CapacityMetric, name: 存储晶圆名义月产能, unit: kwpm, wafer_size: 12-inch, time_basis: month, capacity_basis: nameplate, process_or_product_scope: DRAM与NAND存储晶圆}
+  - {id: SCOPE-MEM-GLOBAL-2026H2, type: ResearchScope, label: 全球存储芯片2026H2, dimensions: {industry: IND-MEM, products: [CHIP-DRAM, CHIP-NAND], time: 2026H2}}
+  - {id: SV-INV, type: StateVariable, name: 存储芯片渠道库存, category: inventory_cycle, definition: 全球存储芯片渠道库存水平及其同口径变化, variable_kind: quantitative, anchors: [Industry, Chip], metric_ref: MET-INV-DAYS, scope_ref: SCOPE-MEM-GLOBAL-2026H2}
+  - {id: SV-PRICE, type: StateVariable, name: DRAM合约价格状态, category: price_cycle, definition: DRAM合约价格在连续可比口径下的状态与方向, variable_kind: quantitative, anchors: [Chip], metric_ref: MET-CONTRACT-PRICE, scope_ref: SCOPE-MEM-GLOBAL-2026H2}
+  - {id: PX-CONTRACT, type: ProxyIndicator, name: DRAM合约价格代理, target_ref: SV-INV, proxyLogic: 用合约价与现货价相对强弱间接观察库存周期位置, expectedTimeLag: 价格企稳通常领先库存确认0-1个季度, validConditions: [价格规格与区域口径连续可比, 同步存在库存或出货旁证], invalidConditions: [供给停产或渠道投机主导价格, 合约与现货方向冲突未解释], confidenceDiscount: 相对直接库存证据至少下调一档, cannotReplace: [厂商库存天数, 渠道库存审计], requiredDisclosure: 必须披露价格代理及其滞后，不能写成直接确认库存位置}
+ontology_relations:
+  - {id: REL-MEM-01, type: belongsTo, source_ref: CHIP-DRAM, target_ref: IND-MEM}
+  - {id: REL-MEM-02, type: belongsTo, source_ref: CHIP-NAND, target_ref: IND-MEM}
+  - {id: REL-MEM-03, type: stateVariableForObject, source_ref: SV-INV, target_ref: IND-MEM}
+  - {id: REL-MEM-04, type: stateVariableForObject, source_ref: SV-PRICE, target_ref: CHIP-DRAM}
+questions:
+  - {question_id: Q-01, question: 库存是否连续下降且口径可比？, scope_ref: SCOPE-MEM-GLOBAL-2026H2, failure_route: downgrade}
+  - {question_id: Q-02, question: 库存下降是否伴随价格企稳而非仅由供给收缩造成？, scope_ref: SCOPE-MEM-GLOBAL-2026H2, failure_route: competing_explanation}
+  - {question_id: Q-03, question: 库存下降中需求修复贡献是否可确认？, scope_ref: SCOPE-MEM-GLOBAL-2026H2, failure_route: stop}
+judgment_units:
+  - {judgment_unit_id: JU-01, question_ref: Q-01, statement: 全球存储芯片渠道库存连续下降, judgment_type: state_measurement, scope_ref: SCOPE-MEM-GLOBAL-2026H2, priority: critical, evidence_requirement_refs: [ER-01, ER-02]}
+  - {judgment_unit_id: JU-02, question_ref: Q-02, statement: 存储周期具备从去库后段向早期修复切换的条件, judgment_type: cycle_phase, scope_ref: SCOPE-MEM-GLOBAL-2026H2, priority: critical, evidence_requirement_refs: [ER-01, ER-03, ER-04, ER-05]}
+  - {judgment_unit_id: JU-03, question_ref: Q-03, statement: 库存下降中的需求修复贡献可被确认, judgment_type: causal_attribution, scope_ref: SCOPE-MEM-GLOBAL-2026H2, priority: important, evidence_requirement_refs: [ER-04, ER-06]}
+competing_explanations:
+  - {explanation_id: CE-01, statement: 库存下降主要来自供给收缩而非需求修复, discriminating_evidence_requirements: [ER-03, ER-04, ER-06]}
+  - {explanation_id: CE-02, statement: 合约价格跌幅收窄与现货价格继续下行相互冲突，阶段判断不可升级, discriminating_evidence_requirements: [ER-03, ER-05]}
+evidence_requirements:
+  - {evidence_requirement_id: ER-01, target_judgment_unit_refs: [JU-01, JU-02], role: support, requirement: 至少两个独立来源的同口径库存序列}
+  - {evidence_requirement_id: ER-02, target_judgment_unit_refs: [JU-01], role: counter, requirement: 检查库存下降是否由样本变化造成}
+  - {evidence_requirement_id: ER-03, target_judgment_unit_refs: [JU-02], role: support, requirement: 检查合约价格是否企稳或跌幅收窄}
+  - {evidence_requirement_id: ER-04, target_judgment_unit_refs: [JU-02, JU-03], role: counter, requirement: 检查减产与需求恢复的相对贡献}
+  - {evidence_requirement_id: ER-05, target_judgment_unit_refs: [JU-02], role: counter, requirement: 检查现货/渠道价格是否与合约价格同向}
+  - {evidence_requirement_id: ER-06, target_judgment_unit_refs: [JU-03], role: support, requirement: 终端OEM出货或补库的直接序列，口径需与库存主体对齐}
+method_applications:
+  - {application_id: MA-00, method_id: BF-SD-01, method_version: 2.0.0, capability_type: judgment_structure, target_question_refs: [Q-01, Q-02, Q-03], target_judgment_unit_refs: [JU-01, JU-02, JU-03], target_ontology_object_refs: [], status: candidate, precondition_checks: [], input_evidence_refs: [], output_signal_refs: [], output_judgment_refs: [], execution_summary: '', applicability_boundary: 存储周期原子判断结构与跨单元边界, limitations: [], counter_example_refs: [], provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}, alternatives: []}
+  - application_id: MA-01
+    method_id: kb03:A02
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs: [Q-01]
+    target_judgment_unit_refs: [JU-01]
+    target_ontology_object_refs: [SV-INV]
+    status: candidate
+    precondition_checks: []
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ''
+    applicability_boundary: 全球存储行业库存状态
+    limitations: []
+    counter_example_refs: [CE-01]
+    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
+    alternatives: [{method_id: kb03:A01, decision: not_selected, reason: 仅事实确认不足以测量趋势}]
+  - application_id: MA-02
+    method_id: kb03:A03
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs: [Q-02]
+    target_judgment_unit_refs: [JU-02]
+    target_ontology_object_refs: [SV-INV, SV-PRICE, PX-CONTRACT]
+    status: candidate
+    precondition_checks: []
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ''
+    applicability_boundary: 库存与价格的阶段联合判断
+    limitations: []
+    counter_example_refs: [CE-01, CE-02]
+    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
+    alternatives: [{method_id: kb03:A07, decision: rejected, reason: 当前问题不要求市场定价判断}]
+  - application_id: MA-03
+    method_id: kb03:A04
+    method_version: 3.2.0
+    capability_type: evidence
+    target_question_refs: [Q-03]
+    target_judgment_unit_refs: [JU-03]
+    target_ontology_object_refs: [SV-INV, IND-MEM]
+    status: candidate
+    precondition_checks: []
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ''
+    applicability_boundary: 库存下降归因取证
+    limitations: [需要可分解的需求侧直接证据]
+    counter_example_refs: [CE-01]
+    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
+    alternatives: [{method_id: kb03:A02, decision: prerequisite, reason: 先完成库存状态测量}]
+  - application_id: MA-04
+    method_id: kb04:A01
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs: [Q-01]
+    target_judgment_unit_refs: [JU-01]
+    target_ontology_object_refs: [SV-INV]
+    status: candidate
+    precondition_checks: []
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ''
+    applicability_boundary: 库存状态判断
+    limitations: []
+    counter_example_refs: []
+    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
+    alternatives: []
+  - application_id: MA-05
+    method_id: kb04:A03
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs: [Q-02]
+    target_judgment_unit_refs: [JU-02]
+    target_ontology_object_refs: [SV-INV, CHIP-DRAM, PX-CONTRACT]
+    status: candidate
+    precondition_checks: []
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ''
+    applicability_boundary: 库存与价格阶段判断
+    limitations: []
+    counter_example_refs: [CE-01, CE-02]
+    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
+    alternatives: [{method_id: kb04:A02, decision: not_selected, reason: 单一趋势方法不足以回答阶段}]
+  - application_id: MA-08
+    method_id: kb04:A05
+    method_version: 1.0.0
+    capability_type: adjudication
+    target_question_refs: [Q-03]
+    target_judgment_unit_refs: [JU-03]
+    target_ontology_object_refs: [SV-INV, IND-MEM]
+    status: candidate
+    precondition_checks: []
+    input_evidence_refs: []
+    output_signal_refs: []
+    output_judgment_refs: []
+    execution_summary: ''
+    applicability_boundary: 需求贡献归因裁决
+    limitations: [缺少可分解终端需求证据时应输出 indeterminate]
+    counter_example_refs: [CE-01]
+    provenance: {stage: stage_02, source_application_id: null, actor: sample_author, recorded_at: '2026-07-17T09:00:00+08:00'}
+    alternatives: [{method_id: kb04:A03, decision: not_selected, reason: 阶段判断不能代替归因判断}]

@@ -19,9 +19,9 @@
 
 ## 历史记录
 
-- `90_compat/ontology/03_迁移/2x_to_3_ledger.yaml` 保留 `factSupportedByClaim → factDerivedFromClaim` 映射键，作为 2.x→3.0 迁移证据，不得再改回运行时权威。
+- `05_governance/05_元治理本体/迁移账本/2x_to_3_ledger.yaml` 保留 `factSupportedByClaim → factDerivedFromClaim` 映射键，作为 2.x→3.0 迁移证据，不得再改回运行时权威。
 
 ## 不在本次范围
 
-- `90_compat/instances/00_本机运行/exports/` 下本地调试导出（gitignore）可能仍含旧名；正式发布包与回归夹具以新名为准。
+- `04_execution/03_workspace/00_本机运行/exports/` 下本地调试导出（gitignore）可能仍含旧名；正式发布包与回归夹具以新名为准。
 - 策略：`legacy_publish_compatibility: false`——旧字段不得进入正式产物。

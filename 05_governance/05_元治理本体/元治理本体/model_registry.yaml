@@ -11,7 +11,7 @@ model_files:
   - models/action.yaml
   - models/policy.yaml
 instance_graphs:
-  - 90_compat/instances/governance_instance_graph.yaml
+  - 04_execution/03_workspace/governance_instance_graph.yaml
 runtime_contract:
   status_object_type: ChangeProposal
   status_property: status

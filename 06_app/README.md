@@ -1,26 +1,10 @@
 # app — 用户可见产品面
 
-- **status:** shell（权威实现仍在 `07_runtime/app/`）
-- **回答什么：** UI/API 呈现与交互入口地图
-- **不放什么：** 权威业务定义（只消费各域）
-- **当前权威：** `07_runtime/app/`（Next.js App Router）
-- **工作台地址：** http://127.0.0.1:3000
+- **status:** active
+- **唯一实现：** `07_runtime/app/`
+- **地址：** `http://127.0.0.1:3000`
+- **主心智：** 研究主题 + 与 Research Lead 的连续对话 + 动态可信制品画布
 
-## 路由地图（真实页面，不另建四套 *-ui）
+研究员不需要理解五域、阶段编号、Agent、Skill、Tool 或内部 ID。工程管理能力只进入开发者设置，不进入主导航。
 
-| 产品面 | 路由 | 源路径 |
-|--------|------|--------|
-| 首页 | `/` | `07_runtime/app/page.tsx` |
-| 我的研究 | `/runs` | `07_runtime/app/runs/page.tsx` |
-| 新建研究 | `/runs/new` | `07_runtime/app/runs/new/page.tsx` |
-| 研究工作区 | `/runs/[id]` | `07_runtime/app/runs/[id]/page.tsx` |
-| 五阶段页 | `/runs/[id]/stages/[stage]` | `07_runtime/app/runs/[id]/stages/[stage]/page.tsx` |
-| 知识库 | `/knowledge` | `07_runtime/app/90_compat/knowledge/page.tsx` |
-| 体验基线 | `/experience` | `07_runtime/app/experience/page.tsx` |
-| 本体查询 | `/ontology` | `07_runtime/app/90_compat/ontology/page.tsx` |
-
-## 策略
-
-波次4只建立产品面入口声明，不搬迁 Next 工程。物理抽出根级 `06_app/` 需单独变更 tsconfig/Next 根目录，不在本波次。
-
-上位：[`05_governance/01_架构/00_五域系统骨架.md`](../05_governance/01_架构/00_五域系统骨架.md)
+可信组件目录由 `07_runtime/src/capabilities/registry.ts#TRUSTED_COMPONENTS` 管理，Agent 只能组合预批准组件和结构化数据，不能生成任意 HTML/JavaScript。

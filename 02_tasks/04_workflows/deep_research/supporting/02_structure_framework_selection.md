@@ -1,6 +1,6 @@
 # 02_框架裁剪与选用细则
 
-本附录说明：02 阶段怎么选框架、怎么裁剪、什么时候要返工。主规范里的三层原则与返工触发以 [`02_tasks/04_workflows/deep_research/stages/02_structure.md`](02_判断结构与本体视图规范.md) 为准。问题—框架对照见 [`../90_compat/methods/02_判断结构/README.md`](../../../90_compat/methods/02_判断结构/README.md#5-框架选择索引)。
+本附录说明：02 阶段怎么选框架、怎么裁剪、什么时候要返工。主规范里的三层原则与返工触发以 [`02_tasks/04_workflows/deep_research/stages/02_structure.md`](02_判断结构与本体视图规范.md) 为准。问题—框架对照见 [`../03_capabilities/05_method_libraries/02_判断结构/README.md`](../../../03_capabilities/05_method_libraries/02_判断结构/README.md#5-框架选择索引)。
 
 ---
 

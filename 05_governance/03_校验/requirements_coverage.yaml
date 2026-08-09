@@ -6,32 +6,32 @@ rules:
     source_ref: 02_tasks/04_workflows/deep_research/stages/02_structure.md#62a-证据回环与结构修订
     requirement: 证据波次、依赖投影与阶段产物必须绑定同一任务、运行和 02 视图哈希。
     execution_mode: automated
-    validator_refs: [07_runtime/engine/research_loop.py, 05_governance/03_校验/stages/stage_04/validate_04_outputs.py]
-    test_refs: [05_governance/03_校验/tests/test_v3_samples.py]
+    validator_refs: [07_runtime/src/runtime/kernel.ts, 07_runtime/src/runtime/store.ts]
+    test_refs: [07_runtime/tests/kernel.test.ts, 07_runtime/tests/store.test.ts]
   - rule_id: LOOP-ROUTE-001
     source_ref: 02_tasks/04_workflows/deep_research/stages/03_evidence.md#11-返工与回环
     requirement: 既有结构内证据回 03，新变量、路径、竞争假设或范围拆分回完整 02。
     execution_mode: automated
-    validator_refs: [07_runtime/engine/research_loop.py]
-    test_refs: [05_governance/03_校验/tests/test_v3_samples.py]
+    validator_refs: [07_runtime/src/runtime/planner.ts, 07_runtime/src/runtime/node-catalog.ts]
+    test_refs: [07_runtime/tests/planner.test.ts]
   - rule_id: LOOP-STALE-001
     source_ref: 05_governance/01_架构/00_项目定位与边界.md#5-运行骨架细则在阶段规范
     requirement: 对象 stale 只向依赖图可达下游传播，不得按阶段一刀切。
     execution_mode: automated
-    validator_refs: [07_runtime/engine/research_loop.py]
-    test_refs: [05_governance/03_校验/tests/test_v3_samples.py]
+    validator_refs: [07_runtime/src/runtime/kernel.ts, 07_runtime/src/runtime/planner.ts]
+    test_refs: [07_runtime/tests/kernel.test.ts, 07_runtime/tests/planner.test.ts]
   - rule_id: LOOP-ATTEMPT-001
     source_ref: 05_governance/03_校验/README.md#证据闭环与attempt归档
     requirement: 新 attempt 不覆盖旧 attempt，历史归档哈希必须可复核。
     execution_mode: automated
-    validator_refs: [07_runtime/engine/research_loop.py, 05_governance/03_校验/validate_run.py]
-    test_refs: [05_governance/03_校验/tests/test_v3_samples.py]
+    validator_refs: [07_runtime/src/runtime/store.ts, 07_runtime/src/runtime/kernel.ts]
+    test_refs: [07_runtime/tests/store.test.ts, 07_runtime/tests/kernel.test.ts]
   - rule_id: LOOP-CONVERGENCE-001
     source_ref: 05_governance/02_合同/public_contract.yaml#iteration_semantics
-    requirement: 收敛由结构触发、关键 stale、attempt 哈希、冲突和关键判断变化派生，不使用循环次数上限。
+    requirement: 运行从关键 checkpoint 恢复；未完成节点由依赖状态、停止条件与 worker lease 决定，不使用固定阶段循环次数上限。
     execution_mode: automated
-    validator_refs: [07_runtime/engine/research_loop.py, 05_governance/03_校验/validate_run.py]
-    test_refs: [05_governance/03_校验/tests/test_v3_samples.py]
+    validator_refs: [07_runtime/src/runtime/kernel.ts, 07_runtime/src/runtime/store.ts, 07_runtime/src/worker.ts]
+    test_refs: [07_runtime/tests/kernel.test.ts, 07_runtime/tests/store.test.ts]
   - rule_id: REASONING-REVISION-001
     source_ref: 02_tasks/04_workflows/deep_research/stages/04_judgment.md#7-判断简报与-05-交接
     requirement: 推理对象修订必须使用 supersedes_trace 和 runtime_revision_operation，保留旧留痕。

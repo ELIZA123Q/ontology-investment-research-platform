@@ -1,13 +1,16 @@
 schema_name: capability_mcp_protocol_registry
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
-source_of_truth: 90_compat/methods/03_取证
-mirrored:
+source_of_truth: 03_capabilities/04_protocols/mcp
+assets:
   - 03_capabilities/04_protocols/mcp/B03_MCP通道注册.md
   - 03_capabilities/04_protocols/mcp/OPS_MCP查询快速参考.md
   - 03_capabilities/04_protocols/mcp/mcp_channels.yaml
   - 03_capabilities/04_protocols/mcp/source_routes.yaml
-runtime_adapter: 07_runtime/skills/financial_data/mcp_registry.ts
+runtime_tool: financial.mcp
+executable_manifest: 07_runtime/src/capabilities/registry.ts
+adapter_status: planned_vnext_2
 notes:
   - MCP 是获取通道，不是来源生产者。
-  - 权威登记过渡期仍可读 90_compat/methods/03_取证；本目录为 Capability 域落点镜像。
+  - 机器权威：mcp_channels.yaml / source_routes.yaml；人类操作卡：B03 / OPS_MCP。
+  - 来源准入 B00–B02 在 01_semantic/04_evidence/，不在本目录。

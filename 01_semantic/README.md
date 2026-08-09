@@ -10,7 +10,7 @@ Agent「理解什么」：Ontology 定义世界 → Dictionary 统一语言 → 
 | **registry** | [`registry.yaml`](./registry.yaml) |
 | **权威怎么查** | [`five_domain_authority.yaml`](../05_governance/01_架构/five_domain_authority.yaml) → 本域 registry → 子域 registry |
 | **write_entry** | `01_semantic/` |
-| **compat_read** | `90_compat/ontology/` 等（见 registry） |
+| **compat_read** | `01_semantic/01_ontology/` 等（见 registry） |
 | **上位** | [`00_五域系统骨架.md`](../05_governance/01_架构/00_五域系统骨架.md) |
 
-子目录：`90_compat/ontology/` · `dictionary/` · `knowledge_graph/` · `evidence/`
+子目录：`01_semantic/01_ontology/` · `dictionary/` · `knowledge_graph/` · `evidence/`

@@ -7,8 +7,8 @@ authority:
   write_entry: 01_semantic/
   read_primary: 01_semantic/**/registry.yaml
   compat_read:
-    - 90_compat/ontology/
-    - 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+    - 01_semantic/01_ontology/
+    - 01_semantic/04_evidence/B00_来源选择与使用边界.md
 
 subdomains:
   ontology:
@@ -26,4 +26,4 @@ subdomains:
 
 notes:
   - 不在本域写研究步骤、阶段门或单次结论。
-  - 本体机器 YAML 权威：01_semantic/01_ontology/；取证正文权威：90_compat/methods/03_取证/。
+  - 本体机器 YAML 权威：01_semantic/01_ontology/；取证正文权威：03_capabilities/05_method_libraries/03_取证/。

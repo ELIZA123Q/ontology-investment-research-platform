@@ -1,7 +1,0 @@
-import { NewRunForm } from "@/app/components/new-run-form";
-export default async function NewRun({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const params = await searchParams;
-  const question = typeof params.question === "string" ? params.question : "";
-  const experienceCaseId = typeof params.experience_case_id === "string" ? params.experience_case_id : "";
-  return <><div className="pagehead"><div><div className="eyebrow">新建研究</div><h1>创建研究问题</h1><p className="muted">先描述真正要判断的变化，再让系统搭建证据与判断结构。</p></div></div><div className="form-shell"><NewRunForm initialQuestion={question} experienceCaseId={experienceCaseId}/><aside className="card form-intro"><div className="eyebrow">开始前</div><h3>一个好问题，决定研究上限</h3><p className="muted">尽量同时包含对象、时间范围和需要判断的变化，避免把预设结论写进问题。</p><ol><li>明确研究对象与边界</li><li>给出可观察的时间范围</li><li>描述需要验证的变化</li></ol></aside></div></>;
-}

@@ -25,7 +25,7 @@ kinds:
     schema_name: formal_research_delivery_manifest
     schema_version: "1.0.0"
     layout: external_delivery
-    validator: 07_runtime/engine/release_set.ts
+    validator: 07_runtime/src/governance/verifiers.ts
     publishable: true
     generation_status: active
     notes: 对外交付；只含 05 正式报告、必要图表/表格、来源索引与简化知识溯源。
@@ -46,7 +46,7 @@ kinds:
     schema_name: portable_research_knowledge_manifest
     schema_version: "1.0.0"
     layout: portable_knowledge
-    validator: 07_runtime/engine/knowledge_package.ts
+    validator: 05_governance/03_校验/validate_semantic_baseline.py
     publishable: true
     notes: 完整正式知识基线；不得包含单次事实、证据、判断或报告。
 
@@ -54,7 +54,7 @@ kinds:
     schema_name: portable_research_knowledge_manifest
     schema_version: "1.0.0"
     layout: portable_knowledge_subset
-    validator: 07_runtime/engine/knowledge_package.ts
+    validator: 05_governance/03_校验/validate_semantic_baseline.py
     publishable: false
     notes: 任务所需知识及依赖闭包；不得包含方法执行结果或研究结果。
 

@@ -1,7 +1,7 @@
 # deep_research stages
 
-本目录是 Deep Research 阶段规范的**唯一权威正文**。
+本目录是 Deep Research 可选模板的历史阶段正文，不是 Runtime 状态机。
 
-- status: active
+- status: template_only
 - source_of_truth: 02_tasks/04_workflows/deep_research/stages/
-- compat: 07_runtime/workflow/stage_specs/（仅 README.compat 桥，无正文副本）
+- execution: `07_runtime/src/runtime/node-catalog.ts`

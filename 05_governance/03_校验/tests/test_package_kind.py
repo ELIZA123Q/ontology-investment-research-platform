@@ -19,7 +19,7 @@ spec.loader.exec_module(package_kind)
 
 class PackageKindTests(unittest.TestCase):
     def test_v3_samples_detected(self) -> None:
-        sample = ROOT / "90_compat/instances/02_V3样例/01_memory-cycle-run-002"
+        sample = ROOT / "04_execution/03_workspace/02_V3样例/01_memory-cycle-run-002"
         self.assertEqual(package_kind.detect_package_kind(sample), package_kind.KIND_V3)
 
     def test_workbench_manifest_wins(self) -> None:

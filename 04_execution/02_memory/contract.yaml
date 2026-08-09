@@ -1,12 +1,12 @@
 schema_name: execution_memory_contract
-schema_version: 1.1.0
-status: migrating
+schema_version: 2.0.0
+status: active
 
 authority:
   answers: 跨任务可保留什么 / 不可把什么当长期真理
   write_entry: 04_execution/02_memory/
   read_primary: 04_execution/02_memory/contract.yaml
-  implementation: deferred
+  implementation: 07_runtime/src/runtime/store.ts#memory_records
 
 scopes:
   - id: user_preferences
@@ -45,5 +45,5 @@ read_rules:
   - Memory 缺失时不得伪造历史偏好或历史结论
 
 notes:
-  - wave5: 契约深化完成；不实现 SQLite/向量库等存储。
+  - SQLite 已实现 MemoryRecord；只有偏好、主题索引和经治理验证的失败模式可写入。
   - 与 Workspace（本次产物）严格分离。

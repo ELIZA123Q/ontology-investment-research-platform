@@ -276,6 +276,21 @@ def _validate_expression_audit(
     if edge_check.get("result") != "pass":
         fail("research_edge_check.result 必须为 pass")
 
+    # Wave C：扩展节若出现则结构校验；历史 formal pack 可不含这些节（compat）。
+    for section in (
+        "report_level_expression_map",
+        "main_judgment_check",
+        "judgment_priority_check",
+        "key_unknown_check",
+        "expression_quality_alignment",
+    ):
+        if section in audit and not isinstance(audit.get(section), dict):
+            fail(f"05 audit.{section} 若存在必须为对象")
+    if "substantive_beyond_generic_research_discipline" in edge_check and not isinstance(
+        edge_check.get("substantive_beyond_generic_research_discipline"), bool
+    ):
+        fail("research_edge_check.substantive_beyond_generic_research_discipline 必须为布尔")
+
     # 研究价值硬门（与 Runtime research_value_review 对齐）：若审计携带该字段则必须 pass。
     research_value = audit.get("research_value_review")
     if isinstance(research_value, dict):

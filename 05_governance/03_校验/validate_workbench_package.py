@@ -20,7 +20,7 @@ from runtime_deterministic_rules import (  # noqa: E402
     REQUIRED_RULES,
     assert_required_deterministic_rules,
 )
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "07_runtime" / "skills" / "ontology"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "01_semantic" / "03_knowledge_graph" / "validators"))
 from ontology_instance_graph import InstanceGraphError, validate_instance_graph  # noqa: E402
 
 REQUIRED_FILES = (

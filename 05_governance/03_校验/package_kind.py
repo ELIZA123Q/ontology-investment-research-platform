@@ -25,9 +25,9 @@ KIND_UNKNOWN = "unknown"
 VALIDATORS = {
     KIND_FORMAL: "05_governance/03_校验/validate_run.py",
     KIND_AUDIT: "05_governance/03_校验/validate_run.py",
-    KIND_DELIVERY: "07_runtime/engine/release_set.ts",
-    KIND_KNOWLEDGE_BASELINE: "07_runtime/engine/knowledge_package.ts",
-    KIND_KNOWLEDGE_TASK: "07_runtime/engine/knowledge_package.ts",
+    KIND_DELIVERY: "07_runtime/src/governance/verifiers.ts",
+    KIND_KNOWLEDGE_BASELINE: "05_governance/03_校验/validate_semantic_baseline.py",
+    KIND_KNOWLEDGE_TASK: "05_governance/03_校验/validate_semantic_baseline.py",
     KIND_V3: "05_governance/03_校验/validate_v3_samples.py",
     KIND_WORKBENCH: "05_governance/03_校验/validate_workbench_package.py",
 }

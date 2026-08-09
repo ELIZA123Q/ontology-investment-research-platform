@@ -169,8 +169,8 @@ FRAMEWORK_OUTPUT_LIST_FIELDS = [
 
 
 WORKSPACE = Path(__file__).resolve().parents[4]
-FRAMEWORK_REGISTRY_PATH = WORKSPACE / "90_compat/methods/02_研究框架" / "registry.yaml"
-SCENARIO_CARD_ROOT = WORKSPACE / "90_compat/methods/02_研究框架" / "行业"
+FRAMEWORK_REGISTRY_PATH = WORKSPACE / "03_capabilities/05_method_libraries/02_研究框架" / "registry.yaml"
+SCENARIO_CARD_ROOT = WORKSPACE / "03_capabilities/05_method_libraries/02_研究框架" / "行业"
 
 
 def _load_registered_framework_assets() -> set[str]:
@@ -211,7 +211,7 @@ def _load_registered_framework_assets() -> set[str]:
 
 def _assert_framework_asset_registered(framework_id: str, label: str, registered: set[str]) -> None:
     if framework_id not in registered:
-        fail(f"{label}: {framework_id} 未在 90_compat/methods/02_研究框架 登记表或场景卡中定义")
+        fail(f"{label}: {framework_id} 未在 03_capabilities/05_method_libraries/02_研究框架 登记表或场景卡中定义")
 
 
 def _ontology_catalog(view: dict[str, object]) -> tuple[dict[str, set[str]], set[str]]:

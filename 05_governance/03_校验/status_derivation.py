@@ -29,8 +29,8 @@ import yaml
 
 
 _ROOT = Path(__file__).resolve().parents[2]
-_JUDGMENT_MODEL_PATH = _ROOT / "90_compat" / "ontology" / "01_通用" / "models" / "judgment.yaml"
-_EVIDENCE_MODEL_PATH = _ROOT / "90_compat" / "ontology" / "01_通用" / "models" / "evidence.yaml"
+_JUDGMENT_MODEL_PATH = _ROOT / "01_semantic" / "01_ontology" / "models" / "judgment.yaml"
+_EVIDENCE_MODEL_PATH = _ROOT / "01_semantic" / "01_ontology" / "models" / "evidence.yaml"
 _THRESHOLD_POLICY_PATH = _ROOT / "05_governance" / "02_合同" / "judgment_threshold_policy.yaml"
 _JUDGMENT_MODEL = yaml.safe_load(_JUDGMENT_MODEL_PATH.read_text(encoding="utf-8"))
 _EVIDENCE_MODEL = yaml.safe_load(_EVIDENCE_MODEL_PATH.read_text(encoding="utf-8"))
@@ -138,7 +138,7 @@ def canonical_path_readiness_status(value: Any) -> str:
 
 def evidence_profile_quality_floor(profile_id: str) -> str:
     """从二级 EvidenceProfile 实例读取质量下限；画像实例是权威源。"""
-    profile_path = _ROOT / "90_compat" / "ontology" / "02_领域" / "semiconductor" / "business_instances.yaml"
+    profile_path = _ROOT / "01_semantic" / "01_ontology" / "domains" / "semiconductor" / "business_instances.yaml"
     document = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
     graph = document.get("business_instance_graph") or {}
     for item in graph.get("objects") or []:

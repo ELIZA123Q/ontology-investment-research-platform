@@ -1,5 +1,5 @@
 schema_name: semantic_evidence_registry
-schema_version: 1.2.0
+schema_version: 2.0.0
 status: active
 
 authority:
@@ -8,16 +8,16 @@ authority:
   read_primary: 01_semantic/04_evidence/registry.yaml
   compat_read:
     - 01_semantic/01_ontology/models/evidence.yaml
-    - 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+    - 01_semantic/04_evidence/B00_来源选择与使用边界.md
     - 02_tasks/04_workflows/deep_research/supporting/
 
 source_of_truth:
   ontology_model: 01_semantic/01_ontology/models/evidence.yaml
   provenance_contract: 02_tasks/04_workflows/deep_research/supporting/03_evidence_provenance_manual.md
-  provenance_contract_compat: 07_runtime/workflow/stage_specs/
-  source_admission: 90_compat/methods/03_取证/B00_来源选择与使用边界.md
+  runtime_verifier: 07_runtime/src/governance/verifiers.ts
+  source_admission: 01_semantic/04_evidence/B00_来源选择与使用边界.md
 
 notes:
   - MCP 是获取通道，不是来源生产者。
-  - 证据语义定义在本体，采集流程定义在 Task/Workflow。
-  - B00–B03 / OPS 正文权威在 90_compat/methods/03_取证/；本目录不保留实体副本。
+  - 证据语义定义在本体，采集动作由 Tool 执行，EvidenceFact 晋级由 Verifier 保证。
+  - B00–B02 正文权威在本目录；B03 / OPS_MCP 权威在 03_capabilities/04_protocols/mcp/。

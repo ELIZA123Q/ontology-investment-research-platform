@@ -1,25 +1,23 @@
 schema_name: app_surface_registry
-schema_version: 1.0.0
-status: shell
+schema_version: 2.0.0
+status: active
 source_of_truth: 07_runtime/app
 workbench_url: http://127.0.0.1:3000
 routes:
   - path: /
     file: 07_runtime/app/page.tsx
-  - path: /runs
-    file: 07_runtime/app/runs/page.tsx
-  - path: /runs/new
-    file: 07_runtime/app/runs/new/page.tsx
-  - path: /runs/[id]
-    file: 07_runtime/app/runs/[id]/page.tsx
-  - path: /runs/[id]/stages/[stage]
-    file: 07_runtime/app/runs/[id]/stages/[stage]/page.tsx
-  - path: /knowledge
-    file: 07_runtime/app/90_compat/knowledge/page.tsx
-  - path: /experience
-    file: 07_runtime/app/experience/page.tsx
-  - path: /ontology
-    file: 07_runtime/app/90_compat/ontology/page.tsx
+  - path: /vnext/conversations
+    file: 07_runtime/app/vnext/conversations/route.ts
+  - path: /vnext/conversations/{id}/messages
+    file: 07_runtime/app/vnext/conversations/[id]/messages/route.ts
+  - path: /vnext/conversations/{id}/events
+    file: 07_runtime/app/vnext/conversations/[id]/events/route.ts
+  - path: /vnext/tasks/{id}/{action}
+    file: 07_runtime/app/vnext/tasks/[id]/[action]/route.ts
+  - path: /vnext/approvals/{id}/decision
+    file: 07_runtime/app/vnext/approvals/[id]/decision/route.ts
+  - path: /vnext/artifacts/{id}
+    file: 07_runtime/app/vnext/artifacts/[id]/route.ts
 notes:
-  - 不建 workspace-ui/task-ui/knowledge-ui/agent-ui 空切片。
-  - UI 权威仍在 07_runtime/app；本目录为产品面登记。
+  - 主界面只有研究主题、连续对话与动态可信画布。
+  - Ontology/Agent/Skill/Tool/Eval 不作为研究员主导航。

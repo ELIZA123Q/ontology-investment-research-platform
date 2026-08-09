@@ -97,19 +97,19 @@ formal_ontology_rules:
     blocking: true
 
 method_assets:
-  kb04:A00: {source_ref: 90_compat/methods/04_裁决/A00_裁决总则.md, capability: adjudication}
-  kb04:A01: {source_ref: 90_compat/methods/04_裁决/A01_状态判断.md, capability: adjudication}
-  kb04:A02: {source_ref: 90_compat/methods/04_裁决/A02_趋势判断.md, capability: adjudication}
-  kb04:A03: {source_ref: 90_compat/methods/04_裁决/A03_阶段判断.md, capability: adjudication}
-  kb04:A04: {source_ref: 90_compat/methods/04_裁决/A04_机制判断.md, capability: adjudication}
-  kb04:A05: {source_ref: 90_compat/methods/04_裁决/A05_归因判断.md, capability: adjudication}
-  kb04:A06: {source_ref: 90_compat/methods/04_裁决/A06_传导判断.md, capability: adjudication}
-  kb04:A07: {source_ref: 90_compat/methods/04_裁决/A07_分化判断.md, capability: adjudication}
-  kb04:A08: {source_ref: 90_compat/methods/04_裁决/A08_影响判断.md, capability: adjudication}
-  kb04:A09: {source_ref: 90_compat/methods/04_裁决/A09_预期差判断.md, capability: adjudication}
-  kb04:A10: {source_ref: 90_compat/methods/04_裁决/A10_投资命题裁决.md, capability: adjudication}
-  kb03:acquisition: {source_ref: 90_compat/methods/03_取证/03_registry.yaml, capability: evidence}
-  kb03:assessment: {source_ref: 90_compat/methods/03_取证/03_registry.yaml, capability: evidence}
+  kb04:A00: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A00_裁决总则.md, capability: adjudication}
+  kb04:A01: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A01_状态判断.md, capability: adjudication}
+  kb04:A02: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A02_趋势判断.md, capability: adjudication}
+  kb04:A03: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A03_阶段判断.md, capability: adjudication}
+  kb04:A04: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A04_机制判断.md, capability: adjudication}
+  kb04:A05: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A05_归因判断.md, capability: adjudication}
+  kb04:A06: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A06_传导判断.md, capability: adjudication}
+  kb04:A07: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A07_分化判断.md, capability: adjudication}
+  kb04:A08: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A08_影响判断.md, capability: adjudication}
+  kb04:A09: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A09_预期差判断.md, capability: adjudication}
+  kb04:A10: {source_ref: 03_capabilities/05_method_libraries/04_裁决/A10_投资命题裁决.md, capability: adjudication}
+  kb03:acquisition: {source_ref: 03_capabilities/05_method_libraries/03_取证/03_registry.yaml, capability: evidence}
+  kb03:assessment: {source_ref: 03_capabilities/05_method_libraries/03_取证/03_registry.yaml, capability: evidence}
 
 governance_rules:
   LOOP-IDENTITY-001: {source_ref: 05_governance/03_校验/requirements_coverage.yaml, business_support_allowed: false}
@@ -129,13 +129,13 @@ governance_rules:
   GOV-SOURCE-ACCESS-001: {source_ref: 02_tasks/04_workflows/deep_research/stages/03_evidence.md, business_support_allowed: false}
   GOV-CLAIM-STRUCTURE-001: {source_ref: 05_governance/02_合同/public_contract.yaml#node_contract, business_support_allowed: false}
   GOV-STAGE-04-READINESS-001: {source_ref: 05_governance/02_合同/public_contract.yaml#method_application_contract, business_support_allowed: false}
-  GOV-ACTION-APPROVAL-001: {source_ref: 07_runtime/engine/runtime_operations.yaml#actions.LinkOntologyObjects, business_support_allowed: false}
+  GOV-ACTION-APPROVAL-001: {source_ref: 05_governance/11_rules/runtime_operations.yaml#actions.LinkOntologyObjects, business_support_allowed: false}
 
 runtime_rules:
-  RT-OPERATION-REGISTRY-001: {source_ref: 07_runtime/engine/runtime_operations.yaml, business_support_allowed: false}
-  RT-METHOD-STATUS-001: {source_ref: 07_runtime/skills/method_selection/method_application.ts, business_support_allowed: false}
-  RT-METHOD-NO-SILENT-DROP-001: {source_ref: 07_runtime/skills/method_selection/method_application.ts, business_support_allowed: false}
-  RT-STAGE-TRANSITION-001: {source_ref: 07_runtime/workflow/stage_transitions.ts, business_support_allowed: false}
+  RT-OPERATION-REGISTRY-001: {source_ref: 05_governance/11_rules/runtime_operations.yaml, business_support_allowed: false}
+  RT-METHOD-STATUS-001: {source_ref: 07_runtime/src/runtime/node-catalog.ts, business_support_allowed: false}
+  RT-METHOD-NO-SILENT-DROP-001: {source_ref: 07_runtime/src/runtime/node-catalog.ts, business_support_allowed: false}
+  RT-TASK-NODE-TRANSITION-001: {source_ref: 07_runtime/src/runtime/kernel.ts, business_support_allowed: false}
 
 retired_rule_ids:
   rule_evaluation_is_explicit:

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 GOVERNANCE_ONTOLOGY_ROOT = ROOT / "05_governance/05_元治理本体"
 META_SCHEMA = GOVERNANCE_ONTOLOGY_ROOT / "meta_schema.yaml"
 GOVERNANCE_MODEL_REGISTRY = GOVERNANCE_ONTOLOGY_ROOT / "model_registry.yaml"
-GOVERNANCE_INSTANCE_GRAPH = GOVERNANCE_ONTOLOGY_ROOT / "90_compat/instances/governance_instance_graph.yaml"
+GOVERNANCE_INSTANCE_GRAPH = GOVERNANCE_ONTOLOGY_ROOT / "instances/governance_instance_graph.yaml"
 FORMAL_MODEL_REGISTRY = ROOT / "01_semantic/01_ontology/model_registry.yaml"
 
 SECTIONS = (

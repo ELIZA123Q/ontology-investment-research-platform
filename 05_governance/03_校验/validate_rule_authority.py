@@ -4,20 +4,21 @@
 from __future__ import annotations
 
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from repo_paths import stage_yaml_template
 
 ROOT = Path(__file__).resolve().parents[2]
 REGISTRY = ROOT / "05_governance/02_合同/rule_authority_registry.yaml"
-OPERATIONS = ROOT / "07_runtime/engine/runtime_operations.yaml"
+OPERATIONS = ROOT / "05_governance/11_rules/runtime_operations.yaml"
 MODEL_FILES = tuple((ROOT / "01_semantic/01_ontology/models").glob("*.yaml"))
-SAMPLE_FILES = tuple((ROOT / "90_compat/instances/02_V3样例").glob("*/04_judgment.yaml"))
+SAMPLE_FILES = tuple((ROOT / "04_execution/03_workspace/02_V3样例").glob("*/04_judgment.yaml"))
 CURRENT_TEMPLATES = (
     stage_yaml_template("02"),
     stage_yaml_template("04"),
@@ -189,7 +190,7 @@ def main() -> int:
     print(
         "RULE_AUTHORITY_PASS: "
         f"formal={len(formal_rule_ids())}, "
-        f"samples={len(SAMPLE_FILES)}; 90_compat/methods/05_governance/runtime uniquely separated."
+        f"samples={len(SAMPLE_FILES)}; 03_capabilities/05_method_libraries/05_governance/runtime uniquely separated."
     )
     return 0
 

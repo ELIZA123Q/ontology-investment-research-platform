@@ -59,8 +59,17 @@ def visible_prose(line: str) -> str:
 def main() -> int:
     failures: list[str] = []
     excluded_parts = {".git", ".next", "node_modules", "__pycache__"}
+    excluded_roots = (
+        ROOT / "02_tasks/04_workflows/deep_research/stages",
+        ROOT / "04_execution/03_workspace",
+    )
     for path in sorted(ROOT.rglob("*.md")):
-        if not path.is_file() or path == GLOSSARY or excluded_parts.intersection(path.parts):
+        if (
+            not path.is_file()
+            or path == GLOSSARY
+            or excluded_parts.intersection(path.parts)
+            or any(path.is_relative_to(root) for root in excluded_roots)
+        ):
             continue
         fence_marker: str | None = None
         for number, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):

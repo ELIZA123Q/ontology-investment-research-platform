@@ -1,6 +1,6 @@
 # 01 附录2：澄清追问写法
 
-对照金标：`90_compat/instances/03_回归/02_memory-cycle-formal-pack/01-存储芯片周期投研需求说明-20260715-1.md`。
+对照金标：`04_execution/03_workspace/03_回归/02_memory-cycle-formal-pack/01-存储芯片周期投研需求说明-20260715-1.md`。
 
 ## 1. 为什么要问
 

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """废弃关系名守卫：禁止旧关系名进入正式产物。
 
-策略来源：``90_compat/ontology/03_迁移/2026-07-20_evidence_relation_rename.md``
-与 ``90_compat/ontology/03_迁移/2x_to_3_ledger.yaml`` 的 retirement_policy
+策略来源：``05_governance/05_元治理本体/迁移账本/2026-07-20_evidence_relation_rename.md``
+与 ``05_governance/05_元治理本体/迁移账本/2x_to_3_ledger.yaml`` 的 retirement_policy
 （``legacy_publish_compatible: false``——旧字段不得进入正式产物）。
 
 只检查 git 跟踪的文件（自动排除被 .gitignore 忽略的本地导出，
-如 ``90_compat/instances/00_本机运行/exports``），并跳过迁移证据目录
-``90_compat/ontology/03_迁移/``（该目录正当保留旧名作为迁移记录）。
+如 ``04_execution/03_workspace/00_本机运行/exports``），并跳过迁移证据目录
+``05_governance/05_元治理本体/迁移账本/``（该目录正当保留旧名作为迁移记录）。
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# 旧名 → 新名，镜像 90_compat/ontology/03_迁移/2026-07-20_evidence_relation_rename.md。
+# 旧名 → 新名，镜像 05_governance/05_元治理本体/迁移账本/2026-07-20_evidence_relation_rename.md。
 DEPRECATED_RELATIONS: dict[str, str] = {
     "factSupportedByClaim": "factDerivedFromClaim",
     "assessmentEvaluatesEvidence": "assessmentEvaluatesFact",
@@ -30,7 +30,7 @@ DEPRECATED_RELATIONS: dict[str, str] = {
 SCANNABLE_SUFFIXES = {".yaml", ".yml", ".csv", ".json", ".ts", ".tsx", ".js", ".py"}
 
 # 正当保留旧名的路径前缀（迁移证据目录）。
-ALLOWED_PREFIXES = ("90_compat/ontology/03_迁移/",)
+ALLOWED_PREFIXES = ("05_governance/05_元治理本体/迁移账本/",)
 
 _TOKEN_RE = re.compile(
     r"(?<![A-Za-z0-9_])(" + "|".join(re.escape(name) for name in DEPRECATED_RELATIONS) + r")(?![A-Za-z0-9_])"

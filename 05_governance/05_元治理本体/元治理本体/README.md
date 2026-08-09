@@ -2,7 +2,7 @@
 
 > **面向开发者，研究员可跳过。** 这里是管理"投研知识体系本身如何变化"的规则库——当需要修改某个研究概念的定义或关系时，在这里发起变更请求，研究员通常不直接操作这里。
 
-本目录是投研本体的治理控制面，采用与 `90_compat/ontology/` 相似的"元模式—模型注册表—模型文件—实例图"组织方式，但不属于投研正式本体。
+本目录是投研本体的治理控制面，采用与 `01_semantic/01_ontology/` 相似的"元模式—模型注册表—模型文件—实例图"组织方式，但不属于投研正式本体。
 
 它借鉴 Palantir Ontology 的四个核心思想：
 
@@ -17,11 +17,11 @@
 - [`meta_schema.yaml`](meta_schema.yaml)：治理本体元模式。
 - [`model_registry.yaml`](model_registry.yaml)：治理模型文件的唯一注册表。
 - [`models/`](models)：共享属性、接口、对象、关系、Action 和规则。
-- [`90_compat/instances/governance_instance_graph.yaml`](90_compat/instances/governance_instance_graph.yaml)：治理控制面的种子对象与关系。
+- [`04_execution/03_workspace/governance_instance_graph.yaml`](04_execution/03_workspace/governance_instance_graph.yaml)：治理控制面的种子对象与关系。
 
 ## 与正式本体的关系
 
-`90_compat/ontology/` 回答“投研世界里有什么、如何关联、什么判断成立”；本目录回答“这些定义由谁负责、如何提出变更、影响谁、经过什么检查与批准、何时成为新基线”。
+`01_semantic/01_ontology/` 回答“投研世界里有什么、如何关联、什么判断成立”；本目录回答“这些定义由谁负责、如何提出变更、影响谁、经过什么检查与批准、何时成为新基线”。
 
 治理对象只能通过稳定资产 ID、本体元素 ID、运行 ID、仓库引用和内容指纹引用业务面。治理对象、治理关系和治理 Action 不得注册到 `01_semantic/01_ontology/model_registry.yaml`，也不得进入投研业务实例图或商业规则求值。
 

@@ -19,7 +19,7 @@ class V3SampleTests(unittest.TestCase):
     def setUp(self) -> None:
         self.contract = validator.load(ROOT / "05_governance/02_合同/public_contract.yaml")
         self.rules = validator.known_rule_ids()
-        self.run_dir = ROOT / "90_compat/instances/02_V3样例/01_memory-cycle-run-002"
+        self.run_dir = ROOT / "04_execution/03_workspace/02_V3样例/01_memory-cycle-run-002"
         self.run = validator.load_run(self.run_dir)
 
     def errors(self, run=None):
@@ -27,7 +27,7 @@ class V3SampleTests(unittest.TestCase):
 
     def test_examples_pass(self) -> None:
         self.assertEqual(self.errors(), [])
-        other = validator.load_run(ROOT / "90_compat/instances/02_V3样例/02_us-controls-localization-run-002")
+        other = validator.load_run(ROOT / "04_execution/03_workspace/02_V3样例/02_us-controls-localization-run-002")
         self.assertEqual(self.errors(other), [])
 
     def test_matched_only_rule_evaluation_is_rejected(self) -> None:

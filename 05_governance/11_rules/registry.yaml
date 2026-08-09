@@ -8,7 +8,7 @@ authority:
   read_primary: 05_governance/02_合同
   compat_read:
     - 05_governance/02_合同/
-    - 90_compat/governance_mirrors/contracts/
+    - 05_governance/02_合同/
 
 source_of_truth:
   contracts: 05_governance/02_合同

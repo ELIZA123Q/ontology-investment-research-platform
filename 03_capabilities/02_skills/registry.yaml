@@ -1,63 +1,23 @@
 schema_name: capability_skills_registry
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
-source_of_truth: 07_runtime/skills
+executable_manifest: 07_runtime/src/capabilities/registry.ts
+progressive_loading: metadata_then_instructions_then_resources
 skills:
-  - skill_id: evidence_evaluation
-    source: 07_runtime/skills/evidence_evaluation
-    mirror: 03_capabilities/02_skills/evidence_90_compat/evaluation/SKILL.md
-    status: migrating
-  - skill_id: expression_audit
-    source: 07_runtime/skills/expression_audit
-    mirror: 03_capabilities/02_skills/expression_audit/SKILL.md
-    status: migrating
-  - skill_id: financial_data
-    source: 07_runtime/skills/financial_data
-    mirror: 03_capabilities/02_skills/financial_data/SKILL.md
-    status: migrating
-  - skill_id: gap_detection
-    source: 07_runtime/skills/gap_detection
-    mirror: 03_capabilities/02_skills/gap_detection/SKILL.md
-    status: migrating
-  - skill_id: method_selection
-    source: 07_runtime/skills/method_selection
-    mirror: 03_capabilities/02_skills/method_selection/SKILL.md
-    status: migrating
-  - skill_id: model_client
-    source: 07_runtime/skills/model_client
-    mirror: 03_capabilities/02_skills/model_client/SKILL.md
-    status: migrating
-  - skill_id: ontology
-    source: 07_runtime/skills/ontology
-    mirror: 03_capabilities/02_skills/ontology/SKILL.md
-    status: migrating
-  - skill_id: replan
-    source: 07_runtime/skills/replan
-    mirror: 03_capabilities/02_skills/replan/SKILL.md
-    status: migrating
-  - skill_id: search
-    source: 07_runtime/skills/search
-    mirror: 03_capabilities/02_skills/search/SKILL.md
-    status: migrating
-  - skill_id: semantic_review
-    source: 07_runtime/skills/semantic_review
-    mirror: 03_capabilities/02_skills/semantic_review/SKILL.md
-    status: migrating
-
-method_body_sources:
-  - capability: judgment_structure
-    source: 90_compat/methods/02_研究框架
-    target_skill: method_selection
-  - capability: evidence
-    source: 90_compat/methods/03_取证
-    target_skill: evidence_evaluation
-  - capability: adjudication
-    source: 90_compat/methods/04_裁决
-    target_skill: semantic_review
-  - capability: expression
-    source: 90_compat/methods/05_表达
-    target_skill: expression_audit
-
-notes:
-  - Skill 实现代码仍在 07_runtime/skills；本域登记归属与 SKILL.md 镜像。
-  - methods 程序性正文暂不物理搬迁，仅登记 target_skill 归属。
+  - skill_id: research-framing
+    purpose: 明确对象、期限、决策、成功标准与必要澄清
+  - skill_id: research-method
+    purpose: 选择研究、证伪与替代方法
+    resources: 03_capabilities/05_method_libraries/02_研究框架
+  - skill_id: evidence-assessment
+    purpose: 评估证据相关性、可靠性、独立性与覆盖度
+    resources: 03_capabilities/05_method_libraries/03_取证
+  - skill_id: hypothesis-analysis
+    purpose: 比较主假设、竞争解释、情景与可证伪信号
+    resources: 03_capabilities/05_method_libraries/04_裁决
+  - skill_id: research-writing
+    purpose: 将已验证证据和判断写成边界清晰的研究制品
+    resources: 03_capabilities/05_method_libraries/05_表达
+rules:
+  - 禁止按固定阶段把每个 Runtime 操作拆成 Skill
+  - 禁止在本目录或 .claude 复制 Skill 正文

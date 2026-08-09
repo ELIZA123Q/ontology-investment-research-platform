@@ -12,7 +12,7 @@ npm --prefix runtime ci
 ```
 
 本机启动前复制 `07_runtime/.env.example` 为 `07_runtime/.env.local`。不要提交 API Key、`.env.local`、
-SQLite 数据库或 `90_compat/instances/00_本机运行` 下的运行导出。
+SQLite 数据库或 `04_execution/03_workspace/00_本机运行` 下的运行导出。
 
 ## AI 上下文文件
 
@@ -23,7 +23,7 @@ SQLite 数据库或 `90_compat/instances/00_本机运行` 下的运行导出。
 | `CLAUDE.md` | Claude Code / Claude Desktop | 主力文件 |
 | `.cursor/rules/03-evidence-sources.mdc` | Cursor | ← CLAUDE.md |
 
-新增/移除 MCP 数据通道时，同步更新上述文件 + `90_compat/methods/03_取证/B03_MCP通道注册.md` + `OPS_MCP查询快速参考.md` + `03_registry.yaml`。
+新增/移除 MCP 数据通道时，同步更新上述文件 + `03_capabilities/04_protocols/mcp/B03_MCP通道注册.md` + `OPS_MCP查询快速参考.md` + `03_registry.yaml`。
 
 ## 必过检查
 
@@ -39,7 +39,7 @@ npm --prefix runtime run build
 
 ```bash
 npm --prefix runtime run lint
-python3 -m pip install ruff && ruff check 05_governance/03_校验 07_runtime/engine
+python3 -m pip install ruff && ruff check 05_governance/03_校验 01_semantic/03_knowledge_graph/validators
 ```
 
 废弃关系名守卫（`validate_deprecated_terms.py`）已挂入 `validate_project.py` 主链路，无需单独再跑。

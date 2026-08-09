@@ -1,5 +1,5 @@
-# MCP protocols
+# MCP protocols（compat 说明）
 
-通道实现与注册入口在本目录 `registry.yaml`（若有）。
+通道实现与注册入口在本目录 [`registry.yaml`](./registry.yaml)。
 
-B03 / OPS **正文权威**在 `90_compat/methods/03_取证/`，此处不保留实体副本。
+B03 / OPS / `mcp_channels.yaml` / `source_routes.yaml` **正文权威即本目录**；不再声称权威在 `05_method_libraries/03_取证`。

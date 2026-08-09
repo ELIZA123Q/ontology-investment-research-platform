@@ -9,7 +9,7 @@
 Governance 域总入口：[`registry.yaml`](registry.yaml)。  
 “权威在哪”先查该索引与各域 `registry.yaml`，旧顶层仅 compat。
 
-**写入策略：** 新增合同/校验/架构入口优先写入现权威目录（`01_架构` `02_合同` `03_校验`）或五域目标壳；旧英文路径（`contracts/` `validation/` `architecture/` `90_compat/evaluation/`）只作 compat 桥接，见 [`01_架构/compat_policy.yaml`](01_架构/compat_policy.yaml)。
+**写入策略：** 新增合同/校验/架构入口优先写入现权威目录（`01_架构` `02_合同` `03_校验`）或五域目标壳；旧英文路径（`contracts/` `validation/` `architecture/` `05_governance/14_evals/`）只作 compat 桥接，见 [`01_架构/compat_policy.yaml`](01_架构/compat_policy.yaml)。
 
 | 编号 | 目录 | 内容 | status |
 |------|------|------|--------|

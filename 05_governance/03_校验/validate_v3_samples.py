@@ -18,7 +18,7 @@ from validate_method_application_contract import validate_stage_applications
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SAMPLE_ROOT = ROOT / "90_compat/instances/02_V3样例"
+SAMPLE_ROOT = ROOT / "04_execution/03_workspace/02_V3样例"
 DEFAULT_RUNS = (SAMPLE_ROOT / "01_memory-cycle-run-002", SAMPLE_ROOT / "02_us-controls-localization-run-002")
 
 
@@ -55,9 +55,9 @@ def _ids(items: list[dict[str, Any]], field: str) -> set[str]:
 
 @lru_cache(maxsize=1)
 def method_catalog_and_routes() -> tuple[dict[str, dict[str, str]], dict[str, Any]]:
-    assets = load(ROOT / "90_compat/methods/00_登记/method_assets.yaml")
-    structure_registry = load(ROOT / "90_compat/methods/02_研究框架/registry.yaml")
-    evidence_registry = load(ROOT / "90_compat/methods/03_取证/03_registry.yaml")
+    assets = load(ROOT / "03_capabilities/05_method_libraries/00_登记/method_assets.yaml")
+    structure_registry = load(ROOT / "03_capabilities/05_method_libraries/02_研究框架/registry.yaml")
+    evidence_registry = load(ROOT / "03_capabilities/05_method_libraries/03_取证/03_registry.yaml")
     routes = load(ROOT / "05_governance/02_合同/judgment_method_routes.yaml")
     groups = assets.get("groups") or {}
     catalog: dict[str, dict[str, str]] = {}

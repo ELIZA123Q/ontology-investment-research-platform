@@ -52,19 +52,26 @@ def validate_repository() -> list[str]:
     evidence_model = load(ROOT / "01_semantic/01_ontology/models/evidence.yaml")
     if "no_direct_evidence_to_judgment" not in (evidence_model.get("rules") or {}):
         errors.append("formal ontology lacks no_direct_evidence_to_judgment")
-    template = load(ROOT / "90_compat/methods/05_表达/templates/05_表达审计模板.yaml")
+    template = load(ROOT / "03_capabilities/05_method_libraries/05_表达/templates/05_表达审计模板.yaml")
     checks = template.get("overall_check") or {}
     for key in ("all_evidence_mapped_to_04_judgments", "all_methods_mapped_to_executed_04_applications"):
         if key not in checks:
             errors.append(f"05 expression audit template missing {key}")
-    runtime_schema = (ROOT / "07_runtime/engine/schemas.ts").read_text(encoding="utf-8")
-    runtime_validator = (ROOT / "07_runtime/engine/reasoning_trace.ts").read_text(encoding="utf-8")
-    for phrase in ("hypotheses", "rule_evaluations", "reasoning_traces", "target_hypothesis_ids"):
-        if phrase not in runtime_schema:
-            errors.append(f"Runtime stage_04 schema missing {phrase}")
-    for phrase in ("非正式本体规则", "EvidenceBasket", "绕过了 Signal/Hypothesis", "完整 ReasoningTrace"):
-        if phrase not in runtime_validator:
-            errors.append(f"Runtime reasoning validator missing invariant: {phrase}")
+    runtime_contracts = (ROOT / "07_runtime/src/contracts.ts").read_text(encoding="utf-8")
+    runtime_store = (ROOT / "07_runtime/src/runtime/store.ts").read_text(encoding="utf-8")
+    runtime_verifiers = (ROOT / "07_runtime/src/governance/verifiers.ts").read_text(encoding="utf-8")
+    node_catalog = (ROOT / "07_runtime/src/runtime/node-catalog.ts").read_text(encoding="utf-8")
+    for phrase in ("SourceReference", "Artifact", "RunEvent", "sourceRefs"):
+        if phrase not in runtime_contracts:
+            errors.append(f"Runtime public contracts missing {phrase}")
+    if "run_events" not in runtime_store:
+        errors.append("Runtime store missing append-only run_events")
+    for phrase in ("verifySourceReference", "verifyReportClaims", "claim-provenance"):
+        if phrase not in runtime_verifiers:
+            errors.append(f"Runtime provenance verifier missing {phrase}")
+    for phrase in ("未经 capture 不得升级为 EvidenceFact", "没有合格 Evidence 时 Judgment 必须降级为暂不可判断"):
+        if phrase not in node_catalog:
+            errors.append(f"Runtime research node invariant missing: {phrase}")
     return errors
 
 

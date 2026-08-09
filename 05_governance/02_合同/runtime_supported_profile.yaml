@@ -23,11 +23,11 @@ runtime_relation_types:
   sourceDocumentUsesProfile:
     source_types: [SourceDocument]
     target_types: [EvidenceProfile]
-    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.RegisterSource
+    source_ref: 05_governance/11_rules/runtime_operations.yaml#actions.RegisterSource
   sourcePublishedBy:
     source_types: [SourceDocument]
     target_types: [Organization, Company]
-    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.RegisterSource
+    source_ref: 05_governance/11_rules/runtime_operations.yaml#actions.RegisterSource
   claimAbout:
     source_types: [EvidenceClaim]
     target_types:
@@ -57,11 +57,11 @@ runtime_relation_types:
       - SemiconductorMaterial
       - ManufacturingFacility
       - ProductionLine
-    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.NormalizeClaim
+    source_ref: 05_governance/11_rules/runtime_operations.yaml#actions.NormalizeClaim
   assessmentEvaluatesFact:
     source_types: [EvidenceAssessment]
     target_types: [EvidenceClaim, EvidenceFact]
-    source_ref: 07_runtime/engine/runtime_operations.yaml#actions.AssessEvidenceForUse
+    source_ref: 05_governance/11_rules/runtime_operations.yaml#actions.AssessEvidenceForUse
   requirementUsesEvidenceProfile:
     source_types: [EvidenceRequirement]
     target_types: [EvidenceProfile]

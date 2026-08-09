@@ -1,220 +1,28 @@
-schema_name: layered_repository_layout
-schema_version: 2.1.0
+schema_name: repository_layout
+schema_version: 2.0.0
 status: active
-skeleton_ref: 05_governance/01_架构/00_五域系统骨架.md
-authority_index: 05_governance/01_架构/five_domain_authority.yaml
-migration_ledger: 05_governance/04_路线图/2026-08-06_五域迁移资产账本.md
-compat_policy: 05_governance/01_架构/compat_policy.yaml
-authority_domains:
-  architecture: 05_governance/01_架构
-  five_domain_index: 05_governance/01_架构/five_domain_authority.yaml
-  semantic: 01_semantic
-  task: 02_tasks
-  capability: 03_capabilities
-  execution: 04_execution
-  governance: 05_governance
-  public_contracts: 05_governance/02_合同
-  validation: 05_governance/03_校验
-  ontology: 90_compat/ontology
-  methods: 90_compat/methods
-  workflow: 02_tasks/04_workflows/deep_research
-  runtime: 07_runtime
-  run_instances: 90_compat/instances
-  delivery: 90_compat/methods/05_表达
-  evaluation: 90_compat/evaluation
-  app_ui: 07_runtime/app
-  app_surface: 06_app
-write_policy:
-  new_edits_go_to: five_domain_write_entries
-  legacy_roots_are: compat_read_only
-aliases:
-  01_semantic/01_ontology: 90_compat/ontology
-  01_semantic/02_dictionary: 01_semantic/01_ontology
-  01_semantic/04_evidence: 90_compat/methods/03_取证
-  02_tasks/04_workflows/deep_research: 07_runtime/workflow/stage_specs
-  03_capabilities/01_agents: 07_runtime/agents
-  03_capabilities/02_skills: 07_runtime/skills
-  03_capabilities/04_protocols/mcp: 90_compat/methods/03_取证
-  04_execution/03_workspace: 90_compat/instances
-  04_execution/04_runtime: 07_runtime
-  05_governance/11_rules: 05_governance/02_合同
-  05_governance/15_verifiers: 05_governance/03_校验
-  05_governance/14_evals: 90_compat/evaluation
-  workflow: 02_tasks/04_workflows/deep_research
-  delivery: 90_compat/methods/05_表达
-  knowledge: 90_compat/methods
-  90_compat/governance_mirrors/contracts: 05_governance/02_合同
-  90_compat/governance_mirrors/validation: 05_governance/03_校验
-  90_compat/governance_mirrors/architecture: 05_governance/01_架构
-  90_compat/governance_mirrors/evaluation: 90_compat/evaluation
-  06_app: 07_runtime/app
-layers:
-  semantic:
-    purpose: 领域世界模型——对象、关系、概念口径、图合同、证据 provenance
-    registry: 01_semantic/registry.yaml
-    target_paths:
-    - 01_semantic/01_ontology
-    - 01_semantic/02_dictionary
-    - 01_semantic/03_knowledge_graph
-    - 01_semantic/04_evidence
-    may_define:
-    - object_types
-    - relation_types
-    - action_types
-    - semantic_constraint_rules
-    - concept_glossary
-    - graph_contracts
-    - evidence_provenance_contracts
-    must_not_define:
-    - research_procedures
-    - stage_gates
-    - prompts
-    - single_run_judgments
-  task:
-    purpose: 场景、标准任务、角色与推荐工作流（含 Deep Research 01—05）
-    registry: 02_tasks/registry.yaml
-    target_paths:
-    - 02_tasks/01_scenarios
-    - 02_tasks/02_definitions
-    - 02_tasks/03_roles
-    - 02_tasks/04_workflows
-    may_define:
-    - scenarios
-    - task_definitions
-    - roles
-    - workflow_specs
-    - stage_inputs
-    - stage_outputs
-    - return_conditions
-    must_not_define:
-    - ontology_meanings
-    - tool_implementations
-    - evaluation_protocols
-  capability:
-    purpose: Agent 组织与可调用能力（Skill / Tool / 协议）
-    registry: 03_capabilities/registry.yaml
-    target_paths:
-    - 03_capabilities/01_agents
-    - 03_capabilities/02_skills
-    - 03_capabilities/03_tools
-    - 03_capabilities/04_protocols
-    may_define:
-    - agent_contracts
-    - skills
-    - tools
-    - mcp_channel_registration
-    - a2a_protocol_boundaries
-    must_not_define:
-    - world_model
-    - single_run_workspace_artifacts
-  execution:
-    purpose: 单次运行的 Context / Memory / Workspace / Runtime
-    registry: 04_execution/registry.yaml
-    target_paths:
-    - 04_execution/01_context
-    - 04_execution/02_memory
-    - 04_execution/03_workspace
-    - 04_execution/04_runtime
-    may_define:
-    - context_assembly
-    - memory_contracts
-    - run_records
-    - job_orchestration
-    - storage
-    must_not_define:
-    - reusable_method_truth
-    - parallel_ontology
-    - parallel_public_contracts
-  governance:
-    purpose: 规则、身份、权限、质量评测与确定性校验
-    registry: 05_governance/11_rules/registry.yaml
-    target_paths:
-    - 05_governance/11_rules
-    - 05_governance/12_identity
-    - 05_governance/13_permissions
-    - 05_governance/14_evals
-    - 05_governance/15_verifiers
-    may_define:
-    - asset_boundaries
-    - public_contracts
-    - status_protocols
-    - validation_rules
-    - eval_protocols
-    - identity_permission_matrices
-    must_not_define:
-    - ontology_meanings
-    - method_content
-    - run_facts
-    - production_answers
-  ontology:
-    purpose: 'COMPAT: 正式本体仍在 90_compat/ontology/；目标迁入 01_semantic/'
-    may_define:
-    - object_types
-    - relation_types
-    - action_types
-    - semantic_constraint_rules
-    must_not_define:
-    - single_run_observations
-    - single_run_judgments
-    - method_procedures
-    - stage_contracts
-    - run_evaluations
-  methods:
-    purpose: 'COMPAT: 方法正文拆入 task/capability；过渡期仍可读 90_compat/methods/'
-    may_define:
-    - method_metadata
-    - applicability
-    - failure_conditions
-    - candidate_routes
-    must_not_define:
-    - single_run_method_selection
-    - single_run_judgments
-  workflow:
-    purpose: 'COMPAT: Deep Research 旧路径 07_runtime/workflow/stage_specs；新增改动写 02_tasks/04_workflows/deep_research'
-    may_define:
-    - stage_inputs
-    - stage_outputs
-    - stage_actions
-    - return_conditions
-    must_not_define:
-    - duplicated_method_content
-    - single_run_results
-  runtime:
-    purpose: 'COMPAT: 编排与引擎仍在 07_runtime/；目标拆入 capabilities + execution'
-    may_define:
-    - execution_state
-    - adapters
-    - orchestration
-    - method_selection
-    must_not_define:
-    - parallel_public_contracts
-    - parallel_ontology
-  instances:
-    purpose: 'COMPAT: 运行产物仍在 90_compat/instances/；目标 04_execution/03_workspace'
-    may_define:
-    - run_records
-    - rule_evaluations
-    - judgments
-    - reasoning_traces
-    must_not_define:
-    - reusable_method_truth
-  delivery:
-    purpose: 'COMPAT: 表达标准仍在 90_compat/methods/05_表达'
-    may_define:
-    - expression_standards
-    - report_templates
-    must_not_define:
-    - new_facts
-    - new_judgments
-  evaluation:
-    purpose: 'COMPAT: 评测仍在 90_compat/evaluation/；目标 05_governance/14_evals'
-    may_define:
-    - test_cases
-    - protocols
-    - harnesses
-    - reports
-    must_not_define:
-    - production_answers
-legacy_note: legacy paths are compat-read-only; new writes must target five-domain
-  authorities and documented aliases. Ask authority location via five_domain_authority.yaml
-  and each domain registry.yaml first.
+authority: 05_governance/01_架构/five_domain_authority.yaml
+runtime_root: 07_runtime
+workbench_url: http://127.0.0.1:3000
+directories:
+  01_semantic: semantic_assets
+  02_tasks: task_assets_and_templates
+  03_capabilities: capability_governance_and_method_resources
+  04_execution: execution_contracts_and_historical_workspace
+  05_governance: rules_permissions_verifiers_evals
+  06_app: product_surface_registry
+  07_runtime: only_executable_app_and_runtime
+single_sources:
+  capability_manifest: 07_runtime/src/capabilities/registry.ts
+  task_node_catalog: 07_runtime/src/runtime/node-catalog.ts
+  planner: 07_runtime/src/runtime/planner.ts
+  contracts: 07_runtime/src/contracts.ts
+  store: 07_runtime/src/runtime/store.ts
+forbidden_directories:
+  - vnext
+  - 90_compat
+  - 07_runtime/agents
+  - 07_runtime/skills
+  - 07_runtime/workflow
+  - 07_runtime/runner
+  - 07_runtime/storage

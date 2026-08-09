@@ -1,7 +1,7 @@
 """Shared Runtime REQUIRED_RULES + deterministic_result assertions.
 
 REQUIRED_RULES 从 rule_authority_registry 派生（blocking + runtime_semantic_execution），
-与 07_runtime/engine/semantic_execution.ts 同源。Validators 断言存在与一致性，不重实现 computeRule。
+冻结样例的确定性规则读取层。vNext 的在线边界由 07_runtime/src/governance/verifiers.ts 执行；本模块只服务历史包回放。
 """
 
 from __future__ import annotations

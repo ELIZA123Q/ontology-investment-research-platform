@@ -7,11 +7,13 @@ import csv
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Iterable
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "01_semantic" / "03_knowledge_graph" / "validators"))
 from ontology_instance_graph import materialize_document
 
 

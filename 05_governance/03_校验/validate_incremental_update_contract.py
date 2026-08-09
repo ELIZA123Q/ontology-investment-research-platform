@@ -55,7 +55,7 @@ def load_run(run_dir: Path) -> dict[str, dict[str, Any]]:
 def main() -> int:
     errors = validate_contract_data(load(CONTRACT_PATH))
     from incremental_update import validate_incremental_update
-    for run_dir in sorted((ROOT / "90_compat/instances/02_V3样例").iterdir()):
+    for run_dir in sorted((ROOT / "04_execution/03_workspace/02_V3样例").iterdir()):
         if run_dir.is_dir():
             errors.extend(f"{run_dir.name}: {error}" for error in validate_incremental_update(load_run(run_dir)))
     if errors:

@@ -1,61 +1,10 @@
 schema_name: repository_compat_policy
-schema_version: 1.1.0
+schema_version: 2.0.0
 status: active
-principles:
-- legacy_paths_remain_readable
-- new_writes_go_to_five_domains_first
-- no_destructive_deletes_in_boundary_rewrite
-- runtime_resolves_primary_then_compat
-- semantic_ontology_mirrors_are_hash_locked_not_parallel_edit
-path_resolution:
-  runtime_module: 07_runtime/lib/asset_path.ts
-  python_module: 05_governance/03_校验/repo_paths.py
-  double_write_guard: 05_governance/03_校验/validate_no_semantic_ontology_double_write.py
-  order: [primary, compat]
-legacy_roots:
-  ontology:
-    mode: compat
-    target: 01_semantic/01_ontology
-    machine_truth: 01_semantic/01_ontology
-    note: prose knowledge primary is 01_semantic/02_dictionary; YAML models write to 90_compat/ontology/
-  methods:
-    mode: compat
-    target: tasks+capabilities
-  runtime:
-    mode: compat
-    target: capabilities+execution+app
-  instances:
-    mode: compat
-    target: 04_execution/03_workspace
-  evaluation:
-    mode: compat
-    target: 05_governance/14_evals
-  workflow:
-    mode: compat
-    target: 02_tasks/04_workflows/deep_research
-  delivery:
-    mode: compat
-    target: 90_compat/methods/05_表达
-  knowledge:
-    mode: compat
-    target: methods + 01_semantic/02_tasks/03_capabilities/execution
-  governance_contracts:
-    mode: compat
-    target: 05_governance/02_合同
-  governance_validation:
-    mode: compat
-    target: 05_governance/03_校验
-  governance_architecture:
-    mode: compat
-    target: 05_governance/01_架构
-  governance_evaluation:
-    mode: compat
-    target: evaluation
-compat_marking_policy:
-  required_file: README.compat.md
-  required_fields:
-  - mode
-  - target_authority
-  - write_policy
-  - migration_ref
-  write_policy_default: deny_new_writes
+policy: no_runtime_compat_tree
+rules:
+  - 历史样例和 eval 可保留旧 schema 用于只读回放
+  - 旧 Runtime、Agent、Skill、Workflow 实现不得保留兼容副本
+  - 所有新执行只进入 07_runtime
+  - 迁移 adapter 必须读取资产权威，不复制资产正文
+validator: 07_runtime/scripts/audit-cutover.ts

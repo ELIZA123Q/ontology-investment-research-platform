@@ -1,55 +1,30 @@
 {
-  "name": "ontology-research-workbench",
+  "name": "investment-research-copilot-vnext",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "WATCHPACK_POLLING=true CHOKIDAR_USEPOLLING=true next dev --webpack -H 127.0.0.1 -p 3000",
-    "dev:singleton": "bash scripts/dev-singleton.sh",
-    "prod:singleton": "bash scripts/prod-singleton.sh",
-    "prod:rebuild": "bash scripts/prod-singleton.sh --rebuild",
-    "worker": "NODE_OPTIONS='--conditions=react-server' tsx scripts/research-worker.ts",
+    "dev": "next dev --webpack -H 127.0.0.1 -p 3000",
     "build": "next build --webpack",
     "start": "next start -H 127.0.0.1 -p 3000",
-    "open": "bash scripts/open-workbench.sh",
+    "start:all": "bash scripts/start-all.sh",
+    "worker": "tsx src/worker.ts",
     "test": "vitest run",
-    "recompute:run-progress": "node --experimental-strip-types scripts/recompute-run-progress.ts",
-    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . --max-warnings 0",
-    "verify:standards": "node --experimental-strip-types scripts/verify_standards.ts",
-    "audit:research-quality": "node --experimental-strip-types scripts/audit-research-quality.ts",
-    "ontology:sync": "node --experimental-strip-types scripts/generate-ontology-vocabulary.ts",
-    "ontology:check": "node --experimental-strip-types scripts/generate-ontology-vocabulary.ts --check",
-    "ontology:impact": "node --import tsx scripts/analyze-ontology-impact.ts --git-base HEAD",
-    "ontology:audit": "node --experimental-strip-types scripts/audit-semantic-single-source.ts"
+    "audit:cutover": "node --import tsx scripts/audit-cutover.ts"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "@xyflow/react": "^12.11.2",
-    "fflate": "^0.8.2",
-    "next": "^16.0.0",
-    "openai": "^6.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-markdown": "^10.0.0",
-    "remark-gfm": "^4.0.0",
-    "server-only": "^0.0.1",
-    "yaml": "^2.8.0",
-    "zod": "^4.0.0"
+    "next": "16.3.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@eslint/js": "^9.0.0",
-    "@types/node": "^24.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitest/coverage-v8": "^4.0.0",
-    "eslint": "^9.0.0",
-    "tsx": "^4.23.1",
-    "typescript": "^5.9.0",
-    "typescript-eslint": "^8.0.0",
-    "vitest": "^4.0.0"
-  },
-  "overrides": {
-    "postcss": "^8.5.10"
+    "@types/node": "24.10.13",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
   }
 }

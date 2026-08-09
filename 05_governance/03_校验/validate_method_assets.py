@@ -11,9 +11,9 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
-ASSET_PATH = ROOT / "90_compat/methods/00_登记/method_assets.yaml"
-STRUCTURE_PATH = ROOT / "90_compat/methods/02_研究框架/registry.yaml"
-EVIDENCE_PATH = ROOT / "90_compat/methods/03_取证/03_registry.yaml"
+ASSET_PATH = ROOT / "03_capabilities/05_method_libraries/00_登记/method_assets.yaml"
+STRUCTURE_PATH = ROOT / "03_capabilities/05_method_libraries/02_研究框架/registry.yaml"
+EVIDENCE_PATH = ROOT / "03_capabilities/05_method_libraries/03_取证/03_registry.yaml"
 ROUTE_PATH = ROOT / "05_governance/02_合同/judgment_method_routes.yaml"
 
 EXPECTED_VERSIONS = {
@@ -100,7 +100,7 @@ def build_method_catalog(
             "method_version": str(evidence_group.get("version", "")),
             "capability_type": "evidence",
             "source_ref": f"{evidence_group.get('registry_ref')}#methods.{local_id}",
-            "file": f"90_compat/methods/03_取证/{item.get('file', '')}",
+            "file": f"03_capabilities/05_method_libraries/03_取证/{item.get('file', '')}",
             **{field: contract.get(field) for field in EXPECTED_REQUIRED_FIELDS},
         })
 
@@ -114,7 +114,7 @@ def build_method_catalog(
             "method_id": method_id,
             "method_version": str(adjudication_group.get("version", "")),
             "capability_type": "adjudication",
-            "source_ref": f"90_compat/methods/00_登记/method_assets.yaml#groups.adjudication.methods.{method_id}",
+            "source_ref": f"03_capabilities/05_method_libraries/00_登记/method_assets.yaml#groups.adjudication.methods.{method_id}",
             "file": item.get("file"),
             **{field: item.get(field) for field in EXPECTED_REQUIRED_FIELDS},
         })

@@ -56,7 +56,7 @@ class RuleAuthorityTests(unittest.TestCase):
     def test_formal_registry_must_match_formal_models(self) -> None:
         registry = copy.deepcopy(self.registry)
         registry["formal_ontology_rules"]["kb04:A01"] = {
-            "source_ref": "90_compat/methods/04_裁决/A01_状态判断.md",
+            "source_ref": "03_capabilities/05_method_libraries/04_裁决/A01_状态判断.md",
             "rule_class": "evidence_constraint",
         }
         errors = self.errors(registry=registry, refs=[])

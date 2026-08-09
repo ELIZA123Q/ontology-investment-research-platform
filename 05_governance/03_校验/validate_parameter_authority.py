@@ -87,7 +87,7 @@ def _validate_domain_semantics(domain_doc: dict, graph: dict, errors: list[str])
         if profile_ref not in evidence_profiles:
             errors.append(f"StateVariable {object_id}.evidence_profile_ref 无法解析: {profile_ref}")
 
-    registry = yaml.safe_load((ROOT / "90_compat/methods/03_取证/03_registry.yaml").read_text(encoding="utf-8")) or {}
+    registry = yaml.safe_load((ROOT / "03_capabilities/05_method_libraries/03_取证/03_registry.yaml").read_text(encoding="utf-8")) or {}
     method_version = str(registry.get("schema_version") or "")
     for item in objects:
         if not isinstance(item, dict):
@@ -150,7 +150,7 @@ _FORBIDDEN_AUTHORITY_PATTERNS: list[tuple[str, str]] = [
 _SCAN_ALLOWLIST_SUFFIXES = {
     "05_governance/03_校验/status_derivation.py",  # 仅从本体规则加载集合
     "05_governance/03_校验/validate_parameter_authority.py",
-    "07_runtime/engine/ontology_instance_graph.py",  # 兼容展开旧 level_requirements
+    "01_semantic/03_knowledge_graph/validators/ontology_instance_graph.py",
 }
 
 
@@ -278,11 +278,11 @@ def main() -> int:
     if not (domain_dir / "business_instances.yaml").is_file():
         errors.append("缺少 01_semantic/01_ontology/domains/semiconductor/business_instances.yaml")
     # 正式样例已迁至 02_V3样例；阶段 03/04 的 business_instance_graph 形态由 validate_v3_samples 覆盖。
-    v3_runs = sorted((ROOT / "90_compat" / "instances" / "02_V3样例").glob("*/run_manifest.yaml"))
+    v3_runs = sorted((ROOT / "04_execution" / "03_workspace" / "02_V3样例").glob("*/run_manifest.yaml"))
     coverage["stage03_manifests"] = len(v3_runs)
     coverage["stage04_audits"] = len(v3_runs)
     if len(v3_runs) < 2:
-        errors.append("90_compat/instances/02_V3样例 至少需要两个 run-002 样例")
+        errors.append("04_execution/03_workspace/02_V3样例 至少需要两个 run-002 样例")
     raw_contract = yaml.safe_load((ROOT / "05_governance/02_合同/public_contract.yaml").read_text(encoding="utf-8"))
     for field in (
         "judgment_types",
@@ -392,9 +392,9 @@ def main() -> int:
                     )
         coverage["authority_matrix"] = len(entries)
 
-    kb03 = yaml.safe_load((ROOT / "90_compat/methods/03_取证" / "03_registry.yaml").read_text(encoding="utf-8")) or {}
+    kb03 = yaml.safe_load((ROOT / "03_capabilities/05_method_libraries/03_取证" / "03_registry.yaml").read_text(encoding="utf-8")) or {}
     if "ontology_authority_refs" not in kb03:
-        errors.append("90_compat/methods/03_取证/03_registry.yaml 缺少 ontology_authority_refs")
+        errors.append("03_capabilities/05_method_libraries/03_取证/03_registry.yaml 缺少 ontology_authority_refs")
     for role, meta in (kb03.get("evidence_roles") or {}).items():
         if not isinstance(meta, dict) or not meta.get("basket_role_ref"):
             errors.append(f"KB03 evidence_roles.{role} 缺少 basket_role_ref")

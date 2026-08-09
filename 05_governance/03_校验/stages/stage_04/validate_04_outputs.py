@@ -168,7 +168,7 @@ REQUIRED_AUDIT_TOP = [
 
 AUDIT_SCHEMA_VERSION = "4.0.0"
 SUPPORTED_AUDIT_SCHEMA_VERSIONS = {AUDIT_SCHEMA_VERSION}
-METHOD_LIBRARY_ROOT = _ROOT / "90_compat/methods/04_裁决"
+METHOD_LIBRARY_ROOT = _ROOT / "03_capabilities/05_method_libraries/04_裁决"
 METHOD_ID_RE = re.compile(r"^A\d{2}$")
 INVESTMENT_INTERPRETATIONS = {
     "fundamental_trend_improving",
@@ -469,13 +469,13 @@ def _snapshot_rows(snapshot_dir: Path) -> tuple[dict[str, str], dict[str, object
 def _load_method_catalog() -> dict[str, Path]:
     catalog: dict[str, Path] = {}
     if not METHOD_LIBRARY_ROOT.is_dir():
-        fail(f"缺少90_compat/methods/04_裁决目录: {METHOD_LIBRARY_ROOT}")
+        fail(f"缺少03_capabilities/05_method_libraries/04_裁决目录: {METHOD_LIBRARY_ROOT}")
     for path in METHOD_LIBRARY_ROOT.glob("A[0-9][0-9]_*.md"):
         method_id = path.name.split("_", 1)[0]
         if METHOD_ID_RE.fullmatch(method_id):
             catalog[method_id] = path
     if not catalog:
-        fail("90_compat/methods/04_裁决未发现任何 A 方法卡")
+        fail("03_capabilities/05_method_libraries/04_裁决未发现任何 A 方法卡")
     return catalog
 
 
@@ -493,7 +493,7 @@ def _validate_method_library_usage(audit: dict[str, object]) -> None:
     try:
         ref_path.resolve().relative_to(METHOD_LIBRARY_ROOT.resolve())
     except ValueError:
-        fail("method_library_usage.library_ref 必须落在90_compat/methods/04_裁决目录内")
+        fail("method_library_usage.library_ref 必须落在03_capabilities/05_method_libraries/04_裁决目录内")
 
     catalog = _load_method_catalog()
     raw_methods = usage.get("methods_used")
@@ -511,7 +511,7 @@ def _validate_method_library_usage(audit: dict[str, object]) -> None:
         fail(str(exc))
     unknown = [item for item in methods_used if local_method_id(item) not in catalog]
     if unknown:
-        fail("method_library_usage.methods_used 未在90_compat/methods/04_裁决注册: " + ", ".join(unknown))
+        fail("method_library_usage.methods_used 未在03_capabilities/05_method_libraries/04_裁决注册: " + ", ".join(unknown))
     methods_set = set(methods_used)
 
     claim_ids = {

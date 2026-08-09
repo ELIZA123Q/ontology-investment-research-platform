@@ -11,10 +11,10 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = {
-    "02": (ROOT / "90_compat/methods/templates/02_任务本体视图模板.yaml", "3.0.0"),
-    "03": (ROOT / "90_compat/methods/templates/03_语义域与证据域实例清单模板.yaml", "3.0.0"),
-    "04": (ROOT / "90_compat/methods/templates/04_推理审计模板.yaml", "5.0.0"),
-    "05": (ROOT / "90_compat/methods/05_表达/templates/05_表达审计模板.yaml", "3.0.0"),
+    "02": (ROOT / "02_tasks/04_workflows/deep_research/templates/02_任务本体视图模板.yaml", "3.0.0"),
+    "03": (ROOT / "02_tasks/04_workflows/deep_research/templates/03_语义域与证据域实例清单模板.yaml", "3.0.0"),
+    "04": (ROOT / "02_tasks/04_workflows/deep_research/templates/04_推理审计模板.yaml", "5.0.0"),
+    "05": (ROOT / "03_capabilities/05_method_libraries/05_表达/templates/05_表达审计模板.yaml", "3.0.0"),
 }
 SPECS = {
     "02": ROOT / "02_tasks/04_workflows/deep_research/stages/02_structure.md",
@@ -77,16 +77,6 @@ def validate_repository() -> list[str]:
             if marker not in text:
                 errors.append(f"stage {stage} spec lacks required boundary marker {marker}")
 
-    runtime_manifest = yaml.safe_load((ROOT / "07_runtime/workflow/templates/run_manifest.template.yaml").read_text(encoding="utf-8"))
-    expected_runtime_versions = {
-        "contract": "1.3.0", "ontology": "3.0.0", "stage_02_view_schema": "3.0.0",
-        "stage_03_schema": "3.0.0", "stage_04_audit_schema": "5.0.0", "stage_05_audit_schema": "3.0.0",
-    }
-    versions = runtime_manifest.get("versions") or {}
-    for field, expected in expected_runtime_versions.items():
-        if str(versions.get(field)) != expected:
-            errors.append(f"runtime manifest {field} must be {expected}")
-
     package_kinds = yaml.safe_load((ROOT / "05_governance/02_合同/package_kinds.yaml").read_text(encoding="utf-8"))
     for kind in (
         "formal_pack", "formal_delivery_pack", "research_audit_pack",
@@ -95,12 +85,6 @@ def validate_repository() -> list[str]:
         if kind not in (package_kinds.get("kinds") or {}):
             errors.append(f"package_kinds.yaml missing kind {kind}")
 
-    contract = yaml.safe_load((ROOT / "05_governance/02_合同/public_contract.yaml").read_text(encoding="utf-8"))
-    required_ma_fields = (contract.get("method_application_contract") or {}).get("required_fields") or []
-    zod_text = (ROOT / "07_runtime/schemas/schemas.ts").read_text(encoding="utf-8")
-    for field in required_ma_fields:
-        if f"{field}:" not in zod_text:
-            errors.append(f"runtime Zod schemas.ts missing MethodApplication field {field}")
     return errors
 
 
@@ -111,7 +95,7 @@ def main() -> int:
             print(f"ERROR: {error}")
         print(f"STAGE_ASSETS_RETURN_REQUIRED: {len(errors)} error(s)")
         return 1
-    print("STAGE_ASSETS_PASS: 02—05 specs/templates use current schemas and structural MethodApplication/EvidenceFact projection")
+    print("STAGE_TEMPLATE_ASSETS_PASS: optional Deep Research templates remain valid research/eval assets")
     return 0
 
 

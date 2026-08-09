@@ -1,10 +1,11 @@
 schema_name: execution_context_registry
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 source_of_truth:
-  assembler: 07_runtime/workflow/context_assembler.ts
-  whitelist: 05_governance/01_架构/runtime_contexts.yaml
-  coverage: 05_governance/03_校验/runtime_asset_coverage.yaml
+  assembler: 07_runtime/src/runtime/kernel.ts
+  contract: 07_runtime/src/contracts.ts#ContextPackage
+  event_projection: context.assembled
 notes:
   - Context 是动态组装数据包，不是 context.md 知识库。
-  - 白名单改动写入 05_governance/01_架构/runtime_contexts.yaml。
+  - ContextPackage 不作为数据库实体持久化。
+  - 每次装配记录引用、版本、选择理由、预算和新鲜度。

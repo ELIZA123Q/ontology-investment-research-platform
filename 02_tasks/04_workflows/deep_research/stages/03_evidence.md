@@ -16,7 +16,7 @@
 
 **常见失败：** 没设证据要求就泛搜；用材料数量代替关键证据；把预测/观点当成已发生事实；静默换口径；在 03 里写方向性结论或替 05 排章节；把十几篇研报原文未压缩直接交 04。
 
-短例见 [`90_compat/instances/02_V3样例/01_memory-cycle-run-002`](../../../90_compat/instances/02_V3样例/01_memory-cycle-run-002) / [`90_compat/instances/02_V3样例/02_us-controls-localization-run-002`](../../../90_compat/instances/02_V3样例/02_us-controls-localization-run-002) 的 03 证据产物。取证方法见 [`90_compat/methods/03_取证`](../../../90_compat/methods/03_取证/README.md)。
+短例见 [`04_execution/03_workspace/02_V3样例/01_memory-cycle-run-002`](../../../04_execution/03_workspace/02_V3样例/01_memory-cycle-run-002) / [`04_execution/03_workspace/02_V3样例/02_us-controls-localization-run-002`](../../../04_execution/03_workspace/02_V3样例/02_us-controls-localization-run-002) 的 03 证据产物。取证方法见 [`03_capabilities/05_method_libraries/03_取证`](../../../03_capabilities/05_method_libraries/03_取证/README.md)。
 
 ---
 
@@ -134,7 +134,7 @@ ER-nn
 
 ### 2.5 来源与材料处理
 
-正式选源规则见知识库 [`B00`](../../../90_compat/methods/03_取证/B00_来源选择与使用边界.md)。03 只负责把本次实际采用的来源与获取过程记清楚：谁生产、描述什么对象与期间、如何取得、是否有权使用、原文在哪、本次能证明什么与不能证明什么。
+正式选源规则见知识库 [`B00`](../../../01_semantic/04_evidence/B00_来源选择与使用边界.md)。03 只负责把本次实际采用的来源与获取过程记清楚：谁生产、描述什么对象与期间、如何取得、是否有权使用、原文在哪、本次能证明什么与不能证明什么。
 
 改用替代来源须说明口径差异及对结论强度的影响。同源或同转述链不得记为独立交叉验证。
 
@@ -228,7 +228,7 @@ ER-nn
 |---|---|
 | 交付物 | 准备 Markdown、语义域与证据域实例清单 YAML（`document_type: cross_domain_runtime_instance_manifest`；含 `reasoning_input`，不含完整推理裁决）、本次证据归档目录（同任务/运行/范围/截止时点） |
 | Schema | 快照 `1.4.0`；实例清单 `3.0.0`；权威在 `business_instance_graph`，CSV 为只读投影 |
-| 证据把握机器字段 | 充分→Q3/Q4，受限→Q2，观察→Q1，不可用→Q0；映射只在 [`03_registry.yaml`](../../../90_compat/methods/03_取证/03_registry.yaml) 与校验器使用 |
+| 证据把握机器字段 | 充分→Q3/Q4，受限→Q2，观察→Q1，不可用→Q0；映射只在 [`03_registry.yaml`](../../../03_capabilities/05_method_libraries/03_取证/03_registry.yaml) 与校验器使用 |
 | 结论强度上限 | 由 `evidence_grade` + 反证归一化 + `path_readiness_status` 经 [`status_derivation.py`](../../../05_governance/03_校验/status_derivation.py) 计算；禁止手工填写 |
 | 证据要求主键 | 继承 02 的 `ER-nn`（及 `CER-nn`）；可另增 `ER-JU-nn` 汇总行但不得替代 `ER-nn`；结束时须有 `EV-*` / `GAP-*` 或阻断策略 |
 | 事实到要求 | `evidence_drafts[].evidence_requirement_ids[]` 必须引用 02 既有 ER；`evidence_requirement_assessments` 逐 ER 记录 `met / partial / missing / blocked` |

@@ -1,7 +1,5 @@
-# 03_capabilities/03_tools
+# Tool 注册
 
-- **回答什么：** 具体执行动作与工具适配（含 MCP 调用封装说明）。
-- **不放什么：** 来源准入原则正文（属 Semantic/evidence）、评测案例。
-- **当前权威资产：** `07_runtime/skills/financial_data/` 等。
-- **status:** migrating
-- **registry:** [`registry.yaml`](./registry.yaml)
+Tool 执行动作，Skill 保存程序性知识。Provider Adapter、Verifier 与 Policy 均不属于 Tool。
+
+唯一可执行注册源：`07_runtime/src/capabilities/registry.ts`。MCP 连接配置继续由 `03_capabilities/04_protocols/mcp/` 治理。
