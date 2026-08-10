@@ -1,0 +1,149 @@
+schema_name: knowledge_learning_contract
+schema_version: 1.1.0
+status: active
+authority:
+  human_readable: 05_control_evaluation/01_架构/03_知识沉淀闭环.md
+  runtime_contract: 06_runtime/src/contracts.ts
+  runtime_implementation: 06_runtime/src/knowledge
+
+principle: >
+  单次研究只产生 Episode 和候选；只有经过来源校验、差异分析、评测、审批和发布的 Revision
+  才能成为下一次研究可读取的正式资产。生产使用观测不等于有效性证明。
+
+scope_kinds: [global, tenant, user]
+scope_rules:
+  global: 公共正式本体、通用能力、公开事实和公共评测。
+  tenant: 租户私有事实、本体扩展、方法、案例和数据映射。
+  user: 个人偏好、主题索引和个人注释；不得覆盖正式语义或治理规则。
+  precedence: [global_base, tenant_overlay, user_preference]
+  cross_scope_promotion: deny_by_default
+
+asset_kinds:
+  evidence_temporal: [temporal_fact, source_profile]
+  semantic: [ontology, dictionary, data_mapping]
+  procedural: [method, rule, prompt, template, workflow, skill]
+  evaluative: [case, eval_case, failure_pattern]
+  experiential: [preference, topic_index]
+
+candidate_operations: [add, modify, split, merge, deprecate, monitor, reject, no_op]
+candidate_statuses:
+  main: [observed, normalized, proposed, evaluating, review_required, approved, released]
+  terminal_or_side: [rejected, superseded, monitor]
+  transitions:
+    observed: [normalized, rejected]
+    normalized: [proposed, rejected]
+    proposed: [evaluating, approved, monitor, rejected]
+    evaluating: [review_required, rejected]
+    review_required: [approved, rejected, monitor]
+    approved: [released, superseded]
+    released: [superseded]
+    monitor: [proposed, rejected]
+
+risk_levels:
+  L0:
+    automatic: true
+    examples: [run_episode, usage_observation, source_snapshot, exact_duplicate, derived_index]
+  L1:
+    automatic: true
+    reversible: true
+    scope_limited: true
+    examples: [preference, topic_index, candidate_cluster]
+  L2:
+    automatic: false
+    requires: [targeted_evaluation, asset_owner_approval]
+    examples: [temporal_fact, source_profile, case, eval_case, template, prompt, method]
+  L3:
+    automatic: false
+    requires: [impact_assessment, regression_replay, multi_role_approval]
+    examples: [ontology, rule, skill, deprecation, cross_scope_promotion]
+
+approval_policies:
+  temporal_or_mapping: [ontology_steward]
+  method_prompt_template: [method_owner]
+  case_or_failure: [governance_owner]
+  ontology: [ontology_steward, runtime_owner, independent_reviewer]
+  skill: [method_owner, runtime_owner, independent_reviewer]
+  other_L3: [governance_owner, runtime_owner, independent_reviewer]
+  reject_is_terminal: true
+
+promotion_thresholds:
+  temporal_fact:
+    provenance: one_verified_primary_or_two_independent_secondary
+    required_fields: [recordedAt, sourceRefs, applicability_scope]
+  ontology:
+    minimum_distinct_tasks: 2
+    alternative: steward_initiated
+    required_checks: [schema, compatibility, impacted_replay]
+  method_prompt_template:
+    minimum_distinct_runs: 3
+    minimum_task_families: 2
+    minimum_score_delta: 0.05
+    maximum_severe_regressions: 0
+  skill:
+    minimum_distinct_runs: 5
+    minimum_task_families: 3
+    minimum_score_delta: 0.05
+    required_contracts: [typed_io, permissions, failure_states, version, cost_budget, latency_budget]
+  eval_case:
+    minimum_source_failures: 1
+    required_checks: [deidentified, replayable, reviewer_approved]
+
+baseline_rules:
+  lock_at_task_creation: true
+  lock_records_as_of: true
+  temporal_interval: valid_from_inclusive_valid_to_exclusive
+  expired_or_future_fact_excluded_from_context: true
+  learning_diff_against_run_lock: true
+  merge_diff_against_current_release: true
+  rebase_required_when_current_changes: true
+  unresolved_conflicts_block_release: true
+  candidate_visible_to_context: false
+  atomic_release_switch: true
+  rollback_creates_new_release: true
+  retain_historical_revisions: true
+
+context_manifest_rules:
+  persistence: append_only_run_event
+  editable_business_entity: false
+  required_fields: [knowledgeLockId, asOf, releaseIds, references, version, selection_reason]
+  released_knowledge_reference_requires_asset_ref: true
+  governed_file_authority_reference_requires_path_and_version: true
+  only_released_lock_members: true
+
+usage_observation_rules:
+  allowed_outcomes: [selected, used, helpful, regression]
+  asset_must_exist_in_task_lock: true
+  duplicate_observation_is_idempotent: true
+  production_observation_proves_causality: false
+
+job_kinds: [mine_assets, evaluate_candidate, publish_release, rebuild_knowledge_index]
+event_types:
+  - knowledge.mining.started
+  - knowledge.mining.completed
+  - knowledge.mining.failed
+  - candidate.created
+  - candidate.observed
+  - candidate.evaluated
+  - candidate.approval_recorded
+  - candidate.rejected
+  - knowledge.release.published
+  - asset.selected
+  - asset.used
+  - asset.helpful
+  - asset.regression
+
+acceptance_invariants:
+  candidate_provenance_complete: 1.0
+  stale_fact_in_current_context: 0
+  unreleased_asset_in_context: 0
+  cross_tenant_leakage: 0
+  severe_release_regressions: 0
+  terminal_run_has_mining_status: true
+
+prohibited:
+  - raw_chain_of_thought
+  - secrets_or_credentials
+  - unauthorized_material
+  - silent_candidate_writeback
+  - user_or_tenant_content_promoted_global_without_governance
+  - vector_or_graph_index_as_source_of_truth

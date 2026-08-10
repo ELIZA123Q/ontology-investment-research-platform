@@ -1,0 +1,229 @@
+schema_name: semiconductor_ontology_extension
+schema_version: 3.0.0
+meta_schema_version: 1.0.0
+status: active
+namespace: semiconductor
+model: domain_extension
+description: 半导体领域的稳定对象、关系、事件枚举和证据约束；业务参数实例位于领域目录，研究方法位于 methods。
+
+object_types:
+  TechnologyRoute:
+    projects_to: Technology
+    metadata: {id: TechnologyRoute, namespace: semiconductor, label_zh: 技术路线, label_en: Technology Route, aliases: [工艺路线, 架构路线], definition: 可跨公司和产品复用、具有明确能力边界与依赖结构的半导体技术路线。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [Chiplet异构集成路线], counter_examples: [某公司本季度研发进展]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 技术路线规范名称。}
+      route_category: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [process_scaling, device_architecture, memory_architecture, packaging, interconnect, compound_semiconductor, photonics, test, system_integration, other], description: 技术路线类别。}
+    constraints: {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  ManufacturingFacility:
+    projects_to: Asset
+    metadata: {id: ManufacturingFacility, namespace: semiconductor, label_zh: 半导体制造设施, label_en: Semiconductor Manufacturing Facility, aliases: [制造基地], definition: 具有独立位置、运营主体、工艺能力和生命周期的半导体制造设施。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [十二英寸晶圆制造基地], counter_examples: [晶圆制造公司法人]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 设施规范名称。}
+      facility_kind: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [wafer_fab, packaging, testing, mask, material, equipment, integrated], description: 设施类型。}
+      region_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: Region, description: 设施所在地区。}
+      lifecycle_stage: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [planned, under_construction, pilot, operating, suspended, retired], description: 设施生命周期阶段。}
+      capacity_scope_summary: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未冻结产能口径简述。, description: 用于研究的设施产能口径简述。}
+    constraints: {unique: [name, region_ref], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  WaferFab:
+    extends: ManufacturingFacility
+    metadata: {id: WaferFab, namespace: semiconductor, label_zh: 晶圆厂, label_en: Wafer Fab, aliases: [晶圆制造设施], definition: 承担晶圆制造并具有可识别晶圆尺寸、工艺能力和有效产能的制造设施。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [十二英寸逻辑晶圆厂], counter_examples: [无独立设施边界的晶圆制造公司]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 晶圆厂规范名称。}
+      wafer_sizes: {type: array, required: true, cardinality: '1..*', value_role: fact, nullable_semantics: forbidden, unit: inch, description: 支持的晶圆尺寸。}
+      process_node_refs: {type: array, required: false, cardinality: '0..*', value_role: fact, nullable_semantics: 空列表表示节点能力尚未冻结。, description: 可稳定支持的制程节点引用。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  ProductionLine:
+    projects_to: Asset
+    metadata: {id: ProductionLine, namespace: semiconductor, label_zh: 半导体产线, label_en: Semiconductor Production Line, aliases: [生产线], definition: 在制造设施内具有独立工艺范围、产品边界和生命周期的生产单元；与制造设施是部分-整体关系，不是设施子类。, model: semantic, version: 3.1.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [十二英寸特色工艺产线], counter_examples: [月度产量读数]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 产线规范名称。}
+      line_kind: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [front_end, wafer_test, packaging, final_test, material, equipment], description: 产线类别。}
+      process_scope: {type: array, required: true, cardinality: '1..*', value_role: fact, nullable_semantics: forbidden, description: 产线覆盖的工艺步骤或能力范围。}
+    constraints: {unique: [], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  SemiconductorEquipment:
+    extends: Product
+    metadata: {id: SemiconductorEquipment, namespace: semiconductor, label_zh: 半导体设备, label_en: Semiconductor Equipment, aliases: [设备], definition: 用于晶圆制造、封装、测试或厂务环节的专用设备产品类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [刻蚀设备], counter_examples: [设备稼动率]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 设备名称。}
+      equipment_category: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [lithography, etch, deposition, implant, thermal, clean, cmp, metrology, inspection, packaging, test, automation, facility, subsystem, other], description: 设备类别。}
+    constraints: {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  SemiconductorMaterial:
+    extends: Material
+    metadata: {id: SemiconductorMaterial, namespace: semiconductor, label_zh: 半导体材料, label_en: Semiconductor Material, aliases: [电子材料], definition: 进入半导体制造或封装工序且规格影响工艺结果的材料类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [光刻胶], counter_examples: [材料价格上涨]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 材料名称。}
+      material_category: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [wafer_substrate, photoresist, mask, gas, wet_chemical, precursor, target, cmp, packaging_substrate, bonding, encapsulation, thermal, consumable, other], description: 材料类别。}
+      composition_axis: {type: string, required: false, cardinality: '0..1', value_role: fact, nullable_semantics: null 表示不适用或尚未冻结。, description: Si、SiC、GaN、InP等组成体系。}
+    constraints: {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  Chip:
+    extends: Product
+    metadata: {id: Chip, namespace: semiconductor, label_zh: 芯片, label_en: Chip, aliases: [集成电路], definition: 完成计算、存储、模拟、功率、传感或控制功能的半导体产品。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [DRAM芯片], counter_examples: [晶圆产能]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 芯片名称。}
+      chip_category: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [logic, memory, analog, power, rf, optoelectronic, sensor, discrete, mixed_signal, other], description: 芯片功能类别。}
+      process_node_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要制程节点。, reference_target: ProcessNode, description: 主要制程节点引用（可选）。}
+      primary_application_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要应用锚点。, reference_target: Application, description: 主要应用锚点（可选）。}
+    constraints: {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  ProcessNode:
+    extends: Technology
+    metadata: {id: ProcessNode, namespace: semiconductor, label_zh: 制程节点, label_en: Process Node, aliases: [工艺节点], definition: 在明确制造技术体系下可稳定识别的制程代际，不等同于单一线宽读数。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [28nm特色工艺节点], counter_examples: [良率达到90%]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 节点名称。}
+      nominal_node_nm: {type: number, required: false, cardinality: '0..1', value_role: fact, nullable_semantics: null 表示节点不是以等效纳米数定义。, unit: nm, description: 名义或等效节点数。}
+      process_family: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 逻辑、存储、功率、模拟等工艺族。}
+    constraints: {unique: [name, process_family], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  CapacityMetric:
+    extends: Metric
+    metadata: {id: CapacityMetric, namespace: semiconductor, label_zh: 产能指标, label_en: Capacity Metric, aliases: [产能], definition: 同时冻结晶圆尺寸、制程或产品、时间和名义/有效口径的产能指标。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [十二英寸晶圆月有效产能], counter_examples: [宣布扩产但无产能口径]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 指标名称。}
+      unit: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 标准产能单位。}
+      time_basis: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 月、季度或年度口径。}
+      wafer_size: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示非晶圆口径。, description: 晶圆尺寸。}
+      capacity_basis: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [nameplate, effective, qualified, available], description: 名义、有效、已认证或可用产能。}
+      process_or_product_scope: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 制程或产品范围。}
+    constraints: {unique: [name, unit, time_basis, capacity_basis, process_or_product_scope], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  YieldMetric:
+    extends: Metric
+    metadata: {id: YieldMetric, namespace: semiconductor, label_zh: 良率指标, label_en: Yield Metric, aliases: [良率], definition: 明确产品、制程、批次层级、时间和合格标准的产出比例指标。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [某制程季度量产良率], counter_examples: [工艺已经成熟]}
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 指标名称。}
+      unit: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 百分比或比例。}
+      time_basis: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 批次、月度或季度口径。}
+      product_scope: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 产品与制程范围。}
+      batch_scope: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [sample, pilot, mass_production, blended], description: 样品、试产、量产或混合批次。}
+    constraints: {unique: [name, time_basis, product_scope, batch_scope], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+
+relation_types:
+  facilityOperatedBy: {subproperty_of: null, subproperty_rationale: 核心尚无设施到运营组织关系，不能错误降格为资产或产品关系。, metadata: {id: facilityOperatedBy, namespace: semiconductor, label_zh: 设施由组织运营, label_en: facility operated by, aliases: [], definition: 制造设施在明确有效期内由目标组织运营。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂由公司运营], counter_examples: [公司生产芯片]}, source_types: [ManufacturingFacility], target_types: [Organization], source_cardinality: '1..1', target_cardinality: '0..*', direction: directed, inverse_of: organizationOperatesFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  organizationOperatesFacility: {subproperty_of: null, subproperty_rationale: facilityOperatedBy的领域逆关系。, metadata: {id: organizationOperatesFacility, namespace: semiconductor, label_zh: 组织运营设施, label_en: organization operates facility, aliases: [], definition: facilityOperatedBy 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [公司运营晶圆厂], counter_examples: [公司拥有股票]}, source_types: [Organization], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '1..1', direction: directed, inverse_of: facilityOperatedBy, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  facilityLocatedIn: {subproperty_of: null, subproperty_rationale: 核心对象范围关系不能替代物理所在地关系。, metadata: {id: facilityLocatedIn, namespace: semiconductor, label_zh: 设施位于地区, label_en: facility located in, aliases: [], definition: 制造设施具有可核验的物理所在地或主要管辖区。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂位于上海], counter_examples: [公司收入来自中国]}, source_types: [ManufacturingFacility], target_types: [Region], source_cardinality: '1..1', target_cardinality: '0..*', direction: directed, inverse_of: regionHostsFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: retain_history}
+  regionHostsFacility: {subproperty_of: null, subproperty_rationale: facilityLocatedIn的领域逆关系。, metadata: {id: regionHostsFacility, namespace: semiconductor, label_zh: 地区承载设施, label_en: region hosts facility, aliases: [], definition: facilityLocatedIn 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [地区承载晶圆厂], counter_examples: [地区属于行业]}, source_types: [Region], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '1..1', direction: directed, inverse_of: facilityLocatedIn, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: retain_history}
+  facilityContainsLine: {subproperty_of: null, subproperty_rationale: 设施组成关系不是核心行业contains关系。, metadata: {id: facilityContainsLine, namespace: semiconductor, label_zh: 设施包含产线, label_en: facility contains line, aliases: [], definition: 制造设施包含目标生产线。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂包含十二英寸线], counter_examples: [公司包含行业]}, source_types: [ManufacturingFacility], target_types: [ProductionLine], source_cardinality: '0..*', target_cardinality: '1..1', direction: directed, inverse_of: linePartOfFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  linePartOfFacility: {subproperty_of: null, subproperty_rationale: facilityContainsLine的领域逆关系。, metadata: {id: linePartOfFacility, namespace: semiconductor, label_zh: 产线属于设施, label_en: line part of facility, aliases: [], definition: facilityContainsLine 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [产线属于晶圆厂], counter_examples: [产品属于行业]}, source_types: [ProductionLine], target_types: [ManufacturingFacility], source_cardinality: '1..1', target_cardinality: '0..*', direction: directed, inverse_of: facilityContainsLine, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  facilitySupportsProcess: {subproperty_of: null, subproperty_rationale: 核心没有设施能力关系。, metadata: {id: facilitySupportsProcess, namespace: semiconductor, label_zh: 设施支持工艺, label_en: facility supports process, aliases: [], definition: 设施具备执行目标工艺步骤的稳定能力。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂支持刻蚀工艺], counter_examples: [本季度刻蚀产量上升]}, source_types: [ManufacturingFacility], target_types: [ProcessStep], source_cardinality: '1..*', target_cardinality: '0..*', direction: directed, inverse_of: processSupportedAtFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  processSupportedAtFacility: {subproperty_of: null, subproperty_rationale: facilitySupportsProcess的领域逆关系。, metadata: {id: processSupportedAtFacility, namespace: semiconductor, label_zh: 工艺由设施支持, label_en: process supported at facility, aliases: [], definition: facilitySupportsProcess 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [刻蚀工艺由晶圆厂支持], counter_examples: [工艺消耗材料]}, source_types: [ProcessStep], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '1..*', direction: directed, inverse_of: facilitySupportsProcess, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  facilityProducesProduct: {subproperty_of: null, subproperty_rationale: ManufacturingFacility不是Company，不能声明为核心produces子关系。, metadata: {id: facilityProducesProduct, namespace: semiconductor, label_zh: 设施生产产品, label_en: facility produces product, aliases: [], definition: 设施在明确工艺和有效期内具备生产目标产品的能力。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂生产DRAM], counter_examples: [公司销售DRAM]}, source_types: [ManufacturingFacility], target_types: [Product], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: productProducedAtFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  productProducedAtFacility: {subproperty_of: null, subproperty_rationale: facilityProducesProduct的领域逆关系。, metadata: {id: productProducedAtFacility, namespace: semiconductor, label_zh: 产品在设施生产, label_en: product produced at facility, aliases: [], definition: facilityProducesProduct 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [DRAM在晶圆厂生产], counter_examples: [产品由公司拥有]}, source_types: [Product], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: facilityProducesProduct, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  facilityUsesEquipment: {subproperty_of: null, subproperty_rationale: 设备使用不等同于公司供应关系。, metadata: {id: facilityUsesEquipment, namespace: semiconductor, label_zh: 设施使用设备, label_en: facility uses equipment, aliases: [设备导入], definition: 设备已进入目标设施的评估、认证或生产使用范围。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂量产使用刻蚀设备], counter_examples: [设备商向公司报价]}, source_types: [ManufacturingFacility], target_types: [SemiconductorEquipment], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: equipmentUsedAtFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {adoption_stage: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [concept, sample, customer_evaluation, qualification, design_win, pilot, mass_production, repeat_purchase, scale_adoption], description: 设备导入或商业化阶段。}}, invalidation_policy: invalidate_downstream}
+  equipmentUsedAtFacility: {subproperty_of: null, subproperty_rationale: facilityUsesEquipment的领域逆关系。, metadata: {id: equipmentUsedAtFacility, namespace: semiconductor, label_zh: 设备在设施使用, label_en: equipment used at facility, aliases: [], definition: facilityUsesEquipment 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [设备在晶圆厂验证], counter_examples: [设备属于产品类别]}, source_types: [SemiconductorEquipment], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: facilityUsesEquipment, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {adoption_stage: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [concept, sample, customer_evaluation, qualification, design_win, pilot, mass_production, repeat_purchase, scale_adoption], description: 设备导入或商业化阶段。}}, invalidation_policy: invalidate_downstream}
+  facilityUsesMaterial: {subproperty_of: null, subproperty_rationale: 设施消耗材料不等同于ProcessStep的核心消耗关系。, metadata: {id: facilityUsesMaterial, namespace: semiconductor, label_zh: 设施使用材料, label_en: facility uses material, aliases: [], definition: 目标材料已经进入设施的验证或生产使用范围。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [晶圆厂量产使用光刻胶], counter_examples: [材料价格上涨]}, source_types: [ManufacturingFacility], target_types: [SemiconductorMaterial], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: materialUsedAtFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {adoption_stage: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [concept, sample, customer_evaluation, qualification, design_win, pilot, mass_production, repeat_purchase, scale_adoption], description: 材料导入或商业化阶段。}}, invalidation_policy: invalidate_downstream}
+  materialUsedAtFacility: {subproperty_of: null, subproperty_rationale: facilityUsesMaterial的领域逆关系。, metadata: {id: materialUsedAtFacility, namespace: semiconductor, label_zh: 材料在设施使用, label_en: material used at facility, aliases: [], definition: facilityUsesMaterial 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [光刻胶在晶圆厂量产使用], counter_examples: [材料由公司生产]}, source_types: [SemiconductorMaterial], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: facilityUsesMaterial, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {adoption_stage: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [concept, sample, customer_evaluation, qualification, design_win, pilot, mass_production, repeat_purchase, scale_adoption], description: 材料导入或商业化阶段。}}, invalidation_policy: invalidate_downstream}
+  facilityUsesTechnologyRoute: {subproperty_of: null, subproperty_rationale: 设施能力采用不等同于核心dependsOn。, metadata: {id: facilityUsesTechnologyRoute, namespace: semiconductor, label_zh: 设施采用技术路线, label_en: facility uses technology route, aliases: [], definition: 设施具备目标技术路线所要求的制造能力。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [设施采用先进封装路线], counter_examples: [路线成熟度提升]}, source_types: [ManufacturingFacility], target_types: [TechnologyRoute], source_cardinality: '1..*', target_cardinality: '0..*', direction: directed, inverse_of: technologyRouteUsedAtFacility, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  technologyRouteUsedAtFacility: {subproperty_of: null, subproperty_rationale: facilityUsesTechnologyRoute的领域逆关系。, metadata: {id: technologyRouteUsedAtFacility, namespace: semiconductor, label_zh: 技术路线在设施采用, label_en: technology route used at facility, aliases: [], definition: facilityUsesTechnologyRoute 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [先进封装路线在设施采用], counter_examples: [路线依赖材料]}, source_types: [TechnologyRoute], target_types: [ManufacturingFacility], source_cardinality: '0..*', target_cardinality: '1..*', direction: directed, inverse_of: facilityUsesTechnologyRoute, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  technologyRouteDependsOn: {subproperty_of: dependsOn, subproperty_rationale: TechnologyRoute投影为Technology，目标Product/Material/TechnologyRoute均兼容核心dependsOn。, metadata: {id: technologyRouteDependsOn, namespace: semiconductor, label_zh: 技术路线依赖对象, label_en: technology route depends on, aliases: [], definition: 技术路线结构性依赖目标产品、材料或其他技术路线。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [先进封装依赖封装基板], counter_examples: [基板短期涨价]}, source_types: [TechnologyRoute], target_types: [Product, Material, TechnologyRoute], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: dependedOnByTechnologyRoute, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  dependedOnByTechnologyRoute: {subproperty_of: dependedOnBy, subproperty_rationale: technologyRouteDependsOn的领域逆关系且端点投影兼容核心dependedOnBy。, metadata: {id: dependedOnByTechnologyRoute, namespace: semiconductor, label_zh: 对象被技术路线依赖, label_en: depended on by technology route, aliases: [], definition: technologyRouteDependsOn 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [封装基板被先进封装依赖], counter_examples: [材料在设施使用]}, source_types: [Product, Material, TechnologyRoute], target_types: [TechnologyRoute], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: technologyRouteDependsOn, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {}, invalidation_policy: invalidate_downstream}
+  technologyRouteSubstitutes: {subproperty_of: competesWith, subproperty_rationale: TechnologyRoute投影为Technology，替代关系是竞争关系的方向化子关系。, metadata: {id: technologyRouteSubstitutes, namespace: semiconductor, label_zh: 技术路线可替代, label_en: technology route substitutes, aliases: [], definition: 一条技术路线在明确性能、成本和应用范围内可替代另一条路线。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [路线A在功率器件范围替代路线B], counter_examples: [两条路线同时增长]}, source_types: [TechnologyRoute], target_types: [TechnologyRoute], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: technologyRouteSubstitutedBy, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {substitution_scope: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 可替代的应用、性能和成本边界。}}, invalidation_policy: invalidate_downstream}
+  technologyRouteSubstitutedBy: {subproperty_of: competesWith, subproperty_rationale: technologyRouteSubstitutes的方向逆关系且端点投影兼容核心competesWith。, metadata: {id: technologyRouteSubstitutedBy, namespace: semiconductor, label_zh: 技术路线被替代, label_en: technology route substituted by, aliases: [], definition: technologyRouteSubstitutes 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [路线B在特定范围被路线A替代], counter_examples: [路线B短期份额下降]}, source_types: [TechnologyRoute], target_types: [TechnologyRoute], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: technologyRouteSubstitutes, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {substitution_scope: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 被替代的应用、性能和成本边界。}}, invalidation_policy: invalidate_downstream}
+  companyExposedToApplication: {subproperty_of: null, subproperty_rationale: 核心usedInApplication仅适用于产品、材料和技术，公司暴露需要独立语义。, metadata: {id: companyExposedToApplication, namespace: semiconductor, label_zh: 公司暴露于应用, label_en: company exposed to application, aliases: [], definition: 公司经营长期受目标下游应用需求影响。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [存储公司暴露于数据中心需求], counter_examples: [单季客户订单增加]}, source_types: [Company], target_types: [Application], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: applicationExposesCompany, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {exposure_basis: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 收入、产能、客户或产品结构等暴露依据。}}, invalidation_policy: invalidate_downstream}
+  applicationExposesCompany: {subproperty_of: null, subproperty_rationale: companyExposedToApplication的领域逆关系。, metadata: {id: applicationExposesCompany, namespace: semiconductor, label_zh: 应用影响公司, label_en: application exposes company, aliases: [], definition: companyExposedToApplication 的逆关系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [数据中心需求影响存储公司], counter_examples: [应用使用芯片]}, source_types: [Application], target_types: [Company], source_cardinality: '0..*', target_cardinality: '0..*', direction: directed, inverse_of: companyExposedToApplication, symmetric: false, transitive: false, evidence_required: true, temporal: true, attributes: {exposure_basis: {type: string, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, description: 暴露依据。}}, invalidation_policy: invalidate_downstream}
+
+event_taxonomy:
+  extends_object: Event
+  extends_attribute: event_type
+  allowed_extensions: [capacity_expansion, production_start, qualification_start, qualification_pass, qualification_fail, export_restriction, sanction, supply_disruption, price_regime_shift, inventory_cycle_turn, technology_node_transition, localization_share_shift, equipment_adoption_stage_change, material_shortage, policy_incentive, merger_acquisition, fab_utilization_shift, yield_excursion]
+  event_type_taxonomy:
+    capacity_expansion: 扩产
+    production_start: 投产
+    qualification_start: 启动认证
+    qualification_pass: 通过认证
+    qualification_fail: 认证失败
+    export_restriction: 出口限制
+    sanction: 制裁
+    supply_disruption: 供应中断
+    price_regime_shift: 价格机制切换
+    inventory_cycle_turn: 库存周期转折
+    technology_node_transition: 制程切换
+    localization_share_shift: 国产化份额变化
+    equipment_adoption_stage_change: 设备导入阶段变化
+    material_shortage: 材料短缺
+    policy_incentive: 政策激励
+    merger_acquisition: 并购
+    fab_utilization_shift: 稼动率变化
+    yield_excursion: 良率异常
+
+domain_guides:
+  evidence_quality_dimensions:
+    source_authority: {levels: [low, medium, high]}
+    traceability: {levels: [low, medium, high]}
+    independence: {levels: [low, medium, high]}
+    time_relevance: {levels: [low, medium, high]}
+    scope_match: {levels: [low, medium, high]}
+    statement_nature: {levels: [factual, interpretive, forward_looking]}
+  commercialization_stages:
+    - {id: concept, name: 概念, order: 1}
+    - {id: sample, name: 样品, order: 2}
+    - {id: customer_evaluation, name: 客户评估, order: 3}
+    - {id: qualification, name: 认证, order: 4}
+    - {id: design_win, name: 定点, order: 5}
+    - {id: pilot, name: 试产, order: 6}
+    - {id: mass_production, name: 量产, order: 7}
+    - {id: repeat_purchase, name: 复购, order: 8}
+    - {id: scale_adoption, name: 规模采用, order: 9}
+
+evidence_constraints:
+  semiconductor_proxy_disclosure:
+    metadata: {id: semiconductor_proxy_disclosure, namespace: semiconductor, label_zh: 半导体代理指标披露, label_en: Semiconductor proxy disclosure, aliases: [], definition: 订单、招标、价格、交期或贸易流等代理指标必须披露时间滞后、范围边界和不可替代的直接证据。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [订单领先收入两个季度并披露], counter_examples: [订单上升直接等于收入上升]}
+    rule_class: evidence_constraint
+    applies_to: [EvidenceAssessment]
+    input_types: [EvidenceFact, EvidenceAssessment]
+    output_types: [EvidenceAssessment]
+    preconditions: [proxy_used]
+    condition: proxy_lag_scope_and_non_substitution_disclosed
+    counter_conditions: [proxy_treated_as_direct_evidence]
+    failure_result: downgrade_or_reject
+    priority: blocking
+    test_case_role: executable
+    test_cases:
+      - {id: SEMI-PROXY-P, input: {proxy_lag_scope_and_non_substitution_disclosed: true, proxy_treated_as_direct_evidence: false}, expected: pass}
+      - {id: SEMI-PROXY-N, input: {proxy_treated_as_direct_evidence: true, proxy_lag_scope_and_non_substitution_disclosed: false}, expected: reject}
+  semiconductor_qualification_stage_alignment:
+    metadata: {id: semiconductor_qualification_stage_alignment, namespace: semiconductor, label_zh: 认证商业化阶段对齐, label_en: Semiconductor qualification stage alignment, aliases: [], definition: 送样、评估、认证、定点、试产、量产和复购必须按同一对象与规格分层，低阶段证据不得支持高阶段判断。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [认证通过只支持qualification], counter_examples: [送样直接写成规模量产]}
+    rule_class: evidence_constraint
+    applies_to: [EvidenceAssessment, Judgment]
+    input_types: [EvidenceFact, EvidenceAssessment]
+    output_types: [EvidenceAssessment]
+    preconditions: [commercialization_claim_present]
+    condition: evidence_stage_gte_claimed_stage and product_spec_and_customer_scope_aligned
+    counter_conditions: [intent_treated_as_order, sample_treated_as_mass_production, qualification_scope_mismatch]
+    failure_result: downgrade_or_block
+    priority: blocking
+    test_case_role: executable
+    test_cases:
+      - {id: SEMI-STAGE-P, input: {evidence_stage_gte_claimed_stage: true, product_spec_and_customer_scope_aligned: true, intent_treated_as_order: false, sample_treated_as_mass_production: false, qualification_scope_mismatch: false}, expected: pass}
+      - {id: SEMI-STAGE-N, input: {sample_treated_as_mass_production: true, evidence_stage_gte_claimed_stage: false, product_spec_and_customer_scope_aligned: false}, expected: reject}
+  semiconductor_capacity_yield_scope_alignment:
+    metadata: {id: semiconductor_capacity_yield_scope_alignment, namespace: semiconductor, label_zh: 产能良率口径对齐, label_en: Semiconductor capacity and yield scope alignment, aliases: [], definition: 产能和良率证据必须同时对齐设施、晶圆尺寸、制程或产品、批次阶段、单位和业务时间。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [同产线同产品量产良率可比], counter_examples: [样品良率外推全厂有效产能]}
+    rule_class: evidence_constraint
+    applies_to: [EvidenceAssessment, Observation]
+    input_types: [EvidenceFact, Observation, CapacityMetric, YieldMetric]
+    output_types: [EvidenceAssessment]
+    preconditions: [capacity_or_yield_claim_present]
+    condition: facility_wafer_process_product_batch_unit_and_time_aligned
+    counter_conditions: [nameplate_as_effective_capacity, sample_yield_as_mass_production_yield, scope_or_unit_mismatch]
+    failure_result: downgrade_or_reject
+    priority: blocking
+    test_case_role: executable
+    test_cases:
+      - {id: SEMI-CAP-YIELD-P, input: {facility_wafer_process_product_batch_unit_and_time_aligned: true, nameplate_as_effective_capacity: false, sample_yield_as_mass_production_yield: false, scope_or_unit_mismatch: false}, expected: pass}
+      - {id: SEMI-CAP-YIELD-N, input: {scope_or_unit_mismatch: true, facility_wafer_process_product_batch_unit_and_time_aligned: false}, expected: reject}

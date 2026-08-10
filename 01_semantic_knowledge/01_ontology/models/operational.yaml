@@ -1,0 +1,109 @@
+schema_name: investment_research_operational_model
+schema_version: 4.0.0
+meta_schema_version: 1.0.0
+status: active
+namespace: core.operational
+model: operational
+description: 研究闭环中具有长期业务身份和生命周期的运营对象；描述一次研究如何裁剪世界、产生交付与监控，不包含证据对象本体或系统审计日志。
+
+object_types:
+  ResearchCase:
+    label_zh: 研究案例
+    label_en: Research Case
+    description: 连接范围、问题、证据、判断、交付和监控的一项长期研究业务身份。
+    primary_key: id
+    title_property: title
+    attributes:
+      title: {type: string, required: true}
+      goal: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [draft, scoped, researching, review_ready, completed, reopened, archived]}
+      conversation_ref: {type: string, required: true}
+      created_by: {type: string, required: true}
+  ResearchScope:
+    metadata: {id: ResearchScope, namespace: core.operational, label_zh: 研究范围, label_en: Research Scope, aliases: [Scope], definition: 某一次研究如何裁剪现实世界：对象、地域、指标与时间边界的可引用集合。, model: operational, version: 4.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-4.0-operational-scope, examples: [中国存储芯片行业2026年], counter_examples: [值得关注]}
+    primary_key: id
+    title_property: label
+    attributes:
+      label: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 范围标签。}
+      object_refs: {type: array, required: false, cardinality: '0..*', value_role: metadata, nullable_semantics: 空列表表示尚未显式绑定对象。, description: 纳入范围的语义对象引用。}
+      region_refs: {type: array, required: false, cardinality: '0..*', value_role: metadata, nullable_semantics: 空列表表示尚未显式绑定地域。, description: 地域边界引用。}
+      metric_refs: {type: array, required: false, cardinality: '0..*', value_role: metadata, nullable_semantics: 空列表表示尚未显式绑定指标。, description: 指标边界引用。}
+      valid_from: {type: datetime, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示未冻结起始时间。, description: 范围有效起始。}
+      valid_to: {type: datetime, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未失效。, description: 范围有效截止。}
+      extra_dimensions: {type: object, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示无附加维度；过渡期承接原 dimensions 自由字段。, description: 尚未结构化的附加范围维度。}
+      revision_reason: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示初始范围或未记录修订原因。, description: 范围修订原因。}
+    constraints: {unique: [label], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  ResearchDeliverable:
+    label_zh: 研究交付物
+    label_en: Research Deliverable
+    description: 由正式判断投影形成并具有审核、发布和替代生命周期的研究制品。
+    primary_key: id
+    title_property: title
+    attributes:
+      title: {type: string, required: true}
+      artifact_ref: {type: string, required: true}
+      report_kind: {type: enum, required: true, allowed_values: [company_research, industry_research, thematic_research, evidence_update, judgment_update]}
+      audience: {type: enum, required: true, allowed_values: [portfolio_manager, investment_committee, research_analyst, client]}
+      depth: {type: enum, required: true, allowed_values: [brief, standard, deep]}
+      report_spec_version: {type: string, required: true}
+      section_keys: {type: array, required: true}
+      lifecycle_status: {type: enum, required: true, allowed_values: [draft, verified, approved, published, superseded]}
+      published_at: {type: datetime, required: false}
+  MonitoringRule:
+    label_zh: 判断监控规则
+    label_en: Monitoring Rule
+    description: 把判断的改判或失效条件转换为可执行的持续观察条件。
+    primary_key: id
+    title_property: condition
+    attributes:
+      judgment_ref: {type: object_ref, required: true, reference_target: Judgment}
+      state_variable_ref: {type: object_ref, required: false, reference_target: StateVariable}
+      condition: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [active, triggered, paused, retired]}
+      last_evaluated_at: {type: datetime, required: false}
+
+relation_types:
+  caseHasScope: {source_types: [ResearchCase], target_types: [ResearchScope], inverse_of: scopeForCase}
+  scopeForCase: {source_types: [ResearchScope], target_types: [ResearchCase], inverse_of: caseHasScope}
+  scopeIncludesObject:
+    metadata: {id: scopeIncludesObject, namespace: core.operational, label_zh: 范围包含对象, label_en: scope includes object, aliases: [研究对象边界], definition: 研究范围显式包含一个可识别的语义对象，且包含关系受范围有效期约束。, model: operational, version: 4.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-4.0-operational-scope, examples: [中国存储行业范围包含样本公司], counter_examples: [研究范围包含一个结论]}
+    source_types: [ResearchScope]
+    target_types: [Organization, Company, Industry, ValueChainSegment, Product, Technology, Region, Metric, Application, Material, ProcessStep, PolicyInstrument, Asset, FinancialInstrument, TradingVenue, Listing]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: objectInScope
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {dimension: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 对象在范围中的维度角色。}}
+    invalidation_policy: invalidate_downstream
+  objectInScope:
+    metadata: {id: objectInScope, namespace: core.operational, label_zh: 对象位于范围, label_en: object in scope, aliases: [纳入研究范围], definition: scopeIncludesObject 的逆关系。, model: operational, version: 4.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-4.0-operational-scope, examples: [样本公司位于公司研究范围], counter_examples: [判断位于范围]}
+    source_types: [Organization, Company, Industry, ValueChainSegment, Product, Technology, Region, Metric, Application, Material, ProcessStep, PolicyInstrument, Asset, FinancialInstrument, TradingVenue, Listing]
+    target_types: [ResearchScope]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: scopeIncludesObject
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {dimension: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 对象在范围中的维度角色。}}
+    invalidation_policy: invalidate_downstream
+  caseAddressesQuestion: {source_types: [ResearchCase], target_types: [ResearchQuestion], inverse_of: questionForCase}
+  questionForCase: {source_types: [ResearchQuestion], target_types: [ResearchCase], inverse_of: caseAddressesQuestion}
+  caseHasJudgmentUnit: {source_types: [ResearchCase], target_types: [JudgmentUnit], inverse_of: judgmentUnitForCase}
+  judgmentUnitForCase: {source_types: [JudgmentUnit], target_types: [ResearchCase], inverse_of: caseHasJudgmentUnit}
+  caseCapturesSnapshot: {source_types: [ResearchCase], target_types: [SourceSnapshot], inverse_of: snapshotCapturedForCase}
+  snapshotCapturedForCase: {source_types: [SourceSnapshot], target_types: [ResearchCase], inverse_of: caseCapturesSnapshot}
+  caseProducesJudgment: {source_types: [ResearchCase], target_types: [Judgment], inverse_of: judgmentForCase}
+  judgmentForCase: {source_types: [Judgment], target_types: [ResearchCase], inverse_of: caseProducesJudgment}
+  caseHasDeliverable: {source_types: [ResearchCase], target_types: [ResearchDeliverable], inverse_of: deliverableForCase}
+  deliverableForCase: {source_types: [ResearchDeliverable], target_types: [ResearchCase], inverse_of: caseHasDeliverable}
+  deliverableIncludesJudgment: {source_types: [ResearchDeliverable], target_types: [Judgment], inverse_of: judgmentIncludedInDeliverable}
+  judgmentIncludedInDeliverable: {source_types: [Judgment], target_types: [ResearchDeliverable], inverse_of: deliverableIncludesJudgment}
+  judgmentHasMonitor: {source_types: [Judgment], target_types: [MonitoringRule], inverse_of: monitorForJudgment}
+  monitorForJudgment: {source_types: [MonitoringRule], target_types: [Judgment], inverse_of: judgmentHasMonitor}

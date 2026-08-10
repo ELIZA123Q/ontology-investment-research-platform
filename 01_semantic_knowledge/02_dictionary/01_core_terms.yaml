@@ -1,0 +1,144 @@
+schema_name: dictionary_core_terms
+schema_version: 1.0.0
+status: active
+description: >
+  标准术语表：把研究员看得懂的叫法对齐到 ontology 正式对象。
+  不重新定义对象；正式定义以 canonical_ref 指向的 ontology 为准。
+
+terms:
+  - term_id: TERM_STATE_VARIABLE
+    preferred_name_zh: 状态变量
+    preferred_name_en: StateVariable
+    canonical_ref: ontology:StateVariable
+    short_definition: 用于描述某一对象可随时间变化、可被观测的业务状态维度。
+    usage_note: 状态变量是稳定变量定义，不等于某一次具体观测值；任务绑定对象/指标/范围后才进入研究实例。
+    example:
+      - DRAM库存水平
+      - 晶圆厂资本开支
+    non_example:
+      - 库存处于高位
+      - 资本开支开始复苏
+
+  - term_id: TERM_OBSERVATION
+    preferred_name_zh: 观测
+    preferred_name_en: Observation
+    canonical_ref: ontology:Observation
+    short_definition: 对某一状态变量在明确时间口径下的一次取值记录。
+    usage_note: 观测必须指向唯一状态变量，并区分业务时间、公布时间与研究截止时间。
+    example:
+      - 2025Q4 DRAM库存周转天数 90 天
+    non_example:
+      - 库存将下降
+
+  - term_id: TERM_EVIDENCE_FACT
+    preferred_name_zh: 证据事实
+    preferred_name_en: EvidenceFact
+    canonical_ref: ontology:EvidenceFact
+    short_definition: 从来源陈述归一后、不包含分析推断的可引用事实。
+    usage_note: 未经 Source Capture 不得形成 EvidenceFact；事实不等于判断。
+    example:
+      - 同口径库存同比下降 10%
+    non_example:
+      - 库存下降意味着周期反转
+
+  - term_id: TERM_JUDGMENT_UNIT
+    preferred_name_zh: 判断单元
+    preferred_name_en: JudgmentUnit
+    canonical_ref: ontology:JudgmentUnit
+    short_definition: 可独立取证与裁决的原子判断问题。
+    usage_note: 一个判断单元对应明确范围、证据要求与结论状态；不要把整份报告当成一个判断单元。
+    example:
+      - 中国 DRAM 库存是否进入主动补库
+    non_example:
+      - 半导体行业怎么看
+
+  - term_id: TERM_VALUE_CHAIN_SEGMENT
+    preferred_name_zh: 产业链环节
+    preferred_name_en: ValueChainSegment
+    canonical_ref: ontology:ValueChainSegment
+    short_definition: 在产业价值创造中承担稳定功能的位置。
+    usage_note: 旧称 Segment 已废弃；对外统一使用「产业链环节」。
+    example:
+      - 刻蚀设备环节
+      - 晶圆制造环节
+    non_example:
+      - 某公司本季度收入
+
+  - term_id: TERM_COMPANY
+    preferred_name_zh: 公司
+    preferred_name_en: Company
+    canonical_ref: ontology:Company
+    short_definition: 以商业经营为主要身份的组织主体。
+    usage_note: 公司不等于产品线，也不等于制造设施。
+    example:
+      - 中微公司
+    non_example:
+      - 某款刻蚀机台型号
+
+  - term_id: TERM_PRODUCT
+    preferred_name_zh: 产品
+    preferred_name_en: Product
+    canonical_ref: ontology:Product
+    short_definition: 可被生产、交易、使用或交付的产品或产品类别。
+    usage_note: 产品类别与具体 SKU 需在研究范围内显式区分。
+    example:
+      - HBM
+      - 刻蚀设备
+    non_example:
+      - HBM 很紧
+
+  - term_id: TERM_TECHNOLOGY
+    preferred_name_zh: 技术
+    preferred_name_en: Technology
+    canonical_ref: ontology:Technology
+    short_definition: 可稳定识别、具有能力边界的技术或技术体系。
+    usage_note: 技术路线可跨公司复用；不等于单次研发进展公告。
+    example:
+      - Chiplet 异构集成
+    non_example:
+      - 公司本季度研发费用上升
+
+  - term_id: TERM_METRIC
+    preferred_name_zh: 指标
+    preferred_name_en: Metric
+    canonical_ref: ontology:Metric
+    short_definition: 具有稳定定义、单位与口径的可观测或可计算量。
+    usage_note: 指标是口径定义；具体时间点的取值是观测，不是指标本身。
+    example:
+      - 产能利用率
+      - 毛利率
+    non_example:
+      - 毛利率改善说明景气回升
+
+  - term_id: TERM_RESEARCH_SCOPE
+    preferred_name_zh: 研究范围
+    preferred_name_en: ResearchScope
+    canonical_ref: ontology:ResearchScope
+    short_definition: 某次研究对对象、地域、指标与时间边界的可引用裁剪。
+    usage_note: 研究范围是任务边界对象，不是行业实体。
+    example:
+      - 中国存储芯片行业 2026 年
+    non_example:
+      - 值得关注
+
+  - term_id: TERM_EXPECTATION_GAP
+    preferred_name_zh: 预期差
+    preferred_name_en: ExpectationGap
+    canonical_ref: ontology:ExpectationGap
+    short_definition: 研究判断与市场预期之间的可对照差异。
+    usage_note: 预期差必须同时锚定判断与市场预期，不能只写「市场没反应」。
+    example:
+      - 判断上行但一致预期仍中性
+    non_example:
+      - 股价涨了所以有预期差
+
+  - term_id: TERM_SOURCE_DOCUMENT
+    preferred_name_zh: 来源文档
+    preferred_name_en: SourceDocument
+    canonical_ref: ontology:SourceDocument
+    short_definition: 可定位、可版本化并具有发布主体的原始材料。
+    usage_note: MCP/API 是获取通道，不是来源生产者；来源文档记录上游生产者。
+    example:
+      - 公司年报 PDF
+    non_example:
+      - 分析师口头判断

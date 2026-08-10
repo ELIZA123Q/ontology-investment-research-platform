@@ -14,7 +14,7 @@ alwaysApply: true
 - 打开、走查、粘贴链接、浏览器自动化：一律用 `http://127.0.0.1:3000/...`
 - **不要**用 `http://localhost:3000`（易被系统/VPN 代理劫持）
 - **不要**用 `3001` / `3002` 等漂移端口；出现占用时先清端口再启，不要改端口凑合
-- 启动开发服务：在 `07_runtime/` 下用 `npm run dev`（固定 `:3000`）
+- 启动开发服务：在 `06_runtime/` 下用 `npm run dev`（固定 `:3000`）
 - 后台任务：另开终端 `npm run worker`（worker 启动时会清掉继承的代理变量）
 - 生产一键启动：仓库根目录执行 `bash start-light.sh`，同时启动 App 与独立 worker
 

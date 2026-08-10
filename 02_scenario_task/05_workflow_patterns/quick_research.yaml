@@ -1,0 +1,20 @@
+workflow_id: quick_research
+status: active_pattern
+intent: quick_research
+description: 轻量研究先验——范围更窄、证据波次更少，仍要求竞争解释或明确降级。
+
+recommended_capabilities:
+  - framing
+  - evidence
+  - judgment
+  - synthesis
+
+planning_hints:
+  prefer_broad_evidence: false
+  require_competing_explanation: true
+  allow_parallel_evidence: false
+  allow_replanning: true
+
+human_gates:
+  - judgment_confirmation
+  - publish_confirmation

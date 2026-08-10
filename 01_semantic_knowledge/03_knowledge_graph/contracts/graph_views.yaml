@@ -1,0 +1,89 @@
+schema_name: knowledge_graph_views
+schema_version: 1.1.0
+status: active
+description: >
+  同一套语义模型上的两套图视图。不是两套 Ontology，禁止合并成万能图。
+  也不与 Execution Trace（Task / TaskNode / AgentRun / Event / Checkpoint）混写。
+
+example_types_note: >
+  example_object_types / example_relation_types 仅用于解释视图，不构成类型登记；
+  所有 object/relation type 必须解析至 01_semantic_knowledge/01_ontology 的正式 registry。
+
+views:
+  domain_semantic_graph:
+    id: DomainSemanticGraph
+    purpose: 领域稳定语义关系
+    example_object_types:
+      - Company
+      - Product
+      - Industry
+      - Technology
+      - Region
+      - StateVariable
+      - PolicyInstrument
+    example_relation_types:
+      - produces
+      - contains
+      - belongsTo
+      - supplies
+      - dependsOn
+      - competesWith
+    authority_sources:
+      - 01_ontology formal types + domain business_instances
+      - 经 authority gate 确认的领域事实
+    excludes:
+      - 单次研究过程对象（Judgment / Signal / Hypothesis / ReasoningTrace 等）
+      - Execution Trace 对象（Task / TaskNode / AgentRun / Event / Checkpoint）
+      - 仅因同处 ResearchScope 而推断的业务边
+
+  research_provenance_graph:
+    id: ResearchProvenanceGraph
+    purpose: 研究结论为什么成立（研究语义溯源）
+    example_object_types:
+      - SourceDocument
+      - SourceSnapshot
+      - EvidenceFact
+      - EvidenceClaim
+      - Signal
+      - Hypothesis
+      - Judgment
+      - ReasoningTrace
+      - MethodApplication
+      - Artifact   # 仅作 provenance reference，不搬入完整 Execution Artifact 模型
+    example_relation_types:
+      - factSupportsSignal
+      - signalEvaluatesHypothesis
+      - hypothesisSupportsJudgment
+      - judgmentHasReasoningTrace
+      - claimCitesSource
+      - factDerivedFromClaim
+      - scopeIncludesObject
+    authority_sources:
+      - 经 authority gate 确认、且登记了图投影的研究制品
+    excludes:
+      - Task / TaskNode / AgentRun（属 Execution Trace）
+      - Runtime Event / Checkpoint（属 Execution / 恢复状态）
+      - 把领域稳定事实与过程溯源混在同一张万能图中无差别查询
+
+not_this_directory:
+  execution_trace:
+    purpose: 这次 Agent 是怎么跑出来的
+    owns:
+      - Task
+      - TaskNode
+      - AgentRun
+      - Event
+      - Checkpoint
+    home: 06_runtime（Execution / Context State）
+
+boundary:
+  same_ontology: true
+  merge_forbidden: true
+  provenance_vs_execution: >
+    Research Provenance Graph = 研究结论为什么成立；
+    Execution Trace = 这次 Agent 怎么跑出来的；
+    Knowledge Graph 只管前者。
+  cross_view_link: >
+    需要时通过混合检索或显式桥接边关联，不得把两套视图塌缩为一张图，
+    也不得把 Execution Trace 并入 Research Provenance Graph。
+  runtime_boundary: 06_runtime/src/semantic/graph-contracts.ts

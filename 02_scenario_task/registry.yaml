@@ -1,0 +1,44 @@
+schema_name: task_domain_registry
+schema_version: 3.0.0
+status: active
+
+authority:
+  answers: |
+    02_scenario_task = 定义「用户想完成什么研究任务，以及这个任务处于什么研究场景」；
+    不负责能力实现，也不负责这一次具体怎么执行。
+  write_entry: 02_scenario_task/
+  read_primary: 02_scenario_task/**/registry.yaml
+  executable_node_catalog: 06_runtime/src/runtime/node-catalog.ts
+  planner: 06_runtime/src/runtime/planner.ts
+
+subdomains:
+  intents:
+    registry: 02_scenario_task/01_intents/registry.yaml
+    status: active
+  scenarios:
+    registry: 02_scenario_task/02_scenarios/registry.yaml
+    status: active
+  tasks:
+    registry: 02_scenario_task/03_tasks/registry.yaml
+    status: active
+  roles:
+    registry: 02_scenario_task/04_roles/registry.yaml
+    status: active
+  workflow_patterns:
+    registry: 02_scenario_task/05_workflow_patterns/registry.yaml
+    status: active
+  legacy_deep_research_v1:
+    path: 02_scenario_task/90_legacy/deep_research_v1/
+    status: legacy
+
+layers:
+  - User Intent → 01_intents/
+  - Scenario → 02_scenarios/
+  - Task Contract → 03_tasks/
+  - Role → 04_roles/
+  - Workflow Pattern → 05_workflow_patterns/
+  - Planning Intent / TaskGraph → 06_runtime
+
+notes:
+  - Intent → Scenario → Task Contract 是本域主链。
+  - Deep Research 仅 workflow pattern + legacy 参考，禁止固定 01→05 controller。

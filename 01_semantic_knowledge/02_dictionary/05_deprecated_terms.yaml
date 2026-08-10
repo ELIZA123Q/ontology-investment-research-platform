@@ -1,0 +1,21 @@
+schema_name: dictionary_deprecated_terms
+schema_version: 1.1.0
+status: active
+description: >
+  仅记录「旧词 → 新词」的名称废弃。
+  文件路径、模型归属、目录重构等架构迁移不在此文件；见 05_control_evaluation/migrations/。
+
+entries:
+  - deprecated_term: Segment
+    replacement: ValueChainSegment
+    preferred_term_zh: 产业链环节
+    canonical_ref: ontology:ValueChainSegment
+    since_version: "3.0"
+    note: Segment 不再作为核心类型；输入侧经 aliases 归一。
+
+  - deprecated_term: 行业链环节
+    replacement: ValueChainSegment
+    preferred_term_zh: 产业链环节
+    canonical_ref: ontology:ValueChainSegment
+    since_version: "3.0"
+    note: 对外统一使用「产业链环节」。

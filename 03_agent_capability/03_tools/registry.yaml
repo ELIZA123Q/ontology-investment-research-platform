@@ -1,0 +1,25 @@
+schema_name: capability_tools_registry
+schema_version: 2.0.0
+status: active
+executable_manifest: 06_runtime/src/capabilities/registry.ts
+tools:
+  - tool_id: semantic.search
+    risk: read
+    idempotent: true
+  - tool_id: source.discover
+    risk: read
+    idempotent: true
+  - tool_id: source.capture
+    risk: write
+    idempotent: true
+  - tool_id: financial.mcp
+    risk: read
+    idempotent: true
+    protocol_registry: 03_agent_capability/04_protocols/mcp/registry.yaml
+  - tool_id: artifact.publish
+    risk: external_side_effect
+    approval_required: true
+    idempotent: true
+rules:
+  - 有副作用动作必须提供 idempotency_key
+  - MCP 是 Tool 的连接协议，不是来源生产者

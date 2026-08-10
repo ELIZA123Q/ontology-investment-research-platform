@@ -1,0 +1,23 @@
+schema_name: semiconductor_domain_registry
+schema_version: 1.0.0
+status: active
+domain: semiconductor
+description: 半导体领域正式扩展与业务参数登记。
+
+ontology_extension: ontology_extension.yaml
+parameter_sources:
+  - parameters/state_variables.yaml
+  - parameters/evidence_parameters.yaml
+  - parameters/reasoning_parameters.yaml
+  - parameters/scenario_parameters.yaml
+business_instances_bundle:
+  path: business_instances.yaml
+  generated: true
+  build_script: build_business_instances.py
+catalog_refs:
+  scenario_catalog: ../../../../02_scenario_task/scenario_catalog.yaml
+
+notes:
+  - ontology_extension 定义半导体独有正式对象/关系/事件扩展。
+  - parameters/* 是人工维护的领域预置知识；business_instances.yaml 是 Runtime 只读汇总。
+  - PropagationTemplate / EvidenceProfile 等影子类型不得进入 models/。

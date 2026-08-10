@@ -1,0 +1,56 @@
+schema_name: knowledge_graph_projection_policy
+schema_version: 1.1.0
+status: active
+description: >
+  图投影原则合同。只规定方向与禁止项；具体 artifact→graph、读面投影的执行
+  实现属于 Runtime / Governance。本合同不绑定固定 Workflow 或阶段序列。
+
+projections:
+  - id: domain_authority_to_domain_graph
+    from: domain ontology authority + business_instances
+    to: DomainSemanticGraph
+    direction: one_way
+    gate: domain authority
+
+  - id: approved_research_artifact_to_provenance_graph
+    from: approved research artifacts with registered graph projection
+    to: ResearchProvenanceGraph
+    direction: one_way
+    gate: authority gate（确认前不得升格为正式图）
+
+  - id: formal_graph_to_read_projection
+    from: formal BusinessInstanceGraph（来源与投影指纹可验证）
+    to: registered read projections（研究制品读面）
+    direction: one_way
+    note: >
+      正式图可用且指纹一致时，读面从图单向投影。
+      具体 adapter（含历史 Stage02–04 兼容）由 Runtime 实现，不构成本合同。
+
+forbidden:
+  - 研究制品 ↔ graph 双向人工同步
+  - 把 provisional / package 图当作 formal 权威
+  - 在 Semantic 合同目录内实现 DB / workspace I/O
+  - 用 materializer 推断未显式声明的业务关系（见 relation_policy）
+  - 将固定 Workflow / 阶段序列写入本投影合同作为永久前提
+
+authority_levels:
+  formal:
+    description: >
+      经 authority gate 确认、来源与投影指纹可验证的正式图。
+      不依赖固定 Workflow 或阶段序列。
+  package:
+    description: 冻结研究包内嵌图
+  provisional:
+    description: 运行中临时投影，不可作为正式语义权威
+  empty:
+    description: 无可用图
+
+compatibility_note: >
+  历史 Stage02/03/04 → graph 物化器可作为 Runtime / legacy adapter，
+  但不得回写为本目录的永久合同条款。
+
+runtime_homes:
+  vnext_boundary: 06_runtime/src/semantic/graph-contracts.ts
+  legacy_stage_materializers: legacy/knowledge_graph/
+  governance_validators: 05_control_evaluation/03_校验/knowledge_graph/
+  legacy_compat: 05_control_evaluation/03_校验/legacy_compat/

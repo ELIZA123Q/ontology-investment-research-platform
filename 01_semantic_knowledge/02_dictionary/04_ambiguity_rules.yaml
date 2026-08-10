@@ -1,0 +1,168 @@
+schema_name: dictionary_ambiguity_rules
+schema_version: 1.1.0
+status: active
+description: >
+  模糊词消歧规则。在取证与判断前强制澄清口径，避免「词没定义清楚就开始搜证据」。
+
+rules:
+  - term: 先进制程
+    ambiguity: high
+    possible_meanings:
+      - leading_edge_node
+      - "<= 7nm"
+      - "<= 5nm"
+      - company_defined_advanced_node
+    distinguish:
+      - 逻辑先进制程
+      - 存储先进制程
+      - 特色工艺相对先进节点
+    resolution_rule: 使用时必须明确节点口径或引用来源定义；不得默认全行业同一先进边界。
+
+  - term: 订单增长
+    ambiguity: medium
+    possible_meanings:
+      - 新签订单
+      - 在手订单
+      - 合同负债
+      - backlog
+      - shipment
+    distinguish:
+      - 新签订单 vs 在手订单
+      - 订单金额 vs 出货金额
+      - 合同负债会计口径 vs 经营 backlog
+    resolution_rule: 先指定指标口径与时间窗，再取证；禁止混用订单与收入增速。
+
+  - term: 产能
+    ambiguity: high
+    possible_meanings:
+      - nameplate_capacity
+      - effective_capacity
+      - installed_capacity
+      - planned_capacity
+    distinguish:
+      - 名义产能
+      - 有效产能
+      - 已安装未爬坡产能
+      - 规划产能
+    resolution_rule: >
+      必须冻结晶圆尺寸/产品/时间与名义或有效口径；
+      通用语义绑定 ontology:Metric 或相关 StateVariable；
+      半导体领域可进一步落到 semiconductor:CapacityMetric。
+
+  - term: 库存
+    ambiguity: medium
+    possible_meanings:
+      - channel_inventory
+      - manufacturer_inventory
+      - days_of_inventory
+      - inventory_value
+    distinguish:
+      - 渠道库存 vs 厂商库存
+      - 金额 vs 数量 vs 周转天数
+    resolution_rule: 明确库存主体、计量单位与同比/环比口径后再形成 Observation。
+
+  - term: 国产化率
+    ambiguity: high
+    possible_meanings:
+      - domestic_revenue_share
+      - domestic_unit_share
+      - qualified_supplier_share
+      - import_substitution_ratio
+    distinguish:
+      - 收入份额
+      - 出货份额
+      - 认证通过份额
+      - 进口依赖下降
+    resolution_rule: 不得把「国产厂商收入增长」直接写成国产化率；必须声明份额口径与分母。
+
+  - term: 涨价
+    ambiguity: medium
+    possible_meanings:
+      - contract_price_up
+      - spot_price_up
+      - asp_up
+      - list_price_up
+    distinguish:
+      - 合同价
+      - 现货价
+      - ASP
+      - 报价
+    resolution_rule: 指定产品规格、区域、客户类型与价格类型后才能绑定 price_trend / ASP 类变量。
+
+  - term: 很紧 / 紧缺
+    ambiguity: high
+    possible_meanings:
+      - supply_demand_tightness
+      - lead_time_extension
+      - low_inventory
+      - high_utilization
+      - price_up_pressure
+    distinguish:
+      - 交期拉长
+      - 库存偏低
+      - 稼动率高
+      - 涨价
+    resolution_rule: 口语「紧」必须拆成至少一个可验证状态变量，并限定产品与区域。
+
+  - term: 复苏
+    ambiguity: medium
+    possible_meanings:
+      - demand_recovery
+      - price_trough_rebound
+      - utilization_recovery
+      - earnings_recovery
+    distinguish:
+      - 需求复苏
+      - 价格复苏
+      - 盈利复苏
+      - 估值修复
+    resolution_rule: 明确复苏对象（需求/价格/盈利）与对照基期，禁止用股价上涨代替基本面复苏。
+
+  - term: 快照
+    ambiguity: high
+    possible_meanings:
+      - ontology:SourceSnapshot
+      - ontology:StateSnapshot
+    distinguish:
+      - 来源抓取快照
+      - 状态观测快照
+    resolution_rule: 禁止单独使用「快照」；必须写成「来源快照」或「状态快照」。
+
+  - term: 有预期差 / 预期没打满
+    ambiguity: medium
+    possible_meanings:
+      - ontology:ExpectationGap
+      - 判断偏乐观但价格未反应
+      - 一致预期下修空间
+    distinguish:
+      - 正式 ExpectationGap 对象
+      - 口头「市场没反应」
+      - 指引 vs 一致预期差额
+    resolution_rule: >
+      口语须映射到 ontology:ExpectationGap，并同时锚定 Judgment 与 MarketExpectation；
+      不得只写「有预期差」。
+
+  - term: 赛道
+    ambiguity: medium
+    possible_meanings:
+      - ontology:Industry
+      - ontology:Application
+      - 主题投资篮子
+    distinguish:
+      - 正式行业
+      - 应用场景
+      - 主题持仓篮子
+    resolution_rule: 不得无损映射为 Industry；先澄清范围再进入 ResearchScope。
+
+  - term: KPI / 财务指标
+    ambiguity: medium
+    possible_meanings:
+      - financial_metric
+      - operating_metric
+      - technical_metric
+      - ontology:Metric
+    distinguish:
+      - 财务指标
+      - 经营指标
+      - 技术指标
+    resolution_rule: 先声明指标类别与口径，再绑定 ontology:Metric；财务指标只是 Metric 的下位。

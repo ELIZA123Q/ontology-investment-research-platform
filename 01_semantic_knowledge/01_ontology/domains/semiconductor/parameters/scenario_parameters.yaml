@@ -1,0 +1,560 @@
+schema_name: semiconductor_domain_scenario_parameters
+schema_version: 1.0.0
+status: active
+authority: business_parameters
+description: 半导体场景类业务参数：ScenarioTemplate / BusinessScenarioTag。
+shadow_type_contract: 本文件中的影子类型（非 StateVariable）仅作为业务参数图节点/模板；不得当作正式 Ontology Object/Relation
+  物化进 business_instance_graph 正式实例投影。
+objects:
+- id: base
+  type: ScenarioTemplate
+  properties:
+    id: base
+    name: 基准情景
+    description: 需求、供给、技术和政策按当前可验证趋势推进，不假设额外冲击。
+    key_variable_conditions:
+      end_market_demand_strength: stable_or_moderate
+      supply_availability: normalizing
+      technology_maturity: gradual
+      competitive_intensity: normal
+      counter_evidence_strength: manageable
+    validation_points:
+    - 订单与终端需求一致
+    - 产能和良率按计划释放
+    - 技术认证按正常节奏推进
+    falsification_points:
+    - 需求或供给显著偏离
+    - 核心技术或政策条件发生结构性变化
+  projection:
+    section: scenario_templates
+    index: 0
+- id: upside
+  type: ScenarioTemplate
+  properties:
+    id: upside
+    name: 上行情景
+    description: 需求、采用或政策支持强于基准，供给和执行未形成同等强度阻断。
+    key_variable_conditions:
+      end_market_demand_strength: high
+      adoption_penetration: accelerating
+      order_visibility: improving
+      pricing_power: improving
+      execution_delivery_capability: sufficient
+    validation_points:
+    - 终端、订单和出货交叉增强
+    - 认证转为量产和复购
+    - 公司交付与利润池改善
+    falsification_points:
+    - 库存积压
+    - 供给快速释放
+    - 竞争压价
+    - 市场已充分定价
+  projection:
+    section: scenario_templates
+    index: 1
+- id: downside
+  type: ScenarioTemplate
+  properties:
+    id: downside
+    name: 下行情景
+    description: 需求、订单或采用弱于基准，库存、竞争和成本压力增强。
+    key_variable_conditions:
+      end_market_demand_strength: low
+      inventory_cycle_position: destocking
+      order_visibility: weakening
+      competitive_intensity: high
+      pricing_power: weakening
+    validation_points:
+    - 终端需求下修
+    - 订单取消或去库
+    - 价格与利用率承压
+    falsification_points:
+    - 需求快速恢复
+    - 供给纪律增强
+    - 新产品采用抵消旧产品下行
+  projection:
+    section: scenario_templates
+    index: 2
+- id: stress
+  type: ScenarioTemplate
+  properties:
+    id: stress
+    name: 压力情景
+    description: 供应中断、政策管制、重大质量事故或地域集中风险触发非线性冲击。
+    key_variable_conditions:
+      supply_availability: very_low
+      compliance_friction: very_high
+      supply_chain_resilience: low
+      inventory_buffer_capacity: insufficient
+      counter_evidence_strength: high
+    validation_points:
+    - 官方或一手中断证据
+    - 许可交付和价格同步恶化
+    - 库存与替代不足
+    falsification_points:
+    - 许可豁免
+    - 快速恢复
+    - 库存覆盖充分
+    - 合格替代规模供给
+  projection:
+    section: scenario_templates
+    index: 3
+- id: cycle_recovery
+  type: BusinessScenarioTag
+  properties:
+    id: cycle_recovery
+    name: 周期复苏
+    description: 终端需求恢复、库存去化完成、订单和产能利用率同步改善。
+    trigger_variables:
+    - end_market_demand_strength
+    - inventory_cycle_position
+    - order_visibility
+    key_templates:
+    - inventory_restocking
+    - demand_to_orders
+    - orders_to_capacity_pressure
+    validation_points:
+    - 终端出货改善
+    - 多层库存下降后补库
+    - 订单与利用率交叉验证
+    falsification_points:
+    - 终端需求未改善
+    - 补库后再次积压
+    - 供给快速释放
+    blocking_conditions:
+    - 客户取消项目
+    - 竞争压价抵消复苏
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 0
+- id: cycle_downturn
+  type: BusinessScenarioTag
+  properties:
+    id: cycle_downturn
+    name: 周期下行
+    description: 需求下修、库存积累、订单取消和价格承压。
+    trigger_variables:
+    - end_market_demand_strength
+    - inventory_cycle_position
+    - product_price_pressure
+    key_templates:
+    - inventory_destocking
+    - competition_to_pricing_profit
+    validation_points:
+    - 终端下修
+    - 订单取消
+    - 价格成交走弱
+    falsification_points:
+    - 需求快速恢复
+    - 供给纪律增强
+    blocking_conditions:
+    - 供给中断造成假性紧张
+    - 新产品抵消旧产品下行
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 1
+- id: supply_shock
+  type: BusinessScenarioTag
+  properties:
+    id: supply_shock
+    name: 供应冲击
+    description: 事故、停产、物流或原料问题导致供给可得性骤降。
+    trigger_variables:
+    - supply_availability
+    - bottleneck_dependency_concentration
+    key_templates:
+    - supply_constraint_to_price_delivery
+    - bottleneck_cascade_to_supply
+    validation_points:
+    - 官方或一手中断证据
+    - 交期同步恶化
+    falsification_points:
+    - 快速恢复
+    - 库存覆盖充分
+    blocking_conditions:
+    - 替代供应已认证
+    - 需求同步下修
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 2
+- id: overcapacity_expansion
+  type: BusinessScenarioTag
+  properties:
+    id: overcapacity_expansion
+    name: 扩产过剩
+    description: 大量扩产释放导致产能紧张缓解和价格压力。
+    trigger_variables:
+    - capacity_expansion_progress
+    - capacity_tightness
+    - supply_elasticity
+    key_templates:
+    - capacity_expansion_to_supply_relief
+    - supply_elasticity_to_price_persistence
+    validation_points:
+    - 有效产能释放
+    - 利用率下降
+    - 价格承压
+    falsification_points:
+    - 需求同步超预期
+    - 良率不达标延迟释放
+    blocking_conditions:
+    - 扩产延期
+    - 产品结构不匹配
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 3
+- id: technology_transition
+  type: BusinessScenarioTag
+  properties:
+    id: technology_transition
+    name: 技术切换
+    description: 新旧技术路线替代导致需求结构和设备材料需求迁移。
+    trigger_variables:
+    - technology_substitution_intensity
+    - technology_maturity
+    key_templates:
+    - competitiveness_to_substitution
+    - process_complexity_to_equipment_materials
+    validation_points:
+    - 客户采用证据
+    - 同口径性能成本比较
+    falsification_points:
+    - 新旧路线互补
+    - 切换成本过高
+    blocking_conditions:
+    - 可靠性不达标
+    - 生态不完整
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 4
+- id: domestic_substitution
+  type: BusinessScenarioTag
+  properties:
+    id: domestic_substitution
+    name: 国产替代
+    description: 本地供应从认证推进到稳定量产和复购。
+    trigger_variables:
+    - localization_substitution_progress
+    - customer_qualification_progress
+    key_templates:
+    - localization_to_resilience
+    - qualification_to_mass_production
+    validation_points:
+    - 认证完成
+    - 量产出货
+    - 复购
+    falsification_points:
+    - 仅送样
+    - 依赖进口核心环节
+    blocking_conditions:
+    - 质量或良率不达标
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 5
+- id: export_control_scenario
+  type: BusinessScenarioTag
+  properties:
+    id: export_control_scenario
+    name: 出口管制
+    description: 出口管制增强导致合规摩擦上升和受限供给下降。
+    trigger_variables:
+    - export_control_intensity
+    - regional_policy_exposure
+    key_templates:
+    - export_control_to_supply
+    - regional_policy_to_company_exposure
+    validation_points:
+    - 政策原文
+    - 许可执行
+    - 供应链反馈
+    falsification_points:
+    - 许可豁免
+    - 替代来源
+    blocking_conditions:
+    - 政策不适用
+    - 范围撤回
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 6
+- id: advanced_packaging_bottleneck
+  type: BusinessScenarioTag
+  properties:
+    id: advanced_packaging_bottleneck
+    name: 先进封装瓶颈
+    description: 2.5D/3D/混合键合等先进封装产能或基板材料成为产业链瓶颈。
+    trigger_variables:
+    - bottleneck_dependency_concentration
+    - capacity_tightness
+    key_templates:
+    - advanced_packaging_to_inputs
+    - bottleneck_cascade_to_supply
+    validation_points:
+    - 封装产能紧张
+    - ABF等基板交期延长
+    falsification_points:
+    - 封装产能快速释放
+    - 标准化降低需求
+    blocking_conditions:
+    - 热可靠性问题阻止量产
+    - 需求不及预期
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 7
+- id: inventory_correction
+  type: BusinessScenarioTag
+  properties:
+    id: inventory_correction
+    name: 库存修正
+    description: 产业链从错误库存水平向合理水平修正，订单短期波动。
+    trigger_variables:
+    - inventory_cycle_position
+    - inventory_buffer_capacity
+    key_templates:
+    - inventory_destocking
+    - inventory_restocking
+    - inventory_buffer_absorption
+    validation_points:
+    - 多层库存时间序列
+    - 采购与出货背离
+    falsification_points:
+    - 终端需求同步变化
+    - 供给中断干扰判断
+    blocking_conditions:
+    - 库存口径不可比
+    - 规格不可用
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 8
+relations:
+- id: REL-base-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-base-VARIABLE-supply_availability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: supply_availability
+  properties: {}
+- id: REL-base-VARIABLE-technology_maturity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: technology_maturity
+  properties: {}
+- id: REL-base-VARIABLE-competitive_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: competitive_intensity
+  properties: {}
+- id: REL-base-VARIABLE-counter_evidence_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: counter_evidence_strength
+  properties: {}
+- id: REL-upside-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-upside-VARIABLE-adoption_penetration
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: adoption_penetration
+  properties: {}
+- id: REL-upside-VARIABLE-order_visibility
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: order_visibility
+  properties: {}
+- id: REL-upside-VARIABLE-pricing_power
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: pricing_power
+  properties: {}
+- id: REL-upside-VARIABLE-execution_delivery_capability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: execution_delivery_capability
+  properties: {}
+- id: REL-downside-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-downside-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-downside-VARIABLE-order_visibility
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: order_visibility
+  properties: {}
+- id: REL-downside-VARIABLE-competitive_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: competitive_intensity
+  properties: {}
+- id: REL-downside-VARIABLE-pricing_power
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: pricing_power
+  properties: {}
+- id: REL-stress-VARIABLE-supply_availability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: supply_availability
+  properties: {}
+- id: REL-stress-VARIABLE-compliance_friction
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: compliance_friction
+  properties: {}
+- id: REL-stress-VARIABLE-supply_chain_resilience
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: supply_chain_resilience
+  properties: {}
+- id: REL-stress-VARIABLE-inventory_buffer_capacity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: inventory_buffer_capacity
+  properties: {}
+- id: REL-stress-VARIABLE-counter_evidence_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: counter_evidence_strength
+  properties: {}
+- id: REL-cycle_recovery-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_recovery
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-cycle_recovery-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_recovery
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-cycle_recovery-VARIABLE-order_visibility
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_recovery
+  targetId: order_visibility
+  properties: {}
+- id: REL-cycle_downturn-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_downturn
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-cycle_downturn-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_downturn
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-cycle_downturn-VARIABLE-product_price_pressure
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_downturn
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-supply_shock-VARIABLE-supply_availability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: supply_shock
+  targetId: supply_availability
+  properties: {}
+- id: REL-supply_shock-VARIABLE-bottleneck_dependency_concentration
+  type: scenarioTemplateConstrainsVariable
+  sourceId: supply_shock
+  targetId: bottleneck_dependency_concentration
+  properties: {}
+- id: REL-overcapacity_expansion-VARIABLE-capacity_expansion_progress
+  type: scenarioTemplateConstrainsVariable
+  sourceId: overcapacity_expansion
+  targetId: capacity_expansion_progress
+  properties: {}
+- id: REL-overcapacity_expansion-VARIABLE-capacity_tightness
+  type: scenarioTemplateConstrainsVariable
+  sourceId: overcapacity_expansion
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-overcapacity_expansion-VARIABLE-supply_elasticity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: overcapacity_expansion
+  targetId: supply_elasticity
+  properties: {}
+- id: REL-technology_transition-VARIABLE-technology_substitution_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: technology_transition
+  targetId: technology_substitution_intensity
+  properties: {}
+- id: REL-technology_transition-VARIABLE-technology_maturity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: technology_transition
+  targetId: technology_maturity
+  properties: {}
+- id: REL-domestic_substitution-VARIABLE-localization_substitution_progress
+  type: scenarioTemplateConstrainsVariable
+  sourceId: domestic_substitution
+  targetId: localization_substitution_progress
+  properties: {}
+- id: REL-domestic_substitution-VARIABLE-customer_qualification_progress
+  type: scenarioTemplateConstrainsVariable
+  sourceId: domestic_substitution
+  targetId: customer_qualification_progress
+  properties: {}
+- id: REL-export_control_scenario-VARIABLE-export_control_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: export_control_scenario
+  targetId: export_control_intensity
+  properties: {}
+- id: REL-export_control_scenario-VARIABLE-regional_policy_exposure
+  type: scenarioTemplateConstrainsVariable
+  sourceId: export_control_scenario
+  targetId: regional_policy_exposure
+  properties: {}
+- id: REL-advanced_packaging_bottleneck-VARIABLE-bottleneck_dependency_concentration
+  type: scenarioTemplateConstrainsVariable
+  sourceId: advanced_packaging_bottleneck
+  targetId: bottleneck_dependency_concentration
+  properties: {}
+- id: REL-advanced_packaging_bottleneck-VARIABLE-capacity_tightness
+  type: scenarioTemplateConstrainsVariable
+  sourceId: advanced_packaging_bottleneck
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-inventory_correction-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: inventory_correction
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-inventory_correction-VARIABLE-inventory_buffer_capacity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: inventory_correction
+  targetId: inventory_buffer_capacity
+  properties: {}

@@ -1,0 +1,11 @@
+schema_name: research_intent_registry
+schema_version: 1.0.0
+status: active
+authority:
+  answers: 用户级 Intent 权威在本目录；Runtime Planning Intent 权威在 06_runtime/src/contracts.ts。
+  write_entry: 02_scenario_task/01_intents/
+  types: 02_scenario_task/01_intents/types.yaml
+  runtime_planning_intent: 06_runtime/src/contracts.ts
+notes:
+  - User Intent → Scenario → Task Contract 属于 02。
+  - ResearchIntent（full_research/evidence_only/…）属于 Runtime Planner。

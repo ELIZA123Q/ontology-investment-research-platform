@@ -1,0 +1,11 @@
+schema_name: research_task_contract
+schema_version: 1.0.0
+task_id: technology_route_analysis
+name: 技术路线分析
+objective: 评估技术路线成熟度、替代性与商业化约束，并给出可证伪边界
+default_role: research_lead
+optional_workflow_pattern: deep_research
+relevant_skills: [research-framing, research-method, evidence-assessment, hypothesis-analysis]
+relevant_scenario_types: [TechnologyRouteResearch]
+notes:
+  - 用户级 Research Task Contract；不是 Runtime Node。

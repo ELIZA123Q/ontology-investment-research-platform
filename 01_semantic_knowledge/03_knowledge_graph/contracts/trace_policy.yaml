@@ -1,0 +1,47 @@
+schema_name: knowledge_graph_trace_policy
+schema_version: 1.0.0
+status: active
+description: >
+  研究溯源图的下游失效传播方向合同。BFS、标记 stale、查找样例包等执行
+  属于 Runtime / Governance，不在本目录实现。
+
+downstream_invalidation:
+  meaning: >
+    forward：边 source → target 为影响方向；
+    reverse：边 target → source 为影响方向（沿边反向传播失效）。
+  directions:
+    claimCitesSource: reverse
+    factDerivedFromClaim: reverse
+    assessmentEvaluatesFact: reverse
+    basketIncludesAssessment: reverse
+    basketFulfillsRequirement: reverse
+    requirementForJudgmentUnit: reverse
+    factSupportsSignal: forward
+    signalGroundedByFact: reverse
+    signalEvaluatesHypothesis: forward
+    hypothesisEvaluatedBySignal: reverse
+    hypothesisSupportsJudgment: forward
+    judgmentBasedOnHypothesis: reverse
+    judgmentHasRuleEvaluation: reverse
+    ruleEvaluationForJudgment: forward
+    unitUsesScope: forward
+    scopeIncludesObject: forward
+    questionDecomposesIntoUnit: forward
+    unitHasHypothesis: forward
+    hypothesisForUnit: reverse
+    competingExplanationForUnit: reverse
+    judgmentResolvesUnit: reverse
+    judgmentHasReasoningTrace: forward
+    reasoningTraceForJudgment: reverse
+    traceIncludesNode: reverse
+    runtimeMethodApplicationTargets: reverse
+    runtimeJudgmentUsesMethodApplication: reverse
+
+execution_boundary:
+  contract_here:
+    - downstream relation direction table
+  runtime_or_governance:
+    - traceReachableDownstream BFS
+    - markReachableDownstreamStale
+    - defaultExamplePackages / workspace 样例发现
+  legacy_reference: legacy/knowledge_graph/trace.ts

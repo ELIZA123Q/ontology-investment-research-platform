@@ -1,0 +1,8 @@
+package_kind: workbench_export
+layout: compact_v3_yaml
+validator: 05_control_evaluation/03_校验/validate_workbench_package.py
+publishable: false
+contract_ref:
+  schema_name: controlled_research_run_manifest
+  schema_version: 1.3.0
+note: 工作台 Zod 投影；文件名对齐 V3 紧凑布局，不是正式发布包，也不是黄金样例。

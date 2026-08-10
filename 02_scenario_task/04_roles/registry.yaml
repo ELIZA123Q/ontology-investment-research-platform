@@ -1,0 +1,14 @@
+schema_name: task_role_registry
+schema_version: 3.0.0
+status: active
+
+authority:
+  answers: Role = 任务中的责任位置；Agent = 可承担某 Role 的能力主体（登记在 Capability 域）。
+  write_entry: 02_scenario_task/04_roles/
+  read_primary: 02_scenario_task/04_roles/registry.yaml
+  roles: 02_scenario_task/04_roles/roles.yaml
+  agent_registry: 03_agent_capability/01_agents/registry.yaml
+
+notes:
+  - 禁止把 role_id 写成 agent_id，或在本域写 maps_to_agent。
+  - vNext.1 仅 research-lead Agent 为 active，且 can_assume_roles 含 research_lead。

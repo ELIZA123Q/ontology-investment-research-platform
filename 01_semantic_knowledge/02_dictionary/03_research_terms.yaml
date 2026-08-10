@@ -1,0 +1,247 @@
+schema_name: dictionary_research_terms
+schema_version: 1.1.0
+status: active
+description: >
+  投研常用但不宜直接做成 ontology Object 的研究概念。
+  结构约定：
+    anchor_types  = 这个概念发生在哪些对象上
+    decompose_to  = 最终要拆成什么可验证语义
+    variable_hints = 常见可观测/可计算线索（非正式枚举）
+
+terms:
+  - term_id: RT_景气度
+    term: 景气度
+    type: research_concept
+    definition: 对某一行业、环节或公司在特定周期位置上供需与盈利动能强弱的综合判断用语。
+    anchor_types:
+      - ontology:Industry
+      - ontology:ValueChainSegment
+      - ontology:Company
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Metric
+    variable_hints:
+      - utilization
+      - inventory
+      - price_trend
+      - order_visibility
+      - margin
+    warning: 不得把「景气度」本身当作单一可观测指标；使用前必须拆成可取证变量。
+
+  - term_id: RT_供需紧张
+    term: 供需紧张
+    type: research_concept
+    definition: 供给相对需求不足，并可能表现为交期拉长、库存偏低或价格上行的状态描述。
+    anchor_types:
+      - ontology:Product
+      - ontology:ValueChainSegment
+      - ontology:Region
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Observation
+    variable_hints:
+      - supply_demand_tightness
+      - lead_time
+      - inventory
+      - utilization
+      - price_trend
+    warning: 「很紧」必须落到具体产品/节点/区域与可验证口径，不能只保留口语。
+
+  - term_id: RT_国产替代
+    term: 国产替代
+    type: research_concept
+    definition: 本土供应商在特定产品、工艺或客户范围内，替代境外供应来源的过程或状态。
+    anchor_types:
+      - ontology:Company
+      - ontology:Product
+      - ontology:ProcessStep
+      - ontology:Region
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Metric
+    variable_hints:
+      - market_share
+      - qualification_progress
+      - domestic_supply_ratio
+      - import_dependency
+      - customer_adoption
+    warning: 不得仅以「国产厂商收入增长」直接等同于国产替代率提升。
+
+  - term_id: RT_订单能见度
+    term: 订单能见度
+    type: research_concept
+    definition: 对未来一段时间可确认订单、排产或出货安排的可见程度。
+    anchor_types:
+      - ontology:Company
+      - ontology:Product
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Metric
+    variable_hints:
+      - backlog
+      - new_orders
+      - contract_liability
+      - shipment_schedule
+    warning: 能见度不是单一会计科目；需区分新签订单、在手订单与合同负债。
+
+  - term_id: RT_业绩确定性
+    term: 业绩确定性
+    type: research_concept
+    definition: 对未来利润表结果可被证据支撑的置信程度的口语概括。
+    anchor_types:
+      - ontology:Company
+    decompose_to:
+      - ontology:JudgmentUnit
+      - ontology:Hypothesis
+      - ontology:BlockingFactor
+    variable_hints:
+      - revenue_visibility
+      - margin_stability
+      - guidance_vs_consensus
+    warning: 确定性必须拆成可验证判断单元与阻断因素，不能直接当作结论标签。
+
+  - term_id: RT_涨价
+    term: 涨价
+    type: research_concept
+    definition: 产品或服务交易价格相对前一可比时点上升。
+    anchor_types:
+      - ontology:Product
+      - ontology:Region
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Observation
+      - ontology:Metric
+    variable_hints:
+      - asp
+      - contract_price
+      - spot_price
+      - price_trend
+    warning: 需明确是合同价、现货价还是 ASP，以及产品规格与区域口径。
+
+  - term_id: RT_产能释放
+    term: 产能释放
+    type: research_concept
+    definition: 新增或爬坡产能从不可用转为可量产供给的过程。
+    anchor_types:
+      - ontology:Company
+      - ontology:Product
+      - semiconductor:WaferFab
+      - semiconductor:ProductionLine
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Event
+      - ontology:Metric
+      - semiconductor:CapacityMetric
+    variable_hints:
+      - nameplate_capacity
+      - effective_capacity
+      - utilization
+      - yield
+    warning: 宣布扩产不等于产能释放；需区分名义产能与有效产能。
+
+  - term_id: RT_先进制程
+    term: 先进制程
+    type: research_concept
+    definition: 相对成熟制程更靠前的工艺代际口语；口径随公司和语境变化。
+    anchor_types:
+      - ontology:Company
+      - ontology:Technology
+      - semiconductor:ProcessNode
+    decompose_to:
+      - ontology:Technology
+      - semiconductor:ProcessNode
+    variable_hints:
+      - process_node
+      - leading_edge_node
+    warning: 高歧义词；使用前必须明确节点口径或引用来源定义。见 04_ambiguity_rules.yaml。
+
+  - term_id: RT_估值消化
+    term: 估值消化
+    type: research_concept
+    definition: 价格对已有乐观预期的兑现或消化过程，常表现为估值中枢回落或横盘。
+    anchor_types:
+      - ontology:Company
+      - ontology:FinancialInstrument
+    decompose_to:
+      - ontology:ExpectationGap
+      - ontology:MarketExpectation
+      - ontology:AssetImpact
+    variable_hints:
+      - pe
+      - pb
+      - valuation_percentile
+    warning: 估值消化不是基本面判断；需与预期差和资产影响分开表述。
+
+  - term_id: RT_卡脖子
+    term: 卡脖子
+    type: research_concept
+    definition: 关键环节、材料或设备因供给受限而制约下游生产或国产化进程的口语。
+    anchor_types:
+      - ontology:Product
+      - ontology:Technology
+      - ontology:ValueChainSegment
+      - ontology:ProcessStep
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Metric
+    variable_hints:
+      - import_dependency
+      - qualification_progress
+      - supply_risk
+    warning: 需指明具体产品/工艺/客户资格环节，避免空泛地缘叙事。
+
+  - term_id: RT_HBM_紧缺口语
+    term: HBM很紧
+    type: research_utterance
+    definition: 研究员对 HBM 供需偏紧的口语判断，不是正式对象。
+    anchor_types:
+      - ontology:Product
+    decompose_to:
+      - ontology:StateVariable
+      - ontology:Observation
+    variable_hints:
+      - supply_demand_tightness
+      - lead_time
+      - inventory
+      - utilization
+      - price_trend
+    warning: 先把 HBM 归一为 Product（必要时再讨论 Technology），再把「紧」拆成可观测变量。
+
+  - term_id: RT_赛道
+    term: 赛道
+    type: research_concept
+    definition: 口语中接近行业/主题投资范围，但不等于正式 Industry。
+    anchor_types:
+      - ontology:Industry
+      - ontology:Application
+    decompose_to:
+      - ontology:Industry
+      - ontology:ResearchScope
+    warning: 不得把「赛道」无损映射为 Industry；需明确是行业、应用场景还是主题篮子。
+
+  - term_id: RT_财务指标
+    term: 财务指标
+    type: research_concept
+    definition: Metric 的一个常见下位类别，专指财务报表或财务分析口径。
+    anchor_types:
+      - ontology:Company
+    decompose_to:
+      - ontology:Metric
+    variable_hints:
+      - revenue
+      - gross_margin
+      - operating_margin
+      - roe
+    warning: 财务指标 ⊂ Metric；不可把 Metric 一律归一为财务指标。
+
+  - term_id: RT_上市主体
+    term: 上市主体
+    type: research_concept
+    definition: 已在交易场所挂牌的公司或发行主体；是 Company 在资本市场语境下的角色，不是全体公司的同义词。
+    anchor_types:
+      - ontology:Company
+      - ontology:Listing
+    decompose_to:
+      - ontology:Company
+      - ontology:Listing
+    warning: 不得把任意 Company 无损替换为上市主体。

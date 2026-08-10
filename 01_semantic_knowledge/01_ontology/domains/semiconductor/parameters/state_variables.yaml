@@ -1,0 +1,1211 @@
+schema_name: semiconductor_domain_state_variables
+schema_version: 1.0.0
+status: active
+authority: business_parameters
+description: 半导体领域预置 StateVariable 实例（正式类型实例，非影子参数）。
+shadow_type_contract: 本文件对象均为正式 StateVariable 类型在半导体领域的预定义实例。
+objects:
+- id: end_market_demand_strength
+  type: StateVariable
+  properties:
+    id: end_market_demand_strength
+    name: 终端需求强度
+    category: demand
+    definition: 终端行业、应用或工作负载对半导体功能和数量的需求强弱。
+    decision_use: 判断需求变化是否具备产业链传导基础。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Application
+    - Industry
+    - Product
+    observation_guidance: 综合终端销量、使用量、系统部署、出货和行业景气，而非单一预测。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 终端销量下修、设备利用不足、预算削减或需求前置透支。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 0
+- id: customer_capex_intensity
+  type: StateVariable
+  properties:
+    id: customer_capex_intensity
+    name: 客户资本开支强度
+    category: demand
+    definition: 下游客户为计算、通信、制造或其他系统建设配置资本的意愿与节奏。
+    decision_use: 判断系统建设需求能否转化为芯片、设备和基础设施订单。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Application
+    - Company
+    - Industry
+    observation_guidance: 观察预算、指引、项目启动、招标和实际采购的共同方向。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 预算延后、项目取消、利用率偏低或资本开支结构转向非半导体项目。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 1
+- id: order_visibility
+  type: StateVariable
+  properties:
+    id: order_visibility
+    name: 订单能见度
+    category: demand
+    definition: 订单、合同、排产和客户承诺对未来交付需求的可见程度。
+    decision_use: 区分短期询单、渠道补库和可兑现需求。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - ValueChainSegment
+    observation_guidance: 同时检查订单覆盖期、取消条款、重复下单和交付排期。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 订单取消、重复下单、渠道囤货或客户延迟拉货。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 2
+- id: adoption_penetration
+  type: StateVariable
+  properties:
+    id: adoption_penetration
+    name: 产品采用与渗透进展
+    category: demand
+    definition: 产品或技术从验证、导入到主流采用的推进程度。
+    decision_use: 判断新产品需求是概念验证还是可持续放量。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - TechnologyRoute
+    - Application
+    observation_guidance: 区分测试、定点、量产、复购和跨客户扩散阶段。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 认证延期、客户撤回、质量问题、替代路线增强或复购不足。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 3
+- id: design_win_visibility
+  type: StateVariable
+  properties:
+    id: design_win_visibility
+    name: Design Win能见度
+    category: commercialization
+    definition: 客户设计导入、定点和Design Win对未来订单和量产的可见程度。
+    decision_use: 区分概念合作、样品验证和可兑现的商业化进展。
+    variable_kind: qualitative_or_derived
+    variable_role: primary_judgment_variable
+    anchors:
+    - Company
+    - Product
+    - Application
+    observation_guidance: 按商业化阶段区分概念、样品、认证、Design Win、试产、量产和复购。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 仅有意向合作、Design Win未覆盖量产规格或客户未启动项目。
+  projection:
+    section: state_variables
+    index: 4
+- id: supply_availability
+  type: StateVariable
+  properties:
+    id: supply_availability
+    name: 供给可得性
+    category: supply
+    definition: 在目标时间和地域内获得合格产品、材料、设备或产能的难易程度。
+    decision_use: 判断需求能否被满足以及瓶颈是否真实存在。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - Material
+    - ValueChainSegment
+    - ManufacturingFacility
+    - Region
+    observation_guidance: 联合观察产能、良率、交期、分配、许可、物流和替代供应。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 闲置产能、库存充足、替代供应可用、交期缩短或许可恢复。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 5
+- id: capacity_tightness
+  type: StateVariable
+  properties:
+    id: capacity_tightness
+    name: 产能紧张度
+    category: supply
+    definition: 有效产能相对于可兑现需求的紧张程度。
+    decision_use: 判断是否存在扩产、涨价、排队或需求外溢条件。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - ManufacturingFacility
+    - ValueChainSegment
+    - Product
+    observation_guidance: 使用有效产能而非名义产能，并考虑良率、产品切换和维护停机。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 产线利用不足、可快速切换产能、良率改善或需求重复计算。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 6
+- id: capacity_expansion_progress
+  type: StateVariable
+  properties:
+    id: capacity_expansion_progress
+    name: 产能扩张进展
+    category: supply
+    definition: 从投资、建设、设备搬入、认证到稳定量产的扩产推进程度。
+    decision_use: 判断新增供给何时、以何种质量释放。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - ManufacturingFacility
+    - Company
+    - ValueChainSegment
+    observation_guidance: 分阶段记录建设、设备安装、试产、良率爬坡和客户认证。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 项目延期、设备或人才短缺、良率不足、客户认证失败或资本约束。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 7
+- id: supply_elasticity
+  type: StateVariable
+  properties:
+    id: supply_elasticity
+    name: 供给响应弹性
+    category: supply
+    definition: 供给体系面对需求或价格变化时扩大、切换或恢复供给的能力。
+    decision_use: 判断供需缺口的持续时间和价格压力是否可延续。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - ValueChainSegment
+    - Product
+    - Material
+    - TechnologyRoute
+    observation_guidance: 考虑建设周期、设备通用性、产品切换、良率、认证和替代供应。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 产能可快速切换、标准化程度高、替代供应成熟或需求短暂。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 8
+- id: bottleneck_dependency_concentration
+  type: StateVariable
+  properties:
+    id: bottleneck_dependency_concentration
+    name: 瓶颈依赖集中度
+    category: supply
+    definition: 产业链关键瓶颈环节、设备、材料或设施的供应集中和不可替代程度。
+    decision_use: 判断单点瓶颈是否会放大供给冲击和价格传导。
+    variable_kind: qualitative_or_derived
+    variable_role: intermediate_variable
+    anchors:
+    - Product
+    - Material
+    - ManufacturingFacility
+    - ValueChainSegment
+    observation_guidance: 穿透关键设备、材料、封装基板、测试产能和地域单点依赖。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 表面多供但共享同一上游、替代路线已认证或库存可缓冲。
+  projection:
+    section: state_variables
+    index: 9
+- id: yield_maturity
+  type: StateVariable
+  properties:
+    id: yield_maturity
+    name: 良率成熟度
+    category: manufacturing
+    definition: 工艺在目标规格和规模下稳定产出合格产品的成熟程度。
+    decision_use: 判断名义产能能否转化为有效供给和经济性。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - ManufacturingFacility
+    - ProcessStep
+    - TechnologyRoute
+    - Product
+    observation_guidance: 观察良率趋势、缺陷密度、返工、报废、跨批次稳定性和客户质量反馈。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 良率波动、关键缺陷、跨厂复制失败、可靠性不达标或成本不可接受。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 10
+- id: process_capability
+  type: StateVariable
+  properties:
+    id: process_capability
+    name: 制程能力
+    category: manufacturing
+    definition: 工艺持续满足尺寸、性能、功耗、可靠性和一致性要求的能力。
+    decision_use: 判断技术路线是否具备稳定制造基础。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - ProcessStep
+    - ManufacturingFacility
+    - TechnologyRoute
+    observation_guidance: 联合考察过程窗口、量测、设备匹配、材料控制和统计稳定性。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 过程窗口狭窄、量测不足、设备漂移、材料波动或无法规模复制。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 11
+- id: production_cycle_pressure
+  type: StateVariable
+  properties:
+    id: production_cycle_pressure
+    name: 生产与交付周期压力
+    category: manufacturing
+    definition: 从投料、制造、封装测试到交付的周期延长或压缩压力。
+    decision_use: 判断供应紧张、在制品堆积和交付风险。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - ProcessStep
+    - ManufacturingFacility
+    - Product
+    - ValueChainSegment
+    observation_guidance: 区分制造周期、排队时间、返工、物流和客户验收造成的延迟。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 周期恢复、加急能力充足、在制品下降或瓶颈工序解除。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 12
+- id: quality_reliability
+  type: StateVariable
+  properties:
+    id: quality_reliability
+    name: 质量与可靠性水平
+    category: manufacturing
+    definition: 产品在规定环境和寿命内持续满足功能与失效率要求的能力。
+    decision_use: 判断产品能否通过认证、维持量产和避免召回损失。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - ProcessStep
+    - TechnologyRoute
+    - Company
+    observation_guidance: 观察认证、失效率、退货、召回、可靠性测试和失效分析结果。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 现场失效、客户退货、认证未通过、参数漂移或重大质量事故。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 13
+- id: inventory_cycle_position
+  type: StateVariable
+  properties:
+    id: inventory_cycle_position
+    name: 库存周期位置
+    category: inventory_cycle
+    definition: 产业链处于补库、正常、积累、去库或短缺阶段的综合状态。
+    decision_use: 区分真实终端需求与库存行为造成的订单波动。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - Product
+    observation_guidance: 对齐供应商、渠道、客户和终端多层库存及业务时间。
+    evidence_profile_ref: inventory_cycle
+    counter_evidence_guidance: 不同层级库存方向相反、渠道重复下单或终端需求与出货背离。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 14
+- id: inventory_buffer_capacity
+  type: StateVariable
+  properties:
+    id: inventory_buffer_capacity
+    name: 库存缓冲能力
+    category: inventory_cycle
+    definition: 现有库存吸收供给中断或需求波动的能力及可持续时间。
+    decision_use: 判断冲击是否立即传导以及传导强度。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - Material
+    - ValueChainSegment
+    observation_guidance: 结合可用库存、保质期、规格兼容性、在途库存和安全库存政策。
+    evidence_profile_ref: inventory_cycle
+    counter_evidence_guidance: 库存不可替换、规格不匹配、质量受限、消耗加快或数据仅为账面库存。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 15
+- id: backlog_pressure
+  type: StateVariable
+  properties:
+    id: backlog_pressure
+    name: 未交付订单压力
+    category: inventory_cycle
+    definition: 已确认但尚未交付的订单对产能、交期和收入兑现形成的压力。
+    decision_use: 判断未来交付强度与取消风险。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - ValueChainSegment
+    observation_guidance: 检查订单质量、覆盖期、取消权、客户集中度和历史转化率。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 大量可取消订单、重复预订、客户延迟验收或历史转化率偏低。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 16
+- id: product_price_pressure
+  type: StateVariable
+  properties:
+    id: product_price_pressure
+    name: 产品价格压力
+    category: economics
+    definition: 产品价格受到供需、竞争、结构和合同机制影响而上行或下行的压力。
+    decision_use: 判断收入、份额和利润池变化的价格渠道。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - ValueChainSegment
+    - Company
+    observation_guidance: 区分挂牌价、合同价、成交价、产品组合和一次性调整。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 产品结构变化、折扣未兑现、长期合同锁价或价格变化由汇率造成。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 17
+- id: input_cost_pressure
+  type: StateVariable
+  properties:
+    id: input_cost_pressure
+    name: 投入成本压力
+    category: economics
+    definition: 材料、设备折旧、能源、人工、物流和合规成本对单位成本的压力。
+    decision_use: 判断价格变化是否能转化为利润改善或恶化。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - Material
+    - ManufacturingFacility
+    observation_guidance: 区分单位用量、采购价、良率、折旧和产品组合的共同影响。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 成本被效率提升抵消、合同转嫁、原料占比低或会计确认滞后。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 18
+- id: pricing_power
+  type: StateVariable
+  properties:
+    id: pricing_power
+    name: 定价与成本传导能力
+    category: economics
+    definition: 在不显著损失需求或份额的情况下调整价格并传递成本的能力。
+    decision_use: 判断供给紧张或成本上升的价值分配结果。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - ValueChainSegment
+    observation_guidance: 观察合同、替代难度、客户集中度、涨价兑现和份额变化。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 客户议价强、替代品充足、涨价后丢失份额或合同限制调价。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 19
+- id: profit_pool_shift
+  type: StateVariable
+  properties:
+    id: profit_pool_shift
+    name: 产业利润池迁移
+    category: economics
+    definition: 利润在设计、设备材料、制造、封装测试和系统环节之间重新分配的方向。
+    decision_use: 防止把行业增长直接等同于所有环节盈利改善。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    observation_guidance: 综合价格、成本、利用率、份额、资本强度和议价关系。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 会计周期错配、补贴、一次性收益或不同环节产能释放造成的临时变化。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 20
+- id: scaling_progress
+  type: StateVariable
+  properties:
+    id: scaling_progress
+    name: 制程微缩与密度提升进展
+    category: technology
+    definition: 器件、互连和设计协同向更高密度、更优性能功耗推进的程度。
+    decision_use: 判断先进工艺需求、设备材料强度和成本复杂度变化。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - TechnologyRoute
+    - ProcessStep
+    - Product
+    observation_guidance: 观察架构、工艺模块、设计规则、良率、量产和经济性共同进展。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 良率不足、成本失控、设计收益有限、量测或材料瓶颈。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 21
+- id: technology_maturity
+  type: StateVariable
+  properties:
+    id: technology_maturity
+    name: 技术路线成熟度
+    category: technology
+    definition: 技术路线从研究、原型、验证、试产到规模量产的成熟阶段。
+    decision_use: 区分概念突破与可投资、可交付的产业能力。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - TechnologyRoute
+    - Product
+    - ProcessStep
+    observation_guidance: 同时检查性能、可靠性、可制造性、成本、生态和量产证据。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 仅有实验室结果、缺少客户验证、成本过高或供应生态不完整。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 22
+- id: technology_competitiveness
+  type: StateVariable
+  properties:
+    id: technology_competitiveness
+    name: 技术综合竞争力
+    category: technology
+    definition: 技术路线在性能、功耗、面积、成本、可靠性和生态上的综合优势。
+    decision_use: 判断技术是否具备采用和替代基础。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - TechnologyRoute
+    - Product
+    observation_guidance: 使用同口径、同工作负载和同成熟阶段的比较。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 基准不可比、牺牲可靠性或成本、软件生态不足、量产条件不同。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 23
+- id: technology_substitution_intensity
+  type: StateVariable
+  properties:
+    id: technology_substitution_intensity
+    name: 技术替代强度
+    category: technology
+    definition: 新路线在明确应用范围内替代既有产品、材料、工艺或架构的强度。
+    decision_use: 判断需求结构、设备材料需求和公司暴露的迁移方向。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - TechnologyRoute
+    - Product
+    - Material
+    - ProcessStep
+    observation_guidance: 区分局部互补、增量采用和存量替代，并检查切换成本。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 两条路线实际互补、客户迁移成本高、供应不足或性能优势只适用于窄场景。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 24
+- id: customer_qualification_progress
+  type: StateVariable
+  properties:
+    id: customer_qualification_progress
+    name: 客户认证进展
+    category: commercialization
+    definition: 产品、工艺或供应商通过客户测试、资格认证和设计导入的推进程度。
+    decision_use: 判断技术或国产替代能否从样品转化为订单。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - TechnologyRoute
+    - Application
+    observation_guidance: 区分送样、测试、通过认证、定点、量产和复购。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 认证延期、规格变更、质量问题、客户未下单或仅有非约束性意向。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 25
+- id: mass_production_readiness
+  type: StateVariable
+  properties:
+    id: mass_production_readiness
+    name: 规模量产准备度
+    category: commercialization
+    definition: 产品或路线在产能、良率、供应、质量和交付方面满足规模量产的程度。
+    decision_use: 判断商业化是否具备兑现基础。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - TechnologyRoute
+    - ManufacturingFacility
+    - Company
+    observation_guidance: 检查工艺冻结、产线认证、良率、供应商、测试和交付能力。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 产能未就绪、良率波动、供应商未认证、质量或测试瓶颈。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 26
+- id: localization_substitution_progress
+  type: StateVariable
+  properties:
+    id: localization_substitution_progress
+    name: 本地化与国产替代进展
+    category: commercialization
+    definition: 本地供应从可用样品、客户认证到稳定量产和重复采购的推进程度。
+    decision_use: 判断替代路线是否真正降低外部依赖并形成商业份额。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - Material
+    - TechnologyRoute
+    - Region
+    observation_guidance: 同时检查性能、成本、良率、认证、复购和供应规模。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 仅完成送样、依赖进口核心环节、成本或良率不足、客户未重复采购。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 27
+- id: competitive_intensity
+  type: StateVariable
+  properties:
+    id: competitive_intensity
+    name: 竞争强度
+    category: competition
+    definition: 现有参与者、替代路线和新进入者对价格、份额与利润的竞争压力。
+    decision_use: 判断需求增长能否转化为盈利和份额改善。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Product
+    - Company
+    observation_guidance: 观察价格行为、产能进入、客户切换、份额和差异化。
+    evidence_profile_ref: competition_structure
+    counter_evidence_guidance: 市场分层明显、产品不可替代、供给纪律增强或需求增长吸收新增供给。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 28
+- id: customer_switching_cost
+  type: StateVariable
+  properties:
+    id: customer_switching_cost
+    name: 客户切换成本
+    category: competition
+    definition: 客户更换芯片、供应商、工艺或技术路线所承担的验证、软件、质量和供应风险成本。
+    decision_use: 判断份额稳定性、定价能力和替代速度。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - TechnologyRoute
+    - Application
+    - Company
+    observation_guidance: 检查认证周期、重新设计、软件迁移、可靠性责任和多供策略。
+    evidence_profile_ref: competition_structure
+    counter_evidence_guidance: 标准化接口、兼容性高、已有双供认证或客户主动降低依赖。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 29
+- id: entry_barrier_strength
+  type: StateVariable
+  properties:
+    id: entry_barrier_strength
+    name: 进入壁垒强度
+    category: competition
+    definition: 技术、资本、知识产权、人才、客户认证和规模经济对新进入者的限制程度。
+    decision_use: 判断高利润是否可持续以及新增供给速度。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - TechnologyRoute
+    observation_guidance: 区分技术可得性、资金投入、学习曲线、生态和监管限制。
+    evidence_profile_ref: competition_structure
+    counter_evidence_guidance: 技术标准化、设备材料可得、政策补贴、人才流动或客户主动扶持新供应商。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 30
+- id: policy_support_strength
+  type: StateVariable
+  properties:
+    id: policy_support_strength
+    name: 产业政策支持强度
+    category: policy_resilience
+    definition: 财税、研发、融资、采购、人才和基础设施政策对产业能力建设的有效支持程度。
+    decision_use: 判断政策是否能转化为投资、需求、技术和产能结果。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - ManufacturingFacility
+    - Region
+    - PolicyInstrument
+    observation_guidance: 区分政策发布、预算落实、项目执行、验收和持续性。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 缺少预算、执行延期、地方差异、附加条件过强或政策退出。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 31
+- id: export_control_intensity
+  type: StateVariable
+  properties:
+    id: export_control_intensity
+    name: 出口与技术管制强度
+    category: policy_resilience
+    definition: 产品、设备、材料、软件、技术和服务跨境流动受到限制的程度。
+    decision_use: 判断市场准入、供给可得性和技术协作的约束。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Product
+    - Material
+    - TechnologyRoute
+    - Company
+    - Region
+    - PolicyInstrument
+    observation_guidance: 检查适用对象、性能门槛、最终用途、许可、豁免、执法和多边协调。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 存在许可、豁免、替代来源、范围缩窄、执行宽松或政策撤回。
+    variable_role: primary_judgment_variable
+  projection:
+    section: state_variables
+    index: 32
+- id: compliance_friction
+  type: StateVariable
+  properties:
+    id: compliance_friction
+    name: 合规摩擦
+    category: policy_resilience
+    definition: 许可、审查、认证、环保、安全和贸易合规造成的时间、成本与不确定性。
+    decision_use: 判断政策影响是否通过交期、成本或市场准入实际传导。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - Material
+    - ManufacturingFacility
+    - Region
+    - PolicyInstrument
+    observation_guidance: 观察审批周期、拒绝率、文件要求、审计、整改和替代流程。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 流程标准化、审批恢复、企业已有合规能力或政策不适用于目标对象。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 33
+- id: supply_chain_resilience
+  type: StateVariable
+  properties:
+    id: supply_chain_resilience
+    name: 供应链韧性
+    category: policy_resilience
+    definition: 面对中断时通过库存、多供、地域分散、替代技术和恢复能力维持交付的能力。
+    decision_use: 判断单点风险是否会升级为持续产业冲击。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - Product
+    - Material
+    - ManufacturingFacility
+    observation_guidance: 检查关键层级的真实多供、库存可替换性、恢复时间和依赖穿透。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 表面多供但共享单一上游、库存不可替换、替代品未认证或地域高度集中。
+    variable_role: intermediate_variable
+  projection:
+    section: state_variables
+    index: 34
+- id: regional_policy_exposure
+  type: StateVariable
+  properties:
+    id: regional_policy_exposure
+    name: 地域政策暴露
+    category: company
+    definition: 公司业务、产能、供应链和市场对特定地域政策和监管环境的暴露程度。
+    decision_use: 将地域政策变化映射到公司层面的合规、供给和市场准入影响。
+    variable_kind: qualitative_or_derived
+    variable_role: company_mapping_variable
+    anchors:
+    - Company
+    - ManufacturingFacility
+    - Region
+    - PolicyInstrument
+    observation_guidance: 综合生产、销售、采购、技术和资本布局的地域分布与政策适用范围。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 政策不适用、业务地域分散、已有合规能力或替代产地可切换。
+  projection:
+    section: state_variables
+    index: 35
+- id: value_chain_role_exposure
+  type: StateVariable
+  properties:
+    id: value_chain_role_exposure
+    name: 公司价值链角色暴露度
+    category: company
+    definition: 公司收入、成本、产能和竞争力对特定产业链位置的依赖程度。
+    decision_use: 将行业变化映射到公司经营，而不直接从行业跳到资产。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - ValueChainSegment
+    - Product
+    observation_guidance: 综合业务结构、产能、客户、供应商和利润贡献，而非只看公司标签。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 相关业务占比低、利润贡献弱、内部对冲、合同保护或收入确认滞后。
+    variable_role: company_mapping_variable
+  projection:
+    section: state_variables
+    index: 36
+- id: technology_route_exposure
+  type: StateVariable
+  properties:
+    id: technology_route_exposure
+    name: 公司技术路线暴露度
+    category: company
+    definition: 公司产品、产能、研发和客户关系对某技术路线成功或受阻的敏感程度。
+    decision_use: 判断技术替代对不同公司角色的差异化影响。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - TechnologyRoute
+    - Product
+    - ManufacturingFacility
+    observation_guidance: 同时检查受益路线、被替代路线、研发选择权和产能可切换性。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 公司具备多路线布局、相关业务占比低、产能可切换或客户采用未发生。
+    variable_role: company_mapping_variable
+  projection:
+    section: state_variables
+    index: 37
+- id: execution_delivery_capability
+  type: StateVariable
+  properties:
+    id: execution_delivery_capability
+    name: 公司执行与交付能力
+    category: company
+    definition: 公司把需求、订单和技术机会转化为合格产品、按期交付和收入的能力。
+    decision_use: 防止把订单或行业景气直接等同于业绩兑现。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - ManufacturingFacility
+    observation_guidance: 检查产能、良率、供应、质量、人员、项目管理、验收和收入确认。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 交付延期、良率不足、供应受限、验收失败、客户集中或收入确认受阻。
+    variable_role: company_mapping_variable
+  projection:
+    section: state_variables
+    index: 38
+- id: earnings_elasticity
+  type: StateVariable
+  properties:
+    id: earnings_elasticity
+    name: 公司业绩弹性
+    category: company
+    definition: 需求、价格、利用率、产品组合和成本变化传导到收入、利润和现金流的敏感程度。
+    decision_use: 判断产业变量变化对公司经营结果的幅度与方向。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Company
+    - Product
+    - ValueChainSegment
+    observation_guidance: 拆分量、价、结构、利用率、成本、费用、资本开支和营运资金渠道。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 固定合同、业务对冲、费用投入、折旧上升、营运资金占用或会计确认滞后。
+    variable_role: company_mapping_variable
+  projection:
+    section: state_variables
+    index: 39
+- id: consensus_expectation_level
+  type: StateVariable
+  properties:
+    id: consensus_expectation_level
+    name: 市场一致预期水平
+    category: expectation
+    definition: 市场、管理层、研究者或价格对未来行业和公司状态的共同预期程度。
+    decision_use: 建立基本面判断与市场已知信息的比较基准。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - Product
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+    observation_guidance: 对齐对象、时间尺度、口径和预期来源，保留分歧。
+    evidence_profile_ref: market_expectations
+    counter_evidence_guidance: 预期来源陈旧、样本偏少、不同口径混用或价格隐含信息与文本预期不一致。
+    variable_role: market_variable
+  projection:
+    section: state_variables
+    index: 40
+- id: expectation_gap
+  type: StateVariable
+  properties:
+    id: expectation_gap
+    name: 预期差
+    category: expectation
+    definition: 证据支持的判断与当前市场、管理层或价格隐含预期之间的方向和幅度差异。
+    decision_use: 判断基本面变化是否提供新增信息，而非重复市场共识。
+    variable_kind: derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - Product
+    - TechnologyRoute
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+    observation_guidance: 必须先对齐对象、业务时间、情景和度量口径再比较。
+    evidence_profile_ref: market_expectations
+    counter_evidence_guidance: 预期口径不可比、事件已公开、资产已提前反应或基本面证据不足。
+    variable_role: market_variable
+  projection:
+    section: state_variables
+    index: 41
+- id: priced_in_degree
+  type: StateVariable
+  properties:
+    id: priced_in_degree
+    name: 市场预期反映程度
+    category: expectation
+    definition: 某一判断已被价格、估值、仓位和交易行为反映的程度。
+    decision_use: 约束从基本面判断到资产影响的升级。
+    variable_kind: qualitative_or_derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - Product
+    - TechnologyRoute
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+    observation_guidance: 结合事件前后表现、估值变化、成交、持仓和一致预期修正。
+    evidence_profile_ref: market_expectations
+    counter_evidence_guidance: 市场波动由其他事件驱动、窗口过短、基准错误或拥挤指标失真。
+    variable_role: market_variable
+  projection:
+    section: state_variables
+    index: 42
+- id: counter_evidence_strength
+  type: StateVariable
+  properties:
+    id: counter_evidence_strength
+    name: 反证强度
+    category: expectation
+    definition: 削弱、竞争解释或阻断当前假设与传导链的证据强度。
+    decision_use: 决定判断维持、降级、争议或阻断。
+    variable_kind: derived
+    anchors:
+    - Industry
+    - ValueChainSegment
+    - Company
+    - Product
+    - TechnologyRoute
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+    observation_guidance: 比较反证的可靠性、独立性、时效、相关性和是否命中核心前提。
+    evidence_profile_ref: counter_evidence
+    counter_evidence_guidance: 所谓反证可能口径不一致、时间错配、仅影响幅度而非方向，或缺少独立来源。
+    variable_role: counter_variable
+  projection:
+    section: state_variables
+    index: 43
+- id: semiconductor_content_intensity
+  type: StateVariable
+  properties:
+    id: semiconductor_content_intensity
+    name: 单位应用半导体价值量/含量强度
+    category: demand
+    definition: 单位终端、系统或工作负载带来的半导体功能与价值量强度。
+    decision_use: 判断终端量变化与单机/单系统半导体价值量变化如何共同传导至订单与上游需求。
+    variable_kind: qualitative_or_derived
+    variable_role: intermediate_variable
+    anchors:
+    - Product
+    - ProcessStep
+    - TechnologyRoute
+    observation_guidance: 结合终端出货量、单机芯片用量、封装复杂度、材料体系和化合物半导体替代情况评估。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 先进封装或异构集成降低单位算力半导体价值量、材料替代或设计优化抵消。
+  projection:
+    section: state_variables
+    index: 44
+- id: product_mix_structure
+  type: StateVariable
+  properties:
+    id: product_mix_structure
+    name: 产品组合结构
+    category: company
+    definition: 公司产品组合中高毛利、高增长、战略性和可持续产品的结构与占比。
+    decision_use: 判断行业景气能否通过产品组合结构转化为可观察业绩弹性。
+    variable_kind: qualitative_or_derived
+    variable_role: company_mapping_variable
+    anchors:
+    - Company
+    - Product
+    - ValueChainSegment
+    observation_guidance: 拆分收入、毛利和增长贡献，区分结构性产品与周期性或一次性产品。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 增长来自低毛利产品、老旧产品或不可持续的一次性项目。
+  projection:
+    section: state_variables
+    index: 45
+relations:
+- id: REL-end_market_demand_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: end_market_demand_strength
+  targetId: demand_orders
+  properties: {}
+- id: REL-customer_capex_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: customer_capex_intensity
+  targetId: demand_orders
+  properties: {}
+- id: REL-order_visibility-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: order_visibility
+  targetId: demand_orders
+  properties: {}
+- id: REL-adoption_penetration-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: adoption_penetration
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-design_win_visibility-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: design_win_visibility
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-supply_availability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: supply_availability
+  targetId: capacity_supply
+  properties: {}
+- id: REL-capacity_tightness-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: capacity_tightness
+  targetId: capacity_supply
+  properties: {}
+- id: REL-capacity_expansion_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: capacity_expansion_progress
+  targetId: capacity_supply
+  properties: {}
+- id: REL-supply_elasticity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: supply_elasticity
+  targetId: capacity_supply
+  properties: {}
+- id: REL-bottleneck_dependency_concentration-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: bottleneck_dependency_concentration
+  targetId: capacity_supply
+  properties: {}
+- id: REL-yield_maturity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: yield_maturity
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-process_capability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: process_capability
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-production_cycle_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: production_cycle_pressure
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-quality_reliability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: quality_reliability
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-inventory_cycle_position-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: inventory_cycle_position
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-inventory_buffer_capacity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: inventory_buffer_capacity
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-backlog_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: backlog_pressure
+  targetId: demand_orders
+  properties: {}
+- id: REL-product_price_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: product_price_pressure
+  targetId: pricing_economics
+  properties: {}
+- id: REL-input_cost_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: input_cost_pressure
+  targetId: pricing_economics
+  properties: {}
+- id: REL-pricing_power-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: pricing_power
+  targetId: pricing_economics
+  properties: {}
+- id: REL-profit_pool_shift-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: profit_pool_shift
+  targetId: pricing_economics
+  properties: {}
+- id: REL-scaling_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: scaling_progress
+  targetId: technology_route
+  properties: {}
+- id: REL-technology_maturity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_maturity
+  targetId: technology_route
+  properties: {}
+- id: REL-technology_competitiveness-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_competitiveness
+  targetId: technology_route
+  properties: {}
+- id: REL-technology_substitution_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_substitution_intensity
+  targetId: technology_route
+  properties: {}
+- id: REL-customer_qualification_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: customer_qualification_progress
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-mass_production_readiness-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: mass_production_readiness
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-localization_substitution_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: localization_substitution_progress
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-competitive_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: competitive_intensity
+  targetId: competition_structure
+  properties: {}
+- id: REL-customer_switching_cost-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: customer_switching_cost
+  targetId: competition_structure
+  properties: {}
+- id: REL-entry_barrier_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: entry_barrier_strength
+  targetId: competition_structure
+  properties: {}
+- id: REL-policy_support_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: policy_support_strength
+  targetId: policy_trade
+  properties: {}
+- id: REL-export_control_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: export_control_intensity
+  targetId: policy_trade
+  properties: {}
+- id: REL-compliance_friction-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: compliance_friction
+  targetId: policy_trade
+  properties: {}
+- id: REL-supply_chain_resilience-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: supply_chain_resilience
+  targetId: capacity_supply
+  properties: {}
+- id: REL-regional_policy_exposure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: regional_policy_exposure
+  targetId: policy_trade
+  properties: {}
+- id: REL-value_chain_role_exposure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: value_chain_role_exposure
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-technology_route_exposure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_route_exposure
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-execution_delivery_capability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: execution_delivery_capability
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-earnings_elasticity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: earnings_elasticity
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-consensus_expectation_level-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: consensus_expectation_level
+  targetId: market_expectations
+  properties: {}
+- id: REL-expectation_gap-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: expectation_gap
+  targetId: market_expectations
+  properties: {}
+- id: REL-priced_in_degree-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: priced_in_degree
+  targetId: market_expectations
+  properties: {}
+- id: REL-counter_evidence_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: counter_evidence_strength
+  targetId: counter_evidence
+  properties: {}
+- id: REL-semiconductor_content_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: semiconductor_content_intensity
+  targetId: demand_orders
+  properties: {}
+- id: REL-product_mix_structure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: product_mix_structure
+  targetId: company_exposure_execution
+  properties: {}

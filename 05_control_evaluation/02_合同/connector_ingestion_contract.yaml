@@ -1,0 +1,71 @@
+schema_name: connector_ingestion_contract
+schema_version: 1.0.0
+status: active
+
+purpose: >-
+  为实时网页、PDF 与金融数据连接器提供统一的服务端摄取边界，
+  把供应商返回结果转换为 SourceSnapshot、EvidenceFact 与受治理本体对象，且不把供应商凭据暴露给 Agent、Artifact 或前端。
+
+deployment_boundary:
+  connector_role: 在独立 sidecar、MCP gateway 或数据供应商适配服务中调用上游并返回标准结果
+  runtime_role: 只接收标准结果、校验、保存 provenance、执行 Ontology Action 与触发局部重算
+  provider_credentials: 只存在于连接器进程；禁止进入 requestParameters、capture、Artifact、Event 或模型上下文
+  runtime_auth:
+    token_env: VNEXT_CONNECTOR_INGEST_TOKEN
+    connector_allowlist_env: VNEXT_CONNECTOR_IDS
+    accepted_headers: [Authorization_Bearer, X-VNext-Connector-Token]
+
+endpoint:
+  method: POST
+  path: /vnext/connectors/ingest
+  response_status: 202
+  envelope:
+    required: [taskId, kind, result]
+    kinds: [source_capture, financial_data]
+  limits:
+    envelope_bytes: 5000000
+    source_body_bytes: 2000000
+    quote_characters: 20000
+    financial_observations: 1000
+
+source_capture_path:
+  input_contract: 06_runtime/src/tools/source-result-adapter.ts#UnifiedSourceToolResult
+  chain: [adaptSourceToolResult, ResearchProvenanceStore.saveSnapshot, source-snapshot_Verifier, CaptureSource, VerifySourceSnapshot, 外部来源快照_Artifact, evidence_capture_与下游局部重算]
+  promotion_boundary: 来源短摘录只有在 evidence_evaluation 中才能晋级 EvidenceFact
+
+financial_data_path:
+  input_contract: 06_runtime/src/tools/financial-data-adapter.ts#FinancialDataToolResult
+  chain: [adaptFinancialDataResult, 冻结主体指标值单位业务时点口径维度, SourceSnapshot_与_EvidenceFact_provenance, CaptureSource, VerifySourceSnapshot, AcceptClaim, PromoteEvidenceFact, 结构化金融数据_Artifact, evidence_evaluation_与下游局部重算]
+
+mutation_boundary:
+  allowed_task_states: [planned, queued, waiting_input, waiting_approval, failed]
+  running: 返回冲突；连接器应在下一 checkpoint 重试
+  completed_or_cancelled: 禁止原地改写；必须创建 update_judgment 或 evidence update 分支
+  pending_approval: 新证据影响到的旧 evidence、judgment 或 publish approval 必须 superseded
+  published_report: 永不被连接器静默改写
+
+deterministic_gates:
+  - connectorId 必须在服务端白名单
+  - 结果对象不得含密钥、Token、Cookie、密码或 Credential 字段
+  - quote 必须能在 body 中定位
+  - body hash、raw response hash 与 request fingerprint 必须一致
+  - restricted capture 不得晋级
+  - 金融单位、业务时间、asOf、basis 与重复观测必须通过校验
+  - 同一连接器请求与内容哈希必须幂等
+  - 金融事实必须并入证据评估和 MethodApplication，而非只停留在首页信号
+
+ui_projection:
+  home_fields: [configured, allowedConnectorIds, observedConnectorIds, sourceCaptureCount, financialBatchCount, lastIngestedAt]
+  secret_projection: forbidden
+  event_types: [connector.source_ingested, connector.ingestion_rejected, connector.evidence_recompute_queued, financial.data_ingested]
+
+runtime_mapping:
+  endpoint: 06_runtime/app/vnext/connectors/ingest/route.ts
+  envelope_guard: 06_runtime/src/tools/connector-ingestion.ts
+  source_adapter: 06_runtime/src/tools/source-result-adapter.ts
+  financial_adapter: 06_runtime/src/tools/financial-data-adapter.ts
+  kernel: 06_runtime/src/runtime/kernel.ts
+  home_view: 06_runtime/src/ui/view-models.ts
+
+verification:
+  tests: [06_runtime/tests/connector-ingestion.test.ts, 06_runtime/tests/source-result-adapter.test.ts, 06_runtime/tests/financial-data-adapter.test.ts]

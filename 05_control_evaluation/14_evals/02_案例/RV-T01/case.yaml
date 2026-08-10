@@ -1,0 +1,34 @@
+document_type: research_value_eval_case
+schema_version: 2.0.0
+case_id: RV-T01
+title: 存储芯片分产品周期位置与转向条件
+split: calibration_pilot
+stratum: report_value
+task_input:
+  question: 截至2026年7月13日，全球存储芯片中HBM、非HBM DRAM与NAND分别处于什么供需与价格周期阶段？未来6—24个月哪些信号支持延续或转向？
+  object: 全球存储芯片（HBM、非HBM DRAM、NAND）
+  scope: 分产品周期位置、延续和转向条件；不做个股评级或交易建议。
+  information_cutoff: '2026-07-13'
+  terminal_artifact_type: report
+system_artifact:
+  stage: '05'
+  path: 05_control_evaluation/14_evals/02_案例/RV-T01/system_artifact.md
+  allowed_terminal_status: 条件成立
+reasoning_materials:
+  - 05_control_evaluation/14_evals/02_案例/RV-T01/reasoning_logic.md
+  - 05_control_evaluation/14_evals/02_案例/RV-T01/judgment_brief.md
+  - 05_control_evaluation/14_evals/02_案例/RV-T01/reasoning_audit.yaml
+evidence_pack_ref: evidence.yaml
+adjudication_ref: sealed/adjudication.yaml
+perturbation_ref: perturbations.yaml
+experiment:
+  axes: [R, U, delta, S, C]
+  contexts: [A, B, C, D, E]
+  ablation_ladder: [P0, P1, P2, P3]
+  ablation_ref: ablation/
+  downstream_tasks: [core_restatement, tracking_plan, information_update, research_questions]
+  target_length_policy: system_artifact_plus_or_minus_15_percent
+isolation:
+  producer_visible: [task_input, evidence.yaml]
+  producer_forbidden: [system_artifact, reasoning_materials, sealed/adjudication.yaml, ../../calibration/defects.yaml]
+  adjudication_open_after_artifact_freeze: true

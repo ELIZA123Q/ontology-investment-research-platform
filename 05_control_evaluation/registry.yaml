@@ -1,0 +1,63 @@
+schema_name: governance_domain_registry
+schema_version: 1.0.0
+status: active
+
+authority:
+  answers: Governance 总入口；子域见 rules/verifiers/evals/identity/permissions。
+  write_entry: 05_control_evaluation/{rules,evals,verifiers,identity,permissions}/
+  read_primary:
+    - 05_control_evaluation/registry.yaml
+    - 05_control_evaluation/01_架构/03_知识沉淀闭环.md
+    - 05_control_evaluation/02_合同/knowledge_learning_contract.yaml
+    - 05_control_evaluation/02_合同/research_provenance_contract.yaml
+    - 05_control_evaluation/02_合同/research_planning_contract.yaml
+    - 05_control_evaluation/02_合同/artifact_editing_contract.yaml
+    - 05_control_evaluation/02_合同/report_generation_contract.yaml
+    - 05_control_evaluation/02_合同/judgment_reasoning_commit_contract.yaml
+    - 05_control_evaluation/02_合同/financial_data_ingestion_contract.yaml
+    - 05_control_evaluation/02_合同/connector_ingestion_contract.yaml
+    - 05_control_evaluation/02_合同/ai_report_drafting_contract.yaml
+    - 05_control_evaluation/02_合同/report_quality_evaluation_contract.yaml
+    - 05_control_evaluation/11_rules/registry.yaml
+    - 05_control_evaluation/15_verifiers/registry.yaml
+    - 05_control_evaluation/14_evals/registry.yaml
+    - 05_control_evaluation/12_identity/registry.yaml
+    - 05_control_evaluation/13_permissions/registry.yaml
+
+subdomains:
+  rules:
+    target: 05_control_evaluation/11_rules
+    source: 05_control_evaluation/02_合同
+    status: migrating
+  verifiers:
+    target: 05_control_evaluation/15_verifiers
+    source: 05_control_evaluation/03_校验
+    status: migrating
+  evals:
+    target: 05_control_evaluation/14_evals
+    source: evaluation
+    status: migrating
+  identity:
+    target: 05_control_evaluation/12_identity
+    source: null
+    status: migrating
+  permissions:
+    target: 05_control_evaluation/13_permissions
+    source: 05_control_evaluation/02_合同/judgment_threshold_policy.yaml
+    status: migrating
+
+notes:
+  - Verifier ≠ Eval。
+  - 01_架构 / 05_元治理本体 仍属 governance，但不并入五子壳。
+  - 旧路径 02_合同 / 03_校验 / evaluation 保留 compat 可读。
+  - 知识沉淀闭环由人工可读架构与机器合同共同约束；Runtime 只消费，不平行定义值域。
+  - SourceCandidate → SourceSnapshot → EvidenceFact 的确定性晋级边界见 research_provenance_contract.yaml。
+  - PlannerProposal → Deterministic Compiler 的执行边界见 research_planning_contract.yaml。
+  - Artifact PATCH → 乐观锁 → 人工确认 → 下游重算的边界见 artifact_editing_contract.yaml。
+  - ReportSpec → 正式 Judgment → 多章节 ResearchDeliverable 的边界见 report_generation_contract.yaml。
+  - 章节 MethodApplication → 证据角色绑定 → 核心方法执行 → Judgment 批准门由 report_generation_contract.yaml 与 judgment_method_routes.yaml 共同约束。
+  - EvidenceFact → Signal → Hypothesis → RuleEvaluation → Judgment → ReasoningTrace 的原子提交边界见 judgment_reasoning_commit_contract.yaml。
+  - 金融 Tool 结果 → 规范化 Observation → SourceSnapshot → EvidenceFact 的数据口径边界见 financial_data_ingestion_contract.yaml。
+  - 实时网页/PDF/金融连接器 → 认证摄取 → provenance/ontology → 局部重算的边界见 connector_ingestion_contract.yaml。
+  - 模型章节草拟 → 事实/数值/引用门 → 确定性 Composer → 交付审计的边界见 ai_report_drafting_contract.yaml。
+  - 运行时专业纪律诊断与正式 R/U/delta/S/C 的准入边界见 report_quality_evaluation_contract.yaml。

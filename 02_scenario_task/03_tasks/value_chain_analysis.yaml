@@ -1,0 +1,11 @@
+schema_name: research_task_contract
+schema_version: 1.0.0
+task_id: value_chain_analysis
+name: 产业链分析
+objective: 刻画上下游依赖与瓶颈传导，区分名义供给与有效供给
+default_role: research_lead
+optional_workflow_pattern: deep_research
+relevant_skills: [research-framing, research-method, evidence-assessment, hypothesis-analysis]
+relevant_scenario_types: [ValueChainResearch]
+notes:
+  - 用户级 Research Task Contract；不是 Runtime Node。

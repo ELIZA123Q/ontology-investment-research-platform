@@ -1,0 +1,20 @@
+workflow_id: evidence_only
+status: active_pattern
+intent: evidence_only
+description: 仅取证/核验先验——对齐 Runtime ResearchIntent=evidence_only；不是用户级 Research Task。
+
+recommended_capabilities:
+  - evidence
+
+planning_hints:
+  prefer_broad_evidence: false
+  require_competing_explanation: false
+  allow_parallel_evidence: true
+  allow_replanning: false
+
+human_gates:
+  - evidence_confirmation
+
+maps_to_runtime_intent: evidence_only
+notes:
+  - 对应 node 链由 planner/plan-compiler 展开；本文件只提供 pattern prior。

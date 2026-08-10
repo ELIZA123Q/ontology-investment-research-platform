@@ -1,0 +1,15 @@
+fixture_id: RV-T01-SCOPE-GLOBALIZATION
+source_cases: [RV-T01, RV-T08]
+base_run: 04_context_state/03_workspace/02_V3样例/01_memory-cycle-run-002
+mutations:
+  - target: 04.claim_register#C-05.scope_ref
+    value: SCOPE-MEMORY-INDUSTRY
+  - target: 04.aggregation_results#AGGR-ROOT.outcome
+    value: synchronized
+expected_failures:
+  - stage: 04
+    rule: leaf_claim_scope_must_not_exceed_03
+  - stage: 04
+    rule: aggregation_outcome_must_be_derived
+  - stage: 05
+    rule: report_title_requires_aggregated_root_claim

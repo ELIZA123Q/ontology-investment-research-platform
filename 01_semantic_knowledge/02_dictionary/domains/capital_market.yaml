@@ -1,0 +1,56 @@
+schema_name: dictionary_domain_capital_market
+schema_version: 1.1.0
+status: active
+domain: capital_market
+description: 资本市场常用叫法归一；正式对象以 ontology 为准。
+
+aliases:
+  - canonical_ref: ontology:FinancialInstrument
+    preferred_term: 金融工具
+    aliases: [证券]
+
+  - canonical_ref: ontology:TradingVenue
+    preferred_term: 交易场所
+    aliases: [交易所]
+
+  - canonical_ref: ontology:Listing
+    preferred_term: 上市挂牌
+    aliases: [挂牌关系]
+
+  - canonical_ref: ontology:MarketExpectation
+    preferred_term: 市场预期
+    aliases: [一致预期, 隐含预期]
+
+  - canonical_ref: ontology:ExpectationGap
+    preferred_term: 预期差
+    aliases: []
+
+  - canonical_ref: ontology:AssetImpact
+    preferred_term: 资产影响
+    aliases: [资产映射]
+
+research_terms:
+  - term: 一致预期
+    type: research_concept
+    anchor_types: [ontology:Company, ontology:FinancialInstrument]
+    decompose_to: [ontology:MarketExpectation]
+    warning: 需注明预期来源（卖方盈利预测、期货隐含、价格隐含等）。
+
+  - term: 估值消化
+    type: research_concept
+    anchor_types: [ontology:Company, ontology:FinancialInstrument]
+    decompose_to: [ontology:ExpectationGap, ontology:AssetImpact]
+    warning: 与基本面判断分离；避免用估值变化替代证据。
+
+  - term: 杀估值
+    type: research_concept
+    anchor_types: [ontology:Company, ontology:FinancialInstrument]
+    decompose_to: [ontology:AssetImpact, ontology:MarketExpectation]
+    warning: 口语；需说明是倍数压缩还是分子端下修。
+
+  - term: 交易拥挤
+    type: research_concept
+    anchor_types: [ontology:FinancialInstrument, ontology:Industry]
+    decompose_to: [ontology:Metric, ontology:StateVariable]
+    variable_hints: [positioning, fund_holding, turnover]
+    warning: 不是正式 ontology 对象；使用前声明拥挤度量口径。

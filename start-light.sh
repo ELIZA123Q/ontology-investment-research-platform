@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RUNTIME_DIR="$PROJECT_DIR/07_runtime"
+RUNTIME_DIR="$PROJECT_DIR/06_runtime"
 VNEXT_PORT="${VNEXT_PORT:-3000}"
 export VNEXT_PORT
 

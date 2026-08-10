@@ -1,0 +1,66 @@
+schema_name: dictionary_domain_semiconductor
+schema_version: 1.1.0
+status: active
+domain: semiconductor
+description: 半导体领域常用叫法与研究用语归一；正式对象仍以 ontology_extension 为准。
+
+aliases:
+  - canonical_ref: semiconductor:ProcessNode
+    preferred_term: 制程节点
+    aliases: [工艺节点]
+
+  - canonical_ref: semiconductor:WaferFab
+    preferred_term: 晶圆厂
+    aliases: [晶圆制造设施, fab]
+
+  - canonical_ref: semiconductor:SemiconductorEquipment
+    preferred_term: 半导体设备
+    aliases: [fab equipment]
+
+  - canonical_ref: semiconductor:SemiconductorMaterial
+    preferred_term: 半导体材料
+    aliases: [电子材料]
+
+  - canonical_ref: semiconductor:CapacityMetric
+    preferred_term: 产能指标
+    aliases: []
+    # 「产能」高歧义，见 04_ambiguity_rules，不作为无损 alias
+
+  - canonical_ref: semiconductor:YieldMetric
+    preferred_term: 良率指标
+    aliases: [良率]
+
+research_terms:
+  - term: HBM
+    type: domain_term
+    anchor_types: [ontology:Product]
+    decompose_to: [ontology:Product]
+    alternate_anchor_types: [ontology:Technology, semiconductor:Chip]
+    note: 默认按产品/品类理解；讨论技术栈时再升格为 Technology。
+
+  - term: 刻蚀
+    type: domain_term
+    anchor_types: [semiconductor:ProcessStep]
+    decompose_to: [semiconductor:ProcessStep]
+    related: [semiconductor:SemiconductorEquipment]
+    note: 工艺步骤与刻蚀设备不要混为一谈。
+
+  - term: 光刻胶
+    type: domain_term
+    anchor_types: [semiconductor:SemiconductorMaterial]
+    decompose_to: [semiconductor:SemiconductorMaterial]
+    note: 材料对象，不是价格走势。
+
+  - term: 稼动率
+    type: research_concept
+    anchor_types: [semiconductor:WaferFab, semiconductor:ProductionLine]
+    decompose_to: [ontology:StateVariable, ontology:Metric]
+    variable_hints: [utilization]
+    warning: 需声明设施/产线与统计口径。
+
+  - term: 认证导入
+    type: research_concept
+    anchor_types: [ontology:Company, ontology:Product, semiconductor:SemiconductorEquipment]
+    decompose_to: [ontology:StateVariable]
+    variable_hints: [qualification_progress, customer_adoption, adoption_stage]
+    warning: 样品、客户评估、qualification、design win 属于不同阶段，不得混写。

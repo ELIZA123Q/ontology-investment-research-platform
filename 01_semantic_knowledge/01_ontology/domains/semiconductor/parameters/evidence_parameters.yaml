@@ -1,0 +1,929 @@
+schema_name: semiconductor_domain_evidence_parameters
+schema_version: 1.0.0
+status: active
+authority: business_parameters
+description: 半导体证据类业务参数：EvidenceProfile / ProxyIndicator / SourceProfile / EvidenceRecipe。
+shadow_type_contract: 本文件中的影子类型（非 StateVariable）仅作为业务参数图节点/模板；不得当作正式 Ontology Object/Relation
+  物化进 business_instance_graph 正式实例投影。
+objects:
+- id: demand_orders
+  type: EvidenceProfile
+  properties:
+    id: demand_orders
+    name: 需求、资本开支与订单证据
+    supporting_evidence:
+    - 终端产品、系统部署、使用量、出货或利用率的实际数据
+    - 客户预算、资本开支指引、项目清单、招标和采购进度
+    - 订单覆盖期、排产、出货、交付和收入确认的连续记录
+    - 至少一个下游来源与一个供应链来源的交叉验证
+    counter_evidence:
+    - 终端销量、利用率或预算下修
+    - 订单取消、延迟拉货、重复下单或非约束性意向
+    - 渠道库存增加但终端需求未改善
+    - 资本开支投向与目标半导体需求无关
+    competing_explanations:
+    - 订单增长来自补库存而非终端需求
+    - 出货增长来自提前备货或价格促销
+    - 收入增长来自并表、汇率或会计确认而非量价改善
+    scope_checks:
+    - 终端与供应链口径一致
+    - 订单产品和地域一致
+    - 业务时间与交付窗口对齐
+    freshness_guidance: 订单和库存宜按月度或季度更新；资本开支在指引、预算或项目变化时更新。
+    minimum_requirements:
+    - 至少一条需求端证据
+    - 至少一条订单或交付证据
+    - 明确业务时间
+    downgrade_conditions:
+    - 仅有预测或管理层表态
+    - 缺少订单交付验证
+    - 证据超过一个主要行业周期
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 0
+- id: capacity_supply
+  type: EvidenceProfile
+  properties:
+    id: capacity_supply
+    name: 产能、供给与韧性证据
+    supporting_evidence:
+    - 有效产能、利用率、维护停机、产品切换和良率资料
+    - 扩产建设、设备搬入、试产、认证和量产阶段证据
+    - 交期、分配、供应中断、许可和物流记录
+    - 多供、替代供应、库存覆盖和恢复时间资料
+    - 关键设备、材料和子系统依赖的穿透分析
+    counter_evidence:
+    - 名义产能高但良率或产品结构不匹配
+    - 存在可快速切换的闲置产能
+    - 替代供应已认证并具备规模
+    - 表面多供实际共享同一上游或地域单点
+    competing_explanations:
+    - 交期延长来自物流或客户排产而非产能不足
+    - 扩产来自政策或战略储备而非需求确认
+    - 供应紧张来自短期停机而非结构性缺口
+    scope_checks:
+    - 名义产能与有效产能分离
+    - 设施和产品规格匹配
+    - 地域和许可范围一致
+    freshness_guidance: 供给中断和交期需事件级更新；扩产按建设和量产里程碑更新。
+    minimum_requirements:
+    - 产能或设施证据
+    - 交期或利用率证据
+    - 库存或替代供应检查
+    downgrade_conditions:
+    - 只有扩产公告
+    - 缺少良率认证
+    - 无法确认产品或地域范围
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 1
+- id: manufacturing_yield
+  type: EvidenceProfile
+  properties:
+    id: manufacturing_yield
+    name: 制造、良率、周期与可靠性证据
+    supporting_evidence:
+    - 跨批次良率、缺陷密度、返工、报废和过程能力资料
+    - 设备状态、工艺窗口、量测、材料一致性和统计过程控制
+    - 投料至出货的周期、在制品、排队和瓶颈工序资料
+    - 可靠性测试、认证、现场失效率、退货和失效分析
+    - 试产、爬坡和高量产阶段的可比记录
+    counter_evidence:
+    - 良率仅来自样品批次或不可比产品
+    - 良率提升伴随性能、可靠性或测试覆盖下降
+    - 周期缩短来自减少检验或推迟返工
+    - 客户退货、召回、参数漂移或重大质量事故
+    competing_explanations:
+    - 单位成本变化来自材料、折旧或产品组合而非良率
+    - 周期变化来自物流和客户验收而非制造
+    - 质量改善来自筛选加强而非制程改善
+    scope_checks:
+    - 产品和工艺代际一致
+    - 试产与量产阶段分离
+    - 良率和可靠性口径一致
+    freshness_guidance: 量产爬坡期宜按批次或月度更新；成熟工艺可按季度或重大异常更新。
+    minimum_requirements:
+    - 至少两个连续制造时点
+    - 质量或可靠性验证
+    - 对应工艺和产品范围
+    downgrade_conditions:
+    - 只有单点良率
+    - 缺少量产规模
+    - 缺少可靠性或客户验证
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 2
+- id: inventory_cycle
+  type: EvidenceProfile
+  properties:
+    id: inventory_cycle
+    name: 库存周期与缓冲证据
+    supporting_evidence:
+    - 供应商、渠道、客户和终端的多层库存
+    - 库存覆盖期、在途库存、安全库存和消耗速度
+    - 补库、去库、采购和出货之间的时间序列
+    - 库存规格、地域、质量和可替换性说明
+    counter_evidence:
+    - 账面库存不可用于目标产品或地域
+    - 新旧产品切换导致库存口径失真
+    - 委托加工、寄售和在途库存重复计算
+    - 终端需求与渠道出货显著背离
+    competing_explanations:
+    - 库存上升来自主动备货或供应风险管理
+    - 库存下降来自减产而非需求改善
+    - 补库来自新品切换而非行业复苏
+    scope_checks:
+    - 库存所有权清楚
+    - 产品规格匹配
+    - 多层库存不重复
+    - 业务时间一致
+    freshness_guidance: 周期变化较快时按月度更新，稳定阶段至少按季度更新。
+    minimum_requirements:
+    - 至少两个产业链层级
+    - 明确覆盖期或消耗速度
+    - 终端需求对照
+    downgrade_conditions:
+    - 仅有单家公司账面库存
+    - 缺少规格可用性
+    - 缺少时间序列
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 3
+- id: pricing_economics
+  type: EvidenceProfile
+  properties:
+    id: pricing_economics
+    name: 价格、成本、定价权与利润池证据
+    supporting_evidence:
+    - 报价、合同价、成交价和产品组合的可比变化
+    - 材料、折旧、能源、人工、物流和合规成本拆分
+    - 涨价或降价的实际兑现、客户流失和份额变化
+    - 各产业链环节收入、毛利、资本强度和现金流变化
+    - 合同调价、长协、最低采购和成本转嫁机制
+    counter_evidence:
+    - 挂牌价变化未体现在成交或财务结果
+    - 产品组合、汇率、并购或会计口径造成表观价格变化
+    - 成本上升被良率、生产率或设计优化抵消
+    - 涨价后需求或份额显著下降
+    competing_explanations:
+    - 毛利变化来自产品结构而非定价权
+    - 利润迁移来自周期错配或一次性项目
+    - 价格上涨来自短期供给事故而非结构性壁垒
+    scope_checks:
+    - 产品规格和合同周期一致
+    - 含税与币种口径一致
+    - 价格与数量分离
+    freshness_guidance: 价格和成本按合同或报价周期更新；利润池按报告期和周期阶段更新。
+    minimum_requirements:
+    - 成交或合同证据
+    - 成本或份额证据
+    - 竞争和需求影响检查
+    downgrade_conditions:
+    - 只有渠道报价
+    - 无成交验证
+    - 无法拆分产品组合或汇率影响
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 4
+- id: technology_route
+  type: EvidenceProfile
+  properties:
+    id: technology_route
+    name: 技术路线、微缩与替代证据
+    supporting_evidence:
+    - 权威路线图、标准、论文、专利和技术白皮书
+    - 同口径性能、功耗、面积、成本、可靠性和良率比较
+    - 原型、试产、客户验证、量产和生态成熟度证据
+    - 工艺、设备、材料、软件和供应链依赖
+    - 真实采用、替代范围、复购和份额迁移
+    counter_evidence:
+    - 只有实验室结果或不可比基准
+    - 性能提升以成本、功耗、可靠性或良率恶化为代价
+    - 缺少设计工具、软件、材料、设备或测试生态
+    - 新旧路线实际互补而非替代
+    competing_explanations:
+    - 性能提升来自产品规模或软件优化而非器件路线
+    - 采用增长来自补贴、稀缺或客户多供策略
+    - 传统路线继续改善并保持成本优势
+    scope_checks:
+    - 相同工作负载和成熟阶段
+    - 系统级与器件级指标分离
+    - 量产与原型分离
+    freshness_guidance: 按路线图、重大验证、试产和量产节点更新。
+    minimum_requirements:
+    - 技术依据
+    - 同口径比较
+    - 制造或客户验证
+    - 替代边界
+    downgrade_conditions:
+    - 仅有概念发布
+    - 无量产或客户验证
+    - 基准不可比
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 5
+- id: qualification_commercialization
+  type: EvidenceProfile
+  properties:
+    id: qualification_commercialization
+    name: 认证、采用、量产与本地替代证据
+    supporting_evidence:
+    - 送样、测试、资格认证、设计导入、定点和采购阶段记录
+    - 工艺冻结、产线认证、良率、质量和供应商准备
+    - 量产出货、重复采购、跨客户扩散和售后质量
+    - 本地替代产品的关键上游依赖、成本和规模能力
+    counter_evidence:
+    - 只有送样、意向或非约束性合作
+    - 认证范围不覆盖量产规格或目标客户
+    - 量产受制于良率、材料、设备、测试或质量
+    - 本地替代仍依赖同一受限核心投入
+    competing_explanations:
+    - 客户认证只用于议价或多供备份
+    - 小批量采购来自试验而非商业化
+    - 份额增长来自低价而非技术或供应优势
+    scope_checks:
+    - 客户和产品规格明确
+    - 认证阶段不混用
+    - 采购与量产时间对齐
+    freshness_guidance: 按认证、定点、量产和复购里程碑更新。
+    minimum_requirements:
+    - 至少一个客户验证节点
+    - 量产准备证据
+    - 采购或复购证据
+    downgrade_conditions:
+    - 只有公司自述
+    - 无客户或交付验证
+    - 仍停留在样品阶段
+    stage_vocabulary_ref: commercialization_stages
+    stage_guidance: 观察必须标明所处商业化阶段，不得将样品阶段等同于量产或复购。
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 6
+- id: competition_structure
+  type: EvidenceProfile
+  properties:
+    id: competition_structure
+    name: 竞争结构、切换成本与壁垒证据
+    supporting_evidence:
+    - 市场参与者、份额、产能、定价和产品差异化
+    - 客户认证周期、重新设计、软件迁移和可靠性责任
+    - 技术、资本、专利、人才、生态和规模经济门槛
+    - 招标、客户切换、新进入者量产和退出案例
+    counter_evidence:
+    - 市场规模扩大吸收新增供给
+    - 产品和客户分层使表面竞争者不可直接替代
+    - 新进入者只有规划产能而无认证和量产
+    - 接口标准化和多供认证降低切换成本
+    competing_explanations:
+    - 份额变化来自区域或产品组合差异
+    - 价格变化来自成本或周期而非竞争行为
+    - 高利润来自暂时供给约束而非长期壁垒
+    scope_checks:
+    - 市场边界一致
+    - 份额和产品口径一致
+    - 名义参与者与有效供给者分离
+    freshness_guidance: 按产品周期、重大扩产、招标、并购和价格行为更新。
+    minimum_requirements:
+    - 至少两类竞争主体
+    - 价格或份额证据
+    - 客户切换或进入壁垒证据
+    downgrade_conditions:
+    - 市场边界模糊
+    - 只有规划和宣传
+    - 无客户或量产验证
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 7
+- id: policy_trade
+  type: EvidenceProfile
+  properties:
+    id: policy_trade
+    name: 产业政策、贸易管制与合规证据
+    supporting_evidence:
+    - 政策、法律、规则、清单、许可和执法原文
+    - 适用产品、技术、性能、最终用途、主体和地域范围
+    - 预算、执行机构、项目清单、审批和处罚记录
+    - 企业合规流程、许可周期、拒绝率和实际交易变化
+    - 多边协调、豁免、过渡期和政策修订
+    counter_evidence:
+    - 政策尚未生效、预算未落实或执行主体不明确
+    - 目标对象不在适用范围或符合豁免许可
+    - 许可恢复、政策收窄、撤回或执法宽松
+    - 替代来源、库存或本地供应缓冲影响
+    competing_explanations:
+    - 产业变化来自周期、需求或技术路线而非政策
+    - 企业影响来自自身经营或客户结构
+    - 市场已提前交易政策预期
+    scope_checks:
+    - 引用正式版本
+    - 生效时间明确
+    - 产品性能和最终用途匹配
+    - 地域与主体匹配
+    freshness_guidance: 政策发布、解释、许可和执法变化时立即更新，并保留旧版本有效期。
+    minimum_requirements:
+    - 政策原文
+    - 适用范围分析
+    - 至少一条执行或企业影响证据
+    - 豁免检查
+    downgrade_conditions:
+    - 只有媒体转述
+    - 无法确认适用范围
+    - 政策未生效或缺少执行证据
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 8
+- id: company_exposure_execution
+  type: EvidenceProfile
+  properties:
+    id: company_exposure_execution
+    name: 公司暴露、执行与业绩弹性证据
+    supporting_evidence:
+    - 业务、产品、客户、地域和技术路线收入或利润结构
+    - 产能、良率、供应链、交付、质量、验收和收入确认
+    - 量、价、产品组合、利用率、成本、费用和资本开支拆分
+    - 经营现金流、营运资金和资本效率变化
+    - 公司披露与客户、供应商或行业数据交叉验证
+    - 客户集中度、单一客户订单波动与客户议价能力对暴露和执行的影响
+    counter_evidence:
+    - 相关业务占比或利润贡献低
+    - 公司同时暴露于受益和受损路线形成内部对冲
+    - 订单无法交付、验收或确认收入
+    - 折旧、费用、营运资金或资本开支抵消利润改善
+    - 客户集中但合同长期锁定或客户结构多元形成对冲
+    competing_explanations:
+    - 财务变化来自并购、汇率、税收或一次性项目
+    - 份额变化来自客户结构而非竞争力
+    - 行业景气改善但公司执行或产品组合落后
+    scope_checks:
+    - 业务分部与产业对象映射
+    - 财务和运营周期对齐
+    - 关联交易和并购影响剔除
+    freshness_guidance: 按财报、订单交付、产能和重大经营事件更新。
+    minimum_requirements:
+    - 业务暴露证据
+    - 执行交付证据
+    - 财务或现金流验证
+    - 至少一个竞争解释
+    downgrade_conditions:
+    - 只有公司标签
+    - 无业务贡献口径
+    - 只有订单无交付或财务验证
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 9
+- id: market_expectations
+  type: EvidenceProfile
+  properties:
+    id: market_expectations
+    name: 市场预期、预期差与定价证据
+    supporting_evidence:
+    - 同期一致预期、管理层指引、研究者预期和价格隐含预期
+    - 估值、价格、成交、波动、持仓和资金流变化
+    - 预期修正的时间、方向、幅度和覆盖范围
+    - 事件窗口、基准收益和混杂事件排查
+    - 基本面判断与预期对象、口径和时间尺度的对应关系
+    counter_evidence:
+    - 预期样本少、陈旧或口径不一致
+    - 资产价格由宏观、风格、流动性或其他事件驱动
+    - 事件前已出现显著价格和预期调整
+    - 估值变化来自利率或风险偏好而非盈利预期
+    competing_explanations:
+    - 价格反应来自市场整体或行业轮动
+    - 文本预期与真实仓位或价格隐含预期不一致
+    - 基本面变化已被提前泄露或交易
+    scope_checks:
+    - 预期截面早于判断验证
+    - 对象和时间尺度一致
+    - 使用合适市场基准
+    freshness_guidance: 重大事件、财报、预期修正和显著价格变化时更新。
+    minimum_requirements:
+    - 至少一种明确预期基准
+    - 事件前预期截面
+    - 基本面比较
+    - 价格或估值验证
+    - 混杂事件检查
+    downgrade_conditions:
+    - 缺少事件前预期截面
+    - 不可比口径
+    - 只观察资产涨跌而无基本面比较
+    pre_event_cross_section_required: true
+    alignment_requirements:
+    - 同对象
+    - 同口径
+    - 同时间尺度
+    - 预期截面早于判断验证事件
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 10
+- id: counter_evidence
+  type: EvidenceProfile
+  properties:
+    id: counter_evidence
+    name: 反证与竞争解释证据
+    supporting_evidence:
+    - 直接否定核心前提的高可靠事实或观测
+    - 来自独立来源、同一业务时间和同一适用范围的相反证据
+    - 能解释同一现象的替代机制及其验证材料
+    - 历史回放中反复导致传导失效的条件
+    counter_evidence:
+    - 所谓反证与目标对象、时间或口径不一致
+    - 反证只影响幅度或节奏，不否定方向
+    - 多条反证实际来自同一原始来源
+    - 反证已经失效、被更正或被后续事实替代
+    competing_explanations:
+    - 周期、库存、价格、技术、竞争、政策和市场预期均可能解释同一现象
+    - 公司执行与行业方向可能分离
+    - 短期事件与长期结构变化可能同时存在
+    scope_checks:
+    - 明确反证作用对象
+    - 区分削弱和阻断
+    - 与支持证据使用同一比较口径
+    freshness_guidance: 每次判断形成、升级或出现新材料时重新扫描。
+    minimum_requirements:
+    - 至少一个主动寻找的竞争解释
+    - 明确证伪条件
+    - 记录未解决冲突
+    downgrade_conditions:
+    - 未进行反证搜索
+    - 反证来源不可追溯
+    - 无法判断反证作用范围
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 11
+- id: sp_company_disclosure
+  type: SourceProfile
+  properties:
+    id: sp_company_disclosure
+    sourceName: 公司法定披露与正式说明会
+    sourceTier: S2
+    sourceCategory: company_disclosure
+    authorityType: company_disclosure
+    typicalContentDomains:
+    - 财务
+    - 订单
+    - 产能
+    - 资本开支
+    - 管制影响
+    allowedClaimTypes:
+    - current_state
+    - historical_fact
+    - directional_outlook
+    forbiddenUse:
+    - 未经出处核对的转述当硬证据
+    methodologyTransparency: high
+    updateFrequency: 季度/事件
+    independenceGroup: issuer_primary
+    accessScopeDefault: public
+    defaultReliability: high
+    commonLimitations:
+    - 管理层展望偏乐观
+    - 口径可能调整
+    requiredLocatorLevel: page_or_timestamp
+  projection:
+    section: source_profiles
+    index: 0
+- id: sp_industry_association
+  type: SourceProfile
+  properties:
+    id: sp_industry_association
+    sourceName: 行业协会与官方统计
+    sourceTier: S3
+    sourceCategory: industry_provider
+    authorityType: industry_provider
+    typicalContentDomains:
+    - 出货
+    - 产能
+    - 价格
+    - 贸易
+    allowedClaimTypes:
+    - historical_fact
+    - current_state
+    - directional_outlook
+    forbiddenUse:
+    - 把协会预测直接写成确认结论
+    methodologyTransparency: medium
+    updateFrequency: 月度/季度
+    independenceGroup: association_stats
+    accessScopeDefault: licensed
+    defaultReliability: high
+    commonLimitations:
+    - 样本覆盖不全
+    - 修订滞后
+    requiredLocatorLevel: table_or_release_id
+  projection:
+    section: source_profiles
+    index: 1
+- id: sp_regulator_trade
+  type: SourceProfile
+  properties:
+    id: sp_regulator_trade
+    sourceName: 监管与贸易管制原文
+    sourceTier: S1
+    sourceCategory: official
+    authorityType: official
+    typicalContentDomains:
+    - 出口管制
+    - 实体清单
+    - 许可
+    - 执法
+    allowedClaimTypes:
+    - historical_fact
+    - current_state
+    forbiddenUse:
+    - 媒体转述代替监管原文
+    methodologyTransparency: high
+    updateFrequency: 事件驱动
+    independenceGroup: regulator_primary
+    accessScopeDefault: public
+    defaultReliability: high
+    commonLimitations:
+    - 适用范围需法律解读
+    - 生效时点需核对
+    requiredLocatorLevel: rule_section
+  projection:
+    section: source_profiles
+    index: 2
+- id: recipe_cycle_phase
+  type: EvidenceRecipe
+  properties:
+    id: recipe_cycle_phase
+    recipeName: 周期阶段判断取证配方
+    judgmentType: cycle_phase
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A03_趋势与阶段判断.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: primary+baseline/cross_check 齐备且反证已检查
+    proxyRule: 允许有限代理，须披露且不得单独支撑 Q3+
+    downgradeRule: 缺直接数据最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 0
+- id: recipe_transmission_path
+  type: EvidenceRecipe
+  properties:
+    id: recipe_transmission_path
+    recipeName: 传导路径判断取证配方
+    judgmentType: transmission_path
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A04_机制传导验证.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 主证据+机制承接+反证检查
+    proxyRule: 机制节点可用受限代理
+    downgradeRule: 缺机制或反证则降为 conditional/Q2 及以下
+  projection:
+    section: evidence_recipes
+    index: 1
+- id: recipe_state_measurement
+  type: EvidenceRecipe
+  properties:
+    id: recipe_state_measurement
+    recipeName: 状态度量判断取证配方
+    judgmentType: state_measurement
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A02_状态变量测量.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 主证据+基准+反证
+    proxyRule: 无直接读数时登记 ProxyIndicator
+    downgradeRule: 仅代理时最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 2
+- id: recipe_trend_direction
+  type: EvidenceRecipe
+  properties:
+    id: recipe_trend_direction
+    recipeName: 趋势方向判断取证配方
+    judgmentType: trend_direction
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A03_趋势与阶段判断.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 可比时间序列、基准、独立交叉验证与反证齐备
+    proxyRule: 代理序列必须披露口径、滞后和不可替代项
+    downgradeRule: 序列或交叉验证不足时最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 3
+- id: recipe_mechanism_validation
+  type: EvidenceRecipe
+  properties:
+    id: recipe_mechanism_validation
+    recipeName: 机制验证取证配方
+    judgmentType: mechanism_validation
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A04_机制传导验证.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 起点事实、关键机制节点、承接结果与反证逐段核验
+    proxyRule: 机制节点允许受限代理，但不得跳过中间节点
+    downgradeRule: 任一关键机制段缺证据则停止向终点外推
+  projection:
+    section: evidence_recipes
+    index: 4
+- id: recipe_causal_attribution
+  type: EvidenceRecipe
+  properties:
+    id: recipe_causal_attribution
+    recipeName: 因果归因取证配方
+    judgmentType: causal_attribution
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A04_机制传导验证.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 原因时序、机制链、替代解释和反事实检查同时通过
+    proxyRule: 相关性或单点事件不得单独作为因果归因
+    downgradeRule: 替代解释未排除时最高 conditional/Q2
+  projection:
+    section: evidence_recipes
+    index: 5
+- id: recipe_object_differentiation
+  type: EvidenceRecipe
+  properties:
+    id: recipe_object_differentiation
+    recipeName: 对象分化比较取证配方
+    judgmentType: object_differentiation
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A05_对象分化比较.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - background_evidence
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 比较口径、对象暴露、承接能力和反证均可比
+    proxyRule: 部分可比时只允许分组比较
+    downgradeRule: 统一比较口径缺失时禁止精确排序
+  projection:
+    section: evidence_recipes
+    index: 6
+- id: recipe_impact_realization
+  type: EvidenceRecipe
+  properties:
+    id: recipe_impact_realization
+    recipeName: 影响兑现取证配方
+    judgmentType: impact_realization
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A06_财务影响测算.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - background_evidence
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 财务基准、关键桥接、敏感性和反证齐备
+    proxyRule: 行业增长不得直接代理公司收入或利润
+    downgradeRule: 基准或桥接缺失时只保留方向材料
+  projection:
+    section: evidence_recipes
+    index: 7
+- id: recipe_expectation_gap
+  type: EvidenceRecipe
+  properties:
+    id: recipe_expectation_gap
+    recipeName: 预期差取证配方
+    judgmentType: expectation_gap
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A07_市场预期与定价.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - background_evidence
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 事前预期 vintage、新信息、修正路径与反证齐备
+    proxyRule: 事后预测不得回填为事前预期
+    downgradeRule: 无事前 vintage 时最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 8
+- id: recipe_valuation_impact
+  type: EvidenceRecipe
+  properties:
+    id: recipe_valuation_impact
+    recipeName: 估值影响取证配方
+    judgmentType: valuation_impact
+    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A07_市场预期与定价.md
+    strategyVersion: 3.2.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - background_evidence
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 估值基准、预期变化、定价反应和反证齐备
+    proxyRule: 单日价格波动不得单独归因于目标信息
+    downgradeRule: 缺估值基准或事前预期时最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 9
+- id: proxy_spot_price_for_inventory
+  type: ProxyIndicator
+  properties:
+    id: proxy_spot_price_for_inventory
+    proxyIndicatorName: 现货价格走势代理库存周期位置
+    proxyFor: inventory_cycle_position
+    targetStateVariableId: inventory_cycle_position
+    proxyLogic: 在直接库存天数不可得时，用现货价与合约价相对强弱间接观察去库存/补库方向
+    expectedTimeLag: 价格通常领先库存确认零至一个季度，但会受到供给停产和渠道投机干扰。
+    validConditions:
+    - 价格口径连续可比
+    - 无重大规格切换
+    - 同步有至少一个需求或出货旁证
+    invalidConditions:
+    - 价格波动主要由成本或汇率驱动
+    - 样本仅覆盖单一渠道且不可复核
+    confidenceDiscount: 相对直接库存证据至少下调一档完备度
+    cannotReplace:
+    - 厂商库存天数原表
+    - 渠道库存审计数据
+    requiredDisclosure: 04/05 必须写明使用了价格代理库存，且不得写成确认库存位置
+  projection:
+    section: proxy_indicators
+    index: 0
+- id: proxy_lead_time_for_capacity_tightness
+  type: ProxyIndicator
+  properties:
+    id: proxy_lead_time_for_capacity_tightness
+    proxyIndicatorName: 设备与关键产品交期代理产能紧张度
+    proxyFor: capacity_tightness
+    targetStateVariableId: capacity_tightness
+    proxyLogic: 在有效产能不可直接获得时，以同规格、同地域的交期变化观察供给约束方向。
+    expectedTimeLag: 领先实际产出约一至两个季度，依设备搬入和客户验收节奏调整。
+    validConditions:
+    - 规格与地域可比
+    - 报价与实际交付记录可交叉验证
+    - 排除物流中断
+    invalidConditions:
+    - 交期受单次运输事件主导
+    - 供应商主动延长报价有效期
+    - 产品发生代际切换
+    confidenceDiscount: 相对有效产能和利用率直接证据至少下调一档。
+    cannotReplace:
+    - 产线有效产能
+    - 稼动率
+    - 良率和产品组合
+    requiredDisclosure: 必须披露交期到产能的预计滞后，不得将长交期直接写成需求确认。
+  projection:
+    section: proxy_indicators
+    index: 1
+- id: proxy_tender_for_localization
+  type: ProxyIndicator
+  properties:
+    id: proxy_tender_for_localization
+    proxyIndicatorName: 招标与中标代理国产替代进展
+    proxyFor: localization_substitution_progress
+    targetStateVariableId: localization_substitution_progress
+    proxyLogic: 用同品类招标、中标和复购进度观察本地供应进入客户采购体系的阶段。
+    expectedTimeLag: 中标通常领先验收、量产和收入确认一至四个季度。
+    validConditions:
+    - 可定位招标主体与品类
+    - 中标结果可核验
+    - 后续验收节点可跟踪
+    invalidConditions:
+    - 框架入围未形成采购
+    - 非约束性意向
+    - 低端规格替代外推到全品类
+    confidenceDiscount: 未取得验收或复购证据时最高支持验证阶段判断。
+    cannotReplace:
+    - 客户认证记录
+    - 验收记录
+    - 批量采购与收入确认
+    requiredDisclosure: 必须区分入围、中标、验收、复购和规模量产。
+  projection:
+    section: proxy_indicators
+    index: 2
+- id: proxy_trade_for_supply_availability
+  type: ProxyIndicator
+  properties:
+    id: proxy_trade_for_supply_availability
+    proxyIndicatorName: 贸易流量代理区域供给可得性
+    proxyFor: supply_availability
+    targetStateVariableId: supply_availability
+    proxyLogic: 用同海关编码、同地域的进口数量和单价变化观察受限产品的区域可得性。
+    expectedTimeLag: 通常滞后订单并领先终端消耗零至一个季度，受库存缓冲影响。
+    validConditions:
+    - 海关编码稳定
+    - 数量与金额口径一致
+    - 排除转口和提前备货
+    invalidConditions:
+    - 编码覆盖多种不可比产品
+    - 单价由产品组合驱动
+    - 贸易路径发生迁移
+    confidenceDiscount: 不能穿透最终用途和库存时至少下调一档。
+    cannotReplace:
+    - 许可数据
+    - 客户库存
+    - 实际交付和最终用途记录
+    requiredDisclosure: 必须披露编码范围、转口风险和库存缓冲。
+  projection:
+    section: proxy_indicators
+    index: 3
+- id: proxy_utilization_for_demand
+  type: ProxyIndicator
+  properties:
+    id: proxy_utilization_for_demand
+    proxyIndicatorName: 晶圆厂稼动率代理需求强度
+    proxyFor: end_market_demand_strength
+    targetStateVariableId: end_market_demand_strength
+    proxyLogic: 用同工艺平台稼动率的持续变化观察订单消耗，但必须与库存和终端数据共同解释。
+    expectedTimeLag: 稼动率对订单变化通常滞后一个排产周期，对终端需求可能滞后一至两个季度。
+    validConditions:
+    - 工艺平台和产品组合稳定
+    - 稼动率口径连续
+    - 具有库存或出货旁证
+    invalidConditions:
+    - 检修或良率异常主导
+    - 新产线爬坡
+    - 客户提前备货
+    confidenceDiscount: 缺终端旁证时不得单独支持需求反转。
+    cannotReplace:
+    - 终端销量
+    - 实际部署
+    - 客户消耗和渠道库存
+    requiredDisclosure: 必须披露稼动率与终端需求之间的排产和库存滞后。
+  projection:
+    section: proxy_indicators
+    index: 4
+relations: []

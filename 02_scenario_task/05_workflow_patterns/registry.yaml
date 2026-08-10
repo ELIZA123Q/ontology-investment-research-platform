@@ -1,0 +1,20 @@
+schema_name: workflow_pattern_registry
+schema_version: 1.0.0
+status: active
+
+authority:
+  answers: Workflow Pattern 是 Planner prior，不是固定阶段控制器。
+  write_entry: 02_scenario_task/05_workflow_patterns/
+  read_primary: 02_scenario_task/05_workflow_patterns/registry.yaml
+  runtime_node_catalog: 06_runtime/src/runtime/node-catalog.ts
+  runtime_planner: 06_runtime/src/runtime/planner.ts
+  legacy_deep_research_v1: 02_scenario_task/90_legacy/deep_research_v1/
+
+patterns:
+  - path: deep_research.yaml
+  - path: quick_research.yaml
+  - path: evidence_only.yaml
+
+notes:
+  - 活跃区不得再出现 Stage 01/02/03/04/05 编排正文。
+  - 历史 stages/supporting/templates 仅在 90_legacy/deep_research_v1。

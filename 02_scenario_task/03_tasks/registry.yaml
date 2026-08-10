@@ -1,0 +1,26 @@
+schema_name: task_definition_registry
+schema_version: 3.0.0
+status: active
+
+authority:
+  answers: 标准 Research Task Contract 权威在本目录；Runtime 按 Planning Intent 选择最小必要 TaskGraph。
+  write_entry: 02_scenario_task/03_tasks/
+  read_primary: 02_scenario_task/03_tasks/registry.yaml
+  executable_planner: 06_runtime/src/runtime/planner.ts
+  workflow_patterns: 02_scenario_task/05_workflow_patterns/registry.yaml
+
+layering:
+  research_task: 用户级研究任务（本目录）
+  runtime_node: TaskGraph 执行节点（06_runtime/src/runtime/node-catalog.ts）
+  runtime_intent: Planning Intent（06_runtime/src/contracts.ts）
+  note: |
+    Research Task（02）≠ Runtime Node / Skill（06/03）。
+    evidence_only 是 Runtime ResearchIntent，不是本目录标准研究任务。
+    已移除 evidence_verification（原误置于 Task Definition 的子任务）。
+
+task_definitions:
+  - path: cycle_judgment.yaml
+  - path: event_impact.yaml
+  - path: company_analysis.yaml
+  - path: technology_route_analysis.yaml
+  - path: value_chain_analysis.yaml

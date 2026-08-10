@@ -1,0 +1,43 @@
+schema_name: execution_domain_registry
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: Execution 权威入口是本文件；上下文白名单权威为 05_control_evaluation/01_架构/runtime_contexts.yaml。
+  write_entry: 04_context_state/
+  read_primary:
+    - 04_context_state/registry.yaml
+    - 05_control_evaluation/01_架构/runtime_contexts.yaml
+  executable_runtime: 06_runtime/src/runtime/kernel.ts
+
+source_of_truth:
+  context_assembly: 06_runtime/src/runtime/kernel.ts
+  runtime_engine: 06_runtime/src/runtime/kernel.ts
+  runtime_storage: 06_runtime/src/runtime/store.ts
+  worker: 06_runtime/src/worker.ts
+  workspace_records: 04_context_state/03_workspace
+
+subdomains:
+  context:
+    target: 04_context_state/01_context
+    source: 06_runtime/src/runtime/kernel.ts
+    status: active
+  memory:
+    target: 04_context_state/02_memory
+    source: 06_runtime/src/runtime/store.ts
+    status: active
+    contract: 04_context_state/02_memory/contract.yaml
+    implementation: deferred
+  workspace:
+    target: 04_context_state/03_workspace
+    source: instances
+    status: historical_assets
+  runtime:
+    target: 04_context_state/04_runtime
+    source: 06_runtime/src/runtime
+    status: active
+
+notes:
+  - Execution 只描述本次运行状态，不定义可复用方法真理。
+  - ContextPackage 是单次调用临时对象，选择理由与引用版本写 Event，不单独持久化。
+  - Workspace 中旧样例是回归资产，不是 Runtime 代码入口。

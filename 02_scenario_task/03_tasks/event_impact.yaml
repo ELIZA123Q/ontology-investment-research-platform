@@ -1,0 +1,11 @@
+schema_name: research_task_contract
+schema_version: 1.0.0
+task_id: event_impact
+name: 事件影响判断
+objective: 判断事件对对象状态变量与资产影响路径的方向、强度与时滞
+default_role: research_lead
+optional_workflow_pattern: deep_research
+relevant_skills: [research-method, evidence-assessment, hypothesis-analysis]
+relevant_scenario_types: [EventImpactResearch]
+notes:
+  - 用户级 Research Task Contract；不是 Runtime Node。

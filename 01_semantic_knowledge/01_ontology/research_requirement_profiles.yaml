@@ -1,0 +1,46 @@
+schema_name: research_requirement_profiles
+schema_version: 1.0.0
+status: active
+authority: 01_semantic_knowledge/01_ontology
+description: |
+  研究场景所需的语义/判断类型清单（由 Scenario Type 引用 profile id）。
+  类型定义权威在 models/；本文件只组合引用，不重定义对象模型。
+
+semantic_profiles:
+  company_research:
+    required_object_types: [Company, Product, Industry, ResearchScope]
+    required_relation_types: [belongsTo, produces, competesWith, dependsOn]
+    required_state_types: [StateVariable, Observation, Event]
+    required_evidence_types: [SourceDocument, EvidenceFact, EvidenceAssessment, EvidenceBasket]
+  industry_research:
+    required_object_types: [Industry, ValueChainSegment, Product, Metric, ResearchScope]
+    required_relation_types: [belongsTo, contains, competesWith, dependsOn]
+    required_state_types: [StateVariable, Observation, Event, StateSnapshot]
+    required_evidence_types: [EvidenceRequirement, EvidenceFact, EvidenceAssessment, EvidenceBasket]
+  value_chain_research:
+    required_object_types: [Company, Product, ValueChainSegment, ResearchScope]
+    required_relation_types: [supplies, suppliedBy, dependsOn, belongsTo]
+    required_state_types: [StateVariable, Event]
+    required_evidence_types: [EvidenceFact, EvidenceAssessment, EvidenceBasket]
+  technology_route_research:
+    required_object_types: [Technology, Product, Metric, ResearchScope]
+    required_relation_types: [belongsTo, competesWith, dependsOn]
+    required_state_types: [StateVariable, Observation, Event]
+    required_evidence_types: [SourceDocument, EvidenceFact, EvidenceAssessment]
+  event_impact_research:
+    required_object_types: [Company, Product, Region, ResearchScope]
+    required_relation_types: [dependsOn, supplies, belongsTo]
+    required_state_types: [Event, StateVariable, Observation]
+    required_evidence_types: [SourceDocument, EvidenceClaim, EvidenceFact, EvidenceAssessment]
+
+judgment_profiles:
+  standard_company_judgment:
+    required_judgment_types: [ResearchQuestion, JudgmentUnit, Hypothesis, Signal, Judgment, RuleEvaluation]
+  standard_industry_judgment:
+    required_judgment_types: [ResearchQuestion, JudgmentUnit, CompetingExplanation, Hypothesis, Signal, Judgment]
+  standard_value_chain_judgment:
+    required_judgment_types: [JudgmentUnit, Hypothesis, Signal, BlockingFactor, Judgment]
+  standard_technology_route_judgment:
+    required_judgment_types: [JudgmentUnit, CompetingExplanation, Signal, Judgment]
+  standard_event_impact_judgment:
+    required_judgment_types: [ResearchQuestion, JudgmentUnit, Hypothesis, CompetingExplanation, Judgment]

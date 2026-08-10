@@ -1,0 +1,53 @@
+schema_name: ontology_consumer_registry
+schema_version: 2.0.0
+status: active
+description: 本体元素变化时必须检查的当前消费面；历史路线图和冻结工作区不属于在线消费者。
+
+consumers:
+  - id: runtime_semantic_contract
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - 06_runtime/src/semantic/graph-contracts.ts
+      - 06_runtime/src/contracts.ts
+    required_checks: [typecheck, runtime_tests]
+
+  - id: task_graph_and_context
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - 06_runtime/src/runtime/planner.ts
+      - 06_runtime/src/runtime/node-catalog.ts
+      - 06_runtime/src/runtime/kernel.ts
+    required_checks: [planner_tests, kernel_tests]
+
+  - id: instance_graph_and_historical_projection
+    watches: [object_types, relation_types, rules, evidence_constraints]
+    paths:
+      - 01_semantic_knowledge/03_knowledge_graph/contracts
+      - 05_control_evaluation/03_校验/knowledge_graph/ontology_instance_graph.py
+      - 05_control_evaluation/03_校验/legacy_compat/runtime_instance_graph.py
+      - 05_control_evaluation/03_校验
+    required_checks: [validate_ontology, validate_project]
+
+  - id: method_and_capability_assets
+    watches: [object_types, relation_types, rules, evidence_constraints, scenario_types]
+    paths:
+      - 03_agent_capability/05_method_libraries
+      - 06_runtime/src/capabilities/registry.ts
+      - 06_runtime/src/runtime/planner.ts
+    required_checks: [validate_method_assets, audit_cutover]
+
+  - id: external_data_and_provenance
+    watches: [object_types, relation_types, evidence_constraints]
+    paths:
+      - 05_control_evaluation/02_合同/ontology_data_mapping_profiles.yaml
+      - 03_agent_capability/04_protocols/mcp/source_routes.yaml
+      - 06_runtime/src/governance/verifiers.ts
+    required_checks: [governance_tests, validate_project]
+
+  - id: app_and_trusted_components
+    watches: [object_types, evidence_constraints]
+    paths:
+      - 06_runtime/app
+      - 06_runtime/src/contracts.ts
+      - 06_runtime/src/governance/verifiers.ts
+    required_checks: [typecheck, production_build]

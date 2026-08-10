@@ -1,0 +1,29 @@
+document_type: model_profile_registry
+schema_version: 1.0.0
+run_mode: development
+profiles:
+  producer:
+    model_id: mock-producer-v1
+    provider_family: mock-producer
+    command: [python3, 05_control_evaluation/14_evals/03_执行/mock_adapter.py, --profile, producer]
+  judge_a:
+    model_id: mock-judge-a-v1
+    provider_family: mock-a
+    command: [python3, 05_control_evaluation/14_evals/03_执行/mock_adapter.py, --profile, judge_a]
+  judge_b:
+    model_id: mock-judge-b-v1
+    provider_family: mock-b
+    command: [python3, 05_control_evaluation/14_evals/03_执行/mock_adapter.py, --profile, judge_b]
+  downstream_a:
+    model_id: mock-downstream-a-v1
+    provider_family: mock-downstream-a
+    command: [python3, 05_control_evaluation/14_evals/03_执行/mock_adapter.py, --profile, downstream_a]
+  downstream_b:
+    model_id: mock-downstream-b-v1
+    provider_family: mock-downstream-b
+    command: [python3, 05_control_evaluation/14_evals/03_执行/mock_adapter.py, --profile, downstream_b]
+role_bindings:
+  producer: producer
+  judges: [judge_a, judge_b]
+  downstream_models: [downstream_a, downstream_b]
+

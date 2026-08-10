@@ -1,0 +1,93 @@
+schema_name: professional_report_generation_contract
+schema_version: 1.2.0
+status: active
+
+purpose: >-
+  把用户交付需求转换为受专业纪律约束的 ReportSpec 和 ResearchDeliverable，
+  允许受众、深度、可选章节与表达方式个性化，但不允许个性化绕过证据、判断、风险、来源和审计。
+
+report_spec:
+  version: 1.0.0
+  required: [kind, audience, depth, language, sections]
+  kinds: [company_research, industry_research, thematic_research, evidence_update, judgment_update]
+  audiences: [portfolio_manager, investment_committee, research_analyst, client]
+  depths: [brief, standard, deep]
+  language: [zh-CN]
+  base_required_sections: [executive_summary, research_scope, core_judgments, evidence_analysis, risks_change_conditions, source_appendix]
+  kind_required_sections:
+    company_research: [business_model, financial_operating_analysis, competitive_landscape, valuation_scenarios]
+    industry_research: [industry_structure, cycle_supply_demand, competitive_landscape]
+    thematic_research: [mechanism_chain, scenario_analysis, alternative_hypotheses]
+    evidence_update: [delta_since_prior]
+    judgment_update: [delta_since_prior, alternative_hypotheses]
+
+section_statuses:
+  ready: 具备与该章节匹配的正式制品或已核验证据
+  limited: 章节必须保留，但证据或方法输入不足；正文必须说明缺口
+  not_applicable: 经报告类型和范围规则确认不适用
+
+deterministic_responsibilities:
+  - ReportSpec 枚举、强制章节、排序和去重。
+  - SourceSnapshot、EvidenceFact、正式 Judgment 与 ResearchDeliverable 生命周期门禁。
+  - 正式 Claim 只能引用 verified SourceReference；未经研究员确认并由 ApproveJudgment 提交的 Judgment 不能形成正式 Claim。
+  - 缺少公司财务、竞争、估值、行业结构或情景输入时，相关章节必须标记 limited，禁止用通用模型常识补齐。
+  - ResearchDeliverable 必须持久化 report_kind、audience、depth、report_spec_version 和 section_keys。
+  - 报告编辑后必须重新运行引用与表达审计。
+  - 每个专业章节必须绑定可解析的 MethodApplication；框架、取证与裁决方法 ID 必须来自受治理方法目录和路由合同。
+  - MethodApplication 的最低证据角色未覆盖时只能为 provisional 或 blocked；不得把选中方法等同于已经执行。
+  - 正式 Judgment 必须引用至少一个 execution_status=executed 且 gate_status=passed 的裁决 MethodApplication。
+
+agent_and_skill_responsibilities:
+  - research-method Skill 在受治理目录值域内提出章节级方法路径、理由和退出条件；不能发明方法 ID。
+  - 根据目标与语义上下文建议报告类型和可选章节。
+  - 在确定性章节容器内组织事实、推断、观点、竞争解释和表达顺序。
+  - 按受众和深度调整解释密度，不改变证据等级、置信边界或改判条件。
+  - 在证据不足时生成缺口说明和下一步取证建议，而不是补写结论。
+
+researcher_controls:
+  - 研究问题与希望支持的决策
+  - 报告类型、主要读者、深度与额外固定章节
+  - 交付偏好和表达要求
+  - 证据确认、Judgment 修改与批准、报告摘要修改、最终发布
+  - 初始 JudgmentProposal 只是占位提案；必须在判断卡中保存研究员版本后，批准动作才可用
+
+personalization_boundary:
+  allowed: [audience, depth, optional_sections, custom_instructions, ordering_within_allowed_contract, wording, presentation]
+  forbidden: [remove_evidence_analysis, remove_risks_change_conditions, remove_source_appendix, invent_claim, weaken_source_gate, bypass_judgment_approval, bypass_publish_approval]
+
+lifecycle:
+  - ReportSpec 随 Task 创建并冻结到当前运行。
+  - 计划确认同时确认章节级方法蓝图；初始 MethodApplication 为 candidate。
+  - EvidenceFact 按角色绑定到 MethodApplication 后状态变为 bound；输入门失败则 blocked。
+  - 裁决 Function 实际消费绑定输入后，核心 MethodApplication 才可进入 executed/passed，并写入 Judgment 引用。
+  - EvidenceFact 通过确定性晋级后，由研究员确认进入 Judgment。
+  - JudgmentProposal 只有经 judgment_confirmation 和 ApproveJudgment 后成为正式 Judgment。
+  - judgment_confirmation 不接受 Agent 初始占位版本；Artifact.created_by 必须为 researcher。
+  - 已批准 Judgment 修订后，新版本再次执行 ApproveJudgment，旧正式 Judgment 必须通过 SupersedeJudgment 保留历史并退出当前状态。
+  - Composer 只从当前 Task 的正式 Artifact 和 ReportSpec 组合 Report。
+  - CreateResearchDeliverable 把报告规格与正式 Judgment 写入本体关系。
+  - citation-and-expression Verifier 通过后，ResearchDeliverable 才可 verified；发布另需 publish_confirmation。
+  - Runtime 必须把 verified_not_published 与 published 分开展示；节点完成或 Verifier 通过不得自动发布。
+  - publish_confirmation 通过后只能由 PublishDeliverable Action 原子更新 ResearchDeliverable 及其包含的正式 Judgment。
+  - 拒绝或暂缓 publish_confirmation 时，ResearchDeliverable 保持 verified，Task 转为等待输入，不伪装为已发布。
+
+runtime_mapping:
+  spec_types: 06_runtime/src/contracts.ts
+  normalization: 06_runtime/src/reporting/report-spec.ts
+  composer: 06_runtime/src/reporting/report-composer.ts
+  method_router: 06_runtime/src/research/method-router.ts
+  judgment_commit: 06_runtime/src/runtime/kernel.ts#commitApprovedJudgment
+  publication_commit: 06_runtime/src/runtime/kernel.ts#commitApprovedPublication
+  deliverable_action: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml#CreateResearchDeliverable
+  ontology_object: 01_semantic_knowledge/01_ontology/models/operational.yaml#ResearchDeliverable
+  intake_ui: 06_runtime/app/components/research-home.tsx
+  report_ui: 06_runtime/app/components/surface-registry.tsx
+  approval_ui: 06_runtime/app/components/research-workspace.tsx
+
+verification:
+  tests:
+    - 06_runtime/tests/report-spec.test.ts
+    - 06_runtime/tests/method-router.test.ts
+    - 06_runtime/tests/report-composer.test.ts
+    - 06_runtime/tests/kernel.test.ts
+    - 06_runtime/tests/ontology-actions.test.ts

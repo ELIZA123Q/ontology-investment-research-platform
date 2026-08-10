@@ -1,0 +1,36 @@
+schema_name: scenario_registry
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: 场景类型与场景卡权威在本目录；Scenario = 在何种研究情境下给通用方法附加何种约束。
+  write_entry: 02_scenario_task/02_scenarios/
+  read_primary: 02_scenario_task/02_scenarios/registry.yaml
+  types: 02_scenario_task/02_scenarios/types.yaml
+  template: 02_scenario_task/02_scenarios/_scenario_card_template.md
+  semantic_profiles: 01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml
+
+source_of_truth:
+  scenario_types: 02_scenario_task/02_scenarios/types.yaml
+  scenario_cards: 02_scenario_task/02_scenarios/semiconductor/
+
+scenario_groups:
+  - group_id: semiconductor
+    name: 半导体
+    registry: 02_scenario_task/02_scenarios/semiconductor/registry.yaml
+    cards:
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-LOC-EQP_国产设备突破场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-LOC-MAT_国产材料放量场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-GEO_地缘政治冲击影响半导体场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-AI-AI计算芯片系统供给场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-OPTO_光电子芯片与硅光场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-PKG-BTL_先进封装瓶颈场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-PWR-SIC_SiC渗透与供给场景卡.md
+      - 02_scenario_task/02_scenarios/semiconductor/SCN-AUTO_车规芯片认证与装车场景卡.md
+
+notes:
+  - Method = 怎么思考（03_agent_capability/05_method_libraries）。
+  - Scenario = 在什么情形下给思考过程附加什么约束（本目录）。
+  - 方法库不再维护场景卡正文。

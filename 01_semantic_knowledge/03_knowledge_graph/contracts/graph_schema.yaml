@@ -1,0 +1,49 @@
+schema_name: knowledge_graph_schema
+schema_version: 1.1.0
+status: active
+description: >
+  知识图基础结构合同。只规定图对象如何表示，不规定如何从 DB/workspace
+  加载，也不规定一次 run 如何物化。
+
+principle: |
+  Ontology 定义世界里有什么对象和关系；
+  Knowledge Graph 定义这些对象和关系如何组织成可查询、可追溯的图视图；
+  Runtime 负责某一次研究如何把实例真正写进图里。
+
+graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: "1.0.0"
+  fields:
+    schema_name: string
+    schema_version: string
+    authority: string
+    objects: [GraphObject]
+    relations: [GraphRelation]
+    projection_fingerprints:
+      type: map
+      optional: true
+      description: 逻辑投影名 → 内容指纹；由 Runtime/校验写入，非语义推断结果。
+
+GraphObject:
+  required: [id, type]
+  fields:
+    id: { type: string }
+    type: { type: string, description: Ontology object type id }
+    properties: { type: map, optional: true }
+    projection: { type: map, optional: true, description: 运行投影元数据，非正式语义字段 }
+    validFrom: { type: datetime, optional: true }
+    validTo: { type: datetime, optional: true }
+
+GraphRelation:
+  required: [id, type, sourceId, targetId]
+  fields:
+    id: { type: string }
+    type: { type: string, description: Ontology relation type id }
+    sourceId: { type: string }
+    targetId: { type: string }
+    properties: { type: map, optional: true }
+
+non_goals:
+  - ObjectSetQuery / ObjectSetResult / GraphLoadResult 属于 Runtime 读面，不在本合同。
+  - 不得在本目录实现 DB、workspace、artifact 读写。
+  - 不得仅因对象同处 ResearchScope 而推断业务事实边（含发明未登记关系名）。

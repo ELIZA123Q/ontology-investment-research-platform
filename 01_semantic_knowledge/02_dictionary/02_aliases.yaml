@@ -1,0 +1,93 @@
+schema_name: dictionary_aliases
+schema_version: 1.1.0
+status: active
+description: >
+  严格同义词映射：仅收录可无损替换的叫法。
+  近义词、上下位词、语境相关词放入 research_terms 或 ambiguity_rules。
+
+entries:
+  - canonical_ref: ontology:ValueChainSegment
+    preferred_term: 产业链环节
+    aliases:
+      - 价值链环节
+      - Segment
+      - 行业链环节
+
+  - canonical_ref: ontology:StateVariable
+    preferred_term: 状态变量
+    aliases:
+      - 变量
+      - state variable
+
+  - canonical_ref: ontology:Company
+    preferred_term: 公司
+    aliases:
+      - 企业
+
+  - canonical_ref: ontology:Industry
+    preferred_term: 行业
+    aliases:
+      - 产业
+
+  - canonical_ref: ontology:Product
+    preferred_term: 产品
+    aliases:
+      - 产品类别
+
+  - canonical_ref: ontology:Metric
+    preferred_term: 指标
+    aliases:
+      - 度量
+
+  - canonical_ref: ontology:EvidenceFact
+    preferred_term: 证据事实
+    aliases:
+      - 归一事实
+
+  - canonical_ref: ontology:EvidenceClaim
+    preferred_term: 原始陈述
+    aliases:
+      - 材料主张
+
+  - canonical_ref: ontology:JudgmentUnit
+    preferred_term: 判断单元
+    aliases:
+      - JU
+
+  - canonical_ref: ontology:Judgment
+    preferred_term: 判断
+    aliases:
+      - 研究结论
+
+  - canonical_ref: ontology:Hypothesis
+    preferred_term: 假设
+    aliases:
+      - 待验证假设
+
+  - canonical_ref: ontology:ExpectationGap
+    preferred_term: 预期差
+    aliases:
+      - ExpectationGap
+      - expectation gap
+
+  - canonical_ref: ontology:MarketExpectation
+    preferred_term: 市场预期
+    aliases:
+      - 一致预期
+      - 隐含预期
+
+  - canonical_ref: ontology:ResearchScope
+    preferred_term: 研究范围
+    aliases:
+      - Scope
+
+  - canonical_ref: ontology:SourceDocument
+    preferred_term: 来源文档
+    aliases:
+      - 来源
+
+  - canonical_ref: ontology:SourceSnapshot
+    preferred_term: 来源快照
+    aliases:
+      - 抓取快照
+    # 不收录「快照」：与 StateSnapshot 高歧义，见 ambiguity_rules

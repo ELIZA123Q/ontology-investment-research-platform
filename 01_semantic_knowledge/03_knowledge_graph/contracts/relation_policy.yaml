@@ -1,0 +1,63 @@
+schema_name: knowledge_graph_relation_policy
+schema_version: 1.1.0
+status: active
+description: >
+  规定「关系如何进入图」，不重新定义关系本身。关系类型权威仍在 01_ontology。
+
+relation_authority:
+  primary: 01_semantic_knowledge/01_ontology/models/
+  domain_extension: 01_semantic_knowledge/01_ontology/domains/*/ontology_extension.yaml
+  business_instances: 01_semantic_knowledge/01_ontology/domains/*/business_instances.yaml
+
+admission_rules:
+  - id: explicit_ontology_relation
+    allows: 已在 Ontology 登记的 relation type，且端点类型合法
+    graph_views: [DomainSemanticGraph, ResearchProvenanceGraph]
+
+  - id: domain_business_instance
+    allows: 领域权威 business_instances 已确认的实例边
+    graph_views: [DomainSemanticGraph]
+
+  - id: approved_research_artifact
+    allows: >
+      经 authority gate 确认、且登记了图投影的研究制品中的显式过程边。
+      不要求来自固定 Workflow 或阶段序列。
+    graph_views: [ResearchProvenanceGraph]
+
+  - id: structural_scope_membership
+    allows: scopeIncludesObject / objectInScope 等结构性成员边
+    note: >
+      这是补结构，不是补业务事实（如 produces / supplies 等）。
+      禁止发明 Ontology 未登记的关系名（如 supplies_to、located_in）。
+    graph_views: [ResearchProvenanceGraph]
+
+forbidden_inference:
+  principle: Knowledge Graph 可以补结构，不可以补业务事实。
+  banned:
+    - 仅因 Company 与 Product 同处 ResearchScope → 生成 produces
+    - 仅因 Company 与客户 Company 同处 ResearchScope → 生成 supplies（或发明 supplies_to）
+    - 仅因 Industry 与 Company/Product 同处 ResearchScope → 生成 contains
+    - 仅因 Company/Industry 与 Region 同处 ResearchScope → 生成未登记的地理位置边（如 located_in）
+    - 任何以 ID 前缀或类型共现批量推断商业语义边的 materializer 行为
+  allowed_structure_only:
+    - scopeIncludesObject（研究范围成员）
+    - 图索引/反向边投影（若 Ontology 已定义对称关系）
+    - 失效传播方向标记（见 trace_policy.yaml；执行在 Runtime）
+
+view_routing:
+  example_types_note: >
+    以下仅用于解释视图路由，不构成类型登记；
+    所有 object/relation type 必须解析至 01_semantic_knowledge/01_ontology 的正式 registry。
+  example_domain_relation_types:
+    - produces
+    - contains
+    - belongsTo
+    - supplies
+    - dependsOn
+  example_provenance_relation_types:
+    - factSupportsSignal
+    - signalEvaluatesHypothesis
+    - hypothesisSupportsJudgment
+    - judgmentHasReasoningTrace
+    - claimCitesSource
+    - factDerivedFromClaim

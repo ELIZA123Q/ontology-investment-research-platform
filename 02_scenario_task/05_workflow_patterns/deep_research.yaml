@@ -1,0 +1,26 @@
+workflow_id: deep_research
+status: active_pattern
+intent: deep_research
+description: Deep Research 规划先验——通常需要广取证、竞争解释与可重规划；不是固定 01→05 流水线。
+
+recommended_capabilities:
+  - framing
+  - structure
+  - evidence
+  - judgment
+  - synthesis
+
+planning_hints:
+  prefer_broad_evidence: true
+  require_competing_explanation: true
+  allow_parallel_evidence: true
+  allow_replanning: true
+
+human_gates:
+  - judgment_confirmation
+  - publish_confirmation
+
+legacy_reference: 02_scenario_task/90_legacy/deep_research_v1/
+notes:
+  - 禁止把本 pattern 解释为必须按 Stage 01–05 顺序执行。
+  - Runtime 只执行 node-catalog 中满足前置条件的节点。

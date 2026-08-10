@@ -1,0 +1,17 @@
+roles:
+  - role_id: researcher
+    responsibility:
+      - express_goal
+      - supply_materials
+      - review_critical_judgments
+      - adjust_direction
+    eligible_actor_types: [human]
+    human_gates: [plan_confirmation, evidence_confirmation, judgment_confirmation, publish_confirmation]
+
+  - role_id: research_lead
+    responsibility:
+      - own_research_plan
+      - maintain_dialogue
+      - synthesize_judgment
+    eligible_actor_types: [agent, human]
+    # Role ≠ Agent：谁承担该 Role 由 Capability 域 Agent.can_assume_roles 声明

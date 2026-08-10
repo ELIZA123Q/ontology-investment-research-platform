@@ -1,0 +1,81 @@
+schema_name: research_scenario_types
+schema_version: 2.0.0
+status: active
+namespace: tasks.scenario
+authority: 02_scenario_task/02_scenarios
+description: |
+  高层研究场景类型（catalog_only）。不重定义语义对象；语义/判断类型清单引用
+  01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml。
+enforcement: catalog_only
+profiles_ref: 01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml
+
+scenario_types:
+  CompanyResearch:
+    id: CompanyResearch
+    label_zh: 公司研究
+    label_en: Company Research
+    aliases: [个股研究]
+    definition: 围绕公司经营状态、竞争位置和影响实现开展的研究场景。
+    scope_dimensions: [object, geography, product, metric, time]
+    semantic_requirements: { profile: company_research }
+    judgment_requirements: { profile: standard_company_judgment }
+    entry_conditions: [company_identity_resolved, scope_frozen]
+    completion_conditions: [critical_units_resolved_or_blocked]
+    invalidation_conditions: [company_identity_changed, critical_evidence_invalidated]
+    update_triggers: [new_filing, material_event, key_metric_update]
+
+  IndustryResearch:
+    id: IndustryResearch
+    label_zh: 行业研究
+    label_en: Industry Research
+    aliases: [产业研究]
+    definition: 围绕行业供需、竞争、周期和结构变化开展的研究场景。
+    scope_dimensions: [industry, geography, value_chain, metric, time]
+    semantic_requirements: { profile: industry_research }
+    judgment_requirements: { profile: standard_industry_judgment }
+    entry_conditions: [industry_boundary_resolved, time_basis_frozen]
+    completion_conditions: [main_and_competing_paths_discriminated]
+    invalidation_conditions: [classification_boundary_changed, critical_snapshot_invalidated]
+    update_triggers: [supply_update, demand_update, price_update, inventory_update]
+
+  ValueChainResearch:
+    id: ValueChainResearch
+    label_zh: 产业链研究
+    label_en: Value Chain Research
+    aliases: [供应链研究]
+    definition: 围绕上下游依赖、传导与瓶颈开展的研究场景。
+    scope_dimensions: [value_chain, object, product, geography, time]
+    semantic_requirements: { profile: value_chain_research }
+    judgment_requirements: { profile: standard_value_chain_judgment }
+    entry_conditions: [path_endpoints_resolved]
+    completion_conditions: [transmission_nodes_and_blockers_assessed]
+    invalidation_conditions: [key_dependency_changed]
+    update_triggers: [supplier_change, capacity_change, restriction_event]
+
+  TechnologyRouteResearch:
+    id: TechnologyRouteResearch
+    label_zh: 技术路线研究
+    label_en: Technology Route Research
+    aliases: [技术比较]
+    definition: 围绕技术能力、成熟度、替代性和商业化约束开展的研究场景。
+    scope_dimensions: [technology, product, application, metric, time]
+    semantic_requirements: { profile: technology_route_research }
+    judgment_requirements: { profile: standard_technology_route_judgment }
+    entry_conditions: [technology_boundary_resolved]
+    completion_conditions: [performance_and_commercialization_constraints_assessed]
+    invalidation_conditions: [technology_definition_changed]
+    update_triggers: [validation_result, mass_production_event, performance_update]
+
+  EventImpactResearch:
+    id: EventImpactResearch
+    label_zh: 事件影响研究
+    label_en: Event Impact Research
+    aliases: [事件点评]
+    definition: 围绕已发生事件的影响对象、传导路径、时间滞后和边界开展的研究场景。
+    scope_dimensions: [event, object, geography, value_chain, time]
+    semantic_requirements: { profile: event_impact_research }
+    judgment_requirements: { profile: standard_event_impact_judgment }
+    entry_conditions: [event_fact_verified]
+    completion_conditions: [direct_and_indirect_impacts_separated]
+    invalidation_conditions: [event_retracted_or_scope_revised]
+    update_triggers: [implementation_detail, enforcement_change, company_response]

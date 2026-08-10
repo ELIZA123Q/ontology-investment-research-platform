@@ -1,0 +1,46 @@
+schema_name: ontology_v3_runtime_mapping
+schema_version: 1.0.0
+status: read_only_compatibility
+formal_ontology_version: 3.0.0
+public_contract_version: 1.3.0
+runtime_implementation_status: implemented
+description: Ontology 3.0 历史实例的只读映射；所有新运行通过 Ontology 4.0 Platform Catalog 和 Action Service 写入，禁止双写。
+
+mapping:
+  ontology_objects: 06_runtime/adapters/ontology.ts
+  external_data_profiles: 05_control_evaluation/02_合同/ontology_data_mapping_profiles.yaml
+  external_data_profile_runtime: 06_runtime/src/semantic/graph-contracts.ts
+  method_application: 06_runtime/src/runtime/kernel.ts
+  ontology_platform: 01_semantic_knowledge/01_ontology/platform_registry.yaml
+  action_types: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml
+  functions: 01_semantic_knowledge/01_ontology/kinetics/functions.yaml
+  action_service: 06_runtime/src/ontology/action-service.ts
+  evidence_wave: 02_scenario_task/04_workflows/deep_research/templates/evidence_wave.template.yaml
+  invalidation_projection: 02_scenario_task/04_workflows/deep_research/templates/dependency_projection.template.yaml
+  incremental_update_validator: 05_control_evaluation/03_校验/incremental_update.py
+
+moved_legacy_resources:
+  action_types:
+    target: ontology_4_kinetic_action_type
+    rule: 新 Action 是本体一等公民；历史 Runtime 操作注册表已删除。
+  functions:
+    target: ontology_4_kinetic_function_type
+    rule: Function 只读，正式编辑只能由 Action 提交。
+  logic_flows:
+    target: method_or_workflow_orchestrator
+    rule: 研究方法进入 method_libraries，运行路径由 typed node catalog 与 planner 编译。
+
+implemented_types:
+  MethodApplication:
+    source_contract: 05_control_evaluation/02_合同/public_contract.yaml#method_application_contract
+    persistence: append-only per run
+    identity: application_id
+    status_transition: candidate -> selected -> executed | rejected | blocked | degraded
+  InvalidationProjection:
+    source_contract: 05_control_evaluation/02_合同/public_contract.yaml#object_validity_propagation
+    requirement: 仅传播到关系图中可达的下游对象。
+  IncrementalUpdate:
+    source_contract: 05_control_evaluation/02_合同/public_contract.yaml#incremental_update_contract
+    identity: update_id
+    algorithm: changed_roots -> direct_impacts -> reachable stale closure -> affected stage subsets
+    full_rerun_rule: 仅结构检查点命中时允许；普通证据更新局部优先

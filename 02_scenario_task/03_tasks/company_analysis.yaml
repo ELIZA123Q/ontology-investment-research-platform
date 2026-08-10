@@ -1,0 +1,11 @@
+schema_name: research_task_contract
+schema_version: 1.0.0
+task_id: company_analysis
+name: 公司分析
+objective: 在给定范围内评估公司经营与业绩判断的证据充分性、边界与改判条件
+default_role: research_lead
+optional_workflow_pattern: deep_research
+relevant_skills: [research-framing, research-method, evidence-assessment, research-writing]
+relevant_scenario_types: [CompanyResearch]
+notes:
+  - 用户级 Research Task Contract；不是 Runtime Node。

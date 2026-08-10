@@ -1,0 +1,65 @@
+schema_name: financial_data_ingestion_contract
+schema_version: 1.0.0
+status: active
+
+purpose: >-
+  规定行情、财务、估值和一致预期等结构化金融数据如何穿过 Tool 边界，
+  冻结主体、指标、数值、单位、时间与口径，并沿统一 Source Capture 主链晋级为 EvidenceFact。
+
+separation_of_authority:
+  connector: 负责查询金融数据并返回原始结果，不是事实发布主体
+  upstream_publisher: 负责数据披露或原始观测的来源身份
+  runtime_adapter: 负责确定性规范化、时间旅行校验、哈希与请求指纹
+  provenance_verifier: 负责 SourceSnapshot 晋级门
+  researcher: 负责金融事实对具体 Hypothesis 的 Signal 作用方向
+
+required_result_fields:
+  request: [connectorId, operation, requestParameters, requestedAt, retrievedAt, asOf]
+  entity: [id, name]
+  upstream: [sourceId, uri, title, sourceType]
+  observation: [metricId, metricName, value, unit, businessTime, basis, locator]
+
+value_bases:
+  reported: 已披露且未经后续重述的报告值
+  restated: 明确标注重述后的报告值
+  consensus: 截止 asOf 可获得的一致预期；晋级为 forecast
+  market: 截止 asOf 的市场观测；晋级为 measurement
+  calculated: 由已冻结输入和公式计算的派生值
+
+deterministic_gates:
+  - requestedAt <= retrievedAt
+  - asOf <= retrievedAt
+  - reported、restated、market 的 businessTime <= asOf
+  - periodStart <= periodEnd <= businessTime
+  - value 非空且数值必须有限
+  - unit 必须非空；币种与单位分开冻结
+  - 同一 metricId、businessTime、dimensions 在一个结果中唯一
+  - 每条 Observation 生成可定位的规范化 statement，并保持 connector 与 upstream publisher 分离
+  - 规范化结果必须继续通过 SourceSnapshot 和 EvidenceFact verifier，不得直接写 Judgment
+
+promotion_path:
+  - FinancialDataToolResult
+  - normalized financial observation
+  - UnifiedSourceToolResult
+  - SourceCandidate
+  - SourceSnapshot
+  - EvidenceFact
+  - Signal
+
+failure_behavior:
+  invalid_result: 拒绝整个适配结果，不写入部分事实
+  missing_unit_or_time_basis: 作为口径错误，不允许模型猜测
+  future_data_relative_to_asof: 作为时间旅行错误拒绝
+  restricted_permission: 由 SourceSnapshot verifier 阻止晋级
+
+runtime_mapping:
+  adapter: 06_runtime/src/tools/financial-data-adapter.ts
+  common_source_boundary: 06_runtime/src/tools/source-result-adapter.ts
+  provenance_store: 06_runtime/src/semantic/provenance-store.ts
+  verifier: 06_runtime/src/governance/provenance-verifier.ts
+  tool_manifest: 06_runtime/src/capabilities/registry.ts#financial.mcp
+
+verification:
+  tests:
+    - 06_runtime/tests/financial-data-adapter.test.ts
+    - 06_runtime/tests/source-result-adapter.test.ts

@@ -1,0 +1,38 @@
+schema_name: semiconductor_scenario_registry
+schema_version: 1.0.0
+status: active
+group_id: semiconductor
+source_of_truth: 02_scenario_task/02_scenarios/semiconductor/
+template: 02_scenario_task/02_scenarios/_scenario_card_template.md
+
+cards:
+  - scenario_id: SCN-MEM-CYCLE
+    path: SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
+    default_framework_id: IF-SC-01
+  - scenario_id: SCN-MEM-HBM
+    path: SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
+    default_framework_id: IF-SC-01
+  - scenario_id: SCN-LOC-EQP
+    path: SCN-LOC-EQP_国产设备突破场景卡.md
+    default_framework_id: IF-EQP-01
+  - scenario_id: SCN-LOC-MAT
+    path: SCN-LOC-MAT_国产材料放量场景卡.md
+    default_framework_id: IF-MAT-01
+  - scenario_id: SCN-GEO
+    path: SCN-GEO_地缘政治冲击影响半导体场景卡.md
+    default_framework_id: IF-LOC-01
+  - scenario_id: SCN-AI
+    path: SCN-AI-AI计算芯片系统供给场景卡.md
+    default_framework_id: IF-APP-01
+  - scenario_id: SCN-OPTO
+    path: SCN-OPTO_光电子芯片与硅光场景卡.md
+    default_framework_id: IF-APP-01
+  - scenario_id: SCN-PKG-BTL
+    path: SCN-PKG-BTL_先进封装瓶颈场景卡.md
+    default_framework_id: IF-PKG-01
+  - scenario_id: SCN-PWR-SIC
+    path: SCN-PWR-SIC_SiC渗透与供给场景卡.md
+    default_framework_id: IF-APP-01
+  - scenario_id: SCN-AUTO
+    path: SCN-AUTO_车规芯片认证与装车场景卡.md
+    default_framework_id: IF-DES-01

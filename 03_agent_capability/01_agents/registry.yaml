@@ -1,0 +1,22 @@
+schema_name: capability_agents_registry
+schema_version: 2.0.0
+status: active
+executable_manifest: 06_runtime/src/capabilities/registry.ts
+agents:
+  - agent_id: research-lead
+    lifecycle: active
+    context_policy: conversation
+    role: 理解目标、编译受约束任务图、控制预算、执行 Skill/Tool/Verifier、形成判断和交付
+  - agent_id: evidence-investigator
+    lifecycle: planned
+    activation_gate: 取证并行配对评测证明覆盖率或时延有显著收益
+  - agent_id: analysis-specialist
+    lifecycle: planned
+    activation_gate: 单 Agent 复杂推理失败案例达到启用门槛
+  - agent_id: independent-critic
+    lifecycle: planned
+    activation_gate: 隔离审查相对确定性 Verifier 和人工复核产生增量价值
+rules:
+  - vNext.1 只能调度 lifecycle=active 的 Agent
+  - 专家 Agent 作为 manager-controlled worker，不接管用户对话
+  - 禁止在本目录复制 AGENT.md prompt 正文

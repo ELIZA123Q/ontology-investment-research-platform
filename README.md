@@ -26,16 +26,18 @@ bash start-light.sh
 
 ## 仓库地图（读完导读再看）
 
-目录编号是整理用的，**不是**做研究时必须走的阶段顺序。唯一能跑起来的应用在 `07_runtime/`。
+目录编号是整理用的，**不是**做研究时必须走的阶段顺序。唯一能跑起来的应用在 `06_runtime/`。
 
 | 目录 | 人话 |
 |---|---|
-| [`01_semantic/`](01_semantic/README.md) | 概念、词典、证据语义 |
-| [`02_tasks/`](02_tasks/README.md) | 场景与任务定义 |
-| [`03_capabilities/`](03_capabilities/README.md) | 方法库、能力登记、数据通道 |
-| [`04_execution/`](04_execution/README.md) | 执行合同与历史工作区 |
-| [`05_governance/`](05_governance/README.md) | 边界、合同、校验、评测 |
-| [`06_app/`](06_app/README.md) | 产品面说明（实现在 Runtime） |
-| [`07_runtime/`](07_runtime/README.md) | 唯一可执行应用与后台 |
+| [`01_semantic_knowledge/`](01_semantic_knowledge/README.md) | 概念、词典、证据语义 |
+| [`02_scenario_task/`](02_scenario_task/README.md) | 场景与任务定义 |
+| [`03_agent_capability/`](03_agent_capability/README.md) | 方法库、能力登记、数据通道 |
+| [`04_context_state/`](04_context_state/README.md) | 执行合同与历史工作区 |
+| [`05_control_evaluation/`](05_control_evaluation/README.md) | 边界、合同、校验、评测 |
+| [`06_runtime/`](06_runtime/README.md) | 唯一可执行应用与后台 |
+| [`07_workspace/`](07_workspace/README.md) | 产品面说明（实现在 Runtime） |
 
-更细说明见 [`05_governance/01_架构/02_仓库地图与文件治理.md`](05_governance/01_架构/02_仓库地图与文件治理.md)。权威索引：[`five_domain_authority.yaml`](05_governance/01_架构/five_domain_authority.yaml)。
+更细说明见 [`05_control_evaluation/01_架构/02_仓库地图与文件治理.md`](05_control_evaluation/01_架构/02_仓库地图与文件治理.md)。权威索引：[`five_domain_authority.yaml`](05_control_evaluation/01_架构/five_domain_authority.yaml)。
+
+AI 原生分层（心智名 ↔ 现行目录、Workflow 降级、禁止项）：[`05_control_evaluation/01_架构/00_五域系统骨架.md`](05_control_evaluation/01_架构/00_五域系统骨架.md) · [`architecture.yaml`](05_control_evaluation/01_架构/architecture.yaml)。

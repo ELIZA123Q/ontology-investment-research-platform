@@ -1,0 +1,33 @@
+{
+  "name": "investment-research-copilot-vnext",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --webpack -H 127.0.0.1 -p 3000",
+    "build": "next build --webpack",
+    "start": "next start -H 127.0.0.1 -p 3000",
+    "start:all": "bash scripts/start-all.sh",
+    "worker": "node --import tsx src/worker.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "ontology:validate": "python3 ../05_control_evaluation/03_校验/ontology/validate_ontology.py",
+    "ontology:sync": "python3 scripts/generate-ontology-catalog.py",
+    "ontology:check": "python3 scripts/generate-ontology-catalog.py --check",
+    "audit:cutover": "node --import tsx scripts/audit-cutover.ts"
+  },
+  "dependencies": {
+    "next": "16.3.0",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.13",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "tsx": "4.23.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}

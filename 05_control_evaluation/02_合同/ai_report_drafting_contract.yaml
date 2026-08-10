@@ -1,0 +1,90 @@
+schema_name: ai_report_drafting_contract
+schema_version: 1.0.0
+status: active
+
+purpose: >-
+  在专业 ReportSpec、正式 Judgment、MethodApplication、EvidenceFact 与 SourceReference 边界内，
+  允许模型按受众和深度草拟章节解释；模型只负责组织路径和表达，不能拥有事实、判断或发布权威。
+
+execution_position:
+  after:
+    - Judgment 已由研究员确认并通过 ApproveJudgment
+    - 章节 MethodApplication 已完成证据角色绑定
+  before:
+    - deterministic report composer
+    - citation-and-expression verifier
+    - ResearchDeliverable verification
+
+model_input:
+  required:
+    - ReportSpec 与 customInstructions
+    - 研究目标
+    - 正式 Judgment 投影
+    - 章节状态、MethodApplication ID、方法缺口
+    - 章节获授权的 EvidenceFact
+    - verified SourceReference
+  forbidden:
+    - 未发布知识候选
+    - 未核验来源
+    - 其他 Task 的私有制品
+    - 系统密钥与连接凭据
+
+model_output:
+  format: structured_json
+  section_fields: [sectionKey, paragraphs, bullets, usedEvidenceFactIds, usedSourceIds]
+  draftable_sections:
+    - business_model
+    - financial_operating_analysis
+    - industry_structure
+    - cycle_supply_demand
+    - competitive_landscape
+    - mechanism_chain
+    - scenario_analysis
+    - alternative_hypotheses
+
+deterministic_gates:
+  - sectionKey 必须属于本轮可草拟章节且不可重复
+  - usedEvidenceFactIds 必须属于该章节 MethodApplication 已绑定事实
+  - usedSourceIds 必须 verified 且与所用 EvidenceFact 的 SourceSnapshot 一致
+  - 模型不得引入授权输入中不存在的数值
+  - 模型不得输出评级、买卖建议、目标价或保证收益
+  - 模型输出不得含可执行 HTML 或脚本
+  - 章节长度受限
+  - 模型草拟不得改变 section.status、正式 claims、summary、changeConditions 或来源附录
+
+personalization_boundary:
+  allowed:
+    - 按 audience 调整术语与决策信息密度
+    - 按 depth 调整解释层级
+    - 在证据范围内调整段落、要点与先后顺序
+    - 执行不与专业纪律冲突的 customInstructions
+  forbidden:
+    - 删除强制章节
+    - 把 limited 升级为 ready
+    - 改写正式 Judgment
+    - 改变证据等级或置信边界
+    - 用模型常识补齐方法缺口
+
+failure_and_fallback:
+  invalid_json: 丢弃模型草稿，使用确定性 Composer
+  provider_error: 记录失败事件，使用确定性 Composer
+  boundary_violation: 保存 rejected review 与错误，不把草稿传给 Composer
+  cache: 相同 Provider 与冻结输入使用同一 fingerprint，避免重复调用
+
+audit:
+  accepted_event: report.model_draft_verified
+  rejected_event: report.model_draft_rejected
+  section_projection: 保存 provider、model 与 fingerprint，不展示内部 Prompt
+
+runtime_mapping:
+  provider: 06_runtime/src/providers/model-provider.ts
+  drafter: 06_runtime/src/reporting/report-model-drafter.ts
+  composer: 06_runtime/src/reporting/report-composer.ts
+  worker: 06_runtime/src/worker.ts
+  trusted_ui: 06_runtime/app/components/surface-registry.tsx
+
+verification:
+  tests:
+    - 06_runtime/tests/report-model-drafter.test.ts
+    - 06_runtime/tests/report-composer.test.ts
+    - 06_runtime/tests/kernel.test.ts

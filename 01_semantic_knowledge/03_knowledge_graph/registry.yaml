@@ -1,0 +1,44 @@
+schema_name: semantic_kg_registry
+schema_version: 3.1.0
+status: active
+
+authority:
+  answers: >
+    图合同（类型、表示、双视图、入图/追溯策略）归 Semantic/knowledge_graph；
+    单次图物化、加载、失效传播执行归 Runtime；实例图校验归 Governance。
+    本合同不绑定固定 Workflow / 阶段序列，也不收录 Execution Trace。
+  write_entry: 01_semantic_knowledge/03_knowledge_graph/
+  read_primary: 01_semantic_knowledge/03_knowledge_graph/contracts/
+  runtime_boundary: 06_runtime/src/semantic/graph-contracts.ts
+  governance_validators: 05_control_evaluation/03_校验/knowledge_graph/
+  legacy_compat: 05_control_evaluation/03_校验/legacy_compat/
+  legacy_stage_materializers: legacy/knowledge_graph/
+
+source_of_truth:
+  graph_contracts:
+    - 01_semantic_knowledge/03_knowledge_graph/contracts/graph_schema.yaml
+    - 01_semantic_knowledge/03_knowledge_graph/contracts/graph_views.yaml
+    - 01_semantic_knowledge/03_knowledge_graph/contracts/relation_policy.yaml
+    - 01_semantic_knowledge/03_knowledge_graph/contracts/projection_policy.yaml
+    - 01_semantic_knowledge/03_knowledge_graph/contracts/trace_policy.yaml
+
+answers:
+  - 图有哪些类型
+  - 节点/边怎么表示
+  - Domain Semantic Graph 与 Research Provenance Graph 怎么区分
+  - 什么关系允许投影/追溯
+
+does_not_answer:
+  - 从数据库读哪个 artifact
+  - 固定阶段或 Workflow 怎么变成图
+  - 一次 run 怎么生成 provisional graph
+  - 怎么读 workspace
+  - 历史 CSV 怎么兼容
+  - Task / TaskNode / AgentRun / Event / Checkpoint 如何组织
+
+notes:
+  - Domain Semantic Graph 与 Research Provenance Graph 是同一套语义模型的两个 view；禁止万能图。
+  - Research Provenance ≠ Execution Trace；后者归 Runtime。
+  - Knowledge Graph 可以补结构，不可以补业务事实。
+  - example_* 字段仅解释视图，不构成类型登记；类型权威在 01_ontology。
+  - 单次图物化结果归 Runtime / workspace；旧 stage 物化器仅作 legacy adapter。
