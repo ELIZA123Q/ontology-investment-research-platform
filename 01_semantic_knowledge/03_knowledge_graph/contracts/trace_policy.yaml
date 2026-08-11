@@ -10,6 +10,7 @@ downstream_invalidation:
     forward：边 source → target 为影响方向；
     reverse：边 target → source 为影响方向（沿边反向传播失效）。
   directions:
+    claimCitesSnapshot: reverse
     claimCitesSource: reverse
     factDerivedFromClaim: reverse
     assessmentEvaluatesFact: reverse

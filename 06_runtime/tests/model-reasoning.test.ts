@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { EvidenceFact, Task, TaskNode } from "@/src/contracts";
+import type { Artifact, EvidenceFact, SourceReference, Task, TaskNode } from "@/src/contracts";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { requestBoundedResearchReasoning } from "@/src/research/model-reasoning";
 import { normalizeReportSpec } from "@/src/reporting/report-spec";
@@ -22,6 +22,14 @@ const fact: EvidenceFact = {
   id: "fact-1", snapshotId: "snapshot-1", statement: "订单同比增长 20%", factType: "measurement",
   confidence: "high", status: "verified", createdAt: "2026-08-11T00:00:00Z",
 };
+const source: SourceReference = {
+  sourceId: fact.snapshotId, uri: "https://issuer.test/announcement", title: "issuer announcement", capturedAt: fact.createdAt,
+  locator: "p1", quote: fact.statement, contentHash: "sha256:test", verification: "verified", permissionScope: "public_research_use",
+};
+const evidenceArtifact: Artifact = {
+  id: "artifact-1", conversationId: task.conversationId, taskId: task.id, nodeId: node.id, kind: "evidence_package", title: "证据评估",
+  version: 1, status: "verified", data: { facts: [fact] }, sourceRefs: [source], createdBy: "test", createdAt: fact.createdAt,
+};
 
 describe("bounded research reasoning", () => {
   it("accepts only hypotheses and candidate judgments grounded in authorized facts", async () => {
@@ -32,7 +40,7 @@ describe("bounded research reasoning", () => {
       judgment: { statement: "需求有条件改善", confidence: "medium", evidenceFactIds: [fact.id], changeConditions: ["订单增长 20% 未转化为收入"], reasoningSummary: "当前仅有订单证据" },
       reviewFindings: [],
     }) }; } };
-    const result = await requestBoundedResearchReasoning(store, provider, { task, node, facts: [fact], artifacts: [] });
+    const result = await requestBoundedResearchReasoning(store, provider, { task, node, facts: [fact], artifacts: [evidenceArtifact] });
     expect(result.data).toMatchObject({ hypotheses: [{ evidenceFactIds: [fact.id] }], judgment: { evidenceFactIds: [fact.id] } });
   });
 
@@ -43,8 +51,18 @@ describe("bounded research reasoning", () => {
       hypotheses: [{ statement: "建议买入", evidenceFactIds: ["fabricated-fact"], falsificationConditions: [], distinguishingSignals: [] }],
       judgment: null, reviewFindings: [],
     }) }; } };
-    const result = await requestBoundedResearchReasoning(store, provider, { task, node, facts: [fact], artifacts: [] });
+    const result = await requestBoundedResearchReasoning(store, provider, { task, node, facts: [fact], artifacts: [evidenceArtifact] });
     expect(result.data).toBeUndefined();
     expect(result.errors?.join(" ")).toMatch(/unauthorized fact|unauthorized EvidenceFact|prohibited investment recommendation|unsupported numeric token|falsification conditions/);
+  });
+
+  it("refuses external reasoning when a fact has no permission-scoped provenance", async () => {
+    const store = new RuntimeStore(":memory:"); stores.push(store);
+    let called = false;
+    const provider: ModelProvider = { id: "external", async generate() { called = true; return { provider: "external", model: "x", text: "{}" }; } };
+    const result = await requestBoundedResearchReasoning(store, provider, { task, node, facts: [fact], artifacts: [] });
+    expect(result.errors).toEqual(["Model data policy forbids external egress"]);
+    expect(called).toBe(false);
+    expect(store.listModelCalls()).toEqual([expect.objectContaining({ status: "blocked" })]);
   });
 });

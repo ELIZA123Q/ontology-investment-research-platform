@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { ActionRejectedError, OntologyActionService } from "@/src/ontology/action-service";
 import { ontologyCatalog } from "@/src/ontology/catalog";
 import { RuntimeStore } from "@/src/runtime/store";
+import { evaluateJudgmentThreshold } from "@/src/governance/judgment-threshold";
 
 const stores: RuntimeStore[] = [];
 const setup = () => {
@@ -108,6 +109,7 @@ describe("Ontology 5.0 action platform", () => {
     }, context).objects.find((object) => object.type === "Hypothesis")!;
     const judgmentParameters = {
       statement: "需求有条件增长", judgmentType: "trend_direction", timeHorizon: "未来六个月", epistemicStatus: "supported", confidence: "medium",
+      judgmentLevel: "J2", thresholdEvaluation: evaluateJudgmentThreshold({ evidenceGrade: "Q2", counterevidenceStatus: "cleared", pathReadiness: "ready" }),
       scopeRef: scope.id, judgmentUnitRef: unit.id, cutoffAt: "2026-08-02T00:00:00Z", evidenceRefs: [fact.id], methodApplicationRefs: ["MA-core_judgments"],
       signalInputs: [{ evidenceFactRef: fact.id, statement: "需求增长", role: "support" }], hypothesisRefs: [hypothesis.id], conditions: ["一手来源持续"], invalidationConditions: ["新来源反转"],
     };
@@ -174,7 +176,7 @@ describe("Ontology 5.0 action platform", () => {
       expectedVersions: { [researchCase.id]: actions.ontology.getObject(researchCase.id)!.version }, idempotencyKey: "hypothesis:v1",
     }, context).objects.find((object) => object.type === "Hypothesis")!;
     const approval = store.createApproval({ conversationId: context.conversationId, taskId: task.id, kind: "judgment_confirmation", prompt: "批准" }); store.decideApproval(approval.id, "approved");
-    const judgment = actions.apply("ApproveJudgment", { targetRefs: [{ id: researchCase.id, type: researchCase.type }], parameters: { statement: "增长", judgmentType: "trend_direction", timeHorizon: "未来六个月", epistemicStatus: "supported", confidence: "medium", scopeRef: scope.id, judgmentUnitRef: unit.id, cutoffAt: "2026-08-01T00:00:00Z", evidenceRefs: [fact.id], methodApplicationRefs: ["MA-core_judgments"], signalInputs: [{ evidenceFactRef: fact.id, statement: "增长", role: "support" }], hypothesisRefs: [hypothesis.id], conditions: [], invalidationConditions: ["新版本"] }, expectedVersions: { [researchCase.id]: actions.ontology.getObject(researchCase.id)!.version }, idempotencyKey: "judgment:v1", approvalToken: approval.id }, { ...context, actorType: "researcher" }).objects.find((object) => object.type === "Judgment")!;
+    const judgment = actions.apply("ApproveJudgment", { targetRefs: [{ id: researchCase.id, type: researchCase.type }], parameters: { statement: "增长", judgmentType: "trend_direction", timeHorizon: "未来六个月", epistemicStatus: "supported", confidence: "medium", judgmentLevel: "J2", thresholdEvaluation: evaluateJudgmentThreshold({ evidenceGrade: "Q2", counterevidenceStatus: "cleared", pathReadiness: "ready" }), scopeRef: scope.id, judgmentUnitRef: unit.id, cutoffAt: "2026-08-01T00:00:00Z", evidenceRefs: [fact.id], methodApplicationRefs: ["MA-core_judgments"], signalInputs: [{ evidenceFactRef: fact.id, statement: "增长", role: "support" }], hypothesisRefs: [hypothesis.id], conditions: [], invalidationConditions: ["新版本"] }, expectedVersions: { [researchCase.id]: actions.ontology.getObject(researchCase.id)!.version }, idempotencyKey: "judgment:v1", approvalToken: approval.id }, { ...context, actorType: "researcher" }).objects.find((object) => object.type === "Judgment")!;
     const second = actions.apply("CaptureSource", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }], parameters: { title: "来源", uri: "https://example.com/versioned", publishedAt: "2026-08-03T00:00:00Z", sourceTier: "S1", locator: "v2", contentHash: "sha256:v2", capturedAt: "2026-08-03T00:00:00Z", accessScope: "public", quote: "增长放缓" },
       expectedVersions: { [researchCase.id]: 1 }, idempotencyKey: "capture:v2",

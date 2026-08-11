@@ -8,6 +8,9 @@ import { canRead } from "@/src/ontology/query-service";
 import { OntologyStore } from "@/src/ontology/store";
 import { materializeNodes, planResearch } from "@/src/runtime/planner";
 import { RuntimeStore } from "@/src/runtime/store";
+import { evaluateJudgmentThreshold } from "@/src/governance/judgment-threshold";
+import { traceReachableDownstream } from "@/src/semantic/invalidation-policy";
+import { assertGlobalActionPermission } from "@/src/governance/permission-policy";
 
 const now = () => new Date().toISOString();
 const refKey = (ref: OntologyObjectRef) => `${ref.type}:${ref.id}`;
@@ -38,6 +41,8 @@ export class OntologyActionService {
     const definition = ontologyCatalog.getActionType(actionType);
     const errors: string[] = [];
     const warnings: string[] = [];
+    try { assertGlobalActionPermission(actionType, context.actorType); }
+    catch (error) { errors.push(error instanceof Error ? error.message : String(error)); }
     if (!definition.allowed_actors.includes(context.actorType)) errors.push(`${context.actorType} is not allowed to apply ${actionType}`);
     this.validateParameters(definition, request.parameters, errors);
     if (!request.idempotencyKey?.trim()) errors.push("idempotencyKey is required");
@@ -227,26 +232,13 @@ export class OntologyActionService {
         edits.push(linkEdit("caseCapturesSnapshot", target, snapshot), linkEdit("snapshotOfDocument", snapshot, source));
         if (existing) {
           const priorSnapshots = this.ontology.listLinksForObject(existing.id).filter((link) => link.type === "snapshotOfDocument" && link.targetRef.id === existing.id).map((link) => link.sourceRef);
-          for (const priorSnapshot of priorSnapshots) {
-            const claims = this.ontology.listLinksForObject(priorSnapshot.id).filter((link) => link.type === "claimCitesSnapshot" && link.targetRef.id === priorSnapshot.id).map((link) => link.sourceRef);
-            for (const claim of claims) {
-              const facts = this.ontology.listLinksForObject(claim.id).filter((link) => link.type === "factDerivedFromClaim" && link.targetRef.id === claim.id).map((link) => link.sourceRef);
-              for (const fact of facts) {
-                edits.push(updateEdit(fact, { validity_status: "stale", invalidation_reason: "new_source_snapshot" }));
-                invalidatedRefs.push(fact);
-                for (const signalLink of this.ontology.listLinksForObject(fact.id).filter((link) => link.type === "factSupportsSignal" && link.sourceRef.id === fact.id)) {
-                  edits.push(updateEdit(signalLink.targetRef, { validity_status: "stale", invalidation_reason: "new_source_snapshot" }));
-                  invalidatedRefs.push(signalLink.targetRef);
-                }
-                for (const judgment of this.ontology.listObjects("Judgment")) {
-                  const refs = Array.isArray(judgment.properties.evidence_refs) ? judgment.properties.evidence_refs.map(String) : [];
-                  if (!refs.includes(fact.id) || !["approved", "published"].includes(String(judgment.properties.lifecycle_status))) continue;
-                  const judgmentRef = { id: judgment.id, type: judgment.type };
-                  edits.push(updateEdit(judgmentRef, { epistemic_status: "invalidated", lifecycle_status: "review_required", invalidation_reason: "new_source_snapshot" }));
-                  invalidatedRefs.push(judgmentRef);
-                }
-              }
-            }
+          const downstreamById = new Map(priorSnapshots.flatMap((priorSnapshot) => traceReachableDownstream(this.ontology, [priorSnapshot])).map((ref) => [ref.id, ref]));
+          for (const downstream of downstreamById.values()) {
+            const properties = downstream.type === "Judgment"
+              ? { epistemic_status: "invalidated", lifecycle_status: "review_required", invalidation_reason: "new_source_snapshot" }
+              : { validity_status: "stale", invalidation_reason: "new_source_snapshot" };
+            edits.push(updateEdit(downstream, properties));
+            invalidatedRefs.push(downstream);
           }
         }
         break;
@@ -362,15 +354,21 @@ export class OntologyActionService {
           input: item,
           ref: create("Signal", { statement: `${roleLabels[item.role]}｜${item.statement}`, role: item.role, validity_status: "current" }),
         }));
+        const suppliedThreshold = p.thresholdEvaluation as { evidenceGrade?: "Q0" | "Q1" | "Q2" | "Q3" | "Q4"; counterevidenceStatus?: "cleared" | "weakened" | "contested" | "decisive" | "not_checked" | "not_applicable"; pathReadiness?: "ready" | "restricted" | "blocked" | "not_applicable" };
+        if (!suppliedThreshold?.evidenceGrade || !suppliedThreshold.counterevidenceStatus || !suppliedThreshold.pathReadiness) throw new Error("ApproveJudgment requires thresholdEvaluation inputs");
+        const threshold = evaluateJudgmentThreshold({ evidenceGrade: suppliedThreshold.evidenceGrade, counterevidenceStatus: suppliedThreshold.counterevidenceStatus, pathReadiness: suppliedThreshold.pathReadiness });
+        if (p.judgmentLevel !== threshold.maxLevel) throw new Error(`judgmentLevel ${String(p.judgmentLevel)} exceeds or differs from policy cap ${threshold.maxLevel}`);
+        if (p.epistemicStatus === "supported" && !["J2", "J3", "J4"].includes(threshold.maxLevel)) throw new Error("supported Judgment requires policy level J2 or above");
         const conditionResults = [
           { condition: "verified_evidence", expression: "all signal inputs are verified EvidenceFact", inputs: evidenceRefs, result: true, reason: "来源快照与事实晋级校验通过" },
           { condition: "executed_method_application", expression: "at least one executed MethodApplication is referenced", inputs: methodApplicationRefs, result: methodApplicationRefs.length > 0, reason: "Runtime 在批准前校验 executed/passed" },
           { condition: "support_signal_present", expression: "at least one signal has role=support", inputs: signalInputs.map((item) => item.evidenceFactRef), result: signalInputs.some((item) => item.role === "support"), reason: "研究员在判断卡中确认证据作用" },
           { condition: "no_block_signal", expression: "no signal has role=block", inputs: signalInputs.map((item) => item.evidenceFactRef), result: !signalInputs.some((item) => item.role === "block"), reason: "阻断信号会阻止 supported Judgment" },
+          { condition: "judgment_level_policy_cap", expression: "judgment level equals the minimum evidence/counterevidence/path cap", inputs: [threshold.evidenceGrade, threshold.counterevidenceStatus, threshold.pathReadiness], result: p.judgmentLevel === threshold.maxLevel, reason: threshold.allowedExpression },
         ];
-        const ruleEvaluation = create("RuleEvaluation", { rule_ref: "judgment_evidence_threshold", input_refs: [...evidenceRefs, ...methodApplicationRefs], condition_results: conditionResults, result: "pass" });
+        const ruleEvaluation = create("RuleEvaluation", { rule_ref: threshold.policyRef, input_refs: [...evidenceRefs, ...methodApplicationRefs], condition_results: conditionResults, result: "pass", policy_projection: threshold });
         const judgment = create("Judgment", {
-          statement: p.statement, level: p.epistemicStatus === "supported" ? "J2" : "J0", confidence: p.confidence,
+          statement: p.statement, level: threshold.maxLevel, confidence: p.confidence,
           epistemic_status: p.epistemicStatus, lifecycle_status: "approved", conflict_status: p.epistemicStatus === "contested" ? "unresolved" : "none",
           not_judgeable_reason: p.epistemicStatus === "indeterminate" ? "证据不足" : null, scope_ref: scope.id, cutoff_at: p.cutoffAt,
           evidence_refs: evidenceRefs, method_application_refs: methodApplicationRefs, hypothesis_refs: hypotheses.map((item) => item.id), signal_refs: signals.map((signal) => signal.ref.id),

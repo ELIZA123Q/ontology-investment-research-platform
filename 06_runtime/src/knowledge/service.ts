@@ -123,7 +123,7 @@ export class KnowledgeLearningService {
     const release = this.store.publishRelease({ scope: approved.scope, candidateIds: [approved.id], createdBy: "knowledge-learning" });
     if (approved.assetKind === "topic_index" || approved.assetKind === "preference") {
       const revision = this.store.getAssetRevision(approved.proposedRevisionId);
-      this.store.putMemory({ conversationId: task.conversationId, kind: approved.assetKind, content: JSON.stringify(revision?.content || {}), provenanceArtifactIds: approved.provenanceRefs.filter((ref) => ref.startsWith("artifact:")).map((ref) => ref.slice("artifact:".length).split("@")[0]) });
+      this.store.putMemory({ conversationId: task.conversationId, kind: approved.assetKind, content: JSON.stringify(revision?.content || {}), provenanceArtifactIds: approved.provenanceRefs.filter((ref) => ref.startsWith("artifact:")).map((ref) => ref.slice("artifact:".length).split("@")[0]), sourceRef: `knowledge-candidate://${approved.id}`, freshnessAt: approved.updatedAt });
     }
     this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "knowledge.release.published", actorType: "system", actorId: "knowledge-learning", payload: { releaseId: release.id, scope: release.scope, candidateIds: [approved.id], automatic: true } });
     return this.store.getCandidate(candidate.id)!;

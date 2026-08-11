@@ -39,7 +39,7 @@ describe("runtime store", () => {
   it("stores only governed memory kinds and cached model fingerprints", () => {
     const store = makeStore();
     const conversation = store.createConversation("测试");
-    store.putMemory({ conversationId: conversation.id, kind: "preference", content: "优先一手来源", provenanceArtifactIds: [] });
+    store.putMemory({ conversationId: conversation.id, kind: "preference", content: "优先一手来源", provenanceArtifactIds: [], sourceRef: "researcher://preference/source-priority", freshnessAt: new Date().toISOString() });
     expect(store.listMemory(conversation.id)[0]?.kind).toBe("preference");
     store.cacheModelResult("fp", "openai", "model", { text: "cached" });
     expect(store.getCachedModelResult<{ text: string }>("fp")?.text).toBe("cached");

@@ -30,22 +30,22 @@ subdomains:
     path: 04_context_state/01_context
     contract: 04_context_state/01_context/contract.yaml
     status: active
-    implementation_status: partial_reference_manifest
+    implementation_status: runtime_reference_manifest
   state:
     path: 04_context_state/02_state
     contract: 04_context_state/02_state/contract.yaml
     status: active
-    implementation_status: partial_projection
+    implementation_status: runtime_projection
   memory:
     path: 04_context_state/03_memory
     contract: 04_context_state/03_memory/contract.yaml
     status: active
-    implementation_status: partial_storage
+    implementation_status: governed_storage
   workspace:
     path: 04_context_state/04_workspace
     contract: 04_context_state/04_workspace/contract.yaml
     status: active
-    implementation_status: logical_contract_only
+    implementation_status: runtime_projection
 
 related_assets:
   runtime_local_data: 06_runtime/.data/

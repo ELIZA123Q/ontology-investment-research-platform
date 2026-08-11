@@ -71,3 +71,13 @@ capability_requirements:
   - structural_dependency_reasoning
   - bottleneck_identification
   - evidence_assessment
+
+runtime_projection:
+  scenario_refs: [IndustryResearch, ValueChainResearch]
+  activation_terms: [产业链, 价值链, 上游, 下游, 供应链, 瓶颈, 传导, 供给约束]
+  unit_judgment_types:
+    structure_map: state_measurement
+    bottlenecks: causal_attribution
+    transmission_paths: transmission_path
+    impact_direction: impact_realization
+    reversal_conditions: state_measurement

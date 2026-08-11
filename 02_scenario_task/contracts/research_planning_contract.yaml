@@ -25,8 +25,9 @@ planner_proposal:
   node_fields: [key, kind, title, depends_on, budget, reason, frontier_ref]
   node_field_notes:
     frontier_ref: >
-      指向本节点服务的 Research Problem Graph frontier；当前 Runtime 尚未物化该字段时，
-      编译器生成的强制边界节点可使用 compiler_boundary 占位。
+      指向本节点服务的 Research Problem Graph frontier。模型提案在 Problem Graph ID
+      尚未回传时使用 pending-problem-graph + compiler_boundary；确定性编译器必须
+      在物化前重绑为真实 problemGraphId / problemNodeId / evidenceRequirementRef。
   forbidden:
     - 自定义 Node kind、Capability ID 或执行代码
     - 指定未启用 Agent
@@ -66,4 +67,4 @@ current_boundary:
   - 默认仍使用确定性 planner；模型规划必须显式启用。
   - 模型规划只决定候选路径，不拥有权限、预算、节点执行器或 Artifact schema。
   - 当前 repair 是确定性结构修复，不进行第二次模型调用。
-  - Runtime 尚未完整物化 Research Problem Graph；在此之前，frontier_ref 是规划合同要求而非正式语义写入。
+  - Runtime 已物化 Research Problem Graph；模型提案的临时 frontier_ref 只作先验，最终 TaskNode 必须由编译器重绑到真实 frontier。

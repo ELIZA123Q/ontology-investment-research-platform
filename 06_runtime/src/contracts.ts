@@ -1,18 +1,17 @@
+import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
+
 export type Id = string;
 export type IsoDate = string;
 export type ActorType = "researcher" | "system" | "agent";
-export type TaskStatus =
-  | "planned"
-  | "queued"
-  | "running"
-  | "waiting_input"
-  | "waiting_approval"
-  | "completed"
-  | "failed"
-  | "cancelled";
-export type NodeStatus = "pending" | "ready" | "running" | "blocked" | "completed" | "failed" | "cancelled";
-export type AgentId = "research-lead" | "evidence-investigator" | "financial-modeler" | "analysis-specialist" | "independent-critic";
-export type ResearchRole = "research_owner" | "research_lead" | "evidence_investigator" | "financial_modeler" | "independent_reviewer";
+export const TASK_STATUS_VALUES = DOMAIN_CATALOG.contextState.state.runtime_status_projection.task_status_values;
+export type TaskStatus = typeof TASK_STATUS_VALUES[number];
+export const NODE_STATUS_VALUES = DOMAIN_CATALOG.contextState.state.runtime_status_projection.node_status_values;
+export type NodeStatus = typeof NODE_STATUS_VALUES[number];
+type ActiveAgentDefinition = typeof DOMAIN_CATALOG.capabilities.agents.agents[number];
+type CandidateAgentDefinition = typeof DOMAIN_CATALOG.capabilities.agents.candidates[number];
+export type AgentId = ActiveAgentDefinition["agent_id"] | CandidateAgentDefinition["agent_id"];
+export const RESEARCH_ROLE_VALUES = DOMAIN_CATALOG.roles.map((role) => role.role_id);
+export type ResearchRole = typeof RESEARCH_ROLE_VALUES[number];
 export type ResearchRunOutcome = "completed_with_judgment" | "stopped_insufficient_evidence" | "cancelled" | "failed";
 
 export interface ModelCallRecord {
@@ -24,7 +23,7 @@ export interface ModelCallRecord {
   promptVersion: string;
   schemaVersion?: string;
   contextHash: string;
-  status: "completed" | "failed" | "cached";
+  status: "completed" | "failed" | "cached" | "blocked";
   attempts: number;
   cacheHit: boolean;
   inputTokens?: number;
@@ -141,10 +140,7 @@ export type ReportSectionKey =
   | "competitive_landscape" | "valuation_scenarios" | "mechanism_chain" | "scenario_analysis"
   | "alternative_hypotheses" | "delta_since_prior" | "risks_change_conditions" | "source_appendix";
 
-export type JudgmentType =
-  | "state_measurement" | "trend_direction" | "cycle_phase" | "mechanism_validation"
-  | "causal_attribution" | "transmission_path" | "object_differentiation"
-  | "impact_realization" | "expectation_gap" | "valuation_impact";
+export type JudgmentType = keyof typeof DOMAIN_CATALOG.governance.judgmentMethodRoutes.routes;
 
 export type EvidenceRole =
   | "demand" | "supply" | "inventory" | "price" | "utilization" | "competition"
@@ -291,29 +287,63 @@ export interface TaskNode {
   iteration: number;
 }
 
-export type ArtifactKind =
-  | "research_plan"
-  | "research_problem_graph"
-  | "method_application"
-  | "evidence_package"
-  | "hypothesis_map"
-  | "judgment"
-  | "report"
-  | "review"
-  | "normalized_financials"
-  | "financial_model"
-  | "valuation_analysis"
-  | "thesis_state"
-  | "ui_surface";
+export const ARTIFACT_KINDS = DOMAIN_CATALOG.contextState.workspace.artifact_contract.kinds;
+export type ArtifactKind = typeof ARTIFACT_KINDS[number];
+export const WORKSPACE_RESOURCE_TYPES = DOMAIN_CATALOG.contextState.workspace.resource_types.map((resource) => resource.id);
+export type WorkspaceResourceType = typeof WORKSPACE_RESOURCE_TYPES[number];
+export const WORKSPACE_STATUS_VALUES = DOMAIN_CATALOG.contextState.workspace.runtime_projection.workspace_status_values;
+export type WorkspaceStatus = typeof WORKSPACE_STATUS_VALUES[number];
+
+export interface WorkspaceResourceRef {
+  id: Id;
+  kind: WorkspaceResourceType;
+  version?: number;
+  frozen: boolean;
+}
+
+export interface WorkspaceProjection {
+  workspaceId: Id;
+  sessionId: Id;
+  taskId: Id;
+  runId: Id;
+  status: WorkspaceStatus;
+  resourceRefs: WorkspaceResourceRef[];
+  updatedAt: IsoDate;
+}
 
 export type FinancialBasis = "reported" | "restated" | "adjusted" | "guidance" | "internal_prior" | "consensus" | "forecast";
 
 export interface FinancialObservationValue {
   metricId: string;
+  metricName?: string;
   period: { start: IsoDate; end: IsoDate };
+  businessTime?: IsoDate;
   value: number;
+  currency?: string;
+  unit?: string;
+  dimensions?: Record<string, string | number | boolean | null>;
   basis: FinancialBasis;
   sourceArtifactRef: Id;
+}
+
+export interface DeterministicFinancialOutput {
+  id: string;
+  label: string;
+  value: number;
+  unit: string;
+  formula: string;
+  inputObservationRefs: string[];
+  scenario: "historical" | "base" | "bull" | "bear";
+}
+
+export interface FinancialReconciliationCheck {
+  id: string;
+  status: "passed" | "failed" | "not_testable";
+  inputObservationRefs: string[];
+  message: string;
+  difference?: number;
+  tolerance?: number;
+  unit?: string;
 }
 
 export interface NormalizedFinancialsData {
@@ -330,6 +360,7 @@ export interface NormalizedFinancialsData {
 }
 
 export interface FinancialModelData {
+  modelScope: "historical_earnings_update" | "forecast_model";
   asOf: IsoDate;
   entityRef: Id;
   accountingBasis: NormalizedFinancialsData["accountingBasis"];
@@ -340,7 +371,9 @@ export interface FinancialModelData {
   assumptions: Array<{ id: string; value: number | string; basis: FinancialBasis | "analyst_assumption"; sourceArtifactRef?: Id }>;
   formulaDependencies: Array<{ output: string; inputs: string[] }>;
   scenarios: Array<{ id: "base" | "bull" | "bear"; assumptionIds: string[] }>;
-  audit: { passed: boolean; checks: string[]; errors: string[] };
+  computedOutputs: DeterministicFinancialOutput[];
+  reconciliations: FinancialReconciliationCheck[];
+  audit: { passed: boolean; checks: string[]; errors: string[]; warnings: string[] };
   sourceArtifactRefs: Id[];
   status: "ready" | "blocked";
 }
@@ -381,6 +414,7 @@ export interface SourceReference {
   sourceType?: "primary" | "secondary";
   publisherId?: string;
   publishedAt?: IsoDate;
+  permissionScope?: "public_research_use" | "authorized_research_use" | "user_supplied" | "restricted";
 }
 
 export interface SourceCandidate {
@@ -473,8 +507,18 @@ export interface ContextPackage {
   knowledgeLockId: Id;
   asOf: IsoDate;
   releaseIds: { global: Id; tenant?: Id; user?: Id };
+  identity: { conversationId: Id; taskId: Id; runId: Id; nodeId: Id };
+  task: { goal: string; intent: ResearchIntent; budget: Budget; frontierRef: FrontierRef };
+  state: { taskStatus: TaskStatus; nodeStatus: NodeStatus; pendingAction?: string; pendingApprovalIds: Id[]; lastEventId?: Id; checkpointRef?: Id };
+  workspace: WorkspaceProjection;
+  memory: { refs: Array<{ id: Id; kind: MemoryRecord["kind"]; sourceRef: string; freshnessAt: IsoDate }> };
+  knowledge: { assetRefs: AssetRef[]; releaseIds: { global: Id; tenant?: Id; user?: Id } };
+  capabilities: { agentId: AgentId; assumedRoleIds: ResearchRole[]; capabilityType: TaskNode["capabilityType"]; capabilityId: string; allowedSkillIds: string[]; allowedToolIds: string[] };
+  policies: { policyRefs: string[]; permissionFilterResult: { decision: "allowed" | "filtered" | "denied"; excludedRefIds: string[]; reasons: string[] } };
   references: ContextReference[];
   tokenBudget: number;
+  trimmedReason?: string;
+  permissionFilterResult: { decision: "allowed" | "filtered" | "denied"; excludedRefIds: string[]; reasons: string[] };
   assembledAt: IsoDate;
 }
 
@@ -484,6 +528,8 @@ export interface MemoryRecord {
   kind: "preference" | "topic_index" | "validated_failure_pattern";
   content: string;
   provenanceArtifactIds: Id[];
+  sourceRef: string;
+  freshnessAt: IsoDate;
   reviewedAt?: IsoDate;
   createdAt: IsoDate;
 }
@@ -640,6 +686,8 @@ export interface JudgmentSurfaceData {
   methodApplicationRefs?: string[];
   methodGateStatus?: MethodGateStatus;
   judgmentType?: JudgmentType;
+  judgmentLevel?: "J0" | "J1" | "J2" | "J3" | "J4";
+  thresholdEvaluation?: import("@/src/governance/judgment-threshold").JudgmentThresholdEvaluation;
   signalInputs?: Array<{ evidenceFactRef: string; statement: string; evidenceRoles: EvidenceRole[] }>;
   signalRoles?: Record<string, SignalRole>;
   reasoningRule?: { ruleRef: string; conditions: Array<{ id: string; label: string; passed: boolean }> };
@@ -1050,6 +1098,24 @@ export interface EvaluationRun {
   blindWinRate?: number;
   formalScoreEligible?: boolean;
   summary: EvaluationSummary;
+  createdAt: IsoDate;
+  completedAt?: IsoDate;
+}
+
+/** A frozen, case-level run for research-value evaluation; separate from knowledge-candidate EvaluationRun. */
+export interface ResearchEvaluationRun {
+  id: Id;
+  caseId: string;
+  protocolVersion: string;
+  status: "prepared" | "running" | "completed" | "invalid";
+  taskInputHash: string;
+  evidenceBundleHash: string;
+  systemArtifact: { ref: string; artifactHash: string; frozenAt: IsoDate };
+  baselineArtifacts: Array<{ track: "direct_qa" | "evidence_summary"; ref: string; artifactHash: string; modelId?: string }>;
+  judgeVersions: Array<{ provider: string; model: string; calibrationLevel?: string; calibrationRef?: string; calibrationHash?: string }>;
+  formalScoreEligible: boolean;
+  metrics: Record<string, number>;
+  notes: string[];
   createdAt: IsoDate;
   completedAt?: IsoDate;
 }

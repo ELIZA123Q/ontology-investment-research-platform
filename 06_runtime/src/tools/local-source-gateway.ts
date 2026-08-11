@@ -100,6 +100,7 @@ export class LocalSourceGateway {
       sourceType: snapshot.sourceType,
       publisherId: snapshot.publisherId || publisherId(snapshot.uri),
       publishedAt: snapshot.publishedAt,
+      permissionScope: snapshot.permissionScope,
     };
   }
 }

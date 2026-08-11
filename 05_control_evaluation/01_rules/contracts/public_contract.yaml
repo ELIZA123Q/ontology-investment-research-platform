@@ -1,7 +1,7 @@
 schema_name: controlled_research_public_contract
 schema_version: 2.0.0
 status: active
-formal_ontology_version: 4.0.0
+formal_ontology_version: 5.0.0
 compatibility:
   fixed_five_stage_runtime: unsupported
   legacy_package_validation: unsupported
@@ -27,16 +27,7 @@ task_graph_contract:
     - 规划器可以提议路径，但不能创建白名单外节点或绕过审批门。
 
 artifact_contract:
-  kinds:
-    - research_plan
-    - method_application
-    - evidence_package
-    - hypothesis_map
-    - judgment
-    - report
-    - review
-    - ui_surface
-  statuses: [draft, verified, superseded]
+  authority_ref: 04_context_state/04_workspace/contract.yaml#artifact_contract
   identity_fields: [id, conversationId, taskId, kind, version]
   provenance_fields: [nodeId, sourceRefs, createdBy, createdAt]
   rules:

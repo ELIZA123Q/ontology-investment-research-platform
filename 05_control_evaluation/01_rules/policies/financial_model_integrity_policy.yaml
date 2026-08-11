@@ -1,0 +1,125 @@
+schema_name: financial_model_integrity_policy
+schema_version: 1.0.0
+status: active
+authority: control_policy
+scope: A 股基本面研究的结构化财务模型与估值准入
+purpose: >-
+  规定可重复执行的财务数据归一、派生指标、三表勾稽与估值阻断条件。
+  本策略只判断财务制品是否可用，不构成公司基本面、估值或投资结论。
+
+rule_ids:
+  - FIN-MODEL-INTEGRITY-001
+
+model_scopes: [historical_earnings_update, forecast_model]
+
+unit_normalization:
+  monetary:
+    canonical_currency: CNY
+    canonical_unit: 元
+    supported:
+      CNY:
+        元: 1
+        千元: 1000
+        万元: 10000
+        百万元: 1000000
+        亿元: 100000000
+  non_monetary_units: ["%", "倍", "股"]
+  per_share_suffix: "/股"
+  mixed_currency_behavior: block_without_frozen_fx_rate
+  unsupported_unit_behavior: block
+
+metric_aliases:
+  revenue: [revenue, operating_revenue, total_operating_revenue]
+  operating_profit: [operating_profit]
+  net_profit: [net_profit, net_profit_attributable, parent_net_profit]
+  adjusted_net_profit: [adjusted_net_profit, adjusted_net_profit_attributable, net_profit_excluding_nonrecurring]
+  total_assets: [total_assets]
+  total_liabilities: [total_liabilities]
+  total_equity: [total_equity, shareholders_equity]
+  ending_cash: [ending_cash, cash_and_cash_equivalents_end]
+  beginning_cash: [beginning_cash, cash_and_cash_equivalents_begin]
+  operating_cash_flow: [operating_cash_flow, net_cash_from_operating_activities]
+  investing_cash_flow: [investing_cash_flow, net_cash_from_investing_activities]
+  financing_cash_flow: [financing_cash_flow, net_cash_from_financing_activities]
+  fx_effect: [fx_effect, effect_of_exchange_rate_changes_on_cash]
+
+derived_outputs:
+  growth:
+    - id: revenue_growth
+      metric: revenue
+      label: 营业收入同比增速
+      formula: (current - prior) / abs(prior) * 100
+      unit: "%"
+      zero_denominator_behavior: not_testable
+    - id: operating_profit_growth
+      metric: operating_profit
+      label: 营业利润同比增速
+      formula: (current - prior) / abs(prior) * 100
+      unit: "%"
+      zero_denominator_behavior: not_testable
+    - id: net_profit_growth
+      metric: net_profit
+      label: 归母净利润同比增速
+      formula: (current - prior) / abs(prior) * 100
+      unit: "%"
+      zero_denominator_behavior: not_testable
+    - id: adjusted_net_profit_growth
+      metric: adjusted_net_profit
+      label: 扣非归母净利润同比增速
+      formula: (current - prior) / abs(prior) * 100
+      unit: "%"
+      zero_denominator_behavior: not_testable
+  ratios:
+    - id: operating_profit_margin
+      numerator: operating_profit
+      denominator: revenue
+      label: 营业利润率
+      formula: operating_profit / revenue * 100
+      unit: "%"
+    - id: net_profit_margin
+      numerator: net_profit
+      denominator: revenue
+      label: 净利率
+      formula: net_profit / revenue * 100
+      unit: "%"
+  differences:
+    - id: reported_adjusted_net_profit_gap
+      minuend: net_profit
+      subtrahend: adjusted_net_profit
+      label: 归母净利润与扣非归母净利润差额
+      formula: reported net profit - adjusted net profit
+      unit: 元
+      interpretation_boundary: 不得将差额自动归因于某一单项损益
+
+reconciliations:
+  - id: balance_sheet_equation
+    kind: balance_sheet
+    inputs: [total_assets, total_liabilities, total_equity]
+    formula: total_assets - total_liabilities - total_equity
+    tolerance: {absolute: 1, relative_to: total_assets, relative: 0.000001}
+    missing_behavior: not_testable
+    failure_behavior: block_model
+  - id: cash_flow_rollforward
+    kind: cash_flow
+    inputs: [ending_cash, beginning_cash, operating_cash_flow, investing_cash_flow, financing_cash_flow]
+    optional_inputs: [fx_effect]
+    formula: ending_cash - (beginning_cash + operating_cash_flow + investing_cash_flow + financing_cash_flow + fx_effect)
+    tolerance: {absolute: 1, relative_to: ending_cash, relative: 0.000001}
+    missing_behavior: not_testable
+    failure_behavior: block_model
+
+valuation_gate:
+  required_model_scope: forecast_model
+  required_output_scenario: base
+  required_fields: [methods, assumptions, sensitivities]
+  missing_behavior: blocked
+
+governance:
+  source_of_truth: 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
+  generated_projection: 06_runtime/src/research/generated/financial-model-rules.ts
+  projection_generator: 06_runtime/scripts/generate-financial-model-rules.py
+  validator: 06_runtime/src/research/financial-model-contract.ts
+  executor: 06_runtime/src/research/deterministic-financial-model.ts
+  tests:
+    - 06_runtime/tests/financial-capability.test.ts
+    - 06_runtime/tests/financial-model-rules-projection.test.ts

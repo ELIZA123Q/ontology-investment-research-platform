@@ -1,7 +1,7 @@
 schema_name: memory_contract
 schema_version: 3.0.0
 status: active
-implementation_status: partial_storage
+implementation_status: governed_storage
 
 authority:
   answers: 跨任务可保留什么 / 不可把什么当长期真理
@@ -58,11 +58,9 @@ read_rules:
 current_runtime_coverage:
   implemented:
     - preference / topic_index / validated_failure_pattern kind 约束
-    - content / provenanceArtifactIds / reviewedAt 存储
-    - Context 装配时的 Memory 版本计数
-  known_gaps:
-    - source_ref 与 freshness 尚未是独立字段
-    - promotion_required 尚未有完整的 Runtime 写入门
+    - content / provenanceArtifactIds / source_ref / freshnessAt / reviewedAt 独立存储
+    - Context 装配只注入 Memory 引用、来源与新鲜度
+    - 正式知识候选经 mining → evaluation → approval → Release，不由 Memory 静默晋级
 
 notes:
   - SQLite 已实现 MemoryRecord；只有偏好、主题索引和经治理验证的失败模式可写入。

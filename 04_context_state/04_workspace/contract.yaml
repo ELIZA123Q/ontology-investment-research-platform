@@ -1,7 +1,7 @@
 schema_name: workspace_contract
 schema_version: 1.0.0
 status: active
-implementation_status: logical_contract_only
+implementation_status: runtime_projection
 
 authority:
   answers: 这一次任务正在操作什么东西
@@ -33,6 +33,20 @@ resource_types:
     description: 本轮可交付制品
   - id: export
     description: 导出包 / handoff 包
+
+artifact_contract:
+  kinds: [research_plan, research_problem_graph, method_application, evidence_package, hypothesis_map, judgment, report, review, normalized_financials, financial_model, valuation_analysis, thesis_state, ui_surface]
+  statuses: [draft, verified, superseded]
+  authority_rule: Artifact 类型与状态属于 Workspace/State 合同；06 只能消费生成投影，不得另写值域。
+
+runtime_projection:
+  workspace_status_values: [active, frozen, archived]
+  identity_rule: workspace_id 为 workspace:{task_id}，run_id 为 task-run:{task_id}
+  lifecycle_mapping:
+    active: Task 非终态
+    frozen: Task completed，交付物版本和引用保留
+    archived: Task cancelled，仅保留审计所需记录
+  delete_scope: 仅允许删除无 provenance 价值的 scratch；现行 Runtime 不持久化独立 scratch 资源
 
 logical_layout:
   - inputs
@@ -67,11 +81,14 @@ invariants:
 
 current_runtime_coverage:
   implemented:
-    - Task / Artifact 与本机数据目录承载工作产物
+    - 稳定 workspace_id / run_id 的 Task 逻辑投影
+    - input / evidence / intermediate / final 资源引用投影
     - Artifact 版本、状态和来源引用
-  known_gaps:
-    - 尚无独立 workspace_id 与 Workspace 实体
-    - freeze / archive / delete 尚未按 Workspace 资源生命周期统一实现
+    - completed → frozen、cancelled → archived 生命周期投影
+    - 已核验 Artifact 在 Context 中标记 frozen
+  intentionally_logical:
+    - 不为 Workspace 另建可编辑业务实体或同名物理目录
+    - 不持久化无追溯价值的 scratch，因此无独立 scratch delete API
 
 notes:
   - 合同只定义资源类型与生命周期；物理落盘由 Runtime 决定。

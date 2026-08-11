@@ -20,9 +20,12 @@ const schema = {
   properties: {
     intent: { enum: ["full_research", "evidence_only", "update_judgment", "compose_only", "clarify"] },
     rationale: { type: "string" },
-    nodes: { type: "array", items: { type: "object", required: ["key", "kind", "title", "dependsOn"], properties: {
+    nodes: { type: "array", items: { type: "object", required: ["key", "kind", "title", "dependsOn", "frontierRef"], properties: {
       key: { type: "string" }, kind: { enum: RESEARCH_NODE_CATALOG.map((node) => node.kind) }, title: { type: "string" },
       dependsOn: { type: "array", items: { type: "string" } }, reason: { type: "string" }, budget: { type: "object" },
+      frontierRef: { type: "object", required: ["problemGraphId", "compilerBoundary"], properties: {
+        problemGraphId: { const: "pending-problem-graph" }, compilerBoundary: { enum: ["scope", "synthesis", "compose", "audit"] },
+      } },
     } } },
     parallelGroups: { type: "array", items: { type: "array", items: { type: "string" } } },
     stopConditions: { type: "array", items: { type: "string" } },
@@ -37,14 +40,15 @@ export async function requestPlannerProposal(store: RuntimeStore, provider: Mode
       operation: "research_planner",
       promptVersion: "research-planner/2.0.0",
       schemaVersion: "planner-proposal/1.0.0",
-      system: "You propose a research task graph. Output JSON only. You cannot create node kinds or capabilities. Runtime will enforce evidence capture, dependencies and budget.",
+      system: "You propose a research task graph. Output JSON only. You cannot create node kinds or capabilities. Every node must include frontierRef with problemGraphId=pending-problem-graph and an allowed compilerBoundary; Runtime will rebind it to the materialized Problem Graph. Runtime enforces evidence capture, dependencies and budget.",
       prompt: JSON.stringify(input),
       responseSchema: schema as unknown as Record<string, unknown>,
       schemaName: "research_plan_proposal",
       maxOutputTokens: 1600,
       dataPolicy: "private_authorized",
       validateResponse: (value) => {
-        if (!parsePlannerProposal(JSON.stringify(value))) throw new Error("Planner response failed the proposal contract");
+        const parsed = parsePlannerProposal(JSON.stringify(value));
+        if (!parsed || parsed.nodes.some((node) => !node.frontierRef?.problemGraphId || !node.frontierRef.compilerBoundary)) throw new Error("Planner response failed the proposal frontier contract");
       },
     });
     const proposal = parsePlannerProposal(result.text);

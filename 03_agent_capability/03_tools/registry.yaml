@@ -6,23 +6,39 @@ execution_binding: 06_runtime/src/capabilities/registry.ts
 
 tools:
   - tool_id: semantic.search
+    version: 1.0.0
+    description: 混合检索本体、全文、词典与图引用
     risk: read
     idempotent: true
   - tool_id: source.discover
+    version: 1.0.0
+    description: 发现候选研究来源
     risk: read
     idempotent: true
   - tool_id: source.capture
+    version: 1.0.0
+    description: 抓取并冻结指定来源快照
     risk: write
     idempotent: true
   - tool_id: source.query
+    version: 1.0.0
+    description: 按来源策略查询外部材料
     risk: read
     idempotent: true
     protocol_registry: 03_agent_capability/04_protocols/mcp/registry.yaml
     replaces: source.query
     notes: 动作语义是查询/检索来源材料；底层可通过 MCP / API / DB 适配，不把协议名暴露为 Tool 名
   - tool_id: artifact.publish
+    version: 1.0.0
+    description: 在研究员批准后发布正式制品
     risk: external_side_effect
     approval_required: true
+    idempotent: true
+  - tool_id: financial.model.validate
+    version: 1.0.0
+    description: 确定性校验模型边界、公式依赖、审计和一致预期条件
+    risk: read
+    approval_required: false
     idempotent: true
 
 rules:

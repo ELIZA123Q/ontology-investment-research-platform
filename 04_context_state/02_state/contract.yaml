@@ -1,7 +1,7 @@
 schema_name: runtime_state_contract
 schema_version: 1.0.0
 status: active
-implementation_status: partial_projection
+implementation_status: runtime_projection
 
 authority:
   answers: 这个任务现在进行到哪里
@@ -76,6 +76,11 @@ status_values:
   - failed
   - cancelled
 
+runtime_status_projection:
+  task_status_values: [planned, queued, running, paused, waiting_input, waiting_approval, waiting_handoff, completed, failed, cancelled]
+  node_status_values: [pending, ready, running, blocked, completed, failed, cancelled]
+  authority_rule: 06 Runtime 类型必须由本列表生成或通过防漂移校验，不得维护第二套状态值域。
+
 supports:
   - pause
   - resume
@@ -86,17 +91,20 @@ supports:
 current_runtime_projection:
   session_state:
     sources: [Conversation, active Task]
-    coverage: partial
+    coverage: projected
   task_state:
     sources: [Task, TaskNode, Approval, latest Event, latest Checkpoint]
-    coverage: partial
+    coverage: projected
   run_state:
     sources: [RuntimeJob, TaskNode, latest Event, latest Checkpoint]
-    coverage: partial
-  known_gaps:
-    - 尚无独立 SessionState / TaskState / RunState 物化表
-    - run_id 目前由 RuntimeJob / execution identity 近似，不是统一 RunState 标识
-    - paused 与 waiting_handoff 尚未成为现行 TaskStatus 的完整可执行状态
+    coverage: projected
+  implemented:
+    - TaskStatus / NodeStatus 值域由本合同生成到 Runtime
+    - pause / resume 与 Checkpoint 恢复引用
+    - waiting_handoff 会阻止调度，直到交接状态被解除
+    - ContextPackage 投影 pending action / approval / latest event / checkpoint
+  intentionally_projected:
+    - SessionState / TaskState / RunState 可由现行权威表确定性读取，不复制一组可漂移的独立状态表
 
 boundaries:
   not_state:

@@ -3,6 +3,10 @@ status: active_pattern
 intent: evidence_only
 description: 仅取证/核验先验——对齐 Runtime ResearchIntent=evidence_only；不是用户级 Research Task。
 
+runtime_selection:
+  routes:
+    - {runtime_intent: evidence_only, report_depths: [brief, standard, deep]}
+
 recommended_capabilities:
   - evidence
 

@@ -16,7 +16,8 @@
 | 网页与 API | `app/` |
 | Agent 内核、存储、规划 | `src/runtime/`、`src/worker.ts` |
 | Ontology 5.0 Catalog 投影与 Action Service | `src/ontology/` |
-| 可执行 Agent/Skill/Tool 清单 | `src/capabilities/registry.ts`（全仓库唯一） |
+| Agent/Skill/Tool 定义与发布状态 | `../03_agent_capability/`（唯一定义权威） |
+| 可执行能力绑定 | `src/capabilities/registry.ts`（消费 03 生成投影） |
 | 本地会话数据 | 默认 `06_runtime/.data/vnext.sqlite` |
 | 知识沉淀人类说明 | [`05_control_evaluation/01_rules/knowledge_promotion.md`](../05_control_evaluation/01_rules/knowledge_promotion.md) |
 | 知识沉淀机器合同 | [`05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml`](../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml) |
@@ -57,7 +58,7 @@ npm run worker
 
 你在界面里提出目标 → Research Lead 给出受约束的计划 → 你确认后后台 worker 执行 → 右侧出现证据、判断等制品。证据与 Judgment 分别需要结构化确认；报告通过审计后仍保持“已核验、未发布”，只有你在发布卡中明确确认，Runtime 才会执行 `PublishDeliverable`。当前既可复用仓库内已经治理的历史来源快照，也可通过统一的认证摄取入口接收网页、PDF 和金融连接器结果；没有匹配来源或独立发布主体不足时，系统不会编造证据，判断会降级为「暂不可判断」。现有华泰智研 MCP 的半导体行业景气度已完成真实调用、受授权映射与原始响应私密冻结；DataYes 财务表当前因积分不足未取得样本，其他工具仍需继续映射。
 
-模型规划、受约束研究推理和模型章节草拟均为显式开启能力。设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并按需设置 `VNEXT_MODEL_PLANNING_ENABLED=true`、`VNEXT_MODEL_REASONING_ENABLED=true`、`VNEXT_MODEL_DRAFTING_ENABLED=true`。所有调用统一经过 Model Gateway，记录 Prompt/Schema 版本、上下文哈希、用量、成本、延迟、缓存与脱敏错误，并执行超时、有限重试和数据出境策略。模型只能提出假设、证据角色、候选判断、独立批判或获得授权的章节表达；任何虚构数值、越权引用、评级或目标价都会被拒绝。财务运算、证据真实性、正式本体写入和发布仍由确定性组件控制。
+模型规划、受约束研究推理和模型章节草拟均为显式开启能力。设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并按需设置 `VNEXT_MODEL_PLANNING_ENABLED=true`、`VNEXT_MODEL_REASONING_ENABLED=true`、`VNEXT_MODEL_DRAFTING_ENABLED=true`。所有调用统一经过 Model Gateway，记录 Prompt/Schema 版本、模型标识、上下文哈希、用量、成本、延迟、缓存与脱敏错误，并执行超时、有限重试和数据出境策略。来源权限会自动汇总为调用策略；`restricted`、缺少权限字段或事实找不到对应来源时，外部调用会在缓存读取之前被阻断并留下 `blocked` 记录。模型只能提出假设、证据角色、候选判断、独立批判或获得授权的章节表达；任何虚构数值、越权引用、评级或目标价都会被拒绝。财务运算、证据真实性、正式本体写入和发布仍由确定性组件控制。
 
 能力是否上线由 [`../03_agent_capability/releases/current.json`](../03_agent_capability/releases/current.json) 统一决定。12 个已编写 Skill 可以存在于仓库，但只有 Release Manifest 中 `active` 且命中启用范围的能力可进入生产执行；候选 Agent/Skill 不因“代码已存在”自动上线。
 
@@ -73,13 +74,14 @@ npm run worker
 
 ## 怎么维护
 
-1. 只在本目录改可执行行为；不要在其他域「另写一套 Runtime」。
-2. 改 Capability 或任务节点后，除常规测试外再跑：`node --import tsx scripts/audit-cutover.ts`。
+1. 可执行 handler/UI/API 只在本目录修改；业务定义先改对应 01–05 权威，见 [`../DOMAIN_AUTHORITY.md`](../DOMAIN_AUTHORITY.md)。
+2. 改 01–05 后运行 `npm run domain:sync`；改 Capability 或任务节点后再运行 `npm run audit:domain` 与 `npm run audit:cutover`。
 3. 合并前验收：
 
 ```bash
 npm test
 npm run typecheck
+npm run audit:domain
 npm run build
 ```
 
@@ -92,6 +94,7 @@ npm run build
 - `npm run db:check`：运行 SQLite 完整性检查并列出已应用 schema migration。
 - `npm run db:backup -- /absolute/path/backup.sqlite`：先校验数据库，再用 SQLite 一致性快照备份；省略路径时写入 `.data/backups/`，不会覆盖已有文件。
 - `npm run eval:live:canary`：使用 `.env.local` 中的 DeepSeek 配置，对 3 个公开一手材料案例各调用一次；每次最多 650 输出 token、最多一次尝试、相同输入复用缓存。结果写入 `.data/evals/`，仅用于工程 canary，不宣称正式研究分数。
+- `npm run eval:earnings:replay`：对已冻结 SHA-256 的东微半导 2025 年业绩快报执行无模型、零 token 的确定性回放，重算同比、单位、利润差额并检查三表/估值阻断；这是一项真实数据回归，不等同于正式盲评。
 
 ---
 
@@ -113,6 +116,7 @@ npm run build
 - PlannerProposal 编译器只接受 Node Catalog 白名单，确定性检查意图、依赖、无环、证据链和预算；非法提案修复一次后回退
 - 模型规划默认关闭；显式启用后仍只负责提案，不能控制 Capability、权限或执行器
 - 模型章节草拟默认关闭；显式启用后只负责获得授权的章节表达，不能改写正式 Judgment、章节状态、Claim 或来源附录
+- 历史业绩更新由确定性财务引擎完成单位归一、同比、利润率、报告/扣非利润差额与可用三表勾稽；没有显式预测假设时不伪造情景，没有预测、方法、假设与敏感性输入时估值保持 blocked
 - Task 创建时冻结 KnowledgeLock；终态后异步挖矿，经评测/审批/Release 后才进入后续 Context
 - `ResearchCase` 是长期业务聚合根，`Task` 只是针对 Case 的一次可重试执行
 - `ReportSpec` 随 Task 固定报告类型、受众、深度与章节；硬编码专业章节不可被个性化移除

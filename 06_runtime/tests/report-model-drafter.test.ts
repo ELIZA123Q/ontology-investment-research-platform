@@ -15,7 +15,7 @@ const task: Task = {
   intent: "full_research", reportSpec: normalizeReportSpec({ kind: "industry_research", audience: "investment_committee", depth: "deep", customInstructions: "先结论后证据" }),
   status: "running", budget: { maxModelCalls: 3, maxToolCalls: 3, maxCostUsd: 1 }, createdAt: "2026-08-09T00:00:00Z", updatedAt: "2026-08-09T00:00:00Z",
 };
-const source: SourceReference = { sourceId: "snapshot-1", uri: "https://issuer.test/report", title: "一手来源", capturedAt: "2026-08-09T00:00:00Z", locator: "p1", quote: "需求增长 20%，供给增长 10%，价格上涨 5%", contentHash: "sha256:x", verification: "verified", sourceType: "primary", publisherId: "issuer" };
+const source: SourceReference = { sourceId: "snapshot-1", uri: "https://issuer.test/report", title: "一手来源", capturedAt: "2026-08-09T00:00:00Z", locator: "p1", quote: "需求增长 20%，供给增长 10%，价格上涨 5%", contentHash: "sha256:x", verification: "verified", sourceType: "primary", publisherId: "issuer", permissionScope: "public_research_use" };
 const fact: EvidenceFact = { id: "fact-1", snapshotId: source.sourceId, statement: source.quote, factType: "reported_fact", confidence: "high", status: "verified", evidenceRoles: ["demand", "supply", "price"], createdAt: source.capturedAt };
 const judgment: JudgmentSurfaceData = { statement: "供需保持偏紧", confidence: "medium", epistemicStatus: "supported", lifecycleStatus: "approved", disposition: "review_required", changeConditions: ["需求增速低于供给"], ontologyJudgmentRef: "judgment-1", methodApplicationRefs: ["MA-core_judgments"], methodGateStatus: "passed" };
 

@@ -15,7 +15,7 @@ describe("Research Problem Graph compilation", () => {
     const units = graph.nodes.filter((node) => node.type === "judgment_unit");
     expect(units.length).toBeGreaterThanOrEqual(2);
     for (const unit of units) {
-      const requirements = graph.edges.filter((edge) => edge.toNodeId === unit.id && edge.relation === "requires");
+      const requirements = graph.edges.filter((edge) => edge.toNodeId === unit.id && edge.relation === "requires" && graph.nodes.find((node) => node.id === edge.fromNodeId)?.type === "evidence_requirement");
       expect(requirements).toHaveLength(3);
     }
     const nodes = store.listTaskNodes(submitted.task.id);

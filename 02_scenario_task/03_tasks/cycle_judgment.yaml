@@ -71,3 +71,13 @@ capability_requirements:
   - temporal_state_reasoning
   - evidence_assessment
   - counterfactual_reasoning
+
+runtime_projection:
+  scenario_refs: [IndustryResearch]
+  activation_terms: [行业, 景气, 周期, 库存, 价格, 供需, 拐点]
+  unit_judgment_types:
+    cycle_state: cycle_phase
+    direction: trend_direction
+    drivers_and_constraints: causal_attribution
+    turning_point: cycle_phase
+    reversal_conditions: state_measurement

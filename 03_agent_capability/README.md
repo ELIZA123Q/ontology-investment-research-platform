@@ -44,7 +44,8 @@ Skill 之间**不是**固定流水线；Research Lead 按任务组合。
 
 - 改 Skill 程序或资源：改 `02_skills/<package>/`，有校验脚本则先跑
 - 改 MCP 通道：改 `04_protocols/mcp/`，保持「通道 ≠ 生产者」
-- 改可执行绑定：改 `06_runtime/src/capabilities/registry.ts`，再跑测试与 `audit-cutover`
+- 改能力定义/发布状态：先改本域 registry 或 `releases/current.json`，再运行 `npm --prefix 06_runtime run domain:sync`
+- 改可执行 handler 绑定：改 `06_runtime/src/capabilities/registry.ts`，再跑 `audit:domain` 与 `audit:cutover`
 - 禁止恢复 `05_method_libraries` 一级目录，也禁止把固定 01→05 阶段伪装成 Skill
 
 ---

@@ -42,3 +42,12 @@ graph_motif:
   aggregation: {mode: audited_model_and_countercase, required_units: [business_and_kpi, financial_model_integrity, valuation_boundary, thesis_countercase], allow_partial_with_gaps: true}
 
 capability_requirements: [company_fundamental_research, financial_modeling, valuation_analysis, thesis_monitoring, independent_research_review]
+
+runtime_projection:
+  scenario_refs: [CompanyResearch]
+  activation_terms: [首次覆盖, 首覆, 公司覆盖, 结构化基本面, 深度公司研究]
+  unit_judgment_types:
+    business_and_kpi: causal_attribution
+    financial_model_integrity: impact_realization
+    valuation_boundary: valuation_impact
+    thesis_countercase: causal_attribution

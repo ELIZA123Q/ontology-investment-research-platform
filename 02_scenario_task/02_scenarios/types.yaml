@@ -24,6 +24,9 @@ scenario_types:
     judgment_requirements: { profile: standard_company_judgment }
     task_affordances:
       - {task_ref: company_analysis, mode: primary, activate_when: [company_proposition_present], contributes: 公司命题与经营传导主图}
+      - {task_ref: company_coverage, mode: conditional, activate_when: [first_coverage_or_structured_fundamental_request], contributes: 首次覆盖、模型、估值与命题复核主图}
+      - {task_ref: earnings_update, mode: conditional, activate_when: [periodic_report_or_earnings_release_present], contributes: 业绩、模型修订与命题影响分支}
+      - {task_ref: thesis_review, mode: conditional, activate_when: [existing_thesis_requires_review], contributes: 命题支柱、反证与失效条件分支}
       - {task_ref: event_impact, mode: conditional, activate_when: [specific_material_event_present], contributes: 事件冲击分支}
       - {task_ref: value_chain_analysis, mode: conditional, activate_when: [upstream_or_downstream_dependency_is_decision_relevant], contributes: 依赖与瓶颈分支}
       - {task_ref: technology_route_analysis, mode: conditional, activate_when: [technology_route_changes_company_thesis], contributes: 技术可行性与替代分支}

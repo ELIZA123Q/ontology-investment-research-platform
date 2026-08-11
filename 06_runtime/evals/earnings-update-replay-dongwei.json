@@ -1,0 +1,57 @@
+{
+  "schemaName": "frozen_public_earnings_update_replay",
+  "schemaVersion": "1.0.0",
+  "id": "dongwei-688261-2025-preliminary-results",
+  "researchQuestion": "东微半导 2025 年收入增长是否伴随营业利润同步改善，以及报告利润与扣非利润之间是否存在显著差额？",
+  "asOf": "2026-02-28T00:00:00.000Z",
+  "entity": { "id": "company:688261.SH", "name": "苏州东微半导体股份有限公司", "instrumentId": "688261.SH" },
+  "source": {
+    "title": "苏州东微半导体股份有限公司 2025 年度业绩快报公告",
+    "uri": "https://static.cninfo.com.cn/finalpage/2026-02-28/1224987566.PDF",
+    "publisherId": "苏州东微半导体股份有限公司",
+    "publishedAt": "2026-02-28T00:00:00.000Z",
+    "permissionScope": "public_research_use",
+    "rawContentHash": "sha256:15b090fa01bcc3fc0ac738bd63192be4336ce15989761d52912b83ba7f5c837f",
+    "byteLength": 93572,
+    "locator": "公告第 1 页主要财务数据表、第 2-3 页经营说明与风险提示",
+    "documentCaveat": "主要财务数据为初步核算且未经会计师事务所审计，最终以 2025 年年度报告为准。",
+    "metadataCaveat": "PDF Title 元数据显示 2024 年度，但页面标题、公告编号、正文和落款均明确为 2025 年度。"
+  },
+  "normalizedFinancials": {
+    "asOf": "2026-02-28T00:00:00.000Z",
+    "entityRef": "company:688261.SH",
+    "accountingBasis": "PRC_GAAP",
+    "currency": "CNY",
+    "unit": "元",
+    "historicalBoundary": { "start": "2024-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" },
+    "sourceArtifactRefs": ["source:dongwei-2025-preliminary-results"],
+    "status": "ready",
+    "observations": [
+      { "metricId": "revenue", "metricName": "营业总收入", "period": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 125268.76, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "current" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "revenue", "metricName": "营业总收入", "period": { "start": "2024-01-01T00:00:00.000Z", "end": "2024-12-31T00:00:00.000Z" }, "businessTime": "2024-12-31T00:00:00.000Z", "value": 100322.00, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "prior" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "operating_profit", "metricName": "营业利润", "period": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 3037.49, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "current" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "operating_profit", "metricName": "营业利润", "period": { "start": "2024-01-01T00:00:00.000Z", "end": "2024-12-31T00:00:00.000Z" }, "businessTime": "2024-12-31T00:00:00.000Z", "value": 3317.33, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "prior" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "net_profit", "metricName": "归属于母公司所有者的净利润", "period": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 4405.63, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "current" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "net_profit", "metricName": "归属于母公司所有者的净利润", "period": { "start": "2024-01-01T00:00:00.000Z", "end": "2024-12-31T00:00:00.000Z" }, "businessTime": "2024-12-31T00:00:00.000Z", "value": 4023.51, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "prior" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "adjusted_net_profit", "metricName": "归属于母公司所有者的扣除非经常性损益的净利润", "period": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 834.04, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "current" }, "basis": "adjusted", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "adjusted_net_profit", "metricName": "归属于母公司所有者的扣除非经常性损益的净利润", "period": { "start": "2024-01-01T00:00:00.000Z", "end": "2024-12-31T00:00:00.000Z" }, "businessTime": "2024-12-31T00:00:00.000Z", "value": 231.93, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "prior" }, "basis": "adjusted", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "total_assets", "metricName": "总资产", "period": { "start": "2025-12-31T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 311967.30, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "current" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "total_equity", "metricName": "归属于母公司的所有者权益", "period": { "start": "2025-12-31T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 295289.43, "currency": "CNY", "unit": "万元", "dimensions": { "periodRole": "current", "scope": "attributable_to_parent" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "inventory_write_down", "metricName": "存货跌价损失", "period": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 4087.83, "currency": "CNY", "unit": "万元", "dimensions": { "nature": "management_disclosed_driver" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" },
+      { "metricId": "share_based_payment_expense", "metricName": "股份支付费用", "period": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-12-31T00:00:00.000Z" }, "businessTime": "2025-12-31T00:00:00.000Z", "value": 1393.16, "currency": "CNY", "unit": "万元", "dimensions": { "nature": "management_disclosed_driver" }, "basis": "reported", "sourceArtifactRef": "source:dongwei-2025-preliminary-results" }
+    ]
+  },
+  "expected": {
+    "outcome": "completed_with_judgment",
+    "outputs": {
+      "revenue_growth": 24.8667,
+      "operating_profit_growth": -8.4357,
+      "net_profit_growth": 9.4972,
+      "adjusted_net_profit_growth": 259.6085,
+      "reported_adjusted_net_profit_gap": 35715900
+    },
+    "tolerance": 0.0001,
+    "valuationStatus": "blocked",
+    "requiredLimitations": ["unaudited", "single_issuer_source", "balance_sheet_not_testable", "cash_flow_not_testable", "causal_claims_not_independently_corroborated", "valuation_inputs_missing"]
+  }
+}

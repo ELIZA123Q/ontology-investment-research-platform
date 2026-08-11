@@ -39,3 +39,11 @@ graph_motif:
   aggregation: {mode: actual_to_model_to_thesis, required_units: [actual_quality, comparison_boundary, model_and_thesis_impact], allow_partial_with_gaps: true}
 
 capability_requirements: [earnings_update, financial_modeling, thesis_monitoring, independent_research_review]
+
+runtime_projection:
+  scenario_refs: [CompanyResearch]
+  activation_terms: [业绩更新, 财报, 业绩快报, 业绩预告, 季报, 年报, 超预期, 低预期]
+  unit_judgment_types:
+    actual_quality: state_measurement
+    comparison_boundary: expectation_gap
+    model_and_thesis_impact: impact_realization

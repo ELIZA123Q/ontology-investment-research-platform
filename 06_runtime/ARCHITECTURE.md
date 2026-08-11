@@ -6,7 +6,7 @@
 |---|---|---|
 | Semantic | `src/semantic/graph-contracts.ts` 和 Context Builder | 不建立万能图，不强制 Neo4j |
 | Task | Intent、Task、受约束 TaskNode Catalog | 不允许 LLM 创建任意节点 |
-| Capability | 5 个 Skill、Tool、Provider Adapter | 不把每个操作包装成 Skill |
+| Capability | 03 定义的 12 个 Skill（当前 5 active、7 candidate）、Tool、Provider Adapter | 不把每个操作包装成 Skill |
 | Execution | Event Log、关键 Checkpoint、Queue、Worker | 不做纯 Event Sourcing，不在 HTTP 中跑长任务 |
 | Governance | 权限、provenance、可信 UI、Verifier | 不把确定性检查和质量 Eval 混为一谈 |
 
@@ -29,7 +29,7 @@
 5. 没有合格 Evidence 时 Claim 不能标记 supported，Judgment 必须降级。
 6. 用户改变时间范围时走 impact analysis，明确复用与失效范围。
 
-规划器负责从白名单中选最小路径、建立依赖和并行组。vNext.1 中模型未来可以提出节点组合，但最终图必须通过 Runtime 编译和验证。
+规划器从已物化的 Research Problem Graph frontier 编译最小可执行路径，并消费 02 的 Workflow Pattern 与 Scenario 生命周期约束。模型可提出预算、停止条件和路径先验，最终节点仍由问题图编译器重绑 frontier 并通过确定性验证。
 
 ## Agent 演进
 

@@ -33,6 +33,7 @@ execution_coverage_required:
   - EVIDENCE-TRUTH-001
   - REASONING-MEANING-001
   - REASONING-REVISION-001
+  - FIN-MODEL-INTEGRITY-001
 
 formal_ontology_rules:
   evidence_scope_time_alignment:
@@ -182,6 +183,13 @@ governance_rules:
     execution_mode: automated
     validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/store.ts]
     test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/store.test.ts]
+    business_support_allowed: false
+  FIN-MODEL-INTEGRITY-001:
+    source_ref: 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
+    requirement: 财务模型必须按受治理的单位归一、派生指标、勾稽容差和估值阻断条件执行；失败不能被模型或 UI 覆盖。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/research/financial-model-contract.ts, 06_runtime/src/research/deterministic-financial-model.ts]
+    test_refs: [06_runtime/tests/financial-capability.test.ts, 06_runtime/tests/financial-model-rules-projection.test.ts]
     business_support_allowed: false
   GOV-VALIDATION-OUTCOME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract, business_support_allowed: false}
   GOV-VALIDATION-TIME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract, business_support_allowed: false}

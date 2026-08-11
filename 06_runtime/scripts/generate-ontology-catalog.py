@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the browser/server-safe Ontology 4.0 catalog projection."""
+"""Generate the browser/server-safe Ontology platform catalog projection."""
 
 from __future__ import annotations
 

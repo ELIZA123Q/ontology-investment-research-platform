@@ -9,6 +9,7 @@ import type {
   SemanticAssetKind,
   SemanticGateway,
 } from "@/src/semantic/graph-contracts";
+import { normalizeResearchLanguage } from "@/src/semantic/dictionary-normalizer";
 
 const sha256 = (value: string) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
 const SUPPORTED_EXTENSIONS = new Set([".md", ".yaml", ".yml", ".json", ".csv"]);
@@ -124,6 +125,7 @@ export class LocalSemanticGateway implements SemanticGateway {
   }
 
   searchSync(query: HybridRetrievalQuery): HybridRetrievalResult[] {
+    const normalizedQuery = normalizeResearchLanguage(query.text).normalizedText;
     const allowedKinds = query.kinds?.length ? new Set(query.kinds) : null;
     const rows = this.db.prepare("SELECT * FROM semantic_assets").all() as Array<Record<string, unknown>>;
     const ftsIds = new Set<string>();
@@ -141,9 +143,9 @@ export class LocalSemanticGateway implements SemanticGateway {
       .map((row) => this.mapDocument(row))
       .filter((document) => !allowedKinds || allowedKinds.has(document.kind))
       .map((document) => {
-        const lexical = lexicalScore(query.text, document);
+        const lexical = lexicalScore(normalizedQuery, document);
         const ftsBoost = ftsIds.has(document.id) ? 0.25 : 0;
-        const structuredBoost = query.strategies.includes("structured") && document.path.toLowerCase().includes(query.text.toLowerCase()) ? 0.2 : 0;
+        const structuredBoost = query.strategies.includes("structured") && document.path.toLowerCase().includes(normalizedQuery.toLowerCase()) ? 0.2 : 0;
         const score = Math.min(1, lexical + ftsBoost + structuredBoost);
         return { document, score, ftsBoost };
       })

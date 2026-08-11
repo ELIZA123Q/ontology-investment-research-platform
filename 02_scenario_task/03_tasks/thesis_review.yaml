@@ -32,3 +32,11 @@ graph_motif:
   aggregation: {mode: versioned_thesis_state, required_units: [pillar_status, counterevidence, catalyst_and_invalidation], allow_partial_with_gaps: true}
 
 capability_requirements: [thesis_monitoring, independent_research_review]
+
+runtime_projection:
+  scenario_refs: [CompanyResearch]
+  activation_terms: [命题复核, 命题跟踪, 投资逻辑跟踪, thesis, 催化剂, 失效条件]
+  unit_judgment_types:
+    pillar_status: state_measurement
+    counterevidence: causal_attribution
+    catalyst_and_invalidation: impact_realization

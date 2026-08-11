@@ -3,6 +3,7 @@ import type { ModelProvider } from "@/src/providers/model-provider";
 import { ModelGateway } from "@/src/providers/model-gateway";
 import type { ProfessionalReportDraft } from "@/src/reporting/report-composer";
 import type { RuntimeStore } from "@/src/runtime/store";
+import { deriveModelDataPolicy } from "@/src/providers/model-data-policy";
 
 const DRAFTABLE_SECTIONS = new Set<ReportSectionKey>([
   "business_model", "financial_operating_analysis", "industry_structure", "cycle_supply_demand",
@@ -75,6 +76,7 @@ export async function requestReportSectionDrafts(store: RuntimeStore, provider: 
       "不得输出评级、买卖建议、目标价或保证收益。", "个性化只影响组织与解释密度，不改变正式判断和证据等级。",
     ],
   };
+  const dataPolicy = deriveModelDataPolicy(input.sourceRefs, facts.map((fact) => fact.sourceId));
   try {
     const result = await new ModelGateway(store, provider).generate({
       operation: "report_section_drafting",
@@ -82,7 +84,7 @@ export async function requestReportSectionDrafts(store: RuntimeStore, provider: 
       schemaVersion: "report-sections/1.0.0",
       system: "你是专业投研章节写作 Agent。你只能在给定 ReportSpec、正式 Judgment、EvidenceFact、MethodApplication 和来源引用内组织分析。输出 JSON，不得补写缺失研究。",
       prompt: JSON.stringify(requestInput), responseSchema: responseSchema as unknown as Record<string, unknown>, schemaName: "report_section_drafts", maxOutputTokens: 3000,
-      dataPolicy: "private_authorized",
+      dataPolicy,
       validateResponse: (value) => {
         const checked = validateResult(JSON.stringify(value), input, eligible.map((section) => section.key), { attempted: true, cached: false });
         if (checked.errors?.length) throw new Error(checked.errors.join("; "));

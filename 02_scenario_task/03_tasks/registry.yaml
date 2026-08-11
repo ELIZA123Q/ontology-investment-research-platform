@@ -37,6 +37,13 @@ contract_fields:
   optional:
     - description
     - capability_requirements
+    - runtime_projection
+  runtime_projection_contract:
+    purpose: >
+      为 06 Runtime 提供从自然语言激活 motif 和把业务判断单元绑定到正式 JudgmentType
+      的声明式投影；业务词、场景归属和判断类型只能在 02 中维护，Runtime 不得另写映射。
+    required_fields: [scenario_refs, activation_terms, unit_judgment_types]
+    optional_fields: [default_when_no_match]
   graph_motif_contract: 02_scenario_task/00_problem_graph/contract.yaml#motif_contract
   removed:
     - default_role

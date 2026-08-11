@@ -278,6 +278,8 @@ actions:
       judgmentType: {type: string, required: true}
       timeHorizon: {type: string, required: true}
       epistemicStatus: {type: string, required: true}
+      judgmentLevel: {type: string, required: true}
+      thresholdEvaluation: {type: object, required: true}
       confidence: {type: string, required: true}
       scopeRef: {type: string, required: true}
       judgmentUnitRef: {type: string, required: true}

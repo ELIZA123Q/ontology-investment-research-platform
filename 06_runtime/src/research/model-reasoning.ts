@@ -2,6 +2,7 @@ import type { Artifact, EvidenceFact, SignalRole, Task, TaskNode } from "@/src/c
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { ModelGateway } from "@/src/providers/model-gateway";
 import type { RuntimeStore } from "@/src/runtime/store";
+import { deriveModelDataPolicy } from "@/src/providers/model-data-policy";
 
 export interface BoundedResearchReasoning {
   evidenceAssignments: Array<{ evidenceFactId: string; role: SignalRole; rationale: string }>;
@@ -111,6 +112,8 @@ export async function requestBoundedResearchReasoning(store: RuntimeStore, provi
       "For independent review, report defects only and never rewrite an artifact.",
     ],
   };
+  const sourceRefs = input.artifacts.flatMap((artifact) => artifact.sourceRefs);
+  const dataPolicy = deriveModelDataPolicy(sourceRefs, input.facts.map((fact) => fact.snapshotId));
   try {
     const result = await new ModelGateway(store, provider).generate({
       operation: `research_reasoning:${input.node.kind}`,
@@ -119,7 +122,7 @@ export async function requestBoundedResearchReasoning(store: RuntimeStore, provi
       schemaName: "bounded_research_reasoning",
       system: "你是受约束的专业投研推理组件。你只能在提供的已核验事实与授权制品内形成候选分析；正式性、证据门和写权限由 Runtime 决定。只输出 JSON。",
       prompt: JSON.stringify(promptInput), responseSchema: schema as unknown as Record<string, unknown>, maxOutputTokens: 2400,
-      dataPolicy: "private_authorized",
+      dataPolicy,
       validateResponse: (value) => {
         const checked = validate(value, input.task, input.facts, input.artifacts);
         if (checked.errors.length) throw new Error(checked.errors.join("; "));

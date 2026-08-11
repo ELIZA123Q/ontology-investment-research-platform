@@ -12,6 +12,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     assertTaskAccess(store, request, id);
     const kernel = new AgentKernel(store);
     if (action === "resume") return NextResponse.json({ jobId: kernel.resumeTask(id) });
+    if (action === "pause") return NextResponse.json(kernel.pauseTask(id));
     if (action === "cancel") return NextResponse.json(kernel.cancelTask(id));
     if (action === "branch") {
       const body = await request.json().catch(() => ({})) as { goal?: string };

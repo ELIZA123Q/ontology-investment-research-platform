@@ -4,9 +4,10 @@ status: active
 note: 登记 vNext 使用的参数唯一权威；消费者可以投影值，但不得维护第二套值域。
 
 authority_kinds:
-  formal_ontology: Ontology 4.0 类型、属性、规则或受治理实例。
+  formal_ontology: Ontology 5.0 类型、属性、规则或受治理实例。
   control_policy: 05_control_evaluation 拥有的规则或阈值。
   capability_registry: Skill 与方法资产拥有的能力元数据。
+  context_state_contract: 04_context_state 拥有的 Context / State / Memory / Workspace 合同与值域。
   runtime_contract: vNext Runtime 拥有的执行状态与接口类型。
 
 parameters:
@@ -58,21 +59,25 @@ parameters:
     authority_kind: control_policy
     authority_ref: 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml#routes
     consumers: [research_plan, method_application]
+  - id: financial_model_integrity_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
+    consumers: [financial_normalization, financial_model, valuation_analysis]
   - id: method_assets
     authority_kind: capability_registry
     authority_ref: 03_agent_capability/02_skills/method_assets.yaml
     consumers: [method_router, method_application]
   - id: artifact_kinds_and_statuses
-    authority_kind: runtime_contract
-    authority_ref: 06_runtime/src/contracts.ts#ArtifactKind
+    authority_kind: context_state_contract
+    authority_ref: 04_context_state/04_workspace/contract.yaml#artifact_contract
     consumers: [task_graph, artifact_store, trusted_ui]
   - id: method_application_shape
     authority_kind: runtime_contract
     authority_ref: 06_runtime/src/contracts.ts#MethodApplication
     consumers: [method_router, judgment, report]
   - id: task_node_statuses
-    authority_kind: runtime_contract
-    authority_ref: 06_runtime/src/contracts.ts#NodeStatus
+    authority_kind: context_state_contract
+    authority_ref: 04_context_state/02_state/contract.yaml#runtime_status_projection
     consumers: [planner, kernel, worker]
   - id: actor_types
     authority_kind: runtime_contract

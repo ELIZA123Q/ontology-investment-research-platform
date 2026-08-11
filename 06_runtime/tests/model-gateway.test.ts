@@ -73,6 +73,7 @@ describe("model gateway", () => {
     };
     await expect(new ModelGateway(store, provider).generate({ ...request, dataPolicy: "restricted_no_egress" })).rejects.toThrow(/forbids external egress/);
     expect(called).toBe(false);
+    expect(store.listModelCalls()).toEqual([expect.objectContaining({ status: "blocked", attempts: 0, provider: "external" })]);
   });
 
   it("does not persist JSON that fails the caller response contract", async () => {

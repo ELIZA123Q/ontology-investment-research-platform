@@ -219,5 +219,5 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
 | status | `active` |
 | source_of_truth | `01_semantic_knowledge/01_ontology/` |
 | machine_entry | `platform_registry.yaml` |
-| schema 版本 | Platform 4.0 |
+| schema 版本 | Platform 5.0（兼容登记的 4.0 子模型/动力学合同） |
 | validator | `05_control_evaluation/04_verifiers/ontology/` |

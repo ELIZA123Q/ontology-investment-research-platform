@@ -71,3 +71,13 @@ capability_requirements:
   - technology_maturity_reasoning
   - comparative_assessment
   - evidence_assessment
+
+runtime_projection:
+  scenario_refs: [TechnologyRouteResearch]
+  activation_terms: [技术, 路线, 成熟度, 良率, 商业化, 替代, 硅光, SiC, 碳化硅]
+  unit_judgment_types:
+    technology_boundary: state_measurement
+    maturity_stage: cycle_phase
+    substitution_assessment: object_differentiation
+    commercialization_constraints: causal_attribution
+    falsification_conditions: state_measurement

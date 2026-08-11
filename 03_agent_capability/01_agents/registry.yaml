@@ -11,6 +11,11 @@ agents:
     context_policy: conversation
     can_assume_roles: [research_lead]
     role: 唯一面向用户；理解目标、编译受约束任务图、控制预算、委派、形成最终判断和交付
+    execution_contract:
+      can_delegate_to: [evidence-investigator, financial-modeler, analysis-specialist, independent-critic]
+      allowed_skills: all_released_for_scope
+      allowed_tools: [semantic.search, source.discover, source.capture, source.query, financial.model.validate, artifact.publish]
+      writable_artifact_kinds: [research_plan, research_problem_graph, method_application, evidence_package, hypothesis_map, judgment, report, review, normalized_financials, financial_model, valuation_analysis, thesis_state, ui_surface]
 
 candidates:
   - agent_id: evidence-investigator
@@ -19,6 +24,7 @@ candidates:
     can_assume_roles: [evidence_investigator]
     activation_gate: 至少 12 个可比案例盲评胜率不低于 60%，且证据覆盖提升至少 10 个百分点或中位耗时下降至少 20%；严重来源、时间旅行、公式或权限回归为 0
     notes: 只接收证据切片，只能写 evidence_package；首期先 shadow/forward test，不进入自动调度
+    execution_contract: {context_policy: delegated_slice, can_delegate_to: [], allowed_skills: [evidence-research], allowed_tools: [semantic.search, source.discover, source.capture, source.query], writable_artifact_kinds: [evidence_package]}
   - agent_id: financial-modeler
     lifecycle: planned
     rollout: evaluation_ready_worker
@@ -27,16 +33,19 @@ candidates:
     can_assume_roles: [financial_modeler]
     activation_gate: 至少 12 个可比案例盲评胜率不低于 60%，模型公式、口径、时间旅行和权限严重回归为 0
     notes: 可写 normalized_financials、financial_model、valuation_analysis；不能批准 Judgment、评级或发布
+    execution_contract: {context_policy: delegated_slice, can_delegate_to: [], allowed_skills: [financial-modeling, valuation-analysis], allowed_tools: [semantic.search, source.query, financial.model.validate], writable_artifact_kinds: [normalized_financials, financial_model, valuation_analysis]}
   - agent_id: analysis-specialist
     lifecycle: planned
     can_assume_roles: []
     activation_gate: 单 Agent 复杂推理失败案例达到启用门槛
+    execution_contract: {context_policy: delegated_slice, can_delegate_to: [], allowed_skills: [research-design, judgment-reasoning], allowed_tools: [semantic.search, source.query], writable_artifact_kinds: [method_application, hypothesis_map]}
   - agent_id: independent-critic
     lifecycle: planned
     rollout: evaluation_ready_worker
     can_assume_roles: [independent_reviewer]
     activation_gate: 对植入关键缺陷的召回率至少 80%，错误阻断率不高于 10%，并证明相对确定性 Verifier 和人工复核的增量价值
     notes: 隔离上下文，只输出 review；不得读取生产 Agent 隐藏推理或静默改写主制品
+    execution_contract: {context_policy: isolated_review, can_delegate_to: [], allowed_skills: [independent-research-review], allowed_tools: [semantic.search, financial.model.validate], writable_artifact_kinds: [review]}
 
 rules:
   - vNext.1 只能自动调度 lifecycle=active 的 Agent；evaluation_ready_worker 仅用于 shadow、forward test 或人工批准的演练

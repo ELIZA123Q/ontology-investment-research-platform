@@ -3,6 +3,12 @@ status: active_pattern
 intent: quick_research
 description: 轻量研究先验——范围更窄、证据波次更少，仍要求竞争解释或明确降级。
 
+runtime_selection:
+  routes:
+    - {runtime_intent: full_research, report_depths: [brief, standard]}
+    - {runtime_intent: update_judgment, report_depths: [brief, standard, deep]}
+    - {runtime_intent: compose_only, report_depths: [brief, standard, deep]}
+
 recommended_capabilities:
   - framing
   - evidence

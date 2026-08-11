@@ -3,6 +3,10 @@ status: active_pattern
 intent: deep_research
 description: Deep Research 规划先验——通常需要广取证、竞争解释与可重规划；不是固定 01→05 流水线。
 
+runtime_selection:
+  routes:
+    - {runtime_intent: full_research, report_depths: [deep]}
+
 recommended_capabilities:
   - framing
   - structure

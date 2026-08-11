@@ -73,3 +73,14 @@ capability_requirements:
   - company_operating_reasoning
   - financial_transmission_reasoning
   - evidence_assessment
+
+runtime_projection:
+  scenario_refs: [CompanyResearch]
+  activation_terms: [公司, 企业, 经营, 收入, 利润, 订单, 份额, 竞争位置]
+  default_when_no_match: true
+  unit_judgment_types:
+    proposition_scope: state_measurement
+    key_drivers: causal_attribution
+    evidence_support: state_measurement
+    performance_transmission: transmission_path
+    countercase_and_reversal: causal_attribution

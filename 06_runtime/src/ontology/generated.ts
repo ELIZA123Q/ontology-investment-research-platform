@@ -230,6 +230,10 @@ export const ONTOLOGY_CATALOG = {
           "required": true,
           "type": "array"
         },
+        "judgmentLevel": {
+          "required": true,
+          "type": "string"
+        },
         "judgmentType": {
           "required": true,
           "type": "string"
@@ -253,6 +257,10 @@ export const ONTOLOGY_CATALOG = {
         "statement": {
           "required": true,
           "type": "string"
+        },
+        "thresholdEvaluation": {
+          "required": true,
+          "type": "object"
         },
         "timeHorizon": {
           "required": true,
@@ -7879,7 +7887,7 @@ export const ONTOLOGY_CATALOG = {
       "schema_version": "1.0.0"
     }
   },
-  "fingerprint": "sha256:a0f2063c8a4cd0a010e0eba5534a45349d27686daf7fb7f462891f63fd560f36",
+  "fingerprint": "sha256:07fff2dc0d94ff228e4574b7cdeca23a0cf4943f72a102c13e9b7fccf08e802c",
   "functions": {
     "AssembleResearchRequirements": {
       "description": "将已确认 Lens 的对象接口、证据角色和停止条件组合成 Problem Graph 输入。",

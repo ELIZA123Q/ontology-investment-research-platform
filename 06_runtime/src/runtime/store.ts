@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
+import { assertToolExecutionAllowed, runtimeExecutionScope } from "@/src/capabilities/registry";
 import type {
   ApprovalRequest,
   Artifact,
@@ -28,10 +29,12 @@ import type {
   ProblemGraphEdge,
   ProblemGraphNode,
   ResearchProblemGraph,
+  ResearchEvaluationRun,
   ResearchSignalCandidate,
   ResearchTrackingProfile,
   RunEvent,
   SignalRefreshRun,
+  WorkspaceProjection,
   RuntimeJobKind,
   Task,
   TaskNode,
@@ -296,6 +299,12 @@ export class RuntimeStore {
         case_ids_json TEXT NOT NULL, baseline_release_id TEXT NOT NULL, summary_json TEXT NOT NULL,
         created_at TEXT NOT NULL, completed_at TEXT
       );
+      CREATE TABLE IF NOT EXISTS research_evaluation_runs (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, protocol_version TEXT NOT NULL, status TEXT NOT NULL,
+        task_input_hash TEXT NOT NULL, evidence_bundle_hash TEXT NOT NULL, system_artifact_json TEXT NOT NULL,
+        baseline_artifacts_json TEXT NOT NULL, judge_versions_json TEXT NOT NULL, formal_score_eligible INTEGER NOT NULL,
+        metrics_json TEXT NOT NULL, notes_json TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT
+      );
       CREATE TABLE IF NOT EXISTS asset_releases (
         id TEXT PRIMARY KEY, scope_json TEXT NOT NULL, scope_key TEXT NOT NULL, parent_release_id TEXT,
         rollback_of_release_id TEXT, status TEXT NOT NULL, candidate_ids_json TEXT NOT NULL, asset_refs_json TEXT NOT NULL,
@@ -342,6 +351,7 @@ export class RuntimeStore {
       CREATE INDEX IF NOT EXISTS asset_revisions_lookup ON asset_revisions(asset_id, version DESC);
       CREATE INDEX IF NOT EXISTS asset_releases_current ON asset_releases(scope_key, status, created_at DESC);
       CREATE INDEX IF NOT EXISTS asset_usage_task ON asset_usage(task_id, observed_at);
+      CREATE INDEX IF NOT EXISTS research_evaluation_runs_case_created ON research_evaluation_runs(case_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS ontology_objects_type_status ON ontology_objects(type, status, updated_at);
       CREATE INDEX IF NOT EXISTS ontology_links_source ON ontology_links(source_id, type);
       CREATE INDEX IF NOT EXISTS ontology_links_target ON ontology_links(target_id, type);
@@ -362,6 +372,19 @@ export class RuntimeStore {
     });
     this.applyMigration("003-run-outcome-model-observability-worker-health", () => {
       this.ensureColumn("tasks", "outcome", "TEXT");
+    });
+    this.applyMigration("004-research-evaluation-runs", () => {
+      this.db.exec(`CREATE TABLE IF NOT EXISTS research_evaluation_runs (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, protocol_version TEXT NOT NULL, status TEXT NOT NULL,
+        task_input_hash TEXT NOT NULL, evidence_bundle_hash TEXT NOT NULL, system_artifact_json TEXT NOT NULL,
+        baseline_artifacts_json TEXT NOT NULL, judge_versions_json TEXT NOT NULL, formal_score_eligible INTEGER NOT NULL,
+        metrics_json TEXT NOT NULL, notes_json TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT
+      )`);
+      this.db.exec("CREATE INDEX IF NOT EXISTS research_evaluation_runs_case_created ON research_evaluation_runs(case_id, created_at DESC)");
+    });
+    this.applyMigration("005-memory-provenance-fields", () => {
+      this.ensureColumn("memory_records", "source_ref", "TEXT NOT NULL DEFAULT ''");
+      this.ensureColumn("memory_records", "freshness_at", "TEXT NOT NULL DEFAULT ''");
     });
     try {
       this.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS research_fts USING fts5(ref_id UNINDEXED, kind UNINDEXED, title, body);`);
@@ -787,9 +810,36 @@ export class RuntimeStore {
     return item;
   }
 
+  getLatestCheckpoint(taskId: string): Checkpoint | null {
+    return this.latestCheckpoint(taskId);
+  }
+
   latestCheckpoint(taskId: string): Checkpoint | null {
     const r = this.db.prepare("SELECT * FROM checkpoints WHERE task_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(taskId) as Record<string, unknown> | undefined;
     return r ? { id: String(r.id), taskId: String(r.task_id), nodeId: r.node_id ? String(r.node_id) : undefined, phase: r.phase as Checkpoint["phase"], state: parse(r.state_json, {}), createdAt: String(r.created_at) } : null;
+  }
+
+  getWorkspaceProjection(taskId: string): WorkspaceProjection {
+    const task = this.getTask(taskId);
+    if (!task) throw new Error(`Task not found: ${taskId}`);
+    const artifacts = this.listArtifacts(taskId);
+    return {
+      workspaceId: `workspace:${task.id}`,
+      sessionId: task.conversationId,
+      taskId: task.id,
+      runId: `task-run:${task.id}`,
+      status: task.status === "completed" ? "frozen" : task.status === "cancelled" ? "archived" : "active",
+      resourceRefs: [
+        { id: `task-input:${task.id}`, kind: "input", frozen: true },
+        ...artifacts.map((artifact) => ({
+          id: artifact.id,
+          kind: artifact.kind === "evidence_package" ? "evidence_snapshot" as const : artifact.status === "verified" ? "final_artifact" as const : "intermediate_artifact" as const,
+          version: artifact.version,
+          frozen: artifact.status === "verified",
+        })),
+      ],
+      updatedAt: task.updatedAt,
+    };
   }
 
   createApproval(input: Omit<ApprovalRequest, "id" | "status" | "createdAt">): ApprovalRequest {
@@ -887,6 +937,7 @@ export class RuntimeStore {
   recoverStaleNodeJobs(staleMs = 30_000): number { const cutoff = new Date(Date.now() - staleMs).toISOString(); const result = this.db.prepare("UPDATE node_jobs SET status='queued',locked_at=NULL,last_error='worker lease expired',available_at=?,updated_at=? WHERE status='running' AND locked_at<?").run(now(), now(), cutoff); return Number(result.changes); }
 
   runToolOnce<T>(input: { key: string; toolId: string; taskId: string }, execute: () => T): { reused: boolean; result: T } {
+    assertToolExecutionAllowed(input.toolId, runtimeExecutionScope());
     const existing = this.db.prepare("SELECT status, result_json FROM tool_executions WHERE idempotency_key=?").get(input.key) as { status?: string; result_json?: string } | undefined;
     if (existing?.status === "completed") return { reused: true, result: parse<T>(existing.result_json, undefined as T) };
     if (existing?.status === "running") throw new Error(`Tool execution already running: ${input.key}`);
@@ -903,7 +954,10 @@ export class RuntimeStore {
 
   putMemory(input: Omit<MemoryRecord, "id" | "createdAt">): MemoryRecord {
     const item: MemoryRecord = { ...input, id: randomUUID(), createdAt: now() };
-    this.db.prepare("INSERT INTO memory_records VALUES (?, ?, ?, ?, ?, ?, ?)").run(item.id, item.conversationId ?? null, item.kind, item.content, json(item.provenanceArtifactIds), item.reviewedAt ?? null, item.createdAt);
+    this.db.prepare(`INSERT INTO memory_records
+      (id,conversation_id,kind,content,provenance_artifact_ids_json,reviewed_at,created_at,source_ref,freshness_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(item.id, item.conversationId ?? null, item.kind, item.content, json(item.provenanceArtifactIds), item.reviewedAt ?? null, item.createdAt, item.sourceRef, item.freshnessAt);
     return item;
   }
 
@@ -911,7 +965,7 @@ export class RuntimeStore {
     const rows = conversationId
       ? this.db.prepare("SELECT * FROM memory_records WHERE conversation_id=? OR conversation_id IS NULL ORDER BY created_at DESC").all(conversationId)
       : this.db.prepare("SELECT * FROM memory_records ORDER BY created_at DESC").all();
-    return (rows as Record<string, unknown>[]).map((r) => ({ id: String(r.id), conversationId: r.conversation_id ? String(r.conversation_id) : undefined, kind: r.kind as MemoryRecord["kind"], content: String(r.content), provenanceArtifactIds: parse(r.provenance_artifact_ids_json, []), reviewedAt: r.reviewed_at ? String(r.reviewed_at) : undefined, createdAt: String(r.created_at) }));
+    return (rows as Record<string, unknown>[]).map((r) => ({ id: String(r.id), conversationId: r.conversation_id ? String(r.conversation_id) : undefined, kind: r.kind as MemoryRecord["kind"], content: String(r.content), provenanceArtifactIds: parse(r.provenance_artifact_ids_json, []), sourceRef: String(r.source_ref || `runtime://memory/${String(r.id)}`), freshnessAt: String(r.freshness_at || r.reviewed_at || r.created_at), reviewedAt: r.reviewed_at ? String(r.reviewed_at) : undefined, createdAt: String(r.created_at) }));
   }
 
   getCachedModelResult<T>(fingerprint: string): T | null {
@@ -1230,6 +1284,33 @@ export class RuntimeStore {
 
   listEvaluationRuns(candidateId: string): EvaluationRun[] {
     return (this.db.prepare("SELECT * FROM evaluation_runs WHERE candidate_id=? ORDER BY created_at DESC").all(candidateId) as Record<string, unknown>[]).map(this.mapEvaluationRun);
+  }
+
+  putResearchEvaluationRun(input: Omit<ResearchEvaluationRun, "id" | "createdAt"> & { id?: string; createdAt?: string }): ResearchEvaluationRun {
+    const item: ResearchEvaluationRun = { ...input, id: input.id || randomUUID(), createdAt: input.createdAt || now() };
+    this.db.prepare(`INSERT INTO research_evaluation_runs (
+      id,case_id,protocol_version,status,task_input_hash,evidence_bundle_hash,system_artifact_json,
+      baseline_artifacts_json,judge_versions_json,formal_score_eligible,metrics_json,notes_json,created_at,completed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(item.id, item.caseId, item.protocolVersion, item.status, item.taskInputHash, item.evidenceBundleHash,
+        json(item.systemArtifact), json(item.baselineArtifacts), json(item.judgeVersions), item.formalScoreEligible ? 1 : 0,
+        json(item.metrics), json(item.notes), item.createdAt, item.completedAt ?? null);
+    return item;
+  }
+
+  listResearchEvaluationRuns(caseId?: string): ResearchEvaluationRun[] {
+    const rows = caseId
+      ? this.db.prepare("SELECT * FROM research_evaluation_runs WHERE case_id=? ORDER BY created_at DESC").all(caseId)
+      : this.db.prepare("SELECT * FROM research_evaluation_runs ORDER BY created_at DESC").all();
+    return (rows as Record<string, unknown>[]).map((row) => ({
+      id: String(row.id), caseId: String(row.case_id), protocolVersion: String(row.protocol_version), status: row.status as ResearchEvaluationRun["status"],
+      taskInputHash: String(row.task_input_hash), evidenceBundleHash: String(row.evidence_bundle_hash),
+      systemArtifact: parse<ResearchEvaluationRun["systemArtifact"]>(row.system_artifact_json, {} as ResearchEvaluationRun["systemArtifact"]),
+      baselineArtifacts: parse<ResearchEvaluationRun["baselineArtifacts"]>(row.baseline_artifacts_json, []),
+      judgeVersions: parse<ResearchEvaluationRun["judgeVersions"]>(row.judge_versions_json, []),
+      formalScoreEligible: Boolean(row.formal_score_eligible), metrics: parse<Record<string, number>>(row.metrics_json, {}), notes: parse<string[]>(row.notes_json, []),
+      createdAt: String(row.created_at), completedAt: row.completed_at ? String(row.completed_at) : undefined,
+    }));
   }
 
   publishRelease(input: { scope: KnowledgeScope; candidateIds: string[]; createdBy: string }): AssetRelease {

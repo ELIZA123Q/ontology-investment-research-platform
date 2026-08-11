@@ -9,6 +9,12 @@ authority:
   runtime_node_catalog: 06_runtime/src/runtime/node-catalog.ts
   runtime_planner: 06_runtime/src/runtime/planner.ts
 
+selection_contract:
+  declared_by: each pattern runtime_selection
+  inputs: [runtime_intent, report_depth]
+  invariant: 每个非 clarify Runtime 请求必须唯一命中一个 active pattern
+  fallback: forbidden
+
 patterns:
   - path: deep_research.yaml
   - path: quick_research.yaml

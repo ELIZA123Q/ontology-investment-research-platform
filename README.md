@@ -1,6 +1,6 @@
 # 投研判断工作台
 
-面向专业研究员的 AI 原生投研工作台。目标架构把研究目标展开成可分支、可合流、可失效传播的 Research Problem Graph，再把当前未解决 frontier 编译成受约束的 Execution TaskGraph；运行结果沉淀为可核验的证据、竞争解释、正式判断和可编辑交付物。证据不足时明确降级为「暂不可判断」，不会用流畅表达掩盖证据缺口。当前 Runtime 已执行 TaskGraph，Problem Graph 的完整运行时物化仍按 `02_scenario_task` 合同逐步接入。
+面向专业研究员的 AI 原生投研工作台。系统把研究目标物化为可分支、可合流、可失效传播的 Research Problem Graph，再按 `02_scenario_task` 的 Task motif、Scenario 约束和 Workflow Pattern 把未解决 frontier 编译成受约束的 Execution TaskGraph。运行结果沉淀为可核验的证据、竞争解释、正式判断和可编辑交付物；证据不足时明确降级为「暂不可判断」。
 
 ## 产品原则
 
@@ -36,6 +36,7 @@ AKShare 首版只用于手动刷新 A 股研究主题相关的公开新闻和公
 | [`06_runtime/`](06_runtime/README.md) | 应用、API、worker 与用户工作台；加载、组合并执行以上能力 |
 
 运行时边界与请求生命周期见 [`06_runtime/ARCHITECTURE.md`](06_runtime/ARCHITECTURE.md)，产品路由和可信交互约束见 [`06_runtime/app-surface.yaml`](06_runtime/app-surface.yaml)。
+新增或修改定义前必须按 [`DOMAIN_AUTHORITY.md`](DOMAIN_AUTHORITY.md) 选择 01–05 唯一权威；06 只保留生成投影与执行绑定。
 
 ## 当前成熟度
 

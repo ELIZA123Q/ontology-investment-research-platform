@@ -10,6 +10,7 @@ authority:
 required_fields:
   normalized_financials:
     - asOf
+    - modelScope
     - entityRef
     - accountingBasis
     - currency
@@ -28,6 +29,8 @@ required_fields:
     - assumptions
     - formulaDependencies
     - scenarios
+    - computedOutputs
+    - reconciliations
     - audit
     - sourceArtifactRefs
   valuation_analysis:
@@ -59,6 +62,7 @@ model_invariants:
   - 每股指标必须冻结 diluted/basic share basis 和期间
   - oneOffItems 与 adjusted/reporting basis 必须分开
   - 未通过 audit 的 financial_model 不得作为 valuation_analysis 的输入
+  - 单位换算、派生指标、勾稽容差与估值阻断唯一权威为 financial_model_integrity_policy.yaml
 
 consensus_boundary:
   authorized_consensus_required_fields: [provider, permissionScope, asOf, vintage, metricDefinition, unit, period]
@@ -74,6 +78,7 @@ prohibitions:
   - 自动交易指令
 
 runtime_mapping:
+  rule_policy: 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
   validator: 06_runtime/src/research/financial-model-contract.ts
   nodes: [financial_normalization, model_build_or_update, model_audit, valuation_analysis, thesis_update, independent_review]
   tests: 06_runtime/tests/financial-capability.test.ts

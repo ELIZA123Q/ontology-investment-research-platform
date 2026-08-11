@@ -1,7 +1,7 @@
 schema_name: context_contract
 schema_version: 1.0.0
 status: active
-implementation_status: partial_reference_manifest
+implementation_status: runtime_reference_manifest
 
 authority:
   answers: 单次 Agent 调用前，模型被允许看见什么
@@ -71,14 +71,14 @@ invariants:
 
 current_runtime_coverage:
   implemented:
-    - identity 中的 task_id / node_id
+    - identity / task / state / workspace / memory / knowledge / capabilities / policies 全部必备分段
     - knowledge release / lock 引用
     - reference reason / version / freshness
     - token_budget
+    - trimmed_reason（发生裁剪时）与 permission_filter_result
     - Event Manifest 留痕
-  known_gaps:
-    - 尚未按合同物化 state / workspace / memory / capabilities / policies 显式分段
-    - trimmed_reason 与 permission_filter_result 尚未成为 ContextPackage 类型的必备字段
+  intentionally_transient:
+    - ContextPackage 只以 append-only Event Manifest 留痕，不建可编辑实体表
 
 notes:
   - 类型实现绑定见 06_runtime/src/contracts.ts#ContextPackage；合同变更后 Runtime 必须对齐。

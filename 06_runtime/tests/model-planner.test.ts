@@ -17,7 +17,7 @@ describe("model planner adapter", () => {
         calls += 1;
         return { provider: "fake", model: "planner-test", text: JSON.stringify({
           intent: "evidence_only", rationale: "最小取证路径",
-          nodes: [{ key: "context", kind: "semantic_context", title: "上下文", dependsOn: [] }],
+          nodes: [{ key: "context", kind: "semantic_context", title: "上下文", dependsOn: [], frontierRef: { problemGraphId: "pending-problem-graph", compilerBoundary: "scope" } }],
           stopConditions: ["没有来源"],
         }), usage: { inputTokens: 10, outputTokens: 20 } };
       },

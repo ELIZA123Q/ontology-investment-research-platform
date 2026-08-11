@@ -72,3 +72,13 @@ capability_requirements:
   - causal_path_reasoning
   - evidence_assessment
   - counterfactual_reasoning
+
+runtime_projection:
+  scenario_refs: [EventImpactResearch]
+  activation_terms: [公告, 事件, 政策, 监管, 并购, 停产, 事故, 冲击, 影响]
+  unit_judgment_types:
+    event_scope: state_measurement
+    direct_impact: impact_realization
+    indirect_paths: transmission_path
+    intensity_and_lag: impact_realization
+    boundary_and_reversal: causal_attribution

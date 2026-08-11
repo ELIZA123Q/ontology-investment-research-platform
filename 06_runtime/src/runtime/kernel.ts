@@ -20,11 +20,24 @@ import type { ModelProvider } from "@/src/providers/model-provider";
 import { requestReportSectionDrafts, type ReportDraftingAttempt } from "@/src/reporting/report-model-drafter";
 import { evaluateReportQuality } from "@/src/evaluation/report-quality-evaluator";
 import { adaptSourceToolResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
-import { consensusComparisonStatus, validateFinancialModel, validateNormalizedFinancials } from "@/src/research/financial-model-contract";
+import { consensusComparisonStatus, validateFinancialModel, validateNormalizedFinancials, validateValuationAnalysis } from "@/src/research/financial-model-contract";
 import { requestBoundedResearchReasoning, type ModelReasoningAttempt } from "@/src/research/model-reasoning";
+import { buildDeterministicFinancialModel } from "@/src/research/deterministic-financial-model";
+import { assertAgentExecutionAllowed, assertSkillExecutionAllowed, getAgent, isSkillExecutionAllowed, isToolExecutionAllowed, runtimeExecutionScope } from "@/src/capabilities/registry";
+import { evaluateJudgmentThreshold, type EvidenceGrade } from "@/src/governance/judgment-threshold";
+import { assertApprovalDecisionPermission } from "@/src/governance/permission-policy";
 
 const DEFAULT_BUDGET = { maxModelCalls: 12, maxToolCalls: 30, maxCostUsd: 3 };
 const includesAny = (value: string, words: string[]) => words.some((word) => value.includes(word));
+const applyProposalPrior = (graphPlan: ResearchPlan, proposalPlan: ResearchPlan): ResearchPlan => {
+  const proposalByKind = new Map(proposalPlan.nodes.map((node) => [node.kind, node]));
+  return {
+    ...graphPlan,
+    rationale: `${graphPlan.rationale} 模型提案经确定性编译后仅作为节点预算与停止条件先验：${proposalPlan.rationale}`,
+    nodes: graphPlan.nodes.map((node) => ({ ...node, budget: proposalByKind.get(node.kind)?.budget || node.budget })),
+    stopConditions: [...new Set([...graphPlan.stopConditions, ...proposalPlan.stopConditions])],
+  };
+};
 
 export interface ConversationSnapshot {
   conversation: ReturnType<RuntimeStore["getConversation"]>;
@@ -182,7 +195,11 @@ export class AgentKernel {
       return {
         ...fact, ontologyFactRef: promoted.objects.find((object) => object.type === "EvidenceFact")?.id,
         evidenceRoles: deriveEvidenceRoles(`${observation.metricName} ${observation.statement}`),
-        metric: { id: observation.metricId, name: observation.metricName, value: observation.value, unit: observation.unit, currency: observation.currency, basis: observation.basis, dimensions: observation.dimensions },
+        metric: {
+          id: observation.metricId, name: observation.metricName, value: observation.value, unit: observation.unit,
+          currency: observation.currency, basis: observation.basis, dimensions: observation.dimensions,
+          businessTime: observation.businessTime, periodStart: observation.periodStart, periodEnd: observation.periodEnd,
+        },
       };
     });
     const sourceRefs = captured.map(({ snapshot }) => this.sources.toSourceReference(snapshot));
@@ -276,10 +293,12 @@ export class AgentKernel {
     const reportSpec = reportSpecForGoal(content, options.reportSpec);
     const methodPlan = selectResearchMethods(content, reportSpec);
     const task = this.store.createTask({ conversationId, researchCaseId, goal: content, intent: fallbackIntent, reportSpec, status: fallbackIntent === "clarify" ? "waiting_input" : "waiting_approval", budget: DEFAULT_BUDGET });
-    const graph = fallbackIntent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${task.id}`, taskId: task.id, researchCaseId, goal: content, intent: fallbackIntent, lensRefs }));
-    const compiled: CompiledResearchPlan = fallbackIntent === "clarify" && proposal
-      ? compilePlannerProposal(proposal, content, DEFAULT_BUDGET)
-      : { plan: graph ? planFromProblemGraph(graph, DEFAULT_BUDGET) : planResearch(content), source: graph ? "deterministic" : "deterministic_fallback", proposalFingerprint: requestFingerprint("local", graph ? "problem-graph-compiler" : "clarify-planner", content), diagnostics: [] };
+    const graph = fallbackIntent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${task.id}`, taskId: task.id, researchCaseId, goal: content, intent: fallbackIntent, reportDepth: reportSpec.depth, lensRefs }));
+    const proposalCompiled = proposal ? compilePlannerProposal(proposal, content, DEFAULT_BUDGET) : undefined;
+    const deterministicPlan = graph ? planFromProblemGraph(graph, DEFAULT_BUDGET) : planResearch(content);
+    const compiled: CompiledResearchPlan = proposalCompiled
+      ? { ...proposalCompiled, plan: graph ? applyProposalPrior(deterministicPlan, proposalCompiled.plan) : proposalCompiled.plan }
+      : { plan: deterministicPlan, source: graph ? "deterministic" : "deterministic_fallback", proposalFingerprint: requestFingerprint("local", graph ? "problem-graph-compiler" : "clarify-planner", content), diagnostics: [] };
     const plan = compiled.plan;
     this.store.createKnowledgeLock(task.id);
     if (pinnedAssetRefs.length) this.store.appendEvent({ conversationId, taskId: task.id, type: "context.pinned", actorType: "researcher", actorId: "researcher", payload: { assetRefs: pinnedAssetRefs } });
@@ -308,6 +327,7 @@ export class AgentKernel {
     const pending = this.store.getApproval(id);
     if (!pending) throw new Error(`Approval not found: ${id}`);
     if (pending.status !== "pending") throw new Error(`Approval is no longer pending: ${id}`);
+    assertApprovalDecisionPermission(pending.kind, "researcher");
     const judgmentRequest = decision === "approved" && pending.kind === "judgment_confirmation"
       ? this.prepareJudgmentCommit(pending)
       : undefined;
@@ -348,7 +368,7 @@ export class AgentKernel {
 
   executeTask(taskId: string): Task {
     const task = this.requireTask(taskId);
-    if (["cancelled", "completed"].includes(task.status)) return task;
+    if (["cancelled", "completed", "paused", "waiting_handoff"].includes(task.status)) return task;
     this.store.updateTaskStatus(taskId, "running");
     this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.started", actorType: "agent", actorId: "research-lead", payload: { recoveryCheckpoint: this.store.latestCheckpoint(taskId)?.id } });
 
@@ -384,7 +404,7 @@ export class AgentKernel {
    * workers may claim up to three nodes from the same task. */
   dispatchTask(taskId: string): number {
     const task = this.requireTask(taskId);
-    if (["cancelled", "completed", "waiting_approval", "waiting_input"].includes(task.status)) return 0;
+    if (["cancelled", "completed", "paused", "waiting_handoff", "waiting_approval", "waiting_input"].includes(task.status)) return 0;
     this.store.updateTaskStatus(taskId, "running");
     let queued = 0;
     for (const node of this.store.listTaskNodes(taskId)) {
@@ -400,6 +420,7 @@ export class AgentKernel {
 
   executeTaskNode(taskId: string, nodeId: string): void {
     const task = this.requireTask(taskId);
+    if (["paused", "waiting_handoff", "waiting_approval", "waiting_input", "cancelled", "completed"].includes(task.status)) return;
     const node = this.store.getTaskNode(nodeId);
     if (!node || node.taskId !== taskId || !["ready", "pending", "failed"].includes(node.status)) return;
     if (!node.dependsOn.every((id) => this.store.getTaskNode(id)?.status === "completed")) return;
@@ -415,6 +436,14 @@ export class AgentKernel {
     for (const node of this.store.listTaskNodes(taskId)) if (["pending", "ready", "running"].includes(node.status)) this.store.updateNode(node.id, { status: "cancelled" });
     this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.cancelled", actorType: "researcher", actorId: "researcher", payload: {} });
     if (!this.store.getMiningRunByTask(taskId)) this.queueMining(taskId);
+    return this.requireTask(taskId);
+  }
+
+  pauseTask(taskId: string): Task {
+    const task = this.requireTask(taskId);
+    if (["cancelled", "completed", "failed"].includes(task.status)) throw new Error(`Task ${task.status} cannot be paused`);
+    this.store.updateTaskStatus(taskId, "paused");
+    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.paused", actorType: "researcher", actorId: "researcher", payload: { checkpointId: this.store.latestCheckpoint(taskId)?.id } });
     return this.requireTask(taskId);
   }
 
@@ -437,7 +466,7 @@ export class AgentKernel {
     // legacy task or attempting dual-write migration.
     const researchCaseId = this.ensureResearchCase(parent.conversationId, goal, parent.researchCaseId);
     const branch = this.store.createTask({ conversationId: parent.conversationId, researchCaseId, parentTaskId: parent.id, goal, intent, reportSpec: parent.reportSpec, status: "waiting_approval", budget: parent.budget });
-    const graph = intent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${branch.id}`, taskId: branch.id, researchCaseId, goal, intent }));
+    const graph = intent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${branch.id}`, taskId: branch.id, researchCaseId, goal, intent, reportDepth: branch.reportSpec.depth }));
     const plan = graph ? planFromProblemGraph(graph, branch.budget) : planResearch(goal);
     this.store.createKnowledgeLock(branch.id);
     const nodes = materializeNodes(branch.id, plan, branch.budget);
@@ -558,6 +587,19 @@ export class AgentKernel {
 
   private executeNode(task: Task, node: TaskNode): void {
     const nodeType = getResearchNodeType(node.kind);
+    const executionScope = runtimeExecutionScope();
+    const executingAgent = assertAgentExecutionAllowed(node.assignedAgent, executionScope);
+    if (nodeType.capabilityType === "skill") {
+      try {
+        assertSkillExecutionAllowed(nodeType.capabilityId, executionScope);
+        if (!executingAgent.allowedSkills.includes(nodeType.capabilityId)) throw new Error(`Agent ${executingAgent.id} is not allowed to execute Skill ${nodeType.capabilityId}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.store.updateNode(node.id, { status: "blocked" });
+        this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "capability.release_blocked", actorType: "system", actorId: "capability-release-gate", payload: { capabilityId: node.capabilityId, executionScope: runtimeExecutionScope(), error: message } });
+        return;
+      }
+    }
     if (nodeType.outputKind !== "runtime_context") {
       const capabilityCheck = verifyArtifactWrite(node.assignedAgent, nodeType.outputKind);
       if (!capabilityCheck.passed) throw new Error(capabilityCheck.errors.join("; "));
@@ -610,11 +652,25 @@ export class AgentKernel {
             ...selected.map((ref) => ({ id: ref.refId, kind: "semantic" as const, version: ref.version, reason: `${ref.reason}；${ref.path}`, freshnessAt: new Date().toISOString() })),
             ...matchedBaseline.map((item) => ({ id: item.id, kind: "semantic" as const, version: item.version, reason: "Ontology ObjectSet：已加载领域基线 StateVariable", freshnessAt: lock.asOf })),
           ];
+          const memoryRecords = this.store.listMemory(task.conversationId);
+          const pendingApprovals = this.store.listPendingApprovals(task.conversationId).filter((approval) => approval.taskId === task.id);
+          const latestEvent = this.store.listEvents(task.conversationId).filter((event) => event.taskId === task.id).at(-1);
+          const latestCheckpoint = this.store.getLatestCheckpoint(task.id);
+          const permissionFilterResult = { decision: "allowed" as const, excludedRefIds: [] as string[], reasons: ["Context 仅包含当前 KnowledgeLock、当前任务制品和允许的 Memory 引用"] };
+          const agent = getAgent(node.assignedAgent);
           for (const ref of lock.assetRefs) this.store.observeAssetUsage({ taskId: task.id, assetRef: ref, selectedReason: "context_builder", outcome: "used" });
           this.store.putContextPackage({
             taskId: task.id, nodeId: node.id, knowledgeLockId: lock.id, asOf: lock.asOf,
             releaseIds: { global: lock.globalReleaseId, tenant: lock.tenantReleaseId, user: lock.userReleaseId },
-            references, tokenBudget: 8_000,
+            identity: { conversationId: task.conversationId, taskId: task.id, runId: `task-run:${task.id}`, nodeId: node.id },
+            task: { goal: task.goal, intent: task.intent, budget: task.budget, frontierRef: node.frontierRef },
+            state: { taskStatus: task.status, nodeStatus: node.status, pendingAction: pendingApprovals[0]?.kind, pendingApprovalIds: pendingApprovals.map((approval) => approval.id), lastEventId: latestEvent?.id, checkpointRef: latestCheckpoint?.id },
+            workspace: this.store.getWorkspaceProjection(task.id),
+            memory: { refs: memoryRecords.map((memory) => ({ id: memory.id, kind: memory.kind, sourceRef: memory.sourceRef, freshnessAt: memory.freshnessAt })) },
+            knowledge: { assetRefs: lock.assetRefs, releaseIds: { global: lock.globalReleaseId, tenant: lock.tenantReleaseId, user: lock.userReleaseId } },
+            capabilities: { agentId: node.assignedAgent, assumedRoleIds: agent.canAssumeRoles, capabilityType: node.capabilityType, capabilityId: node.capabilityId, allowedSkillIds: agent.allowedSkills.filter((skillId) => isSkillExecutionAllowed(skillId, runtimeExecutionScope())), allowedToolIds: agent.allowedTools.filter((toolId) => isToolExecutionAllowed(toolId, runtimeExecutionScope())) },
+            policies: { policyRefs: ["05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml", "05_control_evaluation/03_permissions/permission_matrix.yaml"], permissionFilterResult },
+            references, tokenBudget: 8_000, trimmedReason: selected.length >= 12 ? "semantic selection limited to the top 12 authorized references" : undefined, permissionFilterResult,
           });
           this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "semantic.indexed", actorType: "system", actorId: "semantic-gateway", payload: { ...index, ontologyBaseline: { releases: this.ontologyQuery.releases(), matchedStateVariableRefs: matchedBaseline.map((item) => item.id) } } });
         }
@@ -744,18 +800,30 @@ export class AgentKernel {
       case "financial_normalization": {
         const financialInputs = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "结构化金融数据" && artifact.status === "verified");
         const latest = financialInputs.at(-1);
-        const input = latest?.data as { asOf?: string; facts?: Array<{ metric?: { id?: string; value?: number; basis?: string } }> } | undefined;
+        const input = latest?.data as { asOf?: string; facts?: Array<{ metric?: { id?: string; name?: string; value?: number; basis?: string; unit?: string; currency?: string; dimensions?: Record<string, string | number | boolean | null>; businessTime?: string; periodStart?: string; periodEnd?: string } }> } | undefined;
         const asOf = input?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
         const sourceArtifactRefs = latest ? [latest.id] : [];
         const observations = (input?.facts || []).flatMap((fact) => {
           const metric = fact.metric;
           return metric && typeof metric.id === "string" && typeof metric.value === "number" && latest
-            ? [{ metricId: metric.id, value: metric.value, basis: metric.basis === "restated" ? "restated" as const : "reported" as const, period: { start: asOf, end: asOf }, sourceArtifactRef: latest.id }]
+            ? [{
+              metricId: metric.id, metricName: metric.name, value: metric.value,
+              basis: metric.basis === "restated" ? "restated" as const : metric.basis === "consensus" ? "consensus" as const : "reported" as const,
+              unit: metric.unit || "元", currency: metric.currency || "CNY", dimensions: metric.dimensions,
+              businessTime: metric.businessTime || metric.periodEnd || asOf,
+              period: { start: metric.periodStart || metric.periodEnd || asOf, end: metric.periodEnd || metric.businessTime || asOf },
+              sourceArtifactRef: latest.id,
+            }]
             : [];
         });
+        const periodStarts = observations.map((item) => Date.parse(item.period.start)).filter(Number.isFinite);
+        const periodEnds = observations.map((item) => Date.parse(item.period.end)).filter(Number.isFinite);
         const normalized: NormalizedFinancialsData = {
           asOf, entityRef: task.researchCaseId, accountingBasis: "PRC_GAAP", currency: "CNY", unit: "元",
-          historicalBoundary: { start: asOf, end: asOf }, observations, sourceArtifactRefs,
+          historicalBoundary: {
+            start: periodStarts.length ? new Date(Math.min(...periodStarts)).toISOString() : asOf,
+            end: periodEnds.length ? new Date(Math.max(...periodEnds)).toISOString() : asOf,
+          }, observations, sourceArtifactRefs,
           status: observations.length ? "ready" : "insufficient",
           blockers: observations.length ? undefined : ["缺少通过金融数据摄取合同验证的历史财务观测。"],
         };
@@ -766,19 +834,21 @@ export class AgentKernel {
         const normalizedArtifact = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "normalized_financials") || [...artifacts].reverse().find((artifact) => artifact.kind === "normalized_financials");
         const normalized = normalizedArtifact?.data as NormalizedFinancialsData | undefined;
         const asOf = normalized?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
-        const nextDay = new Date(Date.parse(asOf) + 86_400_000).toISOString();
-        const nextYear = new Date(Date.parse(asOf) + 365 * 86_400_000).toISOString();
-        const model: FinancialModelData = {
-          asOf, entityRef: task.researchCaseId, accountingBasis: normalized?.accountingBasis || "PRC_GAAP", currency: normalized?.currency || "CNY", unit: normalized?.unit || "元",
-          historicalBoundary: normalized?.historicalBoundary || { start: asOf, end: asOf }, forecastBoundary: { start: nextDay, end: nextYear },
-          assumptions: normalizedArtifact ? [{ id: "historical_revenue_anchor", value: normalized?.observations.find((item) => item.metricId === "revenue")?.value || 0, basis: "reported", sourceArtifactRef: normalizedArtifact.id }] : [],
-          formulaDependencies: normalizedArtifact ? [{ output: "forecast_revenue", inputs: ["historical_revenue_anchor"] }] : [],
-          scenarios: normalizedArtifact ? [{ id: "base", assumptionIds: ["historical_revenue_anchor"] }, { id: "bull", assumptionIds: ["historical_revenue_anchor"] }, { id: "bear", assumptionIds: ["historical_revenue_anchor"] }] : [],
-          audit: normalized?.status === "ready" ? { passed: true, checks: ["historical/forecast boundary", "formula dependency declaration"], errors: [] } : { passed: false, checks: [], errors: ["normalized financials are insufficient"] },
-          sourceArtifactRefs: normalizedArtifact ? [normalizedArtifact.id] : [], status: normalized?.status === "ready" ? "ready" : "blocked",
+        const model: FinancialModelData = normalized
+          ? buildDeterministicFinancialModel(normalized).model
+          : {
+            modelScope: "historical_earnings_update", asOf, entityRef: task.researchCaseId, accountingBasis: "PRC_GAAP", currency: "CNY", unit: "元",
+            historicalBoundary: { start: asOf, end: asOf },
+            forecastBoundary: { start: new Date(Date.parse(asOf) + 86_400_000).toISOString(), end: new Date(Date.parse(asOf) + 366 * 86_400_000).toISOString() },
+            assumptions: [], formulaDependencies: [], scenarios: [], computedOutputs: [], reconciliations: [],
+            audit: { passed: false, checks: [], errors: ["normalized financials are missing"], warnings: [] },
+            sourceArtifactRefs: [], status: "blocked",
         };
         const check = validateFinancialModel(model);
-        if (!check.passed) model.audit = { passed: false, checks: model.audit.checks, errors: [...new Set([...model.audit.errors, ...check.errors])] };
+        if (!check.passed) {
+          model.status = "blocked";
+          model.audit = { ...model.audit, passed: false, errors: [...new Set([...model.audit.errors, ...check.errors])] };
+        }
         return this.store.putArtifact({ ...base, kind: "financial_model", title: "结构化财务模型", status: model.status === "ready" && model.audit.passed ? "verified" : "draft", data: { ...model, validation: check }, sourceRefs: normalizedArtifact?.sourceRefs || [] });
       }
       case "model_audit": {
@@ -795,10 +865,11 @@ export class AgentKernel {
         const valuation: ValuationAnalysisData = {
           asOf: model?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString(),
           financialModelRef: modelArtifact?.id || "", modelAuditRef: auditArtifact?.id || "", currency: model?.currency || "CNY", unit: model?.unit || "元",
-          methods: [], assumptions: [], sensitivities: [], status: audit?.passed ? "ready" : "blocked",
-          blockers: audit?.passed ? undefined : ["财务模型审计未通过；估值分析被阻断。"],
+          methods: [], assumptions: [], sensitivities: [], status: "blocked",
+          blockers: [audit?.passed ? "缺少经验证的预测输出、估值方法、估值假设与敏感性输入；禁止生成空估值。" : "财务模型审计未通过；估值分析被阻断。"],
         };
-        return this.store.putArtifact({ ...base, kind: "valuation_analysis", title: "估值分析", status: valuation.status === "ready" ? "verified" : "draft", data: valuation, sourceRefs: modelArtifact?.sourceRefs || [] });
+        const valuationCheck = validateValuationAnalysis(valuation, model, audit?.passed === true);
+        return this.store.putArtifact({ ...base, kind: "valuation_analysis", title: "估值分析", status: valuationCheck.passed ? "verified" : "draft", data: { ...valuation, validation: valuationCheck }, sourceRefs: modelArtifact?.sourceRefs || [] });
       }
       case "thesis_update": {
         const sourceArtifactRefs = inputArtifacts.map((artifact) => artifact.id);
@@ -833,7 +904,7 @@ export class AgentKernel {
       }
       case "judgment": {
         const evaluations = inputArtifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估");
-        const evaluationData = evaluations.map((artifact) => artifact.data as { sufficient?: boolean; requirementFulfilled?: boolean; evidenceRole?: string; facts?: Array<import("@/src/contracts").EvidenceFact & { ontologyFactRef?: string }> });
+        const evaluationData = evaluations.map((artifact) => artifact.data as { sufficient?: boolean; requirementFulfilled?: boolean; evidenceRole?: string; independentPublisherCount?: number; facts?: Array<import("@/src/contracts").EvidenceFact & { ontologyFactRef?: string }> });
         const evidenceFacts = evaluationData.flatMap((item) => item.facts || []);
         const evidenceRefs = evidenceFacts.map((fact) => fact.ontologyFactRef).filter((id): id is string => Boolean(id));
         const selectedMethods = inputArtifacts.find((artifact) => artifact.kind === "method_application") || [...artifacts].reverse().find((artifact) => artifact.kind === "method_application");
@@ -843,7 +914,14 @@ export class AgentKernel {
         const supportSatisfied = evaluationData.filter((item) => item.evidenceRole === "support").every((item) => item.requirementFulfilled === true);
         const counterSearched = evaluationData.some((item) => item.evidenceRole === "counter" && item.requirementFulfilled === true);
         const boundarySatisfied = evaluationData.filter((item) => item.evidenceRole === "boundary").every((item) => item.requirementFulfilled === true);
-        const hasQualified = supportSatisfied && counterSearched && boundarySatisfied && methodInputsReady;
+        const maximumIndependentPublishers = Math.max(0, ...evaluationData.map((item) => Number(item.independentPublisherCount || 0)));
+        const evidenceGrade: EvidenceGrade = !evidenceFacts.length ? "Q0" : maximumIndependentPublishers < 2 ? "Q1" : supportSatisfied && boundarySatisfied ? "Q3" : "Q2";
+        const thresholdEvaluation = evaluateJudgmentThreshold({
+          evidenceGrade,
+          counterevidenceStatus: counterSearched ? "cleared" : "not_checked",
+          pathReadiness: methodInputsReady ? "ready" : coreMethod ? "restricted" : "blocked",
+        });
+        const hasQualified = supportSatisfied && counterSearched && boundarySatisfied && methodInputsReady && ["J2", "J3", "J4"].includes(thresholdEvaluation.maxLevel);
         const computed = this.functions.execute("ComputeJudgmentProposal", { caseRef: task.researchCaseId, evidenceRefs, hypothesisRefs: [], statement: hasQualified ? "证据门槛已满足，等待研究员复核。" : "暂不可判断" });
         const executedMethods = hasQualified ? assessResearchMethods(assessedMethods, evidenceFacts, true) : assessedMethods;
         if (selectedMethods) this.store.reviseArtifacts([{ id: selectedMethods.id, expectedVersion: selectedMethods.version, data: executedMethods, createdBy: "ComputeJudgmentProposal" }]);
@@ -864,9 +942,11 @@ export class AgentKernel {
           methodApplicationRefs: executedCore ? [executedCore.id] : [],
           methodGateStatus: executedCore?.gateStatus || "blocked",
           judgmentType: executedCore?.judgmentType,
+          judgmentLevel: thresholdEvaluation.maxLevel,
+          thresholdEvaluation,
           signalInputs,
           signalRoles,
-          reasoningRule: { ruleRef: "judgment_evidence_threshold", conditions: [
+          reasoningRule: { ruleRef: thresholdEvaluation.policyRef, conditions: [
             { id: "verified_evidence", label: "所有信号输入均为已核验 EvidenceFact", passed: signalInputs.length > 0 },
             { id: "executed_method_application", label: "核心 MethodApplication 已执行并通过", passed: executedCore?.executionStatus === "executed" && executedCore.gateStatus === "passed" },
             { id: "support_signal_present", label: "本单元满足支持证据要求", passed: supportSatisfied },
@@ -916,11 +996,11 @@ export class AgentKernel {
         const report = this.store.putArtifact({ ...base, kind: "report", title: draft.title, data: { ...(draft.data as unknown as Record<string, unknown>), judgmentBundleRefs: atomicJudgments.map((item) => item.id), synthesisArtifactRef: synthesis?.id }, sourceRefs: draft.sourceRefs });
         const caseObject = this.actions.ontology.getObject(task.researchCaseId);
         if (!caseObject) throw new Error(`ResearchCase not found: ${task.researchCaseId}`);
-        const ontologyJudgmentRef = judgment && typeof judgment.data === "object" ? String((judgment.data as { ontologyJudgmentRef?: string }).ontologyJudgmentRef || "") : "";
+        const ontologyJudgmentRefs = atomicJudgments.map((item) => typeof item.data === "object" ? String((item.data as { ontologyJudgmentRef?: string }).ontologyJudgmentRef || "") : "").filter(Boolean);
         const created = this.actions.apply("CreateResearchDeliverable", {
           targetRefs: [{ id: caseObject.id, type: caseObject.type }],
           parameters: {
-            title: report.title, artifactRef: report.id, judgmentRefs: ontologyJudgmentRef ? [ontologyJudgmentRef] : [],
+            title: report.title, artifactRef: report.id, judgmentRefs: ontologyJudgmentRefs,
             reportKind: task.reportSpec.kind, audience: task.reportSpec.audience, depth: task.reportSpec.depth,
             reportSpecVersion: task.reportSpec.version, sectionKeys: task.reportSpec.sections,
           },
@@ -1118,6 +1198,7 @@ export class AgentKernel {
     if (!signalInputs.some((item) => signalRoles[item.evidenceFactRef] === "support")) throw new Error("Judgment reasoning requires at least one researcher-confirmed support signal");
     if (signalInputs.some((item) => signalRoles[item.evidenceFactRef] === "block")) throw new Error("A supported Judgment cannot be approved while a block signal is present");
     if (!data.judgmentType) throw new Error("Judgment reasoning requires a governed judgment type");
+    if (!data.judgmentLevel || !data.thresholdEvaluation || data.judgmentLevel !== data.thresholdEvaluation.maxLevel) throw new Error("Judgment approval requires a deterministic threshold evaluation");
     const evidenceArtifact = [...this.store.listArtifacts(task.id)].reverse().find((item) => item.kind === "evidence_package" && item.title === "证据评估");
     const cutoffAt = evidenceArtifact?.sourceRefs.map((source) => source.capturedAt).sort().at(-1) || new Date().toISOString();
     const caseObject = this.actions.ontology.getObject(task.researchCaseId);
@@ -1164,7 +1245,7 @@ export class AgentKernel {
       request: {
         targetRefs: caseTarget,
         parameters: {
-          statement, judgmentType, timeHorizon, epistemicStatus: "supported",
+          statement, judgmentType, timeHorizon, epistemicStatus: "supported", judgmentLevel: data.judgmentLevel, thresholdEvaluation: data.thresholdEvaluation,
           confidence: ["low", "medium", "high"].includes(String(data.confidence)) ? data.confidence : "medium",
           scopeRef: scope.id, judgmentUnitRef: judgmentUnit.id, cutoffAt, evidenceRefs, methodApplicationRefs,
           signalInputs: signalInputs.map((item) => ({ evidenceFactRef: item.evidenceFactRef, statement: item.statement, role: signalRoles[item.evidenceFactRef] || "context" })),

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Budget, ResearchIntent } from "@/src/contracts";
+import type { Budget, FrontierRef, ResearchIntent } from "@/src/contracts";
 import { RESEARCH_NODE_CATALOG } from "@/src/runtime/node-catalog";
 import { classifyIntent, planResearch, type PlannedNode, type ResearchPlan } from "@/src/runtime/planner";
 
@@ -10,6 +10,7 @@ export interface PlannerProposalNode {
   dependsOn: string[];
   budget?: Partial<Budget>;
   reason?: string;
+  frontierRef?: FrontierRef;
 }
 
 export interface PlannerProposal {
@@ -21,7 +22,7 @@ export interface PlannerProposal {
 }
 
 export interface PlanDiagnostic {
-  code: "intent_mismatch" | "unknown_node" | "duplicate_key" | "missing_node" | "invalid_dependency" | "cycle" | "budget_exceeded" | "invalid_shape";
+  code: "intent_mismatch" | "unknown_node" | "duplicate_key" | "missing_node" | "missing_frontier" | "invalid_dependency" | "cycle" | "budget_exceeded" | "invalid_shape";
   severity: "error" | "warning";
   message: string;
   nodeKey?: string;
@@ -61,6 +62,11 @@ function addDependency(nodes: PlannerProposalNode[], kind: string, dependencyKin
   if (node && dependency && !node.dependsOn.includes(dependency.key)) node.dependsOn.push(dependency.key);
 }
 
+const fallbackFrontier = (kind: string): FrontierRef => ({
+  problemGraphId: "pending-problem-graph",
+  compilerBoundary: kind === "compose" ? "compose" : kind === "audit" ? "audit" : kind === "judgment" || kind === "synthesis" ? "synthesis" : "scope",
+});
+
 function repairProposal(input: PlannerProposal, expectedIntent: ResearchIntent, budget: Budget, diagnostics: PlanDiagnostic[]): ResearchPlan {
   const used = new Set<string>();
   const nodes: PlannerProposalNode[] = [];
@@ -72,12 +78,14 @@ function repairProposal(input: PlannerProposal, expectedIntent: ResearchIntent, 
     const requestedKey = node.key?.trim() || node.kind;
     const key = used.has(requestedKey) ? uniqueKey(node.kind, used) : (used.add(requestedKey), requestedKey);
     if (key !== requestedKey) diagnostics.push({ code: "duplicate_key", severity: "error", message: `Duplicate key renamed to ${key}`, nodeKey: requestedKey, repaired: true });
-    nodes.push({ key, kind: node.kind, title: node.title?.trim() || TITLES[node.kind], dependsOn: Array.isArray(node.dependsOn) ? [...node.dependsOn] : [], budget: node.budget, reason: node.reason });
+    const frontierRef = node.frontierRef?.problemGraphId ? node.frontierRef : fallbackFrontier(node.kind);
+    if (!node.frontierRef?.problemGraphId) diagnostics.push({ code: "missing_frontier", severity: "error", message: `Missing frontierRef repaired for ${key}`, nodeKey: key, repaired: true });
+    nodes.push({ key, kind: node.kind, title: node.title?.trim() || TITLES[node.kind], dependsOn: Array.isArray(node.dependsOn) ? [...node.dependsOn] : [], budget: node.budget, reason: node.reason, frontierRef });
   }
   for (const kind of REQUIRED[expectedIntent]) {
     if (nodes.some((node) => node.kind === kind)) continue;
     const key = uniqueKey(kind, used);
-    nodes.push({ key, kind, title: TITLES[kind], dependsOn: [], reason: "deterministic compiler inserted required boundary node" });
+    nodes.push({ key, kind, title: TITLES[kind], dependsOn: [], reason: "deterministic compiler inserted required boundary node", frontierRef: fallbackFrontier(kind) });
     diagnostics.push({ code: "missing_node", severity: "error", message: `Required node inserted: ${kind}`, nodeKey: key, repaired: true });
   }
   const keys = new Set(nodes.map((node) => node.key));
@@ -124,6 +132,7 @@ function validate(plan: ResearchPlan, expectedIntent: ResearchIntent, budget: Bu
   const keys = new Set<string>();
   for (const node of plan.nodes) {
     if (!allowedKinds.has(node.kind)) diagnostics.push({ code: "unknown_node", severity: "error", message: `Unknown node kind: ${node.kind}`, nodeKey: node.key, repaired: false });
+    if (!node.frontierRef?.problemGraphId) diagnostics.push({ code: "missing_frontier", severity: "error", message: `Missing frontierRef: ${node.key}`, nodeKey: node.key, repaired: false });
     if (keys.has(node.key)) diagnostics.push({ code: "duplicate_key", severity: "error", message: `Duplicate key: ${node.key}`, nodeKey: node.key, repaired: false });
     keys.add(node.key);
   }

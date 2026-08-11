@@ -15,6 +15,7 @@ export interface ModelResult {
 
 export interface ModelProvider {
   readonly id: string;
+  readonly modelId?: string;
   generate(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult>;
 }
 
@@ -24,7 +25,8 @@ export class ModelProviderError extends Error {
 
 export class OpenAICompatibleProvider implements ModelProvider {
   readonly id: string;
-  constructor(private readonly config: { apiKey: string; baseUrl: string; model: string; id?: string; structuredOutput?: "json_schema" | "json_object" | "prompt_only"; thinking?: "enabled" | "disabled" }) { this.id = config.id || "openai-compatible"; }
+  readonly modelId: string;
+  constructor(private readonly config: { apiKey: string; baseUrl: string; model: string; id?: string; structuredOutput?: "json_schema" | "json_object" | "prompt_only"; thinking?: "enabled" | "disabled" }) { this.id = config.id || "openai-compatible"; this.modelId = config.model; }
 
   async generate(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult> {
     const structuredSystem = request.responseSchema && this.config.structuredOutput === "json_object"
@@ -51,7 +53,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
 
 export class AnthropicProvider implements ModelProvider {
   readonly id = "anthropic";
-  constructor(private readonly config: { apiKey: string; model: string }) {}
+  readonly modelId: string;
+  constructor(private readonly config: { apiKey: string; model: string }) { this.modelId = config.model; }
 
   async generate(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult> {
     const response = await fetch("https://api.anthropic.com/v1/messages", {

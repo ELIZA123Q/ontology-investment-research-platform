@@ -54,7 +54,7 @@ const compareRelease = (kind: "skills" | "agents" | "tools", runtime: Array<{ id
   }
 };
 compareRelease("skills", [...SKILLS]);
-compareRelease("agents", [...AGENTS].map((agent) => ({ ...agent, lifecycle: agent.lifecycle === "planned" ? "candidate" : agent.lifecycle, version: "1.0.0" })));
+compareRelease("agents", [...AGENTS]);
 compareRelease("tools", [...TOOLS]);
 const activeAgents = AGENTS.filter((agent) => agent.lifecycle === "active");
 const releasedActiveAgents = CAPABILITY_RELEASE.agents.filter((agent) => agent.lifecycle === "active").map((agent) => agent.id).sort();

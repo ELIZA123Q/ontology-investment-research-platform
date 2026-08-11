@@ -5,7 +5,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(v
 /**
  * The public API accepts the documented flat action contract. A legacy
  * `{ request, context }` envelope remains readable so existing local callers do
- * not break during the 4.0 cutover.
+ * not break while local pre-vNext callers are migrated.
  */
 export function parseActionHttpBody(value: unknown): { request: ActionPreviewRequest; context: ActionContext } {
   if (!isRecord(value)) throw new Error("Action request body must be an object");

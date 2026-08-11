@@ -53,11 +53,15 @@ export class ModelGateway {
   constructor(private readonly store: RuntimeStore, private readonly provider: ModelProvider) {}
 
   async generate(request: ModelGatewayRequest, outerSignal?: AbortSignal): Promise<ModelGatewayResult> {
-    if (request.dataPolicy === "restricted_no_egress" && this.provider.id !== "local") throw new Error("Model data policy forbids external egress");
     const contextHash = hash({ system: request.system, prompt: request.prompt });
-    const fingerprint = hash({ provider: this.provider.id, operation: request.operation, promptVersion: request.promptVersion, schemaVersion: request.schemaVersion, responseSchema: request.responseSchema, contextHash });
+    const fingerprint = hash({ provider: this.provider.id, model: this.provider.modelId || "provider-default", operation: request.operation, promptVersion: request.promptVersion, schemaVersion: request.schemaVersion, schemaName: request.schemaName, responseSchema: request.responseSchema, maxOutputTokens: request.maxOutputTokens, dataPolicy: request.dataPolicy || "private_authorized", contextHash });
     const startedAt = new Date().toISOString();
     const started = Date.now();
+    if (request.dataPolicy === "restricted_no_egress" && this.provider.id !== "local") {
+      const error = "Model data policy forbids external egress";
+      this.store.recordModelCall({ operation: request.operation, fingerprint, provider: this.provider.id, model: this.provider.modelId || "unknown", promptVersion: request.promptVersion, schemaVersion: request.schemaVersion, contextHash, status: "blocked", attempts: 0, cacheHit: false, latencyMs: Date.now() - started, error, createdAt: startedAt });
+      throw new Error(error);
+    }
     if (request.cache !== "bypass") {
       const cached = this.store.getCachedModelResult<ModelResult>(`model-gateway:${fingerprint}`);
       if (cached) {

@@ -12,6 +12,7 @@ critical_assets:
   - 05_control_evaluation/01_rules/policies/parameter_authority_matrix.yaml
   - 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
   - 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml
+  - 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
   - 05_control_evaluation/01_rules/contracts/public_contract.yaml
   - 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
 
