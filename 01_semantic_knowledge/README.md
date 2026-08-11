@@ -1,27 +1,65 @@
-# 语义知识域
+# 语义知识域 — 系统认识世界的概念表
 
 > 第一次接触项目？先读仓库根目录 [`README.md`](../README.md)。
 
-这里回答「系统如何理解世界」：用哪些概念、统一叫什么、对象之间是什么关系、证据对象及其溯源关系在语义上如何定义，以及这些语义如何组织成可查询、可追溯的图视图。
+这里定义「系统认识什么」。好比研究员的术语手册——概念怎么定义、术语怎么统一、对象之间什么关系，都在这里。系统做研究时引用的概念，都必须在这里登记过。
 
-**不负责**「怎么做一次研究」（那是任务域与 Runtime）。
+**不管**「怎么做一次研究」（那是 `02_scenario_task/` 和 `06_runtime/` 的事）。
 
-## 给谁看
+## 里面有什么
 
-- **研究员**：查名词、证据对象定义、理解「系统认什么事实」
-- **维护者**：改本体/词典/图合同后的登记与校验
+| 子目录 | 一句话说明 | 你需要管吗 |
+|--------|-----------|-----------|
+| [`01_ontology/`](01_ontology/README.md) | **本体**：系统认识哪些对象、对象之间什么关系、状态怎么变化 | 加新概念或关系时改 |
+| [`02_dictionary/`](02_dictionary/README.md) | **词典**：自然语言到标准术语的翻译表（比如「营收」=「营业收入」） | 加新术语或同义词时改 |
+| [`03_knowledge_graph/`](03_knowledge_graph/README.md) | **知识图规则**：图怎么组织、什么关系允许画线、怎么追溯 | 改图结构规则时改 |
 
-## 材料从哪来
+> 总登记见 [`registry.yaml`](registry.yaml)。
 
-| 子目录 | 白话含义 | 权威位置 |
-|---|---|---|
-| [`01_ontology/`](01_ontology/README.md) | 通用正式模型（含证据与 provenance 对象/关系类型）、领域正式扩展、状态变化规则 | 本目录下 ontology 正文与 `platform_registry.yaml` |
-| [`02_dictionary/`](02_dictionary/README.md) | 人话 → 标准语义的归一化（别名/歧义/研究用语） | 词典 YAML；语义权威仍在 ontology |
-| [`03_knowledge_graph/`](03_knowledge_graph/README.md) | 图怎么组织成可查询可追溯的视图 | 图合同 YAML |
+## 日常怎么用
 
-总登记见 [`registry.yaml`](./registry.yaml)。跨域职责边界见仓库根目录 [`README.md`](../README.md) 与 [`06_runtime/ARCHITECTURE.md`](../06_runtime/ARCHITECTURE.md)。
+- **查概念定义**：去 `01_ontology/` 找对应的 YAML 文件
+- **查术语映射**：去 `02_dictionary/` 找同义词和歧义规则
+- **查图结构规则**：去 `03_knowledge_graph/` 找图合同
 
-补充边界：
+## 怎么维护
+
+1. 新增或修改概念/术语/图规则，写在对应子目录的 YAML 文件里
+2. 更新对应子目录的 `registry.yaml`
+3. 改完跑校验：
+   ```bash
+   cd 06_runtime
+   npm run domain:sync     # 同步到程序
+   ```
+4. 如果改了本体，还要跑：
+   ```bash
+   python3 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
+   ```
+5. **不要在 `06_runtime/` 里另写一套概念定义** — 06 只消费这里的定义
+
+## 常见问题
+
+**Q：本体和词典有什么区别？**
+A：本体是「系统认识哪些对象」（比如「公司」是一个对象，「供应链关系」是一种关系）。词典是「同一个东西有哪些叫法」（比如「营收」「收入」「营业收入」是同一个概念的不同说法）。
+
+**Q：什么是「平台注册表」？**
+A：`01_ontology/platform_registry.yaml` 是系统的唯一机器入口——程序通过这个文件找到所有本体定义。改了本体文件，要确保注册表里登记了。
+
+**Q：行业专属参数放哪？**
+A：通用概念放 `01_ontology/models/`；半导体专属扩展放 `01_ontology/domains/semiconductor/`。不要混放。
+
+---
+
+## 技术附录（给开发维护者）
+
+| 项 | 值 |
+|----|-----|
+| status | `active` |
+| write_entry | `01_semantic_knowledge/` |
+| 上位 | [`README.md`](../README.md) |
+| 权威查找顺序 | 根目录职责地图 → 本域 registry → 子域 registry |
+
+### 边界补充
 
 - 通用类型定义位于 `01_ontology/models/`
 - 行业专属正式扩展位于 `01_ontology/domains/<domain>/ontology_extension.yaml`
@@ -30,25 +68,8 @@
 - 本体唯一机器入口：[`01_ontology/platform_registry.yaml`](01_ontology/platform_registry.yaml)
 - 本体校验：[`05_control_evaluation/04_verifiers/ontology/validate_ontology.py`](../05_control_evaluation/04_verifiers/ontology/validate_ontology.py)
 
-## 怎么用
+### 跨域引用
 
-1. 先明确你是要查**概念定义**（ontology/dictionary，含 EvidenceFact / provenance）还是**关系结构**（knowledge_graph）。
-2. 打开对应子目录 README，按「最短路径」进正文；证据对象权威见 [`01_ontology/models/evidence.yaml`](01_ontology/models/evidence.yaml)。
-3. 如需查找语义域之外的取证方法与数据访问能力：来源速查与 OPS 见 [`03_agent_capability/02_skills/evidence_research/references/`](../03_agent_capability/02_skills/evidence_research/references/README.md)；MCP 通道见 [`03_agent_capability/04_protocols/mcp/`](../03_agent_capability/04_protocols/mcp/README.md)。
-
-## 怎么维护
-
-- 新增或修改正式语义对象：写入本域对应子目录，并更新本域/`子域` registry。
-- 改完跑项目与本体相关校验（见 [`05_control_evaluation/04_verifiers/`](../05_control_evaluation/04_verifiers/README.md) 与 ontology 子目录说明）。
-- 不要在 Runtime 里另写一套「平行本体」；Runtime 只消费登记过的语义。
-
----
-
-## 维护者附录（可跳过）
-
-| 项 | 值 |
-|----|----|
-| status | `active` |
-| write_entry | `01_semantic_knowledge/` |
-| 上位 | [`README.md`](../README.md) |
-| 权威查找顺序 | 根目录职责地图 → 本域 registry → 子域 registry |
+- 取证方法与数据访问能力：[`03_agent_capability/02_skills/evidence_research/references/`](../03_agent_capability/02_skills/evidence_research/references/README.md)
+- MCP 通道：[`03_agent_capability/04_protocols/mcp/`](../03_agent_capability/04_protocols/mcp/README.md)
+- 跨域职责边界：[`06_runtime/ARCHITECTURE.md`](../06_runtime/ARCHITECTURE.md)

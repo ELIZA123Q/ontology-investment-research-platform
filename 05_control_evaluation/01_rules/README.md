@@ -1,11 +1,21 @@
-# Rules
+# 规则 — 系统必须遵守什么
 
-这里回答「系统必须遵守什么规则」。只保存由 Control Plane 拥有的公共约束、阈值和知识晋升规则；研究规划、取证、报告与 Runtime 合同分别跟随其 owner。
+> 上级目录：[`05_control_evaluation/`](../README.md) | 根目录：[`README.md`](../../README.md)
 
-| 区域 | 内容 |
-|---|---|
-| `policies/` | 规则权威、参数权威、判断阈值、方法路由 |
-| `contracts/` | 跨阶段公共语义与包类型 |
-| `knowledge_promotion/` | Candidate → Evaluation → Release → Usage 的规则 |
+这里保存系统必须遵守的公共约束、阈值和知识晋升规则。好比投研团队的合规手册——什么必须做、什么不能做、什么需要审批。
 
-规则是否被满足由 [`../04_verifiers/`](../04_verifiers/README.md) 判定；规则带来的研究价值由 [`../05_evals/`](../05_evals/README.md) 评估。
+## 里面有什么
+
+| 子目录 | 一句话说明 |
+|--------|-----------|
+| `policies/` | **策略**：规则权威、参数权威、判断阈值、方法路由 |
+| `contracts/` | **合同**：跨阶段公共语义与包类型 |
+| `knowledge_promotion/` | **知识晋升规则**：候选 → 评测 → 发布 → 使用 |
+
+> 规则是否被满足由 [`../04_verifiers/`](../04_verifiers/README.md) 判定；规则带来的研究价值由 [`../05_evals/`](../05_evals/README.md) 评估。
+
+## 怎么维护
+
+- 只保存 Control Plane 拥有的公共约束
+- 研究规划、取证、报告与 Runtime 合同分别跟随各自的 owner 目录
+- 不要把其他域的合同副本复制到这里

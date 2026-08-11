@@ -1,84 +1,67 @@
-# 知识图合同
+# 知识图合同 — 图的图纸规范
 
-这里只回答四个问题：
+> 上级目录：[`01_semantic_knowledge/`](../README.md) | 根目录：[`README.md`](../../README.md)
 
-1. **图有哪些类型**（领域语义图 / 研究溯源图）
-2. **节点与边怎么表示**
-3. **两类图怎么区分**
-4. **什么关系允许投影 / 追溯**
+这里定义「对象和关系怎么组织成可查询、可追溯的图」。好比建筑图纸规范——规定墙怎么画、门怎么标，但不负责某栋楼具体怎么盖。
 
-可以把它理解成**图纸规范**，不是某一次研究画出来的那张具体图。
+## 里面有什么
 
-## 一句话定位
+| 文件 | 一句话说明 |
+|------|-----------|
+| `contracts/graph_schema.yaml` | **图基础结构**：Graph/Object/Relation 怎么表示 |
+| `contracts/graph_views.yaml` | **两类图怎么区分**：领域语义图 vs 研究溯源图 |
+| `contracts/relation_policy.yaml` | **入图规则**：什么关系允许画线（含禁止推断业务事实） |
+| `contracts/projection_policy.yaml` | **投影方向**：图和制品怎么单向投影（禁止双向同步） |
+| `contracts/trace_policy.yaml` | **追溯方向**：下游失效怎么传播 |
 
-> Ontology 定义「世界里有什么对象和关系」；Knowledge Graph 定义「这些对象和关系如何组织成可查询、可追溯的图视图」；Runtime 负责「某一次研究如何把实例真正写进图里」。
+## 日常怎么用
 
-再补一条边界：
+1. **查图结构规则** → 读 `contracts/` 下的 YAML
+2. **看某次研究的实例数据** → 去 `06_runtime/`，不要改合同来「修一次结果」
+3. **正式图和制品之间** → 从图单向投影，不要手工双向同步
 
-> **Research Provenance Graph = 研究结论为什么成立**；**Execution Trace = 这次 Agent 怎么跑出来的**。Knowledge Graph 只管前者。
+## 怎么维护
 
-## 给谁看
+- 改图纸规范只改本目录合同和 `registry.yaml`
+- 关系类型本身改 `01_ontology/`，这里只改「如何入图」
+- **禁止**把 UI 临时布局、单次运行结果、数据库操作、固定阶段序列写进本目录
+- 改完跑语义/项目校验与 Runtime 测试
 
-- **研究员**：理解「领域语义图」和「研究溯源图」为什么分开
-- **维护者**：改图合同与入图策略
+## 常见问题
 
-## 本目录有什么
+**Q：两类图有什么区别？**
+A：**领域语义图**（Domain Semantic Graph）描述「世界里有什么」——稳定的世界模型。**研究溯源图**（Research Provenance Graph）描述「结论为什么成立」——一次研究的证据链。两者不能混。
 
-```text
-03_knowledge_graph/
-├── README.md
-├── registry.yaml
-└── contracts/
-    ├── graph_schema.yaml        # Graph / Object / Relation 基础结构
-    ├── graph_views.yaml         # Domain Semantic vs Research Provenance
-    ├── relation_policy.yaml     # 关系如何进入图（含禁止推断业务事实）
-    ├── projection_policy.yaml   # 投影方向与禁止双向同步
-    └── trace_policy.yaml        # 下游失效传播方向
-```
+**Q：什么是「可以补结构，不可以补业务事实」？**
+A：已有明确关系的对象可以画线（补结构），但不能因为两个对象恰好在同一个研究范围里就推断它们有业务关系（补事实）。事实必须由证据支撑。
 
-## 本目录不负责
+---
+
+## 技术附录（给开发维护者）
+
+| 项 | 值 |
+|----|-----|
+| status | active |
+| 读面策略 | 正式图可用且指纹可验证时，读面从图单向投影；禁止制品 ↔ 图双向手工同步 |
+| 运行时边界 | 仅支持 vNext TaskGraph/Artifact 投影；历史包不在工作树内继续兼容 |
+
+### 边界
+
+- Runtime 图边界类型：[`06_runtime/src/semantic/graph-contracts.ts`](../../06_runtime/src/semantic/graph-contracts.ts)
+- 制品与来源校验：[`06_runtime/src/governance/verifiers.ts`](../../06_runtime/src/governance/verifiers.ts)
+
+### 硬原则
+
+- 已有显式 Ontology 关系（如 `produces`）→ 可以物化边
+- 领域权威 `business_instances` 已确认 → 可以引用
+- 经 authority gate 确认、且登记了图投影的研究制品 → 可以入研究溯源图
+- 仅仅因为两个对象同处一个 ResearchScope → **不生成业务关系**
+- 正式图不依赖固定 Workflow 或阶段序列
+
+### 本目录不负责
 
 - 从数据库读哪个 artifact
 - 具体 TaskGraph 或 Artifact 如何物化为图
 - 一次 run 如何生成 provisional graph
 - 怎么读 workspace
-- 历史 CSV 兼容校验
-- Task / TaskNode / AgentRun / Event / Checkpoint（Execution Trace）
-
-这些分别在：
-
-| 职责 | 位置 |
-|---|---|
-| Runtime 图边界类型 | [`06_runtime/src/semantic/graph-contracts.ts`](../../06_runtime/src/semantic/graph-contracts.ts) |
-| 制品与来源校验 | [`06_runtime/src/governance/verifiers.ts`](../../06_runtime/src/governance/verifiers.ts) |
-
-## 硬原则
-
-**Knowledge Graph 可以补结构，不可以补业务事实。**
-
-- 已有显式 Ontology 关系（如 `produces`）→ 可以物化边
-- 领域权威 `business_instances` 已确认 → 可以引用
-- 经 authority gate 确认、且登记了图投影的研究制品 → 可以入研究溯源图
-- **仅仅因为两个对象同处一个 ResearchScope → 不生成业务关系**
-- **正式图不依赖固定 Workflow 或阶段序列**
-
-## 怎么用
-
-1. 要查图结构 / 视图 / 入图策略 → 读本目录 `contracts/`。
-2. 要看某次研究留下的实例数据 → 去 Runtime / Workspace，不要改合同目录来「修一次结果」。
-3. 正式图存在且指纹一致时，读面应从**图单向投影**；不要手工双向同步研究制品与图。
-
-## 怎么维护
-
-- 改图纸规范只改本目录合同与 `registry.yaml`，并核对 Runtime `graph-contracts.ts`。
-- 关系类型本身仍改 `01_ontology`；这里只改「如何入图」。示例字段（`example_*`）不构成类型登记。
-- 禁止把 UI 临时布局、单次 run 物化结果、DB I/O、固定阶段序列写进本目录。
-- 改完跑语义/项目校验与 Runtime 测试。
-
----
-
-## 维护者附录（可跳过）
-
-- **status:** active（合同定稿：与 Workflow/Execution Trace 解耦）
-- **读面策略：** 正式图可用且指纹可验证时，读面从图单向投影；禁止制品 ↔ 图双向手工同步
-- **运行时边界：** 仅支持 vNext TaskGraph / Artifact 投影；历史包不在工作树内继续兼容
+- Task/TaskNode/AgentRun/Event/Checkpoint（Execution Trace）

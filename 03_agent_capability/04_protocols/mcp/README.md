@@ -1,44 +1,46 @@
-# MCP 通道
+# MCP 通道 — 怎么连接外部数据源
 
-工作台用来拉取公告、行情、研报、新闻等材料的 **MCP 通道配置与操作手册**。
+> 上级：[`04_protocols/`](../README.md) | 根目录：[`README.md`](../../../README.md)
 
-本目录只回答：**已经决定要从某个渠道获取以后，怎么连过去？**
+这里存放 MCP 通道的配置和操作手册。MCP 是连接外部数据源（公告、行情、研报、新闻等）的通道。
 
-来源路由（找谁、顺序、检索词、核验）见：
-[`evidence-research` / `source_routes.yaml`](../../02_skills/evidence_research/references/source_routes.yaml)
+> 本目录只回答：**已经决定要从某个渠道获取以后，怎么连过去？**
+> 来源路由（找谁、顺序、检索词、核验）见 [`evidence-research` / `source_routes.yaml`](../../02_skills/evidence_research/references/source_routes.yaml)
 
-## 给谁看
+## 里面有什么
 
-- **研究员：** 查该用哪条通道、参数怎么填、不可用时如何回退
-- **维护者：** 维护通道注册与 OPS 卡片
+| 文件 | 一句话说明 |
+|------|-----------|
+| `mcp_channels.yaml` | 通道清单（机器可读） |
+| `ops/B03_MCP通道注册.md` | 通道清单与上游来源对照 |
+| `ops/OPS_MCP查询快速参考.md` | 操作卡片（怎么查、参数怎么填） |
+| `registry.yaml` | 本目录登记 |
 
-## 材料从哪来
+## 日常怎么用
 
-| 资产 | 作用 |
-|---|---|
-| [`mcp_channels.yaml`](mcp_channels.yaml) | 机器可读通道清单 |
-| [`ops/B03_MCP通道注册.md`](ops/B03_MCP通道注册.md) | 通道清单与上游来源对照 |
-| [`ops/OPS_MCP查询快速参考.md`](ops/OPS_MCP查询快速参考.md) | 操作卡片 QP-MCP-* |
-| [`registry.yaml`](./registry.yaml) | 本目录登记 |
+1. 用 `evidence-research` 来源速查 / `source_routes` 确定「要找什么」
+2. 在 B03 映射到通道名
+3. 按 OPS 卡片调用，并按留痕模板记录
+4. MCP 不可用 → 走 OPS 回退链；**禁止**用 AI 训练数据编造
 
-**MCP ≠ 来源生产者。** 返回内容是线索/摘录时，写入正式证据前必须核验可核对原文。
+> **MCP ≠ 来源生产者。** 返回内容是线索/摘录时，写入正式证据前必须核验可核对原文。
 
 ## 接入状态
 
-以 `registry.yaml` 的 `adapter_status` 为准（当前：`htsc_industry_sentiment_mapping_live`）。
-统一结果合同与华泰行业景气度回执映射已落地，并已取得真实半导体月度样本；DataYes 财务表因积分不足暂不可用，其他 connector 完整映射仍在推进。
+以 `registry.yaml` 的 `adapter_status` 为准：
+
+| 通道 | 状态 |
+|------|------|
+| 华泰行业景气度 | 已落地，已取得真实半导体月度样本 |
+| DataYes 财务表 | 因积分不足暂不可用 |
+| 其他 connector | 完整映射仍在推进 |
 
 ## 凭证
 
-MCP credentials/config 由 Runtime / Harness 环境提供，项目仓库不保存凭证。
+MCP credentials/config 由 Runtime / Harness 环境提供，**项目仓库不保存凭证**。
 
-## 怎么用
+## 怎么维护
 
-1. 用 `evidence-research` 来源速查 / `source_routes` 确定「要找什么」。
-2. 在 B03 映射到通道名。
-3. 按 OPS 卡片调用，并按留痕模板记录。
-4. MCP 不可用 → 走 OPS 回退链；**禁止**用 AI 训练数据编造。
-
-## Runtime Tool
-
-对应 Tool：`source.query`（动作语义），底层通过 MCP adapter 连接各通道。
+- 新增/变更通道：更新 `mcp_channels.yaml`、B03、OPS
+- 保持「通道 ≠ 生产者」
+- 对应 Tool：`source.query`（动作语义），底层通过 MCP adapter 连接各通道

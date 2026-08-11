@@ -1,28 +1,33 @@
-# 上下文（Context）
+# 上下文 — 这一次 AI 能看见什么
 
-回答「这一次模型能看见什么」：按任务动态组装的临时视图，不是长期知识库。
+> 上级目录：[`04_context_state/`](../README.md) | 根目录：[`README.md`](../../README.md)
 
-## 给谁看
+回答「这一次 AI 调用时能看见哪些信息」。上下文是按任务动态组装的临时视图——用完即弃，不是长期知识库。好比开会时手边的资料：每次开会带不同的材料，开完就收起来。
 
-- **研究员：** 理解系统不会把所有历史一股脑塞进对话
-- **维护者：** Context 合同与 Runtime 装配实现对齐
+## 里面有什么
 
-## 材料从哪来
-
-- **合同：** [`contract.yaml`](./contract.yaml)（本域权威）
-- **实现：** `06_runtime/src/runtime/kernel.ts`（装配）、`06_runtime/src/contracts.ts#ContextPackage`（类型绑定）
-- 不放长期方法正文、正式本体权威副本、跨任务 Memory 正文
+| 文件 | 一句话说明 |
+|------|-----------|
+| `contract.yaml` | **合同**：上下文怎么组装的规则（本域权威） |
 
 ## 怎么用
 
-1. 日常无需手工维护 Context 目录。
-2. 改装配规则 → 先改 `contract.yaml`，再改 Runtime。
-3. ContextPackage 是单次调用临时对象；可经 Event 留痕，不建成「Context 中心」仓库。
-
-当前 Runtime 已实现引用清单、Knowledge Lock、版本/新鲜度和 token budget 留痕；`state / workspace / memory / capabilities / policies` 的显式分段仍是待对齐项。
+1. 日常无需手工维护——Runtime 按规则自动组装
+2. 改组装规则 → 先改 `contract.yaml`，再改 Runtime
+3. ContextPackage 是单次调用临时对象，**不建成**「Context 中心」仓库
 
 ## 怎么维护
 
-- 合同优先于实现描述；禁止把 Runtime 现状反向写成唯一规范而不更新合同。
-- 禁止把跨任务 Memory 或 Skill references 正文塞进 Context 目录。
-- **status:** active
+- 合同优先于实现描述
+- **禁止**把跨任务 Memory 或 Skill references 正文塞进 Context 目录
+- 当前 Runtime 已实现引用清单、Knowledge Lock、版本/新鲜度和 token budget 留痕；`state/workspace/memory/capabilities/policies` 的显式分段仍是待对齐项
+
+---
+
+## 技术附录（给开发维护者）
+
+| 项 | 值 |
+|----|-----|
+| 合同 | `contract.yaml`（本域权威） |
+| 实现 | `06_runtime/src/runtime/kernel.ts`（装配）、`06_runtime/src/contracts.ts#ContextPackage`（类型绑定） |
+| status | active |

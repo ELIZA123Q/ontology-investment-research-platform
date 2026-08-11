@@ -1,39 +1,54 @@
-# 上下文与状态域
+# 上下文与状态域 — 系统工作时看见什么、记住什么
 
 > 第一次接触项目？先读仓库根目录 [`README.md`](../README.md)。
 
-管理 Agent 运行过程中「当前看见什么、当前处于什么状态、跨任务记住什么、当前工作环境包含什么」。本域定义运行连续性相关合同，**不承担实际执行**；所有执行、事件处理、状态迁移与持久化由 [`06_runtime/`](../06_runtime/README.md) 实现。
+这里管理 AI 助手工作时的「运行连续性」——当前看见什么信息、任务做到哪一步了、跨任务记住什么、正在操作什么东西。好比研究员工作时的「桌面状态」：桌上摊开哪些资料、笔记翻到哪页、上次研究到哪了。
 
-## 给谁看
+**只定义规则**，不负责实际执行——所有执行由 [`06_runtime/`](../06_runtime/README.md) 实现。
 
-- **研究员**：理解系统如何保持连续工作（进度、记忆边界、工作产物归属）
-- **维护者**：Context / State / Memory / Workspace 合同与 Runtime 实现对齐
+## 里面有什么
 
-## 材料从哪来
+| 子目录 | 一句话说明 | 你需要管吗 |
+|--------|-----------|-----------|
+| [`01_context/`](01_context/README.md) | **当前看见什么**：这一次 AI 调用时能看见哪些信息（临时组装，用完即弃） | 一般不用管 |
+| [`02_state/`](02_state/README.md) | **做到哪了**：任务现在的状态、发生过什么事件、从哪里恢复 | 一般不用管 |
+| [`03_memory/`](03_memory/README.md) | **记住什么**：跨任务记住的偏好、历史、失败模式 | 改记忆策略时看 |
+| [`04_workspace/`](04_workspace/README.md) | **正在操作什么**：这一次任务的工作环境（文件存在 `06_runtime/.data/`） | 一般不用管 |
 
-| 子目录 | 一句话回答 |
-|---|---|
-| [`01_context/`](01_context/README.md) | 这一次模型能看见什么？ |
-| [`02_state/`](02_state/README.md) | 这个任务现在进行到哪里？ |
-| [`03_memory/`](03_memory/README.md) | 跨任务以后还记住什么？ |
-| [`04_workspace/`](04_workspace/README.md) | 这一次任务正在操作什么东西？ |
+## 日常怎么用
 
-## 怎么用
-
-1. 要看**现行系统怎么跑** → [`06_runtime/README.md`](../06_runtime/README.md)。
-2. 要改装配 / 状态 / 记忆 / 工作区规则 → 先改对应 `contract.yaml`，再同步 Runtime。
+- **要看系统怎么跑** → 去 [`06_runtime/README.md`](../06_runtime/README.md)
+- **要改运行规则** → 先改对应子目录的 `contract.yaml`，再同步 Runtime
 
 ## 怎么维护
 
-- 新的运行实现只进 `06_runtime/`；本域不放 Runtime 索引目录。
-- 合同变更时更新 [`registry.yaml`](./registry.yaml)，并保持与 `06_runtime` 实现一致。
-- 禁止把本机 SQLite 重新塞回本域。
+- 新的运行实现只进 `06_runtime/`，本域不放运行时代码
+- 合同变更时更新 [`registry.yaml`](registry.yaml)
+- **禁止把本机 SQLite 数据库文件塞回本域**
+
+## 常见问题
+
+**Q：Context 和 State 有什么区别？**
+A：Context 是「这一次 AI 调用看见什么」（临时组装，用完就扔）。State 是「这个任务现在什么状态」（持久保存，随时可查）。好比 Context 是你这次开会时手边的资料，State 是项目的整体进度记录。
+
+**Q：Memory 会把判断当真理记住吗？**
+A：不会。Memory 只记住偏好、历史和失败模式，不会把某次 Judgment 当永远正确的真理，也不是正式知识权威。
+
+**Q：Event、State、Checkpoint 什么关系？**
+A：Event 记录「发生过什么」（日志），State 描述「现在是什么」（当前状态），Checkpoint 是「从哪里继续」（恢复快照）。三层分工明确。
 
 ---
 
-## 维护者附录（可跳过）
+## 技术附录（给开发维护者）
 
-- **status:** active
-- **上位:** [`README.md`](../README.md) 与 [`06_runtime/ARCHITECTURE.md`](../06_runtime/ARCHITECTURE.md)
+| 项 | 值 |
+|----|-----|
+| status | active |
+| 上位 | [`README.md`](../README.md) 与 [`06_runtime/ARCHITECTURE.md`](../06_runtime/ARCHITECTURE.md) |
+
+### 核心概念
+
 - Context / State / Memory / Workspace 是连续性侧面，不是四种业务知识库
 - Event 记录发生过什么；State 描述现在是什么；Checkpoint 是 Runtime 恢复手段
+- ContextPackage 是单次调用临时对象，不建成「Context 中心」仓库
+- 物理存储在 `06_runtime/.data/`（由 Runtime 管理，不入 Git）

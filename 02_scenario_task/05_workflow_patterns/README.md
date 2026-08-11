@@ -1,9 +1,22 @@
-# Workflow Patterns
+# 工作模式 — 给规划器的优先级建议
 
-给 Planner 的图扩展与 frontier 选择 prior，不是固定阶段状态机。
+> 上级目录：[`02_scenario_task/`](../README.md) | 根目录：[`README.md`](../../README.md)
 
-活跃 pattern：`deep_research` / `quick_research` / `evidence_only`。
+这里给规划器（Planner）提供图扩展和任务选择的优先级建议。好比研究员可以选择「深研」还是「快研」——工作模式影响问题图扩多宽、一次选多少任务、何时重新规划。
 
-禁止恢复固定 01→05 controller；旧 Deep Research 阶段正文已删除。
+## 里面有什么
 
-Pattern 只影响“问题图扩多宽、一次选择多少 frontier、何时重规划”，不能覆盖 Task motif、Ontology 关系、节点白名单或确定性门槛。
+当前 3 个活跃模式：
+
+| 模式 | 一句话说明 |
+|------|-----------|
+| `deep_research` | 深度研究：问题图扩得宽，证据要求全 |
+| `quick_research` | 快速研究：问题图收窄，快速出结论 |
+| `evidence_only` | 仅取证：只找证据，不做判断 |
+
+## 怎么维护
+
+- Pattern 只影响「问题图扩多宽、一次选多少 frontier、何时重规划」
+- **不能**覆盖 Task motif、Ontology 关系、节点白名单或确定性门槛
+- **禁止**恢复固定 01→05 阶段状态机
+- 旧 Deep Research 阶段正文已删除

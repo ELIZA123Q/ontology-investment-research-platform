@@ -1,70 +1,144 @@
-# 投研判断工作台 Runtime
+# 运行时 — 唯一能跑起来的应用
 
 > 第一次接触项目？先读仓库根目录 [`README.md`](../README.md)。
 
-这是项目**唯一能真正跑起来**的应用与后台：网页、接口、研究 Agent、本地数据库都在这里。旧的「固定五阶段 Runtime」已退出，不要再按旧阶段状态机去理解。
+这是整个项目**唯一能真正运行**的部分：网页、接口、AI 执行引擎、数据库都在这里。01-05 定义的业务知识，06 负责加载、组合并执行。
 
-## 给谁看
+## 里面有什么
 
-- **研究员**：如何启动工作台、数据存在哪、日常交互期望什么
-- **开发维护者**：架构、API、验证命令（见文末附录）
+| 目录/文件 | 一句话说明 | 你需要管吗 |
+|----------|-----------|-----------|
+| `app/` | **网页和接口**：所有页面、API 路由、UI 组件 | 改界面时看 |
+| `src/` | **核心程序**：AI 引擎、规划器、数据库、能力绑定 | 改逻辑时看 |
+| `tests/` | 测试文件 | 改代码后要跑 |
+| `scripts/` | 脚本：生成投影、审计、评测、运维 | 运维时用 |
+| `connectors/akshare/` | A 股公开数据连接器（Python） | 改数据源时看 |
+| `.data/` | 运行数据：SQLite 数据库、日志（不入 Git） | 备份时管 |
+| `package.json` | 依赖和命令清单 | 加依赖时看 |
 
-## 材料从哪来
+## 日常怎么用
+
+### 启动系统
+
+**方式一（推荐）**：双击项目根目录的 `start-light.command`。自动检查环境、安装依赖、构建、启动、打开浏览器。
+
+**方式二（开发模式）**：
+```bash
+cd 06_runtime
+npm install        # 首次安装依赖
+npm run dev        # 启动网页服务
+```
+另开终端：
+```bash
+cd 06_runtime
+npm run worker     # 启动后台处理进程
+```
+访问 `http://127.0.0.1:3000`。
+
+### 做一次研究的流程
+
+1. 在网页上提出研究目标
+2. Research Lead（AI 助手）给出受约束的研究计划
+3. 你确认计划后，后台 Worker 自动执行
+4. 右侧实时展示证据、判断、报告等产出
+5. 证据和判断需要你确认后才会成为正式结论
+6. 报告通过审计后保持「已核验、未发布」，你确认发布才会正式输出
+
+> 系统不会编造证据。没有匹配来源或独立发布主体不足时，判断会降级为「暂不可判断」。
+
+## 怎么维护
+
+### 改了 01-05 的定义后
+
+```bash
+cd 06_runtime
+npm run domain:sync       # 把定义同步到程序
+npm run audit:domain      # 检查跨域引用一致性
+npm run audit:cutover     # 检查能力发布切换
+npm run build             # 重新构建
+```
+
+### 合并前必须通过的四项检查
+
+```bash
+npm test                  # 运行测试
+npm run typecheck         # 类型检查
+npm run audit:domain      # 跨域审计
+npm run build             # 构建
+```
+
+### 数据库维护
+
+| 命令 | 用途 |
+|------|------|
+| `npm run db:check` | 检查数据库完整性、列出已应用的 schema 迁移 |
+| `npm run db:backup -- /路径/备份.sqlite` | 先校验再一致性快照备份（省略路径写到 `.data/backups/`） |
+
+### 运行模式
+
+- **本地模式**（默认）：仅本机访问，适合单用户。`npm run start`
+- **服务器模式**：需配置身份、域名白名单和 CSRF 令牌。`npm run start:server`
+
+### 内部知识管理
+
+需要配置 `VNEXT_INTERNAL_ADMIN_TOKEN`（API 访问）和 `VNEXT_INTERNAL_UI_ENABLED=true`（界面访问）。
+
+## 常见问题
+
+**Q：AKShare 连接器是什么？必须装吗？**
+A：不必须。AKShare 是一个免费的 A 股公开数据接口，用于获取新闻和公告。首次启用需要本机有 `uv`（Python 包管理器）。没有它系统也能启动，只是「关注变化」功能会显示降级。
+
+**Q：模型（AI）调用怎么控制？**
+A：模型规划、推理和章节草拟都是**默认关闭**的，需要显式开启。设置 `VNEXT_PROVIDER`、对应密钥和开关环境变量。所有调用经过 Model Gateway 统一管理，记录用量、成本、延迟，执行超时和重试策略。AI 只能提出假设和候选判断，不能编造数值或越权引用。
+
+**Q：能力上线谁说了算？**
+A：由 [`03_agent_capability/releases/current.json`](../03_agent_capability/releases/current.json) 统一决定。12 个技能虽然都写好了，但只有 Release Manifest 中标记 `active` 且命中启用范围的才能在生产环境执行。
+
+**Q：报告发布后还能改吗？**
+A：判断卡和报告支持直接编辑，每次保存生成新版本。判断修改后需重新确认，报告修改后需重新审计。证据事实不能在界面中随意改写。报告通过审计后保持「已核验、未发布」，只有你在发布卡中明确确认，系统才会执行发布。
+
+---
+
+## 技术附录（给开发维护者）
+
+### 技术栈
+
+| 技术 | 版本 | 用途 |
+|------|------|------|
+| Next.js | 16.3.0 | Web 框架（App Router，webpack 模式） |
+| React | 19.2.7 | UI 库 |
+| TypeScript | 5.9.3 | 类型系统（strict，target ES2022） |
+| Zod | 4.4.3 | Schema 验证 |
+| Vitest | 4.1.10 | 测试框架 |
+| Node.js | 24 | 运行环境（内置 `node:sqlite`） |
+| tsx | 4.23.1 | TypeScript 脚本执行 |
+| Python 3.12 + uv | — | AKShare 连接器 |
+
+### 核心原则
+
+**确定性负责边界，Agent 负责路径。**
+
+### 关键文件索引
 
 | 内容 | 位置 |
-|---|---|
+|------|------|
 | 网页与 API | `app/` |
 | Agent 内核、存储、规划 | `src/runtime/`、`src/worker.ts` |
 | Ontology 5.0 Catalog 投影与 Action Service | `src/ontology/` |
 | Agent/Skill/Tool 定义与发布状态 | `../03_agent_capability/`（唯一定义权威） |
 | 可执行能力绑定 | `src/capabilities/registry.ts`（消费 03 生成投影） |
-| 本地会话数据 | 默认 `06_runtime/.data/vnext.sqlite` |
-| 知识沉淀人类说明 | [`05_control_evaluation/01_rules/knowledge_promotion.md`](../05_control_evaluation/01_rules/knowledge_promotion.md) |
-| 知识沉淀机器合同 | [`05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml`](../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml) |
-| 来源与事实晋级合同 | [`03_agent_capability/contracts/research_provenance_contract.yaml`](../03_agent_capability/contracts/research_provenance_contract.yaml) |
-| 动态规划编译合同 | [`02_scenario_task/contracts/research_planning_contract.yaml`](../02_scenario_task/contracts/research_planning_contract.yaml) |
-| 专业研报与章节方法合同 | [`02_scenario_task/contracts/report_generation_contract.yaml`](../02_scenario_task/contracts/report_generation_contract.yaml) |
-| AI 章节草拟合同 | [`03_agent_capability/contracts/ai_report_drafting_contract.yaml`](../03_agent_capability/contracts/ai_report_drafting_contract.yaml) |
-| 报告质量与正式评测准入合同 | [`05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml`](../05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml) |
-| 金融数据接入合同 | [`03_agent_capability/contracts/financial_data_ingestion_contract.yaml`](../03_agent_capability/contracts/financial_data_ingestion_contract.yaml) |
-| 外部连接器摄取合同 | [`03_agent_capability/contracts/connector_ingestion_contract.yaml`](../03_agent_capability/contracts/connector_ingestion_contract.yaml) |
+| 本地会话数据 | `.data/vnext.sqlite`（可用 `VNEXT_DB_PATH` 覆盖） |
+| 知识沉淀人类说明 | [`../05_control_evaluation/01_rules/knowledge_promotion.md`](../05_control_evaluation/01_rules/knowledge_promotion.md) |
+| 知识沉淀机器合同 | [`../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml`](../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml) |
+| 来源与事实晋级合同 | [`../03_agent_capability/contracts/research_provenance_contract.yaml`](../03_agent_capability/contracts/research_provenance_contract.yaml) |
+| 动态规划编译合同 | [`../02_scenario_task/contracts/research_planning_contract.yaml`](../02_scenario_task/contracts/research_planning_contract.yaml) |
+| 专业研报与章节方法合同 | [`../02_scenario_task/contracts/report_generation_contract.yaml`](../02_scenario_task/contracts/report_generation_contract.yaml) |
+| AI 章节草拟合同 | [`../03_agent_capability/contracts/ai_report_drafting_contract.yaml`](../03_agent_capability/contracts/ai_report_drafting_contract.yaml) |
+| 报告质量与正式评测准入合同 | [`../05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml`](../05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml) |
+| 金融数据接入合同 | [`../03_agent_capability/contracts/financial_data_ingestion_contract.yaml`](../03_agent_capability/contracts/financial_data_ingestion_contract.yaml) |
+| 外部连接器摄取合同 | [`../03_agent_capability/contracts/connector_ingestion_contract.yaml`](../03_agent_capability/contracts/connector_ingestion_contract.yaml) |
 
-研究方法正文、本体定义、MCP 通道说明仍分别在 `01`–`05` 域；Runtime **引用**它们，不复制一份业务正文。
-
-## 怎么用
-
-需要 **Node.js 24**（使用内置 `node:sqlite`）。
-
-**一键启动（macOS）：** 双击仓库根目录的 `start-light.command`；它会检查 Node.js 24、依赖与端口，执行生产构建，启动应用、worker 和可选 AKShare 连接器，然后自动打开浏览器。若 3000 已被占用，会在 3001–3010 中选择空闲端口。
-
-首次启用 AKShare 需要本机可用的 `uv`；启动脚本会用锁定的 Python 3.12 / AKShare 环境。如果 `uv`、上游数据源或网络不可用，页面仍会打开，但「关注变化」会明确显示降级原因。日志保存在 `.data/logs/`。
-
-**开发模式：**
-
-```bash
-cd 06_runtime
-npm install
-npm run dev
-```
-
-另开终端：
-
-```bash
-cd 06_runtime
-npm run worker
-```
-
-访问 **`http://127.0.0.1:3000`**。可用环境变量 `VNEXT_DB_PATH` 覆盖数据库路径。
-
-你在界面里提出目标 → Research Lead 给出受约束的计划 → 你确认后后台 worker 执行 → 右侧出现证据、判断等制品。证据与 Judgment 分别需要结构化确认；报告通过审计后仍保持“已核验、未发布”，只有你在发布卡中明确确认，Runtime 才会执行 `PublishDeliverable`。当前既可复用仓库内已经治理的历史来源快照，也可通过统一的认证摄取入口接收网页、PDF 和金融连接器结果；没有匹配来源或独立发布主体不足时，系统不会编造证据，判断会降级为「暂不可判断」。现有华泰智研 MCP 的半导体行业景气度已完成真实调用、受授权映射与原始响应私密冻结；DataYes 财务表当前因积分不足未取得样本，其他工具仍需继续映射。
-
-模型规划、受约束研究推理和模型章节草拟均为显式开启能力。设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并按需设置 `VNEXT_MODEL_PLANNING_ENABLED=true`、`VNEXT_MODEL_REASONING_ENABLED=true`、`VNEXT_MODEL_DRAFTING_ENABLED=true`。所有调用统一经过 Model Gateway，记录 Prompt/Schema 版本、模型标识、上下文哈希、用量、成本、延迟、缓存与脱敏错误，并执行超时、有限重试和数据出境策略。来源权限会自动汇总为调用策略；`restricted`、缺少权限字段或事实找不到对应来源时，外部调用会在缓存读取之前被阻断并留下 `blocked` 记录。模型只能提出假设、证据角色、候选判断、独立批判或获得授权的章节表达；任何虚构数值、越权引用、评级或目标价都会被拒绝。财务运算、证据真实性、正式本体写入和发布仍由确定性组件控制。
-
-能力是否上线由 [`../03_agent_capability/releases/current.json`](../03_agent_capability/releases/current.json) 统一决定。12 个已编写 Skill 可以存在于仓库，但只有 Release Manifest 中 `active` 且命中启用范围的能力可进入生产执行；候选 Agent/Skill 不因“代码已存在”自动上线。
-
-每份报告在审计节点都会生成逐项的专业纪律诊断，检查引用、ReportSpec 章节、MethodApplication、EvidenceFact 血缘、改判条件、定制要求与 AI 草拟边界。诊断不合成“专业总分”，也不冒充研究价值评测。用户确认发布时，Runtime 会冻结报告内容投影和证据包哈希，满足正式评测最前面的输入冻结条件；双轨独立密封裁决、四类扰动、C2 评测器校准、同证据直出/摘要基线和模型隔离仍须另行完成。正式 `R/U/delta/S/C` 的 `eligible` 也只表示可以启动协议，不表示已经通过。
-
-## 产品面
+### 产品面
 
 研究首页将「决策收件箱、关注变化、最近研究」并列，只展示命中当前研究代码或关键词的候选材料。研究工作区中，左侧是与 Research Lead 的对话式研究指令，右侧是证据矩阵、假设、判断卡、报告与审计时间线等可信制品，顶部研究脉冲条持续显示当前判断、证据数、首要缺口和下一步。关键证据与判断生成后，系统会暂停等待研究员确认。
 
@@ -72,67 +146,43 @@ npm run worker
 
 产品路由、可信交互约束与可编辑字段边界见 [`app-surface.yaml`](app-surface.yaml)。产品界面唯一实现位于 `app/`；不保留第二套前端或单独的顶层 Workspace 目录。
 
-## 怎么维护
+### 模型调用策略
 
-1. 可执行 handler/UI/API 只在本目录修改；业务定义先改对应 01–05 权威，见 [`../DOMAIN_AUTHORITY.md`](../DOMAIN_AUTHORITY.md)。
-2. 改 01–05 后运行 `npm run domain:sync`；改 Capability 或任务节点后再运行 `npm run audit:domain` 与 `npm run audit:cutover`。
-3. 合并前验收：
+设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并按需设置 `VNEXT_MODEL_PLANNING_ENABLED=true`、`VNEXT_MODEL_REASONING_ENABLED=true`、`VNEXT_MODEL_DRAFTING_ENABLED=true`。
 
-```bash
-npm test
-npm run typecheck
-npm run audit:domain
-npm run build
-```
+所有调用统一经过 Model Gateway，记录 Prompt/Schema 版本、模型标识、上下文哈希、用量、成本、延迟、缓存与脱敏错误，并执行超时、有限重试和数据出境策略。来源权限会自动汇总为调用策略；`restricted`、缺少权限字段或事实找不到对应来源时，外部调用会在缓存读取之前被阻断并留下 `blocked` 记录。模型只能提出假设、证据角色、候选判断、独立批判或获得授权的章节表达；任何虚构数值、越权引用、评级或目标价都会被拒绝。财务运算、证据真实性、正式本体写入和发布仍由确定性组件控制。
 
-4. 内部知识管理页/API 需配置 `VNEXT_INTERNAL_ADMIN_TOKEN`；UI 需 `VNEXT_INTERNAL_UI_ENABLED=true`。
+### 评测命令
 
-### 运行与数据维护模式
+| 命令 | 用途 |
+|------|------|
+| `npm run eval:live:canary` | 工程 canary（3 个案例，DeepSeek，每次最多 650 token，最多一次尝试，相同输入复用缓存） |
+| `npm run eval:earnings:replay` | 业绩快报确定性回放（无模型、零 token，重算同比/单位/利润差额，检查三表/估值阻断） |
 
-- `local`（默认）：仅允许 loopback，适合单用户本机工作台；`npm run start`。
-- `server`：`npm run start:server`，必须提供 `VNEXT_SERVER_IDENTITIES_JSON`、`VNEXT_ALLOWED_ORIGINS` 和 `VNEXT_SERVER_CSRF_TOKEN`。代理层统一执行 Bearer 身份、租户/用户声明、角色门、Origin/CSRF、速率限制和安全响应头；Conversation、Task、Artifact、Approval、Signal、ResearchCase 与 ActionExecution 均执行对象级租户归属检查，客户端提交的 tenant/user/actor 不受信任。`tenant_admin` 只能跨用户访问同租户对象，不能跨租户。
-- `npm run db:check`：运行 SQLite 完整性检查并列出已应用 schema migration。
-- `npm run db:backup -- /absolute/path/backup.sqlite`：先校验数据库，再用 SQLite 一致性快照备份；省略路径时写入 `.data/backups/`，不会覆盖已有文件。
-- `npm run eval:live:canary`：使用 `.env.local` 中的 DeepSeek 配置，对 3 个公开一手材料案例各调用一次；每次最多 650 输出 token、最多一次尝试、相同输入复用缓存。结果写入 `.data/evals/`，仅用于工程 canary，不宣称正式研究分数。
-- `npm run eval:earnings:replay`：对已冻结 SHA-256 的东微半导 2025 年业绩快报执行无模型、零 token 的确定性回放，重算同比、单位、利润差额并检查三表/估值阻断；这是一项真实数据回归，不等同于正式盲评。
+### 服务器模式详情
 
----
-
-## 维护者附录（可跳过）
-
-原则：**确定性负责边界，Agent 负责路径。**
+`npm run start:server`，必须提供 `VNEXT_SERVER_IDENTITIES_JSON`、`VNEXT_ALLOWED_ORIGINS` 和 `VNEXT_SERVER_CSRF_TOKEN`。代理层统一执行 Bearer 身份、租户/用户声明、角色门、Origin/CSRF、速率限制和安全响应头。Conversation、Task、Artifact、Approval、Signal、ResearchCase 与 ActionExecution 均执行对象级租户归属检查。`tenant_admin` 只能跨用户访问同租户对象，不能跨租户。
 
 ### 已实现要点
 
 - 独立 App/API 与独立 worker；长任务不绑在单个 HTTP 请求上
 - 持久对象：Conversation、Task/TaskNode、Artifact、append-only Event、Approval、MemoryRecord
 - Message/Trace 从 Event 投影；ContextPackage 为临时装配
-- 当前只启用 Research Lead；其余 Agent 保持 `candidate`，不会触发额外模型调用
-- 12 个已编写 Skill 由 Capability Release Manifest 分为 active/candidate，并以评测增益作为激活门
+- 当前只启用 Research Lead；其余 Agent 保持 `candidate`
+- 12 个已编写 Skill 由 Capability Release Manifest 分为 active/candidate
 - Domain Semantic Graph 与 Research Provenance Graph 分离
-- 本体、词典、来源指南、Skill 资源包和历史正式包已接入只读增量索引；相对路径生成稳定 ID，内容哈希变化递增版本
-- `source.discover → source.capture → EvidenceFact` 已接通；短引文定位、正文哈希、权限和事实晋级由确定性 Verifier 约束
-- 证据充分性要求至少两个不同发布主体；历史 structured evidence packet 不冒充新抓取的原始网页或 PDF
-- PlannerProposal 编译器只接受 Node Catalog 白名单，确定性检查意图、依赖、无环、证据链和预算；非法提案修复一次后回退
-- 模型规划默认关闭；显式启用后仍只负责提案，不能控制 Capability、权限或执行器
-- 模型章节草拟默认关闭；显式启用后只负责获得授权的章节表达，不能改写正式 Judgment、章节状态、Claim 或来源附录
-- 历史业绩更新由确定性财务引擎完成单位归一、同比、利润率、报告/扣非利润差额与可用三表勾稽；没有显式预测假设时不伪造情景，没有预测、方法、假设与敏感性输入时估值保持 blocked
-- Task 创建时冻结 KnowledgeLock；终态后异步挖矿，经评测/审批/Release 后才进入后续 Context
-- `ResearchCase` 是长期业务聚合根，`Task` 只是针对 Case 的一次可重试执行
-- `ReportSpec` 随 Task 固定报告类型、受众、深度与章节；硬编码专业章节不可被个性化移除
-- 计划确认同时展示章节级 MethodApplication 蓝图；方法 ID 只能引用受治理框架、取证与裁决目录
-- EvidenceFact 按需求、供给、价格、财务、竞争等角色绑定方法；核心方法输入不完整时 Judgment 不会进入确认门
-- 实际裁决后核心 MethodApplication 记录为 executed/passed，并随正式 Judgment 写入本体追溯字段
-- Judgment 确认会执行 `ApproveJudgment` 写入正式本体；报告只从正式制品与已核验来源组合 Claim
-- `ResearchDeliverable` 持久化 ReportSpec 投影和正式 Judgment 关系；缺少专项输入的章节明确降级为 limited
-- 审计节点把运行时专业纪律诊断回写到报告可信 UI；正式研究价值缺少独立实验条件时明确显示 `not_eligible`
-- 审计通过后创建 `publish_confirmation`；用户确认前报告保持 `verified_not_published`，确认后由 Ontology Action 原子发布交付物与正式 Judgment
-- 发布提交同时冻结报告与证据包哈希及 Artifact 版本，为后续密封评测提供可复核输入，不生成 R/U/delta/S/C 分数
-- 统一连接器摄取入口把网页/PDF 快照和金融观测接入 provenance/ontology；凭据字段被拒绝，已发布 Task 必须创建更新分支
-- 华泰行业景气度回执必须携带响应指纹、字段血缘、业务时间、发布主体、风险揭示和禁止传播边界；原文进入 `connector_response_blobs` 私密表，Artifact、Event、前端和模型只见安全元数据；已取得真实半导体月度样本
+- 本体、词典、来源指南、Skill 资源包和历史正式包已接入只读增量索引
+- `source.discover → source.capture → EvidenceFact` 已接通
+- 证据充分性要求至少两个不同发布主体
+- PlannerProposal 编译器只接受 Node Catalog 白名单
+- 历史业绩更新由确定性财务引擎完成
+- Task 创建时冻结 KnowledgeLock；终态后异步挖矿
+- `ResearchCase` 是长期业务聚合根，`Task` 是一次可重试执行
+- `ReportSpec` 随 Task 固定报告类型、受众、深度与章节
+- 审计节点把运行时专业纪律诊断回写到报告可信 UI
+- 统一连接器摄取入口把网页/PDF 快照和金融观测接入 provenance/ontology
 - Function 只计算候选；正式 Object/Link 只由 Action Service 以原子事务写入
 - Action 统一支持 `preview → approve → apply`、幂等、乐观锁、KnowledgeLock 和失效传播
-- `ActionExecution` 记录操作者、Action/Catalog 版本、参数、审批、语义 edits、输出、失效对象和错误
 
 ### 请求生命周期
 
@@ -156,8 +206,8 @@ flowchart LR
 ### API（摘要）
 
 - `GET | POST /vnext/conversations`
-- `POST /vnext/connectors/ingest`（服务端 Token + connectorId 白名单；接收 `source_capture` / `financial_data`）
-- `POST /vnext/tasks/{id}/materials`（研究员结构化提交可定位摘录；仍需证据复核）
+- `POST /vnext/connectors/ingest`（服务端 Token + connectorId 白名单）
+- `POST /vnext/tasks/{id}/materials`
 - `GET | POST /vnext/conversations/{id}/messages`
 - `GET /vnext/conversations/{id}/events`（SSE）
 - `POST /vnext/tasks/{id}/resume|cancel|branch`
@@ -171,15 +221,17 @@ flowchart LR
 - `GET /ontology/action-executions/{id}`
 - `GET /ontology/research-cases/{id}/graph`
 
-`preview`/`apply` 请求顶层包含 `targetRefs`、`parameters`、`expectedVersions`、`idempotencyKey`、
-`context`，可选 `knowledgeLockId` 与 `approvalToken`。业务代码不得直接写
-`ontology_objects` 或 `ontology_links`。
+`preview`/`apply` 请求顶层包含 `targetRefs`、`parameters`、`expectedVersions`、`idempotencyKey`、`context`，可选 `knowledgeLockId` 与 `approvalToken`。业务代码不得直接写 `ontology_objects` 或 `ontology_links`。
 
-Artifact PATCH 不等于 Ontology Action：它只修订 Judgment/Report 等研究制品的白名单字段，采用乐观锁保存新版本，并通过 Event 触发下游失效与重算。证据、来源和正式本体对象仍必须走各自的确定性晋级或 Action。
+Artifact PATCH 不等于 Ontology Action：它只修订 Judgment/Report 等研究制品的白名单字段，采用乐观锁保存新版本，并通过 Event 触发下游失效与重算。
+
+### 当前成熟度
+
+已具备本地持久化、受约束规划、证据溯源、结构化审批、报告审计、知识沉淀控制面和可信前端。华泰智研 MCP 半导体行业景气度已完成真实调用、受授权 Runtime 映射和原始响应私密冻结。DataYes 财务表因积分不足未取得样本。正式研究价值评测须满足独立密封裁决、扰动集、模型隔离和同证据基线。
 
 ### 下一轮工程方向
 
-1. 部署实际使用的实时网页/PDF sidecar 与金融 MCP/数据商连接器（认证摄取 bridge 已具备）
+1. 部署实际使用的实时网页/PDF sidecar 与金融 MCP/数据商连接器
 2. 将更多领域失效路径收敛为 Catalog 生成的影响规则
-3. 把 30 个冻结研究价值 fixture 逐步物化为三轨真实产物，完成盲评、严重缺陷召回、弃权和研究员返工指标
+3. 把 30 个冻结研究价值 fixture 逐步物化为三轨真实产物
 4. 取证并行评测有收益后再启用 Evidence Investigator

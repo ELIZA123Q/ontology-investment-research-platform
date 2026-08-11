@@ -1,5 +1,20 @@
-# User Intents
+# 用户意图 — 研究员想做什么类型的研究
 
-用户级研究意图登记。不等于 Runtime `ResearchIntent`（`full_research` / `evidence_only` / …）。Intent 提供问题图激活策略，不是必须先完成的流程节点，也不把一个请求限制为单一 Task。
+> 上级目录：[`02_scenario_task/`](../README.md) | 根目录：[`README.md`](../../README.md)
 
-见 [`types.yaml`](types.yaml) 与 [`registry.yaml`](registry.yaml)。
+这里登记用户可能提出的研究意图类型。好比研究员开口时的第一句话——「我想做公司研究」「我想看行业景气」——这里定义这些意图怎么激活研究问题图。
+
+## 里面有什么
+
+| 文件 | 一句话说明 |
+|------|-----------|
+| `types.yaml` | 意图类型清单 |
+| `registry.yaml` | 登记入口 |
+
+## 怎么用
+
+- 用户提出研究目标 → 匹配这里的意图类型
+- 意图提供问题图激活策略，不是必须先完成的流程节点
+- 一个请求不限制为单一 Task
+
+> 这里的 Intent 不等于 Runtime 里的 `ResearchIntent`（`full_research`/`evidence_only` 等）。前者是用户级意图定义，后者是执行级实例。
