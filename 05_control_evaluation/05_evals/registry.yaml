@@ -1,5 +1,5 @@
 schema_name: governance_eval_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
@@ -15,3 +15,5 @@ runtime_bridge: 05_control_evaluation/05_evals/protocols/report_quality_evaluati
 boundary:
   not_a_verifier: true
   deterministic_checks: 05_control_evaluation/04_verifiers/
+  current_formal_cases: 0
+  gold_tasks_are_engineering_regression: true

@@ -40,6 +40,10 @@ formal_research_value:
     - 与生产模型隔离的下游执行模型
   eligibility_semantics: >-
     eligible 只表示允许启动正式协议，不表示 R/U/delta/S/C 已经通过；正式结果只能来自独立评测运行。
+  executable_eligibility:
+    evaluator: 06_runtime/src/evaluation/formal-case-eligibility.ts
+    attestation_required: true
+    behavior: 只有全部案例、冻结、密封、扰动、基线、校准与模型隔离门通过后，才能签发 FormalEvaluationPrerequisites；任一缺口都不得输出正式分数。
   publication_freeze:
     trigger: 研究员批准 publish_confirmation 且 PublishDeliverable 已提交
     outputs: [reportHash, evidenceBundleHash, reportArtifactVersion, evidenceArtifactId, evidenceArtifactVersion, frozenAt]
@@ -65,4 +69,5 @@ runtime_mapping:
 verification:
   tests:
     - 06_runtime/tests/report-quality-evaluator.test.ts
+    - 06_runtime/tests/formal-case-eligibility.test.ts
     - 06_runtime/tests/kernel.test.ts

@@ -180,7 +180,7 @@ const eventLabels: Record<string, string> = {
   "artifact.recompute_queued": "受影响的下游节点已进入重算队列",
   "judgment.committed": "研究员确认的判断已写入正式本体",
   "financial.data_ingested": "结构化金融数据已通过口径与来源校验",
-  "connector.source_ingested": "外部连接器来源已通过快照与溯源校验",
+  "connector.source_ingested": "来源快照已通过完整性与溯源校验；事实仍需复核",
   "connector.ingestion_rejected": "外部连接器结果未通过摄取边界",
   "connector.evidence_recompute_queued": "新连接器材料已触发证据及下游局部重算",
   "report.model_draft_verified": "模型章节草稿已通过确定性边界校验",

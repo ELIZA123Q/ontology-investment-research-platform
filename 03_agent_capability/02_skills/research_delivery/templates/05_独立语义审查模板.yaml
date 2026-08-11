@@ -1,82 +1,65 @@
-# 发布闸门产物（非研究员交付物）。由独立于生产者的审阅者填写；
-# 登记于 run_manifest，供 validate_run 判定 PUBLISHABLE。
-#
-# 本审查只处理机器规则难以可靠判断的“整体语义质量”：
-# 一方面检查04→05是否忠实，另一方面检查05是否真正形成有主次、有增量的研究判断。
-# 结构完整性、字段追溯、重复次数等确定性规则由05表达审计与规则校验负责。
-
+# 可选的独立语义审查记录，不是研究员交付物，也不替代正式 Eval。
 schema_name: independent_semantic_review
-schema_version: 1.0.0
+schema_version: 2.0.0
 
-review_id: "ISR-<run_id>"
+review_id: "ISR-<task_id>"
 reviewed_at: "<ISO 8601>"
 
 reviewer:
-  reviewer_id: "<匿名且不同于 producer_id 的审阅者 ID>"
-  reviewer_type: model
+  reviewer_id: "<不同于 created_by 的审阅者 ID>"
+  reviewer_type: "<human | model>"
   independent_from_producer: true
-  test_reviewer: false
 
 inputs:
-  public_contract_version: 1.1.0
-  stage_hashes:
-    stage_02: "sha256:<冻结哈希>"
-    stage_03: "sha256:<冻结哈希>"
-    stage_04: "sha256:<冻结哈希>"
-    stage_05: "sha256:<冻结哈希>"
+  public_contract_version: 2.0.0
+  task_id: "<Task ID>"
+  artifact_refs:
+    evidence_package: {artifact_id: "<ID>", version: 1, content_hash: "sha256:<hash>"}
+    method_application: {artifact_id: "<ID>", version: 1, content_hash: "sha256:<hash>"}
+    judgment: {artifact_id: "<ID>", version: 1, content_hash: "sha256:<hash>"}
+    report: {artifact_id: "<ID>", version: 1, content_hash: "sha256:<hash>"}
 
 checks:
-  # 04判断语义完整性
   - check_id: local_evidence_not_globalized
     result: needs_human
-    reason: "<局部证据是否被泛化为更大范围、更多对象或更长时间窗口的结论>"
-    return_to_stage: "04"
-
-  - check_id: parent_aggregation_complete
+    reason: "<局部证据是否被泛化到更大范围、更多对象或更长时间窗口>"
+    return_to_artifact: judgment
+  - check_id: competing_explanations_preserved
     result: needs_human
-    reason: "<上层结论是否遗漏决定性的子判断、反证、条件或失效项>"
-    return_to_stage: "04"
-
+    reason: "<最强反证与竞争解释是否被 Judgment 和报告忠实保留>"
+    return_to_artifact: judgment
   - check_id: incremental_update_is_local_first
     result: needs_human
-    reason: "<增量更新是否优先局部改判，而非无依据地重写整个判断体系>"
-    return_to_stage: "04"
-
-  # 04→05忠实表达
+    reason: "<更新是否只失效依赖图中的可达下游，而非无依据地重写全部制品>"
+    return_to_artifact: research_plan
   - check_id: title_represents_major_scopes
     result: needs_human
-    reason: "<标题是否代表主要研究范围和主要结论，而非只挑最强局部判断或最保守限制>"
-    return_to_stage: "05"
-
+    reason: "<标题是否代表主要范围和主要判断>"
+    return_to_artifact: report
   - check_id: conditions_scope_and_prohibitions_preserved
     result: needs_human
-    reason: "<05是否保留04决定性的条件、范围、失效条件和禁写边界，且未发生语义漂移>"
-    return_to_stage: "05"
-
-  # 05整体研究质量
+    reason: "<报告是否保留正式 Judgment 的条件、范围、失效条件和禁写边界>"
+    return_to_artifact: report
   - check_id: main_judgment_is_clear_and_prioritized
     result: needs_human
-    reason: "<报告是否形成直接回答01核心问题的综合主判断，并清楚体现分项判断的主次与强弱，而非简单并列子问题>"
-    return_to_stage: "05"
-
+    reason: "<报告是否直接回答研究目标，并体现主次与强弱>"
+    return_to_artifact: report
   - check_id: maximal_valid_judgment_is_expressed
     result: needs_human
-    reason: "<在不越过04边界的前提下，05是否把已经允许成立的判断说到位；是否因过度谨慎而把高强度判断无必要降格为‘仍需观察’>"
-    return_to_stage: "05"
-
+    reason: "<在不越过证据边界的前提下，允许成立的判断是否表达充分>"
+    return_to_artifact: report
   - check_id: uncertainty_is_concentrated_not_overloaded
     result: needs_human
-    reason: "<不确定性是否集中在真正决定后续判断的变量上；限制条件是否压过主判断，导致全文主要在解释‘为什么不能判断’>"
-    return_to_stage: "05"
-
+    reason: "<不确定性是否集中在真正会改变判断的变量上>"
+    return_to_artifact: report
   - check_id: research_edge_is_substantive
     result: needs_human
-    reason: "<Research Edge是否体现阶段、主导变量、机制、对象分化或时间窗口上的真实研究增量，而非仅重复基础研究纪律或证据谨慎>"
-    return_to_stage: "05"
-
+    reason: "<Research Edge 是否体现机制、对象分化或时间窗口上的真实增量>"
+    return_to_artifact: report
   - check_id: key_unknowns_are_decision_relevant
     result: needs_human
-    reason: "<报告是否收敛到1—2个真正会改变主结论的关键未知，而不是把所有缺失数据、证据缺口或风险项都并列为未知>"
-    return_to_stage: "05"
+    reason: "<关键未知是否会实质改变主判断>"
+    return_to_artifact: report
 
 verdict: needs_human
+formal_eval_status: not_evaluated

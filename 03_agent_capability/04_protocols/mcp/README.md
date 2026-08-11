@@ -25,8 +25,8 @@
 
 ## 接入状态
 
-以 `registry.yaml` 的 `adapter_status` 为准（当前：`common_contract_ready_connector_planned`）。  
-统一结果合同已落地；真实 connector 完整映射仍在推进。
+以 `registry.yaml` 的 `adapter_status` 为准（当前：`htsc_industry_sentiment_mapping_live`）。
+统一结果合同与华泰行业景气度回执映射已落地，并已取得真实半导体月度样本；DataYes 财务表因积分不足暂不可用，其他 connector 完整映射仍在推进。
 
 ## 凭证
 

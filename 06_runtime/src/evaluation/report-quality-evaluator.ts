@@ -20,6 +20,12 @@ export interface FormalEvaluationPrerequisites {
   downstreamModelIds?: string[];
   sameEvidenceDirectBaselineRef?: string;
   sameEvidenceSummaryBaselineRef?: string;
+  eligibilityAttestation?: {
+    caseId: string;
+    manifestHash: string;
+    protocolVersion: "1.0.0";
+    status: "eligible";
+  };
 }
 
 export interface ReportQualityEvaluationInput {
@@ -155,6 +161,7 @@ function metric(
 
 function formalReadiness(input?: FormalEvaluationPrerequisites): FormalResearchValueReadiness {
   const missing: string[] = [];
+  if (!input?.eligibilityAttestation || input.eligibilityAttestation.status !== "eligible" || !/^sha256:[a-f0-9]{64}$/u.test(input.eligibilityAttestation.manifestHash)) missing.push("经可执行案例准入校验器签发的资格证明");
   if (!input?.frozenEvidenceBundleHash) missing.push("冻结且哈希锁定的评测证据包");
   if (!input?.frozenArtifactHash) missing.push("在打开密封裁决前冻结的系统产物哈希");
   if (!input?.sealedAdjudicationRef || input.independenceMode !== "dual_route_independent") missing.push("双轨独立生成的密封裁决契约");

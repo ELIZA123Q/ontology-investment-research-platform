@@ -1,5 +1,5 @@
 schema_name: investment_research_rule_authority_registry
-schema_version: 1.1.0
+schema_version: 2.0.0
 status: active
 description: >
   规则唯一权威归属表；正式约束、研究方法、治理检查和运行控制不得混用。
@@ -23,6 +23,16 @@ authority_contract:
   runtime:
     definition: 状态转换、执行、编排和操作注册表完整性控制。
     business_support_mode: forbidden
+
+execution_coverage_required:
+  - LOOP-IDENTITY-001
+  - LOOP-ROUTE-001
+  - LOOP-STALE-001
+  - LOOP-ATTEMPT-001
+  - LOOP-CONVERGENCE-001
+  - EVIDENCE-TRUTH-001
+  - REASONING-MEANING-001
+  - REASONING-REVISION-001
 
 formal_ontology_rules:
   evidence_scope_time_alignment:
@@ -112,23 +122,73 @@ method_assets:
   kb03:assessment: {source_ref: 03_agent_capability/02_skills/evidence_research/registry.yaml, capability: evidence}
 
 governance_rules:
-  LOOP-IDENTITY-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  LOOP-ROUTE-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  LOOP-STALE-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  LOOP-ATTEMPT-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  LOOP-CONVERGENCE-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  EVIDENCE-TRUTH-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  REASONING-MEANING-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  GOV-RULE-EVALUATION-EXPLICIT-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#rule_usage_contract, business_support_allowed: false}
-  GOV-REASONING-TRACE-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#replay_contract, business_support_allowed: false}
+  LOOP-IDENTITY-001:
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#task_graph_contract
+    requirement: Event、Artifact 与 Action 必须绑定同一 Conversation、Task、Node 和 KnowledgeLock 上下文。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/store.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/store.test.ts]
+    business_support_allowed: false
+  LOOP-ROUTE-001:
+    source_ref: 02_scenario_task/contracts/research_planning_contract.yaml
+    requirement: 规划只能使用白名单节点，并按影响分析选择局部重算或任务分支。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/plan-compiler.ts, 06_runtime/src/runtime/node-catalog.ts]
+    test_refs: [06_runtime/tests/planner.test.ts]
+    business_support_allowed: false
+  LOOP-STALE-001:
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#object_validity_propagation
+    requirement: 失效只向实际依赖图可达的下游传播，不按固定阶段整批传播。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/planner.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/planner.test.ts]
+    business_support_allowed: false
+  LOOP-ATTEMPT-001:
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract
+    requirement: Artifact 修订创建新版本，Event 与历史版本保持追加式留痕。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/store.ts, 06_runtime/src/runtime/kernel.ts]
+    test_refs: [06_runtime/tests/store.test.ts, 06_runtime/tests/kernel.test.ts]
+    business_support_allowed: false
+  LOOP-CONVERGENCE-001:
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#task_graph_contract
+    requirement: 运行从 Checkpoint 恢复，完成条件由依赖、审批、停止条件和 worker lease 决定。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/store.ts, 06_runtime/src/worker.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/store.test.ts]
+    business_support_allowed: false
+  EVIDENCE-TRUTH-001:
+    source_ref: 03_agent_capability/contracts/research_provenance_contract.yaml
+    requirement: 资料真实性、充分性与比较口径需要领域事实核查。
+    execution_mode: human_required
+    rationale: 确定性校验只能验证来源留痕、哈希与引用完整性，不能代替领域事实判断。
+    validator_refs: []
+    test_refs: []
+    business_support_allowed: false
+  REASONING-MEANING-001:
+    source_ref: 05_control_evaluation/05_evals/rubrics/research_quality.md
+    requirement: 推理是否具有经济含义与投研增量必须通过独立评测判断。
+    execution_mode: semantic_review
+    rationale: Runtime 纪律诊断只定位缺口，不产生正式 R、U、delta、S、C。
+    validator_refs: [06_runtime/src/evaluation/report-quality-evaluator.ts]
+    test_refs: [06_runtime/tests/report-quality-evaluator.test.ts]
+    business_support_allowed: false
+  GOV-RULE-EVALUATION-EXPLICIT-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#reasoning_trace_contract, business_support_allowed: false}
+  GOV-REASONING-TRACE-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#reasoning_trace_contract, business_support_allowed: false}
   GOV-RULE-EVALUATION-TRACE-001: {source_ref: 03_agent_capability/02_skills/judgment_reasoning/references/A00_裁决总则.md, business_support_allowed: false}
-  REASONING-REVISION-001: {source_ref: 05_control_evaluation/04_verifiers/requirements_coverage.yaml, business_support_allowed: false}
-  GOV-VALIDATION-OUTCOME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#replay_contract, business_support_allowed: false}
-  GOV-VALIDATION-TIME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#replay_contract, business_support_allowed: false}
-  GOV-SOURCE-TRACE-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#cross_stage_objects, business_support_allowed: false}
+  REASONING-REVISION-001:
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#incremental_update_contract
+    requirement: 推理与报告修订必须创建新版本、保留 superseded 历史并局部失效可达下游。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/store.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/store.test.ts]
+    business_support_allowed: false
+  GOV-VALIDATION-OUTCOME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract, business_support_allowed: false}
+  GOV-VALIDATION-TIME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract, business_support_allowed: false}
+  GOV-SOURCE-TRACE-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#reasoning_trace_contract, business_support_allowed: false}
   GOV-SOURCE-ACCESS-001: {source_ref: 03_agent_capability/02_skills/evidence_research/references/README.md, business_support_allowed: false}
-  GOV-CLAIM-STRUCTURE-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#node_contract, business_support_allowed: false}
-  GOV-STAGE-04-READINESS-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#method_application_contract, business_support_allowed: false}
+  GOV-CLAIM-STRUCTURE-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#reasoning_trace_contract, business_support_allowed: false}
+  GOV-JUDGMENT-READINESS-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#method_application_contract, business_support_allowed: false}
   GOV-ACTION-APPROVAL-001: {source_ref: 01_semantic_knowledge/01_ontology/kinetics/policies.yaml#policies.HighRiskResearcherApproval, business_support_allowed: false}
 
 runtime_rules:

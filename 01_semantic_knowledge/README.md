@@ -1,6 +1,6 @@
 # 语义知识域
 
-> 还不了解本项目？先读仓库根目录 [新手导读.md](../新手导读.md)。
+> 第一次接触项目？先读仓库根目录 [`README.md`](../README.md)。
 
 这里回答「系统如何理解世界」：用哪些概念、统一叫什么、对象之间是什么关系、证据对象及其溯源关系在语义上如何定义，以及这些语义如何组织成可查询、可追溯的图视图。
 
@@ -19,7 +19,7 @@
 | [`02_dictionary/`](02_dictionary/README.md) | 人话 → 标准语义的归一化（别名/歧义/研究用语） | 词典 YAML；语义权威仍在 ontology |
 | [`03_knowledge_graph/`](03_knowledge_graph/README.md) | 图怎么组织成可查询可追溯的视图 | 图合同 YAML |
 
-总登记见 [`registry.yaml`](./registry.yaml)。跨域「权威在哪」见 [`five_domain_authority.yaml`](../docs/architecture/five_domain_authority.yaml)。
+总登记见 [`registry.yaml`](./registry.yaml)。跨域职责边界见仓库根目录 [`README.md`](../README.md) 与 [`06_runtime/ARCHITECTURE.md`](../06_runtime/ARCHITECTURE.md)。
 
 补充边界：
 
@@ -50,5 +50,5 @@
 |----|----|
 | status | `active` |
 | write_entry | `01_semantic_knowledge/` |
-| 上位 | [`00_五域系统骨架.md`](../docs/architecture/00_五域系统骨架.md) |
-| 权威查找顺序 | five_domain_authority → 本域 registry → 子域 registry |
+| 上位 | [`README.md`](../README.md) |
+| 权威查找顺序 | 根目录职责地图 → 本域 registry → 子域 registry |

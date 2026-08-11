@@ -61,6 +61,18 @@ class RuleAuthorityTests(unittest.TestCase):
         errors = self.errors(registry=registry, refs=[])
         self.assertTrue(any("formal rule registry drift" in error for error in errors), errors)
 
+    def test_automated_governance_rule_requires_test_coverage(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        registry["governance_rules"]["LOOP-IDENTITY-001"]["test_refs"] = []
+        errors = self.errors(registry=registry, refs=[])
+        self.assertTrue(any("requires validators and tests" in error for error in errors), errors)
+
+    def test_execution_reference_must_resolve(self) -> None:
+        registry = copy.deepcopy(self.registry)
+        registry["governance_rules"]["LOOP-ROUTE-001"]["validator_refs"] = ["missing.ts"]
+        errors = self.errors(registry=registry, refs=[])
+        self.assertTrue(any("unresolved execution ref" in error for error in errors), errors)
+
 
 if __name__ == "__main__":
     unittest.main()

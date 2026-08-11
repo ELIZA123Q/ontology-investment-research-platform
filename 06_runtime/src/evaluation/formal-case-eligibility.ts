@@ -1,0 +1,156 @@
+import { createHash } from "node:crypto";
+import type { FormalEvaluationPrerequisites } from "@/src/evaluation/report-quality-evaluator";
+
+export type FormalEvaluationStratum = "report_value" | "restraint";
+export type PerturbationKind = "delete_key_evidence" | "replace_scope_or_metric" | "inject_counterevidence" | "move_information_cutoff";
+export type CalibrationLevel = "C0" | "C1" | "C2" | "C3";
+
+interface FrozenRef { ref: string; hash: string; }
+
+export interface FormalEvaluationCaseManifest {
+  schemaVersion: "1.0.0";
+  caseId: string;
+  stratum: FormalEvaluationStratum;
+  taskInput: {
+    question: string;
+    subjectScope: string[];
+    informationCutoff: string;
+    allowedEndpoint: string;
+  };
+  evidenceBundle: FrozenRef & {
+    frozenAt: string;
+    evidence: Array<{
+      id: string;
+      publisherId: string;
+      title: string;
+      uri: string;
+      publishedAt: string;
+      businessTime: string;
+      independentSourceGroup: string;
+      statementNature: "fact" | "measurement" | "forecast" | "interpretation";
+      locator: string;
+      quote: string;
+      contentHash: string;
+      supports: string[];
+      limitations: string[];
+    }>;
+  };
+  systemArtifact: FrozenRef & { frozenAt: string; sealedAdjudicationOpenedAt: string };
+  sealedAdjudication: {
+    ref: string;
+    independenceMode: "dual_route_independent" | "pilot_manual";
+    notAReferenceReport: boolean;
+    frameworkRulesUsage: "boundary_check_only" | "answer_generation";
+    routeA: { modelId: string; outputHash: string };
+    routeB: { modelId: string; outputHash: string };
+    coordinator: { modelId: string; outputHash: string };
+    coreClaims: Array<{
+      claimId: string;
+      statement: string;
+      criticality: "primary" | "supporting" | "boundary";
+      strengthCeiling: string;
+      minimumEvidenceBasket: string[];
+    }>;
+    strongestCounterevidence: string[];
+    prohibitedExpressions: string[];
+    updateScenarios: Array<{ id: string; newInformation: string; expectedAction: string; affectedClaimIds: string[] }>;
+    downstreamRequiredUnits: string[];
+    objectiveChecks: {
+      numbersTimesObjectsSources: "required";
+      minimumEvidenceExists: "required";
+      cutoffEnforced: "required";
+      forecastsNotFacts: "required";
+    };
+  };
+  perturbations: Array<FrozenRef & { kind: PerturbationKind; expectedAction: string }>;
+  baselines: { sameEvidenceDirect: FrozenRef; sameEvidenceSummary: FrozenRef };
+  evaluationModels: {
+    producerModelId: string;
+    judges: Array<{ modelId: string; calibrationLevel: CalibrationLevel; calibrationRef: string; calibrationHash: string }>;
+    downstream: Array<{ modelId: string; role: "executor" | "scorer" }>;
+  };
+}
+
+export interface FormalEligibilityCheck { id: string; passed: boolean; note: string }
+
+export interface FormalCaseEligibilityResult {
+  caseId: string;
+  status: "eligible" | "not_eligible";
+  manifestHash: string;
+  checks: FormalEligibilityCheck[];
+  missingPrerequisites: string[];
+  prerequisites?: FormalEvaluationPrerequisites;
+}
+
+const requiredPerturbations: PerturbationKind[] = [
+  "delete_key_evidence",
+  "replace_scope_or_metric",
+  "inject_counterevidence",
+  "move_information_cutoff",
+];
+
+const sha256 = (value: string) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
+const isHash = (value: string) => /^sha256:[a-f0-9]{64}$/u.test(value || "");
+const isTime = (value: string) => !Number.isNaN(Date.parse(value));
+const nonEmpty = (value: string) => Boolean(value?.trim());
+const calibrationRank: Record<CalibrationLevel, number> = { C0: 0, C1: 1, C2: 2, C3: 3 };
+
+function canonicalize(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`).join(",")}}`;
+  return JSON.stringify(value);
+}
+
+function check(id: string, passed: boolean, note: string): FormalEligibilityCheck {
+  return { id, passed, note };
+}
+
+export function evaluateFormalCaseEligibility(manifest: FormalEvaluationCaseManifest): FormalCaseEligibilityResult {
+  const cutoff = Date.parse(manifest.taskInput.informationCutoff);
+  const evidenceIds = new Set(manifest.evidenceBundle.evidence.map((item) => item.id));
+  const claimIds = new Set(manifest.sealedAdjudication.coreClaims.map((item) => item.claimId));
+  const routes = [manifest.sealedAdjudication.routeA.modelId, manifest.sealedAdjudication.routeB.modelId, manifest.sealedAdjudication.coordinator.modelId];
+  const judgeIds = manifest.evaluationModels.judges.map((item) => item.modelId);
+  const downstreamIds = manifest.evaluationModels.downstream.map((item) => item.modelId);
+  const perturbationKinds = new Set(manifest.perturbations.map((item) => item.kind));
+
+  const checks: FormalEligibilityCheck[] = [
+    check("task_input", nonEmpty(manifest.caseId) && nonEmpty(manifest.taskInput.question) && manifest.taskInput.subjectScope.length > 0 && manifest.taskInput.subjectScope.every(nonEmpty) && isTime(manifest.taskInput.informationCutoff) && nonEmpty(manifest.taskInput.allowedEndpoint), "公开任务输入包含问题、对象、截止日和允许终点。"),
+    check("frozen_hashes", [manifest.evidenceBundle.hash, manifest.systemArtifact.hash, manifest.baselines.sameEvidenceDirect.hash, manifest.baselines.sameEvidenceSummary.hash].every(isHash), "证据、系统产物和两份同证据基线均使用 SHA-256 冻结。"),
+    check("freeze_before_seal", isTime(manifest.systemArtifact.frozenAt) && isTime(manifest.systemArtifact.sealedAdjudicationOpenedAt) && Date.parse(manifest.systemArtifact.frozenAt) < Date.parse(manifest.systemArtifact.sealedAdjudicationOpenedAt), "系统产物在打开密封裁决前冻结。"),
+    check("evidence_contract", manifest.evidenceBundle.evidence.length >= 3 && evidenceIds.size === manifest.evidenceBundle.evidence.length && manifest.evidenceBundle.evidence.every((item) => nonEmpty(item.publisherId) && nonEmpty(item.title) && /^https?:\/\//u.test(item.uri) && isTime(item.publishedAt) && isTime(item.businessTime) && nonEmpty(item.independentSourceGroup) && nonEmpty(item.locator) && nonEmpty(item.quote) && isHash(item.contentHash) && item.supports.length > 0 && item.limitations.length > 0), "冻结证据至少三条且具备发布者、定位、摘录、哈希、支持点和限制点。"),
+    check("cutoff", Number.isFinite(cutoff) && manifest.evidenceBundle.evidence.every((item) => Date.parse(item.publishedAt) <= cutoff), "全部证据发布时间不晚于研究截止日。"),
+    check("independent_sources", new Set(manifest.evidenceBundle.evidence.map((item) => item.independentSourceGroup)).size >= 2, "冻结包至少包含两个独立来源组。"),
+    check("dual_route_seal", manifest.sealedAdjudication.independenceMode === "dual_route_independent" && manifest.sealedAdjudication.notAReferenceReport && manifest.sealedAdjudication.frameworkRulesUsage === "boundary_check_only" && new Set(routes).size === 3 && [manifest.sealedAdjudication.routeA.outputHash, manifest.sealedAdjudication.routeB.outputHash, manifest.sealedAdjudication.coordinator.outputHash].every(isHash), "密封裁决由三个相互独立模型角色生成，体系规则只做边界检查。"),
+    check("core_claims", manifest.sealedAdjudication.coreClaims.length >= 3 && manifest.sealedAdjudication.coreClaims.length <= 7 && claimIds.size === manifest.sealedAdjudication.coreClaims.length && manifest.sealedAdjudication.coreClaims.some((item) => item.criticality === "primary") && manifest.sealedAdjudication.coreClaims.every((item) => nonEmpty(item.statement) && nonEmpty(item.strengthCeiling) && item.minimumEvidenceBasket.length > 0 && item.minimumEvidenceBasket.every((id) => evidenceIds.has(id))), "密封裁决含 3—7 条核心判断，且最低证据篮子真实存在。"),
+    check("counter_and_updates", manifest.sealedAdjudication.strongestCounterevidence.length > 0 && manifest.sealedAdjudication.prohibitedExpressions.length > 0 && manifest.sealedAdjudication.updateScenarios.length >= 2 && manifest.sealedAdjudication.updateScenarios.every((item) => item.affectedClaimIds.length > 0 && item.affectedClaimIds.every((id) => claimIds.has(id))) && manifest.sealedAdjudication.downstreamRequiredUnits.length > 0, "最强反证、禁止表达、至少两个更新场景和下游必需单元齐全。"),
+    check("objective_checks", Object.values(manifest.sealedAdjudication.objectiveChecks).every((value) => value === "required"), "数字/时间/对象/来源、最低证据、截止日与预测事实边界均为必检。"),
+    check("perturbations", requiredPerturbations.every((kind) => perturbationKinds.has(kind)) && manifest.perturbations.every((item) => isHash(item.hash) && nonEmpty(item.ref) && nonEmpty(item.expectedAction)), "四类扰动及预期动作齐全。"),
+    check("calibrated_judges", judgeIds.length >= 2 && new Set(judgeIds).size === judgeIds.length && manifest.evaluationModels.judges.every((item) => calibrationRank[item.calibrationLevel] >= 2 && nonEmpty(item.calibrationRef) && isHash(item.calibrationHash)), "至少两个独立评测模型分别达到 C2。"),
+    check("model_isolation", nonEmpty(manifest.evaluationModels.producerModelId) && downstreamIds.length >= 2 && new Set(downstreamIds).size === downstreamIds.length && !judgeIds.includes(manifest.evaluationModels.producerModelId) && !downstreamIds.includes(manifest.evaluationModels.producerModelId), "生产模型、评测模型和至少两个下游模型彼此隔离。"),
+  ];
+  const missingPrerequisites = checks.filter((item) => !item.passed).map((item) => item.note);
+  const manifestHash = sha256(canonicalize(manifest));
+  const status = missingPrerequisites.length ? "not_eligible" as const : "eligible" as const;
+  return {
+    caseId: manifest.caseId,
+    status,
+    manifestHash,
+    checks,
+    missingPrerequisites,
+    ...(status === "eligible" ? { prerequisites: {
+      frozenEvidenceBundleHash: manifest.evidenceBundle.hash,
+      frozenArtifactHash: manifest.systemArtifact.hash,
+      sealedAdjudicationRef: manifest.sealedAdjudication.ref,
+      independenceMode: manifest.sealedAdjudication.independenceMode,
+      perturbationSetRef: `manifest:${manifestHash}:perturbations`,
+      calibratedEvaluatorModelIds: judgeIds,
+      evaluatorCalibrationAtLeastC2: true,
+      producerModelId: manifest.evaluationModels.producerModelId,
+      downstreamModelIds: downstreamIds,
+      sameEvidenceDirectBaselineRef: manifest.baselines.sameEvidenceDirect.ref,
+      sameEvidenceSummaryBaselineRef: manifest.baselines.sameEvidenceSummary.ref,
+      eligibilityAttestation: { caseId: manifest.caseId, manifestHash, protocolVersion: manifest.schemaVersion, status: "eligible" },
+    } } : {}),
+  };
+}

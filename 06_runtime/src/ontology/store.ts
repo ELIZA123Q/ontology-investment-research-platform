@@ -48,10 +48,13 @@ export class OntologyStore {
       this.createObject({
         operation: "create_object", ref: { id: execution.id, type: "ActionExecution" },
         properties: {
-          action_type: execution.actionType, action_version: execution.actionVersion, status: execution.status,
-          actor_type: execution.actorType, actor_id: execution.actorId, submitted_at: execution.createdAt,
-          completed_at: stamp, idempotency_key: execution.idempotencyKey, parameters: execution.request.parameters,
-          edits: execution.edits, error: execution.error || null,
+          actionType: execution.actionType, actionVersion: execution.actionVersion, status: execution.status,
+          actorType: execution.actorType, actorId: execution.actorId, conversationId: execution.conversationId,
+          taskId: execution.taskId, idempotencyKey: execution.idempotencyKey,
+          knowledgeLockId: execution.knowledgeLockId, approvalId: execution.approvalId,
+          request: execution.request, preview: execution.preview, edits: execution.edits,
+          outputRefs: execution.outputRefs, invalidatedRefs: execution.invalidatedRefs,
+          error: execution.error || null, createdAt: execution.createdAt, completedAt: stamp,
         },
       }, stamp);
       if (execution.conversationId) {
@@ -94,10 +97,13 @@ export class OntologyStore {
         operation: "create_object",
         ref: { id: completed.id, type: "ActionExecution" },
         properties: {
-          action_type: completed.actionType, action_version: completed.actionVersion, status: completed.status,
-          actor_type: completed.actorType, actor_id: completed.actorId, submitted_at: completed.createdAt,
-          completed_at: completed.completedAt, idempotency_key: completed.idempotencyKey,
-          parameters: completed.request.parameters, edits: completed.edits,
+          actionType: completed.actionType, actionVersion: completed.actionVersion, status: completed.status,
+          actorType: completed.actorType, actorId: completed.actorId, conversationId: completed.conversationId,
+          taskId: completed.taskId, idempotencyKey: completed.idempotencyKey,
+          knowledgeLockId: completed.knowledgeLockId, approvalId: completed.approvalId,
+          request: completed.request, preview: completed.preview, edits: completed.edits,
+          outputRefs: completed.outputRefs, invalidatedRefs: completed.invalidatedRefs,
+          error: completed.error, createdAt: completed.createdAt, completedAt: completed.completedAt,
         },
       }, stamp);
       touchedObjects.push(actionObject);

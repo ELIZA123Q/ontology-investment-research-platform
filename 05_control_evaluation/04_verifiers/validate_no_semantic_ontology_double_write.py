@@ -26,7 +26,7 @@ ALLOW_SCAN_SKIP = {
     ".venv",
     "04_context_state",  # run artifacts / packs may embed copies
     "05_control_evaluation/05_evals",  # eval fixtures
-    "legacy",  # archived Ontology 3.0 baseline
+    "legacy",  # historical files are not active ontology models
 }
 
 

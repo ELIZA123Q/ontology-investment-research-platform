@@ -14,6 +14,8 @@ routes:
     file: 06_runtime/app/vnext/conversations/[id]/events/route.ts
   - path: /vnext/tasks/{id}/{action}
     file: 06_runtime/app/vnext/tasks/[id]/[action]/route.ts
+  - path: /vnext/tasks/{id}/materials
+    file: 06_runtime/app/vnext/tasks/[id]/materials/route.ts
   - path: /vnext/approvals/{id}/decision
     file: 06_runtime/app/vnext/approvals/[id]/decision/route.ts
   - path: /vnext/artifacts/{id}
@@ -34,4 +36,5 @@ notes:
   - 正式语义写入只能经过 Ontology Action preview/apply 接口。
   - /vnext/artifacts/{id} 的 PATCH 只允许 UiSurface editableFields 白名单字段，并要求 expectedVersion。
   - 关键证据和 Judgment 会暂停等待研究员确认；报告编辑后自动重新审计。
+  - 研究员材料通过独立抽屉结构化录入来源、发布主体、原文定位与摘录；不能用聊天文本绕过 SourceSnapshot 和 evidence_confirmation。
   - 计划面展示受治理的章节级方法蓝图；报告面展示 MethodApplication、方法输入事实数量和缺口。

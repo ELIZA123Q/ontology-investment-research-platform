@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "advisory",
+  "lastReviewedAt": "2026-08-11",
+  "activationPolicy": {
+    "directMarketplaceInstallAllowed": false,
+    "requiredSequence": [
+      "inspect_upstream_source",
+      "review_scripts_dependencies_permissions",
+      "map_inputs_outputs_to_local_contracts",
+      "run_sandbox_and_gold_evals",
+      "pin_version_and_content_hash",
+      "human_approve_activation"
+    ],
+    "boundary": "外部 Skill 只能提供候选程序、模板或连接器实现；本项目的本体、证据晋级、判断门槛、审批和发布规则始终由本地合同控制。"
+  },
+  "candidates": [
+    {
+      "id": "anthropic-financial-services/initiating-coverage",
+      "sourceUrl": "https://www.skillhub.club/skills/anthropics-financial-services-plugins",
+      "decision": "pattern_mining",
+      "mapsTo": ["research-design", "evidence-research", "research-delivery"],
+      "value": "覆盖公司研究、建模、估值、图表和成稿的显式依赖，适合反向补齐本项目的公司首次覆盖场景合同。",
+      "risks": ["依赖特定金融数据提供方与办公制品栈", "交付导向强，不能替代本地 EvidenceFact 与 Judgment 门槛"]
+    },
+    {
+      "id": "anthropic-financial-services/earnings-analysis",
+      "sourceUrl": "https://www.skillhub.club/skills/anthropics-financial-services-plugins",
+      "decision": "pattern_mining",
+      "mapsTo": ["research-design", "research-delivery"],
+      "value": "业绩 beat/miss、指标更新与投资逻辑修订的交付结构成熟，可用于设计事件更新类 ReportSpec。",
+      "risks": ["页数和图表数量不是质量标准", "一致预期和财务口径必须由可信数据连接器提供"]
+    },
+    {
+      "id": "anthropic-financial-services/thesis-tracker",
+      "sourceUrl": "https://www.skillhub.club/skills/anthropics-financial-services-plugins",
+      "decision": "pattern_mining",
+      "mapsTo": ["judgment-reasoning", "04_context_state/03_memory"],
+      "value": "与本项目的改判条件、Signal 演化和长期 ResearchCase 高度契合。",
+      "risks": ["外部状态模型未知", "不得直接写入正式 Judgment 或长期记忆"]
+    },
+    {
+      "id": "sensenova/sn-search-year-report",
+      "sourceUrl": "https://skills-hub.ai/sources/sensenova-skills",
+      "decision": "connector_evaluation",
+      "mapsTo": ["source.query", "source.capture"],
+      "value": "面向年报、定期报告和上市公司披露文件的官方来源搜索，适合作为来源发现 sidecar 候选。",
+      "risks": ["搜索结果必须经过快照、哈希、定位和发布主体核验", "脚本及网络依赖尚未做本地安全审计"]
+    },
+    {
+      "id": "sensenova/sn-search-finance",
+      "sourceUrl": "https://skills-hub.ai/sources/sensenova-skills",
+      "decision": "connector_evaluation",
+      "mapsTo": ["source.query", "financial-data-adapter"],
+      "value": "覆盖证券、基本面、价格、K 线、披露和财经新闻，可作为多数据源适配模式参考。",
+      "risks": ["不同数据源授权、复权、币种、单位和时点口径不一致", "不得让 browser-use 结果越过连接器摄取合同"]
+    },
+    {
+      "id": "sensenova/sn-research-synthesis",
+      "sourceUrl": "https://skills-hub.ai/sources/sensenova-skills",
+      "decision": "pattern_mining",
+      "mapsTo": ["judgment-reasoning"],
+      "value": "明确区分跨来源综合判断与最终写作，和本项目先裁决、后表达的边界一致。",
+      "risks": ["sub_report 不能被当作 EvidenceFact", "综合文本必须保留竞争解释和不确定性"]
+    },
+    {
+      "id": "finance-skills-cn/alphaear-signal-tracker",
+      "sourceUrl": "https://skills-hub.ai/sources/finance-skills-cn",
+      "decision": "watch_only",
+      "mapsTo": ["judgment-reasoning", "ResearchCase"],
+      "value": "增强、削弱、证伪的信号演化语义与本项目方向一致。",
+      "risks": ["采用量和公开评审很少", "状态与证据边界尚不清晰", "不能在安全审计前安装或执行"]
+    },
+    {
+      "id": "skillhub/browser-research-pro",
+      "sourceUrl": "https://useskillhub.com/marketplace",
+      "decision": "watch_only",
+      "mapsTo": ["source.discover", "source.query"],
+      "value": "提供多来源检索、引用和结构化 brief 的托管运行时，可作为外部研究连接器对照组。",
+      "risks": ["外部付费运行时", "数据出境、权限和可复现性需要单独评估", "摘要不可替代原始来源快照"]
+    }
+  ]
+}

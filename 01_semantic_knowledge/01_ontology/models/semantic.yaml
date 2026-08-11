@@ -438,7 +438,7 @@ relation_types:
 
 rules:
   semantic_endpoint_compatibility:
-    metadata: {id: semantic_endpoint_compatibility, namespace: core.semantic, label_zh: 关系端点兼容, label_en: Relation endpoint compatibility, aliases: [], definition: 关系实例的端点类型必须落在关系定义允许范围内。执行面是 Runtime 实例图物化（validateRuntimeGraph），不是 stage_04 判断链引用检查；后者见 judgment_reference_integrity。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [Company produces Product], counter_examples: [Event produces Region]}
+    metadata: {id: semantic_endpoint_compatibility, namespace: core.semantic, label_zh: 关系端点兼容, label_en: Relation endpoint compatibility, aliases: [], definition: 关系实例的端点类型必须落在关系定义允许范围内。执行面是 Runtime 实例图物化（validateRuntimeGraph），判断链引用完整性由 judgment_reference_integrity 单独检查。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [Company produces Product], counter_examples: [Event produces Region]}
     rule_class: semantic_constraint
     applies_to: [relation_instance]
     input_types: [relation_instance]

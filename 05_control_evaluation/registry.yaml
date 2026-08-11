@@ -1,5 +1,5 @@
 schema_name: control_evaluation_domain_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
@@ -11,7 +11,6 @@ authority:
     - 05_control_evaluation/03_permissions/registry.yaml
     - 05_control_evaluation/04_verifiers/registry.yaml
     - 05_control_evaluation/05_evals/registry.yaml
-    - 05_control_evaluation/06_change_governance/registry.yaml
 
 subdomains:
   rules: {target: 05_control_evaluation/01_rules, status: active}
@@ -19,13 +18,13 @@ subdomains:
   permissions: {target: 05_control_evaluation/03_permissions, status: active}
   verifiers: {target: 05_control_evaluation/04_verifiers, status: active}
   evals: {target: 05_control_evaluation/05_evals, status: active}
-  change_governance: {target: 05_control_evaluation/06_change_governance, status: active}
 
 boundary:
-  project_architecture: docs/architecture/
+  project_architecture: 06_runtime/ARCHITECTURE.md
   contract_rule: contract follows owner; this registry only indexes control-plane-owned assets.
 
 notes:
   - Verifier ≠ Eval。
   - 05 不保存“跨域合同垃圾桶”；跨域使用不改变合同的所有权。
   - Runtime 消费控制面规则，不在 Runtime 内平行定义规则值域。
+  - vNext 是唯一现行 Runtime；旧固定五阶段实现与包校验仅保留在 Git 历史中。

@@ -3,18 +3,24 @@
     "id": "gold-normal-semiconductor",
     "goal": "研究未来六个月先进封装需求变化，给出判断、证据和改判条件",
     "expectedIntent": "full_research",
+    "expectedRequiredNodes": ["method_selection", "evidence_discovery", "evidence_capture", "evidence_evaluation", "judgment", "compose", "audit"],
+    "expectedForbiddenNodes": ["clarify", "impact_analysis"],
     "expectedOutcome": "requires_verified_sources_before_supported_claim"
   },
   {
     "id": "gold-insufficient-evidence",
     "goal": "判断一家缺少公开经营数据的设备公司是否已进入头部晶圆厂供应链",
     "expectedIntent": "full_research",
+    "expectedRequiredNodes": ["evidence_discovery", "evidence_capture", "evidence_evaluation", "judgment"],
+    "expectedForbiddenNodes": ["clarify", "impact_analysis"],
     "expectedOutcome": "abstain_when_evidence_is_insufficient"
   },
   {
     "id": "gold-event-rejudgment",
     "goal": "新材料显示出口规则发生变化，更新原判断并只重跑受影响部分",
     "expectedIntent": "update_judgment",
+    "expectedRequiredNodes": ["impact_analysis", "semantic_context", "evidence_discovery", "evidence_capture", "evidence_evaluation", "judgment", "audit"],
+    "expectedForbiddenNodes": ["method_selection", "compose"],
     "expectedOutcome": "invalidate_impacted_artifacts_only"
   }
 ]

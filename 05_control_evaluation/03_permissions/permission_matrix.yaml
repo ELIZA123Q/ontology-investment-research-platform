@@ -1,23 +1,35 @@
 schema_name: governance_permission_matrix
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
+authority_mode: action_catalog_bound
 
-subjects: [researcher, reviewer, ontology_admin, agent, system_job]
-resources: [artifact, formal_report, human_gate, memory, ontology, source_capture]
-actions: [confirm, review, block, promote, release, write, acquire]
+actor_types: [researcher, agent, system, ontology_admin]
+action_catalog: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml
+approval_policies: 01_semantic_knowledge/01_ontology/kinetics/policies.yaml
+runtime_enforcement: 06_runtime/src/ontology/action-service.ts
 
-rules:
-  - {subject: researcher, resource: artifact, action: confirm, effect: allow}
-  - {subject: researcher, resource: memory, action: write, effect: allow, scope: user_preferences_only}
-  - {subject: reviewer, resource: formal_report, action: review, effect: allow}
-  - {subject: reviewer, resource: formal_report, action: block, effect: allow}
-  - {subject: ontology_admin, resource: ontology, action: release, effect: allow}
-  - {subject: system_job, resource: source_capture, action: acquire, effect: allow, scope: configured_budget_only}
-  - {subject: system_job, resource: human_gate, action: confirm, effect: deny}
-  - {subject: agent, resource: human_gate, action: confirm, effect: deny}
-  - {subject: agent, resource: memory, action: promote, effect: deny}
+global_invariants:
+  - id: human-gates-require-researcher
+    effect: deny
+    actors: [agent, system]
+    operations: [plan_confirmation, evidence_confirmation, judgment_confirmation, publish_confirmation]
+  - id: formal-writes-via-actions-only
+    effect: deny
+    actors: [researcher, agent, system, ontology_admin]
+    operation: direct_formal_object_or_link_write
+    allowed_route: 06_runtime/src/ontology/action-service.ts
+  - id: high-risk-actions-require-approval
+    effect: require_approval
+    policy_ref: 01_semantic_knowledge/01_ontology/kinetics/policies.yaml#policies.HighRiskResearcherApproval
+  - id: agent-cannot-publish-deliverable
+    effect: deny
+    actors: [agent, system]
+    action: PublishDeliverable
+  - id: knowledge-release-scope-isolated
+    effect: deny
+    operation: publish_mixed_scope_release
+    contract_ref: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
 
-rule_boundaries:
-  no_invented_sources: 05_control_evaluation/01_rules/policies/rule_authority_registry.yaml
-  knowledge_promotion: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
-  judgment_strength: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
+resolution_rule: >-
+  具体 Action 是否允许由 action_types.yaml 的 allowed_actors 与 approval_policy 决定；
+  本矩阵中的全局 deny 或 require_approval 不得被 Action 局部配置放宽。

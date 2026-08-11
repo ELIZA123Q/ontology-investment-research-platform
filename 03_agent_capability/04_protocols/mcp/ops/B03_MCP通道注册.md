@@ -51,7 +51,7 @@
 | `datayes-stock-event-mcp` | **新闻/公开叙事**（事件摘要） | 法定公告原文 |
 | `datayes-index-*-mcp` | **专业直接测量**（指数） | 个股层面判断 |
 | `datayes-fund-*-mcp` | **专业直接测量**（基金） | 个股数据、宏观 |
-| `htsc_research_mcp` | **专业解释/研究** | 关键硬事实的唯一证据 |
+| `htsc_research_mcp` | **专业解释/研究**；行业景气度只作二手测量 | 关键硬事实的唯一证据、法定披露或独立一手测量 |
 | `caixin-news` | **新闻/公开叙事** | 政策/财务/行业状态唯一证据 |
 | `jina-reader` | **搜索/AI摘要**（获取通道） | 任何正式证据 |
 
@@ -105,6 +105,6 @@ MCP通道正常 → 通过MCP获取 → 完整留痕
 ## 安装状态
 
 MCP credentials/config 由 Runtime / Harness 环境提供，项目仓库不保存凭证。
-接入状态以 `registry.yaml` 的 `adapter_status` 为准（当前：`common_contract_ready_connector_planned`）。统一结果合同已落地，真实 connector 完整映射仍在推进。
+接入状态以 `registry.yaml` 的 `adapter_status` 为准（当前：`htsc_industry_sentiment_mapping_live`）。华泰半导体行业景气度已完成真实 MCP 调用，Runtime 映射仍必须保留授权与风险揭示。
 
-18 个证据通道的机器权威清单为 [`mcp_channels.yaml`](../mcp_channels.yaml)；它必须与 `01_semantic_knowledge/01_ontology/contracts/ontology_data_mapping_profiles.yaml` 的 `required_connectors` 和 active Profile 一致。MCP 故障时 Stage03 按通道回退提示转向可核验原文或公开网页，并诚实登记 gap。
+18 个证据通道的机器权威清单为 [`mcp_channels.yaml`](../mcp_channels.yaml)；它必须与 `01_semantic_knowledge/01_ontology/contracts/ontology_data_mapping_profiles.yaml` 的 `required_connectors` 和 active Profile 一致。MCP 故障时，当前 Evidence 节点按通道回退提示转向可核验原文或公开网页，并诚实登记 gap。

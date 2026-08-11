@@ -47,3 +47,7 @@ Skill 保存「这类事情怎样做好」的程序性知识，不是 Runtime �
 - 改可执行绑定：`06_runtime/src/capabilities/registry.ts`
 - 跨 Skill 方法元数据：[`method_assets.yaml`](method_assets.yaml)
 - 有校验脚本的包改完先跑：`research_design/validate.py`、`evidence_research/validate.py`、`judgment_reasoning/validate.py`
+
+## 外部 Skill 准入
+
+SkillHub 等市场只用于发现候选模式，不是运行时信任根。候选、价值、风险和当前决策登记在 [`external_candidates.json`](external_candidates.json)。外部 Skill 在完成源码、脚本、依赖、权限、输入输出合同、安全沙箱和 gold eval 审查前不得直接安装或激活；即使激活，也只能映射为本地 Skill 资源或 Tool/Connector 实现，不能改写本体、证据晋级、判断和发布门槛。

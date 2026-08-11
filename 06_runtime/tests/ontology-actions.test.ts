@@ -27,6 +27,10 @@ describe("Ontology 4.0 action platform", () => {
   it("loads one semantic and kinetic catalog without investment execution actions", () => {
     expect(ontologyCatalog.platformVersion).toBe("4.0.0");
     expect(ontologyCatalog.listObjectTypes().some((type) => type.id === "ResearchCase")).toBe(true);
+    const executionAttributes = ontologyCatalog.getObjectType("ActionExecution").attributes;
+    expect(executionAttributes).toHaveProperty("actorType");
+    expect(executionAttributes).toHaveProperty("outputRefs");
+    expect(executionAttributes).not.toHaveProperty("actor_type");
     expect(ontologyCatalog.listFunctionTypes().some((type) => type.id === "ComputeJudgmentProposal")).toBe(true);
     const actionIds = ontologyCatalog.listActionTypes().map((action) => action.id);
     expect(actionIds).toContain("ApproveJudgment");
@@ -45,6 +49,11 @@ describe("Ontology 4.0 action platform", () => {
     const second = actions.apply("CaptureSource", request, context);
     expect(second.reused).toBe(true);
     expect(second.execution.id).toBe(first.execution.id);
+    expect(actions.ontology.getObject(first.execution.id)?.properties).toMatchObject({
+      actorType: "agent",
+      outputRefs: first.execution.outputRefs,
+      invalidatedRefs: first.execution.invalidatedRefs,
+    });
     const snapshot = first.objects.find((object) => object.type === "SourceSnapshot")!;
     expect(() => actions.apply("VerifySourceSnapshot", {
       targetRefs: [{ id: snapshot.id, type: snapshot.type }], parameters: { decision: "verified", note: "ok" },

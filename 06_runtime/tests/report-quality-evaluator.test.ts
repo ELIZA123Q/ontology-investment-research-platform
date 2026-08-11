@@ -49,6 +49,7 @@ describe("report quality evaluator", () => {
         independenceMode: "dual_route_independent", perturbationSetRef: "perturbations:R1", calibratedEvaluatorModelIds: ["judge-a", "judge-b"],
         evaluatorCalibrationAtLeastC2: true, producerModelId: "producer", downstreamModelIds: ["downstream-a", "downstream-b"],
         sameEvidenceDirectBaselineRef: "baseline:direct", sameEvidenceSummaryBaselineRef: "baseline:summary",
+        eligibilityAttestation: { caseId: "case-1", manifestHash: `sha256:${"a".repeat(64)}`, protocolVersion: "1.0.0", status: "eligible" },
       },
     });
     expect(result.formalResearchValue).toMatchObject({ status: "eligible", missingPrerequisites: [] });

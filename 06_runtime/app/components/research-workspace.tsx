@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ApprovalRequest, Artifact, Conversation, Message, RunEvent, Task, TaskNode, UiSurface } from "@/src/contracts";
 import { apiRequest, formatRelativeTime, taskStatusLabel } from "@/app/components/client-api";
-import { ArrowIcon, BranchIcon, CloseIcon, MenuIcon, PanelIcon, SparkIcon } from "@/app/components/icons";
+import { ArrowIcon, BranchIcon, CloseIcon, MaterialIcon, MenuIcon, PanelIcon, SparkIcon } from "@/app/components/icons";
 import { AuditTimeline, isUiSurface, surfaceLabels, SurfaceRenderer } from "@/app/components/surface-registry";
 
 interface Snapshot {
@@ -19,7 +19,20 @@ interface Snapshot {
   events: RunEvent[];
 }
 
+interface MaterialDraft {
+  uri: string;
+  title: string;
+  publisherId: string;
+  publishedAt: string;
+  sourceType: "primary" | "secondary";
+  locator: string;
+  quote: string;
+  context: string;
+  permissionConfirmed: boolean;
+}
+
 const EMPTY: Snapshot = { conversation: null, messages: [], task: null, activeTaskId: null, tasks: [], nodes: [], artifacts: [], approvals: [], events: [] };
+const EMPTY_MATERIAL: MaterialDraft = { uri: "", title: "", publisherId: "", publishedAt: "", sourceType: "primary", locator: "", quote: "", context: "", permissionConfirmed: false };
 
 export function ResearchWorkspace({ conversationId }: { conversationId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot>(EMPTY);
@@ -28,6 +41,11 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const [materialDraft, setMaterialDraft] = useState<MaterialDraft>(EMPTY_MATERIAL);
+  const [materialBusy, setMaterialBusy] = useState(false);
+  const [materialError, setMaterialError] = useState("");
+  const [materialSuccess, setMaterialSuccess] = useState("");
   const [dockOpen, setDockOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"conversation" | "artifacts">("conversation");
   const [activeSurfaceId, setActiveSurfaceId] = useState<string>("audit");
@@ -133,6 +151,24 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
     finally { setBusy(false); }
   }
 
+  async function submitMaterial(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!snapshot.task || materialBusy) return;
+    setMaterialBusy(true); setMaterialError(""); setMaterialSuccess("");
+    try {
+      await apiRequest(`/vnext/tasks/${snapshot.task.id}/materials`, { method: "POST", body: JSON.stringify(materialDraft) });
+      setMaterialSuccess("材料快照已保存，并已进入证据复核或局部重算队列。");
+      setMaterialDraft(EMPTY_MATERIAL);
+      await refresh();
+    } catch (e) {
+      setMaterialError(e instanceof Error ? e.message : String(e));
+    } finally { setMaterialBusy(false); }
+  }
+
+  function openMaterialDrawer() {
+    setMaterialError(""); setMaterialSuccess(""); setMaterialOpen(true);
+  }
+
   function selectTask(taskId: string) {
     setSelectedTaskId(taskId); setHistoryOpen(false); void refresh(taskId);
   }
@@ -140,6 +176,7 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
   const canCancel = snapshot.task && ["queued", "running", "waiting_approval", "waiting_input"].includes(snapshot.task.status);
   const canResume = snapshot.task && ["failed", "waiting_input"].includes(snapshot.task.status);
   const canBranch = snapshot.task && ["completed", "cancelled", "failed"].includes(snapshot.task.status);
+  const canAddMaterial = snapshot.task && ["planned", "waiting_input", "waiting_approval", "failed"].includes(snapshot.task.status);
 
   return <main className={`workspace-page ${dockOpen ? "dock-open" : ""}`} id="main-content">
     <header className="workspace-header">
@@ -149,6 +186,7 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
       </div>
       <div className="workspace-progress"><span><i style={{ width: `${progress}%` }}/></span><small>{completed}/{snapshot.nodes.length} 个节点</small></div>
       <div className="workspace-actions">
+        {canAddMaterial && <button className="material-action" disabled={materialBusy} onClick={openMaterialDrawer}><MaterialIcon />补充材料</button>}
         {canCancel && <button disabled={busy} onClick={() => void taskAction("cancel")}>取消本轮</button>}
         {canResume && <button disabled={busy} onClick={() => void taskAction("resume")}>恢复研究</button>}
         {canBranch && <button disabled={busy} onClick={() => void taskAction("branch")}><BranchIcon />创建分支</button>}
@@ -191,6 +229,27 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
       <header><div><span>研究历史</span><h2>{snapshot.conversation?.title}</h2></div><button className="icon-button" onClick={() => setHistoryOpen(false)}><CloseIcon /></button></header>
       <Link className="new-research-link" href="/">＋ 发起新研究</Link>
       <div className="task-history">{snapshot.tasks.map((task) => <button className={task.id === snapshot.activeTaskId ? "active" : ""} key={task.id} onClick={() => selectTask(task.id)}><span className={`status-dot ${task.status}`}/><div><strong>{task.goal}</strong><small>{taskStatusLabel[task.status]} · {new Date(task.createdAt).toLocaleString("zh-CN")}</small>{task.parentTaskId && <i>研究分支</i>}</div></button>)}</div>
+    </aside></div>}
+
+    {materialOpen && <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMaterialOpen(false); }}><aside className="material-drawer">
+      <header><div><span>结构化材料摄取</span><h2>补充可定位的研究材料</h2></div><button className="icon-button" onClick={() => setMaterialOpen(false)} aria-label="关闭材料面板"><CloseIcon /></button></header>
+      <p className="material-boundary">这里保存来源地址、发布主体、定位和原文摘录。提交只证明快照与摘录完整，不代表事实已经成立；材料仍需经过证据矩阵和研究员确认。</p>
+      <form className="material-form" onSubmit={(event) => void submitMaterial(event)}>
+        <label>来源地址<input type="url" required value={materialDraft.uri} onChange={(event) => setMaterialDraft((value) => ({ ...value, uri: event.target.value }))} placeholder="https://company.example/report.pdf" /></label>
+        <label>材料标题<input required maxLength={300} value={materialDraft.title} onChange={(event) => setMaterialDraft((value) => ({ ...value, title: event.target.value }))} placeholder="2026 年半年度报告" /></label>
+        <div className="material-form-grid">
+          <label>发布主体<input maxLength={200} value={materialDraft.publisherId} onChange={(event) => setMaterialDraft((value) => ({ ...value, publisherId: event.target.value }))} placeholder="留空则使用来源域名" /></label>
+          <label>发布日期<input type="date" value={materialDraft.publishedAt} onChange={(event) => setMaterialDraft((value) => ({ ...value, publishedAt: event.target.value }))} /></label>
+        </div>
+        <label>来源性质<select value={materialDraft.sourceType} onChange={(event) => setMaterialDraft((value) => ({ ...value, sourceType: event.target.value as MaterialDraft["sourceType"] }))}><option value="primary">一手来源</option><option value="secondary">二手来源</option></select></label>
+        <label>原文定位<input required maxLength={1000} value={materialDraft.locator} onChange={(event) => setMaterialDraft((value) => ({ ...value, locator: event.target.value }))} placeholder="第 23 页，经营情况讨论；或表 4 第 2 行" /></label>
+        <label>关键原文摘录<textarea required maxLength={20000} value={materialDraft.quote} onChange={(event) => setMaterialDraft((value) => ({ ...value, quote: event.target.value }))} placeholder="粘贴能够直接支持或反驳判断的原文，不要写自己的总结。" /></label>
+        <label>包含摘录的上下文（可选）<textarea maxLength={200000} value={materialDraft.context} onChange={(event) => setMaterialDraft((value) => ({ ...value, context: event.target.value }))} placeholder="可粘贴更完整的段落；其中必须原样包含上面的关键摘录。" /></label>
+        <label className="material-confirm"><input type="checkbox" checked={materialDraft.permissionConfirmed} onChange={(event) => setMaterialDraft((value) => ({ ...value, permissionConfirmed: event.target.checked }))} /><span>我已核对摘录与原文一致，并确认该材料可用于本次研究。</span></label>
+        {materialError && <p className="inline-error" role="alert">{materialError}</p>}
+        {materialSuccess && <p className="material-success" role="status">{materialSuccess}</p>}
+        <footer><button type="button" onClick={() => setMaterialOpen(false)}>取消</button><button className="primary-button" disabled={materialBusy || !materialDraft.permissionConfirmed} type="submit">{materialBusy ? "正在保存" : "保存并进入证据复核"}<ArrowIcon /></button></footer>
+      </form>
     </aside></div>}
 
     <nav className="mobile-workspace-nav"><button className={mobileView === "conversation" ? "active" : ""} onClick={() => setMobileView("conversation")}>协作</button><button className={mobileView === "artifacts" ? "active" : ""} onClick={() => { setMobileView("artifacts"); setDockOpen(true); }}>制品{surfaceTabs.length ? ` ${surfaceTabs.length}` : ""}</button></nav>

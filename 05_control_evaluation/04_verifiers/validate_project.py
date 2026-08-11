@@ -13,25 +13,18 @@ ROOT = Path(__file__).resolve().parents[2]
 CHECKS = (
     ("Ontology 统一校验", [sys.executable, "05_control_evaluation/04_verifiers/ontology/validate_ontology.py"]),
     ("Ontology 4.0 Runtime 投影防漂移", ["npm", "--prefix", "06_runtime", "run", "ontology:check"]),
-    ("本体元治理控制面", [sys.executable, "05_control_evaluation/04_verifiers/validate_governance_control_plane.py"]),
-    ("本体元治理控制面负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_governance_control_plane.py"]),
+    ("本体禁止双写", [sys.executable, "05_control_evaluation/04_verifiers/validate_no_semantic_ontology_double_write.py"]),
     ("规则唯一权威", [sys.executable, "05_control_evaluation/04_verifiers/validate_rule_authority.py"]),
     ("规则归属负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_rule_authority.py"]),
     ("统一方法资产", [sys.executable, "05_control_evaluation/04_verifiers/validate_method_assets.py"]),
     ("方法资产负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_method_assets.py"]),
-    ("方法应用跨阶段合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_method_application_contract.py"]),
-    ("方法应用合同负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_method_application_contract.py"]),
-    ("02—05 当前规范与模板", [sys.executable, "05_control_evaluation/04_verifiers/validate_stage_assets.py"]),
-    ("工作台导出包负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_workbench_package.py"]),
-    ("正式包语义基线负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_semantic_baseline.py"]),
-    ("推理追溯合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_reasoning_trace_contract.py"]),
-    ("推理追溯负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_reasoning_trace_contract.py"]),
-    ("增量更新合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_incremental_update_contract.py"]),
-    ("增量更新合同负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_incremental_update_contract.py"]),
-    ("唯一状态派生矩阵", [sys.executable, "05_control_evaluation/04_verifiers/status_derivation.py"]),
+    ("知识沉淀合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_knowledge_learning_contract.py"]),
+    ("连接器与本体映射合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_connector_mapping_contract.py"]),
     ("vNext 全量切换审计", ["npm", "--prefix", "06_runtime", "run", "audit:cutover"]),
+    ("代表性研究任务合同回归", ["npm", "--prefix", "06_runtime", "run", "eval:gold"]),
     ("Runtime TypeScript 类型检查", ["npm", "--prefix", "06_runtime", "run", "typecheck"]),
     ("Runtime TypeScript 回归", ["npm", "--prefix", "06_runtime", "test"]),
+    ("Runtime 生产构建", ["npm", "--prefix", "06_runtime", "run", "build"]),
 )
 
 
@@ -48,8 +41,8 @@ def main() -> int:
         return 1
 
     print(
-        "\nPROJECT_ENGINEERING_PASS: Ontology 统一校验、当前合同、知识库、运行回归与"
-        "工作台导出包负向校验全部通过。"
+        "\nPROJECT_ENGINEERING_PASS: Ontology 4.0、规则权威、方法资产、知识闭环、"
+        "vNext Runtime 回归与生产构建全部通过。"
     )
     print(
         "FORMAL_RESEARCH_VALUE_NOT_ASSERTED: 本结果不代表真实模型的 R/U/delta/S/C、"

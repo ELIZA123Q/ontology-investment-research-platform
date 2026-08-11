@@ -5,12 +5,12 @@ status: active
 authority:
   answers: >
     图合同（类型、表示、双视图、入图/追溯策略）归 Semantic/knowledge_graph；
-    单次图物化、加载、失效传播执行归 Runtime；实例图校验归 Governance。
+    单次图物化、加载、失效传播与制品来源校验归 Runtime。
     本合同不绑定固定 Workflow / 阶段序列，也不收录 Execution Trace。
   write_entry: 01_semantic_knowledge/03_knowledge_graph/
   read_primary: 01_semantic_knowledge/03_knowledge_graph/contracts/
   runtime_boundary: 06_runtime/src/semantic/graph-contracts.ts
-  governance_validators: 05_control_evaluation/04_verifiers/knowledge_graph/
+  runtime_validators: 06_runtime/src/governance/verifiers.ts
 
 source_of_truth:
   graph_contracts:
@@ -39,4 +39,4 @@ notes:
   - Research Provenance ≠ Execution Trace；后者归 Runtime。
   - Knowledge Graph 可以补结构，不可以补业务事实。
   - example_* 字段仅解释视图，不构成类型登记；类型权威在 01_ontology。
-  - 单次图物化结果归 Runtime / workspace；历史 stage 包仅由 Governance 兼容校验器读取。
+  - 单次图物化结果归 Runtime / workspace；仅支持 vNext TaskGraph / Artifact，历史包从 Git 追溯。

@@ -360,6 +360,26 @@ profiles:
         completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
     forbidden_direct_targets: [EvidenceFact, Signal, Hypothesis, Judgment]
 
+  - id: htsc_industry_sentiment_observation
+    version: 1.0.0
+    status: active
+    connector: htsc_research_mcp
+    source_grain: one_industry_sentiment_month
+    description: 华泰行业景气度是授权研究衍生指标，只形成二手 Observation；必须冻结响应指纹、字段血缘、业务时间、风险揭示与禁止传播边界，不得单独生成行业或投资判断。
+    target_mappings:
+      - target_type: Observation
+        materialization: requires_context
+        identity_source_paths: [request.industry, observations.observedAt, observations.sourcePath]
+        fields:
+          - {target_attribute: label, source_paths: [$constant.industry_sentiment], transform: constant_or_context}
+          - {target_attribute: value, source_paths: [observations.value], transform: typed_value_with_unit}
+          - {target_attribute: observed_at, source_paths: [observations.observedAt], transform: normalize_datetime}
+          - {target_attribute: valid_from, source_paths: [observations.observedAt], transform: normalize_datetime}
+          - {target_attribute: cutoff_at, source_paths: [asOf], transform: normalize_datetime}
+        required_context_bindings: [request.industryLevel, request.industry, observations.sourcePath, responseFingerprint, replayability, riskDisclosure]
+        completeness_gate: [label, value, observed_at, valid_from, cutoff_at]
+    forbidden_direct_targets: [Hypothesis, Signal, Judgment]
+
   - id: htsc_research_document
     version: 1.0.0
     status: active

@@ -1,5 +1,5 @@
 schema_name: governance_rules_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
@@ -13,7 +13,6 @@ critical_assets:
   - 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
   - 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml
   - 05_control_evaluation/01_rules/contracts/public_contract.yaml
-  - 05_control_evaluation/01_rules/contracts/package_kinds.yaml
   - 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
 
 owner_boundaries:
@@ -25,3 +24,4 @@ owner_boundaries:
 notes:
   - 新规则写入本目录，不建立旧路径或平行兼容目录。
   - 规则归属以 rule_authority_registry.yaml 为唯一登记表。
+  - Public Contract 2.0 只描述 vNext TaskGraph、Artifact、Action 与发布边界。

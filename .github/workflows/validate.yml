@@ -33,8 +33,5 @@ jobs:
       - name: Audit production dependencies
         run: npm --prefix 06_runtime audit --omit=dev
 
-      - name: Run engineering and contract validation
+      - name: Run vNext engineering acceptance chain
         run: python 05_control_evaluation/04_verifiers/validate_project.py
-
-      - name: Build Runtime
-        run: npm --prefix 06_runtime run build

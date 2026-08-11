@@ -1,37 +1,29 @@
 schema_name: governance_identity_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
   answers: 动作是谁发起的。
   write_entry: 05_control_evaluation/02_identity/
-  read_primary: 05_control_evaluation/02_identity/registry.yaml
+  audit_schema: 05_control_evaluation/02_identity/action_execution_schema.yaml
+  runtime_type: 06_runtime/src/contracts.ts#OntologyActorType
 
 authentication:
-  status: deferred
-  note: 本机工作台默认单用户；本目录不实现登录、SSO 或 RBAC。
+  status: local_single_user
+  note: 本机工作台不实现登录或 SSO；actor identity 仍必须进入 Event 与 ActionExecution 审计。
 
-principal_types:
-  - id: human
-    description: 可承担人工确认与独立复核的自然人主体。
-  - id: agent
-    description: 受约束地提出、执行或草拟的模型/Agent 主体。
-  - id: system_job
-    description: 无人格的 worker、定时任务或确定性执行器。
-
-personas:
+actor_types:
   - id: researcher
-    principal_type: human
-    default_role_id: research_owner
-  - id: reviewer
-    principal_type: human
-    default_role_id: null
+    description: 发起研究、确认计划、复核判断并批准发布的研究员。
+  - id: agent
+    description: 在 Capability、Action 与审批边界内提出或执行候选工作的 Agent。
+  - id: system
+    description: worker、确定性执行器、连接器或校验器。
   - id: ontology_admin
-    principal_type: human
-    default_role_id: null
+    description: 执行高风险本体治理动作的管理主体。
 
 binding_rules:
-  - Identity ≠ Role：Identity 记录主体与 Persona；Role 记录本次任务责任。
-  - Identity ≠ Permission：资源动作的 allow/deny 只在 permission_matrix.yaml 定义。
-  - system_job 与 agent 不得完成需要 human 的确认或审批门。
-  - reviewer 不得与产出方共用调用上下文冒充独立复核。
+  - Identity ≠ Role：actor 记录执行主体；Role 记录本次任务责任。
+  - Identity ≠ Permission：具体 Action 的 allowed_actors 与 approval_policy 由 Action Catalog 定义。
+  - agent 与 system 不得代替 researcher 完成人工确认或发布批准。
+  - 所有 Action apply 必须持久化 Runtime 字段 actorType 与 actorId；SQLite 内部列名可使用 snake_case。

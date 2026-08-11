@@ -1,6 +1,6 @@
 # 投研判断工作台 Runtime
 
-> 还不了解本项目？先读仓库根目录 [新手导读.md](../新手导读.md)。
+> 第一次接触项目？先读仓库根目录 [`README.md`](../README.md)。
 
 这是项目**唯一能真正跑起来**的应用与后台：网页、接口、研究 Agent、本地数据库都在这里。旧的「固定五阶段 Runtime」已退出，不要再按旧阶段状态机去理解。
 
@@ -34,7 +34,7 @@
 
 需要 **Node.js 24**（使用内置 `node:sqlite`）。
 
-**一键启动（推荐）：** 在仓库根目录执行 `bash start-light.sh`，然后打开 `http://127.0.0.1:3000`。
+**一键启动（macOS）：** 双击仓库根目录的 `start-light.command`；它会检查依赖、执行生产构建并启动应用与 worker。然后打开 `http://127.0.0.1:3000`。
 
 **开发模式：**
 
@@ -53,7 +53,7 @@ npm run worker
 
 访问 **`http://127.0.0.1:3000`**。可用环境变量 `VNEXT_DB_PATH` 覆盖数据库路径。
 
-你在界面里提出目标 → Research Lead 给出受约束的计划 → 你确认后后台 worker 执行 → 右侧出现证据、判断等制品。证据与 Judgment 分别需要结构化确认；报告通过审计后仍保持“已核验、未发布”，只有你在发布卡中明确确认，Runtime 才会执行 `PublishDeliverable`。当前既可复用仓库内已经治理的历史来源快照，也可通过统一的认证摄取入口接收网页、PDF 和金融连接器结果；没有匹配来源或独立发布主体不足时，系统不会编造证据，判断会降级为「暂不可判断」。仓库提供连接器结果协议与 Runtime bridge，实际部署仍需配置相应 sidecar、MCP gateway 或数据商连接器。
+你在界面里提出目标 → Research Lead 给出受约束的计划 → 你确认后后台 worker 执行 → 右侧出现证据、判断等制品。证据与 Judgment 分别需要结构化确认；报告通过审计后仍保持“已核验、未发布”，只有你在发布卡中明确确认，Runtime 才会执行 `PublishDeliverable`。当前既可复用仓库内已经治理的历史来源快照，也可通过统一的认证摄取入口接收网页、PDF 和金融连接器结果；没有匹配来源或独立发布主体不足时，系统不会编造证据，判断会降级为「暂不可判断」。现有华泰智研 MCP 的半导体行业景气度已完成真实调用与受授权映射；DataYes 财务表当前因积分不足未取得样本，其他工具仍需继续映射。
 
 模型规划和模型章节草拟均为显式开启能力。设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并设置 `VNEXT_MODEL_DRAFTING_ENABLED=true` 后，Worker 会在正式 Judgment 批准后、确定性 Composer 和引用审计前调用模型。模型只能草拟获得 EvidenceFact 与 SourceReference 授权的专业章节；任何虚构数值、越权引用、评级或目标价都会导致整份模型草稿被拒绝并自动回退到确定性报告。
 
@@ -113,6 +113,7 @@ npm run build
 - 审计通过后创建 `publish_confirmation`；用户确认前报告保持 `verified_not_published`，确认后由 Ontology Action 原子发布交付物与正式 Judgment
 - 发布提交同时冻结报告与证据包哈希及 Artifact 版本，为后续密封评测提供可复核输入，不生成 R/U/delta/S/C 分数
 - 统一连接器摄取入口把网页/PDF 快照和金融观测接入 provenance/ontology；凭据字段被拒绝，已发布 Task 必须创建更新分支
+- 华泰行业景气度回执必须携带响应指纹、字段血缘、业务时间、发布主体、风险揭示和禁止传播边界；已取得真实半导体月度样本
 - Function 只计算候选；正式 Object/Link 只由 Action Service 以原子事务写入
 - Action 统一支持 `preview → approve → apply`、幂等、乐观锁、KnowledgeLock 和失效传播
 - `ActionExecution` 记录操作者、Action/Catalog 版本、参数、审批、语义 edits、输出、失效对象和错误
@@ -140,6 +141,7 @@ flowchart LR
 
 - `GET | POST /vnext/conversations`
 - `POST /vnext/connectors/ingest`（服务端 Token + connectorId 白名单；接收 `source_capture` / `financial_data`）
+- `POST /vnext/tasks/{id}/materials`（研究员结构化提交可定位摘录；仍需证据复核）
 - `GET | POST /vnext/conversations/{id}/messages`
 - `GET /vnext/conversations/{id}/events`（SSE）
 - `POST /vnext/tasks/{id}/resume|cancel|branch`

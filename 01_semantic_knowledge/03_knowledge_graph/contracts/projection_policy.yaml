@@ -24,7 +24,7 @@ projections:
     direction: one_way
     note: >
       正式图可用且指纹一致时，读面从图单向投影。
-      具体 adapter（含历史 Stage02–04 兼容）由 Runtime 实现，不构成本合同。
+      具体 vNext TaskGraph / Artifact adapter 由 Runtime 实现，不构成本合同。
 
 forbidden:
   - 研究制品 ↔ graph 双向人工同步
@@ -46,9 +46,8 @@ authority_levels:
     description: 无可用图
 
 compatibility_note: >
-  历史 Stage02/03/04 包仅可由 Governance 的兼容校验器读取；
-  不保留 Runtime adapter，也不得回写为本目录的永久合同条款。
+  仅支持 vNext TaskGraph / Artifact 投影。历史包与兼容校验器仅可从 Git 历史追溯。
 
 runtime_homes:
   vnext_boundary: 06_runtime/src/semantic/graph-contracts.ts
-  governance_validators: 05_control_evaluation/04_verifiers/knowledge_graph/
+  governance_validators: 06_runtime/src/governance/verifiers.ts

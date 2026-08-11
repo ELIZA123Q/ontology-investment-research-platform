@@ -39,7 +39,7 @@
 ## 本目录不负责
 
 - 从数据库读哪个 artifact
-- 固定 Stage02/03/04（或任意 Workflow）如何变成图
+- 具体 TaskGraph 或 Artifact 如何物化为图
 - 一次 run 如何生成 provisional graph
 - 怎么读 workspace
 - 历史 CSV 兼容校验
@@ -50,7 +50,7 @@
 | 职责 | 位置 |
 |---|---|
 | Runtime 图边界类型 | [`06_runtime/src/semantic/graph-contracts.ts`](../../06_runtime/src/semantic/graph-contracts.ts) |
-| 实例图校验 / 任务视图投影 | [`05_control_evaluation/04_verifiers/knowledge_graph/`](../../05_control_evaluation/04_verifiers/knowledge_graph/) |
+| 制品与来源校验 | [`06_runtime/src/governance/verifiers.ts`](../../06_runtime/src/governance/verifiers.ts) |
 
 ## 硬原则
 
@@ -81,4 +81,4 @@
 
 - **status:** active（合同定稿：与 Workflow/Execution Trace 解耦）
 - **读面策略：** 正式图可用且指纹可验证时，读面从图单向投影；禁止制品 ↔ 图双向手工同步
-- **兼容：** Stage02–04 物化仅作 Runtime/legacy adapter，不是本合同前提
+- **运行时边界：** 仅支持 vNext TaskGraph / Artifact 投影；历史包不在工作树内继续兼容

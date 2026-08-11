@@ -14,7 +14,8 @@
     "ontology:validate": "python3 ../05_control_evaluation/04_verifiers/ontology/validate_ontology.py",
     "ontology:sync": "python3 scripts/generate-ontology-catalog.py",
     "ontology:check": "python3 scripts/generate-ontology-catalog.py --check",
-    "audit:cutover": "node --import tsx scripts/audit-cutover.ts"
+    "audit:cutover": "node --import tsx scripts/audit-cutover.ts",
+    "eval:gold": "node --import tsx scripts/run-gold-evals.ts"
   },
   "dependencies": {
     "next": "16.3.0",

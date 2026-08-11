@@ -2,7 +2,7 @@
 # 代码（mcp_registry.ts）和文档（B03）都从此派生。
 # 新增/移除/修改通道时只改这里。
 schema: mcp_channel_registry
-version: 1.0.0
+version: 1.1.0
 description: >
   MCP、API、数据库终端和 AI 工具是获取通道，不是来源生产者（03规范 2.5节）。
   每次 MCP 调用必须按 03附录2 记录留痕。
@@ -270,17 +270,20 @@ channels:
     category: 研报与资讯
     authority_type: public_secondary
     access_scope: authorized
+    runtime_status: live
     provides:
       - 华泰研报原文
       - 行业观点
       - 个股研究
       - 估值模型
+      - A股中观行业景气度
     limitations:
       - 不能替代法定披露
       - 不能作为独立测量
+      - 授权结果不得二次传播，必须保留风险揭示
     ops_ref: QP-MCP-02
     tools:
-      - search
+      - get_industry_sentiment
     fallback: 华泰研报 MCP 不可用 → 公开研报平台 → 公开网页搜索（研报观点不代表事实，需交叉核验）
 
   - id: caixin-news

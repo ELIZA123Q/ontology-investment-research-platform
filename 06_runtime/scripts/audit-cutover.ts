@@ -28,6 +28,7 @@ const authorityFiles = [
   "04_context_state/01_context/contract.yaml", "04_context_state/02_state/contract.yaml",
   "04_context_state/03_memory/contract.yaml", "04_context_state/04_workspace/contract.yaml",
   "06_runtime/app-surface.yaml",
+  "03_agent_capability/02_skills/external_candidates.json",
 ];
 const forbiddenReferences = [
   "06_runtime/agents", "06_runtime/skills", "06_runtime/workflow", "06_runtime/runner", "06_runtime/storage",
@@ -45,6 +46,19 @@ if (SKILLS.length !== 5) failures.push(`expected 5 executable skills, found ${SK
 const activeAgents = AGENTS.filter((agent) => agent.lifecycle === "active");
 if (activeAgents.length !== 1 || activeAgents[0]?.id !== "research-lead") failures.push(`expected only research-lead active, found ${activeAgents.map((agent) => agent.id).join(",")}`);
 if (!TOOLS.some((tool) => tool.id === "source.capture") || !TOOLS.some((tool) => tool.id === "source.query")) failures.push("required tool manifests are missing");
+
+const externalCandidatesPath = join(repoRoot, "03_agent_capability/02_skills/external_candidates.json");
+if (existsSync(externalCandidatesPath)) {
+  const external = JSON.parse(readFileSync(externalCandidatesPath, "utf8")) as {
+    activationPolicy?: { directMarketplaceInstallAllowed?: boolean };
+    candidates?: Array<{ id?: string; sourceUrl?: string; decision?: string; mapsTo?: string[]; risks?: string[] }>;
+  };
+  if (external.activationPolicy?.directMarketplaceInstallAllowed !== false) failures.push("external skill policy must forbid direct marketplace activation");
+  for (const candidate of external.candidates || []) {
+    if (!candidate.id || !candidate.sourceUrl || !candidate.decision || !candidate.mapsTo?.length || !candidate.risks?.length) failures.push(`external skill candidate is incomplete: ${candidate.id || "unknown"}`);
+    if (["active", "install", "adopt_directly"].includes(candidate.decision || "")) failures.push(`external skill bypasses intake review: ${candidate.id}`);
+  }
+}
 
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));

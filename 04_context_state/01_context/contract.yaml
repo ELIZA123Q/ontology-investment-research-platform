@@ -82,4 +82,4 @@ current_runtime_coverage:
 
 notes:
   - 类型实现绑定见 06_runtime/src/contracts.ts#ContextPackage；合同变更后 Runtime 必须对齐。
-  - 上下文白名单治理仍可参考 docs/architecture/runtime_contexts.yaml。
+  - 上下文装配与运行边界以 06_runtime/ARCHITECTURE.md 和 Runtime Context Builder 为准。

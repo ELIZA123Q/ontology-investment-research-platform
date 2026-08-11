@@ -1279,7 +1279,7 @@ export const ONTOLOGY_CATALOG = {
       ]
     }
   },
-  "fingerprint": "sha256:65e98eaa06d0fee9f5a47ae30b7de8cb251882bd12409c3ea8e7330a2748ca98",
+  "fingerprint": "sha256:6850d32bc1467db8d9a6b1d2e7fb71ce34d19f19d3646f53167519728b498ca4",
   "functions": {
     "AssessEvidenceUsability": {
       "description": "根据快照核验、范围和独立来源计算证据是否足以支撑当前用途。",
@@ -1392,16 +1392,42 @@ export const ONTOLOGY_CATALOG = {
   "objects": {
     "ActionExecution": {
       "attributes": {
-        "action_type": {
+        "actionType": {
           "required": true,
           "type": "string"
         },
-        "action_version": {
+        "actionVersion": {
           "required": true,
           "type": "string"
         },
-        "completed_at": {
+        "actorId": {
+          "required": true,
+          "type": "string"
+        },
+        "actorType": {
+          "allowed_values": [
+            "researcher",
+            "agent",
+            "system",
+            "ontology_admin"
+          ],
+          "required": true,
+          "type": "enum"
+        },
+        "approvalId": {
           "required": false,
+          "type": "string"
+        },
+        "completedAt": {
+          "required": false,
+          "type": "datetime"
+        },
+        "conversationId": {
+          "required": false,
+          "type": "string"
+        },
+        "createdAt": {
+          "required": true,
           "type": "datetime"
         },
         "edits": {
@@ -1412,43 +1438,32 @@ export const ONTOLOGY_CATALOG = {
           "required": false,
           "type": "string"
         },
-        "idempotency_key": {
+        "idempotencyKey": {
           "required": true,
           "type": "string"
         },
-        "parameters": {
+        "invalidatedRefs": {
+          "required": true,
+          "type": "array"
+        },
+        "knowledgeLockId": {
+          "required": false,
+          "type": "string"
+        },
+        "outputRefs": {
+          "required": true,
+          "type": "array"
+        },
+        "preview": {
           "required": true,
           "type": "object"
         },
-        "persona": {
-          "allowed_values": [
-            "researcher",
-            "reviewer",
-            "ontology_admin"
-          ],
-          "required": false,
-          "type": "enum"
-        },
-        "principal_id": {
+        "request": {
           "required": true,
-          "type": "string"
-        },
-        "principal_type": {
-          "allowed_values": [
-            "human",
-            "agent",
-            "system_job"
-          ],
-          "required": true,
-          "type": "enum"
-        },
-        "role_id": {
-          "required": false,
-          "type": "string"
+          "type": "object"
         },
         "status": {
           "allowed_values": [
-            "previewed",
             "applied",
             "rejected",
             "failed"
@@ -1456,16 +1471,16 @@ export const ONTOLOGY_CATALOG = {
           "required": true,
           "type": "enum"
         },
-        "submitted_at": {
-          "required": true,
-          "type": "datetime"
+        "taskId": {
+          "required": false,
+          "type": "string"
         }
       },
-      "description": "一次 Action 提交的版本、参数、操作者、审批、编辑结果与失败信息。",
+      "description": "一次 Action apply 的请求、预检、操作者、审批、编辑结果与失败信息。",
       "id": "ActionExecution",
       "labelZh": "动作执行记录",
       "namespace": "core.audit",
-      "schemaVersion": "1.0.0"
+      "schemaVersion": "2.0.0"
     },
     "Application": {
       "attributes": {
@@ -2398,22 +2413,6 @@ export const ONTOLOGY_CATALOG = {
           "type": "datetime",
           "value_role": "metadata"
         },
-        "decision_status": {
-          "allowed_values": [
-            "draft",
-            "supported",
-            "contested",
-            "blocked",
-            "indeterminate",
-            "invalidated"
-          ],
-          "cardinality": "1..1",
-          "description": "Ontology 3.0 历史兼容字段；新运行不得写入，读取时投影为 epistemic_status。",
-          "nullable_semantics": "forbidden",
-          "required": true,
-          "type": "enum",
-          "value_role": "judgment"
-        },
         "epistemic_status": {
           "allowed_values": [
             "supported",
@@ -2422,10 +2421,10 @@ export const ONTOLOGY_CATALOG = {
             "indeterminate",
             "invalidated"
           ],
-          "cardinality": "0..1",
+          "cardinality": "1..1",
           "description": "判断在证据与反证约束下的知识状态。",
-          "nullable_semantics": "null 仅用于 Ontology 3.0 历史实例。",
-          "required": false,
+          "nullable_semantics": "forbidden",
+          "required": true,
           "type": "enum",
           "value_role": "judgment"
         },
@@ -2460,18 +2459,18 @@ export const ONTOLOGY_CATALOG = {
             "published",
             "superseded"
           ],
-          "cardinality": "0..1",
+          "cardinality": "1..1",
           "description": "判断从提案、审核、批准、发布到替代的运营生命周期。",
-          "nullable_semantics": "null 仅用于 Ontology 3.0 历史实例。",
-          "required": false,
+          "nullable_semantics": "forbidden",
+          "required": true,
           "type": "enum",
           "value_role": "metadata"
         },
         "method_application_refs": {
-          "cardinality": "0..*",
+          "cardinality": "1..*",
           "description": "本轮实际执行且通过方法门的 Runtime MethodApplication 引用。",
-          "nullable_semantics": "null 仅用于 Ontology 3.0 历史实例；新 Runtime 的 ApproveJudgment 强制至少一项。",
-          "required": false,
+          "nullable_semantics": "forbidden",
+          "required": true,
           "type": "array",
           "value_role": "metadata"
         },
@@ -4173,7 +4172,7 @@ export const ONTOLOGY_CATALOG = {
     "actionEditedObject": {
       "id": "actionEditedObject",
       "inverseOf": "objectEditedByAction",
-      "schemaVersion": "1.0.0",
+      "schemaVersion": "2.0.0",
       "sourceTypes": [
         "ActionExecution"
       ],
@@ -5074,7 +5073,7 @@ export const ONTOLOGY_CATALOG = {
     "objectEditedByAction": {
       "id": "objectEditedByAction",
       "inverseOf": "actionEditedObject",
-      "schemaVersion": "1.0.0",
+      "schemaVersion": "2.0.0",
       "sourceTypes": [
         "ontology_object"
       ],

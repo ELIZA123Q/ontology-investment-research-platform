@@ -1,181 +1,95 @@
-# 步骤参数归属表：登记权威种类，防止业务参数双写。
-# authority_kind:
-#   formal_ontology_instance — 类型 + 可引用实例（领域或任务图）
-#   ontology_rule_param — 一级本体规则参数（不必做成对象实例）
-#   knowledge_base_ref — 知识库方法说明，必须回指本体
-#   runtime_contract — 运行合同（阶段状态等），不进业务本体
 schema_name: parameter_authority_matrix
-schema_version: 1.1.0
+schema_version: 2.0.0
 status: active
-note: 覆盖率 100% 指已登记参数的权威唯一，不是「一切皆本体」。
+note: 登记 vNext 使用的参数唯一权威；消费者可以投影值，但不得维护第二套值域。
+
+authority_kinds:
+  formal_ontology: Ontology 4.0 类型、属性、规则或受治理实例。
+  control_policy: 05_control_evaluation 拥有的规则或阈值。
+  capability_registry: Skill 与方法资产拥有的能力元数据。
+  runtime_contract: vNext Runtime 拥有的执行状态与接口类型。
 
 parameters:
   - id: state_variables
-    label: 状态变量 / 决策变量
-    stages: [02, 03, 04]
-    authority_kind: formal_ontology_instance
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#StateVariable
-
+    consumers: [semantic_context, research_plan, judgment]
   - id: evidence_profiles
-    label: 证据画像与 quality_floor
-    stages: [02, 03]
-    authority_kind: formal_ontology_instance
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#EvidenceProfile
-
-  - id: propagation_templates
-    label: 传导模板
-    stages: [02, 04]
-    authority_kind: formal_ontology_instance
-    authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#PropagationTemplate
-
-  - id: scenario_templates
-    label: 情景模板
-    stages: [02, 04]
-    authority_kind: formal_ontology_instance
-    authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#ScenarioTemplate
-
-  - id: business_scenario_tags
-    label: 业务情景标签
-    stages: [02, 04]
-    authority_kind: formal_ontology_instance
-    authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#BusinessScenarioTag
-
-  - id: judgment_level_criterion_templates
-    label: J0–J4 默认可复用门槛模板
-    stages: [02, 04]
-    authority_kind: formal_ontology_instance
-    authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#JudgmentLevelCriterionTemplate
-
+    consumers: [evidence_package, ontology_actions]
   - id: evidence_recipes
-    label: 取证配方
-    stages: [03]
-    authority_kind: formal_ontology_instance
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#EvidenceRecipe
-
+    consumers: [evidence_package]
   - id: source_profiles
-    label: 稳定来源画像
-    stages: [03]
-    authority_kind: formal_ontology_instance
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#SourceProfile
-
+    consumers: [source_discovery, evidence_package]
   - id: proxy_indicators
-    label: 代理指标
-    stages: [03, 04, 05]
-    authority_kind: formal_ontology_instance
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/domains/semiconductor/business_instances.yaml#ProxyIndicator
-
-  - id: judgment_evidence_threshold
-    label: Q/反证/路径就绪 → 最大 J 矩阵
-    stages: [03, 04]
-    authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
-    note: 正式语义规则仍在 judgment.yaml；Q/反证/路径到运行输出的矩阵属于跨阶段合同。
-
+    consumers: [evidence_package, judgment, report]
   - id: judgment_types
-    label: 判断单元类型
-    stages: [02, 03, 04]
-    authority_kind: ontology_rule_param
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/models/judgment.yaml#object_types.JudgmentUnit.attributes.judgment_type.allowed_values
-
+    consumers: [method_application, judgment]
   - id: judgment_levels
-    label: 判断等级 J0–J4
-    stages: [02, 03, 04, 05]
-    authority_kind: ontology_rule_param
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/models/judgment.yaml#object_types.Judgment.attributes.level.allowed_values
-
-  - id: path_readiness_statuses
-    label: 路径就绪状态
-    stages: [03]
-    authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#path_readiness_caps
-
-  - id: path_result_statuses
-    label: 路径推理结果状态
-    stages: [04]
-    authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#path_result_statuses
-
-  - id: source_authority_levels
-    label: 来源权威下限
-    stages: [02, 03, 04]
-    authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#source_authority_levels
-
+    consumers: [judgment, report]
   - id: source_tiers
-    label: 来源层级 S1–S8
-    stages: [02, 03]
-    authority_kind: ontology_rule_param
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/models/evidence.yaml#object_types.SourceDocument.attributes.source_tier.allowed_values
-
+    consumers: [source_capture, evidence_assessment]
   - id: confidence_levels
-    label: 置信上限 high/medium/low
-    stages: [03, 04]
-    authority_kind: ontology_rule_param
+    authority_kind: formal_ontology
     authority_ref: 01_semantic_knowledge/01_ontology/models/judgment.yaml#object_types.Judgment.attributes.confidence.allowed_values
-
-  - id: basket_roles
-    label: 证据篮子角色（运行时六值）
-    stages: [02, 03]
-    authority_kind: runtime_contract
+    consumers: [judgment]
+  - id: judgment_thresholds
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
+    consumers: [evidence_assessment, judgment]
+  - id: evidence_roles
+    authority_kind: control_policy
     authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#operational_basket_roles
-
-  - id: kb03_method_roles
-    label: 取证方法五角色（说明层）
-    stages: [03]
-    authority_kind: knowledge_base_ref
-    authority_ref: 03_agent_capability/02_skills/evidence_research/registry.yaml#evidence_roles
-    must_point_to: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#evidence_method_role_to_basket_role
-
-  - id: kb03_quality_language
-    label: 完备度四档用语（说明层）
-    stages: [03]
-    authority_kind: knowledge_base_ref
-    authority_ref: 03_agent_capability/02_skills/evidence_research/registry.yaml#quality_language
-    must_point_to: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#quality_language_to_evidence_grades
-
+    consumers: [method_application, evidence_package]
   - id: judgment_method_routes
-    label: judgment_type → kb03/kb04 方法路由
-    stages: [02, 03, 04]
-    authority_kind: runtime_contract
+    authority_kind: control_policy
     authority_ref: 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml#routes
-    note: 路由合同；judgment_type 值域仍以一级本体为准，本表不升格为治理域本体实例
-
-  - id: stage_statuses
-    label: 阶段运行状态
-    stages: [01, 02, 03, 04, 05]
+    consumers: [research_plan, method_application]
+  - id: method_assets
+    authority_kind: capability_registry
+    authority_ref: 03_agent_capability/02_skills/method_assets.yaml
+    consumers: [method_router, method_application]
+  - id: artifact_kinds_and_statuses
     authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#stage_statuses
-
-  - id: task_disposition
-    label: 01 任务处置结果
-    stages: [01]
+    authority_ref: 06_runtime/src/contracts.ts#ArtifactKind
+    consumers: [task_graph, artifact_store, trusted_ui]
+  - id: method_application_shape
     authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/04_verifiers/status_derivation.py#TASK_DISPOSITIONS
-
-  - id: quality_status
-    label: 质量门状态
-    stages: [01, 02, 03, 04, 05]
+    authority_ref: 06_runtime/src/contracts.ts#MethodApplication
+    consumers: [method_router, judgment, report]
+  - id: task_node_statuses
     authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/04_verifiers/quality_gate_utils.py#QUALITY_STATUSES
-
-  - id: expression_strength_markers
-    label: 05 强度措辞禁表
-    stages: [05]
+    authority_ref: 06_runtime/src/contracts.ts#NodeStatus
+    consumers: [planner, kernel, worker]
+  - id: actor_types
     authority_kind: runtime_contract
-    authority_ref: 05_control_evaluation/04_verifiers/stages/stage_05/validate_05_outputs.py#STRENGTH_UPGRADE_MARKERS
-    note: 本期保持运行约束，不升格为治理域本体
+    authority_ref: 06_runtime/src/contracts.ts#OntologyActorType
+    consumers: [action_catalog, action_service, action_execution]
+  - id: action_permissions_and_approvals
+    authority_kind: formal_ontology
+    authority_ref: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml
+    consumers: [action_service]
 
-# 明确不升格：二级指南与 04/05 审计枚举保持说明/阶段合同，不登记为 ontology_rule_param。
 not_promoted:
   - id: evidence_quality_dimensions
-    reason: 二级证据质量维度为领域取证指南，与 L1 sourceTier/confidence/basketRole 语义相近但职责不同；不合并升格
+    reason: 领域取证指南，不与一级 source tier 或 confidence 值域合并。
     stays_at: 01_semantic_knowledge/01_ontology/domains/semiconductor/ontology_extension.yaml#domain_guides.evidence_quality_dimensions
   - id: event_type_taxonomy
-    reason: 领域事件分类法，介于 schema 扩展与实例之间；任务需要时经 02 映射，不进一级规则参数
+    reason: 领域事件扩展，由 Ontology extension 治理。
     stays_at: 01_semantic_knowledge/01_ontology/domains/semiconductor/ontology_extension.yaml#event_taxonomy.event_type_taxonomy
-  - id: commercialization_stages
-    reason: 半导体商业化阶段词表，由实例 stage_vocabulary_ref 引用，不升格为 L1 枚举
-    stays_at: 01_semantic_knowledge/01_ontology/domains/semiconductor/ontology_extension.yaml#domain_guides.commercialization_stages
-  - id: stage04_handoff_and_audit_enums
-    reason: handoff_to_05 / permitted_role / delivery_archetype 等属 04→05 阶段审计与表达合同，非业务强度参数
-    stays_at: 03_agent_capability/02_skills/research_delivery/templates/05_表达审计模板.yaml
+  - id: report_discipline_diagnostics
+    reason: 运行时诊断不是本体规则参数或正式研究质量分数。
+    stays_at: 05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml

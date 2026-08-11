@@ -36,6 +36,24 @@ source_capture_path:
 financial_data_path:
   input_contract: 06_runtime/src/tools/financial-data-adapter.ts#FinancialDataToolResult
   chain: [adaptFinancialDataResult, 冻结主体指标值单位业务时点口径维度, SourceSnapshot_与_EvidenceFact_provenance, CaptureSource, VerifySourceSnapshot, AcceptClaim, PromoteEvidenceFact, 结构化金融数据_Artifact, evidence_evaluation_与下游局部重算]
+  htsc_receipt_mapping:
+    adapter: 06_runtime/src/tools/htsc-industry-sentiment-mapper.ts
+    allowed_route: get_industry_sentiment
+    mapping_profile: htsc_industry_sentiment_observation@1.0.0
+    permission_scope: authorized_research_use
+    live_status: live_real_semiconductor_sample_received
+
+researcher_material_path:
+  endpoint: POST /vnext/tasks/{id}/materials
+  input_contract: 06_runtime/src/tools/researcher-material.ts#ResearcherMaterialInput
+  required: [public_http_uri, title, locator, quote, permissionConfirmed]
+  optional: [publisherId, publishedAt, sourceType, context_containing_quote]
+  chain: [buildResearcherMaterialResult, user_supplied_SourceSnapshot, CaptureSource, VerifySourceSnapshot, evidence_confirmation, evidence_capture_与下游局部重算]
+  trust_boundary:
+    - 研究员必须确认摘录与原文一致且可用于本次研究
+    - 快照 verified 只表示内容哈希、定位、摘录与摄取留痕通过确定性完整性校验
+    - 提交材料不代表事实成立，也不跳过 evidence_confirmation、MethodApplication 或 Judgment 门槛
+    - 只保存定位摘录或研究员提供的上下文，不宣称已抓取完整网页或 PDF 原始字节
 
 mutation_boundary:
   allowed_task_states: [planned, queued, waiting_input, waiting_approval, failed]
@@ -50,6 +68,7 @@ deterministic_gates:
   - quote 必须能在 body 中定位
   - body hash、raw response hash 与 request fingerprint 必须一致
   - restricted capture 不得晋级
+  - authorized_research_use 只能在授权研究环境内晋级和引用
   - 金融单位、业务时间、asOf、basis 与重复观测必须通过校验
   - 同一连接器请求与内容哈希必须幂等
   - 金融事实必须并入证据评估和 MethodApplication，而非只停留在首页信号
@@ -58,14 +77,18 @@ ui_projection:
   home_fields: [configured, allowedConnectorIds, observedConnectorIds, sourceCaptureCount, financialBatchCount, lastIngestedAt]
   secret_projection: forbidden
   event_types: [connector.source_ingested, connector.ingestion_rejected, connector.evidence_recompute_queued, financial.data_ingested]
+  researcher_material_drawer: [uri, title, publisherId, publishedAt, sourceType, locator, quote, context, permissionConfirmed]
 
 runtime_mapping:
   endpoint: 06_runtime/app/vnext/connectors/ingest/route.ts
   envelope_guard: 06_runtime/src/tools/connector-ingestion.ts
   source_adapter: 06_runtime/src/tools/source-result-adapter.ts
   financial_adapter: 06_runtime/src/tools/financial-data-adapter.ts
+  htsc_industry_sentiment_mapper: 06_runtime/src/tools/htsc-industry-sentiment-mapper.ts
   kernel: 06_runtime/src/runtime/kernel.ts
   home_view: 06_runtime/src/ui/view-models.ts
+  researcher_material_adapter: 06_runtime/src/tools/researcher-material.ts
+  researcher_material_endpoint: 06_runtime/app/vnext/tasks/[id]/materials/route.ts
 
 verification:
-  tests: [06_runtime/tests/connector-ingestion.test.ts, 06_runtime/tests/source-result-adapter.test.ts, 06_runtime/tests/financial-data-adapter.test.ts]
+  tests: [06_runtime/tests/connector-ingestion.test.ts, 06_runtime/tests/source-result-adapter.test.ts, 06_runtime/tests/financial-data-adapter.test.ts, 06_runtime/tests/htsc-industry-sentiment-mapper.test.ts, 06_runtime/tests/researcher-material.test.ts]

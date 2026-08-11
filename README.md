@@ -1,32 +1,28 @@
 # 投研判断工作台
 
-本地优先的 AI 研究搭档：你说清目标、补充材料、审阅关键判断并调整方向；证据不够时会诚实降级为「暂不可判断」。
+面向专业研究员的 AI 原生投研工作台。系统把研究目标转成受约束的任务图，沉淀可核验的证据、竞争解释、正式判断和可编辑交付物；证据不足时明确降级为「暂不可判断」，不会用流畅表达掩盖证据缺口。
 
-## 先读这个
+## 产品原则
 
-**对项目一无所知？从这里开始 → [`新手导读.md`](新手导读.md)**  
-遇到词不懂 → [`术语速查.md`](术语速查.md)
+- **专业优先**：本体、来源策略、方法资产、权限和质量门槛是硬边界。
+- **Agent 负责路径**：Research Lead 在白名单节点、预算和停止条件内组合 Skill 与 Tool。
+- **不是纯聊天**：计划、证据、判断和发布都以结构化制品呈现，关键节点需要研究员确认。
+- **报告不是终点**：正式结论必须能回溯到 EvidenceFact、SourceSnapshot、MethodApplication 和审批记录。
 
-## 30 秒启动
+## 启动
+
+首次使用先在 `06_runtime/` 执行 `npm install`。开发模式：
 
 ```bash
-bash start-light.sh
+cd 06_runtime
+npm run dev
 ```
 
-浏览器打开 **`http://127.0.0.1:3000`**（不要用 `localhost`）。
+另开一个终端运行 `npm run worker`，然后访问 `http://127.0.0.1:3000`。macOS 也可双击 [`start-light.command`](start-light.command)，它会检查依赖、构建并同时启动应用与 worker。
 
-## 你属于哪一类
+## 仓库地图
 
-| 我是… | 去哪 |
-|---|---|
-| 主要做研究 / 用产品 | [新手导读 · 路径 A](新手导读.md#路径-a--我主要做研究再约-5-分钟) |
-| 要改代码或维护仓库 | [新手导读 · 路径 B](新手导读.md#路径-b--我要改仓库--维护系统再约-20-分钟) |
-
----
-
-## 仓库地图（读完导读再看）
-
-目录编号是整理用的，**不是**做研究时必须走的阶段顺序。唯一能跑起来的应用在 `06_runtime/`。
+目录编号表示职责分区，**不是**固定研究流水线。唯一可执行应用在 `06_runtime/`。
 
 | 目录 | 人话 |
 |---|---|
@@ -35,8 +31,10 @@ bash start-light.sh
 | [`03_agent_capability/`](03_agent_capability/README.md) | 靠什么完成：Agent / Skill / Tool / Protocol |
 | [`04_context_state/`](04_context_state/README.md) | 现在看见什么、做到哪里、记住什么、正在操作什么 |
 | [`05_control_evaluation/`](05_control_evaluation/README.md) | 什么能做、什么算合格 |
-| [`06_runtime/`](06_runtime/README.md) | 应用、API 与用户工作台；真正加载、组合、执行以上一切 |
+| [`06_runtime/`](06_runtime/README.md) | 应用、API、worker 与用户工作台；加载、组合并执行以上能力 |
 
-更细说明见 [`docs/architecture/02_仓库地图与文件治理.md`](docs/architecture/02_仓库地图与文件治理.md)。权威索引：[`five_domain_authority.yaml`](docs/architecture/five_domain_authority.yaml)。
+运行时边界与请求生命周期见 [`06_runtime/ARCHITECTURE.md`](06_runtime/ARCHITECTURE.md)，产品路由和可信交互约束见 [`06_runtime/app-surface.yaml`](06_runtime/app-surface.yaml)。
 
-AI 原生分层：[`00_五域系统骨架.md`](docs/architecture/00_五域系统骨架.md) · [`architecture.yaml`](docs/architecture/architecture.yaml)。
+## 当前成熟度
+
+已具备本地持久化、受约束规划、证据溯源、结构化审批、报告审计、知识沉淀控制面和可信前端。现有华泰智研 MCP 的半导体行业景气度已完成真实调用与受授权 Runtime 映射；DataYes 财务表当前因积分不足未取得样本，其他实时网页/PDF/金融数据仍需继续映射。正式研究价值评测必须满足独立密封裁决、扰动集、模型隔离和同证据基线，不以运行时自检冒充研究质量分数。

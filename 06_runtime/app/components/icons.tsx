@@ -13,3 +13,4 @@ export const CheckIcon = (props: IconProps) => <svg {...base} {...props}><path d
 export const CloseIcon = (props: IconProps) => <svg {...base} {...props}><path d="m6 6 12 12M18 6 6 18"/></svg>;
 export const SearchIcon = (props: IconProps) => <svg {...base} {...props}><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>;
 export const BranchIcon = (props: IconProps) => <svg {...base} {...props}><circle cx="6" cy="5" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="6" cy="19" r="2"/><path d="M6 7v10M8 12h4a6 6 0 0 0 6-3"/></svg>;
+export const MaterialIcon = (props: IconProps) => <svg {...base} {...props}><path d="M15.5 6.5 8 14a3 3 0 0 0 4.2 4.2l7.1-7.1a5 5 0 0 0-7.1-7.1L5.5 10.7a7 7 0 0 0 9.9 9.9L21 15"/></svg>;

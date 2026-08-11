@@ -356,8 +356,8 @@ acquisition_channels:
     - id: htsc_research_mcp
       type: mcp
       producer: 华泰证券研究所
-      covers: [研报辅助, 卖方预期参考]
-      role_note: 专业解释/研究，不替代关键硬事实
+      covers: [研报辅助, 卖方预期参考, A股中观行业景气度]
+      role_note: 专业解释/研究与二手测量，不替代关键硬事实或法定披露；授权结果不得二次传播
       ops_ref: QP-MCP-02
     - id: china-policy
       type: mcp

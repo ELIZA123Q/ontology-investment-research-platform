@@ -71,7 +71,7 @@ def main() -> int:
     fail_if("putContextPackage" not in store or 'type: "context.assembled"' not in store, "ContextPackage 未以 append-only Event Manifest 留痕")
     fail_if("observeAssetUsage" not in store or not OBSERVATION_ROUTE.is_file(), "Usage helpful/regression 回流未接入 Runtime/API")
 
-    authority_paths = re.findall(r'"(0[1-5]_[a-z]+/registry\.yaml)"', store)
+    authority_paths = re.findall(r'"(0[1-5]_[a-z_]+/registry\.yaml)"', store)
     fail_if(len(authority_paths) != 5, "global Release 未完整引用五域权威")
     missing_authorities = [path for path in authority_paths if not (ROOT / path).is_file()]
     fail_if(bool(missing_authorities), f"五域权威入口不存在: {missing_authorities}")

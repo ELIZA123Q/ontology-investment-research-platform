@@ -1,5 +1,5 @@
 schema_name: governance_verifier_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
@@ -9,13 +9,16 @@ authority:
 
 entrypoints:
   - 05_control_evaluation/04_verifiers/validate_project.py
-  - 05_control_evaluation/04_verifiers/validate_run.py
-  - 05_control_evaluation/04_verifiers/validate_publish.py
   - 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
+  - 05_control_evaluation/04_verifiers/validate_rule_authority.py
+  - 05_control_evaluation/04_verifiers/validate_method_assets.py
+  - 05_control_evaluation/04_verifiers/validate_knowledge_learning_contract.py
+  - 05_control_evaluation/04_verifiers/validate_no_semantic_ontology_double_write.py
+  - 05_control_evaluation/04_verifiers/validate_connector_mapping_contract.py
 
 assets:
   tests: 05_control_evaluation/04_verifiers/tests/
-  stage_checks: 05_control_evaluation/04_verifiers/stages/
+  runtime_tests: 06_runtime/tests/
 
 boundary:
   does: [schema, fields, source_provenance, traceability, threshold, publish_gate]

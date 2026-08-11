@@ -1,33 +1,40 @@
 schema_name: ontology_action_execution_audit_schema
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 authority: runtime_governance_audit
 namespace: core.audit
+runtime_type: 06_runtime/src/contracts.ts#ActionExecution
+runtime_store: 06_runtime/src/ontology/store.ts
 description: >-
-  Action 执行审计记录。这不是投研世界对象，而是 Runtime / Governance 的审计 schema；
-  正式业务模型不得把它当作 ResearchCase 同级的领域对象。
+  vNext Action 执行审计记录。它不是投研世界对象，不得作为 ResearchCase
+  同级业务实体，也不得替代 Runtime 的 ActionExecution 类型。
 
 object_types:
   ActionExecution:
     label_zh: 动作执行记录
     label_en: Action Execution
-    description: 一次 Action 提交的版本、参数、操作者、审批、编辑结果与失败信息。
+    description: 一次 Action apply 的请求、预检、操作者、审批、编辑结果与失败信息。
     primary_key: id
-    title_property: action_type
+    title_property: actionType
     attributes:
-      action_type: {type: string, required: true}
-      action_version: {type: string, required: true}
-      status: {type: enum, required: true, allowed_values: [previewed, applied, rejected, failed]}
-      principal_type: {type: enum, required: true, allowed_values: [human, agent, system_job]}
-      principal_id: {type: string, required: true}
-      persona: {type: enum, required: false, allowed_values: [researcher, reviewer, ontology_admin]}
-      role_id: {type: string, required: false}
-      submitted_at: {type: datetime, required: true}
-      completed_at: {type: datetime, required: false}
-      idempotency_key: {type: string, required: true}
-      parameters: {type: object, required: true}
+      actionType: {type: string, required: true}
+      actionVersion: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [applied, rejected, failed]}
+      actorType: {type: enum, required: true, allowed_values: [researcher, agent, system, ontology_admin]}
+      actorId: {type: string, required: true}
+      conversationId: {type: string, required: false}
+      taskId: {type: string, required: false}
+      idempotencyKey: {type: string, required: true}
+      knowledgeLockId: {type: string, required: false}
+      approvalId: {type: string, required: false}
+      request: {type: object, required: true}
+      preview: {type: object, required: true}
       edits: {type: array, required: true}
+      outputRefs: {type: array, required: true}
+      invalidatedRefs: {type: array, required: true}
       error: {type: string, required: false}
+      createdAt: {type: datetime, required: true}
+      completedAt: {type: datetime, required: false}
 
 relation_types:
   actionEditedObject: {source_types: [ActionExecution], target_types: [ontology_object], inverse_of: objectEditedByAction}

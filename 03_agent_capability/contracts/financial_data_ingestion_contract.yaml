@@ -24,7 +24,14 @@ value_bases:
   restated: 明确标注重述后的报告值
   consensus: 截止 asOf 可获得的一致预期；晋级为 forecast
   market: 截止 asOf 的市场观测；晋级为 measurement
+  provider_measurement: 授权数据商或研究机构提供的衍生测量；晋级为 measurement，但来源等级不得升为责任主体原文
   calculated: 由已冻结输入和公式计算的派生值
+
+permission_scopes:
+  public_research_use: 可公开研究使用
+  authorized_research_use: 仅在已授权研究环境内使用；不得因可访问而改写上游发布主体
+  user_supplied: 由研究员提交并确认可用于本次研究
+  restricted: 不得晋级 EvidenceFact
 
 deterministic_gates:
   - requestedAt <= retrievedAt
@@ -54,6 +61,8 @@ failure_behavior:
 
 runtime_mapping:
   adapter: 06_runtime/src/tools/financial-data-adapter.ts
+  htsc_industry_sentiment_mapper: 06_runtime/src/tools/htsc-industry-sentiment-mapper.ts
+  htsc_profile: htsc_industry_sentiment_observation@1.0.0
   common_source_boundary: 06_runtime/src/tools/source-result-adapter.ts
   provenance_store: 06_runtime/src/semantic/provenance-store.ts
   verifier: 06_runtime/src/governance/provenance-verifier.ts
@@ -62,4 +71,5 @@ runtime_mapping:
 verification:
   tests:
     - 06_runtime/tests/financial-data-adapter.test.ts
+    - 06_runtime/tests/htsc-industry-sentiment-mapper.test.ts
     - 06_runtime/tests/source-result-adapter.test.ts

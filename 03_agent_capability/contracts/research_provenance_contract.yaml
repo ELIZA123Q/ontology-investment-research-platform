@@ -29,7 +29,7 @@ invariants:
   - Connector 只说明如何获取数据；upstream_source_id 与 publisher_id 才说明谁生产了来源，不得把 MCP 或 API 当成发布主体。
   - 外部 Tool 结果必须记录请求参数指纹、原始响应哈希与获取时间；raw_response_hash 必须能复核捕获正文。
   - quote 必须能在捕获 body 中逐字定位，content_hash 必须与 body 一致。
-  - restricted 权限的快照不能晋级 EvidenceFact。
+  - restricted 权限的快照不能晋级 EvidenceFact；authorized_research_use 只允许在授权研究环境内晋级和引用。
   - EvidenceFact 的 verified 仅表示晋级链可重复验证；研究可信度仍由证据评估和 Eval 判断。
   - evidence sufficient 至少要求两个不同发布主体的已验证快照；数量门槛不能替代质量评估。
   - 历史 structured_evidence_packet 属于 governed historical capture，不等同于重新抓取的网页、PDF 或接口原始响应。
@@ -50,8 +50,10 @@ current_scope:
     - SQLite FTS5 可用时的全文召回与确定性词项复核
     - 历史 governed capture 的重新登记、哈希校验、定位校验和 EvidenceFact 晋级
     - 网页、PDF、金融 MCP 与用户材料可共同采用的统一 Source Tool Result 适配合同
+    - 华泰行业景气度回执到 FinancialDataToolResult 的受授权映射；已取得真实半导体月度样本
   not_yet_supported:
     - 实时互联网网页或 PDF 抓取
-    - 金融 MCP connector 的真实调用与凭据配置
+    - DataYes 财务表真实样本取数（当前积分不足）
+    - 华泰行业景气度以外 MCP 工具的完整 Runtime 映射
     - EvidenceFact 归一化改写的语义等价 verifier
     - 新鲜度失效传播与局部重算

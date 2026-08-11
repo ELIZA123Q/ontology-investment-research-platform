@@ -1,14 +1,15 @@
 schema_name: governance_permission_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
   answers: 谁可以对什么资源执行什么动作。
-  write_entry: 05_control_evaluation/03_permissions/
-  read_primary: 05_control_evaluation/03_permissions/permission_matrix.yaml
-  implementation: deferred_no_rbac
+  policy_invariants: 05_control_evaluation/03_permissions/permission_matrix.yaml
+  action_permissions: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml
+  approval_policies: 01_semantic_knowledge/01_ontology/kinetics/policies.yaml
+  implementation: 06_runtime/src/ontology/action-service.ts
 
-policy_asset: 05_control_evaluation/03_permissions/permission_matrix.yaml
 notes:
-  - 权限矩阵不重复判断阈值、来源真实性或知识晋升规则。
-  - Runtime 实现前，本文件仍是可审计的政策边界，不宣称已存在完整鉴权。
+  - permission_matrix 只登记全局不变量，不复制 Action Catalog 的 allowed_actors。
+  - 来源真实性、判断阈值与知识晋升分别由其 owner 合同治理。
+  - Runtime 必须在 preview 与 apply 两个阶段执行 actor、审批、版本与幂等检查。

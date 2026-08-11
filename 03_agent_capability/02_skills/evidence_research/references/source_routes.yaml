@@ -17,6 +17,8 @@ routes:
     judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path]
     evidence_roles: [support, counter, context, boundary]
     match_terms: [需求, 出货, 订单, 资本开支, AI服务器, PC, 手机, smartphone, shipment, demand, order, capex]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [htsc_research_mcp]
     query_card_refs:
       - 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/OPS_半导体真实来源查询与口径手册.md#需求与订单
     producers:

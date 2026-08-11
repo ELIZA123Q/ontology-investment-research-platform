@@ -2,7 +2,7 @@ import type { EvidenceFact, SourceSnapshot } from "@/src/contracts";
 import { adaptSourceToolResult, type AdaptedSourceResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 
 type JsonScalar = string | number | boolean | null;
-export type FinancialValueBasis = "reported" | "restated" | "consensus" | "market" | "calculated";
+export type FinancialValueBasis = "reported" | "restated" | "consensus" | "market" | "provider_measurement" | "calculated";
 
 export interface FinancialObservationInput {
   metricId: string;
@@ -73,7 +73,7 @@ export function adaptFinancialDataResult(result: FinancialDataToolResult): Adapt
     const periodEnd = input.periodEnd ? requireTimestamp(input.periodEnd, "observation.periodEnd") : undefined;
     if (periodStart && periodEnd && Date.parse(periodStart) > Date.parse(periodEnd)) throw new Error("observation periodStart cannot be later than periodEnd");
     if (periodEnd && Date.parse(periodEnd) > Date.parse(businessTime)) throw new Error("observation periodEnd cannot be later than businessTime");
-    if (["reported", "restated", "market"].includes(input.basis) && Date.parse(businessTime) > Date.parse(asOf)) throw new Error("observed financial data cannot be later than asOf");
+    if (["reported", "restated", "market", "provider_measurement"].includes(input.basis) && Date.parse(businessTime) > Date.parse(asOf)) throw new Error("observed financial data cannot be later than asOf");
     if (typeof input.value === "number" && !Number.isFinite(input.value)) throw new Error("observation.value must be finite");
     if (typeof input.value === "string" && !input.value.trim()) throw new Error("observation.value is required");
     const dimensions = input.dimensions || {};
@@ -97,7 +97,7 @@ export function adaptFinancialDataResult(result: FinancialDataToolResult): Adapt
     });
     return {
       key, metricId, metricName, statement, value, unit, currency: input.currency, businessTime, periodStart, periodEnd,
-      basis: input.basis, dimensions, factType: input.basis === "consensus" ? "forecast" as const : input.basis === "market" ? "measurement" as const : "reported_fact" as const,
+      basis: input.basis, dimensions, factType: input.basis === "consensus" ? "forecast" as const : ["market", "provider_measurement"].includes(input.basis) ? "measurement" as const : "reported_fact" as const,
       source,
     };
   });

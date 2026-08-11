@@ -32,6 +32,7 @@ EXECUTION_SURFACES = {
     "runtime_graph_contract",
     "unimplemented",
 }
+EXECUTION_MODES = {"automated", "semantic_review", "human_required"}
 
 
 def load(path: Path) -> dict[str, Any]:
@@ -123,21 +124,35 @@ def validate_rule_authority(
             if resource.get("business_support_allowed") is not False:
                 errors.append(f"{section}.{resource_id} must forbid business support")
 
+    covered_ids = set(registry.get("execution_coverage_required") or [])
+    unknown_coverage = sorted(covered_ids - authority_ids.get("governance_rules", set()))
+    if unknown_coverage:
+        errors.append(f"execution coverage references unknown governance rules: {unknown_coverage}")
+    for rule_id in sorted(covered_ids):
+        resource = (registry.get("governance_rules") or {}).get(rule_id) or {}
+        mode = resource.get("execution_mode")
+        if mode not in EXECUTION_MODES:
+            errors.append(f"governance_rules.{rule_id} missing or invalid execution_mode")
+            continue
+        validators = resource.get("validator_refs")
+        tests = resource.get("test_refs")
+        if not isinstance(validators, list) or not isinstance(tests, list):
+            errors.append(f"governance_rules.{rule_id} validator_refs/test_refs must be lists")
+            continue
+        for ref in [*validators, *tests]:
+            if not (ROOT / str(ref)).is_file():
+                errors.append(f"governance_rules.{rule_id} unresolved execution ref {ref}")
+        if mode == "automated" and (not validators or not tests):
+            errors.append(f"governance_rules.{rule_id} automated coverage requires validators and tests")
+        if mode != "automated" and not str(resource.get("rationale") or "").strip():
+            errors.append(f"governance_rules.{rule_id} non-automated coverage requires rationale")
+
     for retired_id, retired in (registry.get("retired_rule_ids") or {}).items():
         replacement = retired.get("replaced_by") if isinstance(retired, dict) else None
         if not replacement or replacement not in authority_ids.get("governance_rules", set()):
             errors.append(f"retired rule {retired_id} has unresolved governance replacement {replacement}")
         if retired_id in ownership:
             errors.append(f"retired rule {retired_id} still has active authority")
-
-    requirement_ids = {
-        str(rule.get("rule_id"))
-        for rule in (load(ROOT / "05_control_evaluation/04_verifiers/requirements_coverage.yaml").get("rules") or [])
-        if isinstance(rule, dict)
-    }
-    missing_governance = sorted(requirement_ids - authority_ids.get("governance_rules", set()))
-    if missing_governance:
-        errors.append(f"requirements_coverage rules missing governance ownership: {missing_governance}")
 
     if operations.get("schema_name") != "ontology_action_catalog" or operations.get("schema_version") != "4.0.0":
         errors.append("Ontology 4.0 action catalog authority mismatch")
@@ -171,7 +186,8 @@ def main() -> int:
     print(
         "RULE_AUTHORITY_PASS: "
         f"formal={len(formal_rule_ids())}, "
-        "historical_samples=0; 03_agent_capability/02_skills/05_control_evaluation/runtime uniquely separated."
+        f"execution_coverage={len(load(REGISTRY).get('execution_coverage_required') or [])}; "
+        "ontology/method/governance/runtime uniquely separated."
     )
     return 0
 

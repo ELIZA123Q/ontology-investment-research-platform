@@ -8,10 +8,10 @@ assets:
   - 03_agent_capability/04_protocols/mcp/mcp_channels.yaml
 runtime_tool: source.query
 executable_binding: 06_runtime/src/capabilities/registry.ts
-adapter_status: common_contract_ready_connector_planned
+adapter_status: htsc_industry_sentiment_mapping_live
 notes:
   - MCP 是获取通道，不是来源生产者。
   - 机器权威：mcp_channels.yaml；人类操作卡：ops/B03、ops/OPS_MCP。
   - 来源选择策略与 source_routes 在 evidence-research Skill，不在本目录。
-  - 统一结果合同已在 06_runtime/src/tools/source-result-adapter.ts 落地；真实 connector 仍需把上游发布主体与获取通道分开映射。
+  - 华泰半导体行业景气度已通过真实 MCP 调用；受授权回执映射位于 06_runtime/src/tools/htsc-industry-sentiment-mapper.ts。
   - MCP credentials/config 由 Runtime / Harness 环境提供，项目仓库不保存凭证。

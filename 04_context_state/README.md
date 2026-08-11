@@ -1,6 +1,6 @@
 # 上下文与状态域
 
-> 还不了解本项目？先读仓库根目录 [新手导读.md](../新手导读.md)。
+> 第一次接触项目？先读仓库根目录 [`README.md`](../README.md)。
 
 管理 Agent 运行过程中「当前看见什么、当前处于什么状态、跨任务记住什么、当前工作环境包含什么」。本域定义运行连续性相关合同，**不承担实际执行**；所有执行、事件处理、状态迁移与持久化由 [`06_runtime/`](../06_runtime/README.md) 实现。
 
@@ -34,6 +34,6 @@
 ## 维护者附录（可跳过）
 
 - **status:** active
-- **上位:** [`00_五域系统骨架.md`](../docs/architecture/00_五域系统骨架.md)
+- **上位:** [`README.md`](../README.md) 与 [`06_runtime/ARCHITECTURE.md`](../06_runtime/ARCHITECTURE.md)
 - Context / State / Memory / Workspace 是连续性侧面，不是四种业务知识库
 - Event 记录发生过什么；State 描述现在是什么；Checkpoint 是 Runtime 恢复手段

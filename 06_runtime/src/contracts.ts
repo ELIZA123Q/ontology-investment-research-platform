@@ -193,7 +193,7 @@ export interface SourceSnapshot {
   capturedAt: IsoDate;
   publishedAt?: IsoDate;
   publisherId?: string;
-  permissionScope: "public_research_use" | "user_supplied" | "restricted";
+  permissionScope: "public_research_use" | "authorized_research_use" | "user_supplied" | "restricted";
   verification: "unverified" | "verified" | "rejected";
   acquisition: SourceAcquisition;
 }
