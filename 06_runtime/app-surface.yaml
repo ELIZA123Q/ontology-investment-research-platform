@@ -12,6 +12,16 @@ routes:
     file: 06_runtime/app/vnext/conversations/[id]/messages/route.ts
   - path: /vnext/conversations/{id}/events
     file: 06_runtime/app/vnext/conversations/[id]/events/route.ts
+  - path: /vnext/conversations/{id}/tracking
+    file: 06_runtime/app/vnext/conversations/[id]/tracking/route.ts
+  - path: /vnext/signals
+    file: 06_runtime/app/vnext/signals/route.ts
+  - path: /vnext/signals/refresh
+    file: 06_runtime/app/vnext/signals/refresh/route.ts
+  - path: /vnext/signals/{id}/decision
+    file: 06_runtime/app/vnext/signals/[id]/decision/route.ts
+  - path: /vnext/health
+    file: 06_runtime/app/vnext/health/route.ts
   - path: /vnext/tasks/{id}/{action}
     file: 06_runtime/app/vnext/tasks/[id]/[action]/route.ts
   - path: /vnext/tasks/{id}/materials
@@ -37,4 +47,6 @@ notes:
   - /vnext/artifacts/{id} 的 PATCH 只允许 UiSurface editableFields 白名单字段，并要求 expectedVersion。
   - 关键证据和 Judgment 会暂停等待研究员确认；报告编辑后自动重新审计。
   - 研究员材料通过独立抽屉结构化录入来源、发布主体、原文定位与摘录；不能用聊天文本绕过 SourceSnapshot 和 evidence_confirmation。
+  - AKShare 信号仅作为候选材料；“用于研究”仍进入 source_capture，并在运行中或终态任务上创建 evidence_only 子分支。
+  - 研究主题按可编辑代码和关键词追踪；不提供全市场无差别信息流，AKShare 降级不阻止核心工作台启动。
   - 计划面展示受治理的章节级方法蓝图；报告面展示 MethodApplication、方法输入事实数量和缺口。

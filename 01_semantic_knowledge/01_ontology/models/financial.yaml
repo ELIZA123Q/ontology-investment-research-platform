@@ -1,0 +1,342 @@
+schema_name: investment_research_financial_model
+schema_version: 3.0.0
+meta_schema_version: 1.0.0
+status: active
+namespace: core.financial
+model: financial
+description: >-
+  权益与行业研究的财务、预测、估值和命题对象。它只记录可审计研究输入与结论，
+  不承载评级、目标价、仓位或交易指令。
+
+object_types:
+  FinancialReport:
+    metadata: &report_meta {id: FinancialReport, namespace: core.financial, label_zh: 财务报告, label_en: Financial Report, aliases: [财报], definition: 具有报告期、披露版本和会计口径的公司财务披露实体，不等同于来源文件快照。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [上市公司年报], counter_examples: [分析师预测]}
+    implements: [TimeScoped, EvidenceBearing]
+    primary_key: id
+    title_property: title
+    attributes:
+      title: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 报告标题。}
+      issuer_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, reference_target: Company, description: 披露主体。}
+      reporting_period: {type: object, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, value_type_ref: ReportingPeriod, description: 报告所覆盖期间。}
+      accounting_basis: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 会计准则、合并范围和调整口径。}
+      currency: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, value_type_ref: CurrencyCode, description: 报告呈现币种。}
+      published_at: {type: datetime, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, time_basis: publication_time, description: 首次可获得时间。}
+      vintage: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 披露或修订版本。}
+      restatement_status: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [original, restated, superseded], description: 重述状态。}
+      source_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: SourceSnapshot, description: 支撑报告身份的来源快照。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 使用该报告的研究截止时间。}
+    constraints: &standard_constraints {unique: [title], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  FinancialMetric:
+    metadata: {id: FinancialMetric, namespace: core.financial, label_zh: 财务指标, label_en: Financial Metric, aliases: [财务科目], definition: 具有会计或估值定义、单位和期间口径的可比较财务指标。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [营业收入, 自由现金流], counter_examples: [公司质量很高]}
+    implements: [NamedEntity]
+    projects_to: Metric
+    primary_key: id
+    title_property: name
+    attributes:
+      name: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 指标名称。}
+      unit: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 标准单位。}
+      statement_section: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [income_statement, balance_sheet, cash_flow, operating_kpi, valuation, other], description: 财务报表或研究归属。}
+      period_basis: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [point_in_time, fiscal_quarter, fiscal_year, trailing_twelve_months, forward_period], description: 时间口径。}
+      formula: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示直接披露指标。, description: 指标计算公式或治理引用。}
+      comparability_basis: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 跨公司或跨期间可比口径。}
+    constraints: &entity_constraints {unique: [], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
+  FinancialObservation:
+    metadata: {id: FinancialObservation, namespace: core.financial, label_zh: 财务观测, label_en: Financial Observation, aliases: [财务事实], definition: 在指定主体、财务指标、报告期、口径与版本下成立的实际财务数值观测。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [某公司2025年收入], counter_examples: [收入将增长]}
+    implements: [TimeScoped, EvidenceBearing]
+    projects_to: Observation
+    primary_key: id
+    title_property: label
+    attributes:
+      label: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 可读标签。}
+      subject_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: core_object, description: 被观测主体。}
+      metric_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: FinancialMetric, description: 财务指标。}
+      value: {type: object, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, value_type_ref: QuantityWithUnit, description: 观测数值、单位和精度。}
+      reporting_period: {type: object, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, value_type_ref: ReportingPeriod, description: 对应报告期间。}
+      basis: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [reported, restated, adjusted, normalized], description: 数值处理口径。}
+      report_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: FinancialReport, description: 所属财务报告。}
+      published_at: {type: datetime, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, time_basis: publication_time, description: 披露时间。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究使用截止时间。}
+    constraints: *entity_constraints
+  ForecastAssumption:
+    metadata: {id: ForecastAssumption, namespace: core.financial, label_zh: 预测假设, label_en: Forecast Assumption, aliases: [模型假设], definition: 预测或估值所依赖、可证伪且带时间边界的原子假设。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [毛利率保持稳定], counter_examples: [未经说明的模型常数]}
+    implements: [TimeScoped, DecisionArtifact]
+    primary_key: id
+    title_property: statement
+    attributes:
+      statement: {type: string, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, description: 假设陈述。}
+      subject_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: core_object, description: 假设对象。}
+      horizon: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, value_type_ref: TimeHorizon, description: 前瞻时间窗。}
+      basis_refs: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 支撑该假设的证据或判断引用。}
+      falsification_conditions: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 可观察的证伪条件。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究截止时间。}
+    constraints: *entity_constraints
+  Forecast:
+    metadata: {id: Forecast, namespace: core.financial, label_zh: 预测, label_en: Forecast, aliases: [盈利预测], definition: 围绕主体、指标、期间、情景和假设形成的数值预测，不等同于市场共识或事实。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [下一财年收入预测], counter_examples: [已披露收入]}
+    implements: [TimeScoped, DecisionArtifact]
+    primary_key: id
+    title_property: statement
+    attributes:
+      statement: {type: string, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, description: 预测解释。}
+      subject_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: core_object, description: 预测主体。}
+      metric_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: FinancialMetric, description: 预测指标。}
+      reporting_period: {type: object, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, value_type_ref: ReportingPeriod, description: 预测期间。}
+      value: {type: object, required: true, cardinality: '1..1', value_role: calculated, nullable_semantics: forbidden, value_type_ref: QuantityWithUnit, description: 预测数值或区间。}
+      source_kind: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [researcher, management_guidance, consensus, model], description: 预测来源性质。}
+      scenario: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [base, upside, downside, stress], description: 情景标签。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究截止时间。}
+    constraints: *entity_constraints
+  ConsensusSnapshot:
+    metadata: {id: ConsensusSnapshot, namespace: core.financial, label_zh: 一致预期快照, label_en: Consensus Snapshot, aliases: [市场一致预期], definition: 在固定截面、样本和口径下冻结的市场或分析师共识基线。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [财报前EPS一致预期], counter_examples: [单一分析师预测]}
+    implements: [TimeScoped, EvidenceBearing]
+    primary_key: id
+    title_property: label
+    attributes:
+      label: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 快照标签。}
+      subject_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: core_object, description: 预期主体。}
+      metric_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: FinancialMetric, description: 共识指标。}
+      reporting_period: {type: object, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, value_type_ref: ReportingPeriod, description: 预期期间。}
+      value: {type: object, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, value_type_ref: QuantityWithUnit, description: 共识统计值。}
+      sample_definition: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 覆盖样本、统计方法与来源。}
+      as_of: {type: datetime, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, time_basis: observation_time, description: 截面时间。}
+      source_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, reference_target: SourceSnapshot, description: 共识来源快照。}
+    constraints: *entity_constraints
+  ValuationAssessment:
+    metadata: {id: ValuationAssessment, namespace: core.financial, label_zh: 估值评估, label_en: Valuation Assessment, aliases: [估值分析], definition: 基于明确模型、预测、情景和敏感性的研究估值评估，不产生目标价或投资建议。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [相对估值敏感性分析], counter_examples: [买入评级]}
+    implements: [TimeScoped, DecisionArtifact]
+    primary_key: id
+    title_property: statement
+    attributes:
+      statement: {type: string, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, description: 估值结论与边界。}
+      subject_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, reference_target: FinancialInstrument, description: 被评估金融工具。}
+      method: {type: enum, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, allowed_values: [relative_multiple, discounted_cash_flow, sum_of_parts, scenario_comparison], description: 估值方法。}
+      value_range: {type: object, required: true, cardinality: '1..1', value_role: calculated, nullable_semantics: forbidden, value_type_ref: Money, description: 非交易指令的估值区间或价值输入。}
+      sensitivity_summary: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 关键敏感性与方向。}
+      confidence: {type: string, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, value_type_ref: ConfidenceLevel, description: 估值置信度。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究截止时间。}
+      invalidation_conditions: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 失效或重算条件。}
+    constraints: *entity_constraints
+  ResearchThesis:
+    metadata: {id: ResearchThesis, namespace: core.financial, label_zh: 研究命题, label_en: Research Thesis, aliases: [命题], definition: 聚合多个正式判断、证据边界与改判条件的版本化研究命题，不等同于投资推荐。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [收入增长由产品结构驱动的命题], counter_examples: [买卖结论]}
+    implements: [TimeScoped, DecisionArtifact]
+    primary_key: id
+    title_property: statement
+    attributes:
+      statement: {type: string, required: true, cardinality: '1..1', value_role: judgment, nullable_semantics: forbidden, description: 命题陈述。}
+      horizon: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, value_type_ref: TimeHorizon, description: 命题时间窗。}
+      status: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [draft, active, review_required, invalidated, superseded], description: 命题状态。}
+      conditions: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 成立条件。}
+      invalidation_conditions: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 改判条件。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究截止时间。}
+    constraints: *entity_constraints
+  ResearchMandate:
+    metadata: {id: ResearchMandate, namespace: core.financial, label_zh: 研究委托, label_en: Research Mandate, aliases: [研究视角确认], definition: 研究员确认的研究问题、期限、比较基准、Lens 组合与重要性边界，是 Problem Graph 的正式输入而非执行任务。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [质量加价值的公司研究委托], counter_examples: [任务队列]}
+    implements: [DecisionArtifact]
+    primary_key: id
+    title_property: title
+    attributes:
+      title: {type: string, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, description: 委托标题。}
+      research_case_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, reference_target: ResearchCase, description: 所属研究案例。}
+      question_ref: {type: object_ref, required: true, cardinality: '1..1', value_role: identity, nullable_semantics: forbidden, reference_target: ResearchQuestion, description: 研究问题。}
+      lens_refs: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 受版本治理的 Lens profile ID。}
+      horizon: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, value_type_ref: TimeHorizon, description: 研究期限。}
+      comparison_basis: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 历史、同行、共识或事件前基线。}
+      materiality_boundary: {type: string, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, description: 需要达到研究意义的边界。}
+      excluded_modules: {type: array, required: false, cardinality: '0..*', value_role: metadata, nullable_semantics: 空列表表示无额外排除模块。, description: 明确不纳入本轮研究的模块。}
+      conditions: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 委托成立条件。}
+      invalidation_conditions: {type: array, required: true, cardinality: '1..*', value_role: metadata, nullable_semantics: forbidden, description: 需要重新确认的条件。}
+      cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 确认时的研究截止时间。}
+    constraints: *standard_constraints
+
+relation_types:
+  financialReportForCompany:
+    metadata: {id: financialReportForCompany, namespace: core.financial, label_zh: 财务报告对应公司, label_en: financial report for company, aliases: [], definition: 财务报告对应其披露公司。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [年报对应发行人], counter_examples: [报告对应研究案例]}
+    source_types: [FinancialReport]
+    target_types: [Company]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: companyHasFinancialReport
+    source_side: financialReportIssuer
+    target_side: companyFinancialReports
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  companyHasFinancialReport:
+    metadata: {id: companyHasFinancialReport, namespace: core.financial, label_zh: 公司具有财务报告, label_en: company has financial report, aliases: [], definition: financialReportForCompany 的反向查询侧。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [公司具有年报], counter_examples: [公司具有预测]}
+    source_types: [Company]
+    target_types: [FinancialReport]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: financialReportForCompany
+    source_side: companyFinancialReports
+    target_side: financialReportIssuer
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  reportContainsFinancialObservation:
+    metadata: {id: reportContainsFinancialObservation, namespace: core.financial, label_zh: 报告包含财务观测, label_en: report contains financial observation, aliases: [], definition: 财务报告中的数值观测。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [年报包含收入观测], counter_examples: [报告包含研究判断]}
+    source_types: [FinancialReport]
+    target_types: [FinancialObservation]
+    source_cardinality: '1..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: financialObservationFromReport
+    source_side: reportFinancialObservations
+    target_side: observationReport
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  financialObservationFromReport:
+    metadata: {id: financialObservationFromReport, namespace: core.financial, label_zh: 财务观测来自报告, label_en: financial observation from report, aliases: [], definition: reportContainsFinancialObservation 的反向查询侧。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [收入观测来自年报], counter_examples: [观测来自预测]}
+    source_types: [FinancialObservation]
+    target_types: [FinancialReport]
+    source_cardinality: '1..1'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: reportContainsFinancialObservation
+    source_side: observationReport
+    target_side: reportFinancialObservations
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  forecastUsesAssumption:
+    metadata: {id: forecastUsesAssumption, namespace: core.financial, label_zh: 预测使用假设, label_en: forecast uses assumption, aliases: [], definition: 预测引用可证伪的原子假设。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [收入预测使用销量假设], counter_examples: [预测使用未记录常数]}
+    source_types: [Forecast]
+    target_types: [ForecastAssumption]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: assumptionUsedByForecast
+    source_side: forecastAssumptions
+    target_side: assumptionForecasts
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  assumptionUsedByForecast:
+    metadata: {id: assumptionUsedByForecast, namespace: core.financial, label_zh: 假设被预测使用, label_en: assumption used by forecast, aliases: [], definition: forecastUsesAssumption 的反向查询侧。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [假设被收入预测使用], counter_examples: [假设被来源文档使用]}
+    source_types: [ForecastAssumption]
+    target_types: [Forecast]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: forecastUsesAssumption
+    source_side: assumptionForecasts
+    target_side: forecastAssumptions
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  valuationUsesForecast:
+    metadata: {id: valuationUsesForecast, namespace: core.financial, label_zh: 估值使用预测, label_en: valuation uses forecast, aliases: [], definition: 估值评估引用其预测输入。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [估值使用自由现金流预测], counter_examples: [估值直接使用未解释结论]}
+    source_types: [ValuationAssessment]
+    target_types: [Forecast]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: forecastUsedByValuation
+    source_side: valuationForecasts
+    target_side: forecastValuations
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  forecastUsedByValuation:
+    metadata: {id: forecastUsedByValuation, namespace: core.financial, label_zh: 预测被估值使用, label_en: forecast used by valuation, aliases: [], definition: valuationUsesForecast 的反向查询侧。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [预测被估值使用], counter_examples: [预测被交易指令使用]}
+    source_types: [Forecast]
+    target_types: [ValuationAssessment]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: valuationUsesForecast
+    source_side: forecastValuations
+    target_side: valuationForecasts
+    symmetric: false
+    transitive: false
+    evidence_required: true
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  thesisAggregatesJudgment:
+    metadata: {id: thesisAggregatesJudgment, namespace: core.financial, label_zh: 命题聚合判断, label_en: thesis aggregates judgment, aliases: [], definition: 研究命题聚合正式判断而不替代其证据链。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [命题聚合盈利判断], counter_examples: [命题直接聚合来源文档]}
+    source_types: [ResearchThesis]
+    target_types: [Judgment]
+    source_cardinality: '1..*'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: judgmentIncludedInThesis
+    source_side: thesisJudgments
+    target_side: judgmentTheses
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  judgmentIncludedInThesis:
+    metadata: {id: judgmentIncludedInThesis, namespace: core.financial, label_zh: 判断被命题聚合, label_en: judgment included in thesis, aliases: [], definition: thesisAggregatesJudgment 的反向查询侧。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [判断被命题引用], counter_examples: [判断被交易指令引用]}
+    source_types: [Judgment]
+    target_types: [ResearchThesis]
+    source_cardinality: '0..*'
+    target_cardinality: '1..*'
+    direction: directed
+    inverse_of: thesisAggregatesJudgment
+    source_side: judgmentTheses
+    target_side: thesisJudgments
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  mandateForCase:
+    metadata: {id: mandateForCase, namespace: core.financial, label_zh: 研究委托对应案例, label_en: mandate for case, aliases: [], definition: 研究委托属于一个研究案例。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [委托对应研究案例], counter_examples: [委托对应任务节点]}
+    source_types: [ResearchMandate]
+    target_types: [ResearchCase]
+    source_cardinality: '1..1'
+    target_cardinality: '0..*'
+    direction: directed
+    inverse_of: caseHasMandate
+    source_side: mandateCase
+    target_side: caseMandates
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream
+  caseHasMandate:
+    metadata: {id: caseHasMandate, namespace: core.financial, label_zh: 案例具有研究委托, label_en: case has mandate, aliases: [], definition: mandateForCase 的反向查询侧。, model: financial, version: 5.0.0, status: active, valid_from: '2026-08-11', valid_to: null, replaced_by: [], source: ontology-5.0-design, examples: [案例具有研究委托], counter_examples: [案例具有任务队列]}
+    source_types: [ResearchCase]
+    target_types: [ResearchMandate]
+    source_cardinality: '0..*'
+    target_cardinality: '1..1'
+    direction: directed
+    inverse_of: mandateForCase
+    source_side: caseMandates
+    target_side: mandateCase
+    symmetric: false
+    transitive: false
+    evidence_required: false
+    temporal: true
+    attributes: {}
+    invalidation_policy: invalidate_downstream

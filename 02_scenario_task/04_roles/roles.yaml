@@ -29,3 +29,35 @@ roles:
     eligible_actor_types:
       - agent
       - human
+
+  - role_id: evidence_investigator
+    description: >
+      被委派的证据切片执行角色。只负责来源发现、获取、核验与 evidence_package，
+      不形成或批准正式 Judgment。
+    responsibilities:
+      - execute_evidence_slice
+      - preserve_source_provenance
+      - report_evidence_gaps
+    eligible_actor_types: [agent, human]
+
+  - role_id: financial_modeler
+    description: >
+      被委派的财务模型责任角色。负责规范化财务、模型、估值分析和模型审计，
+      但不批准 Judgment、评级或发布。
+    responsibilities:
+      - normalize_financials
+      - build_or_update_financial_model
+      - perform_model_audit
+      - prepare_valuation_analysis
+    eligible_actor_types: [agent, human]
+
+  - role_id: independent_reviewer
+    description: >
+      隔离的独立复核角色。只读取允许披露的制品范围，输出 review，
+      不得静默改写生产制品。
+    responsibilities:
+      - inspect_provenance_and_permissions
+      - inspect_model_and_time_boundaries
+      - inspect_counterevidence_and_narrative_bias
+      - issue_review_only
+    eligible_actor_types: [agent, human]

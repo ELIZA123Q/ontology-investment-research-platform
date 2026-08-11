@@ -1,10 +1,10 @@
 schema_name: investment_research_ontology_platform_meta_schema
-schema_version: 1.0.0
-platform_version: 4.0.0
+schema_version: 1.1.0
+platform_version: 5.0.0
 status: active
 authority: formal_ontology
 description: >-
-  Ontology 4.0 的统一机器元模型。models 保持纯语义，kinetics 定义受治理的
+  Ontology 5.0 的统一机器元模型。models 保持纯语义，kinetics 定义受治理的
   Action、只读 Function、Policy 与 Trigger；TaskGraph 仍属于 Runtime 编排。
 
 namespaces:
@@ -15,12 +15,13 @@ namespaces:
   core.operational: ir.core.operational
   core.kinetic: ir.core.kinetic
   core.audit: ir.core.audit
+  core.financial: ir.core.financial
   semiconductor: ir.domain.semiconductor
 
 common_metadata:
   required: [id, namespace, label_zh, label_en, aliases, definition, model, version, status, valid_from, valid_to, replaced_by, source, examples, counter_examples]
   status_values: [draft, active, deprecated]
-  model_values: [semantic, state_event, evidence, judgment, operational]
+  model_values: [semantic, state_event, evidence, judgment, operational, financial]
   rules:
     - id 与 namespace 组合后必须全局唯一且版本内稳定。
     - deprecated 元素必须填写非空 replaced_by；active/draft 元素的 replaced_by 必须为空列表。
@@ -36,7 +37,7 @@ common_metadata:
 object_type_contract:
   required: [metadata, primary_key, title_property, attributes, constraints]
   attribute_required: [type, required, cardinality, value_role, nullable_semantics, description]
-  attribute_optional: [allowed_values, reference_target, unit, time_basis, default]
+  attribute_optional: [allowed_values, reference_target, unit, time_basis, default, value_type_ref, classification]
   scalar_types: [string, integer, number, boolean, date, datetime, uri]
   compound_types: [array, object, enum, object_ref]
   cardinalities: ['0..1', '1..1', '0..*', '1..*']
@@ -47,6 +48,20 @@ relation_type_contract:
   required: [metadata, source_types, target_types, source_cardinality, target_cardinality, direction, inverse_of, symmetric, transitive, evidence_required, temporal, attributes, invalidation_policy]
   directions: [directed, undirected]
   invalidation_policies: [retain_history, invalidate_downstream, block_delete]
+  canonical_link_sides_required: [source_side, target_side]
+
+interface_type_contract:
+  required: [metadata, properties, action_capabilities]
+  rules:
+    - Interface 是抽象形状，不可实例化、不可绑定 datasource；object_types 通过 implements 声明实现。
+    - Interface 属性只能引用已声明 value type 或基础属性类型。
+
+value_type_contract:
+  required: [id, label_zh, base_type, validation, description]
+  base_types: [string, number, integer, object, array, date, datetime]
+  rules:
+    - value_type_ref 只可引用本体唯一 value_types 目录中的稳定 ID。
+    - Value type 提供跨对象可复用的语义、校验与显示约束。
 
 rule_contract:
   allowed_rule_classes: [semantic_constraint, evidence_constraint, state_consistency]

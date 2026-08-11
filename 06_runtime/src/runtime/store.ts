@@ -23,11 +23,15 @@ import type {
   KnowledgeScope,
   Message,
   MemoryRecord,
+  ModelCallRecord,
   MiningRun,
   ProblemGraphEdge,
   ProblemGraphNode,
   ResearchProblemGraph,
+  ResearchSignalCandidate,
+  ResearchTrackingProfile,
   RunEvent,
+  SignalRefreshRun,
   RuntimeJobKind,
   Task,
   TaskNode,
@@ -142,7 +146,7 @@ export class RuntimeStore {
       );
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id), research_case_id TEXT NOT NULL DEFAULT '', parent_task_id TEXT,
-        goal TEXT NOT NULL, intent TEXT NOT NULL, report_spec_json TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL, budget_json TEXT NOT NULL,
+        goal TEXT NOT NULL, intent TEXT NOT NULL, report_spec_json TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL, outcome TEXT, budget_json TEXT NOT NULL,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS task_nodes (
@@ -150,6 +154,11 @@ export class RuntimeStore {
         capability_type TEXT NOT NULL, capability_id TEXT NOT NULL, assigned_agent TEXT NOT NULL, depends_on_json TEXT NOT NULL,
         status TEXT NOT NULL, budget_json TEXT NOT NULL, input_artifact_ids_json TEXT NOT NULL,
         output_artifact_ids_json TEXT NOT NULL, frontier_ref_json TEXT NOT NULL DEFAULT '{}', iteration INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS node_jobs (
+        id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), node_id TEXT NOT NULL REFERENCES task_nodes(id),
+        status TEXT NOT NULL, attempts INTEGER NOT NULL, available_at TEXT NOT NULL, locked_at TEXT, last_error TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(node_id, status)
       );
       CREATE TABLE IF NOT EXISTS problem_graphs (
         id TEXT PRIMARY KEY, task_id TEXT UNIQUE NOT NULL REFERENCES tasks(id), research_case_id TEXT NOT NULL,
@@ -205,11 +214,42 @@ export class RuntimeStore {
         fingerprint TEXT PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL,
         result_json TEXT NOT NULL, created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS model_call_records (
+        id TEXT PRIMARY KEY, operation TEXT NOT NULL, fingerprint TEXT NOT NULL,
+        provider TEXT NOT NULL, model TEXT NOT NULL, prompt_version TEXT NOT NULL,
+        schema_version TEXT, context_hash TEXT NOT NULL, status TEXT NOT NULL,
+        attempts INTEGER NOT NULL, cache_hit INTEGER NOT NULL,
+        input_tokens INTEGER, output_tokens INTEGER, estimated_cost_usd REAL,
+        latency_ms INTEGER NOT NULL, error TEXT, created_at TEXT NOT NULL, completed_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS worker_heartbeats (
+        worker_id TEXT PRIMARY KEY, pid INTEGER NOT NULL, status TEXT NOT NULL,
+        started_at TEXT NOT NULL, heartbeat_at TEXT NOT NULL, stopped_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        migration_id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS connector_response_blobs (
         fingerprint TEXT PRIMARY KEY, connector_id TEXT NOT NULL, operation TEXT NOT NULL,
         body TEXT NOT NULL, byte_length INTEGER NOT NULL, permission_scope TEXT NOT NULL,
         replayability TEXT NOT NULL, usage_restriction TEXT NOT NULL, risk_disclosure TEXT,
         captured_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS research_tracking_profiles (
+        conversation_id TEXT PRIMARY KEY REFERENCES conversations(id), enabled INTEGER NOT NULL,
+        symbols_json TEXT NOT NULL, keywords_json TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS signal_refresh_runs (
+        id TEXT PRIMARY KEY, connector_id TEXT NOT NULL, status TEXT NOT NULL,
+        conversation_ids_json TEXT NOT NULL, candidate_count INTEGER NOT NULL DEFAULT 0,
+        error TEXT, created_at TEXT NOT NULL, started_at TEXT, completed_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS research_signal_candidates (
+        id TEXT PRIMARY KEY, connector_id TEXT NOT NULL, conversation_id TEXT NOT NULL REFERENCES conversations(id),
+        kind TEXT NOT NULL, status TEXT NOT NULL, symbol TEXT, title TEXT NOT NULL, excerpt TEXT NOT NULL,
+        content_text TEXT NOT NULL, publisher TEXT NOT NULL, source_uri TEXT NOT NULL, source_type TEXT NOT NULL,
+        published_at TEXT NOT NULL, captured_at TEXT NOT NULL, match_reason TEXT NOT NULL, score REAL NOT NULL,
+        fingerprint TEXT NOT NULL, promoted_task_id TEXT, UNIQUE(conversation_id, fingerprint)
       );
       CREATE TABLE IF NOT EXISTS knowledge_locks (
         id TEXT PRIMARY KEY, task_id TEXT UNIQUE NOT NULL REFERENCES tasks(id), scope_json TEXT NOT NULL,
@@ -290,9 +330,13 @@ export class RuntimeStore {
       CREATE INDEX IF NOT EXISTS run_events_conversation_sequence ON run_events(conversation_id, sequence);
       CREATE INDEX IF NOT EXISTS tasks_conversation_updated ON tasks(conversation_id, updated_at);
       CREATE INDEX IF NOT EXISTS task_nodes_task_status ON task_nodes(task_id, status);
+      CREATE INDEX IF NOT EXISTS node_jobs_claim ON node_jobs(status, available_at, task_id);
       CREATE INDEX IF NOT EXISTS artifacts_task_kind ON artifacts(task_id, kind);
       CREATE INDEX IF NOT EXISTS runtime_jobs_claim ON runtime_jobs(status, available_at);
+      CREATE INDEX IF NOT EXISTS model_call_records_operation_created ON model_call_records(operation, created_at DESC);
       CREATE INDEX IF NOT EXISTS connector_response_blobs_connector ON connector_response_blobs(connector_id, operation, captured_at);
+      CREATE INDEX IF NOT EXISTS research_signal_feed ON research_signal_candidates(status, score DESC, published_at DESC);
+      CREATE INDEX IF NOT EXISTS signal_refresh_runs_created ON signal_refresh_runs(created_at DESC);
       CREATE INDEX IF NOT EXISTS asset_candidates_status_risk ON asset_candidates(status, risk_level, updated_at);
       CREATE INDEX IF NOT EXISTS asset_candidates_identity ON asset_candidates(identity_key, asset_kind);
       CREATE INDEX IF NOT EXISTS asset_revisions_lookup ON asset_revisions(asset_id, version DESC);
@@ -303,15 +347,22 @@ export class RuntimeStore {
       CREATE INDEX IF NOT EXISTS ontology_links_target ON ontology_links(target_id, type);
       CREATE INDEX IF NOT EXISTS action_executions_context ON action_executions(conversation_id, task_id, created_at);
     `);
-    this.ensureColumn("conversations", "tenant_id", "TEXT NOT NULL DEFAULT 'default'");
-    this.ensureColumn("conversations", "user_id", "TEXT NOT NULL DEFAULT 'researcher'");
-    this.ensureColumn("knowledge_locks", "user_release_id", "TEXT");
-    this.ensureColumn("knowledge_locks", "as_of", "TEXT");
-    this.ensureColumn("asset_releases", "rollback_of_release_id", "TEXT");
-    this.ensureColumn("tasks", "research_case_id", "TEXT NOT NULL DEFAULT ''");
-    this.ensureColumn("tasks", "report_spec_json", "TEXT NOT NULL DEFAULT '{}'");
-    this.ensureColumn("task_nodes", "frontier_ref_json", "TEXT NOT NULL DEFAULT '{}'");
-    this.ensureColumn("task_nodes", "iteration", "INTEGER NOT NULL DEFAULT 0");
+    this.applyMigration("001-runtime-identity-and-releases", () => {
+      this.ensureColumn("conversations", "tenant_id", "TEXT NOT NULL DEFAULT 'default'");
+      this.ensureColumn("conversations", "user_id", "TEXT NOT NULL DEFAULT 'researcher'");
+      this.ensureColumn("knowledge_locks", "user_release_id", "TEXT");
+      this.ensureColumn("knowledge_locks", "as_of", "TEXT");
+      this.ensureColumn("asset_releases", "rollback_of_release_id", "TEXT");
+    });
+    this.applyMigration("002-problem-graph-and-report-spec", () => {
+      this.ensureColumn("tasks", "research_case_id", "TEXT NOT NULL DEFAULT ''");
+      this.ensureColumn("tasks", "report_spec_json", "TEXT NOT NULL DEFAULT '{}'");
+      this.ensureColumn("task_nodes", "frontier_ref_json", "TEXT NOT NULL DEFAULT '{}'");
+      this.ensureColumn("task_nodes", "iteration", "INTEGER NOT NULL DEFAULT 0");
+    });
+    this.applyMigration("003-run-outcome-model-observability-worker-health", () => {
+      this.ensureColumn("tasks", "outcome", "TEXT");
+    });
     try {
       this.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS research_fts USING fts5(ref_id UNINDEXED, kind UNINDEXED, title, body);`);
     } catch {
@@ -323,6 +374,65 @@ export class RuntimeStore {
   private ensureColumn(table: string, column: string, definition: string): void {
     const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
     if (!columns.some((item) => item.name === column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+
+  private applyMigration(id: string, apply: () => void): void {
+    const checksum = fingerprint({ id, runtimeSchema: 1 });
+    const existing = this.db.prepare("SELECT checksum FROM schema_migrations WHERE migration_id=?").get(id) as { checksum?: string } | undefined;
+    if (existing) {
+      if (existing.checksum !== checksum) throw new Error(`Runtime schema migration checksum changed: ${id}`);
+      return;
+    }
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      apply();
+      this.db.prepare("INSERT INTO schema_migrations (migration_id,checksum,applied_at) VALUES (?, ?, ?)").run(id, checksum, now());
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  listSchemaMigrations(): Array<{ id: string; checksum: string; appliedAt: string }> {
+    return (this.db.prepare("SELECT * FROM schema_migrations ORDER BY applied_at, migration_id").all() as Record<string, unknown>[])
+      .map((row) => ({ id: String(row.migration_id), checksum: String(row.checksum), appliedAt: String(row.applied_at) }));
+  }
+
+  integrityCheck(): { passed: boolean; details: string[] } {
+    const rows = this.db.prepare("PRAGMA integrity_check").all() as Array<Record<string, unknown>>;
+    const details = rows.flatMap((row) => Object.values(row).map(String));
+    return { passed: details.length === 1 && details[0] === "ok", details };
+  }
+
+  registerWorker(workerId: string, pid: number): void {
+    const stamp = now();
+    this.db.prepare(`INSERT INTO worker_heartbeats (worker_id,pid,status,started_at,heartbeat_at,stopped_at)
+      VALUES (?, ?, 'ready', ?, ?, NULL)
+      ON CONFLICT(worker_id) DO UPDATE SET pid=excluded.pid,status='ready',started_at=excluded.started_at,heartbeat_at=excluded.heartbeat_at,stopped_at=NULL`)
+      .run(workerId, pid, stamp, stamp);
+  }
+
+  heartbeatWorker(workerId: string): void {
+    this.db.prepare("UPDATE worker_heartbeats SET status='ready',heartbeat_at=? WHERE worker_id=? AND stopped_at IS NULL").run(now(), workerId);
+  }
+
+  stopWorker(workerId: string): void {
+    const stamp = now();
+    this.db.prepare("UPDATE worker_heartbeats SET status='stopped',heartbeat_at=?,stopped_at=? WHERE worker_id=?").run(stamp, stamp, workerId);
+  }
+
+  workerHealth(maxAgeMs = 15_000): { status: "ready" | "stale" | "unmanaged"; workerId?: string; pid?: number; heartbeatAt?: string; ageMs?: number } {
+    const row = this.db.prepare("SELECT * FROM worker_heartbeats WHERE stopped_at IS NULL ORDER BY heartbeat_at DESC LIMIT 1").get() as Record<string, unknown> | undefined;
+    if (!row) return { status: "unmanaged" };
+    const heartbeatAt = String(row.heartbeat_at);
+    const ageMs = Math.max(0, Date.now() - Date.parse(heartbeatAt));
+    return { status: ageMs <= maxAgeMs ? "ready" : "stale", workerId: String(row.worker_id), pid: Number(row.pid), heartbeatAt, ageMs };
+  }
+
+  runtimeQueueStats(): { queued: number; running: number; failed: number; nodeQueued: number; nodeRunning: number; nodeFailed: number } {
+    const count = (table: "runtime_jobs" | "node_jobs", status: string) => Number((this.db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE status=?`).get(status) as { count: number }).count);
+    return { queued: count("runtime_jobs", "queued"), running: count("runtime_jobs", "running"), failed: count("runtime_jobs", "failed"), nodeQueued: count("node_jobs", "queued"), nodeRunning: count("node_jobs", "running"), nodeFailed: count("node_jobs", "failed") };
   }
 
   createConversation(title = "新的研究主题", identity: { tenantId?: string; userId?: string } = {}): Conversation {
@@ -346,6 +456,108 @@ export class RuntimeStore {
     return (this.db.prepare("SELECT * FROM conversations ORDER BY updated_at DESC").all() as Record<string, unknown>[]).map(this.mapConversation);
   }
 
+  getTrackingProfile(conversationId: string): ResearchTrackingProfile {
+    const row = this.db.prepare("SELECT * FROM research_tracking_profiles WHERE conversation_id=?").get(conversationId) as Record<string, unknown> | undefined;
+    if (row) return this.mapTrackingProfile(row);
+    const conversation = this.getConversation(conversationId);
+    if (!conversation) throw new Error(`Conversation not found: ${conversationId}`);
+    return { conversationId, enabled: true, symbols: [], keywords: [conversation.title], updatedAt: conversation.updatedAt };
+  }
+
+  listEnabledTrackingProfiles(): ResearchTrackingProfile[] {
+    return this.listConversations().filter((conversation) => conversation.status === "active").map((conversation) => this.getTrackingProfile(conversation.id)).filter((profile) => profile.enabled);
+  }
+
+  putTrackingProfile(input: Omit<ResearchTrackingProfile, "updatedAt">): ResearchTrackingProfile {
+    if (!this.getConversation(input.conversationId)) throw new Error(`Conversation not found: ${input.conversationId}`);
+    const symbols = [...new Set(input.symbols.map((value) => value.trim()).filter(Boolean))];
+    if (symbols.some((value) => !/^\d{6}$/.test(value))) throw new Error("A-share symbols must contain exactly six digits");
+    const keywords = [...new Set(input.keywords.map((value) => value.trim()).filter(Boolean))].slice(0, 12);
+    if (symbols.length > 20) throw new Error("At most 20 A-share symbols may be tracked");
+    if (keywords.some((value) => value.length > 80)) throw new Error("Tracking keywords must be 80 characters or fewer");
+    const updatedAt = now();
+    this.db.prepare(`INSERT INTO research_tracking_profiles (conversation_id,enabled,symbols_json,keywords_json,updated_at)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT(conversation_id) DO UPDATE SET enabled=excluded.enabled,
+      symbols_json=excluded.symbols_json,keywords_json=excluded.keywords_json,updated_at=excluded.updated_at`)
+      .run(input.conversationId, input.enabled ? 1 : 0, json(symbols), json(keywords), updatedAt);
+    return { ...input, symbols, keywords, updatedAt };
+  }
+
+  createSignalRefreshRun(conversationIds: string[], connectorId = "akshare_public"): SignalRefreshRun {
+    const createdAt = now();
+    const run: SignalRefreshRun = { id: randomUUID(), connectorId, status: "queued", conversationIds, candidateCount: 0, createdAt };
+    this.db.prepare(`INSERT INTO signal_refresh_runs (id,connector_id,status,conversation_ids_json,candidate_count,error,created_at,started_at,completed_at)
+      VALUES (?, ?, ?, ?, 0, NULL, ?, NULL, NULL)`).run(run.id, connectorId, run.status, json(conversationIds), createdAt);
+    return run;
+  }
+
+  updateSignalRefreshRun(id: string, patch: { status: SignalRefreshRun["status"]; candidateCount?: number; error?: string }): SignalRefreshRun {
+    const current = this.getSignalRefreshRun(id);
+    if (!current) throw new Error(`Signal refresh run not found: ${id}`);
+    const startedAt = current.startedAt || (patch.status === "running" ? now() : undefined);
+    const completedAt = ["completed", "partial", "failed"].includes(patch.status) ? now() : undefined;
+    this.db.prepare(`UPDATE signal_refresh_runs SET status=?,candidate_count=?,error=?,started_at=?,completed_at=? WHERE id=?`)
+      .run(patch.status, patch.candidateCount ?? current.candidateCount, patch.error || null, startedAt || null, completedAt || null, id);
+    return this.getSignalRefreshRun(id)!;
+  }
+
+  getSignalRefreshRun(id: string): SignalRefreshRun | null {
+    const row = this.db.prepare("SELECT * FROM signal_refresh_runs WHERE id=?").get(id) as Record<string, unknown> | undefined;
+    return row ? this.mapSignalRefreshRun(row) : null;
+  }
+
+  latestSignalRefreshRun(): SignalRefreshRun | null {
+    const row = this.db.prepare("SELECT * FROM signal_refresh_runs ORDER BY created_at DESC LIMIT 1").get() as Record<string, unknown> | undefined;
+    return row ? this.mapSignalRefreshRun(row) : null;
+  }
+
+  upsertSignalCandidates(inputs: Array<Omit<ResearchSignalCandidate, "id" | "status" | "promotedTaskId"> & { content: string }>): number {
+    const statement = this.db.prepare(`INSERT INTO research_signal_candidates
+      (id,connector_id,conversation_id,kind,status,symbol,title,excerpt,content_text,publisher,source_uri,source_type,published_at,captured_at,match_reason,score,fingerprint,promoted_task_id)
+      VALUES (?, ?, ?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+      ON CONFLICT(conversation_id,fingerprint) DO UPDATE SET title=excluded.title,excerpt=excluded.excerpt,content_text=excluded.content_text,
+      publisher=excluded.publisher,source_uri=excluded.source_uri,source_type=excluded.source_type,published_at=excluded.published_at,
+      captured_at=excluded.captured_at,match_reason=excluded.match_reason,score=excluded.score`);
+    let changed = 0;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      for (const input of inputs) {
+        const result = statement.run(randomUUID(), input.connectorId, input.conversationId, input.kind, input.symbol || null,
+          input.title, input.excerpt, input.content, input.publisher, input.sourceUri, input.sourceType, input.publishedAt,
+          input.capturedAt, input.matchReason, input.score, input.fingerprint);
+        changed += Number(result.changes);
+      }
+      this.db.exec("COMMIT");
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+    return changed;
+  }
+
+  listSignalCandidates(options: { status?: ResearchSignalCandidate["status"]; limit?: number; conversationId?: string } = {}): ResearchSignalCandidate[] {
+    const clauses: string[] = [];
+    const values: Array<string | number> = [];
+    if (options.status) { clauses.push("status=?"); values.push(options.status); }
+    if (options.conversationId) { clauses.push("conversation_id=?"); values.push(options.conversationId); }
+    const limit = Math.min(Math.max(options.limit || 30, 1), 100);
+    const rows = this.db.prepare(`SELECT * FROM research_signal_candidates ${clauses.length ? `WHERE ${clauses.join(" AND ")}` : ""}
+      ORDER BY score DESC,published_at DESC LIMIT ?`).all(...values, limit) as Record<string, unknown>[];
+    return rows.map(this.mapSignalCandidate);
+  }
+
+  getSignalCandidate(id: string): (ResearchSignalCandidate & { content: string }) | null {
+    const row = this.db.prepare("SELECT * FROM research_signal_candidates WHERE id=?").get(id) as Record<string, unknown> | undefined;
+    return row ? { ...this.mapSignalCandidate(row), content: String(row.content_text) } : null;
+  }
+
+  decideSignalCandidate(id: string, status: ResearchSignalCandidate["status"], promotedTaskId?: string): ResearchSignalCandidate {
+    const result = this.db.prepare("UPDATE research_signal_candidates SET status=?,promoted_task_id=COALESCE(?,promoted_task_id) WHERE id=?")
+      .run(status, promotedTaskId || null, id);
+    if (!Number(result.changes)) throw new Error(`Signal candidate not found: ${id}`);
+    return this.getSignalCandidate(id)!;
+  }
+
   addMessage(input: Omit<Message, "id" | "createdAt">): Message {
     const message: Message = { ...input, id: randomUUID(), createdAt: now() };
     this.db.prepare("UPDATE conversations SET updated_at = ? WHERE id = ?").run(message.createdAt, message.conversationId);
@@ -364,9 +576,9 @@ export class RuntimeStore {
     const parentCaseId = input.parentTaskId ? this.getTask(input.parentTaskId)?.researchCaseId : undefined;
     const task: Task = { ...input, id, researchCaseId: input.researchCaseId || parentCaseId || id, reportSpec: input.reportSpec || normalizeReportSpec(), createdAt: stamp, updatedAt: stamp };
     this.db.prepare(`INSERT INTO tasks
-      (id,conversation_id,research_case_id,parent_task_id,goal,intent,report_spec_json,status,budget_json,created_at,updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(task.id, task.conversationId, task.researchCaseId, task.parentTaskId ?? null, task.goal, task.intent, json(task.reportSpec), task.status, json(task.budget), stamp, stamp);
+      (id,conversation_id,research_case_id,parent_task_id,goal,intent,report_spec_json,status,outcome,budget_json,created_at,updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(task.id, task.conversationId, task.researchCaseId, task.parentTaskId ?? null, task.goal, task.intent, json(task.reportSpec), task.status, task.outcome ?? null, json(task.budget), stamp, stamp);
     return task;
   }
 
@@ -380,12 +592,32 @@ export class RuntimeStore {
     return row ? this.mapTask(row) : null;
   }
 
+  getLatestTaskForResearchCase(researchCaseId: string): Task | null {
+    const row = this.db.prepare("SELECT * FROM tasks WHERE research_case_id = ? ORDER BY updated_at DESC LIMIT 1").get(researchCaseId) as Record<string, unknown> | undefined;
+    return row ? this.mapTask(row) : null;
+  }
+
   listTasks(conversationId: string): Task[] {
     return (this.db.prepare("SELECT * FROM tasks WHERE conversation_id = ? ORDER BY created_at DESC").all(conversationId) as Record<string, unknown>[]).map(this.mapTask);
   }
 
   updateTaskStatus(id: string, status: Task["status"]): void {
-    this.db.prepare("UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?").run(status, now(), id);
+    let outcome: Task["outcome"];
+    if (status === "cancelled") outcome = "cancelled";
+    else if (status === "failed") outcome = "failed";
+    else if (status === "completed") outcome = this.inferTaskOutcome(id);
+    this.db.prepare("UPDATE tasks SET status = ?, outcome = ?, updated_at = ? WHERE id = ?").run(status, outcome ?? null, now(), id);
+  }
+
+  private inferTaskOutcome(taskId: string): Task["outcome"] {
+    const artifacts = this.listArtifacts(taskId);
+    const judgment = [...artifacts].reverse().find((artifact) => artifact.kind === "judgment" && artifact.title === "当前判断");
+    const data = judgment?.data as { disposition?: string; lifecycleStatus?: string; ontologyJudgmentRef?: string; statement?: string } | undefined;
+    if (data?.ontologyJudgmentRef || data?.lifecycleStatus === "approved" || (data?.disposition === "review_required" && data?.statement && data.statement !== "暂不可判断")) return "completed_with_judgment";
+    const evidenceFacts = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估")
+      .flatMap((artifact) => (artifact.data as { facts?: unknown[] }).facts || []);
+    if (data?.disposition === "abstain" || data?.statement === "暂不可判断" || evidenceFacts.length === 0) return "stopped_insufficient_evidence";
+    return undefined;
   }
 
   addTaskNodes(nodes: TaskNode[]): void {
@@ -411,12 +643,12 @@ export class RuntimeStore {
     return row ? this.mapNode(row) : null;
   }
 
-  updateNode(id: string, patch: Partial<Pick<TaskNode, "status" | "inputArtifactIds" | "outputArtifactIds">>): void {
+  updateNode(id: string, patch: Partial<Pick<TaskNode, "status" | "inputArtifactIds" | "outputArtifactIds" | "frontierRef" | "iteration">>): void {
     const current = this.getTaskNode(id);
     if (!current) throw new Error(`Task node not found: ${id}`);
     const next = { ...current, ...patch };
-    this.db.prepare("UPDATE task_nodes SET status = ?, input_artifact_ids_json = ?, output_artifact_ids_json = ? WHERE id = ?")
-      .run(next.status, json(next.inputArtifactIds), json(next.outputArtifactIds), id);
+    this.db.prepare("UPDATE task_nodes SET status = ?, input_artifact_ids_json = ?, output_artifact_ids_json = ?, frontier_ref_json = ?, iteration = ? WHERE id = ?")
+      .run(next.status, json(next.inputArtifactIds), json(next.outputArtifactIds), json(next.frontierRef), next.iteration, id);
   }
 
   createProblemGraph(input: Omit<ResearchProblemGraph, "id" | "version" | "fingerprint" | "createdAt" | "updatedAt"> & { id?: string }): ResearchProblemGraph {
@@ -630,6 +862,30 @@ export class RuntimeStore {
     return Number(result.changes);
   }
 
+  enqueueNode(taskId: string, nodeId: string): string {
+    const existing = this.db.prepare("SELECT id FROM node_jobs WHERE node_id=? AND status IN ('queued','running') ORDER BY created_at LIMIT 1").get(nodeId) as { id?: string } | undefined;
+    if (existing?.id) return existing.id;
+    const id = randomUUID(); const stamp = now();
+    this.db.prepare("INSERT INTO node_jobs VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL, ?, ?)").run(id, taskId, nodeId, stamp, stamp, stamp);
+    return id;
+  }
+
+  claimNodeJob(maxConcurrencyPerTask = 3): { id: string; taskId: string; nodeId: string; attempts: number } | null {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const rows = this.db.prepare("SELECT * FROM node_jobs WHERE status='queued' AND available_at<=? ORDER BY created_at").all(now()) as Record<string, unknown>[];
+      const row = rows.find((candidate) => Number((this.db.prepare("SELECT COUNT(*) AS count FROM node_jobs WHERE task_id=? AND status='running'").get(String(candidate.task_id)) as { count: number }).count) < maxConcurrencyPerTask);
+      if (!row) { this.db.exec("COMMIT"); return null; }
+      this.db.prepare("UPDATE node_jobs SET status='running',attempts=attempts+1,locked_at=?,updated_at=? WHERE id=?").run(now(), now(), String(row.id));
+      this.db.exec("COMMIT");
+      return { id: String(row.id), taskId: String(row.task_id), nodeId: String(row.node_id), attempts: Number(row.attempts) + 1 };
+    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  }
+
+  finishNodeJob(id: string): void { this.db.prepare("UPDATE node_jobs SET status='completed',locked_at=NULL,updated_at=? WHERE id=?").run(now(), id); }
+  failNodeJob(id: string, error: string, retry = true): void { this.db.prepare("UPDATE node_jobs SET status=?,available_at=?,locked_at=NULL,last_error=?,updated_at=? WHERE id=?").run(retry ? "queued" : "failed", new Date(Date.now() + 2_000).toISOString(), error, now(), id); }
+  recoverStaleNodeJobs(staleMs = 30_000): number { const cutoff = new Date(Date.now() - staleMs).toISOString(); const result = this.db.prepare("UPDATE node_jobs SET status='queued',locked_at=NULL,last_error='worker lease expired',available_at=?,updated_at=? WHERE status='running' AND locked_at<?").run(now(), now(), cutoff); return Number(result.changes); }
+
   runToolOnce<T>(input: { key: string; toolId: string; taskId: string }, execute: () => T): { reused: boolean; result: T } {
     const existing = this.db.prepare("SELECT status, result_json FROM tool_executions WHERE idempotency_key=?").get(input.key) as { status?: string; result_json?: string } | undefined;
     if (existing?.status === "completed") return { reused: true, result: parse<T>(existing.result_json, undefined as T) };
@@ -665,6 +921,41 @@ export class RuntimeStore {
 
   cacheModelResult(fingerprint: string, provider: string, model: string, result: unknown): void {
     this.db.prepare("INSERT OR REPLACE INTO model_call_cache VALUES (?, ?, ?, ?, ?)").run(fingerprint, provider, model, json(result), now());
+  }
+
+  recordModelCall(input: Omit<ModelCallRecord, "id" | "createdAt" | "completedAt"> & { id?: string; createdAt?: string; completedAt?: string }): ModelCallRecord {
+    const item: ModelCallRecord = {
+      ...input,
+      id: input.id || randomUUID(),
+      createdAt: input.createdAt || now(),
+      completedAt: input.completedAt || now(),
+    };
+    this.db.prepare(`INSERT INTO model_call_records (
+      id, operation, fingerprint, provider, model, prompt_version, schema_version, context_hash,
+      status, attempts, cache_hit, input_tokens, output_tokens, estimated_cost_usd,
+      latency_ms, error, created_at, completed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      item.id, item.operation, item.fingerprint, item.provider, item.model, item.promptVersion,
+      item.schemaVersion ?? null, item.contextHash, item.status, item.attempts, item.cacheHit ? 1 : 0,
+      item.inputTokens ?? null, item.outputTokens ?? null, item.estimatedCostUsd ?? null,
+      item.latencyMs, item.error ?? null, item.createdAt, item.completedAt,
+    );
+    return item;
+  }
+
+  listModelCalls(limit = 100): ModelCallRecord[] {
+    const rows = this.db.prepare("SELECT * FROM model_call_records ORDER BY created_at DESC LIMIT ?").all(Math.max(1, Math.min(limit, 1000))) as Record<string, unknown>[];
+    return rows.map((row) => ({
+      id: String(row.id), operation: String(row.operation), fingerprint: String(row.fingerprint),
+      provider: String(row.provider), model: String(row.model), promptVersion: String(row.prompt_version),
+      schemaVersion: row.schema_version ? String(row.schema_version) : undefined, contextHash: String(row.context_hash),
+      status: row.status as ModelCallRecord["status"], attempts: Number(row.attempts), cacheHit: Boolean(row.cache_hit),
+      inputTokens: row.input_tokens === null ? undefined : Number(row.input_tokens),
+      outputTokens: row.output_tokens === null ? undefined : Number(row.output_tokens),
+      estimatedCostUsd: row.estimated_cost_usd === null ? undefined : Number(row.estimated_cost_usd),
+      latencyMs: Number(row.latency_ms), error: row.error ? String(row.error) : undefined,
+      createdAt: String(row.created_at), completedAt: String(row.completed_at),
+    }));
   }
 
   scopeKey(scope: KnowledgeScope): string {
@@ -1140,7 +1431,10 @@ export class RuntimeStore {
     id: String(r.id), title: String(r.title), tenantId: String(r.tenant_id || "default"), userId: String(r.user_id || "researcher"),
     status: r.status as Conversation["status"], createdAt: String(r.created_at), updatedAt: String(r.updated_at),
   });
-  private mapTask = (r: Record<string, unknown>): Task => ({ id: String(r.id), conversationId: String(r.conversation_id), researchCaseId: r.research_case_id ? String(r.research_case_id) : String(r.id), parentTaskId: r.parent_task_id ? String(r.parent_task_id) : undefined, goal: String(r.goal), intent: r.intent as Task["intent"], reportSpec: normalizeReportSpec(parse(r.report_spec_json, {})), status: r.status as Task["status"], budget: parse(r.budget_json, { maxModelCalls: 0, maxToolCalls: 0, maxCostUsd: 0 }), createdAt: String(r.created_at), updatedAt: String(r.updated_at) });
+  private mapTrackingProfile = (r: Record<string, unknown>): ResearchTrackingProfile => ({ conversationId: String(r.conversation_id), enabled: Boolean(r.enabled), symbols: parse<string[]>(r.symbols_json, []), keywords: parse<string[]>(r.keywords_json, []), updatedAt: String(r.updated_at) });
+  private mapSignalRefreshRun = (r: Record<string, unknown>): SignalRefreshRun => ({ id: String(r.id), connectorId: String(r.connector_id), status: r.status as SignalRefreshRun["status"], conversationIds: parse<string[]>(r.conversation_ids_json, []), candidateCount: Number(r.candidate_count), error: r.error ? String(r.error) : undefined, createdAt: String(r.created_at), startedAt: r.started_at ? String(r.started_at) : undefined, completedAt: r.completed_at ? String(r.completed_at) : undefined });
+  private mapSignalCandidate = (r: Record<string, unknown>): ResearchSignalCandidate => ({ id: String(r.id), connectorId: String(r.connector_id), conversationId: String(r.conversation_id), kind: r.kind as ResearchSignalCandidate["kind"], status: r.status as ResearchSignalCandidate["status"], symbol: r.symbol ? String(r.symbol) : undefined, title: String(r.title), excerpt: String(r.excerpt), publisher: String(r.publisher), sourceUri: String(r.source_uri), sourceType: r.source_type as ResearchSignalCandidate["sourceType"], publishedAt: String(r.published_at), capturedAt: String(r.captured_at), matchReason: String(r.match_reason), score: Number(r.score), fingerprint: String(r.fingerprint), promotedTaskId: r.promoted_task_id ? String(r.promoted_task_id) : undefined });
+  private mapTask = (r: Record<string, unknown>): Task => ({ id: String(r.id), conversationId: String(r.conversation_id), researchCaseId: r.research_case_id ? String(r.research_case_id) : String(r.id), parentTaskId: r.parent_task_id ? String(r.parent_task_id) : undefined, goal: String(r.goal), intent: r.intent as Task["intent"], reportSpec: normalizeReportSpec(parse(r.report_spec_json, {})), status: r.status as Task["status"], outcome: r.outcome ? r.outcome as Task["outcome"] : undefined, budget: parse(r.budget_json, { maxModelCalls: 0, maxToolCalls: 0, maxCostUsd: 0 }), createdAt: String(r.created_at), updatedAt: String(r.updated_at) });
   private mapNode = (r: Record<string, unknown>): TaskNode => ({ id: String(r.id), taskId: String(r.task_id), kind: String(r.kind), title: String(r.title), capabilityType: r.capability_type as TaskNode["capabilityType"], capabilityId: String(r.capability_id), assignedAgent: r.assigned_agent as TaskNode["assignedAgent"], dependsOn: parse(r.depends_on_json, []), status: r.status as TaskNode["status"], budget: parse(r.budget_json, {}), inputArtifactIds: parse(r.input_artifact_ids_json, []), outputArtifactIds: parse(r.output_artifact_ids_json, []), frontierRef: parse(r.frontier_ref_json, { problemGraphId: `problem-graph:${String(r.task_id)}` }), iteration: Number(r.iteration || 0) });
   private mapProblemGraphNode = (r: Record<string, unknown>): ProblemGraphNode => ({
     id: String(r.id), graphId: String(r.graph_id), key: String(r.node_key), type: r.type as ProblemGraphNode["type"],

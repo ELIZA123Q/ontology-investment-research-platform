@@ -1,0 +1,73 @@
+{
+  "schemaName": "public_live_research_canary",
+  "schemaVersion": "1.0.0",
+  "asOf": "2026-08-11T00:00:00.000Z",
+  "dataPolicy": "public",
+  "cases": [
+    {
+      "id": "live-dongwei-profit-quality",
+      "question": "东微半导 2025 年是否呈现收入增长、但营业利润尚未同步改善的业绩结构？只能评价已披露业绩结构，不解释未披露原因。",
+      "expectedOutcome": "completed_with_judgment",
+      "sources": [
+        {
+          "id": "dongwei-2025-preliminary-results",
+          "publisherId": "苏州东微半导体股份有限公司",
+          "sourceUri": "https://static.cninfo.com.cn/finalpage/2026-02-28/1224987566.PDF",
+          "publishedAt": "2026-02-28T00:00:00.000Z",
+          "businessTime": "2025-12-31T00:00:00.000Z",
+          "permissionScope": "public_research_use",
+          "locator": "2025年度业绩快报公告，第一节主要财务数据，单位人民币万元",
+          "facts": [
+            { "id": "dw-revenue", "statement": "2025 年营业总收入 125268.76 万元，上年同期 100322.00 万元，同比增长 24.87%。" },
+            { "id": "dw-operating-profit", "statement": "2025 年营业利润 3037.49 万元，上年同期 3317.33 万元，同比下降 8.44%。" },
+            { "id": "dw-net-profit", "statement": "2025 年归母净利润 4405.63 万元，上年同期 4023.51 万元，同比增长 9.50%。" },
+            { "id": "dw-caveat", "statement": "该业绩快报为初步核算且未经会计师事务所审计，最终数据以年度报告为准。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "live-smic-guidance-restraint",
+      "question": "中芯国际给出的 2026 年第一季度指引是否足以证明公司基本面已经转弱？证据不足时必须停止。",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "sources": [
+        {
+          "id": "smic-2025q4-results-and-2026q1-guidance",
+          "publisherId": "中芯国际集成电路制造有限公司",
+          "sourceUri": "https://star.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-02-11/688981_20260211_RNPV.pdf",
+          "publishedAt": "2026-02-11T00:00:00.000Z",
+          "businessTime": "2025-12-31T00:00:00.000Z",
+          "permissionScope": "public_research_use",
+          "locator": "2025年第四季度业绩及2026年第一季度指引，第2页",
+          "facts": [
+            { "id": "smic-q4-revenue", "statement": "2025 年第四季度销售收入 24.89 亿美元，环比增长 4.5%。" },
+            { "id": "smic-q4-margin", "statement": "2025 年第四季度毛利率为 19.2%，产能利用率为 95.7%。" },
+            { "id": "smic-2026q1-guide", "statement": "公司指引 2026 年第一季度收入环比持平，毛利率为 18% 至 20%。" },
+            { "id": "smic-forward-caveat", "statement": "2026 年指引属于前瞻性陈述，受风险与不确定性影响。" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "live-dongwei-causal-abstention",
+      "question": "仅凭业绩快报，判断东微半导营业利润下降 8.44% 的具体经营原因，并给出唯一因果解释。证据不足时必须停止。",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "sources": [
+        {
+          "id": "dongwei-2025-preliminary-results-causal-boundary",
+          "publisherId": "苏州东微半导体股份有限公司",
+          "sourceUri": "https://static.cninfo.com.cn/finalpage/2026-02-28/1224987566.PDF",
+          "publishedAt": "2026-02-28T00:00:00.000Z",
+          "businessTime": "2025-12-31T00:00:00.000Z",
+          "permissionScope": "public_research_use",
+          "locator": "2025年度业绩快报公告，第一节主要财务数据，单位人民币万元",
+          "facts": [
+            { "id": "dw-causal-operating-profit", "statement": "2025 年营业利润 3037.49 万元，上年同期 3317.33 万元，同比下降 8.44%。" },
+            { "id": "dw-causal-revenue", "statement": "2025 年营业总收入同比增长 24.87%。" },
+            { "id": "dw-causal-caveat", "statement": "快报披露初步财务数字，但这组冻结输入不包含成本、费用、减值或产品结构变化的原因拆解。" }
+          ]
+        }
+      ]
+    }
+  ]
+}

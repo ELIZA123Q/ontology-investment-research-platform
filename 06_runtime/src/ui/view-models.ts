@@ -1,4 +1,4 @@
-import type { Artifact, AssetRef, AssetRevision, Conversation, Task, TaskNode, TaskStatus } from "@/src/contracts";
+import type { Artifact, AssetRef, AssetRevision, Conversation, ResearchSignalCandidate, ResearchTrackingProfile, SignalRefreshRun, Task, TaskNode, TaskStatus } from "@/src/contracts";
 import type { RuntimeStore } from "@/src/runtime/store";
 
 export interface HomeResearchItem {
@@ -22,6 +22,10 @@ export interface HomeAttentionItem {
 export interface HomeView {
   research: HomeResearchItem[];
   attention: HomeAttentionItem[];
+  actions: { items: Array<HomeAttentionItem & { approvalId?: string }> };
+  tracking: ResearchTrackingProfile[];
+  signalFeed: ResearchSignalCandidate[];
+  signalRefresh: SignalRefreshRun | null;
   counts: { active: number; completed: number; needsAttention: number };
   signals: {
     available: boolean;
@@ -35,6 +39,7 @@ export interface HomeView {
     sourceCaptureCount: number;
     financialBatchCount: number;
     lastIngestedAt?: string;
+    akshare: { configured: boolean; status: "ready" | "degraded" | "unavailable"; lastRefreshAt?: string; detail: string };
   };
 }
 
@@ -62,8 +67,10 @@ function progress(nodes: TaskNode[]): { completed: number; total: number } {
   return { completed: nodes.filter((node) => node.status === "completed").length, total: nodes.length };
 }
 
-export function buildHomeView(store: RuntimeStore): HomeView {
-  const research = store.listConversations().map((conversation) => {
+export function buildHomeView(store: RuntimeStore, scope?: { tenantId: string; userId: string; roles: string[] }): HomeView {
+  const conversations = store.listConversations().filter((conversation) => !scope || (conversation.tenantId === scope.tenantId && (conversation.userId === scope.userId || scope.roles.includes("tenant_admin"))));
+  const accessibleConversationIds = new Set(conversations.map((conversation) => conversation.id));
+  const research = conversations.map((conversation) => {
     const latestTask = store.getLatestTask(conversation.id);
     const nodes = latestTask ? store.listTaskNodes(latestTask.id) : [];
     const artifacts = latestTask ? store.listArtifacts(latestTask.id) : [];
@@ -110,10 +117,19 @@ export function buildHomeView(store: RuntimeStore): HomeView {
   const configured = Boolean(process.env.VNEXT_CONNECTOR_INGEST_TOKEN?.trim() && allowedConnectorIds.length);
   const observedConnectorIds = [...new Set(connectorEvents.map((event) => event.actorId))].sort();
   const lastIngestedAt = connectorEvents.map((event) => event.createdAt).sort().at(-1);
+  const tracking = conversations.map((conversation) => store.getTrackingProfile(conversation.id)).filter((profile) => profile.enabled);
+  const signalFeed = store.listSignalCandidates({ status: "new", limit: 100 }).filter((candidate) => accessibleConversationIds.has(candidate.conversationId)).slice(0, 30);
+  const signalRefresh = scope ? null : store.latestSignalRefreshRun();
+  const akshareConfigured = Boolean(process.env.VNEXT_AKSHARE_URL?.trim());
+  const akshareStatus = signalRefresh?.status === "failed" ? "degraded" : akshareConfigured ? "ready" : "unavailable";
 
   return {
     research,
     attention,
+    actions: { items: attention.map((item) => ({ ...item, approvalId: item.kind === "approval" ? item.id : undefined })) },
+    tracking,
+    signalFeed,
+    signalRefresh,
     counts: {
       active: research.filter((item) => item.latestTask && !["completed", "cancelled", "failed"].includes(item.latestTask.status)).length,
       completed: research.filter((item) => item.latestTask?.status === "completed").length,
@@ -127,6 +143,12 @@ export function buildHomeView(store: RuntimeStore): HomeView {
       sourceCaptureCount: connectorEvents.filter((event) => event.type === "connector.source_ingested").length,
       financialBatchCount: connectorEvents.filter((event) => event.type === "financial.data_ingested").length,
       lastIngestedAt,
+      akshare: {
+        configured: akshareConfigured,
+        status: akshareStatus,
+        lastRefreshAt: signalRefresh?.completedAt,
+        detail: signalRefresh?.error || (akshareConfigured ? "AKShare 公开新闻与公告连接器已配置" : "AKShare 连接器未启动"),
+      },
     },
   };
 }

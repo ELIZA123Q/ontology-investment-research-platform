@@ -31,10 +31,13 @@ Role 与 Agent 不建立静态一一映射。
 当前仅保留两个核心研究角色：
 
 - `research_owner`：研究目标与方向的责任拥有者；
-- `research_lead`：研究组织、协调与判断综合责任角色。
+- `research_lead`：研究组织、协调与判断综合责任角色；
+- `evidence_investigator`：只执行证据切片与 evidence_package；
+- `financial_modeler`：只负责规范化财务、模型、估值分析和模型审计；
+- `independent_reviewer`：隔离复核，只输出 review。
 
 vNext.1 当前可执行 Agent 仍仅为 `research-lead`，
-其可承担 `research_lead` Role。
+其可承担 `research_lead` Role。其余角色只能在对应 worker 通过激活门并获准后调度。
 
 ## 边界
 

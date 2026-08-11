@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
-import { AGENTS, SKILLS, TOOLS } from "../src/capabilities/registry";
+import { AGENTS, CAPABILITY_RELEASE, SKILLS, TOOLS } from "../src/capabilities/registry";
 
 const runtimeRoot = basename(process.cwd()) === "06_runtime" ? process.cwd() : resolve(process.cwd(), "06_runtime");
 const repoRoot = resolve(runtimeRoot, "..");
@@ -42,9 +42,23 @@ for (const file of authorityFiles) {
   for (const token of forbiddenReferences) if (content.includes(token)) failures.push(`${file} still references ${token}`);
 }
 
-if (SKILLS.length !== 5) failures.push(`expected 5 executable skills, found ${SKILLS.length}`);
+const compareRelease = (kind: "skills" | "agents" | "tools", runtime: Array<{ id: string; version?: string; lifecycle?: string }>) => {
+  const released = CAPABILITY_RELEASE[kind];
+  const runtimeIds = [...runtime.map((item) => item.id)].sort();
+  const releaseIds = [...released.map((item) => item.id)].sort();
+  if (JSON.stringify(runtimeIds) !== JSON.stringify(releaseIds)) failures.push(`${kind} runtime registry differs from Capability Release ${CAPABILITY_RELEASE.releaseId}`);
+  for (const entry of released) {
+    const bound = runtime.find((item) => item.id === entry.id);
+    if (bound?.version && bound.version !== entry.version) failures.push(`${kind} version mismatch for ${entry.id}: release=${entry.version}, runtime=${bound.version}`);
+    if (kind === "skills" && bound?.lifecycle !== entry.lifecycle) failures.push(`skill lifecycle mismatch for ${entry.id}: release=${entry.lifecycle}, runtime=${bound?.lifecycle}`);
+  }
+};
+compareRelease("skills", [...SKILLS]);
+compareRelease("agents", [...AGENTS].map((agent) => ({ ...agent, lifecycle: agent.lifecycle === "planned" ? "candidate" : agent.lifecycle, version: "1.0.0" })));
+compareRelease("tools", [...TOOLS]);
 const activeAgents = AGENTS.filter((agent) => agent.lifecycle === "active");
-if (activeAgents.length !== 1 || activeAgents[0]?.id !== "research-lead") failures.push(`expected only research-lead active, found ${activeAgents.map((agent) => agent.id).join(",")}`);
+const releasedActiveAgents = CAPABILITY_RELEASE.agents.filter((agent) => agent.lifecycle === "active").map((agent) => agent.id).sort();
+if (JSON.stringify(activeAgents.map((agent) => agent.id).sort()) !== JSON.stringify(releasedActiveAgents)) failures.push(`active agents differ from Capability Release: runtime=${activeAgents.map((agent) => agent.id).join(",")}, release=${releasedActiveAgents.join(",")}`);
 if (!TOOLS.some((tool) => tool.id === "source.capture") || !TOOLS.some((tool) => tool.id === "source.query")) failures.push("required tool manifests are missing");
 
 const externalCandidatesPath = join(repoRoot, "03_agent_capability/02_skills/external_candidates.json");
@@ -64,4 +78,4 @@ if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));
   process.exit(1);
 }
-console.log(`cutover audit passed: ${activeAgents.length} active agent, ${SKILLS.length} skills, ${TOOLS.length} tools`);
+console.log(`cutover audit passed: release=${CAPABILITY_RELEASE.releaseId}, ${activeAgents.length} active agent, ${SKILLS.filter((skill) => skill.lifecycle === "active").length}/${SKILLS.length} active skills, ${TOOLS.length} tools`);

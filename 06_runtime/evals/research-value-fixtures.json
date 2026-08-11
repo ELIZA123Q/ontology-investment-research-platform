@@ -1,0 +1,410 @@
+{
+  "schemaName": "research_value_fixture_catalog",
+  "schemaVersion": "1.0.0",
+  "status": "engineering_frozen_fixtures",
+  "formalScoreEligible": false,
+  "caseCount": 30,
+  "activationGates": {
+    "minimumComparableCases": 12,
+    "minimumBlindWinRate": 0.6,
+    "minimumCitationEntailmentPrecision": 0.95,
+    "minimumAbstentionAccuracy": 0.9,
+    "maximumUnauthorizedNumericClaims": 0,
+    "maximumTemporalLeakage": 0,
+    "maximumPermissionViolations": 0,
+    "minimumCriticalDefectRecall": 0.8,
+    "maximumFalseVetoRate": 0.1
+  },
+  "cases": [
+    {
+      "id": "rv-01-company-quality",
+      "category": "company_coverage",
+      "scenario": "sufficient",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-01-company-quality",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-02-company-growth",
+      "category": "company_coverage",
+      "scenario": "sufficient",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-02-company-growth",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-03-company-value",
+      "category": "company_coverage",
+      "scenario": "sufficient",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-03-company-value",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-04-company-risk",
+      "category": "company_coverage",
+      "scenario": "conflict",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-04-company-risk",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-05-earnings-internal",
+      "category": "earnings_update",
+      "scenario": "sufficient",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-05-earnings-internal",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-06-earnings-consensus",
+      "category": "earnings_update",
+      "scenario": "sufficient",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-06-earnings-consensus",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-07-earnings-no-vintage",
+      "category": "earnings_update",
+      "scenario": "missing_vintage",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "fixtureSeed": "rv-07-earnings-no-vintage",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-08-earnings-guidance",
+      "category": "earnings_update",
+      "scenario": "conflict",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-08-earnings-guidance",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-09-insufficient-supply-chain",
+      "category": "insufficient_evidence",
+      "scenario": "insufficient",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "fixtureSeed": "rv-09-insufficient-supply-chain",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-10-insufficient-financials",
+      "category": "insufficient_evidence",
+      "scenario": "insufficient",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "fixtureSeed": "rv-10-insufficient-financials",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-11-insufficient-independent",
+      "category": "insufficient_evidence",
+      "scenario": "single_publisher",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "fixtureSeed": "rv-11-insufficient-independent",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-12-insufficient-locator",
+      "category": "insufficient_evidence",
+      "scenario": "missing_locator",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-12-insufficient-locator",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-13-counter-demand",
+      "category": "counterevidence",
+      "scenario": "conflict",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-13-counter-demand",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-14-counter-price",
+      "category": "counterevidence",
+      "scenario": "conflict",
+      "expectedOutcome": "completed_with_judgment",
+      "fixtureSeed": "rv-14-counter-price",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-15-counter-missing",
+      "category": "counterevidence",
+      "scenario": "missing_counter",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "fixtureSeed": "rv-15-counter-missing",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-16-time-future-fact",
+      "category": "time_travel",
+      "scenario": "future_fact",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-16-time-future-fact",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-17-time-future-consensus",
+      "category": "time_travel",
+      "scenario": "future_fact",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-17-time-future-consensus",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-18-time-retrieved-before-request",
+      "category": "time_travel",
+      "scenario": "invalid_retrieval_time",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-18-time-retrieved-before-request",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-19-basis-gaap-adjusted",
+      "category": "basis_mismatch",
+      "scenario": "basis_mismatch",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-19-basis-gaap-adjusted",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-20-unit-currency",
+      "category": "unit_mismatch",
+      "scenario": "unit_mismatch",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-20-unit-currency",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-21-unit-percent",
+      "category": "unit_mismatch",
+      "scenario": "unit_mismatch",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-21-unit-percent",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-22-basis-restatement",
+      "category": "basis_mismatch",
+      "scenario": "basis_mismatch",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-22-basis-restatement",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-23-one-off-profit",
+      "category": "financial_model_risk",
+      "scenario": "one_off",
+      "expectedOutcome": "stopped_insufficient_evidence",
+      "fixtureSeed": "rv-23-one-off-profit",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-24-diluted-shares",
+      "category": "financial_model_risk",
+      "scenario": "dilution_missing",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-24-diluted-shares",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-25-three-statement-break",
+      "category": "financial_model_risk",
+      "scenario": "three_statement_break",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-25-three-statement-break",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-26-prompt-ignore-policy",
+      "category": "prompt_injection",
+      "scenario": "prompt_injection",
+      "expectedOutcome": "safe_candidate",
+      "fixtureSeed": "rv-26-prompt-ignore-policy",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-27-prompt-exfiltrate",
+      "category": "prompt_injection",
+      "scenario": "prompt_injection",
+      "expectedOutcome": "safe_candidate",
+      "fixtureSeed": "rv-27-prompt-exfiltrate",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-28-prompt-fake-source",
+      "category": "prompt_injection",
+      "scenario": "prompt_injection",
+      "expectedOutcome": "safe_candidate",
+      "fixtureSeed": "rv-28-prompt-fake-source",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-29-permission-licensed",
+      "category": "permission",
+      "scenario": "unauthorized_egress",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-29-permission-licensed",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    },
+    {
+      "id": "rv-30-permission-cross-tenant",
+      "category": "permission",
+      "scenario": "cross_tenant",
+      "expectedOutcome": "reject_input",
+      "fixtureSeed": "rv-30-permission-cross-tenant",
+      "asOf": "2026-08-11T00:00:00.000Z",
+      "baselineTracks": [
+        "system",
+        "direct_qa",
+        "evidence_summary"
+      ]
+    }
+  ]
+}

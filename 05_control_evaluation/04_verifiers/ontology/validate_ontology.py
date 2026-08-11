@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Ontology 4.0 declarations: semantic depth + platform/kinetics wiring.
+"""Validate Ontology 5.0 declarations: semantic depth + platform/kinetics wiring.
 
 Merged from the former validate_v3 (semantic depth) and validate_v4 (platform
 registry / kinetics) checkers. Ontology YAML remains under 01_semantic_knowledge/01_ontology;
@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[3]
 ONTOLOGY_DIR = ROOT / "01_semantic_knowledge" / "01_ontology"
 PLATFORM_REGISTRY = ONTOLOGY_DIR / "platform_registry.yaml"
 MODEL_DIR = ONTOLOGY_DIR / "models"
-MODEL_FILES = ("semantic.yaml", "state_event.yaml", "evidence.yaml", "judgment.yaml")
+MODEL_FILES = ("semantic.yaml", "state_event.yaml", "evidence.yaml", "judgment.yaml", "financial.yaml")
 EXTENSION = ONTOLOGY_DIR / "domains" / "semiconductor" / "ontology_extension.yaml"
 SCENARIO_CATALOG = ROOT / "02_scenario_task" / "02_scenarios" / "types.yaml"
 RESEARCH_REQUIREMENT_PROFILES = ONTOLOGY_DIR / "research_requirement_profiles.yaml"
@@ -867,8 +867,8 @@ def validate_platform_and_kinetics() -> list[str]:
         return ["missing 01_semantic_knowledge/01_ontology/platform_registry.yaml"]
     registry = load_yaml(PLATFORM_REGISTRY)
     meta = load_yaml(ONTOLOGY_DIR / str(registry.get("meta_schema")))
-    if registry.get("schema_version") != "4.0.0" or meta.get("platform_version") != "4.0.0":
-        errors.append("platform registry and meta schema must declare Ontology 4.0.0")
+    if registry.get("schema_version") != "5.0.0" or meta.get("platform_version") != "5.0.0":
+        errors.append("platform registry and meta schema must declare Ontology 5.0.0")
 
     semantic_paths = [ONTOLOGY_DIR / str(item) for item in registry.get("semantic_models") or []]
     operational_paths = [ONTOLOGY_DIR / str(item) for item in registry.get("operational_models") or []]
@@ -891,8 +891,8 @@ def validate_platform_and_kinetics() -> list[str]:
         errors.append("ResearchScope must be defined in operational model")
 
     for model in [load_yaml_allow_merge(path) for path in operational_paths]:
-        if model.get("schema_version") != "4.0.0":
-            errors.append(f"{model.get('schema_name')}: operational model must be 4.0.0")
+        if model.get("schema_version") not in {"4.0.0", "5.0.0"}:
+            errors.append(f"{model.get('schema_name')}: operational model must be 4.0.0 or 5.0.0")
         for relation_id, relation in (model.get("relation_types") or {}).items():
             for side in ("source_types", "target_types"):
                 for ref in relation.get(side) or []:
@@ -911,6 +911,51 @@ def validate_platform_and_kinetics() -> list[str]:
     functions = function_doc.get("functions") or {}
     policies = policy_doc.get("policies") or {}
     triggers = trigger_doc.get("triggers") or {}
+
+    interface_path = ONTOLOGY_DIR / str(registry.get("interfaces") or "")
+    value_type_path = ONTOLOGY_DIR / str(registry.get("value_types") or "")
+    lens_path = ONTOLOGY_DIR / str(registry.get("research_lens_profiles") or "")
+    mapping_path = ONTOLOGY_DIR / str(registry.get("data_mapping_profiles") or "")
+    migration_path = ONTOLOGY_DIR / str(registry.get("migration_manifest") or "")
+    for label, path in (("interfaces", interface_path), ("value_types", value_type_path), ("research_lens_profiles", lens_path), ("data_mapping_profiles", mapping_path), ("migration_manifest", migration_path)):
+        if not path.exists():
+            errors.append(f"platform registry missing {label} declaration")
+    interfaces = (load_yaml(interface_path).get("interface_types") or {}) if interface_path.exists() else {}
+    value_types = (load_yaml(value_type_path).get("value_types") or {}) if value_type_path.exists() else {}
+    lenses = (load_yaml(lens_path).get("lens_profiles") or {}) if lens_path.exists() else {}
+    if not interfaces:
+        errors.append("Ontology 5.0 requires non-empty interface_types")
+    if not value_types:
+        errors.append("Ontology 5.0 requires non-empty value_types")
+    if not lenses:
+        errors.append("Ontology 5.0 requires non-empty lens_profiles")
+    for interface_id, interface in interfaces.items():
+        if not isinstance(interface, dict) or not isinstance(interface.get("properties"), list) or not isinstance(interface.get("action_capabilities"), list):
+            errors.append(f"interface {interface_id}: properties and action_capabilities are required")
+    for value_type_id, value_type in value_types.items():
+        if not isinstance(value_type, dict) or value_type.get("id") != value_type_id:
+            errors.append(f"value type {value_type_id}: id mismatch")
+    for model in all_models:
+        for object_id, object_type in (model.get("object_types") or {}).items():
+            for interface_id in object_type.get("implements") or []:
+                if interface_id not in interfaces:
+                    errors.append(f"{object_id}: unresolved interface {interface_id}")
+            for attribute_name, attribute in (object_type.get("attributes") or {}).items():
+                if isinstance(attribute, dict) and attribute.get("value_type_ref") not in {None, ""} and attribute.get("value_type_ref") not in value_types:
+                    errors.append(f"{object_id}.{attribute_name}: unresolved value_type_ref {attribute.get('value_type_ref')}")
+    for lens_id, lens in lenses.items():
+        if not isinstance(lens, dict):
+            errors.append(f"lens {lens_id}: must be a mapping")
+            continue
+        for interface_id in lens.get("required_interfaces") or []:
+            if interface_id not in interfaces:
+                errors.append(f"lens {lens_id}: unresolved interface {interface_id}")
+        for object_id in lens.get("required_outputs") or []:
+            if object_id not in objects:
+                errors.append(f"lens {lens_id}: unresolved required output {object_id}")
+    migration = load_yaml(migration_path) if migration_path.exists() else {}
+    if migration.get("to_platform_version") != "5.0.0" or migration.get("mode") != "single_cutover_no_dual_write":
+        errors.append("migration manifest must declare Ontology 5.0 single cutover")
 
     required_actions = set((meta.get("action_type_contract") or {}).get("required") or [])
     required_functions = set((meta.get("function_type_contract") or {}).get("required") or [])

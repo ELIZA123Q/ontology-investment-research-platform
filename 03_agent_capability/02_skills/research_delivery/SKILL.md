@@ -23,7 +23,7 @@ progressive_loading: metadata_then_instructions_then_resources
 
 1. 只使用正式制品与已验证来源。
 2. 区分事实、推断与观点；保留不确定性和改判条件。
-3. 按交付形态选择模板（事件点评、周期判断、公司业绩、主题深度等）。
+3. 按交付形态选择模板和 `expression_presets.yaml` 的表达 preset（事件点评、周期判断、公司业绩、主题深度等）。
 4. 不得新增未经取证/裁决确认的事实。
 
 ## 不做
@@ -36,4 +36,5 @@ progressive_loading: metadata_then_instructions_then_resources
 
 1. 本文件
 2. `references/standards/`
-3. 按需加载 `templates/`
+3. `expression_presets.yaml`（仅控制交付形式）
+4. 按需加载 `templates/`

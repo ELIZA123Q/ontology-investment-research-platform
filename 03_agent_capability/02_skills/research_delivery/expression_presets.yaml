@@ -1,0 +1,23 @@
+schema_name: research_expression_preset_registry
+schema_version: 1.0.0
+status: active
+
+invariants:
+  - 不得提高或降低 EvidenceFact 的验证等级
+  - 不得提高 Judgment 的置信度或删除改判条件
+  - 不得隐藏关键风险、证据缺口或审计失败项
+  - 不得生成交易指令、仓位、评级或目标价
+
+presets:
+  - id: internal_deep
+    audience: research_analyst
+    emphasis: 完整机制、模型假设、情景、反证、附录
+  - id: investment_committee
+    audience: investment_committee
+    emphasis: 决策问题、关键变量、估值区间、情景、风险和待决事项
+  - id: analyst_flash
+    audience: research_analyst
+    emphasis: 事实变化、内部前值差异、命题影响与下一验证点
+  - id: client
+    audience: client
+    emphasis: 已验证事实、边界、主要判断与风险揭示

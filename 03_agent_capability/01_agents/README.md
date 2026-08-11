@@ -28,3 +28,8 @@ candidates 在对应 Role 建立前，`can_assume_roles` 为空，不为了 sche
 - 定义改本目录；启用/停用的执行绑定改 `06_runtime/src/capabilities/registry.ts`
 - 内部节点执行不是 A2A handoff
 - 禁止在本目录复制 AGENT.md prompt 正文
+## 责任拆分
+
+首期以责任与权限拆分，不按价值/成长/多空等风格拆分：Research Lead、Evidence Investigator、Financial Modeler、Independent Critic。
+
+研究视角由 research_lens 组合，交付文风由 expression preset 控制；二者都不是 Agent。分析风格类 analysis-specialist 保持 planned，待复杂推理评测证明增益后再启用。

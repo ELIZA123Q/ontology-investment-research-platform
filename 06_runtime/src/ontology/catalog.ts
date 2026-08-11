@@ -8,6 +8,7 @@ export interface OntologyObjectTypeDefinition {
   attributes: Record<string, { type?: string; required?: boolean; allowed_values?: readonly string[] }>;
   schemaVersion: string;
   namespace: string;
+  implements?: readonly string[];
 }
 
 export interface OntologyRelationTypeDefinition {
@@ -15,6 +16,8 @@ export interface OntologyRelationTypeDefinition {
   sourceTypes: readonly string[];
   targetTypes: readonly string[];
   inverseOf?: string | null;
+  sourceSide?: string | null;
+  targetSide?: string | null;
   schemaVersion: string;
 }
 
@@ -46,6 +49,9 @@ const objects = ONTOLOGY_CATALOG.objects as unknown as Record<string, OntologyOb
 const relations = ONTOLOGY_CATALOG.relations as unknown as Record<string, OntologyRelationTypeDefinition>;
 const actions = ONTOLOGY_CATALOG.actions as unknown as Record<string, OntologyActionTypeDefinition>;
 const functions = ONTOLOGY_CATALOG.functions as unknown as Record<string, Record<string, unknown>>;
+const interfaces = ONTOLOGY_CATALOG.interfaces as unknown as Record<string, Record<string, unknown>>;
+const valueTypes = ONTOLOGY_CATALOG.valueTypes as unknown as Record<string, Record<string, unknown>>;
+const lensProfiles = ONTOLOGY_CATALOG.lensProfiles as unknown as Record<string, Record<string, unknown>>;
 
 export class OntologyCatalog {
   readonly platformVersion = ONTOLOGY_CATALOG.platformVersion;
@@ -58,6 +64,15 @@ export class OntologyCatalog {
   }
   listFunctionTypes(): Array<Record<string, unknown> & { id: string }> {
     return Object.entries(functions).map(([id, definition]) => ({ id, ...definition }));
+  }
+  listInterfaces(): Array<Record<string, unknown> & { id: string }> {
+    return Object.entries(interfaces).map(([id, definition]) => ({ id, ...definition }));
+  }
+  listValueTypes(): Array<Record<string, unknown> & { id: string }> {
+    return Object.entries(valueTypes).map(([id, definition]) => ({ id, ...definition }));
+  }
+  listLensProfiles(): Array<Record<string, unknown> & { id: string }> {
+    return Object.entries(lensProfiles).map(([id, definition]) => ({ id, ...definition }));
   }
   getObjectType(id: string): OntologyObjectTypeDefinition {
     const found = objects[id];
@@ -79,6 +94,29 @@ export class OntologyCatalog {
     if (!found) throw new Error(`Unknown Ontology function type: ${id}`);
     return found;
   }
+  getInterface(id: string): Record<string, unknown> {
+    const found = interfaces[id];
+    if (!found) throw new Error(`Unknown Ontology interface: ${id}`);
+    return found;
+  }
+  getValueType(id: string): Record<string, unknown> {
+    const found = valueTypes[id];
+    if (!found) throw new Error(`Unknown Ontology value type: ${id}`);
+    return found;
+  }
+  getLensProfile(id: string): Record<string, unknown> {
+    const found = lensProfiles[id];
+    if (!found) throw new Error(`Unknown research lens profile: ${id}`);
+    return found;
+  }
+  objectImplements(objectType: string, interfaceId: string): boolean {
+    this.getInterface(interfaceId);
+    return (this.getObjectType(objectType).implements || []).includes(interfaceId);
+  }
+  objectTypesForInterface(interfaceId: string): OntologyObjectTypeDefinition[] {
+    this.getInterface(interfaceId);
+    return this.listObjectTypes().filter((item) => (item.implements || []).includes(interfaceId));
+  }
   actionsForObject(ref: OntologyObjectRef, actorType: OntologyActorType): Array<OntologyActionTypeDefinition & { id: string }> {
     this.getObjectType(ref.type);
     return this.listActionTypes().filter((action) => action.target_types.includes(ref.type) && action.allowed_actors.includes(actorType));
@@ -97,3 +135,6 @@ export type OntologyObjectTypeId = keyof typeof ONTOLOGY_CATALOG.objects;
 export type OntologyRelationTypeId = keyof typeof ONTOLOGY_CATALOG.relations;
 export type OntologyActionTypeId = keyof typeof ONTOLOGY_CATALOG.actions;
 export type OntologyFunctionTypeId = keyof typeof ONTOLOGY_CATALOG.functions;
+export type OntologyInterfaceId = keyof typeof ONTOLOGY_CATALOG.interfaces;
+export type OntologyValueTypeId = keyof typeof ONTOLOGY_CATALOG.valueTypes;
+export type ResearchLensId = keyof typeof ONTOLOGY_CATALOG.lensProfiles;

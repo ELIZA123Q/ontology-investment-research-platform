@@ -7,8 +7,8 @@ import { compilePlannerProposal, parsePlannerProposal, type PlannerProposal } fr
 const budget = { maxModelCalls: 12, maxToolCalls: 24, maxCostUsd: 3 };
 
 describe("constrained dynamic planning", () => {
-  it("keeps vNext.1 to five procedural skills and one active agent", () => {
-    expect(SKILLS.map((skill) => skill.id)).toEqual(["research-framing", "research-design", "evidence-research", "judgment-reasoning", "research-delivery"]);
+  it("keeps the five discipline skills, adds the professional workflow layer, and retains one active agent", () => {
+    expect(SKILLS.map((skill) => skill.id)).toEqual(["research-framing", "research-design", "evidence-research", "judgment-reasoning", "research-delivery", "company-fundamental-research", "sector-cycle-research", "financial-modeling", "valuation-analysis", "earnings-update", "thesis-monitoring", "independent-research-review"]);
     expect(AGENTS.filter((agent) => agent.lifecycle === "active").map((agent) => agent.id)).toEqual(["research-lead"]);
   });
 

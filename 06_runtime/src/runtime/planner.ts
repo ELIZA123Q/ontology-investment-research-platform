@@ -114,7 +114,14 @@ export function planFromProblemGraph(graph: ResearchProblemGraph, budget: Budget
   const nodes: PlannedNode[] = [];
   const boundary = (key: string, kind: string, title: string, dependsOn: string[], compilerBoundary: NonNullable<FrontierRef["compilerBoundary"]>) =>
     nodes.push({ key, kind, title, agent: "research-lead", dependsOn, frontierRef: { problemGraphId: graph.id, compilerBoundary } });
-  boundary("context", "semantic_context", "装配研究范围与历史上下文", [], "scope");
+  const isUpdate = graph.intentRefs[0] === "update_judgment";
+  const motifs = new Set(graph.taskMotifRefs);
+  const lenses = new Set(graph.lensRefs || []);
+  const fundamental = lenses.has("fundamental") || lenses.has("growth") || lenses.has("quality") || motifs.has("company_coverage") || motifs.has("earnings_update");
+  const needsValuation = lenses.has("value_valuation") || motifs.has("company_coverage");
+  const needsThesis = fundamental || lenses.has("risk_first") || lenses.has("expectation_gap") || motifs.has("thesis_review");
+  if (isUpdate) boundary("impact", "impact_analysis", "沿问题图与证据血缘识别受影响单元", [], "scope");
+  boundary("context", "semantic_context", "装配研究范围与历史上下文", isUpdate ? ["impact"] : [], "scope");
 
   const judgmentUnits = graph.nodes.filter((node) => node.type === "judgment_unit" && node.required);
   for (const unit of judgmentUnits) {
@@ -139,9 +146,25 @@ export function planFromProblemGraph(graph: ResearchProblemGraph, budget: Budget
     nodes.push({ key: `${prefix}:judgment`, kind: "judgment", title: `裁决判断单元：${unit.title}`, agent: "research-lead", dependsOn: [hypothesisKey, ...evaluations], frontierRef: unitFrontier });
   }
   const judgmentKeys = nodes.filter((node) => node.kind === "judgment").map((node) => node.key);
+  const evaluationKeys = nodes.filter((node) => node.kind === "evidence_evaluation").map((node) => node.key);
+  const financialDependencies: string[] = [];
+  if (fundamental) {
+    nodes.push({ key: "financial_normalization", kind: "financial_normalization", title: "规范化财务历史与口径", agent: "research-lead", dependsOn: evaluationKeys, frontierRef: { problemGraphId: graph.id, compilerBoundary: "scope" } });
+    nodes.push({ key: "model_build_or_update", kind: "model_build_or_update", title: "构建或更新结构化财务模型", agent: "research-lead", dependsOn: ["financial_normalization"], frontierRef: { problemGraphId: graph.id, compilerBoundary: "scope" } });
+    nodes.push({ key: "model_audit", kind: "model_audit", title: "确定性审计模型口径、公式与勾稽", agent: "research-lead", dependsOn: ["model_build_or_update"], frontierRef: { problemGraphId: graph.id, compilerBoundary: "audit" } });
+    financialDependencies.push("model_audit");
+  }
+  if (needsValuation) {
+    nodes.push({ key: "valuation_analysis", kind: "valuation_analysis", title: "基于审计通过模型形成估值分析", agent: "research-lead", dependsOn: ["model_audit"], frontierRef: { problemGraphId: graph.id, compilerBoundary: "synthesis" } });
+    financialDependencies.push("valuation_analysis");
+  }
+  if (needsThesis) {
+    nodes.push({ key: "thesis_update", kind: "thesis_update", title: "版本化更新命题支柱与改判信号", agent: "research-lead", dependsOn: [...judgmentKeys, ...financialDependencies], frontierRef: { problemGraphId: graph.id, compilerBoundary: "synthesis" } });
+  }
   boundary("synthesis", "synthesis", "综合原子判断并保留局部差异", judgmentKeys, "synthesis");
-  boundary("compose", "compose", "生成可编辑研究制品", ["synthesis"], "compose");
-  boundary("audit", "audit", "确定性审计引用与表达", ["compose"], "audit");
+  boundary("compose", "compose", "生成可编辑研究制品", ["synthesis", ...(needsThesis ? ["thesis_update"] : []), ...(needsValuation ? ["valuation_analysis"] : [])], "compose");
+  if (needsThesis) nodes.push({ key: "independent_review", kind: "independent_review", title: "隔离复核证据、模型、反证与叙事边界", agent: "research-lead", dependsOn: ["compose"], frontierRef: { problemGraphId: graph.id, compilerBoundary: "audit" } });
+  boundary("audit", "audit", "确定性审计引用与表达", ["compose", ...(needsThesis ? ["independent_review"] : [])], "audit");
   const parallelGroups = [nodes.filter((node) => node.kind === "method_selection").map((node) => node.key), nodes.filter((node) => node.kind === "evidence_discovery").map((node) => node.key)]
     .filter((group) => group.length > 1);
   return {

@@ -1,5 +1,5 @@
 schema_name: ontology_platform_registry
-schema_version: 4.0.0
+schema_version: 5.0.0
 status: active
 source_of_truth: 01_semantic_knowledge/01_ontology
 meta_schema: meta_schema.yaml
@@ -8,6 +8,7 @@ semantic_models:
   - models/state_event.yaml
   - models/evidence.yaml
   - models/judgment.yaml
+  - models/financial.yaml
   - domains/semiconductor/ontology_extension.yaml
 operational_models:
   - models/operational.yaml
@@ -18,11 +19,17 @@ kinetic_models:
   functions: kinetics/functions.yaml
   policies: kinetics/policies.yaml
   triggers: kinetics/triggers.yaml
-domain_parameter_bundle: domains/semiconductor/business_instances.yaml
+interfaces: interfaces.yaml
+value_types: value_types.yaml
+research_lens_profiles: research_lens_profiles.yaml
+data_mapping_profiles: contracts/ontology_data_mapping_profiles.yaml
+domain_parameter_bundles:
+  semiconductor: domains/semiconductor/business_instances.yaml
+migration_manifest: migrations/4.0-to-5.0.yaml
 runtime_projection: 06_runtime/src/ontology/generated.ts
 validator: 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
 rules:
-  - 新运行只写 Ontology 4.0；不保留前代实例或迁移基线。
+  - 新运行只写 Ontology 5.0；4.0 本地实例只读归档，不双写也不在线迁移。
   - 正式语义对象和关系只能通过 Action Service 写入。
   - Task、TaskNode、队列、重试、缓存与 Checkpoint 不进入业务本体。
   - 场景类型目录位于 02_scenario_task/02_scenarios/types.yaml，语义需求 profile 位于 research_requirement_profiles.yaml，不是 formal model。

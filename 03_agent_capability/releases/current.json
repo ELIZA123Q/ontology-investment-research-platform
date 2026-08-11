@@ -1,0 +1,42 @@
+{
+  "schemaName": "capability_release_manifest",
+  "schemaVersion": "1.0.0",
+  "releaseId": "capability-vnext-2026-08-11",
+  "status": "current",
+  "productScope": "local-first-a-share-semiconductor-research",
+  "skills": [
+    { "id": "research-framing", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "research-design", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "evidence-research", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "judgment-reasoning", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "research-delivery", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "company-fundamental-research", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "sector-cycle-research", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "financial-modeling", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "valuation-analysis", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "earnings-update", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "thesis-monitoring", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "independent-research-review", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] }
+  ],
+  "agents": [
+    { "id": "research-lead", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "evidence-investigator", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "financial-modeler", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "analysis-specialist", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
+    { "id": "independent-critic", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] }
+  ],
+  "tools": [
+    { "id": "semantic.search", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "source.discover", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "source.capture", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "source.query", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "artifact.publish", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "financial.model.validate", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] }
+  ],
+  "activationPolicy": {
+    "minimumComparableCases": 12,
+    "minimumBlindWinRate": 0.6,
+    "maximumSevereRegressions": 0,
+    "candidateProductionDispatchAllowed": false
+  }
+}

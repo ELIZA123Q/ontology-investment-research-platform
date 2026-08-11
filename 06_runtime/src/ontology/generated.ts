@@ -404,6 +404,97 @@ export const ONTOLOGY_CATALOG = {
         "snapshotOfDocument"
       ]
     },
+    "ConfirmResearchMandate": {
+      "allowed_actors": [
+        "researcher",
+        "agent",
+        "system"
+      ],
+      "approval_policy": {
+        "kind": "plan_confirmation",
+        "mode": "always"
+      },
+      "audit_fields": [
+        "action_type",
+        "action_version",
+        "actor",
+        "parameters",
+        "target_refs",
+        "approval_ref",
+        "edits",
+        "output_refs",
+        "invalidated_refs",
+        "submitted_at",
+        "completed_at"
+      ],
+      "automation_allowed": false,
+      "compensation": "append_compensating_action",
+      "conflict_control": "expected_versions_required_for_existing_targets",
+      "description": "将研究员确认的 Lens、时间窗、比较基准和重要性边界写入 ResearchMandate。",
+      "function_ref": null,
+      "handler": "confirm-research-mandate",
+      "idempotency": "required",
+      "label_zh": "确认研究委托",
+      "ontology_edits": [
+        "create_ResearchMandate",
+        "create_mandateForCase"
+      ],
+      "parameters": {
+        "comparisonBasis": {
+          "required": true,
+          "type": "string"
+        },
+        "excludedModules": {
+          "required": false,
+          "type": "array"
+        },
+        "horizon": {
+          "required": true,
+          "type": "string"
+        },
+        "lensRefs": {
+          "required": true,
+          "type": "array"
+        },
+        "materialityBoundary": {
+          "required": true,
+          "type": "string"
+        },
+        "questionRef": {
+          "required": true,
+          "type": "string"
+        },
+        "title": {
+          "required": true,
+          "type": "string"
+        }
+      },
+      "post_commit_effects": [
+        "append_domain_event"
+      ],
+      "postconditions": [
+        "action_execution_logged"
+      ],
+      "preconditions": [
+        "target_exists",
+        "expected_version_matches",
+        "question_belongs_to_case",
+        "lens_profiles_registered"
+      ],
+      "reads": [
+        "ResearchCase",
+        "ResearchQuestion"
+      ],
+      "submission_policy": "FormalWritesViaActionsOnly",
+      "target_types": [
+        "ResearchCase"
+      ],
+      "version": "1.0.0",
+      "writes": [
+        "ResearchMandate",
+        "mandateForCase"
+      ]
+    },
     "CreateJudgmentUnit": {
       "allowed_actors": [
         "researcher",
@@ -411,7 +502,8 @@ export const ONTOLOGY_CATALOG = {
         "system"
       ],
       "approval_policy": {
-        "mode": "never"
+        "kind": "plan_confirmation",
+        "mode": "always"
       },
       "audit_fields": [
         "action_type",
@@ -438,10 +530,15 @@ export const ONTOLOGY_CATALOG = {
         "ensure_ResearchScope",
         "create_JudgmentUnit",
         "create_caseHasJudgmentUnit",
-        "create_unitUsesScope"
+        "create_unitUsesScope",
+        "create_questionDecomposesIntoUnit"
       ],
       "parameters": {
         "judgmentType": {
+          "required": true,
+          "type": "string"
+        },
+        "questionRef": {
           "required": true,
           "type": "string"
         },
@@ -487,7 +584,8 @@ export const ONTOLOGY_CATALOG = {
         "JudgmentUnit",
         "caseHasScope",
         "caseHasJudgmentUnit",
-        "unitUsesScope"
+        "unitUsesScope",
+        "questionDecomposesIntoUnit"
       ]
     },
     "CreateMonitoringRule": {
@@ -718,6 +816,90 @@ export const ONTOLOGY_CATALOG = {
         "deliverableIncludesJudgment"
       ]
     },
+    "CreateResearchQuestion": {
+      "allowed_actors": [
+        "researcher",
+        "agent",
+        "system"
+      ],
+      "approval_policy": {
+        "kind": "plan_confirmation",
+        "mode": "always"
+      },
+      "audit_fields": [
+        "action_type",
+        "action_version",
+        "actor",
+        "parameters",
+        "target_refs",
+        "approval_ref",
+        "edits",
+        "output_refs",
+        "invalidated_refs",
+        "submitted_at",
+        "completed_at"
+      ],
+      "automation_allowed": false,
+      "compensation": "append_compensating_action",
+      "conflict_control": "expected_versions_required_for_existing_targets",
+      "description": "在已确认研究范围内创建可追溯的 ResearchQuestion，并连接 ResearchCase。",
+      "function_ref": null,
+      "handler": "create-research-question",
+      "idempotency": "required",
+      "label_zh": "创建研究问题",
+      "ontology_edits": [
+        "ensure_ResearchScope",
+        "create_ResearchQuestion",
+        "create_caseAddressesQuestion"
+      ],
+      "parameters": {
+        "failureRoute": {
+          "required": true,
+          "type": "string"
+        },
+        "question": {
+          "required": true,
+          "type": "string"
+        },
+        "scopeDimensions": {
+          "required": false,
+          "type": "object"
+        },
+        "scopeLabel": {
+          "required": false,
+          "type": "string"
+        },
+        "scopeRef": {
+          "required": false,
+          "type": "string"
+        }
+      },
+      "post_commit_effects": [
+        "append_domain_event"
+      ],
+      "postconditions": [
+        "action_execution_logged"
+      ],
+      "preconditions": [
+        "target_exists",
+        "expected_version_matches"
+      ],
+      "reads": [
+        "ResearchCase",
+        "ResearchScope"
+      ],
+      "submission_policy": "FormalWritesViaActionsOnly",
+      "target_types": [
+        "ResearchCase"
+      ],
+      "version": "1.0.0",
+      "writes": [
+        "ResearchScope",
+        "ResearchQuestion",
+        "caseHasScope",
+        "caseAddressesQuestion"
+      ]
+    },
     "PromoteEvidenceFact": {
       "allowed_actors": [
         "researcher",
@@ -862,6 +1044,73 @@ export const ONTOLOGY_CATALOG = {
         "Judgment"
       ]
     },
+    "RecordBlockingFactor": {
+      "allowed_actors": [
+        "researcher",
+        "agent",
+        "system"
+      ],
+      "approval_policy": {
+        "mode": "never"
+      },
+      "audit_fields": [
+        "action_type",
+        "action_version",
+        "actor",
+        "parameters",
+        "target_refs",
+        "approval_ref",
+        "edits",
+        "output_refs",
+        "invalidated_refs",
+        "submitted_at",
+        "completed_at"
+      ],
+      "automation_allowed": true,
+      "compensation": "append_compensating_action",
+      "conflict_control": "expected_versions_required_for_existing_targets",
+      "description": "记录限制特定 JudgmentUnit 的专业阻断。",
+      "function_ref": null,
+      "handler": "record-blocking-factor",
+      "idempotency": "required",
+      "label_zh": "记录阻断因素",
+      "ontology_edits": [
+        "create_BlockingFactor",
+        "create_blockingFactorForUnit"
+      ],
+      "parameters": {
+        "effect": {
+          "required": true,
+          "type": "string"
+        },
+        "statement": {
+          "required": true,
+          "type": "string"
+        }
+      },
+      "post_commit_effects": [
+        "append_domain_event"
+      ],
+      "postconditions": [
+        "action_execution_logged"
+      ],
+      "preconditions": [
+        "target_exists",
+        "expected_version_matches"
+      ],
+      "reads": [
+        "JudgmentUnit"
+      ],
+      "submission_policy": "FormalWritesViaActionsOnly",
+      "target_types": [
+        "JudgmentUnit"
+      ],
+      "version": "1.0.0",
+      "writes": [
+        "BlockingFactor",
+        "blockingFactorForUnit"
+      ]
+    },
     "RecordEvidenceAssessment": {
       "allowed_actors": [
         "researcher",
@@ -932,6 +1181,152 @@ export const ONTOLOGY_CATALOG = {
       "writes": [
         "EvidenceAssessment",
         "assessmentEvaluatesFact"
+      ]
+    },
+    "RegisterCompetingExplanation": {
+      "allowed_actors": [
+        "researcher",
+        "agent",
+        "system"
+      ],
+      "approval_policy": {
+        "mode": "never"
+      },
+      "audit_fields": [
+        "action_type",
+        "action_version",
+        "actor",
+        "parameters",
+        "target_refs",
+        "approval_ref",
+        "edits",
+        "output_refs",
+        "invalidated_refs",
+        "submitted_at",
+        "completed_at"
+      ],
+      "automation_allowed": true,
+      "compensation": "append_compensating_action",
+      "conflict_control": "expected_versions_required_for_existing_targets",
+      "description": "为一个 JudgmentUnit 登记可被区分性证据检验的竞争解释。",
+      "function_ref": null,
+      "handler": "register-competing-explanation",
+      "idempotency": "required",
+      "label_zh": "登记竞争解释",
+      "ontology_edits": [
+        "create_CompetingExplanation",
+        "create_competingExplanationForUnit"
+      ],
+      "parameters": {
+        "discriminatingEvidence": {
+          "required": true,
+          "type": "array"
+        },
+        "statement": {
+          "required": true,
+          "type": "string"
+        }
+      },
+      "post_commit_effects": [
+        "append_domain_event"
+      ],
+      "postconditions": [
+        "action_execution_logged"
+      ],
+      "preconditions": [
+        "target_exists",
+        "expected_version_matches"
+      ],
+      "reads": [
+        "JudgmentUnit"
+      ],
+      "submission_policy": "FormalWritesViaActionsOnly",
+      "target_types": [
+        "JudgmentUnit"
+      ],
+      "version": "1.0.0",
+      "writes": [
+        "CompetingExplanation",
+        "competingExplanationForUnit"
+      ]
+    },
+    "RegisterEvidenceRequirement": {
+      "allowed_actors": [
+        "researcher",
+        "agent",
+        "system"
+      ],
+      "approval_policy": {
+        "mode": "never"
+      },
+      "audit_fields": [
+        "action_type",
+        "action_version",
+        "actor",
+        "parameters",
+        "target_refs",
+        "approval_ref",
+        "edits",
+        "output_refs",
+        "invalidated_refs",
+        "submitted_at",
+        "completed_at"
+      ],
+      "automation_allowed": true,
+      "compensation": "append_compensating_action",
+      "conflict_control": "expected_versions_required_for_existing_targets",
+      "description": "为一个 JudgmentUnit 登记按角色隔离的最低证据合同。",
+      "function_ref": null,
+      "handler": "register-evidence-requirement",
+      "idempotency": "required",
+      "label_zh": "登记证据要求",
+      "ontology_edits": [
+        "create_EvidenceRequirement",
+        "create_requirementForJudgmentUnit"
+      ],
+      "parameters": {
+        "evidenceProfileRefs": {
+          "required": false,
+          "type": "array"
+        },
+        "evidenceRole": {
+          "required": true,
+          "type": "string"
+        },
+        "minimumIndependentSources": {
+          "required": true,
+          "type": "integer"
+        },
+        "noProfileReason": {
+          "required": false,
+          "type": "string"
+        },
+        "requirement": {
+          "required": true,
+          "type": "string"
+        }
+      },
+      "post_commit_effects": [
+        "append_domain_event"
+      ],
+      "postconditions": [
+        "action_execution_logged"
+      ],
+      "preconditions": [
+        "target_exists",
+        "expected_version_matches"
+      ],
+      "reads": [
+        "JudgmentUnit"
+      ],
+      "submission_policy": "FormalWritesViaActionsOnly",
+      "target_types": [
+        "JudgmentUnit"
+      ],
+      "version": "1.0.0",
+      "writes": [
+        "EvidenceRequirement",
+        "requirementForJudgmentUnit"
       ]
     },
     "ReviseResearchScope": {
@@ -1279,8 +1674,6234 @@ export const ONTOLOGY_CATALOG = {
       ]
     }
   },
-  "fingerprint": "sha256:6850d32bc1467db8d9a6b1d2e7fb71ce34d19f19d3646f53167519728b498ca4",
+  "domainBundles": {
+    "semiconductor": {
+      "authority": "business_parameters",
+      "objects": [
+        {
+          "id": "end_market_demand_strength",
+          "projection": {
+            "index": 0,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Application",
+              "Industry",
+              "Product"
+            ],
+            "category": "demand",
+            "counter_evidence_guidance": "终端销量下修、设备利用不足、预算削减或需求前置透支。",
+            "decision_use": "判断需求变化是否具备产业链传导基础。",
+            "definition": "终端行业、应用或工作负载对半导体功能和数量的需求强弱。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "end_market_demand_strength",
+            "name": "终端需求强度",
+            "observation_guidance": "综合终端销量、使用量、系统部署、出货和行业景气，而非单一预测。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "customer_capex_intensity",
+          "projection": {
+            "index": 1,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Application",
+              "Company",
+              "Industry"
+            ],
+            "category": "demand",
+            "counter_evidence_guidance": "预算延后、项目取消、利用率偏低或资本开支结构转向非半导体项目。",
+            "decision_use": "判断系统建设需求能否转化为芯片、设备和基础设施订单。",
+            "definition": "下游客户为计算、通信、制造或其他系统建设配置资本的意愿与节奏。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "customer_capex_intensity",
+            "name": "客户资本开支强度",
+            "observation_guidance": "观察预算、指引、项目启动、招标和实际采购的共同方向。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "order_visibility",
+          "projection": {
+            "index": 2,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "ValueChainSegment"
+            ],
+            "category": "demand",
+            "counter_evidence_guidance": "订单取消、重复下单、渠道囤货或客户延迟拉货。",
+            "decision_use": "区分短期询单、渠道补库和可兑现需求。",
+            "definition": "订单、合同、排产和客户承诺对未来交付需求的可见程度。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "order_visibility",
+            "name": "订单能见度",
+            "observation_guidance": "同时检查订单覆盖期、取消条款、重复下单和交付排期。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "adoption_penetration",
+          "projection": {
+            "index": 3,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "TechnologyRoute",
+              "Application"
+            ],
+            "category": "demand",
+            "counter_evidence_guidance": "认证延期、客户撤回、质量问题、替代路线增强或复购不足。",
+            "decision_use": "判断新产品需求是概念验证还是可持续放量。",
+            "definition": "产品或技术从验证、导入到主流采用的推进程度。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "adoption_penetration",
+            "name": "产品采用与渗透进展",
+            "observation_guidance": "区分测试、定点、量产、复购和跨客户扩散阶段。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "design_win_visibility",
+          "projection": {
+            "index": 4,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "Application"
+            ],
+            "category": "commercialization",
+            "counter_evidence_guidance": "仅有意向合作、Design Win未覆盖量产规格或客户未启动项目。",
+            "decision_use": "区分概念合作、样品验证和可兑现的商业化进展。",
+            "definition": "客户设计导入、定点和Design Win对未来订单和量产的可见程度。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "design_win_visibility",
+            "name": "Design Win能见度",
+            "observation_guidance": "按商业化阶段区分概念、样品、认证、Design Win、试产、量产和复购。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "supply_availability",
+          "projection": {
+            "index": 5,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "Material",
+              "ValueChainSegment",
+              "ManufacturingFacility",
+              "Region"
+            ],
+            "category": "supply",
+            "counter_evidence_guidance": "闲置产能、库存充足、替代供应可用、交期缩短或许可恢复。",
+            "decision_use": "判断需求能否被满足以及瓶颈是否真实存在。",
+            "definition": "在目标时间和地域内获得合格产品、材料、设备或产能的难易程度。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "supply_availability",
+            "name": "供给可得性",
+            "observation_guidance": "联合观察产能、良率、交期、分配、许可、物流和替代供应。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "capacity_tightness",
+          "projection": {
+            "index": 6,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "ManufacturingFacility",
+              "ValueChainSegment",
+              "Product"
+            ],
+            "category": "supply",
+            "counter_evidence_guidance": "产线利用不足、可快速切换产能、良率改善或需求重复计算。",
+            "decision_use": "判断是否存在扩产、涨价、排队或需求外溢条件。",
+            "definition": "有效产能相对于可兑现需求的紧张程度。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "capacity_tightness",
+            "name": "产能紧张度",
+            "observation_guidance": "使用有效产能而非名义产能，并考虑良率、产品切换和维护停机。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "capacity_expansion_progress",
+          "projection": {
+            "index": 7,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "ManufacturingFacility",
+              "Company",
+              "ValueChainSegment"
+            ],
+            "category": "supply",
+            "counter_evidence_guidance": "项目延期、设备或人才短缺、良率不足、客户认证失败或资本约束。",
+            "decision_use": "判断新增供给何时、以何种质量释放。",
+            "definition": "从投资、建设、设备搬入、认证到稳定量产的扩产推进程度。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "capacity_expansion_progress",
+            "name": "产能扩张进展",
+            "observation_guidance": "分阶段记录建设、设备安装、试产、良率爬坡和客户认证。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "supply_elasticity",
+          "projection": {
+            "index": 8,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "ValueChainSegment",
+              "Product",
+              "Material",
+              "TechnologyRoute"
+            ],
+            "category": "supply",
+            "counter_evidence_guidance": "产能可快速切换、标准化程度高、替代供应成熟或需求短暂。",
+            "decision_use": "判断供需缺口的持续时间和价格压力是否可延续。",
+            "definition": "供给体系面对需求或价格变化时扩大、切换或恢复供给的能力。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "supply_elasticity",
+            "name": "供给响应弹性",
+            "observation_guidance": "考虑建设周期、设备通用性、产品切换、良率、认证和替代供应。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "bottleneck_dependency_concentration",
+          "projection": {
+            "index": 9,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "Material",
+              "ManufacturingFacility",
+              "ValueChainSegment"
+            ],
+            "category": "supply",
+            "counter_evidence_guidance": "表面多供但共享同一上游、替代路线已认证或库存可缓冲。",
+            "decision_use": "判断单点瓶颈是否会放大供给冲击和价格传导。",
+            "definition": "产业链关键瓶颈环节、设备、材料或设施的供应集中和不可替代程度。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "bottleneck_dependency_concentration",
+            "name": "瓶颈依赖集中度",
+            "observation_guidance": "穿透关键设备、材料、封装基板、测试产能和地域单点依赖。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "yield_maturity",
+          "projection": {
+            "index": 10,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "ManufacturingFacility",
+              "ProcessStep",
+              "TechnologyRoute",
+              "Product"
+            ],
+            "category": "manufacturing",
+            "counter_evidence_guidance": "良率波动、关键缺陷、跨厂复制失败、可靠性不达标或成本不可接受。",
+            "decision_use": "判断名义产能能否转化为有效供给和经济性。",
+            "definition": "工艺在目标规格和规模下稳定产出合格产品的成熟程度。",
+            "evidence_profile_ref": "manufacturing_yield",
+            "id": "yield_maturity",
+            "name": "良率成熟度",
+            "observation_guidance": "观察良率趋势、缺陷密度、返工、报废、跨批次稳定性和客户质量反馈。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "process_capability",
+          "projection": {
+            "index": 11,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "ProcessStep",
+              "ManufacturingFacility",
+              "TechnologyRoute"
+            ],
+            "category": "manufacturing",
+            "counter_evidence_guidance": "过程窗口狭窄、量测不足、设备漂移、材料波动或无法规模复制。",
+            "decision_use": "判断技术路线是否具备稳定制造基础。",
+            "definition": "工艺持续满足尺寸、性能、功耗、可靠性和一致性要求的能力。",
+            "evidence_profile_ref": "manufacturing_yield",
+            "id": "process_capability",
+            "name": "制程能力",
+            "observation_guidance": "联合考察过程窗口、量测、设备匹配、材料控制和统计稳定性。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "production_cycle_pressure",
+          "projection": {
+            "index": 12,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "ProcessStep",
+              "ManufacturingFacility",
+              "Product",
+              "ValueChainSegment"
+            ],
+            "category": "manufacturing",
+            "counter_evidence_guidance": "周期恢复、加急能力充足、在制品下降或瓶颈工序解除。",
+            "decision_use": "判断供应紧张、在制品堆积和交付风险。",
+            "definition": "从投料、制造、封装测试到交付的周期延长或压缩压力。",
+            "evidence_profile_ref": "manufacturing_yield",
+            "id": "production_cycle_pressure",
+            "name": "生产与交付周期压力",
+            "observation_guidance": "区分制造周期、排队时间、返工、物流和客户验收造成的延迟。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "quality_reliability",
+          "projection": {
+            "index": 13,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "ProcessStep",
+              "TechnologyRoute",
+              "Company"
+            ],
+            "category": "manufacturing",
+            "counter_evidence_guidance": "现场失效、客户退货、认证未通过、参数漂移或重大质量事故。",
+            "decision_use": "判断产品能否通过认证、维持量产和避免召回损失。",
+            "definition": "产品在规定环境和寿命内持续满足功能与失效率要求的能力。",
+            "evidence_profile_ref": "manufacturing_yield",
+            "id": "quality_reliability",
+            "name": "质量与可靠性水平",
+            "observation_guidance": "观察认证、失效率、退货、召回、可靠性测试和失效分析结果。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "inventory_cycle_position",
+          "projection": {
+            "index": 14,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "Product"
+            ],
+            "category": "inventory_cycle",
+            "counter_evidence_guidance": "不同层级库存方向相反、渠道重复下单或终端需求与出货背离。",
+            "decision_use": "区分真实终端需求与库存行为造成的订单波动。",
+            "definition": "产业链处于补库、正常、积累、去库或短缺阶段的综合状态。",
+            "evidence_profile_ref": "inventory_cycle",
+            "id": "inventory_cycle_position",
+            "name": "库存周期位置",
+            "observation_guidance": "对齐供应商、渠道、客户和终端多层库存及业务时间。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "inventory_buffer_capacity",
+          "projection": {
+            "index": 15,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "Material",
+              "ValueChainSegment"
+            ],
+            "category": "inventory_cycle",
+            "counter_evidence_guidance": "库存不可替换、规格不匹配、质量受限、消耗加快或数据仅为账面库存。",
+            "decision_use": "判断冲击是否立即传导以及传导强度。",
+            "definition": "现有库存吸收供给中断或需求波动的能力及可持续时间。",
+            "evidence_profile_ref": "inventory_cycle",
+            "id": "inventory_buffer_capacity",
+            "name": "库存缓冲能力",
+            "observation_guidance": "结合可用库存、保质期、规格兼容性、在途库存和安全库存政策。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "backlog_pressure",
+          "projection": {
+            "index": 16,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "ValueChainSegment"
+            ],
+            "category": "inventory_cycle",
+            "counter_evidence_guidance": "大量可取消订单、重复预订、客户延迟验收或历史转化率偏低。",
+            "decision_use": "判断未来交付强度与取消风险。",
+            "definition": "已确认但尚未交付的订单对产能、交期和收入兑现形成的压力。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "backlog_pressure",
+            "name": "未交付订单压力",
+            "observation_guidance": "检查订单质量、覆盖期、取消权、客户集中度和历史转化率。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "product_price_pressure",
+          "projection": {
+            "index": 17,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "ValueChainSegment",
+              "Company"
+            ],
+            "category": "economics",
+            "counter_evidence_guidance": "产品结构变化、折扣未兑现、长期合同锁价或价格变化由汇率造成。",
+            "decision_use": "判断收入、份额和利润池变化的价格渠道。",
+            "definition": "产品价格受到供需、竞争、结构和合同机制影响而上行或下行的压力。",
+            "evidence_profile_ref": "pricing_economics",
+            "id": "product_price_pressure",
+            "name": "产品价格压力",
+            "observation_guidance": "区分挂牌价、合同价、成交价、产品组合和一次性调整。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "input_cost_pressure",
+          "projection": {
+            "index": 18,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "Material",
+              "ManufacturingFacility"
+            ],
+            "category": "economics",
+            "counter_evidence_guidance": "成本被效率提升抵消、合同转嫁、原料占比低或会计确认滞后。",
+            "decision_use": "判断价格变化是否能转化为利润改善或恶化。",
+            "definition": "材料、设备折旧、能源、人工、物流和合规成本对单位成本的压力。",
+            "evidence_profile_ref": "pricing_economics",
+            "id": "input_cost_pressure",
+            "name": "投入成本压力",
+            "observation_guidance": "区分单位用量、采购价、良率、折旧和产品组合的共同影响。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "pricing_power",
+          "projection": {
+            "index": 19,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "ValueChainSegment"
+            ],
+            "category": "economics",
+            "counter_evidence_guidance": "客户议价强、替代品充足、涨价后丢失份额或合同限制调价。",
+            "decision_use": "判断供给紧张或成本上升的价值分配结果。",
+            "definition": "在不显著损失需求或份额的情况下调整价格并传递成本的能力。",
+            "evidence_profile_ref": "pricing_economics",
+            "id": "pricing_power",
+            "name": "定价与成本传导能力",
+            "observation_guidance": "观察合同、替代难度、客户集中度、涨价兑现和份额变化。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "profit_pool_shift",
+          "projection": {
+            "index": 20,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company"
+            ],
+            "category": "economics",
+            "counter_evidence_guidance": "会计周期错配、补贴、一次性收益或不同环节产能释放造成的临时变化。",
+            "decision_use": "防止把行业增长直接等同于所有环节盈利改善。",
+            "definition": "利润在设计、设备材料、制造、封装测试和系统环节之间重新分配的方向。",
+            "evidence_profile_ref": "pricing_economics",
+            "id": "profit_pool_shift",
+            "name": "产业利润池迁移",
+            "observation_guidance": "综合价格、成本、利用率、份额、资本强度和议价关系。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "scaling_progress",
+          "projection": {
+            "index": 21,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "TechnologyRoute",
+              "ProcessStep",
+              "Product"
+            ],
+            "category": "technology",
+            "counter_evidence_guidance": "良率不足、成本失控、设计收益有限、量测或材料瓶颈。",
+            "decision_use": "判断先进工艺需求、设备材料强度和成本复杂度变化。",
+            "definition": "器件、互连和设计协同向更高密度、更优性能功耗推进的程度。",
+            "evidence_profile_ref": "technology_route",
+            "id": "scaling_progress",
+            "name": "制程微缩与密度提升进展",
+            "observation_guidance": "观察架构、工艺模块、设计规则、良率、量产和经济性共同进展。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "technology_maturity",
+          "projection": {
+            "index": 22,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "TechnologyRoute",
+              "Product",
+              "ProcessStep"
+            ],
+            "category": "technology",
+            "counter_evidence_guidance": "仅有实验室结果、缺少客户验证、成本过高或供应生态不完整。",
+            "decision_use": "区分概念突破与可投资、可交付的产业能力。",
+            "definition": "技术路线从研究、原型、验证、试产到规模量产的成熟阶段。",
+            "evidence_profile_ref": "technology_route",
+            "id": "technology_maturity",
+            "name": "技术路线成熟度",
+            "observation_guidance": "同时检查性能、可靠性、可制造性、成本、生态和量产证据。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "technology_competitiveness",
+          "projection": {
+            "index": 23,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "TechnologyRoute",
+              "Product"
+            ],
+            "category": "technology",
+            "counter_evidence_guidance": "基准不可比、牺牲可靠性或成本、软件生态不足、量产条件不同。",
+            "decision_use": "判断技术是否具备采用和替代基础。",
+            "definition": "技术路线在性能、功耗、面积、成本、可靠性和生态上的综合优势。",
+            "evidence_profile_ref": "technology_route",
+            "id": "technology_competitiveness",
+            "name": "技术综合竞争力",
+            "observation_guidance": "使用同口径、同工作负载和同成熟阶段的比较。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "technology_substitution_intensity",
+          "projection": {
+            "index": 24,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "TechnologyRoute",
+              "Product",
+              "Material",
+              "ProcessStep"
+            ],
+            "category": "technology",
+            "counter_evidence_guidance": "两条路线实际互补、客户迁移成本高、供应不足或性能优势只适用于窄场景。",
+            "decision_use": "判断需求结构、设备材料需求和公司暴露的迁移方向。",
+            "definition": "新路线在明确应用范围内替代既有产品、材料、工艺或架构的强度。",
+            "evidence_profile_ref": "technology_route",
+            "id": "technology_substitution_intensity",
+            "name": "技术替代强度",
+            "observation_guidance": "区分局部互补、增量采用和存量替代，并检查切换成本。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "customer_qualification_progress",
+          "projection": {
+            "index": 25,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "TechnologyRoute",
+              "Application"
+            ],
+            "category": "commercialization",
+            "counter_evidence_guidance": "认证延期、规格变更、质量问题、客户未下单或仅有非约束性意向。",
+            "decision_use": "判断技术或国产替代能否从样品转化为订单。",
+            "definition": "产品、工艺或供应商通过客户测试、资格认证和设计导入的推进程度。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "customer_qualification_progress",
+            "name": "客户认证进展",
+            "observation_guidance": "区分送样、测试、通过认证、定点、量产和复购。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "mass_production_readiness",
+          "projection": {
+            "index": 26,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "TechnologyRoute",
+              "ManufacturingFacility",
+              "Company"
+            ],
+            "category": "commercialization",
+            "counter_evidence_guidance": "产能未就绪、良率波动、供应商未认证、质量或测试瓶颈。",
+            "decision_use": "判断商业化是否具备兑现基础。",
+            "definition": "产品或路线在产能、良率、供应、质量和交付方面满足规模量产的程度。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "mass_production_readiness",
+            "name": "规模量产准备度",
+            "observation_guidance": "检查工艺冻结、产线认证、良率、供应商、测试和交付能力。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "localization_substitution_progress",
+          "projection": {
+            "index": 27,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "Material",
+              "TechnologyRoute",
+              "Region"
+            ],
+            "category": "commercialization",
+            "counter_evidence_guidance": "仅完成送样、依赖进口核心环节、成本或良率不足、客户未重复采购。",
+            "decision_use": "判断替代路线是否真正降低外部依赖并形成商业份额。",
+            "definition": "本地供应从可用样品、客户认证到稳定量产和重复采购的推进程度。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "localization_substitution_progress",
+            "name": "本地化与国产替代进展",
+            "observation_guidance": "同时检查性能、成本、良率、认证、复购和供应规模。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "competitive_intensity",
+          "projection": {
+            "index": 28,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Product",
+              "Company"
+            ],
+            "category": "competition",
+            "counter_evidence_guidance": "市场分层明显、产品不可替代、供给纪律增强或需求增长吸收新增供给。",
+            "decision_use": "判断需求增长能否转化为盈利和份额改善。",
+            "definition": "现有参与者、替代路线和新进入者对价格、份额与利润的竞争压力。",
+            "evidence_profile_ref": "competition_structure",
+            "id": "competitive_intensity",
+            "name": "竞争强度",
+            "observation_guidance": "观察价格行为、产能进入、客户切换、份额和差异化。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "customer_switching_cost",
+          "projection": {
+            "index": 29,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "TechnologyRoute",
+              "Application",
+              "Company"
+            ],
+            "category": "competition",
+            "counter_evidence_guidance": "标准化接口、兼容性高、已有双供认证或客户主动降低依赖。",
+            "decision_use": "判断份额稳定性、定价能力和替代速度。",
+            "definition": "客户更换芯片、供应商、工艺或技术路线所承担的验证、软件、质量和供应风险成本。",
+            "evidence_profile_ref": "competition_structure",
+            "id": "customer_switching_cost",
+            "name": "客户切换成本",
+            "observation_guidance": "检查认证周期、重新设计、软件迁移、可靠性责任和多供策略。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "entry_barrier_strength",
+          "projection": {
+            "index": 30,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "TechnologyRoute"
+            ],
+            "category": "competition",
+            "counter_evidence_guidance": "技术标准化、设备材料可得、政策补贴、人才流动或客户主动扶持新供应商。",
+            "decision_use": "判断高利润是否可持续以及新增供给速度。",
+            "definition": "技术、资本、知识产权、人才、客户认证和规模经济对新进入者的限制程度。",
+            "evidence_profile_ref": "competition_structure",
+            "id": "entry_barrier_strength",
+            "name": "进入壁垒强度",
+            "observation_guidance": "区分技术可得性、资金投入、学习曲线、生态和监管限制。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "policy_support_strength",
+          "projection": {
+            "index": 31,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "ManufacturingFacility",
+              "Region",
+              "PolicyInstrument"
+            ],
+            "category": "policy_resilience",
+            "counter_evidence_guidance": "缺少预算、执行延期、地方差异、附加条件过强或政策退出。",
+            "decision_use": "判断政策是否能转化为投资、需求、技术和产能结果。",
+            "definition": "财税、研发、融资、采购、人才和基础设施政策对产业能力建设的有效支持程度。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "policy_support_strength",
+            "name": "产业政策支持强度",
+            "observation_guidance": "区分政策发布、预算落实、项目执行、验收和持续性。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "export_control_intensity",
+          "projection": {
+            "index": 32,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "Material",
+              "TechnologyRoute",
+              "Company",
+              "Region",
+              "PolicyInstrument"
+            ],
+            "category": "policy_resilience",
+            "counter_evidence_guidance": "存在许可、豁免、替代来源、范围缩窄、执行宽松或政策撤回。",
+            "decision_use": "判断市场准入、供给可得性和技术协作的约束。",
+            "definition": "产品、设备、材料、软件、技术和服务跨境流动受到限制的程度。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "export_control_intensity",
+            "name": "出口与技术管制强度",
+            "observation_guidance": "检查适用对象、性能门槛、最终用途、许可、豁免、执法和多边协调。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "primary_judgment_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "compliance_friction",
+          "projection": {
+            "index": 33,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "Material",
+              "ManufacturingFacility",
+              "Region",
+              "PolicyInstrument"
+            ],
+            "category": "policy_resilience",
+            "counter_evidence_guidance": "流程标准化、审批恢复、企业已有合规能力或政策不适用于目标对象。",
+            "decision_use": "判断政策影响是否通过交期、成本或市场准入实际传导。",
+            "definition": "许可、审查、认证、环保、安全和贸易合规造成的时间、成本与不确定性。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "compliance_friction",
+            "name": "合规摩擦",
+            "observation_guidance": "观察审批周期、拒绝率、文件要求、审计、整改和替代流程。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "supply_chain_resilience",
+          "projection": {
+            "index": 34,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "Product",
+              "Material",
+              "ManufacturingFacility"
+            ],
+            "category": "policy_resilience",
+            "counter_evidence_guidance": "表面多供但共享单一上游、库存不可替换、替代品未认证或地域高度集中。",
+            "decision_use": "判断单点风险是否会升级为持续产业冲击。",
+            "definition": "面对中断时通过库存、多供、地域分散、替代技术和恢复能力维持交付的能力。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "supply_chain_resilience",
+            "name": "供应链韧性",
+            "observation_guidance": "检查关键层级的真实多供、库存可替换性、恢复时间和依赖穿透。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "regional_policy_exposure",
+          "projection": {
+            "index": 35,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "ManufacturingFacility",
+              "Region",
+              "PolicyInstrument"
+            ],
+            "category": "company",
+            "counter_evidence_guidance": "政策不适用、业务地域分散、已有合规能力或替代产地可切换。",
+            "decision_use": "将地域政策变化映射到公司层面的合规、供给和市场准入影响。",
+            "definition": "公司业务、产能、供应链和市场对特定地域政策和监管环境的暴露程度。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "regional_policy_exposure",
+            "name": "地域政策暴露",
+            "observation_guidance": "综合生产、销售、采购、技术和资本布局的地域分布与政策适用范围。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "company_mapping_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "value_chain_role_exposure",
+          "projection": {
+            "index": 36,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "ValueChainSegment",
+              "Product"
+            ],
+            "category": "company",
+            "counter_evidence_guidance": "相关业务占比低、利润贡献弱、内部对冲、合同保护或收入确认滞后。",
+            "decision_use": "将行业变化映射到公司经营，而不直接从行业跳到资产。",
+            "definition": "公司收入、成本、产能和竞争力对特定产业链位置的依赖程度。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "value_chain_role_exposure",
+            "name": "公司价值链角色暴露度",
+            "observation_guidance": "综合业务结构、产能、客户、供应商和利润贡献，而非只看公司标签。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "company_mapping_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "technology_route_exposure",
+          "projection": {
+            "index": 37,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "TechnologyRoute",
+              "Product",
+              "ManufacturingFacility"
+            ],
+            "category": "company",
+            "counter_evidence_guidance": "公司具备多路线布局、相关业务占比低、产能可切换或客户采用未发生。",
+            "decision_use": "判断技术替代对不同公司角色的差异化影响。",
+            "definition": "公司产品、产能、研发和客户关系对某技术路线成功或受阻的敏感程度。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "technology_route_exposure",
+            "name": "公司技术路线暴露度",
+            "observation_guidance": "同时检查受益路线、被替代路线、研发选择权和产能可切换性。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "company_mapping_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "execution_delivery_capability",
+          "projection": {
+            "index": 38,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "ManufacturingFacility"
+            ],
+            "category": "company",
+            "counter_evidence_guidance": "交付延期、良率不足、供应受限、验收失败、客户集中或收入确认受阻。",
+            "decision_use": "防止把订单或行业景气直接等同于业绩兑现。",
+            "definition": "公司把需求、订单和技术机会转化为合格产品、按期交付和收入的能力。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "execution_delivery_capability",
+            "name": "公司执行与交付能力",
+            "observation_guidance": "检查产能、良率、供应、质量、人员、项目管理、验收和收入确认。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "company_mapping_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "earnings_elasticity",
+          "projection": {
+            "index": 39,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "ValueChainSegment"
+            ],
+            "category": "company",
+            "counter_evidence_guidance": "固定合同、业务对冲、费用投入、折旧上升、营运资金占用或会计确认滞后。",
+            "decision_use": "判断产业变量变化对公司经营结果的幅度与方向。",
+            "definition": "需求、价格、利用率、产品组合和成本变化传导到收入、利润和现金流的敏感程度。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "earnings_elasticity",
+            "name": "公司业绩弹性",
+            "observation_guidance": "拆分量、价、结构、利用率、成本、费用、资本开支和营运资金渠道。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "company_mapping_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "consensus_expectation_level",
+          "projection": {
+            "index": 40,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "Product",
+              "Asset",
+              "FinancialInstrument",
+              "TradingVenue",
+              "Listing"
+            ],
+            "category": "expectation",
+            "counter_evidence_guidance": "预期来源陈旧、样本偏少、不同口径混用或价格隐含信息与文本预期不一致。",
+            "decision_use": "建立基本面判断与市场已知信息的比较基准。",
+            "definition": "市场、管理层、研究者或价格对未来行业和公司状态的共同预期程度。",
+            "evidence_profile_ref": "market_expectations",
+            "id": "consensus_expectation_level",
+            "name": "市场一致预期水平",
+            "observation_guidance": "对齐对象、时间尺度、口径和预期来源，保留分歧。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "market_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "expectation_gap",
+          "projection": {
+            "index": 41,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "Product",
+              "TechnologyRoute",
+              "Asset",
+              "FinancialInstrument",
+              "TradingVenue",
+              "Listing"
+            ],
+            "category": "expectation",
+            "counter_evidence_guidance": "预期口径不可比、事件已公开、资产已提前反应或基本面证据不足。",
+            "decision_use": "判断基本面变化是否提供新增信息，而非重复市场共识。",
+            "definition": "证据支持的判断与当前市场、管理层或价格隐含预期之间的方向和幅度差异。",
+            "evidence_profile_ref": "market_expectations",
+            "id": "expectation_gap",
+            "name": "预期差",
+            "observation_guidance": "必须先对齐对象、业务时间、情景和度量口径再比较。",
+            "variable_kind": "derived",
+            "variable_role": "market_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "priced_in_degree",
+          "projection": {
+            "index": 42,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "Product",
+              "TechnologyRoute",
+              "Asset",
+              "FinancialInstrument",
+              "TradingVenue",
+              "Listing"
+            ],
+            "category": "expectation",
+            "counter_evidence_guidance": "市场波动由其他事件驱动、窗口过短、基准错误或拥挤指标失真。",
+            "decision_use": "约束从基本面判断到资产影响的升级。",
+            "definition": "某一判断已被价格、估值、仓位和交易行为反映的程度。",
+            "evidence_profile_ref": "market_expectations",
+            "id": "priced_in_degree",
+            "name": "市场预期反映程度",
+            "observation_guidance": "结合事件前后表现、估值变化、成交、持仓和一致预期修正。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "market_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "counter_evidence_strength",
+          "projection": {
+            "index": 43,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Industry",
+              "ValueChainSegment",
+              "Company",
+              "Product",
+              "TechnologyRoute",
+              "Asset",
+              "FinancialInstrument",
+              "TradingVenue",
+              "Listing"
+            ],
+            "category": "expectation",
+            "counter_evidence_guidance": "所谓反证可能口径不一致、时间错配、仅影响幅度而非方向，或缺少独立来源。",
+            "decision_use": "决定判断维持、降级、争议或阻断。",
+            "definition": "削弱、竞争解释或阻断当前假设与传导链的证据强度。",
+            "evidence_profile_ref": "counter_evidence",
+            "id": "counter_evidence_strength",
+            "name": "反证强度",
+            "observation_guidance": "比较反证的可靠性、独立性、时效、相关性和是否命中核心前提。",
+            "variable_kind": "derived",
+            "variable_role": "counter_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "semiconductor_content_intensity",
+          "projection": {
+            "index": 44,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Product",
+              "ProcessStep",
+              "TechnologyRoute"
+            ],
+            "category": "demand",
+            "counter_evidence_guidance": "先进封装或异构集成降低单位算力半导体价值量、材料替代或设计优化抵消。",
+            "decision_use": "判断终端量变化与单机/单系统半导体价值量变化如何共同传导至订单与上游需求。",
+            "definition": "单位终端、系统或工作负载带来的半导体功能与价值量强度。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "semiconductor_content_intensity",
+            "name": "单位应用半导体价值量/含量强度",
+            "observation_guidance": "结合终端出货量、单机芯片用量、封装复杂度、材料体系和化合物半导体替代情况评估。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "intermediate_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "product_mix_structure",
+          "projection": {
+            "index": 45,
+            "section": "state_variables"
+          },
+          "properties": {
+            "anchors": [
+              "Company",
+              "Product",
+              "ValueChainSegment"
+            ],
+            "category": "company",
+            "counter_evidence_guidance": "增长来自低毛利产品、老旧产品或不可持续的一次性项目。",
+            "decision_use": "判断行业景气能否通过产品组合结构转化为可观察业绩弹性。",
+            "definition": "公司产品组合中高毛利、高增长、战略性和可持续产品的结构与占比。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "product_mix_structure",
+            "name": "产品组合结构",
+            "observation_guidance": "拆分收入、毛利和增长贡献，区分结构性产品与周期性或一次性产品。",
+            "variable_kind": "qualitative_or_derived",
+            "variable_role": "company_mapping_variable"
+          },
+          "type": "StateVariable"
+        },
+        {
+          "id": "demand_orders",
+          "projection": {
+            "index": 0,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "订单增长来自补库存而非终端需求",
+              "出货增长来自提前备货或价格促销",
+              "收入增长来自并表、汇率或会计确认而非量价改善"
+            ],
+            "counter_evidence": [
+              "终端销量、利用率或预算下修",
+              "订单取消、延迟拉货、重复下单或非约束性意向",
+              "渠道库存增加但终端需求未改善",
+              "资本开支投向与目标半导体需求无关"
+            ],
+            "downgrade_conditions": [
+              "仅有预测或管理层表态",
+              "缺少订单交付验证",
+              "证据超过一个主要行业周期"
+            ],
+            "freshness_guidance": "订单和库存宜按月度或季度更新；资本开支在指引、预算或项目变化时更新。",
+            "id": "demand_orders",
+            "minimum_requirements": [
+              "至少一条需求端证据",
+              "至少一条订单或交付证据",
+              "明确业务时间"
+            ],
+            "name": "需求、资本开支与订单证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "终端与供应链口径一致",
+              "订单产品和地域一致",
+              "业务时间与交付窗口对齐"
+            ],
+            "supporting_evidence": [
+              "终端产品、系统部署、使用量、出货或利用率的实际数据",
+              "客户预算、资本开支指引、项目清单、招标和采购进度",
+              "订单覆盖期、排产、出货、交付和收入确认的连续记录",
+              "至少一个下游来源与一个供应链来源的交叉验证"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "capacity_supply",
+          "projection": {
+            "index": 1,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "交期延长来自物流或客户排产而非产能不足",
+              "扩产来自政策或战略储备而非需求确认",
+              "供应紧张来自短期停机而非结构性缺口"
+            ],
+            "counter_evidence": [
+              "名义产能高但良率或产品结构不匹配",
+              "存在可快速切换的闲置产能",
+              "替代供应已认证并具备规模",
+              "表面多供实际共享同一上游或地域单点"
+            ],
+            "downgrade_conditions": [
+              "只有扩产公告",
+              "缺少良率认证",
+              "无法确认产品或地域范围"
+            ],
+            "freshness_guidance": "供给中断和交期需事件级更新；扩产按建设和量产里程碑更新。",
+            "id": "capacity_supply",
+            "minimum_requirements": [
+              "产能或设施证据",
+              "交期或利用率证据",
+              "库存或替代供应检查"
+            ],
+            "name": "产能、供给与韧性证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "名义产能与有效产能分离",
+              "设施和产品规格匹配",
+              "地域和许可范围一致"
+            ],
+            "supporting_evidence": [
+              "有效产能、利用率、维护停机、产品切换和良率资料",
+              "扩产建设、设备搬入、试产、认证和量产阶段证据",
+              "交期、分配、供应中断、许可和物流记录",
+              "多供、替代供应、库存覆盖和恢复时间资料",
+              "关键设备、材料和子系统依赖的穿透分析"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "manufacturing_yield",
+          "projection": {
+            "index": 2,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "单位成本变化来自材料、折旧或产品组合而非良率",
+              "周期变化来自物流和客户验收而非制造",
+              "质量改善来自筛选加强而非制程改善"
+            ],
+            "counter_evidence": [
+              "良率仅来自样品批次或不可比产品",
+              "良率提升伴随性能、可靠性或测试覆盖下降",
+              "周期缩短来自减少检验或推迟返工",
+              "客户退货、召回、参数漂移或重大质量事故"
+            ],
+            "downgrade_conditions": [
+              "只有单点良率",
+              "缺少量产规模",
+              "缺少可靠性或客户验证"
+            ],
+            "freshness_guidance": "量产爬坡期宜按批次或月度更新；成熟工艺可按季度或重大异常更新。",
+            "id": "manufacturing_yield",
+            "minimum_requirements": [
+              "至少两个连续制造时点",
+              "质量或可靠性验证",
+              "对应工艺和产品范围"
+            ],
+            "name": "制造、良率、周期与可靠性证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "产品和工艺代际一致",
+              "试产与量产阶段分离",
+              "良率和可靠性口径一致"
+            ],
+            "supporting_evidence": [
+              "跨批次良率、缺陷密度、返工、报废和过程能力资料",
+              "设备状态、工艺窗口、量测、材料一致性和统计过程控制",
+              "投料至出货的周期、在制品、排队和瓶颈工序资料",
+              "可靠性测试、认证、现场失效率、退货和失效分析",
+              "试产、爬坡和高量产阶段的可比记录"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "inventory_cycle",
+          "projection": {
+            "index": 3,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "库存上升来自主动备货或供应风险管理",
+              "库存下降来自减产而非需求改善",
+              "补库来自新品切换而非行业复苏"
+            ],
+            "counter_evidence": [
+              "账面库存不可用于目标产品或地域",
+              "新旧产品切换导致库存口径失真",
+              "委托加工、寄售和在途库存重复计算",
+              "终端需求与渠道出货显著背离"
+            ],
+            "downgrade_conditions": [
+              "仅有单家公司账面库存",
+              "缺少规格可用性",
+              "缺少时间序列"
+            ],
+            "freshness_guidance": "周期变化较快时按月度更新，稳定阶段至少按季度更新。",
+            "id": "inventory_cycle",
+            "minimum_requirements": [
+              "至少两个产业链层级",
+              "明确覆盖期或消耗速度",
+              "终端需求对照"
+            ],
+            "name": "库存周期与缓冲证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "库存所有权清楚",
+              "产品规格匹配",
+              "多层库存不重复",
+              "业务时间一致"
+            ],
+            "supporting_evidence": [
+              "供应商、渠道、客户和终端的多层库存",
+              "库存覆盖期、在途库存、安全库存和消耗速度",
+              "补库、去库、采购和出货之间的时间序列",
+              "库存规格、地域、质量和可替换性说明"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "pricing_economics",
+          "projection": {
+            "index": 4,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "毛利变化来自产品结构而非定价权",
+              "利润迁移来自周期错配或一次性项目",
+              "价格上涨来自短期供给事故而非结构性壁垒"
+            ],
+            "counter_evidence": [
+              "挂牌价变化未体现在成交或财务结果",
+              "产品组合、汇率、并购或会计口径造成表观价格变化",
+              "成本上升被良率、生产率或设计优化抵消",
+              "涨价后需求或份额显著下降"
+            ],
+            "downgrade_conditions": [
+              "只有渠道报价",
+              "无成交验证",
+              "无法拆分产品组合或汇率影响"
+            ],
+            "freshness_guidance": "价格和成本按合同或报价周期更新；利润池按报告期和周期阶段更新。",
+            "id": "pricing_economics",
+            "minimum_requirements": [
+              "成交或合同证据",
+              "成本或份额证据",
+              "竞争和需求影响检查"
+            ],
+            "name": "价格、成本、定价权与利润池证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "产品规格和合同周期一致",
+              "含税与币种口径一致",
+              "价格与数量分离"
+            ],
+            "supporting_evidence": [
+              "报价、合同价、成交价和产品组合的可比变化",
+              "材料、折旧、能源、人工、物流和合规成本拆分",
+              "涨价或降价的实际兑现、客户流失和份额变化",
+              "各产业链环节收入、毛利、资本强度和现金流变化",
+              "合同调价、长协、最低采购和成本转嫁机制"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "technology_route",
+          "projection": {
+            "index": 5,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "性能提升来自产品规模或软件优化而非器件路线",
+              "采用增长来自补贴、稀缺或客户多供策略",
+              "传统路线继续改善并保持成本优势"
+            ],
+            "counter_evidence": [
+              "只有实验室结果或不可比基准",
+              "性能提升以成本、功耗、可靠性或良率恶化为代价",
+              "缺少设计工具、软件、材料、设备或测试生态",
+              "新旧路线实际互补而非替代"
+            ],
+            "downgrade_conditions": [
+              "仅有概念发布",
+              "无量产或客户验证",
+              "基准不可比"
+            ],
+            "freshness_guidance": "按路线图、重大验证、试产和量产节点更新。",
+            "id": "technology_route",
+            "minimum_requirements": [
+              "技术依据",
+              "同口径比较",
+              "制造或客户验证",
+              "替代边界"
+            ],
+            "name": "技术路线、微缩与替代证据",
+            "quality_floor": "Q2",
+            "scope_checks": [
+              "相同工作负载和成熟阶段",
+              "系统级与器件级指标分离",
+              "量产与原型分离"
+            ],
+            "supporting_evidence": [
+              "权威路线图、标准、论文、专利和技术白皮书",
+              "同口径性能、功耗、面积、成本、可靠性和良率比较",
+              "原型、试产、客户验证、量产和生态成熟度证据",
+              "工艺、设备、材料、软件和供应链依赖",
+              "真实采用、替代范围、复购和份额迁移"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "qualification_commercialization",
+          "projection": {
+            "index": 6,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "客户认证只用于议价或多供备份",
+              "小批量采购来自试验而非商业化",
+              "份额增长来自低价而非技术或供应优势"
+            ],
+            "counter_evidence": [
+              "只有送样、意向或非约束性合作",
+              "认证范围不覆盖量产规格或目标客户",
+              "量产受制于良率、材料、设备、测试或质量",
+              "本地替代仍依赖同一受限核心投入"
+            ],
+            "downgrade_conditions": [
+              "只有公司自述",
+              "无客户或交付验证",
+              "仍停留在样品阶段"
+            ],
+            "freshness_guidance": "按认证、定点、量产和复购里程碑更新。",
+            "id": "qualification_commercialization",
+            "minimum_requirements": [
+              "至少一个客户验证节点",
+              "量产准备证据",
+              "采购或复购证据"
+            ],
+            "name": "认证、采用、量产与本地替代证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "客户和产品规格明确",
+              "认证阶段不混用",
+              "采购与量产时间对齐"
+            ],
+            "stage_guidance": "观察必须标明所处商业化阶段，不得将样品阶段等同于量产或复购。",
+            "stage_vocabulary_ref": "commercialization_stages",
+            "supporting_evidence": [
+              "送样、测试、资格认证、设计导入、定点和采购阶段记录",
+              "工艺冻结、产线认证、良率、质量和供应商准备",
+              "量产出货、重复采购、跨客户扩散和售后质量",
+              "本地替代产品的关键上游依赖、成本和规模能力"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "competition_structure",
+          "projection": {
+            "index": 7,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "份额变化来自区域或产品组合差异",
+              "价格变化来自成本或周期而非竞争行为",
+              "高利润来自暂时供给约束而非长期壁垒"
+            ],
+            "counter_evidence": [
+              "市场规模扩大吸收新增供给",
+              "产品和客户分层使表面竞争者不可直接替代",
+              "新进入者只有规划产能而无认证和量产",
+              "接口标准化和多供认证降低切换成本"
+            ],
+            "downgrade_conditions": [
+              "市场边界模糊",
+              "只有规划和宣传",
+              "无客户或量产验证"
+            ],
+            "freshness_guidance": "按产品周期、重大扩产、招标、并购和价格行为更新。",
+            "id": "competition_structure",
+            "minimum_requirements": [
+              "至少两类竞争主体",
+              "价格或份额证据",
+              "客户切换或进入壁垒证据"
+            ],
+            "name": "竞争结构、切换成本与壁垒证据",
+            "quality_floor": "Q2",
+            "scope_checks": [
+              "市场边界一致",
+              "份额和产品口径一致",
+              "名义参与者与有效供给者分离"
+            ],
+            "supporting_evidence": [
+              "市场参与者、份额、产能、定价和产品差异化",
+              "客户认证周期、重新设计、软件迁移和可靠性责任",
+              "技术、资本、专利、人才、生态和规模经济门槛",
+              "招标、客户切换、新进入者量产和退出案例"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "policy_trade",
+          "projection": {
+            "index": 8,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "产业变化来自周期、需求或技术路线而非政策",
+              "企业影响来自自身经营或客户结构",
+              "市场已提前交易政策预期"
+            ],
+            "counter_evidence": [
+              "政策尚未生效、预算未落实或执行主体不明确",
+              "目标对象不在适用范围或符合豁免许可",
+              "许可恢复、政策收窄、撤回或执法宽松",
+              "替代来源、库存或本地供应缓冲影响"
+            ],
+            "downgrade_conditions": [
+              "只有媒体转述",
+              "无法确认适用范围",
+              "政策未生效或缺少执行证据"
+            ],
+            "freshness_guidance": "政策发布、解释、许可和执法变化时立即更新，并保留旧版本有效期。",
+            "id": "policy_trade",
+            "minimum_requirements": [
+              "政策原文",
+              "适用范围分析",
+              "至少一条执行或企业影响证据",
+              "豁免检查"
+            ],
+            "name": "产业政策、贸易管制与合规证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "引用正式版本",
+              "生效时间明确",
+              "产品性能和最终用途匹配",
+              "地域与主体匹配"
+            ],
+            "supporting_evidence": [
+              "政策、法律、规则、清单、许可和执法原文",
+              "适用产品、技术、性能、最终用途、主体和地域范围",
+              "预算、执行机构、项目清单、审批和处罚记录",
+              "企业合规流程、许可周期、拒绝率和实际交易变化",
+              "多边协调、豁免、过渡期和政策修订"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "company_exposure_execution",
+          "projection": {
+            "index": 9,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "财务变化来自并购、汇率、税收或一次性项目",
+              "份额变化来自客户结构而非竞争力",
+              "行业景气改善但公司执行或产品组合落后"
+            ],
+            "counter_evidence": [
+              "相关业务占比或利润贡献低",
+              "公司同时暴露于受益和受损路线形成内部对冲",
+              "订单无法交付、验收或确认收入",
+              "折旧、费用、营运资金或资本开支抵消利润改善",
+              "客户集中但合同长期锁定或客户结构多元形成对冲"
+            ],
+            "downgrade_conditions": [
+              "只有公司标签",
+              "无业务贡献口径",
+              "只有订单无交付或财务验证"
+            ],
+            "freshness_guidance": "按财报、订单交付、产能和重大经营事件更新。",
+            "id": "company_exposure_execution",
+            "minimum_requirements": [
+              "业务暴露证据",
+              "执行交付证据",
+              "财务或现金流验证",
+              "至少一个竞争解释"
+            ],
+            "name": "公司暴露、执行与业绩弹性证据",
+            "quality_floor": "Q3",
+            "scope_checks": [
+              "业务分部与产业对象映射",
+              "财务和运营周期对齐",
+              "关联交易和并购影响剔除"
+            ],
+            "supporting_evidence": [
+              "业务、产品、客户、地域和技术路线收入或利润结构",
+              "产能、良率、供应链、交付、质量、验收和收入确认",
+              "量、价、产品组合、利用率、成本、费用和资本开支拆分",
+              "经营现金流、营运资金和资本效率变化",
+              "公司披露与客户、供应商或行业数据交叉验证",
+              "客户集中度、单一客户订单波动与客户议价能力对暴露和执行的影响"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "market_expectations",
+          "projection": {
+            "index": 10,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "alignment_requirements": [
+              "同对象",
+              "同口径",
+              "同时间尺度",
+              "预期截面早于判断验证事件"
+            ],
+            "competing_explanations": [
+              "价格反应来自市场整体或行业轮动",
+              "文本预期与真实仓位或价格隐含预期不一致",
+              "基本面变化已被提前泄露或交易"
+            ],
+            "counter_evidence": [
+              "预期样本少、陈旧或口径不一致",
+              "资产价格由宏观、风格、流动性或其他事件驱动",
+              "事件前已出现显著价格和预期调整",
+              "估值变化来自利率或风险偏好而非盈利预期"
+            ],
+            "downgrade_conditions": [
+              "缺少事件前预期截面",
+              "不可比口径",
+              "只观察资产涨跌而无基本面比较"
+            ],
+            "freshness_guidance": "重大事件、财报、预期修正和显著价格变化时更新。",
+            "id": "market_expectations",
+            "minimum_requirements": [
+              "至少一种明确预期基准",
+              "事件前预期截面",
+              "基本面比较",
+              "价格或估值验证",
+              "混杂事件检查"
+            ],
+            "name": "市场预期、预期差与定价证据",
+            "pre_event_cross_section_required": true,
+            "quality_floor": "Q2",
+            "scope_checks": [
+              "预期截面早于判断验证",
+              "对象和时间尺度一致",
+              "使用合适市场基准"
+            ],
+            "supporting_evidence": [
+              "同期一致预期、管理层指引、研究者预期和价格隐含预期",
+              "估值、价格、成交、波动、持仓和资金流变化",
+              "预期修正的时间、方向、幅度和覆盖范围",
+              "事件窗口、基准收益和混杂事件排查",
+              "基本面判断与预期对象、口径和时间尺度的对应关系"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "counter_evidence",
+          "projection": {
+            "index": 11,
+            "section": "evidence_profiles"
+          },
+          "properties": {
+            "competing_explanations": [
+              "周期、库存、价格、技术、竞争、政策和市场预期均可能解释同一现象",
+              "公司执行与行业方向可能分离",
+              "短期事件与长期结构变化可能同时存在"
+            ],
+            "counter_evidence": [
+              "所谓反证与目标对象、时间或口径不一致",
+              "反证只影响幅度或节奏，不否定方向",
+              "多条反证实际来自同一原始来源",
+              "反证已经失效、被更正或被后续事实替代"
+            ],
+            "downgrade_conditions": [
+              "未进行反证搜索",
+              "反证来源不可追溯",
+              "无法判断反证作用范围"
+            ],
+            "freshness_guidance": "每次判断形成、升级或出现新材料时重新扫描。",
+            "id": "counter_evidence",
+            "minimum_requirements": [
+              "至少一个主动寻找的竞争解释",
+              "明确证伪条件",
+              "记录未解决冲突"
+            ],
+            "name": "反证与竞争解释证据",
+            "quality_floor": "Q2",
+            "scope_checks": [
+              "明确反证作用对象",
+              "区分削弱和阻断",
+              "与支持证据使用同一比较口径"
+            ],
+            "supporting_evidence": [
+              "直接否定核心前提的高可靠事实或观测",
+              "来自独立来源、同一业务时间和同一适用范围的相反证据",
+              "能解释同一现象的替代机制及其验证材料",
+              "历史回放中反复导致传导失效的条件"
+            ]
+          },
+          "type": "EvidenceProfile"
+        },
+        {
+          "id": "sp_company_disclosure",
+          "projection": {
+            "index": 0,
+            "section": "source_profiles"
+          },
+          "properties": {
+            "accessScopeDefault": "public",
+            "allowedClaimTypes": [
+              "current_state",
+              "historical_fact",
+              "directional_outlook"
+            ],
+            "authorityType": "company_disclosure",
+            "commonLimitations": [
+              "管理层展望偏乐观",
+              "口径可能调整"
+            ],
+            "defaultReliability": "high",
+            "forbiddenUse": [
+              "未经出处核对的转述当硬证据"
+            ],
+            "id": "sp_company_disclosure",
+            "independenceGroup": "issuer_primary",
+            "methodologyTransparency": "high",
+            "requiredLocatorLevel": "page_or_timestamp",
+            "sourceCategory": "company_disclosure",
+            "sourceName": "公司法定披露与正式说明会",
+            "sourceTier": "S2",
+            "typicalContentDomains": [
+              "财务",
+              "订单",
+              "产能",
+              "资本开支",
+              "管制影响"
+            ],
+            "updateFrequency": "季度/事件"
+          },
+          "type": "SourceProfile"
+        },
+        {
+          "id": "sp_industry_association",
+          "projection": {
+            "index": 1,
+            "section": "source_profiles"
+          },
+          "properties": {
+            "accessScopeDefault": "licensed",
+            "allowedClaimTypes": [
+              "historical_fact",
+              "current_state",
+              "directional_outlook"
+            ],
+            "authorityType": "industry_provider",
+            "commonLimitations": [
+              "样本覆盖不全",
+              "修订滞后"
+            ],
+            "defaultReliability": "high",
+            "forbiddenUse": [
+              "把协会预测直接写成确认结论"
+            ],
+            "id": "sp_industry_association",
+            "independenceGroup": "association_stats",
+            "methodologyTransparency": "medium",
+            "requiredLocatorLevel": "table_or_release_id",
+            "sourceCategory": "industry_provider",
+            "sourceName": "行业协会与官方统计",
+            "sourceTier": "S3",
+            "typicalContentDomains": [
+              "出货",
+              "产能",
+              "价格",
+              "贸易"
+            ],
+            "updateFrequency": "月度/季度"
+          },
+          "type": "SourceProfile"
+        },
+        {
+          "id": "sp_regulator_trade",
+          "projection": {
+            "index": 2,
+            "section": "source_profiles"
+          },
+          "properties": {
+            "accessScopeDefault": "public",
+            "allowedClaimTypes": [
+              "historical_fact",
+              "current_state"
+            ],
+            "authorityType": "official",
+            "commonLimitations": [
+              "适用范围需法律解读",
+              "生效时点需核对"
+            ],
+            "defaultReliability": "high",
+            "forbiddenUse": [
+              "媒体转述代替监管原文"
+            ],
+            "id": "sp_regulator_trade",
+            "independenceGroup": "regulator_primary",
+            "methodologyTransparency": "high",
+            "requiredLocatorLevel": "rule_section",
+            "sourceCategory": "official",
+            "sourceName": "监管与贸易管制原文",
+            "sourceTier": "S1",
+            "typicalContentDomains": [
+              "出口管制",
+              "实体清单",
+              "许可",
+              "执法"
+            ],
+            "updateFrequency": "事件驱动"
+          },
+          "type": "SourceProfile"
+        },
+        {
+          "id": "recipe_cycle_phase",
+          "projection": {
+            "index": 0,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "缺直接数据最高 observation/Q1",
+            "id": "recipe_cycle_phase",
+            "judgmentType": "cycle_phase",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "primary+baseline/cross_check 齐备且反证已检查",
+            "proxyRule": "允许有限代理，须披露且不得单独支撑 Q3+",
+            "recipeName": "周期阶段判断取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A03_趋势与阶段判断.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_transmission_path",
+          "projection": {
+            "index": 1,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "缺机制或反证则降为 conditional/Q2 及以下",
+            "id": "recipe_transmission_path",
+            "judgmentType": "transmission_path",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "主证据+机制承接+反证检查",
+            "proxyRule": "机制节点可用受限代理",
+            "recipeName": "传导路径判断取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A04_机制传导验证.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_state_measurement",
+          "projection": {
+            "index": 2,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "仅代理时最高 observation/Q1",
+            "id": "recipe_state_measurement",
+            "judgmentType": "state_measurement",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "主证据+基准+反证",
+            "proxyRule": "无直接读数时登记 ProxyIndicator",
+            "recipeName": "状态度量判断取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A02_状态变量测量.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_trend_direction",
+          "projection": {
+            "index": 3,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "序列或交叉验证不足时最高 observation/Q1",
+            "id": "recipe_trend_direction",
+            "judgmentType": "trend_direction",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "可比时间序列、基准、独立交叉验证与反证齐备",
+            "proxyRule": "代理序列必须披露口径、滞后和不可替代项",
+            "recipeName": "趋势方向判断取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A03_趋势与阶段判断.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_mechanism_validation",
+          "projection": {
+            "index": 4,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "任一关键机制段缺证据则停止向终点外推",
+            "id": "recipe_mechanism_validation",
+            "judgmentType": "mechanism_validation",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "起点事实、关键机制节点、承接结果与反证逐段核验",
+            "proxyRule": "机制节点允许受限代理，但不得跳过中间节点",
+            "recipeName": "机制验证取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A04_机制传导验证.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_causal_attribution",
+          "projection": {
+            "index": 5,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "替代解释未排除时最高 conditional/Q2",
+            "id": "recipe_causal_attribution",
+            "judgmentType": "causal_attribution",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "原因时序、机制链、替代解释和反事实检查同时通过",
+            "proxyRule": "相关性或单点事件不得单独作为因果归因",
+            "recipeName": "因果归因取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A04_机制传导验证.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_object_differentiation",
+          "projection": {
+            "index": 6,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "统一比较口径缺失时禁止精确排序",
+            "id": "recipe_object_differentiation",
+            "judgmentType": "object_differentiation",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "比较口径、对象暴露、承接能力和反证均可比",
+            "proxyRule": "部分可比时只允许分组比较",
+            "recipeName": "对象分化比较取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A05_对象分化比较.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_impact_realization",
+          "projection": {
+            "index": 7,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "基准或桥接缺失时只保留方向材料",
+            "id": "recipe_impact_realization",
+            "judgmentType": "impact_realization",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "财务基准、关键桥接、敏感性和反证齐备",
+            "proxyRule": "行业增长不得直接代理公司收入或利润",
+            "recipeName": "影响兑现取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A06_财务影响测算.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_expectation_gap",
+          "projection": {
+            "index": 8,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "无事前 vintage 时最高 observation/Q1",
+            "id": "recipe_expectation_gap",
+            "judgmentType": "expectation_gap",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "事前预期 vintage、新信息、修正路径与反证齐备",
+            "proxyRule": "事后预测不得回填为事前预期",
+            "recipeName": "预期差取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A07_市场预期与定价.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "recipe_valuation_impact",
+          "projection": {
+            "index": 9,
+            "section": "evidence_recipes"
+          },
+          "properties": {
+            "counterBasketTypes": [
+              "counter_evidence"
+            ],
+            "downgradeRule": "缺估值基准或事前预期时最高 observation/Q1",
+            "id": "recipe_valuation_impact",
+            "judgmentType": "valuation_impact",
+            "mandatoryBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "counter_evidence"
+            ],
+            "minimumPassRule": "估值基准、预期变化、定价反应和反证齐备",
+            "proxyRule": "单日价格波动不得单独归因于目标信息",
+            "recipeName": "估值影响取证配方",
+            "requiredBasketTypes": [
+              "primary_support",
+              "background_evidence",
+              "cross_validation",
+              "counter_evidence"
+            ],
+            "strategyLibraryRef": "03_agent_capability/02_skills/evidence_research/references/A07_市场预期与定价.md",
+            "strategyVersion": "3.2.0"
+          },
+          "type": "EvidenceRecipe"
+        },
+        {
+          "id": "proxy_spot_price_for_inventory",
+          "projection": {
+            "index": 0,
+            "section": "proxy_indicators"
+          },
+          "properties": {
+            "cannotReplace": [
+              "厂商库存天数原表",
+              "渠道库存审计数据"
+            ],
+            "confidenceDiscount": "相对直接库存证据至少下调一档完备度",
+            "expectedTimeLag": "价格通常领先库存确认零至一个季度，但会受到供给停产和渠道投机干扰。",
+            "id": "proxy_spot_price_for_inventory",
+            "invalidConditions": [
+              "价格波动主要由成本或汇率驱动",
+              "样本仅覆盖单一渠道且不可复核"
+            ],
+            "proxyFor": "inventory_cycle_position",
+            "proxyIndicatorName": "现货价格走势代理库存周期位置",
+            "proxyLogic": "在直接库存天数不可得时，用现货价与合约价相对强弱间接观察去库存/补库方向",
+            "requiredDisclosure": "04/05 必须写明使用了价格代理库存，且不得写成确认库存位置",
+            "targetStateVariableId": "inventory_cycle_position",
+            "validConditions": [
+              "价格口径连续可比",
+              "无重大规格切换",
+              "同步有至少一个需求或出货旁证"
+            ]
+          },
+          "type": "ProxyIndicator"
+        },
+        {
+          "id": "proxy_lead_time_for_capacity_tightness",
+          "projection": {
+            "index": 1,
+            "section": "proxy_indicators"
+          },
+          "properties": {
+            "cannotReplace": [
+              "产线有效产能",
+              "稼动率",
+              "良率和产品组合"
+            ],
+            "confidenceDiscount": "相对有效产能和利用率直接证据至少下调一档。",
+            "expectedTimeLag": "领先实际产出约一至两个季度，依设备搬入和客户验收节奏调整。",
+            "id": "proxy_lead_time_for_capacity_tightness",
+            "invalidConditions": [
+              "交期受单次运输事件主导",
+              "供应商主动延长报价有效期",
+              "产品发生代际切换"
+            ],
+            "proxyFor": "capacity_tightness",
+            "proxyIndicatorName": "设备与关键产品交期代理产能紧张度",
+            "proxyLogic": "在有效产能不可直接获得时，以同规格、同地域的交期变化观察供给约束方向。",
+            "requiredDisclosure": "必须披露交期到产能的预计滞后，不得将长交期直接写成需求确认。",
+            "targetStateVariableId": "capacity_tightness",
+            "validConditions": [
+              "规格与地域可比",
+              "报价与实际交付记录可交叉验证",
+              "排除物流中断"
+            ]
+          },
+          "type": "ProxyIndicator"
+        },
+        {
+          "id": "proxy_tender_for_localization",
+          "projection": {
+            "index": 2,
+            "section": "proxy_indicators"
+          },
+          "properties": {
+            "cannotReplace": [
+              "客户认证记录",
+              "验收记录",
+              "批量采购与收入确认"
+            ],
+            "confidenceDiscount": "未取得验收或复购证据时最高支持验证阶段判断。",
+            "expectedTimeLag": "中标通常领先验收、量产和收入确认一至四个季度。",
+            "id": "proxy_tender_for_localization",
+            "invalidConditions": [
+              "框架入围未形成采购",
+              "非约束性意向",
+              "低端规格替代外推到全品类"
+            ],
+            "proxyFor": "localization_substitution_progress",
+            "proxyIndicatorName": "招标与中标代理国产替代进展",
+            "proxyLogic": "用同品类招标、中标和复购进度观察本地供应进入客户采购体系的阶段。",
+            "requiredDisclosure": "必须区分入围、中标、验收、复购和规模量产。",
+            "targetStateVariableId": "localization_substitution_progress",
+            "validConditions": [
+              "可定位招标主体与品类",
+              "中标结果可核验",
+              "后续验收节点可跟踪"
+            ]
+          },
+          "type": "ProxyIndicator"
+        },
+        {
+          "id": "proxy_trade_for_supply_availability",
+          "projection": {
+            "index": 3,
+            "section": "proxy_indicators"
+          },
+          "properties": {
+            "cannotReplace": [
+              "许可数据",
+              "客户库存",
+              "实际交付和最终用途记录"
+            ],
+            "confidenceDiscount": "不能穿透最终用途和库存时至少下调一档。",
+            "expectedTimeLag": "通常滞后订单并领先终端消耗零至一个季度，受库存缓冲影响。",
+            "id": "proxy_trade_for_supply_availability",
+            "invalidConditions": [
+              "编码覆盖多种不可比产品",
+              "单价由产品组合驱动",
+              "贸易路径发生迁移"
+            ],
+            "proxyFor": "supply_availability",
+            "proxyIndicatorName": "贸易流量代理区域供给可得性",
+            "proxyLogic": "用同海关编码、同地域的进口数量和单价变化观察受限产品的区域可得性。",
+            "requiredDisclosure": "必须披露编码范围、转口风险和库存缓冲。",
+            "targetStateVariableId": "supply_availability",
+            "validConditions": [
+              "海关编码稳定",
+              "数量与金额口径一致",
+              "排除转口和提前备货"
+            ]
+          },
+          "type": "ProxyIndicator"
+        },
+        {
+          "id": "proxy_utilization_for_demand",
+          "projection": {
+            "index": 4,
+            "section": "proxy_indicators"
+          },
+          "properties": {
+            "cannotReplace": [
+              "终端销量",
+              "实际部署",
+              "客户消耗和渠道库存"
+            ],
+            "confidenceDiscount": "缺终端旁证时不得单独支持需求反转。",
+            "expectedTimeLag": "稼动率对订单变化通常滞后一个排产周期，对终端需求可能滞后一至两个季度。",
+            "id": "proxy_utilization_for_demand",
+            "invalidConditions": [
+              "检修或良率异常主导",
+              "新产线爬坡",
+              "客户提前备货"
+            ],
+            "proxyFor": "end_market_demand_strength",
+            "proxyIndicatorName": "晶圆厂稼动率代理需求强度",
+            "proxyLogic": "用同工艺平台稼动率的持续变化观察订单消耗，但必须与库存和终端数据共同解释。",
+            "requiredDisclosure": "必须披露稼动率与终端需求之间的排产和库存滞后。",
+            "targetStateVariableId": "end_market_demand_strength",
+            "validConditions": [
+              "工艺平台和产品组合稳定",
+              "稼动率口径连续",
+              "具有库存或出货旁证"
+            ]
+          },
+          "type": "ProxyIndicator"
+        },
+        {
+          "id": "demand_to_orders",
+          "projection": {
+            "index": 0,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Application/Industry/Product",
+            "applicable_conditions": [
+              "需求来自真实使用而非渠道囤货",
+              "产品已进入客户采购范围"
+            ],
+            "blocking_conditions": [
+              "客户取消项目",
+              "产品未通过认证",
+              "需求被替代路线满足"
+            ],
+            "default_competing_explanation": "订单增长可能来自渠道补库而非终端需求",
+            "direction_logic": "end_market_demand_strength上升 AND (adoption_penetration扩大 OR semiconductor_content_intensity上升) → order_visibility改善",
+            "direction_mapping": "终端需求增强且采用扩大或单位应用半导体含量上升时，订单能见度通常改善。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "demand_to_orders",
+            "intermediate_variables": [
+              "adoption_penetration",
+              "semiconductor_content_intensity"
+            ],
+            "name": "终端需求向订单传导",
+            "source_variables": [
+              "end_market_demand_strength"
+            ],
+            "supporting_evidence_requirements": [
+              "终端使用或出货",
+              "客户采购或排产",
+              "订单与交付交叉验证"
+            ],
+            "target_variables": [
+              "order_visibility"
+            ],
+            "time_lag": "数周至数个季度，取决于产品设计周期和客户库存。",
+            "weakening_conditions": [
+              "客户库存偏高",
+              "需求由促销或短期项目驱动"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "capex_to_semiconductor_demand",
+          "projection": {
+            "index": 1,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Application/Company",
+            "applicable_conditions": [
+              "资本开支明确用于相关系统",
+              "采购与项目进度可验证"
+            ],
+            "blocking_conditions": [
+              "预算取消",
+              "架构改变显著降低芯片用量"
+            ],
+            "default_competing_explanation": "资本开支可能投向非半导体环节",
+            "direction_logic": "customer_capex_intensity落地时end_market_demand_strength和order_visibility增强",
+            "direction_mapping": "客户资本开支增强并实际落地时，相关芯片和系统需求通常增强。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "capex_to_semiconductor_demand",
+            "intermediate_variables": [
+              "adoption_penetration"
+            ],
+            "name": "客户资本开支向半导体需求传导",
+            "source_variables": [
+              "customer_capex_intensity"
+            ],
+            "supporting_evidence_requirements": [
+              "预算与项目清单",
+              "招标采购",
+              "系统部署或利用率"
+            ],
+            "target_variables": [
+              "end_market_demand_strength",
+              "order_visibility"
+            ],
+            "time_lag": "一至六个季度，视建设、采购和部署周期而定。",
+            "weakening_conditions": [
+              "资本开支主要用于土地建筑或非芯片环节",
+              "项目执行延迟"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "adoption_to_volume",
+          "projection": {
+            "index": 2,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Product/TechnologyRoute",
+            "applicable_conditions": [
+              "认证对应实际采购项目",
+              "供应能力可支持量产"
+            ],
+            "blocking_conditions": [
+              "认证失败",
+              "质量事故",
+              "客户路线切换"
+            ],
+            "default_competing_explanation": "小批量验证不代表可持续放量",
+            "direction_logic": "认证完成并进入主流采用时order_visibility和mass_production_readiness提升",
+            "direction_mapping": "客户认证完成并进入主流采用时，订单和量产准备度通常提升。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "adoption_to_volume",
+            "intermediate_variables": [
+              "design_win_visibility"
+            ],
+            "name": "产品采用向规模需求传导",
+            "source_variables": [
+              "adoption_penetration",
+              "customer_qualification_progress"
+            ],
+            "supporting_evidence_requirements": [
+              "认证阶段",
+              "定点或采购",
+              "量产与复购"
+            ],
+            "target_variables": [
+              "order_visibility",
+              "mass_production_readiness"
+            ],
+            "time_lag": "一个产品验证周期至数个季度。",
+            "weakening_conditions": [
+              "仅单一客户或小批量验证",
+              "产品成本仍高"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "orders_to_capacity_pressure",
+          "projection": {
+            "index": 3,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Product",
+            "applicable_conditions": [
+              "订单不可轻易取消",
+              "有效产能口径包含良率和切换损失"
+            ],
+            "blocking_conditions": [
+              "订单大规模取消",
+              "存在大量闲置可切换产能"
+            ],
+            "default_competing_explanation": "重复下单可能夸大真实需求",
+            "direction_logic": "高质量订单超过有效产能时capacity_tightness和backlog_pressure上升",
+            "direction_mapping": "高质量订单增长超过有效产能时，产能和未交付订单压力上升。",
+            "evidence_profile_ref": "demand_orders",
+            "id": "orders_to_capacity_pressure",
+            "intermediate_variables": [
+              "inventory_cycle_position"
+            ],
+            "name": "订单向产能压力传导",
+            "source_variables": [
+              "order_visibility"
+            ],
+            "supporting_evidence_requirements": [
+              "订单覆盖期",
+              "排产",
+              "利用率与交期"
+            ],
+            "target_variables": [
+              "capacity_tightness",
+              "backlog_pressure"
+            ],
+            "time_lag": "即期至两个季度。",
+            "weakening_conditions": [
+              "客户重复下单",
+              "库存可满足需求"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "demand_to_upstream_inputs",
+          "projection": {
+            "index": 4,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Industry/ValueChainSegment",
+            "applicable_conditions": [
+              "扩产或工艺升级实际执行",
+              "设备材料与目标工艺匹配"
+            ],
+            "blocking_conditions": [
+              "扩产取消",
+              "设备许可或供应中断"
+            ],
+            "default_competing_explanation": "扩产公告不等于设备材料订单",
+            "direction_logic": "(end_market_demand_strength上升 OR semiconductor_content_intensity上升) AND capacity_expansion_progress推进 → 上游order_visibility上升",
+            "direction_mapping": "持续需求和扩产通常增加设备、材料、晶圆与专业服务需求。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "demand_to_upstream_inputs",
+            "intermediate_variables": [
+              "capacity_tightness",
+              "scaling_progress",
+              "semiconductor_content_intensity"
+            ],
+            "name": "芯片需求向设备材料传导",
+            "source_variables": [
+              "end_market_demand_strength",
+              "capacity_expansion_progress"
+            ],
+            "supporting_evidence_requirements": [
+              "资本开支",
+              "设备搬入",
+              "材料消耗和供应商订单"
+            ],
+            "target_variables": [
+              "order_visibility"
+            ],
+            "time_lag": "材料较短，设备通常滞后一个至数个季度。",
+            "weakening_conditions": [
+              "重复使用存量设备",
+              "单位材料消耗下降"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "inventory_destocking",
+          "projection": {
+            "index": 5,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Industry/Product",
+            "applicable_conditions": [
+              "库存可用于满足当前需求",
+              "渠道和客户主动降低库存"
+            ],
+            "blocking_conditions": [
+              "供给突然中断",
+              "终端需求快速超预期"
+            ],
+            "default_competing_explanation": "去库可能来自主动风险管理而非需求崩溃",
+            "direction_logic": "inventory_cycle_position进入去库时order_visibility和product_price_pressure走弱",
+            "direction_mapping": "库存过高进入去库阶段时，订单和价格通常弱于终端需求。",
+            "evidence_profile_ref": "inventory_cycle",
+            "id": "inventory_destocking",
+            "intermediate_variables": [
+              "inventory_buffer_capacity"
+            ],
+            "name": "去库存向订单下行传导",
+            "source_variables": [
+              "inventory_cycle_position"
+            ],
+            "supporting_evidence_requirements": [
+              "多层库存",
+              "采购缩减",
+              "出货与终端需求背离"
+            ],
+            "target_variables": [
+              "order_visibility",
+              "product_price_pressure"
+            ],
+            "time_lag": "一至四个季度。",
+            "weakening_conditions": [
+              "库存结构不匹配",
+              "新产品切换创造补库"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "inventory_restocking",
+          "projection": {
+            "index": 6,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Industry/Product",
+            "applicable_conditions": [
+              "库存低于运营安全水平",
+              "需求未显著下修"
+            ],
+            "blocking_conditions": [
+              "客户现金流紧张",
+              "产品即将被替代"
+            ],
+            "default_competing_explanation": "补库可能仅发生在单一渠道",
+            "direction_logic": "低库存叠加稳定需求时order_visibility和capacity_tightness短期上升",
+            "direction_mapping": "低库存叠加需求稳定时，补库会放大短期订单和产能压力。",
+            "evidence_profile_ref": "inventory_cycle",
+            "id": "inventory_restocking",
+            "intermediate_variables": [
+              "inventory_buffer_capacity"
+            ],
+            "name": "补库存向订单上行传导",
+            "source_variables": [
+              "inventory_cycle_position",
+              "end_market_demand_strength"
+            ],
+            "supporting_evidence_requirements": [
+              "库存下降",
+              "采购恢复",
+              "供应商订单和交期"
+            ],
+            "target_variables": [
+              "order_visibility",
+              "capacity_tightness"
+            ],
+            "time_lag": "数周至两个季度。",
+            "weakening_conditions": [
+              "补库仅发生在单一渠道",
+              "终端需求仍弱"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "supply_constraint_to_price_delivery",
+          "projection": {
+            "index": 7,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Product/Material",
+            "applicable_conditions": [
+              "需求仍在",
+              "替代供应有限",
+              "库存不足"
+            ],
+            "blocking_conditions": [
+              "替代供应已认证",
+              "库存足以覆盖冲击"
+            ],
+            "default_competing_explanation": "交期延长可能来自物流而非产能",
+            "direction_logic": "supply_availability下降且capacity_tightness上升时价格和交期压力增强",
+            "direction_mapping": "供给可得性下降且库存不足时，交期和价格上行压力增强。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "supply_constraint_to_price_delivery",
+            "intermediate_variables": [
+              "inventory_buffer_capacity",
+              "pricing_power"
+            ],
+            "name": "供给约束向价格交期传导",
+            "source_variables": [
+              "supply_availability",
+              "capacity_tightness"
+            ],
+            "supporting_evidence_requirements": [
+              "产能与停产",
+              "交期",
+              "分配",
+              "成交价和库存"
+            ],
+            "target_variables": [
+              "product_price_pressure",
+              "production_cycle_pressure"
+            ],
+            "time_lag": "即期至数个季度。",
+            "weakening_conditions": [
+              "合同锁价",
+              "下游主动削减需求"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "inventory_buffer_absorption",
+          "projection": {
+            "index": 8,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Product",
+            "applicable_conditions": [
+              "库存真实可用",
+              "规格和质量满足生产"
+            ],
+            "blocking_conditions": [
+              "库存不可用或冲击持续时间超过覆盖期"
+            ],
+            "default_competing_explanation": "账面库存可能规格不可用",
+            "direction_logic": "inventory_buffer_capacity充足时冲击向价格和交期传导减弱",
+            "direction_mapping": "可用库存越充足，供应冲击向交期和价格传导越弱、越滞后。",
+            "evidence_profile_ref": "inventory_cycle",
+            "id": "inventory_buffer_absorption",
+            "intermediate_variables": [
+              "supply_availability"
+            ],
+            "name": "库存对供应冲击的缓冲",
+            "source_variables": [
+              "inventory_buffer_capacity"
+            ],
+            "supporting_evidence_requirements": [
+              "库存覆盖期",
+              "在途库存",
+              "消耗速度"
+            ],
+            "target_variables": [
+              "production_cycle_pressure",
+              "product_price_pressure"
+            ],
+            "time_lag": "取决于库存可覆盖时间和规格兼容性。",
+            "weakening_conditions": [
+              "库存集中在错误规格或地域",
+              "保质期受限"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "capacity_expansion_to_supply_relief",
+          "projection": {
+            "index": 9,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "ManufacturingFacility",
+            "applicable_conditions": [
+              "设备工艺匹配",
+              "良率稳定",
+              "客户认证完成"
+            ],
+            "blocking_conditions": [
+              "扩产延期",
+              "良率失败",
+              "认证未通过"
+            ],
+            "default_competing_explanation": "名义扩产不等于有效供给",
+            "direction_logic": "扩产完成且yield_maturity成熟后supply_availability改善",
+            "direction_mapping": "扩产完成、良率成熟并通过认证后，有效供给增加并缓解产能紧张。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "capacity_expansion_to_supply_relief",
+            "intermediate_variables": [
+              "customer_qualification_progress"
+            ],
+            "name": "扩产向供给缓解传导",
+            "source_variables": [
+              "capacity_expansion_progress",
+              "yield_maturity"
+            ],
+            "supporting_evidence_requirements": [
+              "建设与设备进度",
+              "试产良率",
+              "认证和量产出货"
+            ],
+            "target_variables": [
+              "supply_availability",
+              "capacity_tightness"
+            ],
+            "time_lag": "数个季度至数年。",
+            "weakening_conditions": [
+              "需求同步上修",
+              "产品结构不匹配"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "yield_to_effective_supply",
+          "projection": {
+            "index": 10,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "ManufacturingFacility",
+            "applicable_conditions": [
+              "投入和产品组合可比",
+              "质量可靠性未被牺牲"
+            ],
+            "blocking_conditions": [
+              "质量可靠性恶化",
+              "关键缺陷无法消除"
+            ],
+            "default_competing_explanation": "良率改善可能以可靠性为代价",
+            "direction_logic": "yield_maturity和process_capability改善增加有效供给",
+            "direction_mapping": "良率与制程能力改善通常增加有效供给、降低单位成本并提升量产准备度。",
+            "evidence_profile_ref": "manufacturing_yield",
+            "id": "yield_to_effective_supply",
+            "intermediate_variables": [],
+            "name": "良率向有效供给与成本传导",
+            "source_variables": [
+              "yield_maturity",
+              "process_capability"
+            ],
+            "supporting_evidence_requirements": [
+              "良率趋势",
+              "报废返工",
+              "单位成本",
+              "可靠性"
+            ],
+            "target_variables": [
+              "supply_availability",
+              "input_cost_pressure",
+              "mass_production_readiness"
+            ],
+            "time_lag": "一个至多个工艺学习周期。",
+            "weakening_conditions": [
+              "产品组合变复杂",
+              "设备折旧或材料成本上升"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "process_complexity_to_equipment_materials",
+          "projection": {
+            "index": 11,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "ProcessStep",
+            "applicable_conditions": [
+              "新工艺确实增加关键步骤或控制要求"
+            ],
+            "blocking_conditions": [
+              "路线取消",
+              "替代工艺显著简化流程"
+            ],
+            "default_competing_explanation": "步骤整合可能抵消复杂度上升",
+            "direction_logic": "scaling_progress提升增加设备和材料投入强度",
+            "direction_mapping": "工艺步骤、层数和控制难度上升通常提高设备、材料和量测投入强度。",
+            "evidence_profile_ref": "technology_route",
+            "id": "process_complexity_to_equipment_materials",
+            "intermediate_variables": [
+              "technology_maturity"
+            ],
+            "name": "工艺复杂度向设备材料强度传导",
+            "source_variables": [
+              "scaling_progress",
+              "process_capability"
+            ],
+            "supporting_evidence_requirements": [
+              "工艺流程变化",
+              "设备清单",
+              "材料用量和资本强度"
+            ],
+            "target_variables": [
+              "customer_capex_intensity",
+              "input_cost_pressure"
+            ],
+            "time_lag": "随技术开发和产能建设周期传导。",
+            "weakening_conditions": [
+              "步骤整合",
+              "生产率提升",
+              "单位面积成本下降"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "scaling_to_yield_cost",
+          "projection": {
+            "index": 12,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "TechnologyRoute",
+            "applicable_conditions": [
+              "比较同一产品和成熟阶段",
+              "设计与工艺协同"
+            ],
+            "blocking_conditions": [
+              "经济性不成立",
+              "关键设备材料或量测不可得"
+            ],
+            "default_competing_explanation": "先进封装可能替代部分微缩收益",
+            "direction_logic": "微缩初期yield_maturity承压，成熟后technology_competitiveness改善",
+            "direction_mapping": "微缩初期通常增加工艺和良率压力，成熟后才可能形成性能功耗和密度优势。",
+            "evidence_profile_ref": "technology_route",
+            "id": "scaling_to_yield_cost",
+            "intermediate_variables": [
+              "process_capability"
+            ],
+            "name": "制程微缩向良率与成本传导",
+            "source_variables": [
+              "scaling_progress"
+            ],
+            "supporting_evidence_requirements": [
+              "架构与工艺进展",
+              "良率",
+              "性能功耗",
+              "成本"
+            ],
+            "target_variables": [
+              "yield_maturity",
+              "input_cost_pressure",
+              "technology_competitiveness"
+            ],
+            "time_lag": "数个技术和量产学习周期。",
+            "weakening_conditions": [
+              "先进封装或设计优化替代部分微缩收益"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "advanced_packaging_to_inputs",
+          "projection": {
+            "index": 13,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "TechnologyRoute/Product",
+            "applicable_conditions": [
+              "路线进入量产",
+              "封装价值量与复杂度确实提升"
+            ],
+            "blocking_conditions": [
+              "热、翘曲、可靠性或测试问题阻止量产"
+            ],
+            "default_competing_explanation": "封装标准化可能降低单位投入",
+            "direction_logic": "先进封装量产推动基板设备和测试需求上升",
+            "direction_mapping": "先进封装采用提升通常增加高端基板、互连、封装设备和复杂测试需求。",
+            "evidence_profile_ref": "technology_route",
+            "id": "advanced_packaging_to_inputs",
+            "intermediate_variables": [
+              "mass_production_readiness",
+              "quality_reliability"
+            ],
+            "name": "先进封装向基板设备测试传导",
+            "source_variables": [
+              "technology_maturity",
+              "adoption_penetration"
+            ],
+            "supporting_evidence_requirements": [
+              "封装设计",
+              "设备材料需求",
+              "产能和量产"
+            ],
+            "target_variables": [
+              "order_visibility",
+              "capacity_tightness",
+              "input_cost_pressure"
+            ],
+            "time_lag": "认证至量产通常为数个季度。",
+            "weakening_conditions": [
+              "封装标准化降低单位投入",
+              "良率快速改善"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "competitiveness_to_substitution",
+          "projection": {
+            "index": 14,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "TechnologyRoute",
+            "applicable_conditions": [
+              "比较口径一致",
+              "供应和生态可用"
+            ],
+            "blocking_conditions": [
+              "可靠性不达标",
+              "切换成本过高",
+              "供应不足"
+            ],
+            "default_competing_explanation": "新旧路线可能互补而非替代",
+            "direction_logic": "technology_competitiveness提升推动technology_substitution_intensity上升",
+            "direction_mapping": "综合竞争力提升且切换成本可承受时，新路线替代强度和采用进展上升。",
+            "evidence_profile_ref": "technology_route",
+            "id": "competitiveness_to_substitution",
+            "intermediate_variables": [
+              "customer_switching_cost"
+            ],
+            "name": "技术竞争力向替代传导",
+            "source_variables": [
+              "technology_competitiveness",
+              "technology_maturity"
+            ],
+            "supporting_evidence_requirements": [
+              "同口径性能成本",
+              "客户采用",
+              "量产与生态"
+            ],
+            "target_variables": [
+              "technology_substitution_intensity",
+              "adoption_penetration"
+            ],
+            "time_lag": "一个设计周期至数年。",
+            "weakening_conditions": [
+              "优势仅适用于窄场景",
+              "既有路线持续改进"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "qualification_to_mass_production",
+          "projection": {
+            "index": 15,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Product",
+            "applicable_conditions": [
+              "认证覆盖量产规格",
+              "客户存在真实项目"
+            ],
+            "blocking_conditions": [
+              "可靠性失败",
+              "客户项目取消"
+            ],
+            "default_competing_explanation": "认证可能仅覆盖样品规格",
+            "direction_logic": "customer_qualification_progress完成推动mass_production_readiness改善",
+            "direction_mapping": "认证通过并满足质量要求时，量产准备和订单能见度改善。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "qualification_to_mass_production",
+            "intermediate_variables": [
+              "design_win_visibility",
+              "quality_reliability"
+            ],
+            "name": "客户认证向量产传导",
+            "source_variables": [
+              "customer_qualification_progress"
+            ],
+            "supporting_evidence_requirements": [
+              "认证文件或客户确认",
+              "量产计划",
+              "采购与复购"
+            ],
+            "target_variables": [
+              "mass_production_readiness",
+              "order_visibility"
+            ],
+            "time_lag": "认证通过后数周至数个季度。",
+            "weakening_conditions": [
+              "认证仅覆盖样品或单一规格"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "localization_to_resilience",
+          "projection": {
+            "index": 16,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Material",
+            "applicable_conditions": [
+              "关键上游不共享同一单点依赖",
+              "质量成本可接受"
+            ],
+            "blocking_conditions": [
+              "质量或良率不达标",
+              "供应规模不足"
+            ],
+            "default_competing_explanation": "本地替代可能仍依赖进口核心环节",
+            "direction_logic": "localization_substitution_progress推进提高supply_chain_resilience",
+            "direction_mapping": "本地供应通过认证并稳定量产后，替代选择增加并提高供应链韧性。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "localization_to_resilience",
+            "intermediate_variables": [
+              "customer_qualification_progress",
+              "mass_production_readiness"
+            ],
+            "name": "本地替代向供应链韧性传导",
+            "source_variables": [
+              "localization_substitution_progress"
+            ],
+            "supporting_evidence_requirements": [
+              "认证",
+              "量产",
+              "复购",
+              "上游依赖穿透"
+            ],
+            "target_variables": [
+              "supply_chain_resilience",
+              "supply_availability"
+            ],
+            "time_lag": "数个认证和量产周期。",
+            "weakening_conditions": [
+              "仅替代低端或非关键规格",
+              "仍依赖进口核心投入"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "policy_support_to_capacity",
+          "projection": {
+            "index": 17,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Region/Industry",
+            "applicable_conditions": [
+              "预算落实",
+              "项目可执行",
+              "企业具备技术和人才"
+            ],
+            "blocking_conditions": [
+              "政策未落地",
+              "项目取消",
+              "关键设备材料不可得"
+            ],
+            "default_competing_explanation": "政策资金可能分散或重复建设",
+            "direction_logic": "policy_support_strength落实推动capacity_expansion_progress",
+            "direction_mapping": "有预算、有执行主体的政策支持可降低投资约束并推动研发和产能建设。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "policy_support_to_capacity",
+            "intermediate_variables": [
+              "entry_barrier_strength"
+            ],
+            "name": "产业政策向投资产能传导",
+            "source_variables": [
+              "policy_support_strength"
+            ],
+            "supporting_evidence_requirements": [
+              "政策原文",
+              "预算",
+              "项目清单",
+              "投资与建设进度"
+            ],
+            "target_variables": [
+              "customer_capex_intensity",
+              "capacity_expansion_progress"
+            ],
+            "time_lag": "数个季度至数年。",
+            "weakening_conditions": [
+              "资金分散",
+              "重复建设",
+              "需求不足"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "export_control_to_supply",
+          "projection": {
+            "index": 18,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Region/Product",
+            "applicable_conditions": [
+              "目标产品或技术落入适用范围",
+              "许可和执法实际约束交易"
+            ],
+            "blocking_conditions": [
+              "政策不适用",
+              "范围撤回",
+              "合格替代已规模供给"
+            ],
+            "default_competing_explanation": "许可豁免或替代来源可缓冲冲击",
+            "direction_logic": "export_control_intensity增强降低supply_availability并提高compliance_friction",
+            "direction_mapping": "管制范围和执行增强通常提高合规摩擦并降低受限对象的供给可得性。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "export_control_to_supply",
+            "intermediate_variables": [
+              "supply_chain_resilience",
+              "localization_substitution_progress"
+            ],
+            "name": "出口管制向供给与合规传导",
+            "source_variables": [
+              "export_control_intensity"
+            ],
+            "supporting_evidence_requirements": [
+              "政策原文",
+              "适用范围",
+              "许可执行",
+              "企业与供应链反馈"
+            ],
+            "target_variables": [
+              "compliance_friction",
+              "supply_availability"
+            ],
+            "time_lag": "即期政策冲击至数个替代周期。",
+            "weakening_conditions": [
+              "许可豁免",
+              "库存缓冲",
+              "替代来源"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "competition_to_pricing_profit",
+          "projection": {
+            "index": 19,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Industry/Product",
+            "applicable_conditions": [
+              "产品可比",
+              "客户可切换",
+              "新供给真实可用"
+            ],
+            "blocking_conditions": [
+              "关键产品不可替代",
+              "供应纪律增强"
+            ],
+            "default_competing_explanation": "需求增长可能吸收新增供给",
+            "direction_logic": "competitive_intensity增强削弱pricing_power并压缩profit_pool_shift",
+            "direction_mapping": "竞争增强且切换成本下降时，定价能力减弱并压缩相关环节利润池。",
+            "evidence_profile_ref": "competition_structure",
+            "id": "competition_to_pricing_profit",
+            "intermediate_variables": [
+              "customer_switching_cost",
+              "entry_barrier_strength"
+            ],
+            "name": "竞争向定价与利润池传导",
+            "source_variables": [
+              "competitive_intensity"
+            ],
+            "supporting_evidence_requirements": [
+              "报价成交",
+              "份额",
+              "招标",
+              "产能与客户切换"
+            ],
+            "target_variables": [
+              "pricing_power",
+              "product_price_pressure",
+              "profit_pool_shift"
+            ],
+            "time_lag": "一个报价或合同周期至数个季度。",
+            "weakening_conditions": [
+              "需求强劲吸收供给",
+              "产品分层明显"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "exposure_execution_to_earnings",
+          "projection": {
+            "index": 20,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company",
+            "applicable_conditions": [
+              "业务贡献可识别",
+              "交付与收入确认条件明确"
+            ],
+            "blocking_conditions": [
+              "无法交付",
+              "质量事故",
+              "客户取消或收入无法确认"
+            ],
+            "default_competing_explanation": "业务占比低或内部对冲削弱传导",
+            "direction_logic": "暴露充分且execution_delivery_capability足够时earnings_elasticity显现",
+            "direction_mapping": "只有相关业务暴露充分且公司能够交付时，行业和技术变化才形成可观察业绩弹性。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "exposure_execution_to_earnings",
+            "intermediate_variables": [
+              "pricing_power",
+              "input_cost_pressure",
+              "profit_pool_shift"
+            ],
+            "name": "公司暴露与执行向业绩传导",
+            "source_variables": [
+              "value_chain_role_exposure",
+              "technology_route_exposure",
+              "execution_delivery_capability"
+            ],
+            "supporting_evidence_requirements": [
+              "业务结构",
+              "订单交付",
+              "价格成本",
+              "财务和现金流"
+            ],
+            "target_variables": [
+              "earnings_elasticity"
+            ],
+            "time_lag": "一个交付和收入确认周期至数个季度。",
+            "weakening_conditions": [
+              "业务占比低",
+              "内部业务对冲",
+              "费用和折旧上升"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "fundamentals_to_expectation_gap",
+          "projection": {
+            "index": 21,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Industry",
+            "applicable_conditions": [
+              "对象口径和时间尺度可比",
+              "基本面证据充分"
+            ],
+            "blocking_conditions": [
+              "判断已被市场充分预期",
+              "核心假设被阻断"
+            ],
+            "default_competing_explanation": "预期口径不可比或事件已公开",
+            "direction_logic": "基本面变化与consensus_expectation_level不一致时形成expectation_gap",
+            "direction_mapping": "证据支持的基本面变化与市场预期不一致时形成预期差。",
+            "evidence_profile_ref": "market_expectations",
+            "id": "fundamentals_to_expectation_gap",
+            "intermediate_variables": [
+              "consensus_expectation_level",
+              "counter_evidence_strength"
+            ],
+            "name": "基本面变化向预期差传导",
+            "source_variables": [
+              "earnings_elasticity",
+              "order_visibility",
+              "technology_substitution_intensity"
+            ],
+            "supporting_evidence_requirements": [
+              "基本面证据",
+              "一致预期或价格隐含预期",
+              "反证检查"
+            ],
+            "target_variables": [
+              "expectation_gap"
+            ],
+            "time_lag": "取决于信息披露、验证和市场吸收速度。",
+            "weakening_conditions": [
+              "预期来源陈旧或分歧大",
+              "基本面尚未验证"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "expectation_gap_to_pricing",
+          "projection": {
+            "index": 22,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Asset/Company",
+            "applicable_conditions": [
+              "预期差真实且可比较",
+              "存在信息催化或持续验证"
+            ],
+            "blocking_conditions": [
+              "已充分定价",
+              "反证阻断基本面判断"
+            ],
+            "default_competing_explanation": "宏观或其他事件可能主导价格",
+            "direction_logic": "可验证expectation_gap确认后priced_in_degree可能提高",
+            "direction_mapping": "可验证预期差被新信息确认后，市场反映程度可能提高。",
+            "evidence_profile_ref": "market_expectations",
+            "id": "expectation_gap_to_pricing",
+            "intermediate_variables": [
+              "consensus_expectation_level",
+              "counter_evidence_strength"
+            ],
+            "name": "预期差向定价反映传导",
+            "source_variables": [
+              "expectation_gap"
+            ],
+            "supporting_evidence_requirements": [
+              "预期修正",
+              "价格成交",
+              "估值和持仓变化"
+            ],
+            "target_variables": [
+              "priced_in_degree"
+            ],
+            "time_lag": "事件窗口至多个报告期。",
+            "weakening_conditions": [
+              "宏观或其他事件主导价格",
+              "缺少催化"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "supply_elasticity_to_price_persistence",
+          "projection": {
+            "index": 23,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "ValueChainSegment/Product/Material",
+            "applicable_conditions": [
+              "需求仍在",
+              "替代供应有限"
+            ],
+            "blocking_conditions": [
+              "替代供应已规模可用"
+            ],
+            "default_competing_explanation": "价格上涨可能来自短期事故而非结构性缺口",
+            "direction_logic": "supply_elasticity低 AND capacity_tightness高 → product_price_pressure持续",
+            "direction_mapping": "供给弹性低且产能紧张时，价格压力更可能持续。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "supply_elasticity_to_price_persistence",
+            "intermediate_variables": [
+              "supply_availability",
+              "pricing_power"
+            ],
+            "name": "供给弹性向价格持续性传导",
+            "source_variables": [
+              "supply_elasticity",
+              "capacity_tightness"
+            ],
+            "supporting_evidence_requirements": [
+              "产能切换周期",
+              "交期",
+              "成交价"
+            ],
+            "target_variables": [
+              "product_price_pressure"
+            ],
+            "time_lag": "即期至数个季度。",
+            "weakening_conditions": [
+              "可快速切换产能",
+              "库存缓冲充足"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "design_win_to_order_pipeline",
+          "projection": {
+            "index": 24,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Product/Application",
+            "applicable_conditions": [
+              "Design Win覆盖量产规格",
+              "客户项目真实存在"
+            ],
+            "blocking_conditions": [
+              "客户项目取消",
+              "质量或认证失败"
+            ],
+            "default_competing_explanation": "Design Win可能仅用于议价或多供备份",
+            "direction_logic": "design_win_visibility高 AND customer_qualification_progress推进 → order_visibility改善",
+            "direction_mapping": "Design Win确认并进入试产或量产阶段时，订单和量产准备度改善。",
+            "evidence_profile_ref": "qualification_commercialization",
+            "id": "design_win_to_order_pipeline",
+            "intermediate_variables": [
+              "adoption_penetration"
+            ],
+            "name": "Design Win向订单管线传导",
+            "source_variables": [
+              "design_win_visibility",
+              "customer_qualification_progress"
+            ],
+            "supporting_evidence_requirements": [
+              "Design Win确认",
+              "试产计划",
+              "采购意向"
+            ],
+            "target_variables": [
+              "order_visibility",
+              "mass_production_readiness"
+            ],
+            "time_lag": "数周至数个季度。",
+            "weakening_conditions": [
+              "仅单一客户",
+              "项目规模小"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "bottleneck_cascade_to_supply",
+          "projection": {
+            "index": 25,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Product/Material/ManufacturingFacility",
+            "applicable_conditions": [
+              "瓶颈环节不可替代",
+              "库存不足以覆盖"
+            ],
+            "blocking_conditions": [
+              "瓶颈可快速替代",
+              "冲击为短期"
+            ],
+            "default_competing_explanation": "表面多供可能共享同一上游瓶颈",
+            "direction_logic": "bottleneck_dependency_concentration高 → supply_availability下降",
+            "direction_mapping": "瓶颈依赖集中度高时，单点冲击更易降低供给可得性。",
+            "evidence_profile_ref": "capacity_supply",
+            "id": "bottleneck_cascade_to_supply",
+            "intermediate_variables": [
+              "supply_chain_resilience"
+            ],
+            "name": "瓶颈依赖向供给传导",
+            "source_variables": [
+              "bottleneck_dependency_concentration"
+            ],
+            "supporting_evidence_requirements": [
+              "瓶颈穿透分析",
+              "交期",
+              "替代认证状态"
+            ],
+            "target_variables": [
+              "supply_availability",
+              "capacity_tightness"
+            ],
+            "time_lag": "即期至数个季度。",
+            "weakening_conditions": [
+              "库存缓冲",
+              "备用供应商已认证"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "regional_policy_to_company_exposure",
+          "projection": {
+            "index": 26,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Region/PolicyInstrument",
+            "applicable_conditions": [
+              "政策适用于目标地域和业务",
+              "执法实际约束"
+            ],
+            "blocking_conditions": [
+              "政策不适用",
+              "豁免或替代产地"
+            ],
+            "default_competing_explanation": "政策影响可能被市场提前交易",
+            "direction_logic": "export_control_intensity上升 AND regional_policy_exposure高 → compliance_friction上升",
+            "direction_mapping": "政策强度变化通过地域暴露影响公司合规和供给。",
+            "evidence_profile_ref": "policy_trade",
+            "id": "regional_policy_to_company_exposure",
+            "intermediate_variables": [
+              "supply_chain_resilience"
+            ],
+            "name": "地域政策向公司暴露传导",
+            "source_variables": [
+              "export_control_intensity",
+              "policy_support_strength"
+            ],
+            "supporting_evidence_requirements": [
+              "政策原文",
+              "地域业务映射",
+              "许可执行"
+            ],
+            "target_variables": [
+              "regional_policy_exposure",
+              "compliance_friction"
+            ],
+            "time_lag": "即期至数个替代周期。",
+            "weakening_conditions": [
+              "业务地域分散",
+              "已有合规能力"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "product_mix_to_earnings_quality",
+          "projection": {
+            "index": 27,
+            "section": "propagation_templates"
+          },
+          "properties": {
+            "anchor_alignment": "Company/Product",
+            "applicable_conditions": [
+              "产品组合数据可拆分",
+              "业务贡献可识别"
+            ],
+            "blocking_conditions": [
+              "无法确认业务贡献",
+              "交付受阻"
+            ],
+            "default_competing_explanation": "财务变化可能来自并购、汇率或会计口径",
+            "direction_logic": "product_mix_structure改善 AND value_chain_role_exposure充分 → earnings_elasticity改善",
+            "direction_mapping": "产品组合结构改善且业务暴露充分时，业绩弹性改善。",
+            "evidence_profile_ref": "company_exposure_execution",
+            "id": "product_mix_to_earnings_quality",
+            "intermediate_variables": [
+              "pricing_power",
+              "input_cost_pressure"
+            ],
+            "name": "产品组合结构向业绩传导",
+            "source_variables": [
+              "product_mix_structure",
+              "value_chain_role_exposure"
+            ],
+            "supporting_evidence_requirements": [
+              "分部收入毛利",
+              "产品结构",
+              "客户结构"
+            ],
+            "target_variables": [
+              "earnings_elasticity"
+            ],
+            "time_lag": "一个至数个报告期。",
+            "weakening_conditions": [
+              "增长来自低毛利产品",
+              "费用折旧上升"
+            ]
+          },
+          "type": "PropagationTemplate"
+        },
+        {
+          "id": "jlc_default_j0",
+          "projection": {
+            "index": 0,
+            "section": "judgment_level_criterion_templates"
+          },
+          "properties": {
+            "alternative_explanation_check": "optional",
+            "applicable": true,
+            "counter_evidence_check": "optional",
+            "id": "jlc_default_j0",
+            "judgment_level": "J0",
+            "minimum_independent_source_groups": 0,
+            "minimum_source_authority": "unknown",
+            "required_conditions": [
+              "关键证据缺失或路径阻断"
+            ],
+            "template_scope": "semiconductor_default"
+          },
+          "type": "JudgmentLevelCriterionTemplate"
+        },
+        {
+          "id": "jlc_default_j1",
+          "projection": {
+            "index": 1,
+            "section": "judgment_level_criterion_templates"
+          },
+          "properties": {
+            "alternative_explanation_check": "optional",
+            "applicable": true,
+            "counter_evidence_check": "optional",
+            "id": "jlc_default_j1",
+            "judgment_level": "J1",
+            "minimum_independent_source_groups": 1,
+            "minimum_source_authority": "indirect",
+            "required_conditions": [
+              "至少一项可追溯信号"
+            ],
+            "template_scope": "semiconductor_default"
+          },
+          "type": "JudgmentLevelCriterionTemplate"
+        },
+        {
+          "id": "jlc_default_j2",
+          "projection": {
+            "index": 2,
+            "section": "judgment_level_criterion_templates"
+          },
+          "properties": {
+            "alternative_explanation_check": "optional",
+            "applicable": true,
+            "counter_evidence_check": "required",
+            "id": "jlc_default_j2",
+            "judgment_level": "J2",
+            "minimum_independent_source_groups": 1,
+            "minimum_source_authority": "informed_secondary",
+            "required_conditions": [
+              "完成反证与竞争解释检查"
+            ],
+            "template_scope": "semiconductor_default"
+          },
+          "type": "JudgmentLevelCriterionTemplate"
+        },
+        {
+          "id": "jlc_default_j3",
+          "projection": {
+            "index": 3,
+            "section": "judgment_level_criterion_templates"
+          },
+          "properties": {
+            "alternative_explanation_check": "required",
+            "applicable": true,
+            "counter_evidence_check": "required",
+            "id": "jlc_default_j3",
+            "judgment_level": "J3",
+            "minimum_independent_source_groups": 2,
+            "minimum_source_authority": "authoritative_secondary",
+            "required_conditions": [],
+            "template_scope": "semiconductor_default"
+          },
+          "type": "JudgmentLevelCriterionTemplate"
+        },
+        {
+          "id": "jlc_default_j4",
+          "projection": {
+            "index": 4,
+            "section": "judgment_level_criterion_templates"
+          },
+          "properties": {
+            "alternative_explanation_check": "required",
+            "applicable": false,
+            "counter_evidence_check": "required",
+            "id": "jlc_default_j4",
+            "judgment_level": "J4",
+            "minimum_independent_source_groups": 1,
+            "minimum_source_authority": "primary",
+            "required_conditions": [
+              "仅事实或当前状态允许确认"
+            ],
+            "template_scope": "semiconductor_default"
+          },
+          "type": "JudgmentLevelCriterionTemplate"
+        },
+        {
+          "id": "base",
+          "projection": {
+            "index": 0,
+            "section": "scenario_templates"
+          },
+          "properties": {
+            "description": "需求、供给、技术和政策按当前可验证趋势推进，不假设额外冲击。",
+            "falsification_points": [
+              "需求或供给显著偏离",
+              "核心技术或政策条件发生结构性变化"
+            ],
+            "id": "base",
+            "key_variable_conditions": {
+              "competitive_intensity": "normal",
+              "counter_evidence_strength": "manageable",
+              "end_market_demand_strength": "stable_or_moderate",
+              "supply_availability": "normalizing",
+              "technology_maturity": "gradual"
+            },
+            "name": "基准情景",
+            "validation_points": [
+              "订单与终端需求一致",
+              "产能和良率按计划释放",
+              "技术认证按正常节奏推进"
+            ]
+          },
+          "type": "ScenarioTemplate"
+        },
+        {
+          "id": "upside",
+          "projection": {
+            "index": 1,
+            "section": "scenario_templates"
+          },
+          "properties": {
+            "description": "需求、采用或政策支持强于基准，供给和执行未形成同等强度阻断。",
+            "falsification_points": [
+              "库存积压",
+              "供给快速释放",
+              "竞争压价",
+              "市场已充分定价"
+            ],
+            "id": "upside",
+            "key_variable_conditions": {
+              "adoption_penetration": "accelerating",
+              "end_market_demand_strength": "high",
+              "execution_delivery_capability": "sufficient",
+              "order_visibility": "improving",
+              "pricing_power": "improving"
+            },
+            "name": "上行情景",
+            "validation_points": [
+              "终端、订单和出货交叉增强",
+              "认证转为量产和复购",
+              "公司交付与利润池改善"
+            ]
+          },
+          "type": "ScenarioTemplate"
+        },
+        {
+          "id": "downside",
+          "projection": {
+            "index": 2,
+            "section": "scenario_templates"
+          },
+          "properties": {
+            "description": "需求、订单或采用弱于基准，库存、竞争和成本压力增强。",
+            "falsification_points": [
+              "需求快速恢复",
+              "供给纪律增强",
+              "新产品采用抵消旧产品下行"
+            ],
+            "id": "downside",
+            "key_variable_conditions": {
+              "competitive_intensity": "high",
+              "end_market_demand_strength": "low",
+              "inventory_cycle_position": "destocking",
+              "order_visibility": "weakening",
+              "pricing_power": "weakening"
+            },
+            "name": "下行情景",
+            "validation_points": [
+              "终端需求下修",
+              "订单取消或去库",
+              "价格与利用率承压"
+            ]
+          },
+          "type": "ScenarioTemplate"
+        },
+        {
+          "id": "stress",
+          "projection": {
+            "index": 3,
+            "section": "scenario_templates"
+          },
+          "properties": {
+            "description": "供应中断、政策管制、重大质量事故或地域集中风险触发非线性冲击。",
+            "falsification_points": [
+              "许可豁免",
+              "快速恢复",
+              "库存覆盖充分",
+              "合格替代规模供给"
+            ],
+            "id": "stress",
+            "key_variable_conditions": {
+              "compliance_friction": "very_high",
+              "counter_evidence_strength": "high",
+              "inventory_buffer_capacity": "insufficient",
+              "supply_availability": "very_low",
+              "supply_chain_resilience": "low"
+            },
+            "name": "压力情景",
+            "validation_points": [
+              "官方或一手中断证据",
+              "许可交付和价格同步恶化",
+              "库存与替代不足"
+            ]
+          },
+          "type": "ScenarioTemplate"
+        },
+        {
+          "id": "cycle_recovery",
+          "projection": {
+            "index": 0,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "客户取消项目",
+              "竞争压价抵消复苏"
+            ],
+            "description": "终端需求恢复、库存去化完成、订单和产能利用率同步改善。",
+            "falsification_points": [
+              "终端需求未改善",
+              "补库后再次积压",
+              "供给快速释放"
+            ],
+            "id": "cycle_recovery",
+            "key_templates": [
+              "inventory_restocking",
+              "demand_to_orders",
+              "orders_to_capacity_pressure"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "周期复苏",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "end_market_demand_strength",
+              "inventory_cycle_position",
+              "order_visibility"
+            ],
+            "validation_points": [
+              "终端出货改善",
+              "多层库存下降后补库",
+              "订单与利用率交叉验证"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "cycle_downturn",
+          "projection": {
+            "index": 1,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "供给中断造成假性紧张",
+              "新产品抵消旧产品下行"
+            ],
+            "description": "需求下修、库存积累、订单取消和价格承压。",
+            "falsification_points": [
+              "需求快速恢复",
+              "供给纪律增强"
+            ],
+            "id": "cycle_downturn",
+            "key_templates": [
+              "inventory_destocking",
+              "competition_to_pricing_profit"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "周期下行",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "end_market_demand_strength",
+              "inventory_cycle_position",
+              "product_price_pressure"
+            ],
+            "validation_points": [
+              "终端下修",
+              "订单取消",
+              "价格成交走弱"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "supply_shock",
+          "projection": {
+            "index": 2,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "替代供应已认证",
+              "需求同步下修"
+            ],
+            "description": "事故、停产、物流或原料问题导致供给可得性骤降。",
+            "falsification_points": [
+              "快速恢复",
+              "库存覆盖充分"
+            ],
+            "id": "supply_shock",
+            "key_templates": [
+              "supply_constraint_to_price_delivery",
+              "bottleneck_cascade_to_supply"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "供应冲击",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "supply_availability",
+              "bottleneck_dependency_concentration"
+            ],
+            "validation_points": [
+              "官方或一手中断证据",
+              "交期同步恶化"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "overcapacity_expansion",
+          "projection": {
+            "index": 3,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "扩产延期",
+              "产品结构不匹配"
+            ],
+            "description": "大量扩产释放导致产能紧张缓解和价格压力。",
+            "falsification_points": [
+              "需求同步超预期",
+              "良率不达标延迟释放"
+            ],
+            "id": "overcapacity_expansion",
+            "key_templates": [
+              "capacity_expansion_to_supply_relief",
+              "supply_elasticity_to_price_persistence"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "扩产过剩",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "capacity_expansion_progress",
+              "capacity_tightness",
+              "supply_elasticity"
+            ],
+            "validation_points": [
+              "有效产能释放",
+              "利用率下降",
+              "价格承压"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "technology_transition",
+          "projection": {
+            "index": 4,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "可靠性不达标",
+              "生态不完整"
+            ],
+            "description": "新旧技术路线替代导致需求结构和设备材料需求迁移。",
+            "falsification_points": [
+              "新旧路线互补",
+              "切换成本过高"
+            ],
+            "id": "technology_transition",
+            "key_templates": [
+              "competitiveness_to_substitution",
+              "process_complexity_to_equipment_materials"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "技术切换",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "technology_substitution_intensity",
+              "technology_maturity"
+            ],
+            "validation_points": [
+              "客户采用证据",
+              "同口径性能成本比较"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "domestic_substitution",
+          "projection": {
+            "index": 5,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "质量或良率不达标"
+            ],
+            "description": "本地供应从认证推进到稳定量产和复购。",
+            "falsification_points": [
+              "仅送样",
+              "依赖进口核心环节"
+            ],
+            "id": "domestic_substitution",
+            "key_templates": [
+              "localization_to_resilience",
+              "qualification_to_mass_production"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "国产替代",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "localization_substitution_progress",
+              "customer_qualification_progress"
+            ],
+            "validation_points": [
+              "认证完成",
+              "量产出货",
+              "复购"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "export_control_scenario",
+          "projection": {
+            "index": 6,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "政策不适用",
+              "范围撤回"
+            ],
+            "description": "出口管制增强导致合规摩擦上升和受限供给下降。",
+            "falsification_points": [
+              "许可豁免",
+              "替代来源"
+            ],
+            "id": "export_control_scenario",
+            "key_templates": [
+              "export_control_to_supply",
+              "regional_policy_to_company_exposure"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "出口管制",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "export_control_intensity",
+              "regional_policy_exposure"
+            ],
+            "validation_points": [
+              "政策原文",
+              "许可执行",
+              "供应链反馈"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "advanced_packaging_bottleneck",
+          "projection": {
+            "index": 7,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "热可靠性问题阻止量产",
+              "需求不及预期"
+            ],
+            "description": "2.5D/3D/混合键合等先进封装产能或基板材料成为产业链瓶颈。",
+            "falsification_points": [
+              "封装产能快速释放",
+              "标准化降低需求"
+            ],
+            "id": "advanced_packaging_bottleneck",
+            "key_templates": [
+              "advanced_packaging_to_inputs",
+              "bottleneck_cascade_to_supply"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "先进封装瓶颈",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "bottleneck_dependency_concentration",
+              "capacity_tightness"
+            ],
+            "validation_points": [
+              "封装产能紧张",
+              "ABF等基板交期延长"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        },
+        {
+          "id": "inventory_correction",
+          "projection": {
+            "index": 8,
+            "section": "business_scenario_tags"
+          },
+          "properties": {
+            "blocking_conditions": [
+              "库存口径不可比",
+              "规格不可用"
+            ],
+            "description": "产业链从错误库存水平向合理水平修正，订单短期波动。",
+            "falsification_points": [
+              "终端需求同步变化",
+              "供给中断干扰判断"
+            ],
+            "id": "inventory_correction",
+            "key_templates": [
+              "inventory_destocking",
+              "inventory_restocking",
+              "inventory_buffer_absorption"
+            ],
+            "mece_scope": "non_exclusive",
+            "multi_select": true,
+            "name": "库存修正",
+            "tag_usage": "场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。",
+            "trigger_variables": [
+              "inventory_cycle_position",
+              "inventory_buffer_capacity"
+            ],
+            "validation_points": [
+              "多层库存时间序列",
+              "采购与出货背离"
+            ]
+          },
+          "type": "BusinessScenarioTag"
+        }
+      ],
+      "relations": [
+        {
+          "id": "REL-end_market_demand_strength-PROFILE",
+          "properties": {},
+          "sourceId": "end_market_demand_strength",
+          "targetId": "demand_orders",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-customer_capex_intensity-PROFILE",
+          "properties": {},
+          "sourceId": "customer_capex_intensity",
+          "targetId": "demand_orders",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-order_visibility-PROFILE",
+          "properties": {},
+          "sourceId": "order_visibility",
+          "targetId": "demand_orders",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-adoption_penetration-PROFILE",
+          "properties": {},
+          "sourceId": "adoption_penetration",
+          "targetId": "qualification_commercialization",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-design_win_visibility-PROFILE",
+          "properties": {},
+          "sourceId": "design_win_visibility",
+          "targetId": "qualification_commercialization",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-supply_availability-PROFILE",
+          "properties": {},
+          "sourceId": "supply_availability",
+          "targetId": "capacity_supply",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-capacity_tightness-PROFILE",
+          "properties": {},
+          "sourceId": "capacity_tightness",
+          "targetId": "capacity_supply",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-capacity_expansion_progress-PROFILE",
+          "properties": {},
+          "sourceId": "capacity_expansion_progress",
+          "targetId": "capacity_supply",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-supply_elasticity-PROFILE",
+          "properties": {},
+          "sourceId": "supply_elasticity",
+          "targetId": "capacity_supply",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-bottleneck_dependency_concentration-PROFILE",
+          "properties": {},
+          "sourceId": "bottleneck_dependency_concentration",
+          "targetId": "capacity_supply",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-yield_maturity-PROFILE",
+          "properties": {},
+          "sourceId": "yield_maturity",
+          "targetId": "manufacturing_yield",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-process_capability-PROFILE",
+          "properties": {},
+          "sourceId": "process_capability",
+          "targetId": "manufacturing_yield",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-production_cycle_pressure-PROFILE",
+          "properties": {},
+          "sourceId": "production_cycle_pressure",
+          "targetId": "manufacturing_yield",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-quality_reliability-PROFILE",
+          "properties": {},
+          "sourceId": "quality_reliability",
+          "targetId": "manufacturing_yield",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-inventory_cycle_position-PROFILE",
+          "properties": {},
+          "sourceId": "inventory_cycle_position",
+          "targetId": "inventory_cycle",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-inventory_buffer_capacity-PROFILE",
+          "properties": {},
+          "sourceId": "inventory_buffer_capacity",
+          "targetId": "inventory_cycle",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-backlog_pressure-PROFILE",
+          "properties": {},
+          "sourceId": "backlog_pressure",
+          "targetId": "demand_orders",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-product_price_pressure-PROFILE",
+          "properties": {},
+          "sourceId": "product_price_pressure",
+          "targetId": "pricing_economics",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-input_cost_pressure-PROFILE",
+          "properties": {},
+          "sourceId": "input_cost_pressure",
+          "targetId": "pricing_economics",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-pricing_power-PROFILE",
+          "properties": {},
+          "sourceId": "pricing_power",
+          "targetId": "pricing_economics",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-profit_pool_shift-PROFILE",
+          "properties": {},
+          "sourceId": "profit_pool_shift",
+          "targetId": "pricing_economics",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-scaling_progress-PROFILE",
+          "properties": {},
+          "sourceId": "scaling_progress",
+          "targetId": "technology_route",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-technology_maturity-PROFILE",
+          "properties": {},
+          "sourceId": "technology_maturity",
+          "targetId": "technology_route",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-technology_competitiveness-PROFILE",
+          "properties": {},
+          "sourceId": "technology_competitiveness",
+          "targetId": "technology_route",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-technology_substitution_intensity-PROFILE",
+          "properties": {},
+          "sourceId": "technology_substitution_intensity",
+          "targetId": "technology_route",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-customer_qualification_progress-PROFILE",
+          "properties": {},
+          "sourceId": "customer_qualification_progress",
+          "targetId": "qualification_commercialization",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-mass_production_readiness-PROFILE",
+          "properties": {},
+          "sourceId": "mass_production_readiness",
+          "targetId": "qualification_commercialization",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-localization_substitution_progress-PROFILE",
+          "properties": {},
+          "sourceId": "localization_substitution_progress",
+          "targetId": "qualification_commercialization",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-competitive_intensity-PROFILE",
+          "properties": {},
+          "sourceId": "competitive_intensity",
+          "targetId": "competition_structure",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-customer_switching_cost-PROFILE",
+          "properties": {},
+          "sourceId": "customer_switching_cost",
+          "targetId": "competition_structure",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-entry_barrier_strength-PROFILE",
+          "properties": {},
+          "sourceId": "entry_barrier_strength",
+          "targetId": "competition_structure",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-policy_support_strength-PROFILE",
+          "properties": {},
+          "sourceId": "policy_support_strength",
+          "targetId": "policy_trade",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-export_control_intensity-PROFILE",
+          "properties": {},
+          "sourceId": "export_control_intensity",
+          "targetId": "policy_trade",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-compliance_friction-PROFILE",
+          "properties": {},
+          "sourceId": "compliance_friction",
+          "targetId": "policy_trade",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-supply_chain_resilience-PROFILE",
+          "properties": {},
+          "sourceId": "supply_chain_resilience",
+          "targetId": "capacity_supply",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-regional_policy_exposure-PROFILE",
+          "properties": {},
+          "sourceId": "regional_policy_exposure",
+          "targetId": "policy_trade",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-value_chain_role_exposure-PROFILE",
+          "properties": {},
+          "sourceId": "value_chain_role_exposure",
+          "targetId": "company_exposure_execution",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-technology_route_exposure-PROFILE",
+          "properties": {},
+          "sourceId": "technology_route_exposure",
+          "targetId": "company_exposure_execution",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-execution_delivery_capability-PROFILE",
+          "properties": {},
+          "sourceId": "execution_delivery_capability",
+          "targetId": "company_exposure_execution",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-earnings_elasticity-PROFILE",
+          "properties": {},
+          "sourceId": "earnings_elasticity",
+          "targetId": "company_exposure_execution",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-consensus_expectation_level-PROFILE",
+          "properties": {},
+          "sourceId": "consensus_expectation_level",
+          "targetId": "market_expectations",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-expectation_gap-PROFILE",
+          "properties": {},
+          "sourceId": "expectation_gap",
+          "targetId": "market_expectations",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-priced_in_degree-PROFILE",
+          "properties": {},
+          "sourceId": "priced_in_degree",
+          "targetId": "market_expectations",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-counter_evidence_strength-PROFILE",
+          "properties": {},
+          "sourceId": "counter_evidence_strength",
+          "targetId": "counter_evidence",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-semiconductor_content_intensity-PROFILE",
+          "properties": {},
+          "sourceId": "semiconductor_content_intensity",
+          "targetId": "demand_orders",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-product_mix_structure-PROFILE",
+          "properties": {},
+          "sourceId": "product_mix_structure",
+          "targetId": "company_exposure_execution",
+          "type": "stateVariableUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-demand_to_orders-source-end_market_demand_strength",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "demand_to_orders",
+          "targetId": "end_market_demand_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_orders-intermediate-adoption_penetration",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "demand_to_orders",
+          "targetId": "adoption_penetration",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_orders-intermediate-semiconductor_content_intensity",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "demand_to_orders",
+          "targetId": "semiconductor_content_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_orders-target-order_visibility",
+          "properties": {},
+          "sourceId": "demand_to_orders",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-demand_to_orders-PROFILE",
+          "properties": {},
+          "sourceId": "demand_to_orders",
+          "targetId": "demand_orders",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-capex_to_semiconductor_demand-source-customer_capex_intensity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "capex_to_semiconductor_demand",
+          "targetId": "customer_capex_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-capex_to_semiconductor_demand-intermediate-adoption_penetration",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "capex_to_semiconductor_demand",
+          "targetId": "adoption_penetration",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-capex_to_semiconductor_demand-target-end_market_demand_strength",
+          "properties": {},
+          "sourceId": "capex_to_semiconductor_demand",
+          "targetId": "end_market_demand_strength",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-capex_to_semiconductor_demand-target-order_visibility",
+          "properties": {},
+          "sourceId": "capex_to_semiconductor_demand",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-capex_to_semiconductor_demand-PROFILE",
+          "properties": {},
+          "sourceId": "capex_to_semiconductor_demand",
+          "targetId": "demand_orders",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-adoption_to_volume-source-adoption_penetration",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "adoption_to_volume",
+          "targetId": "adoption_penetration",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-adoption_to_volume-source-customer_qualification_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "adoption_to_volume",
+          "targetId": "customer_qualification_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-adoption_to_volume-intermediate-design_win_visibility",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "adoption_to_volume",
+          "targetId": "design_win_visibility",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-adoption_to_volume-target-order_visibility",
+          "properties": {},
+          "sourceId": "adoption_to_volume",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-adoption_to_volume-target-mass_production_readiness",
+          "properties": {},
+          "sourceId": "adoption_to_volume",
+          "targetId": "mass_production_readiness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-adoption_to_volume-PROFILE",
+          "properties": {},
+          "sourceId": "adoption_to_volume",
+          "targetId": "qualification_commercialization",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-orders_to_capacity_pressure-source-order_visibility",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "orders_to_capacity_pressure",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-orders_to_capacity_pressure-intermediate-inventory_cycle_position",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "orders_to_capacity_pressure",
+          "targetId": "inventory_cycle_position",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-orders_to_capacity_pressure-target-capacity_tightness",
+          "properties": {},
+          "sourceId": "orders_to_capacity_pressure",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-orders_to_capacity_pressure-target-backlog_pressure",
+          "properties": {},
+          "sourceId": "orders_to_capacity_pressure",
+          "targetId": "backlog_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-orders_to_capacity_pressure-PROFILE",
+          "properties": {},
+          "sourceId": "orders_to_capacity_pressure",
+          "targetId": "demand_orders",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-source-end_market_demand_strength",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "end_market_demand_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-source-capacity_expansion_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "capacity_expansion_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-intermediate-capacity_tightness",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-intermediate-scaling_progress",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "scaling_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-intermediate-semiconductor_content_intensity",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "semiconductor_content_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-target-order_visibility",
+          "properties": {},
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-demand_to_upstream_inputs-PROFILE",
+          "properties": {},
+          "sourceId": "demand_to_upstream_inputs",
+          "targetId": "capacity_supply",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-inventory_destocking-source-inventory_cycle_position",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "inventory_destocking",
+          "targetId": "inventory_cycle_position",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_destocking-intermediate-inventory_buffer_capacity",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "inventory_destocking",
+          "targetId": "inventory_buffer_capacity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_destocking-target-order_visibility",
+          "properties": {},
+          "sourceId": "inventory_destocking",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-inventory_destocking-target-product_price_pressure",
+          "properties": {},
+          "sourceId": "inventory_destocking",
+          "targetId": "product_price_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-inventory_destocking-PROFILE",
+          "properties": {},
+          "sourceId": "inventory_destocking",
+          "targetId": "inventory_cycle",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-inventory_restocking-source-inventory_cycle_position",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "inventory_restocking",
+          "targetId": "inventory_cycle_position",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_restocking-source-end_market_demand_strength",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "inventory_restocking",
+          "targetId": "end_market_demand_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_restocking-intermediate-inventory_buffer_capacity",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "inventory_restocking",
+          "targetId": "inventory_buffer_capacity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_restocking-target-order_visibility",
+          "properties": {},
+          "sourceId": "inventory_restocking",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-inventory_restocking-target-capacity_tightness",
+          "properties": {},
+          "sourceId": "inventory_restocking",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-inventory_restocking-PROFILE",
+          "properties": {},
+          "sourceId": "inventory_restocking",
+          "targetId": "inventory_cycle",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-source-supply_availability",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-source-capacity_tightness",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-intermediate-inventory_buffer_capacity",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "inventory_buffer_capacity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-intermediate-pricing_power",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "pricing_power",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-target-product_price_pressure",
+          "properties": {},
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "product_price_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-target-production_cycle_pressure",
+          "properties": {},
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "production_cycle_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-supply_constraint_to_price_delivery-PROFILE",
+          "properties": {},
+          "sourceId": "supply_constraint_to_price_delivery",
+          "targetId": "capacity_supply",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-inventory_buffer_absorption-source-inventory_buffer_capacity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "inventory_buffer_absorption",
+          "targetId": "inventory_buffer_capacity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_buffer_absorption-intermediate-supply_availability",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "inventory_buffer_absorption",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-inventory_buffer_absorption-target-production_cycle_pressure",
+          "properties": {},
+          "sourceId": "inventory_buffer_absorption",
+          "targetId": "production_cycle_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-inventory_buffer_absorption-target-product_price_pressure",
+          "properties": {},
+          "sourceId": "inventory_buffer_absorption",
+          "targetId": "product_price_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-inventory_buffer_absorption-PROFILE",
+          "properties": {},
+          "sourceId": "inventory_buffer_absorption",
+          "targetId": "inventory_cycle",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-capacity_expansion_to_supply_relief-source-capacity_expansion_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "capacity_expansion_to_supply_relief",
+          "targetId": "capacity_expansion_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-capacity_expansion_to_supply_relief-source-yield_maturity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "capacity_expansion_to_supply_relief",
+          "targetId": "yield_maturity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-capacity_expansion_to_supply_relief-intermediate-customer_qualification_progress",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "capacity_expansion_to_supply_relief",
+          "targetId": "customer_qualification_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-capacity_expansion_to_supply_relief-target-supply_availability",
+          "properties": {},
+          "sourceId": "capacity_expansion_to_supply_relief",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-capacity_expansion_to_supply_relief-target-capacity_tightness",
+          "properties": {},
+          "sourceId": "capacity_expansion_to_supply_relief",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-capacity_expansion_to_supply_relief-PROFILE",
+          "properties": {},
+          "sourceId": "capacity_expansion_to_supply_relief",
+          "targetId": "capacity_supply",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-yield_to_effective_supply-source-yield_maturity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "yield_to_effective_supply",
+          "targetId": "yield_maturity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-yield_to_effective_supply-source-process_capability",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "yield_to_effective_supply",
+          "targetId": "process_capability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-yield_to_effective_supply-target-supply_availability",
+          "properties": {},
+          "sourceId": "yield_to_effective_supply",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-yield_to_effective_supply-target-input_cost_pressure",
+          "properties": {},
+          "sourceId": "yield_to_effective_supply",
+          "targetId": "input_cost_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-yield_to_effective_supply-target-mass_production_readiness",
+          "properties": {},
+          "sourceId": "yield_to_effective_supply",
+          "targetId": "mass_production_readiness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-yield_to_effective_supply-PROFILE",
+          "properties": {},
+          "sourceId": "yield_to_effective_supply",
+          "targetId": "manufacturing_yield",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-process_complexity_to_equipment_materials-source-scaling_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "process_complexity_to_equipment_materials",
+          "targetId": "scaling_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-process_complexity_to_equipment_materials-source-process_capability",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "process_complexity_to_equipment_materials",
+          "targetId": "process_capability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-process_complexity_to_equipment_materials-intermediate-technology_maturity",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "process_complexity_to_equipment_materials",
+          "targetId": "technology_maturity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-process_complexity_to_equipment_materials-target-customer_capex_intensity",
+          "properties": {},
+          "sourceId": "process_complexity_to_equipment_materials",
+          "targetId": "customer_capex_intensity",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-process_complexity_to_equipment_materials-target-input_cost_pressure",
+          "properties": {},
+          "sourceId": "process_complexity_to_equipment_materials",
+          "targetId": "input_cost_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-process_complexity_to_equipment_materials-PROFILE",
+          "properties": {},
+          "sourceId": "process_complexity_to_equipment_materials",
+          "targetId": "technology_route",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-scaling_to_yield_cost-source-scaling_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "scaling_to_yield_cost",
+          "targetId": "scaling_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-scaling_to_yield_cost-intermediate-process_capability",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "scaling_to_yield_cost",
+          "targetId": "process_capability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-scaling_to_yield_cost-target-yield_maturity",
+          "properties": {},
+          "sourceId": "scaling_to_yield_cost",
+          "targetId": "yield_maturity",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-scaling_to_yield_cost-target-input_cost_pressure",
+          "properties": {},
+          "sourceId": "scaling_to_yield_cost",
+          "targetId": "input_cost_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-scaling_to_yield_cost-target-technology_competitiveness",
+          "properties": {},
+          "sourceId": "scaling_to_yield_cost",
+          "targetId": "technology_competitiveness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-scaling_to_yield_cost-PROFILE",
+          "properties": {},
+          "sourceId": "scaling_to_yield_cost",
+          "targetId": "technology_route",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-source-technology_maturity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "technology_maturity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-source-adoption_penetration",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "adoption_penetration",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-intermediate-mass_production_readiness",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "mass_production_readiness",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-intermediate-quality_reliability",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "quality_reliability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-target-order_visibility",
+          "properties": {},
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-target-capacity_tightness",
+          "properties": {},
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-target-input_cost_pressure",
+          "properties": {},
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "input_cost_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_to_inputs-PROFILE",
+          "properties": {},
+          "sourceId": "advanced_packaging_to_inputs",
+          "targetId": "technology_route",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-competitiveness_to_substitution-source-technology_competitiveness",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "competitiveness_to_substitution",
+          "targetId": "technology_competitiveness",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-competitiveness_to_substitution-source-technology_maturity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "competitiveness_to_substitution",
+          "targetId": "technology_maturity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-competitiveness_to_substitution-intermediate-customer_switching_cost",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "competitiveness_to_substitution",
+          "targetId": "customer_switching_cost",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-competitiveness_to_substitution-target-technology_substitution_intensity",
+          "properties": {},
+          "sourceId": "competitiveness_to_substitution",
+          "targetId": "technology_substitution_intensity",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-competitiveness_to_substitution-target-adoption_penetration",
+          "properties": {},
+          "sourceId": "competitiveness_to_substitution",
+          "targetId": "adoption_penetration",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-competitiveness_to_substitution-PROFILE",
+          "properties": {},
+          "sourceId": "competitiveness_to_substitution",
+          "targetId": "technology_route",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-qualification_to_mass_production-source-customer_qualification_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "qualification_to_mass_production",
+          "targetId": "customer_qualification_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-qualification_to_mass_production-intermediate-design_win_visibility",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "qualification_to_mass_production",
+          "targetId": "design_win_visibility",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-qualification_to_mass_production-intermediate-quality_reliability",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "qualification_to_mass_production",
+          "targetId": "quality_reliability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-qualification_to_mass_production-target-mass_production_readiness",
+          "properties": {},
+          "sourceId": "qualification_to_mass_production",
+          "targetId": "mass_production_readiness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-qualification_to_mass_production-target-order_visibility",
+          "properties": {},
+          "sourceId": "qualification_to_mass_production",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-qualification_to_mass_production-PROFILE",
+          "properties": {},
+          "sourceId": "qualification_to_mass_production",
+          "targetId": "qualification_commercialization",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-localization_to_resilience-source-localization_substitution_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "localization_to_resilience",
+          "targetId": "localization_substitution_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-localization_to_resilience-intermediate-customer_qualification_progress",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "localization_to_resilience",
+          "targetId": "customer_qualification_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-localization_to_resilience-intermediate-mass_production_readiness",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "localization_to_resilience",
+          "targetId": "mass_production_readiness",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-localization_to_resilience-target-supply_chain_resilience",
+          "properties": {},
+          "sourceId": "localization_to_resilience",
+          "targetId": "supply_chain_resilience",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-localization_to_resilience-target-supply_availability",
+          "properties": {},
+          "sourceId": "localization_to_resilience",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-localization_to_resilience-PROFILE",
+          "properties": {},
+          "sourceId": "localization_to_resilience",
+          "targetId": "qualification_commercialization",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-policy_support_to_capacity-source-policy_support_strength",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "policy_support_to_capacity",
+          "targetId": "policy_support_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-policy_support_to_capacity-intermediate-entry_barrier_strength",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "policy_support_to_capacity",
+          "targetId": "entry_barrier_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-policy_support_to_capacity-target-customer_capex_intensity",
+          "properties": {},
+          "sourceId": "policy_support_to_capacity",
+          "targetId": "customer_capex_intensity",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-policy_support_to_capacity-target-capacity_expansion_progress",
+          "properties": {},
+          "sourceId": "policy_support_to_capacity",
+          "targetId": "capacity_expansion_progress",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-policy_support_to_capacity-PROFILE",
+          "properties": {},
+          "sourceId": "policy_support_to_capacity",
+          "targetId": "policy_trade",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-export_control_to_supply-source-export_control_intensity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "export_control_to_supply",
+          "targetId": "export_control_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-export_control_to_supply-intermediate-supply_chain_resilience",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "export_control_to_supply",
+          "targetId": "supply_chain_resilience",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-export_control_to_supply-intermediate-localization_substitution_progress",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "export_control_to_supply",
+          "targetId": "localization_substitution_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-export_control_to_supply-target-compliance_friction",
+          "properties": {},
+          "sourceId": "export_control_to_supply",
+          "targetId": "compliance_friction",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-export_control_to_supply-target-supply_availability",
+          "properties": {},
+          "sourceId": "export_control_to_supply",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-export_control_to_supply-PROFILE",
+          "properties": {},
+          "sourceId": "export_control_to_supply",
+          "targetId": "policy_trade",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-source-competitive_intensity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "competitive_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-intermediate-customer_switching_cost",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "customer_switching_cost",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-intermediate-entry_barrier_strength",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "entry_barrier_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-target-pricing_power",
+          "properties": {},
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "pricing_power",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-target-product_price_pressure",
+          "properties": {},
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "product_price_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-target-profit_pool_shift",
+          "properties": {},
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "profit_pool_shift",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-competition_to_pricing_profit-PROFILE",
+          "properties": {},
+          "sourceId": "competition_to_pricing_profit",
+          "targetId": "competition_structure",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-source-value_chain_role_exposure",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "value_chain_role_exposure",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-source-technology_route_exposure",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "technology_route_exposure",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-source-execution_delivery_capability",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "execution_delivery_capability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-intermediate-pricing_power",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "pricing_power",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-intermediate-input_cost_pressure",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "input_cost_pressure",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-intermediate-profit_pool_shift",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "profit_pool_shift",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-target-earnings_elasticity",
+          "properties": {},
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "earnings_elasticity",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-exposure_execution_to_earnings-PROFILE",
+          "properties": {},
+          "sourceId": "exposure_execution_to_earnings",
+          "targetId": "company_exposure_execution",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-source-earnings_elasticity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "earnings_elasticity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-source-order_visibility",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-source-technology_substitution_intensity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "technology_substitution_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-intermediate-consensus_expectation_level",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "consensus_expectation_level",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-intermediate-counter_evidence_strength",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "counter_evidence_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-target-expectation_gap",
+          "properties": {},
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "expectation_gap",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-fundamentals_to_expectation_gap-PROFILE",
+          "properties": {},
+          "sourceId": "fundamentals_to_expectation_gap",
+          "targetId": "market_expectations",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-expectation_gap_to_pricing-source-expectation_gap",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "expectation_gap_to_pricing",
+          "targetId": "expectation_gap",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-expectation_gap_to_pricing-intermediate-consensus_expectation_level",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "expectation_gap_to_pricing",
+          "targetId": "consensus_expectation_level",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-expectation_gap_to_pricing-intermediate-counter_evidence_strength",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "expectation_gap_to_pricing",
+          "targetId": "counter_evidence_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-expectation_gap_to_pricing-target-priced_in_degree",
+          "properties": {},
+          "sourceId": "expectation_gap_to_pricing",
+          "targetId": "priced_in_degree",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-expectation_gap_to_pricing-PROFILE",
+          "properties": {},
+          "sourceId": "expectation_gap_to_pricing",
+          "targetId": "market_expectations",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-supply_elasticity_to_price_persistence-source-supply_elasticity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "supply_elasticity_to_price_persistence",
+          "targetId": "supply_elasticity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_elasticity_to_price_persistence-source-capacity_tightness",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "supply_elasticity_to_price_persistence",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_elasticity_to_price_persistence-intermediate-supply_availability",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "supply_elasticity_to_price_persistence",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_elasticity_to_price_persistence-intermediate-pricing_power",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "supply_elasticity_to_price_persistence",
+          "targetId": "pricing_power",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-supply_elasticity_to_price_persistence-target-product_price_pressure",
+          "properties": {},
+          "sourceId": "supply_elasticity_to_price_persistence",
+          "targetId": "product_price_pressure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-supply_elasticity_to_price_persistence-PROFILE",
+          "properties": {},
+          "sourceId": "supply_elasticity_to_price_persistence",
+          "targetId": "capacity_supply",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-design_win_to_order_pipeline-source-design_win_visibility",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "design_win_to_order_pipeline",
+          "targetId": "design_win_visibility",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-design_win_to_order_pipeline-source-customer_qualification_progress",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "design_win_to_order_pipeline",
+          "targetId": "customer_qualification_progress",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-design_win_to_order_pipeline-intermediate-adoption_penetration",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "design_win_to_order_pipeline",
+          "targetId": "adoption_penetration",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-design_win_to_order_pipeline-target-order_visibility",
+          "properties": {},
+          "sourceId": "design_win_to_order_pipeline",
+          "targetId": "order_visibility",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-design_win_to_order_pipeline-target-mass_production_readiness",
+          "properties": {},
+          "sourceId": "design_win_to_order_pipeline",
+          "targetId": "mass_production_readiness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-design_win_to_order_pipeline-PROFILE",
+          "properties": {},
+          "sourceId": "design_win_to_order_pipeline",
+          "targetId": "qualification_commercialization",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-bottleneck_cascade_to_supply-source-bottleneck_dependency_concentration",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "bottleneck_cascade_to_supply",
+          "targetId": "bottleneck_dependency_concentration",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-bottleneck_cascade_to_supply-intermediate-supply_chain_resilience",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "bottleneck_cascade_to_supply",
+          "targetId": "supply_chain_resilience",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-bottleneck_cascade_to_supply-target-supply_availability",
+          "properties": {},
+          "sourceId": "bottleneck_cascade_to_supply",
+          "targetId": "supply_availability",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-bottleneck_cascade_to_supply-target-capacity_tightness",
+          "properties": {},
+          "sourceId": "bottleneck_cascade_to_supply",
+          "targetId": "capacity_tightness",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-bottleneck_cascade_to_supply-PROFILE",
+          "properties": {},
+          "sourceId": "bottleneck_cascade_to_supply",
+          "targetId": "capacity_supply",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-regional_policy_to_company_exposure-source-export_control_intensity",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "regional_policy_to_company_exposure",
+          "targetId": "export_control_intensity",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-regional_policy_to_company_exposure-source-policy_support_strength",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "regional_policy_to_company_exposure",
+          "targetId": "policy_support_strength",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-regional_policy_to_company_exposure-intermediate-supply_chain_resilience",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "regional_policy_to_company_exposure",
+          "targetId": "supply_chain_resilience",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-regional_policy_to_company_exposure-target-regional_policy_exposure",
+          "properties": {},
+          "sourceId": "regional_policy_to_company_exposure",
+          "targetId": "regional_policy_exposure",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-regional_policy_to_company_exposure-target-compliance_friction",
+          "properties": {},
+          "sourceId": "regional_policy_to_company_exposure",
+          "targetId": "compliance_friction",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-regional_policy_to_company_exposure-PROFILE",
+          "properties": {},
+          "sourceId": "regional_policy_to_company_exposure",
+          "targetId": "policy_trade",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-product_mix_to_earnings_quality-source-product_mix_structure",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "product_mix_to_earnings_quality",
+          "targetId": "product_mix_structure",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-product_mix_to_earnings_quality-source-value_chain_role_exposure",
+          "properties": {
+            "role": "source"
+          },
+          "sourceId": "product_mix_to_earnings_quality",
+          "targetId": "value_chain_role_exposure",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-product_mix_to_earnings_quality-intermediate-pricing_power",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "product_mix_to_earnings_quality",
+          "targetId": "pricing_power",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-product_mix_to_earnings_quality-intermediate-input_cost_pressure",
+          "properties": {
+            "role": "intermediate"
+          },
+          "sourceId": "product_mix_to_earnings_quality",
+          "targetId": "input_cost_pressure",
+          "type": "propagationTemplateUsesSourceVariable"
+        },
+        {
+          "id": "REL-product_mix_to_earnings_quality-target-earnings_elasticity",
+          "properties": {},
+          "sourceId": "product_mix_to_earnings_quality",
+          "targetId": "earnings_elasticity",
+          "type": "propagationTemplateProducesVariable"
+        },
+        {
+          "id": "REL-product_mix_to_earnings_quality-PROFILE",
+          "properties": {},
+          "sourceId": "product_mix_to_earnings_quality",
+          "targetId": "company_exposure_execution",
+          "type": "propagationTemplateUsesEvidenceProfile"
+        },
+        {
+          "id": "REL-base-VARIABLE-end_market_demand_strength",
+          "properties": {},
+          "sourceId": "base",
+          "targetId": "end_market_demand_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-base-VARIABLE-supply_availability",
+          "properties": {},
+          "sourceId": "base",
+          "targetId": "supply_availability",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-base-VARIABLE-technology_maturity",
+          "properties": {},
+          "sourceId": "base",
+          "targetId": "technology_maturity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-base-VARIABLE-competitive_intensity",
+          "properties": {},
+          "sourceId": "base",
+          "targetId": "competitive_intensity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-base-VARIABLE-counter_evidence_strength",
+          "properties": {},
+          "sourceId": "base",
+          "targetId": "counter_evidence_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-upside-VARIABLE-end_market_demand_strength",
+          "properties": {},
+          "sourceId": "upside",
+          "targetId": "end_market_demand_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-upside-VARIABLE-adoption_penetration",
+          "properties": {},
+          "sourceId": "upside",
+          "targetId": "adoption_penetration",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-upside-VARIABLE-order_visibility",
+          "properties": {},
+          "sourceId": "upside",
+          "targetId": "order_visibility",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-upside-VARIABLE-pricing_power",
+          "properties": {},
+          "sourceId": "upside",
+          "targetId": "pricing_power",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-upside-VARIABLE-execution_delivery_capability",
+          "properties": {},
+          "sourceId": "upside",
+          "targetId": "execution_delivery_capability",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-downside-VARIABLE-end_market_demand_strength",
+          "properties": {},
+          "sourceId": "downside",
+          "targetId": "end_market_demand_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-downside-VARIABLE-inventory_cycle_position",
+          "properties": {},
+          "sourceId": "downside",
+          "targetId": "inventory_cycle_position",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-downside-VARIABLE-order_visibility",
+          "properties": {},
+          "sourceId": "downside",
+          "targetId": "order_visibility",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-downside-VARIABLE-competitive_intensity",
+          "properties": {},
+          "sourceId": "downside",
+          "targetId": "competitive_intensity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-downside-VARIABLE-pricing_power",
+          "properties": {},
+          "sourceId": "downside",
+          "targetId": "pricing_power",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-stress-VARIABLE-supply_availability",
+          "properties": {},
+          "sourceId": "stress",
+          "targetId": "supply_availability",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-stress-VARIABLE-compliance_friction",
+          "properties": {},
+          "sourceId": "stress",
+          "targetId": "compliance_friction",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-stress-VARIABLE-supply_chain_resilience",
+          "properties": {},
+          "sourceId": "stress",
+          "targetId": "supply_chain_resilience",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-stress-VARIABLE-inventory_buffer_capacity",
+          "properties": {},
+          "sourceId": "stress",
+          "targetId": "inventory_buffer_capacity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-stress-VARIABLE-counter_evidence_strength",
+          "properties": {},
+          "sourceId": "stress",
+          "targetId": "counter_evidence_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-cycle_recovery-VARIABLE-end_market_demand_strength",
+          "properties": {},
+          "sourceId": "cycle_recovery",
+          "targetId": "end_market_demand_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-cycle_recovery-VARIABLE-inventory_cycle_position",
+          "properties": {},
+          "sourceId": "cycle_recovery",
+          "targetId": "inventory_cycle_position",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-cycle_recovery-VARIABLE-order_visibility",
+          "properties": {},
+          "sourceId": "cycle_recovery",
+          "targetId": "order_visibility",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-cycle_downturn-VARIABLE-end_market_demand_strength",
+          "properties": {},
+          "sourceId": "cycle_downturn",
+          "targetId": "end_market_demand_strength",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-cycle_downturn-VARIABLE-inventory_cycle_position",
+          "properties": {},
+          "sourceId": "cycle_downturn",
+          "targetId": "inventory_cycle_position",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-cycle_downturn-VARIABLE-product_price_pressure",
+          "properties": {},
+          "sourceId": "cycle_downturn",
+          "targetId": "product_price_pressure",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-supply_shock-VARIABLE-supply_availability",
+          "properties": {},
+          "sourceId": "supply_shock",
+          "targetId": "supply_availability",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-supply_shock-VARIABLE-bottleneck_dependency_concentration",
+          "properties": {},
+          "sourceId": "supply_shock",
+          "targetId": "bottleneck_dependency_concentration",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-overcapacity_expansion-VARIABLE-capacity_expansion_progress",
+          "properties": {},
+          "sourceId": "overcapacity_expansion",
+          "targetId": "capacity_expansion_progress",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-overcapacity_expansion-VARIABLE-capacity_tightness",
+          "properties": {},
+          "sourceId": "overcapacity_expansion",
+          "targetId": "capacity_tightness",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-overcapacity_expansion-VARIABLE-supply_elasticity",
+          "properties": {},
+          "sourceId": "overcapacity_expansion",
+          "targetId": "supply_elasticity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-technology_transition-VARIABLE-technology_substitution_intensity",
+          "properties": {},
+          "sourceId": "technology_transition",
+          "targetId": "technology_substitution_intensity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-technology_transition-VARIABLE-technology_maturity",
+          "properties": {},
+          "sourceId": "technology_transition",
+          "targetId": "technology_maturity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-domestic_substitution-VARIABLE-localization_substitution_progress",
+          "properties": {},
+          "sourceId": "domestic_substitution",
+          "targetId": "localization_substitution_progress",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-domestic_substitution-VARIABLE-customer_qualification_progress",
+          "properties": {},
+          "sourceId": "domestic_substitution",
+          "targetId": "customer_qualification_progress",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-export_control_scenario-VARIABLE-export_control_intensity",
+          "properties": {},
+          "sourceId": "export_control_scenario",
+          "targetId": "export_control_intensity",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-export_control_scenario-VARIABLE-regional_policy_exposure",
+          "properties": {},
+          "sourceId": "export_control_scenario",
+          "targetId": "regional_policy_exposure",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_bottleneck-VARIABLE-bottleneck_dependency_concentration",
+          "properties": {},
+          "sourceId": "advanced_packaging_bottleneck",
+          "targetId": "bottleneck_dependency_concentration",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-advanced_packaging_bottleneck-VARIABLE-capacity_tightness",
+          "properties": {},
+          "sourceId": "advanced_packaging_bottleneck",
+          "targetId": "capacity_tightness",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-inventory_correction-VARIABLE-inventory_cycle_position",
+          "properties": {},
+          "sourceId": "inventory_correction",
+          "targetId": "inventory_cycle_position",
+          "type": "scenarioTemplateConstrainsVariable"
+        },
+        {
+          "id": "REL-inventory_correction-VARIABLE-inventory_buffer_capacity",
+          "properties": {},
+          "sourceId": "inventory_correction",
+          "targetId": "inventory_buffer_capacity",
+          "type": "scenarioTemplateConstrainsVariable"
+        }
+      ],
+      "schema_name": "ontology_business_instance_graph",
+      "schema_version": "1.0.0"
+    }
+  },
+  "fingerprint": "sha256:a0f2063c8a4cd0a010e0eba5534a45349d27686daf7fb7f462891f63fd560f36",
   "functions": {
+    "AssembleResearchRequirements": {
+      "description": "将已确认 Lens 的对象接口、证据角色和停止条件组合成 Problem Graph 输入。",
+      "deterministic": true,
+      "implementation": "ontology-function/assemble-research-requirements",
+      "inputs": {
+        "lensRefs": "array",
+        "mandateRef": "object_ref"
+      },
+      "label_zh": "装配研究要求",
+      "outputs": {
+        "requirements": "object"
+      },
+      "reads": [
+        "ResearchMandate",
+        "ResearchQuestion",
+        "StateVariable",
+        "EvidenceRequirement"
+      ],
+      "side_effects": false,
+      "version": "1.0.0"
+    },
     "AssessEvidenceUsability": {
       "description": "根据快照核验、范围和独立来源计算证据是否足以支撑当前用途。",
       "deterministic": true,
@@ -1299,6 +7920,26 @@ export const ONTOLOGY_CATALOG = {
         "SourceSnapshot",
         "EvidenceFact",
         "JudgmentUnit"
+      ],
+      "side_effects": false,
+      "version": "1.0.0"
+    },
+    "CompareExpectationGap": {
+      "description": "比较研究预测与冻结共识快照，保留期间、口径和截面一致性结果。",
+      "deterministic": true,
+      "implementation": "ontology-function/compare-expectation-gap",
+      "inputs": {
+        "consensusRef": "object_ref",
+        "forecastRef": "object_ref"
+      },
+      "label_zh": "比较预期差",
+      "outputs": {
+        "expectationGap": "object"
+      },
+      "reads": [
+        "Forecast",
+        "ConsensusSnapshot",
+        "ExpectationGap"
       ],
       "side_effects": false,
       "version": "1.0.0"
@@ -1323,6 +7964,27 @@ export const ONTOLOGY_CATALOG = {
         "Hypothesis",
         "Signal",
         "RuleEvaluation"
+      ],
+      "side_effects": false,
+      "version": "1.0.0"
+    },
+    "ComputeValuationScenario": {
+      "description": "根据已审计预测和情景假设计算非交易性估值敏感性。",
+      "deterministic": true,
+      "implementation": "ontology-function/compute-valuation-scenario",
+      "inputs": {
+        "assumptionRefs": "array",
+        "forecastRefs": "array",
+        "method": "string"
+      },
+      "label_zh": "计算估值情景",
+      "outputs": {
+        "valuationScenario": "object"
+      },
+      "reads": [
+        "Forecast",
+        "ForecastAssumption",
+        "FinancialObservation"
       ],
       "side_effects": false,
       "version": "1.0.0"
@@ -1387,7 +8049,2194 @@ export const ONTOLOGY_CATALOG = {
       ],
       "side_effects": false,
       "version": "1.0.0"
+    },
+    "NormalizeFinancialObservation": {
+      "description": "对财务值、单位、报告期、会计口径和版本进行只读归一。",
+      "deterministic": true,
+      "implementation": "ontology-function/normalize-financial-observation",
+      "inputs": {
+        "metricRef": "object_ref",
+        "observation": "object"
+      },
+      "label_zh": "归一财务观测",
+      "outputs": {
+        "normalizedObservation": "object"
+      },
+      "reads": [
+        "FinancialObservation",
+        "FinancialMetric",
+        "FinancialReport"
+      ],
+      "side_effects": false,
+      "version": "1.0.0"
+    },
+    "SuggestResearchLenses": {
+      "description": "按研究目标、对象与可用语义资产建议可组合 Lens，不写正式对象。",
+      "deterministic": true,
+      "implementation": "ontology-function/suggest-research-lenses",
+      "inputs": {
+        "availableLensRefs": "array",
+        "goal": "string"
+      },
+      "label_zh": "建议研究视角",
+      "outputs": {
+        "suggestions": "array"
+      },
+      "reads": [
+        "ResearchCase",
+        "Company",
+        "Industry",
+        "Event",
+        "FinancialInstrument"
+      ],
+      "side_effects": false,
+      "version": "1.0.0"
     }
+  },
+  "interfaces": {
+    "DecisionArtifact": {
+      "action_capabilities": [
+        "read",
+        "approve",
+        "trace_provenance"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "原始来源文档"
+        ],
+        "definition": "由研究流程形成并带有条件、失效边界和审批轨迹的对象形状。",
+        "examples": [
+          "研究判断",
+          "估值评估"
+        ],
+        "id": "DecisionArtifact",
+        "label_en": "Decision Artifact",
+        "label_zh": "决策研究制品",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "cutoff_at",
+        "conditions",
+        "invalidation_conditions"
+      ]
+    },
+    "EvidenceBearing": {
+      "action_capabilities": [
+        "read",
+        "trace_provenance"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "未验证聊天文本"
+        ],
+        "definition": "必须可追溯到来源快照或受治理映射执行的对象形状。",
+        "examples": [
+          "证据事实",
+          "财务观测"
+        ],
+        "id": "EvidenceBearing",
+        "label_en": "Evidence Bearing",
+        "label_zh": "证据承载对象",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "source_ref",
+        "cutoff_at"
+      ]
+    },
+    "Facility": {
+      "action_capabilities": [
+        "read"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "工艺步骤"
+        ],
+        "definition": "可定位、可运营并可承载制造能力的实体设施形状。",
+        "examples": [
+          "晶圆厂"
+        ],
+        "id": "Facility",
+        "label_en": "Facility",
+        "label_zh": "设施",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "id",
+        "name"
+      ]
+    },
+    "InvestableAsset": {
+      "action_capabilities": [
+        "read",
+        "valuation_subject"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "持仓指令"
+        ],
+        "definition": "可被估值、预期差和市场影响研究引用的资产形状，不代表交易授权。",
+        "examples": [
+          "上市股票",
+          "债券"
+        ],
+        "id": "InvestableAsset",
+        "label_en": "Investable Asset",
+        "label_zh": "可研究资产",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "id",
+        "name"
+      ]
+    },
+    "NamedEntity": {
+      "action_capabilities": [
+        "read"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "一次性研究任务"
+        ],
+        "definition": "具有稳定名称和别名的可识别对象形状。",
+        "examples": [
+          "公司",
+          "行业"
+        ],
+        "id": "NamedEntity",
+        "label_en": "Named Entity",
+        "label_zh": "命名实体",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "name",
+        "aliases"
+      ]
+    },
+    "ObservableSubject": {
+      "action_capabilities": [
+        "read",
+        "observe"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "来源文档"
+        ],
+        "definition": "可以承载指标观测或状态变量的研究主体形状。",
+        "examples": [
+          "公司",
+          "产品"
+        ],
+        "id": "ObservableSubject",
+        "label_en": "Observable Subject",
+        "label_zh": "可观测主体",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "id"
+      ]
+    },
+    "ResearchSubject": {
+      "action_capabilities": [
+        "read",
+        "evidence_subject"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "判断本身"
+        ],
+        "definition": "可以被研究范围、事实、判断或预测直接指向的现实对象形状。",
+        "examples": [
+          "公司",
+          "行业",
+          "金融工具"
+        ],
+        "id": "ResearchSubject",
+        "label_en": "Research Subject",
+        "label_zh": "研究主体",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "id"
+      ]
+    },
+    "TimeScoped": {
+      "action_capabilities": [
+        "read",
+        "as_of_filter"
+      ],
+      "metadata": {
+        "aliases": [],
+        "counter_examples": [
+          "静态行业分类"
+        ],
+        "definition": "具有生效、观察或截止时间边界的对象形状。",
+        "examples": [
+          "财务观测",
+          "预测"
+        ],
+        "id": "TimeScoped",
+        "label_en": "Time Scoped",
+        "label_zh": "时间范围对象",
+        "model": "semantic",
+        "namespace": "core.semantic",
+        "replaced_by": [],
+        "source": "ontology-5.0-design",
+        "status": "active",
+        "valid_from": "2026-08-11",
+        "valid_to": null,
+        "version": "5.0.0"
+      },
+      "properties": [
+        "valid_from",
+        "valid_to",
+        "cutoff_at"
+      ]
+    }
+  },
+  "lensProfiles": {
+    "cycle": {
+      "allow_indeterminate": true,
+      "comparison_basis": "historical_cycle",
+      "default_horizon": "6-18个月",
+      "evidence_roles": [
+        "support",
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "周期",
+      "required_interfaces": [
+        "ResearchSubject",
+        "ObservableSubject"
+      ],
+      "required_outputs": [
+        "StateVariable",
+        "ResearchThesis"
+      ],
+      "stop_conditions": [
+        "cycle_state_and_turning_conditions_assessed"
+      ],
+      "task_motifs": [
+        "cycle_judgment",
+        "value_chain_analysis"
+      ]
+    },
+    "event_driven": {
+      "allow_indeterminate": true,
+      "comparison_basis": "pre_event_baseline",
+      "default_horizon": "事件窗口",
+      "evidence_roles": [
+        "support",
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "事件驱动",
+      "required_interfaces": [
+        "ResearchSubject",
+        "TimeScoped"
+      ],
+      "required_outputs": [
+        "Event",
+        "ResearchThesis"
+      ],
+      "stop_conditions": [
+        "event_scope_and_transmission_assessed"
+      ],
+      "task_motifs": [
+        "event_impact_analysis",
+        "earnings_update"
+      ]
+    },
+    "expectation_gap": {
+      "allow_indeterminate": true,
+      "comparison_basis": "consensus_and_pre_event_baseline",
+      "default_horizon": "下一报告期",
+      "evidence_roles": [
+        "support",
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "预期差",
+      "required_interfaces": [
+        "InvestableAsset",
+        "TimeScoped"
+      ],
+      "required_outputs": [
+        "ConsensusSnapshot",
+        "ExpectationGap"
+      ],
+      "stop_conditions": [
+        "expectation_baseline_and_delta_verified"
+      ],
+      "task_motifs": [
+        "earnings_update",
+        "thesis_review"
+      ]
+    },
+    "fundamental": {
+      "allow_indeterminate": true,
+      "comparison_basis": "historical_and_peer",
+      "default_horizon": "12个月",
+      "evidence_roles": [
+        "support",
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "基本面",
+      "required_interfaces": [
+        "ResearchSubject",
+        "ObservableSubject"
+      ],
+      "required_outputs": [
+        "FinancialObservation",
+        "ResearchThesis"
+      ],
+      "stop_conditions": [
+        "drivers_and_financial_bridge_resolved"
+      ],
+      "task_motifs": [
+        "company_analysis",
+        "company_coverage",
+        "earnings_update"
+      ]
+    },
+    "growth": {
+      "allow_indeterminate": true,
+      "comparison_basis": "growth_duration_and_peer",
+      "default_horizon": "12-36个月",
+      "evidence_roles": [
+        "support",
+        "counter"
+      ],
+      "label_zh": "成长",
+      "required_interfaces": [
+        "ObservableSubject"
+      ],
+      "required_outputs": [
+        "Forecast",
+        "ForecastAssumption"
+      ],
+      "stop_conditions": [
+        "growth_driver_and_constraints_resolved"
+      ],
+      "task_motifs": [
+        "company_analysis",
+        "earnings_update",
+        "technology_route_analysis"
+      ]
+    },
+    "quality": {
+      "allow_indeterminate": true,
+      "comparison_basis": "profitability_cashflow_governance",
+      "default_horizon": "12个月",
+      "evidence_roles": [
+        "support",
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "质量",
+      "required_interfaces": [
+        "ResearchSubject",
+        "ObservableSubject"
+      ],
+      "required_outputs": [
+        "FinancialObservation",
+        "ResearchThesis"
+      ],
+      "stop_conditions": [
+        "quality_of_earnings_assessed"
+      ],
+      "task_motifs": [
+        "company_analysis",
+        "company_coverage"
+      ]
+    },
+    "risk_first": {
+      "allow_indeterminate": true,
+      "comparison_basis": "downside_and_stress",
+      "default_horizon": "12个月",
+      "evidence_roles": [
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "风险优先",
+      "required_interfaces": [
+        "ResearchSubject",
+        "TimeScoped"
+      ],
+      "required_outputs": [
+        "BlockingFactor",
+        "ResearchThesis"
+      ],
+      "stop_conditions": [
+        "downside_paths_and_invalidation_conditions_recorded"
+      ],
+      "task_motifs": [
+        "thesis_review",
+        "event_impact_analysis"
+      ]
+    },
+    "value_valuation": {
+      "allow_indeterminate": true,
+      "comparison_basis": "normalized_earnings_and_peer",
+      "default_horizon": "12个月",
+      "evidence_roles": [
+        "support",
+        "counter",
+        "boundary"
+      ],
+      "label_zh": "价值与估值",
+      "required_interfaces": [
+        "InvestableAsset",
+        "ObservableSubject"
+      ],
+      "required_outputs": [
+        "Forecast",
+        "ValuationAssessment"
+      ],
+      "stop_conditions": [
+        "valuation_inputs_and_sensitivities_audited"
+      ],
+      "task_motifs": [
+        "company_analysis",
+        "earnings_update"
+      ]
+    }
+  },
+  "mappingProfiles": [
+    {
+      "connector": "cninfo",
+      "description": "巨潮公告检索结果先登记为来源文档；不得由连接器响应直接形成 EvidenceFact 或 Judgment。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Judgment"
+      ],
+      "id": "cninfo_source_document",
+      "source_grain": "one_disclosure_document",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "announcementTitle",
+                "title"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "url",
+                "adjunctUrl"
+              ],
+              "target_attribute": "uri",
+              "transform": "normalize_uri"
+            },
+            {
+              "source_paths": [
+                "announcementTime",
+                "published_at"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "announcementId",
+            "announcement_id",
+            "url"
+          ],
+          "materialization": "candidate_only",
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-stock-finoper-mcp",
+      "description": "通联财务行映射为带业务时间的观测候选；主体、指标、单位、范围和研究截止时间必须由调用上下文显式绑定。",
+      "forbidden_direct_targets": [
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_finoper_observation",
+      "source_grain": "one_company_financial_metric_period",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "publishDate",
+                "actPubtime"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "ticker",
+            "secID",
+            "endDate",
+            "reportType",
+            "field"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "subject_ref",
+            "metric_ref",
+            "unit",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        },
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.source_title"
+              ],
+              "target_attribute": "title",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.source_uri"
+              ],
+              "target_attribute": "uri",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "publishDate",
+                "actPubtime"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "ticker",
+            "endDate",
+            "reportType"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "source_title",
+            "source_uri",
+            "source_tier"
+          ],
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "china-policy",
+      "description": "中央政策检索结果先登记官方来源；政策发布事件和政策工具只有在发生、生效、管辖与适用对象明确后才能物化。",
+      "forbidden_direct_targets": [
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "china_policy_document_event",
+      "source_grain": "one_official_policy_document",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "title",
+                "name"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "url",
+                "source_url"
+              ],
+              "target_attribute": "uri",
+              "transform": "normalize_uri"
+            },
+            {
+              "source_paths": [
+                "published_at",
+                "publish_date"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "document_id",
+            "policy_id",
+            "url"
+          ],
+          "materialization": "candidate_only",
+          "target_type": "SourceDocument"
+        },
+        {
+          "completeness_gate": [
+            "name",
+            "event_type",
+            "occurred_at",
+            "effective_at",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "title",
+                "name"
+              ],
+              "target_attribute": "name",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "$constant.policy"
+              ],
+              "target_attribute": "event_type",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "issued_at",
+                "published_at"
+              ],
+              "target_attribute": "occurred_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "effective_at"
+              ],
+              "target_attribute": "effective_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "published_at",
+                "publish_date"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "document_id",
+            "policy_id"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "cutoff_at",
+            "jurisdiction_ref",
+            "applies_to_refs"
+          ],
+          "target_type": "Event"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-stock-info-mcp",
+      "description": "公司基础记录只形成 Company 身份候选；证券代码必须归一到稳定公司 ID，禁止把名称相似当成同一主体。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_stock_info_company",
+      "source_grain": "one_listed_company_record",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "name"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "partyShortName",
+                "secShortName",
+                "companyName",
+                "secFullName"
+              ],
+              "target_attribute": "name",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "partyID",
+                "secID",
+                "ticker",
+                "secCode"
+              ],
+              "target_attribute": "issuer_identifiers",
+              "transform": "collect_identifiers"
+            }
+          ],
+          "identity_source_paths": [
+            "partyID",
+            "secID",
+            "ticker",
+            "secCode"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "stable_company_id"
+          ],
+          "target_type": "Company"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-stock-mkt-mcp",
+      "description": "股票行情、估值和资金流只形成观测候选；证券到公司/资产、指标、单位、复权和交易日口径必须由上下文绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_stock_market_observation",
+      "source_grain": "one_security_market_metric_time",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "tradeDate",
+                "dataDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "tradeDate",
+                "dataDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "dataDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "secID",
+            "ticker",
+            "tradeDate",
+            "field"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "subject_ref",
+            "metric_ref",
+            "unit",
+            "adjustment_basis",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-stock-eqhld-mcp",
+      "description": "股东、质押和机构持股数据只形成带主体与报告期的观测候选；持有人身份、分母和股份口径必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_equity_holding_observation",
+      "source_grain": "one_holder_company_reporting_period",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate",
+                "dataDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate",
+                "dataDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "publishDate",
+                "actPubtime"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "secID",
+            "ticker",
+            "holderName",
+            "endDate",
+            "reportDate"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "subject_ref",
+            "holder_ref",
+            "metric_ref",
+            "denominator",
+            "unit",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-stock-event-mcp",
+      "description": "分红、回购、诉讼、融资等记录只形成事件候选；事件类型、主体、发生和生效时间必须经上下文与原公告核对。",
+      "forbidden_direct_targets": [
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_stock_event",
+      "source_grain": "one_company_event_record",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "name",
+            "event_type",
+            "occurred_at",
+            "effective_at",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "eventName",
+                "title",
+                "announcementTitle",
+                "eventType"
+              ],
+              "target_attribute": "name",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "$context.event_type"
+              ],
+              "target_attribute": "event_type",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "eventDate",
+                "publishDate",
+                "dataDate"
+              ],
+              "target_attribute": "occurred_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "effectiveDate",
+                "eventDate",
+                "publishDate"
+              ],
+              "target_attribute": "effective_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "publishDate",
+                "actPubtime"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "secID",
+            "ticker",
+            "eventID",
+            "announcementId"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "subject_ref",
+            "event_type",
+            "scope_ref",
+            "cutoff_at",
+            "source_document_ref"
+          ],
+          "target_type": "Event"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-macro-mcp",
+      "description": "宏观指标值只形成观测候选；指标代码、地区、频率、单位、季调和发布版本必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_macro_observation",
+      "source_grain": "one_macro_indicator_period_region",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "indicatorName",
+                "name",
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "value",
+                "actValue",
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "periodDate",
+                "dataDate",
+                "endDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "periodDate",
+                "dataDate",
+                "endDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "publishDate",
+                "releaseDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "indicatorID",
+            "id",
+            "region",
+            "periodDate",
+            "dataDate"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "metric_ref",
+            "region_ref",
+            "frequency",
+            "unit",
+            "seasonal_adjustment",
+            "vintage",
+            "scope_ref",
+            "cutoff_at"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-index-info-mcp",
+      "description": "指数定义、成分和权重结果先登记为来源文档候选；项目通用本体尚无独立 Index 类型，不得伪装成 Company 或 Industry。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_index_info_document",
+      "source_grain": "one_index_definition_or_constituent_snapshot",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "indexName",
+                "secShortName",
+                "$context.source_title"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "$context.source_uri"
+              ],
+              "target_attribute": "uri",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "tradeDate",
+                "dataDate",
+                "$context.published_at"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "indexID",
+            "ticker",
+            "tradeDate",
+            "dataDate"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "source_title",
+            "source_uri",
+            "source_tier",
+            "published_at"
+          ],
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-index-mktanl-mcp",
+      "description": "指数行情、估值和资金流只形成观测候选；指数身份、指标、单位和交易时间口径必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_index_market_observation",
+      "source_grain": "one_index_market_metric_time",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "tradeDate",
+                "dataDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "tradeDate",
+                "dataDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "dataDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "indexID",
+            "ticker",
+            "tradeDate",
+            "field"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "subject_ref",
+            "metric_ref",
+            "unit",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-fund-master-mcp",
+      "description": "基金档案和管理人记录先登记为来源文档候选；通用本体尚无 Fund 类型，禁止把基金身份误写为 Company。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_fund_master_document",
+      "source_grain": "one_fund_master_record",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "secShortName",
+                "fundName",
+                "$context.source_title"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "$context.source_uri"
+              ],
+              "target_attribute": "uri",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "publishDate",
+                "establishDate",
+                "$context.published_at"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "fundID",
+            "secID",
+            "ticker"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "source_title",
+            "source_uri",
+            "source_tier",
+            "published_at"
+          ],
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-fund-perf-mcp",
+      "description": "基金净值、收益和业绩指标只形成观测候选；基金身份、复权、区间、基准和单位必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_fund_performance_observation",
+      "source_grain": "one_fund_performance_metric_period",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "tradeDate",
+                "dataDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "tradeDate",
+                "dataDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "dataDate",
+                "publishDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "fundID",
+            "secID",
+            "ticker",
+            "endDate",
+            "tradeDate",
+            "field"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "subject_ref",
+            "metric_ref",
+            "unit",
+            "adjustment_basis",
+            "benchmark_ref",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-fund-holding-mcp",
+      "description": "基金持仓、资产和行业配置只形成观测候选；基金、标的、资产分类、分母与报告期必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_fund_holding_observation",
+      "source_grain": "one_fund_holding_asset_reporting_period",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "publishDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "fundID",
+            "secID",
+            "holdingSecID",
+            "endDate",
+            "reportDate"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "fund_ref",
+            "asset_ref",
+            "metric_ref",
+            "denominator",
+            "unit",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-fund-fincap-mcp",
+      "description": "基金财务、份额和持有人结构只形成观测候选；基金身份、指标、分母、单位和报告期必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_fund_fincap_observation",
+      "source_grain": "one_fund_financial_metric_period",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "publishDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "fundID",
+            "secID",
+            "endDate",
+            "reportDate",
+            "field"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "fund_ref",
+            "metric_ref",
+            "denominator",
+            "unit",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "datayes-fund-analytics-mcp",
+      "description": "风险收益、归因和风格分析只形成观测候选；算法口径、窗口、基准、单位和样本期必须显式绑定。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "datayes_fund_analytics_observation",
+      "source_grain": "one_fund_analytics_metric_period",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$context.metric_label"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "$context.value_field"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate",
+                "dataDate"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "endDate",
+                "reportDate",
+                "dataDate"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "dataDate",
+                "publishDate"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.cutoff_at"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "fundID",
+            "secID",
+            "beginDate",
+            "endDate",
+            "field"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "fund_ref",
+            "metric_ref",
+            "methodology",
+            "window",
+            "benchmark_ref",
+            "unit",
+            "scope_ref",
+            "cutoff_at",
+            "value_field",
+            "metric_label"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "htsc_research_mcp",
+      "description": "华泰行业景气度是授权研究衍生指标，只形成二手 Observation；必须冻结响应指纹、字段血缘、业务时间、风险揭示与禁止传播边界，不得单独生成行业或投资判断。",
+      "forbidden_direct_targets": [
+        "Hypothesis",
+        "Signal",
+        "Judgment"
+      ],
+      "id": "htsc_industry_sentiment_observation",
+      "source_grain": "one_industry_sentiment_month",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "label",
+            "value",
+            "observed_at",
+            "valid_from",
+            "cutoff_at"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "$constant.industry_sentiment"
+              ],
+              "target_attribute": "label",
+              "transform": "constant_or_context"
+            },
+            {
+              "source_paths": [
+                "observations.value"
+              ],
+              "target_attribute": "value",
+              "transform": "typed_value_with_unit"
+            },
+            {
+              "source_paths": [
+                "observations.observedAt"
+              ],
+              "target_attribute": "observed_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "observations.observedAt"
+              ],
+              "target_attribute": "valid_from",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "asOf"
+              ],
+              "target_attribute": "cutoff_at",
+              "transform": "normalize_datetime"
+            }
+          ],
+          "identity_source_paths": [
+            "request.industry",
+            "observations.observedAt",
+            "observations.sourcePath"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "request.industryLevel",
+            "request.industry",
+            "observations.sourcePath",
+            "responseFingerprint",
+            "replayability",
+            "riskDisclosure"
+          ],
+          "target_type": "Observation"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "htsc_research_mcp",
+      "description": "华泰研报与研究指标先登记为二手来源文档候选；观点不得直接物化为事实，结构化指标也必须绑定方法口径后另行形成 Observation 候选。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "htsc_research_document",
+      "source_grain": "one_research_report_or_metric_release",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "title",
+                "report_title",
+                "name"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "url",
+                "source_url",
+                "report_url"
+              ],
+              "target_attribute": "uri",
+              "transform": "normalize_uri"
+            },
+            {
+              "source_paths": [
+                "publish_date",
+                "published_at",
+                "report_date"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "report_id",
+            "document_id",
+            "url"
+          ],
+          "materialization": "candidate_only",
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "caixin-news",
+      "description": "财新文章只登记为二手来源文档候选；新闻摘要不可直接生成事实或判断，必须回到可定位正文并完成原文摘录。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "caixin_news_document",
+      "source_grain": "one_news_article",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "title",
+                "name"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "url",
+                "source_url"
+              ],
+              "target_attribute": "uri",
+              "transform": "normalize_uri"
+            },
+            {
+              "source_paths": [
+                "published_at",
+                "publish_date"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "article_id",
+            "url"
+          ],
+          "materialization": "candidate_only",
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    },
+    {
+      "connector": "jina-reader",
+      "description": "网页阅读器只把目标网页登记为来源文档候选；发布主体、时间、权限和正文哈希仍须从目标网页核验。",
+      "forbidden_direct_targets": [
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "Judgment"
+      ],
+      "id": "jina_reader_document",
+      "source_grain": "one_fetched_web_document",
+      "status": "active",
+      "target_mappings": [
+        {
+          "completeness_gate": [
+            "title",
+            "uri",
+            "published_at",
+            "source_tier"
+          ],
+          "fields": [
+            {
+              "source_paths": [
+                "title",
+                "$context.source_title"
+              ],
+              "target_attribute": "title",
+              "transform": "first_non_empty"
+            },
+            {
+              "source_paths": [
+                "url",
+                "source_url"
+              ],
+              "target_attribute": "uri",
+              "transform": "normalize_uri"
+            },
+            {
+              "source_paths": [
+                "published_at",
+                "publish_date",
+                "$context.published_at"
+              ],
+              "target_attribute": "published_at",
+              "transform": "normalize_datetime"
+            },
+            {
+              "source_paths": [
+                "$context.source_tier"
+              ],
+              "target_attribute": "source_tier",
+              "transform": "constant_or_context"
+            }
+          ],
+          "identity_source_paths": [
+            "url",
+            "source_url"
+          ],
+          "materialization": "requires_context",
+          "required_context_bindings": [
+            "source_title",
+            "published_at",
+            "source_tier",
+            "publisher",
+            "content_hash",
+            "access_scope"
+          ],
+          "target_type": "SourceDocument"
+        }
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "migration": {
+    "changes": [
+      {
+        "disposition": "added",
+        "id": "interfaces_and_value_types",
+        "kind": "catalog"
+      },
+      {
+        "disposition": "added",
+        "id": "financial",
+        "kind": "model"
+      },
+      {
+        "disposition": "added",
+        "id": "research_lens_profiles",
+        "kind": "profile"
+      },
+      {
+        "disposition": "added",
+        "id": "baseline_projection",
+        "kind": "runtime"
+      }
+    ],
+    "from_platform_version": "4.0.0",
+    "legacy_inverse_relation_policy": {
+      "disposition": "source_update_required",
+      "runtime_aliasing": "read_only_only"
+    },
+    "mode": "single_cutover_no_dual_write",
+    "runtime_policy": {
+      "legacy_instance_handling": "read_only_archive",
+      "new_run_namespace": "ir.v5",
+      "online_instance_migration": "forbidden"
+    },
+    "schema_name": "ontology_cutover_manifest",
+    "schema_version": "1.0.0",
+    "status": "active",
+    "to_platform_version": "5.0.0"
   },
   "objects": {
     "ActionExecution": {
@@ -1478,6 +10327,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "一次 Action apply 的请求、预检、操作者、审批、编辑结果与失败信息。",
       "id": "ActionExecution",
+      "implements": [],
       "labelZh": "动作执行记录",
       "namespace": "core.audit",
       "schemaVersion": "2.0.0"
@@ -1503,6 +10353,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "产品或技术被使用并产生业务价值的稳定用途分类。",
       "id": "Application",
+      "implements": [],
       "labelZh": "应用场景",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -1528,6 +10379,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可识别、可归属且能够承载经济利益或风险的资产类别；作为设施类（如 ManufacturingFacility）和金融工具（FinancialInstrument）的公共投影父类。",
       "id": "Asset",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject"
+      ],
       "labelZh": "资产",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -1619,6 +10474,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "将既有研究判断在明确标的、传导路径、时间尺度与边界下投影为资产层影响的判断结果；它不得绕过业务判断直接由证据生成。",
       "id": "AssetImpact",
+      "implements": [],
       "labelZh": "资产影响",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -1650,6 +10506,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "命中后限制方法执行、结论方向或结论等级的条件。",
       "id": "BlockingFactor",
+      "implements": [],
       "labelZh": "阻断因素",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -1713,6 +10570,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "同时冻结晶圆尺寸、制程或产品、时间和名义/有效口径的产能指标。",
       "id": "CapacityMetric",
+      "implements": [],
       "labelZh": "产能指标",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -1768,6 +10626,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "完成计算、存储、模拟、功率、传感或控制功能的半导体产品。",
       "id": "Chip",
+      "implements": [],
       "labelZh": "芯片",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -1810,6 +10669,11 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "以商业经营为主要身份的组织主体。",
       "id": "Company",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject",
+        "ObservableSubject"
+      ],
       "labelZh": "公司",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -1835,8 +10699,92 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "对同一观测结果提供可区分的替代机制。",
       "id": "CompetingExplanation",
+      "implements": [],
       "labelZh": "竞争解释",
       "namespace": "core.judgment",
+      "schemaVersion": "3.0.0"
+    },
+    "ConsensusSnapshot": {
+      "attributes": {
+        "as_of": {
+          "cardinality": "1..1",
+          "description": "截面时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "observation_time",
+          "type": "datetime",
+          "value_role": "fact"
+        },
+        "label": {
+          "cardinality": "1..1",
+          "description": "快照标签。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "identity"
+        },
+        "metric_ref": {
+          "cardinality": "1..1",
+          "description": "共识指标。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "FinancialMetric",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "reporting_period": {
+          "cardinality": "1..1",
+          "description": "预期期间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "metadata",
+          "value_type_ref": "ReportingPeriod"
+        },
+        "sample_definition": {
+          "cardinality": "1..1",
+          "description": "覆盖样本、统计方法与来源。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        },
+        "source_ref": {
+          "cardinality": "1..1",
+          "description": "共识来源快照。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "SourceSnapshot",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "metadata"
+        },
+        "subject_ref": {
+          "cardinality": "1..1",
+          "description": "预期主体。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "core_object",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "value": {
+          "cardinality": "1..1",
+          "description": "共识统计值。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "fact",
+          "value_type_ref": "QuantityWithUnit"
+        }
+      },
+      "description": "在固定截面、样本和口径下冻结的市场或分析师共识基线。",
+      "id": "ConsensusSnapshot",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
+      "labelZh": "一致预期快照",
+      "namespace": "core.financial",
       "schemaVersion": "3.0.0"
     },
     "Event": {
@@ -1906,6 +10854,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在明确时间发生且可能改变对象状态的事实性变化。",
       "id": "Event",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
       "labelZh": "事件",
       "namespace": "core.state_event",
       "schemaVersion": "3.0.0"
@@ -1950,6 +10902,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "证据在特定任务、范围和判断单元下的可靠性、相关性、时效性与可用性评估。",
       "id": "EvidenceAssessment",
+      "implements": [],
       "labelZh": "证据评估",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -1981,6 +10934,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "为单一判断单元与单一证据角色组织的具体证据集合。",
       "id": "EvidenceBasket",
+      "implements": [],
       "labelZh": "证据篮子",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -2024,6 +10978,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "从来源中按原意提取且可精确定位的原子陈述。",
       "id": "EvidenceClaim",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
       "labelZh": "原始陈述",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -2112,6 +11070,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "由原始陈述归一对齐后形成且不包含分析推断的事实。",
       "id": "EvidenceFact",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
       "labelZh": "证据事实",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -2183,6 +11145,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "判断单元在主体、时间、范围、来源和证据角色上的最低输入合同。",
       "id": "EvidenceRequirement",
+      "implements": [],
       "labelZh": "证据要求",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -2264,6 +11227,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "研究判断与同范围同时间截面的市场预期之间可解释、可失效的差异结果；它不是一般判断的同义词。",
       "id": "ExpectationGap",
+      "implements": [],
       "labelZh": "预期差",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -2305,8 +11269,448 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "体现一方金融资产与另一方权益或负债关系、可被稳定识别的资产。",
       "id": "FinancialInstrument",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject",
+        "InvestableAsset"
+      ],
       "labelZh": "金融工具",
       "namespace": "core.semantic",
+      "schemaVersion": "3.0.0"
+    },
+    "FinancialMetric": {
+      "attributes": {
+        "comparability_basis": {
+          "cardinality": "1..1",
+          "description": "跨公司或跨期间可比口径。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        },
+        "formula": {
+          "cardinality": "0..1",
+          "description": "指标计算公式或治理引用。",
+          "nullable_semantics": "null 表示直接披露指标。",
+          "required": false,
+          "type": "string",
+          "value_role": "metadata"
+        },
+        "name": {
+          "cardinality": "1..1",
+          "description": "指标名称。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "identity"
+        },
+        "period_basis": {
+          "allowed_values": [
+            "point_in_time",
+            "fiscal_quarter",
+            "fiscal_year",
+            "trailing_twelve_months",
+            "forward_period"
+          ],
+          "cardinality": "1..1",
+          "description": "时间口径。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "metadata"
+        },
+        "statement_section": {
+          "allowed_values": [
+            "income_statement",
+            "balance_sheet",
+            "cash_flow",
+            "operating_kpi",
+            "valuation",
+            "other"
+          ],
+          "cardinality": "1..1",
+          "description": "财务报表或研究归属。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "metadata"
+        },
+        "unit": {
+          "cardinality": "1..1",
+          "description": "标准单位。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        }
+      },
+      "description": "具有会计或估值定义、单位和期间口径的可比较财务指标。",
+      "id": "FinancialMetric",
+      "implements": [
+        "NamedEntity"
+      ],
+      "labelZh": "财务指标",
+      "namespace": "core.financial",
+      "schemaVersion": "3.0.0"
+    },
+    "FinancialObservation": {
+      "attributes": {
+        "basis": {
+          "allowed_values": [
+            "reported",
+            "restated",
+            "adjusted",
+            "normalized"
+          ],
+          "cardinality": "1..1",
+          "description": "数值处理口径。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "metadata"
+        },
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "研究使用截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "label": {
+          "cardinality": "1..1",
+          "description": "可读标签。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "identity"
+        },
+        "metric_ref": {
+          "cardinality": "1..1",
+          "description": "财务指标。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "FinancialMetric",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "published_at": {
+          "cardinality": "1..1",
+          "description": "披露时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "publication_time",
+          "type": "datetime",
+          "value_role": "fact"
+        },
+        "report_ref": {
+          "cardinality": "1..1",
+          "description": "所属财务报告。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "FinancialReport",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "metadata"
+        },
+        "reporting_period": {
+          "cardinality": "1..1",
+          "description": "对应报告期间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "fact",
+          "value_type_ref": "ReportingPeriod"
+        },
+        "subject_ref": {
+          "cardinality": "1..1",
+          "description": "被观测主体。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "core_object",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "value": {
+          "cardinality": "1..1",
+          "description": "观测数值、单位和精度。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "fact",
+          "value_type_ref": "QuantityWithUnit"
+        }
+      },
+      "description": "在指定主体、财务指标、报告期、口径与版本下成立的实际财务数值观测。",
+      "id": "FinancialObservation",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
+      "labelZh": "财务观测",
+      "namespace": "core.financial",
+      "schemaVersion": "3.0.0"
+    },
+    "FinancialReport": {
+      "attributes": {
+        "accounting_basis": {
+          "cardinality": "1..1",
+          "description": "会计准则、合并范围和调整口径。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        },
+        "currency": {
+          "cardinality": "1..1",
+          "description": "报告呈现币种。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata",
+          "value_type_ref": "CurrencyCode"
+        },
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "使用该报告的研究截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "issuer_ref": {
+          "cardinality": "1..1",
+          "description": "披露主体。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "Company",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "identity"
+        },
+        "published_at": {
+          "cardinality": "1..1",
+          "description": "首次可获得时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "publication_time",
+          "type": "datetime",
+          "value_role": "fact"
+        },
+        "reporting_period": {
+          "cardinality": "1..1",
+          "description": "报告所覆盖期间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "fact",
+          "value_type_ref": "ReportingPeriod"
+        },
+        "restatement_status": {
+          "allowed_values": [
+            "original",
+            "restated",
+            "superseded"
+          ],
+          "cardinality": "1..1",
+          "description": "重述状态。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "state"
+        },
+        "source_ref": {
+          "cardinality": "1..1",
+          "description": "支撑报告身份的来源快照。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "SourceSnapshot",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "metadata"
+        },
+        "title": {
+          "cardinality": "1..1",
+          "description": "报告标题。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "identity"
+        },
+        "vintage": {
+          "cardinality": "1..1",
+          "description": "披露或修订版本。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        }
+      },
+      "description": "具有报告期、披露版本和会计口径的公司财务披露实体，不等同于来源文件快照。",
+      "id": "FinancialReport",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
+      "labelZh": "财务报告",
+      "namespace": "core.financial",
+      "schemaVersion": "3.0.0"
+    },
+    "Forecast": {
+      "attributes": {
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "研究截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "metric_ref": {
+          "cardinality": "1..1",
+          "description": "预测指标。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "FinancialMetric",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "reporting_period": {
+          "cardinality": "1..1",
+          "description": "预测期间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "metadata",
+          "value_type_ref": "ReportingPeriod"
+        },
+        "scenario": {
+          "allowed_values": [
+            "base",
+            "upside",
+            "downside",
+            "stress"
+          ],
+          "cardinality": "1..1",
+          "description": "情景标签。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "metadata"
+        },
+        "source_kind": {
+          "allowed_values": [
+            "researcher",
+            "management_guidance",
+            "consensus",
+            "model"
+          ],
+          "cardinality": "1..1",
+          "description": "预测来源性质。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "metadata"
+        },
+        "statement": {
+          "cardinality": "1..1",
+          "description": "预测解释。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "judgment"
+        },
+        "subject_ref": {
+          "cardinality": "1..1",
+          "description": "预测主体。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "core_object",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "value": {
+          "cardinality": "1..1",
+          "description": "预测数值或区间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "calculated",
+          "value_type_ref": "QuantityWithUnit"
+        }
+      },
+      "description": "围绕主体、指标、期间、情景和假设形成的数值预测，不等同于市场共识或事实。",
+      "id": "Forecast",
+      "implements": [
+        "TimeScoped",
+        "DecisionArtifact"
+      ],
+      "labelZh": "预测",
+      "namespace": "core.financial",
+      "schemaVersion": "3.0.0"
+    },
+    "ForecastAssumption": {
+      "attributes": {
+        "basis_refs": {
+          "cardinality": "1..*",
+          "description": "支撑该假设的证据或判断引用。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "研究截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "falsification_conditions": {
+          "cardinality": "1..*",
+          "description": "可观察的证伪条件。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "horizon": {
+          "cardinality": "1..1",
+          "description": "前瞻时间窗。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata",
+          "value_type_ref": "TimeHorizon"
+        },
+        "statement": {
+          "cardinality": "1..1",
+          "description": "假设陈述。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "judgment"
+        },
+        "subject_ref": {
+          "cardinality": "1..1",
+          "description": "假设对象。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "core_object",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "metadata"
+        }
+      },
+      "description": "预测或估值所依赖、可证伪且带时间边界的原子假设。",
+      "id": "ForecastAssumption",
+      "implements": [
+        "TimeScoped",
+        "DecisionArtifact"
+      ],
+      "labelZh": "预测假设",
+      "namespace": "core.financial",
       "schemaVersion": "3.0.0"
     },
     "Hypothesis": {
@@ -2338,6 +11742,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "具有方向、时间尺度与证伪条件的解释或预测。",
       "id": "Hypothesis",
+      "implements": [],
       "labelZh": "假设",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -2363,6 +11768,11 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "具有共同供需和竞争结构的经济活动集合。",
       "id": "Industry",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject",
+        "ObservableSubject"
+      ],
       "labelZh": "行业",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -2502,6 +11912,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "经证据、信号、假设、正式约束与方法应用后形成的有范围、有条件结论。",
       "id": "Judgment",
+      "implements": [
+        "TimeScoped",
+        "DecisionArtifact"
+      ],
       "labelZh": "判断",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -2548,6 +11962,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在单一对象、范围、时间和口径下可独立接受证据与形成判断的最小单元。",
       "id": "JudgmentUnit",
+      "implements": [],
       "labelZh": "判断单元",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -2583,6 +11998,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "金融工具由发行主体在交易场所挂牌的一项具有有效期的可识别安排。",
       "id": "Listing",
+      "implements": [],
       "labelZh": "上市挂牌",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -2650,6 +12066,11 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "具有独立位置、运营主体、工艺能力和生命周期的半导体制造设施。",
       "id": "ManufacturingFacility",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject",
+        "Facility"
+      ],
       "labelZh": "半导体制造设施",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -2734,6 +12155,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在明确对象、范围和时间截面下由价格、预测或参与者行为反映的外部预期状态；它不是研究者待验证的假设。",
       "id": "MarketExpectation",
+      "implements": [],
       "labelZh": "市场预期",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -2767,6 +12189,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "被生产过程消耗、转化或沉积并进入产品或制造过程的产品类别。",
       "id": "Material",
+      "implements": [],
       "labelZh": "材料",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -2808,6 +12231,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "具有稳定定义、单位与口径的可观测或可计算量。",
       "id": "Metric",
+      "implements": [],
       "labelZh": "指标",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -2845,6 +12269,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "把判断的改判或失效条件转换为可执行的持续观察条件。",
       "id": "MonitoringRule",
+      "implements": [],
       "labelZh": "判断监控规则",
       "namespace": "core.operational",
       "schemaVersion": "4.0.0"
@@ -2915,6 +12340,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "对状态变量在明确业务时间、公布时间和研究截止时间下的记录。",
       "id": "Observation",
+      "implements": [
+        "TimeScoped",
+        "EvidenceBearing"
+      ],
       "labelZh": "观测",
       "namespace": "core.state_event",
       "schemaVersion": "3.0.0"
@@ -2940,6 +12369,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可独立识别并承担经济或公共职能的组织主体。",
       "id": "Organization",
+      "implements": [],
       "labelZh": "组织",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -2983,6 +12413,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "由有权机构发布并对对象行为、准入或资源配置形成稳定约束的政策手段类别。",
       "id": "PolicyInstrument",
+      "implements": [],
       "labelZh": "政策工具",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -3017,6 +12448,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在明确制造技术体系下可稳定识别的制程代际，不等同于单一线宽读数。",
       "id": "ProcessNode",
+      "implements": [],
       "labelZh": "制程节点",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -3042,6 +12474,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在生产过程中具有明确输入、输出和功能边界的稳定步骤类别。",
       "id": "ProcessStep",
+      "implements": [],
       "labelZh": "工艺步骤",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -3084,6 +12517,11 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可被生产、交易、使用或交付的产品或产品类别。",
       "id": "Product",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject",
+        "ObservableSubject"
+      ],
       "labelZh": "产品",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -3125,6 +12563,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在制造设施内具有独立工艺范围、产品边界和生命周期的生产单元；与制造设施是部分-整体关系，不是设施子类。",
       "id": "ProductionLine",
+      "implements": [],
       "labelZh": "半导体产线",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -3159,6 +12598,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "从证据、状态、信号、假设、规则评估与方法应用到判断的不可变引用图。",
       "id": "ReasoningTrace",
+      "implements": [],
       "labelZh": "推理留痕",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -3184,6 +12624,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可稳定引用的地理、经济或监管范围。",
       "id": "Region",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject"
+      ],
       "labelZh": "地区",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -3222,6 +12666,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "连接范围、问题、证据、判断、交付和监控的一项长期研究业务身份。",
       "id": "ResearchCase",
+      "implements": [],
       "labelZh": "研究案例",
       "namespace": "core.operational",
       "schemaVersion": "4.0.0"
@@ -3292,9 +12737,114 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "由正式判断投影形成并具有审核、发布和替代生命周期的研究制品。",
       "id": "ResearchDeliverable",
+      "implements": [],
       "labelZh": "研究交付物",
       "namespace": "core.operational",
       "schemaVersion": "4.0.0"
+    },
+    "ResearchMandate": {
+      "attributes": {
+        "comparison_basis": {
+          "cardinality": "1..1",
+          "description": "历史、同行、共识或事件前基线。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        },
+        "conditions": {
+          "cardinality": "1..*",
+          "description": "委托成立条件。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "确认时的研究截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "excluded_modules": {
+          "cardinality": "0..*",
+          "description": "明确不纳入本轮研究的模块。",
+          "nullable_semantics": "空列表表示无额外排除模块。",
+          "required": false,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "horizon": {
+          "cardinality": "1..1",
+          "description": "研究期限。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata",
+          "value_type_ref": "TimeHorizon"
+        },
+        "invalidation_conditions": {
+          "cardinality": "1..*",
+          "description": "需要重新确认的条件。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "lens_refs": {
+          "cardinality": "1..*",
+          "description": "受版本治理的 Lens profile ID。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "materiality_boundary": {
+          "cardinality": "1..1",
+          "description": "需要达到研究意义的边界。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata"
+        },
+        "question_ref": {
+          "cardinality": "1..1",
+          "description": "研究问题。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "ResearchQuestion",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "identity"
+        },
+        "research_case_ref": {
+          "cardinality": "1..1",
+          "description": "所属研究案例。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "ResearchCase",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "identity"
+        },
+        "title": {
+          "cardinality": "1..1",
+          "description": "委托标题。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "identity"
+        }
+      },
+      "description": "研究员确认的研究问题、期限、比较基准、Lens 组合与重要性边界，是 Problem Graph 的正式输入而非执行任务。",
+      "id": "ResearchMandate",
+      "implements": [
+        "DecisionArtifact"
+      ],
+      "labelZh": "研究委托",
+      "namespace": "core.financial",
+      "schemaVersion": "3.0.0"
     },
     "ResearchQuestion": {
       "attributes": {
@@ -3332,6 +12882,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "具有明确范围、回答标准和失败路由的研究子问题。",
       "id": "ResearchQuestion",
+      "implements": [],
       "labelZh": "研究问题",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -3405,9 +12956,80 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "某一次研究如何裁剪现实世界：对象、地域、指标与时间边界的可引用集合。",
       "id": "ResearchScope",
+      "implements": [],
       "labelZh": "研究范围",
       "namespace": "core.operational",
       "schemaVersion": "4.0.0"
+    },
+    "ResearchThesis": {
+      "attributes": {
+        "conditions": {
+          "cardinality": "1..*",
+          "description": "成立条件。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "研究截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "horizon": {
+          "cardinality": "1..1",
+          "description": "命题时间窗。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "metadata",
+          "value_type_ref": "TimeHorizon"
+        },
+        "invalidation_conditions": {
+          "cardinality": "1..*",
+          "description": "改判条件。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "statement": {
+          "cardinality": "1..1",
+          "description": "命题陈述。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "judgment"
+        },
+        "status": {
+          "allowed_values": [
+            "draft",
+            "active",
+            "review_required",
+            "invalidated",
+            "superseded"
+          ],
+          "cardinality": "1..1",
+          "description": "命题状态。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "state"
+        }
+      },
+      "description": "聚合多个正式判断、证据边界与改判条件的版本化研究命题，不等同于投资推荐。",
+      "id": "ResearchThesis",
+      "implements": [
+        "TimeScoped",
+        "DecisionArtifact"
+      ],
+      "labelZh": "研究命题",
+      "namespace": "core.financial",
+      "schemaVersion": "3.0.0"
     },
     "RuleEvaluation": {
       "attributes": {
@@ -3453,6 +13075,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "对正式稳定规则的输入、条件、反条件和结果的不可变评估记录。",
       "id": "RuleEvaluation",
+      "implements": [],
       "labelZh": "规则评估",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -3495,6 +13118,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "用于晶圆制造、封装、测试或厂务环节的专用设备产品类别。",
       "id": "SemiconductorEquipment",
+      "implements": [],
       "labelZh": "半导体设备",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -3544,6 +13168,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "进入半导体制造或封装工序且规格影响工艺结果的材料类别。",
       "id": "SemiconductorMaterial",
+      "implements": [],
       "labelZh": "半导体材料",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -3575,6 +13200,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "从证据事实或状态观测中解释出的、对假设具有明确作用方向的中间结果。",
       "id": "Signal",
+      "implements": [],
       "labelZh": "信号",
       "namespace": "core.judgment",
       "schemaVersion": "3.0.0"
@@ -3643,6 +13269,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可定位、可版本化并具有发布主体的原始材料。",
       "id": "SourceDocument",
+      "implements": [],
       "labelZh": "来源文档",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -3715,6 +13342,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "某一来源在一次实际获取时冻结的可定位内容版本。",
       "id": "SourceSnapshot",
+      "implements": [],
       "labelZh": "来源快照",
       "namespace": "core.evidence",
       "schemaVersion": "3.0.0"
@@ -3765,6 +13393,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "同一状态变量在可比范围和口径下由前态到后态的已识别变化，不等同于导致变化的事件。",
       "id": "StateChange",
+      "implements": [],
       "labelZh": "状态变化",
       "namespace": "core.state_event",
       "schemaVersion": "3.0.0"
@@ -3800,6 +13429,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "同一范围与截止时间下多个观测的不可变集合。",
       "id": "StateSnapshot",
+      "implements": [],
       "labelZh": "状态快照",
       "namespace": "core.state_event",
       "schemaVersion": "3.0.0"
@@ -3907,6 +13537,11 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "锚定对象、指标和范围并可随时间变化的研究变量。",
       "id": "StateVariable",
+      "implements": [
+        "NamedEntity",
+        "ObservableSubject",
+        "TimeScoped"
+      ],
       "labelZh": "状态变量",
       "namespace": "core.state_event",
       "schemaVersion": "3.0.0"
@@ -3932,6 +13567,10 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可稳定识别、具有能力边界的技术或技术体系。",
       "id": "Technology",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject"
+      ],
       "labelZh": "技术",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -3969,6 +13608,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "可跨公司和产品复用、具有明确能力边界与依赖结构的半导体技术路线。",
       "id": "TechnologyRoute",
+      "implements": [],
       "labelZh": "技术路线",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -4002,8 +13642,96 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "提供金融工具挂牌或交易制度并可稳定识别的组织。",
       "id": "TradingVenue",
+      "implements": [],
       "labelZh": "交易场所",
       "namespace": "core.semantic",
+      "schemaVersion": "3.0.0"
+    },
+    "ValuationAssessment": {
+      "attributes": {
+        "confidence": {
+          "cardinality": "1..1",
+          "description": "估值置信度。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "judgment",
+          "value_type_ref": "ConfidenceLevel"
+        },
+        "cutoff_at": {
+          "cardinality": "1..1",
+          "description": "研究截止时间。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "time_basis": "research_cutoff",
+          "type": "datetime",
+          "value_role": "metadata"
+        },
+        "invalidation_conditions": {
+          "cardinality": "1..*",
+          "description": "失效或重算条件。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "method": {
+          "allowed_values": [
+            "relative_multiple",
+            "discounted_cash_flow",
+            "sum_of_parts",
+            "scenario_comparison"
+          ],
+          "cardinality": "1..1",
+          "description": "估值方法。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "enum",
+          "value_role": "metadata"
+        },
+        "sensitivity_summary": {
+          "cardinality": "1..*",
+          "description": "关键敏感性与方向。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "array",
+          "value_role": "metadata"
+        },
+        "statement": {
+          "cardinality": "1..1",
+          "description": "估值结论与边界。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "string",
+          "value_role": "judgment"
+        },
+        "subject_ref": {
+          "cardinality": "1..1",
+          "description": "被评估金融工具。",
+          "nullable_semantics": "forbidden",
+          "reference_target": "FinancialInstrument",
+          "required": true,
+          "type": "object_ref",
+          "value_role": "fact"
+        },
+        "value_range": {
+          "cardinality": "1..1",
+          "description": "非交易指令的估值区间或价值输入。",
+          "nullable_semantics": "forbidden",
+          "required": true,
+          "type": "object",
+          "value_role": "calculated",
+          "value_type_ref": "Money"
+        }
+      },
+      "description": "基于明确模型、预测、情景和敏感性的研究估值评估，不产生目标价或投资建议。",
+      "id": "ValuationAssessment",
+      "implements": [
+        "TimeScoped",
+        "DecisionArtifact"
+      ],
+      "labelZh": "估值评估",
+      "namespace": "core.financial",
       "schemaVersion": "3.0.0"
     },
     "ValueChainSegment": {
@@ -4027,6 +13755,7 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "在产业价值创造中承担稳定功能的位置。",
       "id": "ValueChainSegment",
+      "implements": [],
       "labelZh": "产业链环节",
       "namespace": "core.semantic",
       "schemaVersion": "3.0.0"
@@ -4061,6 +13790,11 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "承担晶圆制造并具有可识别晶圆尺寸、工艺能力和有效产能的制造设施。",
       "id": "WaferFab",
+      "implements": [
+        "NamedEntity",
+        "ResearchSubject",
+        "Facility"
+      ],
       "labelZh": "晶圆厂",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
@@ -4116,12 +13850,13 @@ export const ONTOLOGY_CATALOG = {
       },
       "description": "明确产品、制程、批次层级、时间和合格标准的产出比例指标。",
       "id": "YieldMetric",
+      "implements": [],
       "labelZh": "良率指标",
       "namespace": "semiconductor",
       "schemaVersion": "3.0.0"
     }
   },
-  "platformVersion": "4.0.0",
+  "platformVersion": "5.0.0",
   "policies": {
     "EvidenceBeforeSupportedJudgment": {
       "applies_to": [
@@ -4173,9 +13908,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "actionEditedObject",
       "inverseOf": "objectEditedByAction",
       "schemaVersion": "2.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ActionExecution"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ontology_object"
       ]
@@ -4184,9 +13921,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "affectedByEvent",
       "inverseOf": "eventAffectsState",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Event"
       ]
@@ -4195,9 +13934,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "applicationExposesCompany",
       "inverseOf": "companyExposedToApplication",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Application"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company"
       ]
@@ -4206,9 +13947,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "applicationUses",
       "inverseOf": "usedInApplication",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Application"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Product",
         "Material",
@@ -4219,9 +13962,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "assessmentEvaluatesFact",
       "inverseOf": "factHasAssessment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceAssessment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceFact"
       ]
@@ -4230,9 +13975,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "assessmentInBasket",
       "inverseOf": "basketIncludesAssessment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceAssessment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceBasket"
       ]
@@ -4241,20 +13988,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "assetImpactBasedOnJudgment",
       "inverseOf": "judgmentProjectsAssetImpact",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "AssetImpact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
+      ]
+    },
+    "assumptionUsedByForecast": {
+      "id": "assumptionUsedByForecast",
+      "inverseOf": "forecastUsesAssumption",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "assumptionForecasts",
+      "sourceTypes": [
+        "ForecastAssumption"
+      ],
+      "targetSide": "forecastAssumptions",
+      "targetTypes": [
+        "Forecast"
       ]
     },
     "basketFulfillsRequirement": {
       "id": "basketFulfillsRequirement",
       "inverseOf": "requirementFulfilledByBasket",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceBasket"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceRequirement"
       ]
@@ -4263,9 +14027,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "basketIncludesAssessment",
       "inverseOf": "assessmentInBasket",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceBasket"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceAssessment"
       ]
@@ -4274,12 +14040,14 @@ export const ONTOLOGY_CATALOG = {
       "id": "belongsTo",
       "inverseOf": "contains",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company",
         "Product",
         "ValueChainSegment",
         "Technology"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Industry",
         "ValueChainSegment"
@@ -4289,9 +14057,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "blockingFactorForUnit",
       "inverseOf": "unitHasBlockingFactor",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "BlockingFactor"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -4300,9 +14070,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "caseAddressesQuestion",
       "inverseOf": "questionForCase",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchCase"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchQuestion"
       ]
@@ -4311,9 +14083,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "caseCapturesSnapshot",
       "inverseOf": "snapshotCapturedForCase",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchCase"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SourceSnapshot"
       ]
@@ -4322,9 +14096,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "caseHasDeliverable",
       "inverseOf": "deliverableForCase",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchCase"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchDeliverable"
       ]
@@ -4333,20 +14109,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "caseHasJudgmentUnit",
       "inverseOf": "judgmentUnitForCase",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchCase"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
+      ]
+    },
+    "caseHasMandate": {
+      "id": "caseHasMandate",
+      "inverseOf": "mandateForCase",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "caseMandates",
+      "sourceTypes": [
+        "ResearchCase"
+      ],
+      "targetSide": "mandateCase",
+      "targetTypes": [
+        "ResearchMandate"
       ]
     },
     "caseHasScope": {
       "id": "caseHasScope",
       "inverseOf": "scopeForCase",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchCase"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchScope"
       ]
@@ -4355,9 +14148,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "caseProducesJudgment",
       "inverseOf": "judgmentForCase",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchCase"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -4366,9 +14161,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "claimCitesSnapshot",
       "inverseOf": "snapshotHasClaim",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceClaim"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SourceSnapshot"
       ]
@@ -4377,9 +14174,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "claimCitesSource",
       "inverseOf": "sourceHasClaim",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceClaim"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SourceDocument"
       ]
@@ -4388,9 +14187,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "claimGroundsFact",
       "inverseOf": "factDerivedFromClaim",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceClaim"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceFact"
       ]
@@ -4399,20 +14200,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "companyExposedToApplication",
       "inverseOf": "applicationExposesCompany",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Application"
+      ]
+    },
+    "companyHasFinancialReport": {
+      "id": "companyHasFinancialReport",
+      "inverseOf": "financialReportForCompany",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "companyFinancialReports",
+      "sourceTypes": [
+        "Company"
+      ],
+      "targetSide": "financialReportIssuer",
+      "targetTypes": [
+        "FinancialReport"
       ]
     },
     "companyHasListing": {
       "id": "companyHasListing",
       "inverseOf": "listingOfCompany",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Listing"
       ]
@@ -4421,11 +14239,13 @@ export const ONTOLOGY_CATALOG = {
       "id": "competesWith",
       "inverseOf": "competesWith",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company",
         "Product",
         "Technology"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company",
         "Product",
@@ -4436,9 +14256,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "competingExplanationForUnit",
       "inverseOf": "unitHasCompetingExplanation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "CompetingExplanation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -4447,11 +14269,13 @@ export const ONTOLOGY_CATALOG = {
       "id": "consumedByProcess",
       "inverseOf": "processConsumes",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Material",
         "Product",
         "Technology"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ProcessStep"
       ]
@@ -4460,10 +14284,12 @@ export const ONTOLOGY_CATALOG = {
       "id": "contains",
       "inverseOf": "belongsTo",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Industry",
         "ValueChainSegment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company",
         "Product",
@@ -4475,9 +14301,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "deliverableForCase",
       "inverseOf": "caseHasDeliverable",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchDeliverable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchCase"
       ]
@@ -4486,9 +14314,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "deliverableIncludesJudgment",
       "inverseOf": "judgmentIncludedInDeliverable",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchDeliverable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -4497,12 +14327,14 @@ export const ONTOLOGY_CATALOG = {
       "id": "dependedOnBy",
       "inverseOf": "dependsOn",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company",
         "Product",
         "Technology",
         "ValueChainSegment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company",
         "Product",
@@ -4514,11 +14346,13 @@ export const ONTOLOGY_CATALOG = {
       "id": "dependedOnByTechnologyRoute",
       "inverseOf": "technologyRouteDependsOn",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Product",
         "Material",
         "TechnologyRoute"
       ],
+      "targetSide": null,
       "targetTypes": [
         "TechnologyRoute"
       ]
@@ -4527,12 +14361,14 @@ export const ONTOLOGY_CATALOG = {
       "id": "dependsOn",
       "inverseOf": "dependedOnBy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company",
         "Product",
         "Technology",
         "ValueChainSegment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company",
         "Product",
@@ -4544,9 +14380,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "documentHasSnapshot",
       "inverseOf": "snapshotOfDocument",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SourceDocument"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SourceSnapshot"
       ]
@@ -4555,9 +14393,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "equipmentUsedAtFacility",
       "inverseOf": "facilityUsesEquipment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SemiconductorEquipment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
       ]
@@ -4566,9 +14406,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "eventAffectsState",
       "inverseOf": "affectedByEvent",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Event"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -4577,9 +14419,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "eventGroundedByFact",
       "inverseOf": "factGroundsEvent",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Event"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceFact"
       ]
@@ -4588,9 +14432,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "eventProducesStateChange",
       "inverseOf": "stateChangeTriggeredByEvent",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Event"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateChange"
       ]
@@ -4599,10 +14445,12 @@ export const ONTOLOGY_CATALOG = {
       "id": "evidenceConflictsWith",
       "inverseOf": "evidenceConflictsWith",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceClaim",
         "EvidenceFact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceClaim",
         "EvidenceFact"
@@ -4612,9 +14460,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "expectationGapBasedOnJudgment",
       "inverseOf": "judgmentHasExpectationGap",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ExpectationGap"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -4623,9 +14473,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "expectationGapComparesExpectation",
       "inverseOf": "marketExpectationComparedByGap",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ExpectationGap"
       ],
+      "targetSide": null,
       "targetTypes": [
         "MarketExpectation"
       ]
@@ -4634,9 +14486,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityContainsLine",
       "inverseOf": "linePartOfFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ProductionLine"
       ]
@@ -4645,9 +14499,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityLocatedIn",
       "inverseOf": "regionHostsFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Region"
       ]
@@ -4656,9 +14512,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityOperatedBy",
       "inverseOf": "organizationOperatesFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Organization"
       ]
@@ -4667,9 +14525,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityProducesProduct",
       "inverseOf": "productProducedAtFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Product"
       ]
@@ -4678,9 +14538,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilitySupportsProcess",
       "inverseOf": "processSupportedAtFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ProcessStep"
       ]
@@ -4689,9 +14551,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityUsesEquipment",
       "inverseOf": "equipmentUsedAtFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SemiconductorEquipment"
       ]
@@ -4700,9 +14564,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityUsesMaterial",
       "inverseOf": "materialUsedAtFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SemiconductorMaterial"
       ]
@@ -4711,9 +14577,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "facilityUsesTechnologyRoute",
       "inverseOf": "technologyRouteUsedAtFacility",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ManufacturingFacility"
       ],
+      "targetSide": null,
       "targetTypes": [
         "TechnologyRoute"
       ]
@@ -4722,9 +14590,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "factDerivedFromClaim",
       "inverseOf": "claimGroundsFact",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceFact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceClaim"
       ]
@@ -4733,9 +14603,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "factGroundsEvent",
       "inverseOf": "eventGroundedByFact",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceFact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Event"
       ]
@@ -4744,9 +14616,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "factGroundsObservation",
       "inverseOf": "observationGroundedByFact",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceFact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Observation"
       ]
@@ -4755,9 +14629,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "factHasAssessment",
       "inverseOf": "assessmentEvaluatesFact",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceFact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceAssessment"
       ]
@@ -4766,17 +14642,72 @@ export const ONTOLOGY_CATALOG = {
       "id": "factSupportsSignal",
       "inverseOf": "signalGroundedByFact",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceFact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Signal"
+      ]
+    },
+    "financialObservationFromReport": {
+      "id": "financialObservationFromReport",
+      "inverseOf": "reportContainsFinancialObservation",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "observationReport",
+      "sourceTypes": [
+        "FinancialObservation"
+      ],
+      "targetSide": "reportFinancialObservations",
+      "targetTypes": [
+        "FinancialReport"
+      ]
+    },
+    "financialReportForCompany": {
+      "id": "financialReportForCompany",
+      "inverseOf": "companyHasFinancialReport",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "financialReportIssuer",
+      "sourceTypes": [
+        "FinancialReport"
+      ],
+      "targetSide": "companyFinancialReports",
+      "targetTypes": [
+        "Company"
+      ]
+    },
+    "forecastUsedByValuation": {
+      "id": "forecastUsedByValuation",
+      "inverseOf": "valuationUsesForecast",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "forecastValuations",
+      "sourceTypes": [
+        "Forecast"
+      ],
+      "targetSide": "valuationForecasts",
+      "targetTypes": [
+        "ValuationAssessment"
+      ]
+    },
+    "forecastUsesAssumption": {
+      "id": "forecastUsesAssumption",
+      "inverseOf": "assumptionUsedByForecast",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "forecastAssumptions",
+      "sourceTypes": [
+        "Forecast"
+      ],
+      "targetSide": "assumptionForecasts",
+      "targetTypes": [
+        "ForecastAssumption"
       ]
     },
     "governedByPolicy": {
       "id": "governedByPolicy",
       "inverseOf": "policyAppliesTo",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company",
         "Industry",
@@ -4786,6 +14717,7 @@ export const ONTOLOGY_CATALOG = {
         "Region",
         "Application"
       ],
+      "targetSide": null,
       "targetTypes": [
         "PolicyInstrument"
       ]
@@ -4794,9 +14726,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "hasObservation",
       "inverseOf": "observationOf",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Observation"
       ]
@@ -4805,9 +14739,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "hypothesisEvaluatedBySignal",
       "inverseOf": "signalEvaluatesHypothesis",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Hypothesis"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Signal"
       ]
@@ -4816,9 +14752,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "hypothesisForUnit",
       "inverseOf": "unitHasHypothesis",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Hypothesis"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -4827,9 +14765,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "hypothesisSupportsJudgment",
       "inverseOf": "judgmentBasedOnHypothesis",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Hypothesis"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -4838,9 +14778,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "instrumentHasListing",
       "inverseOf": "listingForInstrument",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "FinancialInstrument"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Listing"
       ]
@@ -4849,9 +14791,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentBasedOnHypothesis",
       "inverseOf": "hypothesisSupportsJudgment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Hypothesis"
       ]
@@ -4860,9 +14804,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentForCase",
       "inverseOf": "caseProducesJudgment",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchCase"
       ]
@@ -4871,9 +14817,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentHasExpectationGap",
       "inverseOf": "expectationGapBasedOnJudgment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ExpectationGap"
       ]
@@ -4882,9 +14830,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentHasMonitor",
       "inverseOf": "monitorForJudgment",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "MonitoringRule"
       ]
@@ -4893,9 +14843,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentHasReasoningTrace",
       "inverseOf": "reasoningTraceForJudgment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ReasoningTrace"
       ]
@@ -4904,9 +14856,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentHasRuleEvaluation",
       "inverseOf": "ruleEvaluationForJudgment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "RuleEvaluation"
       ]
@@ -4915,20 +14869,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentIncludedInDeliverable",
       "inverseOf": "deliverableIncludesJudgment",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchDeliverable"
+      ]
+    },
+    "judgmentIncludedInThesis": {
+      "id": "judgmentIncludedInThesis",
+      "inverseOf": "thesisAggregatesJudgment",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "judgmentTheses",
+      "sourceTypes": [
+        "Judgment"
+      ],
+      "targetSide": "thesisJudgments",
+      "targetTypes": [
+        "ResearchThesis"
       ]
     },
     "judgmentProjectsAssetImpact": {
       "id": "judgmentProjectsAssetImpact",
       "inverseOf": "assetImpactBasedOnJudgment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "AssetImpact"
       ]
@@ -4937,9 +14908,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentResolvesUnit",
       "inverseOf": "unitResolvedByJudgment",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Judgment"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -4948,9 +14921,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentUnitForCase",
       "inverseOf": "caseHasJudgmentUnit",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchCase"
       ]
@@ -4959,9 +14934,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "judgmentUnitRequiresEvidence",
       "inverseOf": "requirementForJudgmentUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceRequirement"
       ]
@@ -4970,9 +14947,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "linePartOfFacility",
       "inverseOf": "facilityContainsLine",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ProductionLine"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
       ]
@@ -4981,9 +14960,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "listingAtVenue",
       "inverseOf": "venueHostsListing",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Listing"
       ],
+      "targetSide": null,
       "targetTypes": [
         "TradingVenue"
       ]
@@ -4992,9 +14973,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "listingForInstrument",
       "inverseOf": "instrumentHasListing",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Listing"
       ],
+      "targetSide": null,
       "targetTypes": [
         "FinancialInstrument"
       ]
@@ -5003,20 +14986,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "listingOfCompany",
       "inverseOf": "companyHasListing",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Listing"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company"
+      ]
+    },
+    "mandateForCase": {
+      "id": "mandateForCase",
+      "inverseOf": "caseHasMandate",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "mandateCase",
+      "sourceTypes": [
+        "ResearchMandate"
+      ],
+      "targetSide": "caseMandates",
+      "targetTypes": [
+        "ResearchCase"
       ]
     },
     "marketExpectationComparedByGap": {
       "id": "marketExpectationComparedByGap",
       "inverseOf": "expectationGapComparesExpectation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "MarketExpectation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ExpectationGap"
       ]
@@ -5025,9 +15025,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "materialUsedAtFacility",
       "inverseOf": "facilityUsesMaterial",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SemiconductorMaterial"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
       ]
@@ -5036,9 +15038,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "monitorForJudgment",
       "inverseOf": "judgmentHasMonitor",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "MonitoringRule"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -5047,6 +15051,7 @@ export const ONTOLOGY_CATALOG = {
       "id": "nodeIncludedInTrace",
       "inverseOf": "traceIncludesNode",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchScope",
         "JudgmentUnit",
@@ -5066,6 +15071,7 @@ export const ONTOLOGY_CATALOG = {
         "ExpectationGap",
         "AssetImpact"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ReasoningTrace"
       ]
@@ -5074,9 +15080,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "objectEditedByAction",
       "inverseOf": "actionEditedObject",
       "schemaVersion": "2.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ontology_object"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ActionExecution"
       ]
@@ -5085,6 +15093,7 @@ export const ONTOLOGY_CATALOG = {
       "id": "objectHasStateVariable",
       "inverseOf": "stateVariableForObject",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Organization",
         "Company",
@@ -5100,6 +15109,7 @@ export const ONTOLOGY_CATALOG = {
         "Asset",
         "FinancialInstrument"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -5108,6 +15118,7 @@ export const ONTOLOGY_CATALOG = {
       "id": "objectInScope",
       "inverseOf": "scopeIncludesObject",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Organization",
         "Company",
@@ -5126,6 +15137,7 @@ export const ONTOLOGY_CATALOG = {
         "TradingVenue",
         "Listing"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchScope"
       ]
@@ -5134,9 +15146,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "observationGroundedByFact",
       "inverseOf": "factGroundsObservation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Observation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceFact"
       ]
@@ -5145,9 +15159,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "observationInSnapshot",
       "inverseOf": "snapshotIncludesObservation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Observation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateSnapshot"
       ]
@@ -5156,9 +15172,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "observationOf",
       "inverseOf": "hasObservation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Observation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -5167,9 +15185,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "observationPrecedesChange",
       "inverseOf": "stateChangeFromObservation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Observation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateChange"
       ]
@@ -5178,9 +15198,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "observationResultsFromChange",
       "inverseOf": "stateChangeToObservation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Observation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateChange"
       ]
@@ -5189,9 +15211,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "organizationOperatesFacility",
       "inverseOf": "facilityOperatedBy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Organization"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
       ]
@@ -5200,9 +15224,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "policyAppliesTo",
       "inverseOf": "governedByPolicy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "PolicyInstrument"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company",
         "Industry",
@@ -5217,9 +15243,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "processConsumes",
       "inverseOf": "consumedByProcess",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ProcessStep"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Material",
         "Product",
@@ -5230,9 +15258,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "processSupportedAtFacility",
       "inverseOf": "facilitySupportsProcess",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ProcessStep"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
       ]
@@ -5241,9 +15271,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "producedBy",
       "inverseOf": "produces",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Product"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company"
       ]
@@ -5252,9 +15284,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "produces",
       "inverseOf": "producedBy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Product"
       ]
@@ -5263,9 +15297,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "productProducedAtFacility",
       "inverseOf": "facilityProducesProduct",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Product"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
       ]
@@ -5274,9 +15310,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "questionDecomposesIntoUnit",
       "inverseOf": "unitAnswersQuestion",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchQuestion"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -5285,9 +15323,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "questionForCase",
       "inverseOf": "caseAddressesQuestion",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchQuestion"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchCase"
       ]
@@ -5296,9 +15336,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "reasoningTraceForJudgment",
       "inverseOf": "judgmentHasReasoningTrace",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ReasoningTrace"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -5307,20 +15349,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "regionHostsFacility",
       "inverseOf": "facilityLocatedIn",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Region"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
+      ]
+    },
+    "reportContainsFinancialObservation": {
+      "id": "reportContainsFinancialObservation",
+      "inverseOf": "financialObservationFromReport",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "reportFinancialObservations",
+      "sourceTypes": [
+        "FinancialReport"
+      ],
+      "targetSide": "observationReport",
+      "targetTypes": [
+        "FinancialObservation"
       ]
     },
     "requirementForJudgmentUnit": {
       "id": "requirementForJudgmentUnit",
       "inverseOf": "judgmentUnitRequiresEvidence",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceRequirement"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -5329,9 +15388,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "requirementFulfilledByBasket",
       "inverseOf": "basketFulfillsRequirement",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "EvidenceRequirement"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceBasket"
       ]
@@ -5340,9 +15401,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "ruleEvaluationForJudgment",
       "inverseOf": "judgmentHasRuleEvaluation",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "RuleEvaluation"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -5351,9 +15414,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "scopeForCase",
       "inverseOf": "caseHasScope",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchScope"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchCase"
       ]
@@ -5362,9 +15427,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "scopeIncludesObject",
       "inverseOf": "objectInScope",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchScope"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Organization",
         "Company",
@@ -5388,9 +15455,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "scopeUsedByUnit",
       "inverseOf": "unitUsesScope",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ResearchScope"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -5399,9 +15468,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "signalDerivedFromState",
       "inverseOf": "stateProducesSignal",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Signal"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Observation",
         "StateSnapshot",
@@ -5412,9 +15483,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "signalEvaluatesHypothesis",
       "inverseOf": "hypothesisEvaluatedBySignal",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Signal"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Hypothesis"
       ]
@@ -5423,9 +15496,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "signalGroundedByFact",
       "inverseOf": "factSupportsSignal",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Signal"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceFact"
       ]
@@ -5434,9 +15509,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "snapshotCapturedForCase",
       "inverseOf": "caseCapturesSnapshot",
       "schemaVersion": "4.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SourceSnapshot"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchCase"
       ]
@@ -5445,9 +15522,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "snapshotHasClaim",
       "inverseOf": "claimCitesSnapshot",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SourceSnapshot"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceClaim"
       ]
@@ -5456,9 +15535,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "snapshotIncludesObservation",
       "inverseOf": "observationInSnapshot",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateSnapshot"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Observation"
       ]
@@ -5467,9 +15548,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "snapshotOfDocument",
       "inverseOf": "documentHasSnapshot",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SourceSnapshot"
       ],
+      "targetSide": null,
       "targetTypes": [
         "SourceDocument"
       ]
@@ -5478,9 +15561,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "sourceHasClaim",
       "inverseOf": "claimCitesSource",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "SourceDocument"
       ],
+      "targetSide": null,
       "targetTypes": [
         "EvidenceClaim"
       ]
@@ -5489,9 +15574,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateChangeFromObservation",
       "inverseOf": "observationPrecedesChange",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateChange"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Observation"
       ]
@@ -5500,9 +15587,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateChangeOf",
       "inverseOf": "stateVariableHasChange",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateChange"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -5511,9 +15600,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateChangeToObservation",
       "inverseOf": "observationResultsFromChange",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateChange"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Observation"
       ]
@@ -5522,9 +15613,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateChangeTriggeredByEvent",
       "inverseOf": "eventProducesStateChange",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateChange"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Event"
       ]
@@ -5533,11 +15626,13 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateProducesSignal",
       "inverseOf": "signalDerivedFromState",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Observation",
         "StateSnapshot",
         "StateChange"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Signal"
       ]
@@ -5546,9 +15641,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateVariableEvaluatedByUnit",
       "inverseOf": "unitEvaluatesStateVariable",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "JudgmentUnit"
       ]
@@ -5557,9 +15654,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateVariableForObject",
       "inverseOf": "objectHasStateVariable",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Organization",
         "Company",
@@ -5580,9 +15679,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateVariableHasChange",
       "inverseOf": "stateChangeOf",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateChange"
       ]
@@ -5591,9 +15692,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateVariableInfluencedBy",
       "inverseOf": "stateVariableInfluences",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -5602,9 +15705,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "stateVariableInfluences",
       "inverseOf": "stateVariableInfluencedBy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "StateVariable"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -5613,9 +15718,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "suppliedBy",
       "inverseOf": "supplies",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company"
       ]
@@ -5624,9 +15731,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "supplies",
       "inverseOf": "suppliedBy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Company"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Company"
       ]
@@ -5635,9 +15744,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "technologyRouteDependsOn",
       "inverseOf": "dependedOnByTechnologyRoute",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "TechnologyRoute"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Product",
         "Material",
@@ -5648,9 +15759,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "technologyRouteSubstitutedBy",
       "inverseOf": "technologyRouteSubstitutes",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "TechnologyRoute"
       ],
+      "targetSide": null,
       "targetTypes": [
         "TechnologyRoute"
       ]
@@ -5659,9 +15772,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "technologyRouteSubstitutes",
       "inverseOf": "technologyRouteSubstitutedBy",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "TechnologyRoute"
       ],
+      "targetSide": null,
       "targetTypes": [
         "TechnologyRoute"
       ]
@@ -5670,20 +15785,37 @@ export const ONTOLOGY_CATALOG = {
       "id": "technologyRouteUsedAtFacility",
       "inverseOf": "facilityUsesTechnologyRoute",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "TechnologyRoute"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ManufacturingFacility"
+      ]
+    },
+    "thesisAggregatesJudgment": {
+      "id": "thesisAggregatesJudgment",
+      "inverseOf": "judgmentIncludedInThesis",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "thesisJudgments",
+      "sourceTypes": [
+        "ResearchThesis"
+      ],
+      "targetSide": "judgmentTheses",
+      "targetTypes": [
+        "Judgment"
       ]
     },
     "traceIncludesNode": {
       "id": "traceIncludesNode",
       "inverseOf": "nodeIncludedInTrace",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "ReasoningTrace"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchScope",
         "JudgmentUnit",
@@ -5708,9 +15840,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitAnswersQuestion",
       "inverseOf": "questionDecomposesIntoUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchQuestion"
       ]
@@ -5719,9 +15853,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitEvaluatesStateVariable",
       "inverseOf": "stateVariableEvaluatedByUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "StateVariable"
       ]
@@ -5730,9 +15866,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitHasBlockingFactor",
       "inverseOf": "blockingFactorForUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "BlockingFactor"
       ]
@@ -5741,9 +15879,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitHasCompetingExplanation",
       "inverseOf": "competingExplanationForUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "CompetingExplanation"
       ]
@@ -5752,9 +15892,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitHasHypothesis",
       "inverseOf": "hypothesisForUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Hypothesis"
       ]
@@ -5763,9 +15905,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitResolvedByJudgment",
       "inverseOf": "judgmentResolvesUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Judgment"
       ]
@@ -5774,9 +15918,11 @@ export const ONTOLOGY_CATALOG = {
       "id": "unitUsesScope",
       "inverseOf": "scopeUsedByUnit",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "JudgmentUnit"
       ],
+      "targetSide": null,
       "targetTypes": [
         "ResearchScope"
       ]
@@ -5785,22 +15931,39 @@ export const ONTOLOGY_CATALOG = {
       "id": "usedInApplication",
       "inverseOf": "applicationUses",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "Product",
         "Material",
         "Technology"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Application"
+      ]
+    },
+    "valuationUsesForecast": {
+      "id": "valuationUsesForecast",
+      "inverseOf": "forecastUsedByValuation",
+      "schemaVersion": "3.0.0",
+      "sourceSide": "valuationForecasts",
+      "sourceTypes": [
+        "ValuationAssessment"
+      ],
+      "targetSide": "forecastValuations",
+      "targetTypes": [
+        "Forecast"
       ]
     },
     "venueHostsListing": {
       "id": "venueHostsListing",
       "inverseOf": "listingAtVenue",
       "schemaVersion": "3.0.0",
+      "sourceSide": null,
       "sourceTypes": [
         "TradingVenue"
       ],
+      "targetSide": null,
       "targetTypes": [
         "Listing"
       ]
@@ -5821,6 +15984,71 @@ export const ONTOLOGY_CATALOG = {
       ],
       "run_as": "system",
       "version": "1.0.0"
+    }
+  },
+  "valueTypes": {
+    "AccessScope": {
+      "base_type": "string",
+      "description": "需要沿血缘传播的访问边界。",
+      "id": "AccessScope",
+      "label_zh": "访问范围",
+      "validation": "public|internal|restricted|private"
+    },
+    "ConfidenceLevel": {
+      "base_type": "string",
+      "description": "研究判断或估值评估的置信等级。",
+      "id": "ConfidenceLevel",
+      "label_zh": "置信度",
+      "validation": "insufficient|low|medium|high"
+    },
+    "CurrencyCode": {
+      "base_type": "string",
+      "description": "金额、价格或估值输入的币种代码。",
+      "id": "CurrencyCode",
+      "label_zh": "币种",
+      "validation": "ISO-4217-or-governed-local-code"
+    },
+    "Money": {
+      "base_type": "object",
+      "description": "带币种、单位和精度的金额。",
+      "id": "Money",
+      "label_zh": "金额",
+      "validation": "value:number,currency:CurrencyCode"
+    },
+    "Percentage": {
+      "base_type": "number",
+      "description": "可比较的比例或增长率。",
+      "id": "Percentage",
+      "label_zh": "比例",
+      "validation": "finite_number"
+    },
+    "QuantityWithUnit": {
+      "base_type": "object",
+      "description": "带标准单位及可比口径的数量。",
+      "id": "QuantityWithUnit",
+      "label_zh": "带单位数量",
+      "validation": "value:number,unit:string"
+    },
+    "ReportingPeriod": {
+      "base_type": "object",
+      "description": "财务或经营数据的报告期间。",
+      "id": "ReportingPeriod",
+      "label_zh": "报告期",
+      "validation": "start:date,end:date,period_kind:enum"
+    },
+    "StableIdentifier": {
+      "base_type": "string",
+      "description": "跨来源归一后保持稳定的对象标识。",
+      "id": "StableIdentifier",
+      "label_zh": "稳定标识",
+      "validation": "non_empty_stable_identifier"
+    },
+    "TimeHorizon": {
+      "base_type": "string",
+      "description": "判断、预测或估值的前瞻时间边界。",
+      "id": "TimeHorizon",
+      "label_zh": "时间窗",
+      "validation": "non_empty_horizon"
     }
   }
 } as const;

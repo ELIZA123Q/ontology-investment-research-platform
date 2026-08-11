@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CHECKS = (
     ("研究问题图合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_scenario_task_graph.py"]),
     ("Ontology 统一校验", [sys.executable, "05_control_evaluation/04_verifiers/ontology/validate_ontology.py"]),
-    ("Ontology 4.0 Runtime 投影防漂移", ["npm", "--prefix", "06_runtime", "run", "ontology:check"]),
+    ("Ontology Runtime 投影防漂移", ["npm", "--prefix", "06_runtime", "run", "ontology:check"]),
     ("本体禁止双写", [sys.executable, "05_control_evaluation/04_verifiers/validate_no_semantic_ontology_double_write.py"]),
     ("规则唯一权威", [sys.executable, "05_control_evaluation/04_verifiers/validate_rule_authority.py"]),
     ("规则归属负向回归", [sys.executable, "05_control_evaluation/04_verifiers/tests/test_rule_authority.py"]),
@@ -23,6 +23,7 @@ CHECKS = (
     ("连接器与本体映射合同", [sys.executable, "05_control_evaluation/04_verifiers/validate_connector_mapping_contract.py"]),
     ("vNext 全量切换审计", ["npm", "--prefix", "06_runtime", "run", "audit:cutover"]),
     ("代表性研究任务合同回归", ["npm", "--prefix", "06_runtime", "run", "eval:gold"]),
+    ("30 个研究价值冻结夹具", ["npm", "--prefix", "06_runtime", "run", "eval:research:fixtures"]),
     ("正式评测候选证据门", ["npm", "--prefix", "06_runtime", "run", "eval:formal:candidates"]),
     ("Runtime TypeScript 类型检查", ["npm", "--prefix", "06_runtime", "run", "typecheck"]),
     ("Runtime TypeScript 回归", ["npm", "--prefix", "06_runtime", "test"]),
@@ -43,7 +44,7 @@ def main() -> int:
         return 1
 
     print(
-        "\nPROJECT_ENGINEERING_PASS: Ontology 4.0、规则权威、方法资产、知识闭环、"
+        "\nPROJECT_ENGINEERING_PASS: Ontology、规则权威、方法资产、知识闭环、"
         "vNext Runtime 回归与生产构建全部通过。"
     )
     print(

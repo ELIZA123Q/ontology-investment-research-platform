@@ -5,6 +5,8 @@ __pycache__/
 # Node 依赖与构建缓存（runtime/ 自身 .gitignore 已覆盖其目录，此处覆盖仓库根级散落）
 node_modules/
 **/.vite/
+**/.venv/
+**/.data/logs/
 
 instances/00_本机运行/*
 !instances/00_本机运行/.gitignore

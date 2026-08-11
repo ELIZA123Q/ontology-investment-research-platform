@@ -31,6 +31,7 @@ object_types:
       verification_status: {type: enum, required: true, cardinality: '1..1', value_role: state, nullable_semantics: forbidden, allowed_values: [unverified, verified, rejected], description: 核验状态。}
     constraints: *standard_constraints
   EvidenceClaim:
+    implements: [TimeScoped, EvidenceBearing]
     metadata: {id: EvidenceClaim, namespace: core.evidence, label_zh: 原始陈述, label_en: Evidence Claim, aliases: [材料主张], definition: 从来源中按原意提取且可精确定位的原子陈述。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [公告称产能增加20%], counter_examples: [因此行业上行]}
     primary_key: id
     title_property: statement
@@ -41,6 +42,7 @@ object_types:
       cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 本次研究截止时间。}
     constraints: *standard_constraints
   EvidenceFact:
+    implements: [TimeScoped, EvidenceBearing]
     metadata: {id: EvidenceFact, namespace: core.evidence, label_zh: 证据事实, label_en: Evidence Fact, aliases: [归一事实], definition: 由原始陈述归一对齐后形成且不包含分析推断的事实。, model: evidence, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [同口径库存同比下降10%], counter_examples: [库存下降意味着周期反转]}
     primary_key: id
     title_property: statement

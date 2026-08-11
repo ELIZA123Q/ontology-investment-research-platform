@@ -118,6 +118,7 @@ export function mapHtscIndustrySentimentReceipt(receipt: HtscIndustrySentimentRe
       uri: `mcp://${HTSC_CONNECTOR_ID}/${receipt.responseFingerprint.slice(7)}`,
       title: `华泰智研 ${industry}行业景气度`,
       publisherId: "华泰证券研究所",
+      publishedAt: receipt.retrievedAt,
       sourceType: "secondary",
     },
     permissionScope: "authorized_research_use",

@@ -1,0 +1,34 @@
+schema_name: research_task_contract
+schema_version: 3.0.0
+
+task_id: thesis_review
+name: 投资命题复核
+objective: >
+  基于已验证证据、模型和历史命题版本，判断哪些支柱被强化、削弱或阻断，
+  并登记催化剂、失效条件与待补证据。
+
+scope:
+  applies_when: [已有 ResearchCase 或历史 thesis_state, 需要定期或事件后复核]
+  excludes_when: [没有可识别的研究命题, 请求自动交易决策]
+
+judgment_requirements: [命题支柱及历史版本, 信号方向与证据引用, 反证与阻断项, 催化剂、失效条件和待补证据]
+expected_output: [thesis_state, review]
+completion_criteria:
+  - 新版本不覆盖历史版本
+  - 每个 strengthen/weaken/block 信号有证据制品引用
+  - 未达到改判门槛时明确维持或暂不可判断
+uncertainty_policy: {allow_insufficient_evidence: true}
+
+graph_motif:
+  root_question: thesis_review_question
+  judgment_unit_roles:
+    - {id: pillar_status, purpose: 命题支柱状态, required: true}
+    - {id: counterevidence, purpose: 反证和阻断项, required: true}
+    - {id: catalyst_and_invalidation, purpose: 催化剂与失效条件, required: true}
+  edges:
+    - {from: counterevidence, to: pillar_status, relation: challenges}
+    - {from: catalyst_and_invalidation, to: thesis_review_question, relation: aggregates}
+  competing_explanation_policy: {required_for: [pillar_status], minimum: 1}
+  aggregation: {mode: versioned_thesis_state, required_units: [pillar_status, counterevidence, catalyst_and_invalidation], allow_partial_with_gaps: true}
+
+capability_requirements: [thesis_monitoring, independent_research_review]

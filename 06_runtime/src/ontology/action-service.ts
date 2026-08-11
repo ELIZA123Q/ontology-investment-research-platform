@@ -4,6 +4,7 @@ import type {
   OntologyEdit, OntologyLink, OntologyObject, OntologyObjectRef, Task,
 } from "@/src/contracts";
 import { ontologyCatalog, type OntologyActionTypeDefinition } from "@/src/ontology/catalog";
+import { canRead } from "@/src/ontology/query-service";
 import { OntologyStore } from "@/src/ontology/store";
 import { materializeNodes, planResearch } from "@/src/runtime/planner";
 import { RuntimeStore } from "@/src/runtime/store";
@@ -44,6 +45,7 @@ export class OntologyActionService {
     for (const target of request.targetRefs) {
       const object = this.ontology.getObject(target.id);
       if (!object || object.type !== target.type) errors.push(`target does not exist: ${refKey(target)}`);
+      else if (context.access && !canRead(object.properties, context.access)) errors.push(`access denied for target: ${refKey(target)}`);
       if (!definition.target_types.includes(target.type)) errors.push(`${target.type} is not a valid target for ${actionType}`);
       const expected = request.expectedVersions[refKey(target)] ?? request.expectedVersions[target.id];
       if (expected == null) errors.push(`expected version is required for ${refKey(target)}`);
@@ -194,6 +196,30 @@ export class OntologyActionService {
         }
         break;
       }
+      case "CreateResearchQuestion": {
+        const scope = this.resolveOrCreateScope(target, p, create, edits);
+        const route = String(p.failureRoute);
+        if (!["stop", "downgrade", "competing_explanation", "return_to_structure"].includes(route)) throw new Error("invalid ResearchQuestion failureRoute");
+        const question = create("ResearchQuestion", { question: p.question, scope_ref: scope.id, failure_route: route });
+        edits.push(linkEdit("caseAddressesQuestion", target, question));
+        break;
+      }
+      case "ConfirmResearchMandate": {
+        const question = this.requireObject({ id: String(p.questionRef), type: "ResearchQuestion" }, "ResearchQuestion");
+        const belongs = this.ontology.listLinksForObject(target.id).some((link) => link.type === "caseAddressesQuestion" && link.sourceRef.id === target.id && link.targetRef.id === question.id);
+        if (!belongs) throw new Error("ResearchQuestion does not belong to ResearchCase");
+        const lensRefs = Array.isArray(p.lensRefs) ? p.lensRefs.map(String) : [];
+        if (!lensRefs.length) throw new Error("ConfirmResearchMandate requires at least one research lens");
+        for (const lens of lensRefs) ontologyCatalog.getLensProfile(lens);
+        const mandate = create("ResearchMandate", {
+          title: p.title, research_case_ref: target.id, question_ref: question.id, lens_refs: lensRefs,
+          horizon: p.horizon, comparison_basis: p.comparisonBasis, materiality_boundary: p.materialityBoundary,
+          excluded_modules: Array.isArray(p.excludedModules) ? p.excludedModules : [],
+          cutoff_at: now(), conditions: ["researcher_confirmed"], invalidation_conditions: ["scope_or_lens_revised"],
+        });
+        edits.push(linkEdit("mandateForCase", mandate, target));
+        break;
+      }
       case "CaptureSource": {
         const existing = this.ontology.listObjects("SourceDocument").find((item) => item.properties.uri === p.uri);
         const source = existing ? { id: existing.id, type: existing.type } : create("SourceDocument", { title: p.title, uri: p.uri, published_at: p.publishedAt, source_tier: p.sourceTier });
@@ -263,8 +289,30 @@ export class OntologyActionService {
       }
       case "CreateJudgmentUnit": {
         const scope = this.resolveOrCreateScope(target, p, create, edits);
+        const question = this.requireObject({ id: String(p.questionRef), type: "ResearchQuestion" }, "ResearchQuestion");
+        const belongs = this.ontology.listLinksForObject(target.id).some((link) => link.type === "caseAddressesQuestion" && link.sourceRef.id === target.id && link.targetRef.id === question.id);
+        if (!belongs) throw new Error("ResearchQuestion does not belong to ResearchCase");
         const unit = create("JudgmentUnit", { statement: p.statement, judgment_type: p.judgmentType, scope_ref: scope.id });
-        edits.push(linkEdit("caseHasJudgmentUnit", target, unit), linkEdit("unitUsesScope", unit, scope));
+        edits.push(linkEdit("caseHasJudgmentUnit", target, unit), linkEdit("unitUsesScope", unit, scope), linkEdit("questionDecomposesIntoUnit", question, unit));
+        break;
+      }
+      case "RegisterEvidenceRequirement": {
+        const role = String(p.evidenceRole);
+        if (!["support", "counter", "context", "boundary"].includes(role)) throw new Error("invalid evidence role");
+        const requirement = create("EvidenceRequirement", { requirement: p.requirement, evidence_role: role, minimum_independent_sources: p.minimumIndependentSources, evidence_profile_refs: p.evidenceProfileRefs || [], no_profile_reason: p.noProfileReason || "task_local" });
+        edits.push(linkEdit("requirementForJudgmentUnit", requirement, target));
+        break;
+      }
+      case "RegisterCompetingExplanation": {
+        const explanation = create("CompetingExplanation", { statement: p.statement, discriminating_evidence: p.discriminatingEvidence });
+        edits.push(linkEdit("competingExplanationForUnit", explanation, target));
+        break;
+      }
+      case "RecordBlockingFactor": {
+        const effect = String(p.effect);
+        if (!["method_block", "direction_block", "level_cap", "scope_cap"].includes(effect)) throw new Error("invalid blocking effect");
+        const factor = create("BlockingFactor", { statement: p.statement, effect });
+        edits.push(linkEdit("blockingFactorForUnit", factor, target));
         break;
       }
       case "ApproveJudgment": {

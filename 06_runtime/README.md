@@ -15,7 +15,7 @@
 |---|---|
 | 网页与 API | `app/` |
 | Agent 内核、存储、规划 | `src/runtime/`、`src/worker.ts` |
-| Ontology 4.0 Catalog 投影与 Action Service | `src/ontology/` |
+| Ontology 5.0 Catalog 投影与 Action Service | `src/ontology/` |
 | 可执行 Agent/Skill/Tool 清单 | `src/capabilities/registry.ts`（全仓库唯一） |
 | 本地会话数据 | 默认 `06_runtime/.data/vnext.sqlite` |
 | 知识沉淀人类说明 | [`05_control_evaluation/01_rules/knowledge_promotion.md`](../05_control_evaluation/01_rules/knowledge_promotion.md) |
@@ -34,7 +34,9 @@
 
 需要 **Node.js 24**（使用内置 `node:sqlite`）。
 
-**一键启动（macOS）：** 双击仓库根目录的 `start-light.command`；它会检查依赖、执行生产构建并启动应用与 worker。然后打开 `http://127.0.0.1:3000`。
+**一键启动（macOS）：** 双击仓库根目录的 `start-light.command`；它会检查 Node.js 24、依赖与端口，执行生产构建，启动应用、worker 和可选 AKShare 连接器，然后自动打开浏览器。若 3000 已被占用，会在 3001–3010 中选择空闲端口。
+
+首次启用 AKShare 需要本机可用的 `uv`；启动脚本会用锁定的 Python 3.12 / AKShare 环境。如果 `uv`、上游数据源或网络不可用，页面仍会打开，但「关注变化」会明确显示降级原因。日志保存在 `.data/logs/`。
 
 **开发模式：**
 
@@ -55,13 +57,15 @@ npm run worker
 
 你在界面里提出目标 → Research Lead 给出受约束的计划 → 你确认后后台 worker 执行 → 右侧出现证据、判断等制品。证据与 Judgment 分别需要结构化确认；报告通过审计后仍保持“已核验、未发布”，只有你在发布卡中明确确认，Runtime 才会执行 `PublishDeliverable`。当前既可复用仓库内已经治理的历史来源快照，也可通过统一的认证摄取入口接收网页、PDF 和金融连接器结果；没有匹配来源或独立发布主体不足时，系统不会编造证据，判断会降级为「暂不可判断」。现有华泰智研 MCP 的半导体行业景气度已完成真实调用、受授权映射与原始响应私密冻结；DataYes 财务表当前因积分不足未取得样本，其他工具仍需继续映射。
 
-模型规划和模型章节草拟均为显式开启能力。设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并设置 `VNEXT_MODEL_DRAFTING_ENABLED=true` 后，Worker 会在正式 Judgment 批准后、确定性 Composer 和引用审计前调用模型。模型只能草拟获得 EvidenceFact 与 SourceReference 授权的专业章节；任何虚构数值、越权引用、评级或目标价都会导致整份模型草稿被拒绝并自动回退到确定性报告。
+模型规划、受约束研究推理和模型章节草拟均为显式开启能力。设置 `VNEXT_PROVIDER=openai|deepseek|anthropic`、对应密钥，并按需设置 `VNEXT_MODEL_PLANNING_ENABLED=true`、`VNEXT_MODEL_REASONING_ENABLED=true`、`VNEXT_MODEL_DRAFTING_ENABLED=true`。所有调用统一经过 Model Gateway，记录 Prompt/Schema 版本、上下文哈希、用量、成本、延迟、缓存与脱敏错误，并执行超时、有限重试和数据出境策略。模型只能提出假设、证据角色、候选判断、独立批判或获得授权的章节表达；任何虚构数值、越权引用、评级或目标价都会被拒绝。财务运算、证据真实性、正式本体写入和发布仍由确定性组件控制。
+
+能力是否上线由 [`../03_agent_capability/releases/current.json`](../03_agent_capability/releases/current.json) 统一决定。12 个已编写 Skill 可以存在于仓库，但只有 Release Manifest 中 `active` 且命中启用范围的能力可进入生产执行；候选 Agent/Skill 不因“代码已存在”自动上线。
 
 每份报告在审计节点都会生成逐项的专业纪律诊断，检查引用、ReportSpec 章节、MethodApplication、EvidenceFact 血缘、改判条件、定制要求与 AI 草拟边界。诊断不合成“专业总分”，也不冒充研究价值评测。用户确认发布时，Runtime 会冻结报告内容投影和证据包哈希，满足正式评测最前面的输入冻结条件；双轨独立密封裁决、四类扰动、C2 评测器校准、同证据直出/摘要基线和模型隔离仍须另行完成。正式 `R/U/delta/S/C` 的 `eligible` 也只表示可以启动协议，不表示已经通过。
 
 ## 产品面
 
-研究员在工作台中使用三块区域：左侧是研究主题与长期会话，中间是与 Research Lead 的连续对话、计划与执行状态，右侧是证据矩阵、假设、判断卡、报告与审计时间线等可信制品。关键证据与判断生成后，系统会暂停并将确认集中在中间区域。
+研究首页将「决策收件箱、关注变化、最近研究」并列，只展示命中当前研究代码或关键词的候选材料。研究工作区中，左侧是与 Research Lead 的对话式研究指令，右侧是证据矩阵、假设、判断卡、报告与审计时间线等可信制品，顶部研究脉冲条持续显示当前判断、证据数、首要缺口和下一步。关键证据与判断生成后，系统会暂停等待研究员确认。
 
 判断卡和报告支持直接编辑：每次保存生成新版本；判断修改后重新确认，报告修改后重新审计。证据事实不能在界面中随意改写；Agent 的初始判断只是提案，研究员必须完成一次结构化复核并保存，才可批准。
 
@@ -81,6 +85,14 @@ npm run build
 
 4. 内部知识管理页/API 需配置 `VNEXT_INTERNAL_ADMIN_TOKEN`；UI 需 `VNEXT_INTERNAL_UI_ENABLED=true`。
 
+### 运行与数据维护模式
+
+- `local`（默认）：仅允许 loopback，适合单用户本机工作台；`npm run start`。
+- `server`：`npm run start:server`，必须提供 `VNEXT_SERVER_IDENTITIES_JSON`、`VNEXT_ALLOWED_ORIGINS` 和 `VNEXT_SERVER_CSRF_TOKEN`。代理层统一执行 Bearer 身份、租户/用户声明、角色门、Origin/CSRF、速率限制和安全响应头；Conversation、Task、Artifact、Approval、Signal、ResearchCase 与 ActionExecution 均执行对象级租户归属检查，客户端提交的 tenant/user/actor 不受信任。`tenant_admin` 只能跨用户访问同租户对象，不能跨租户。
+- `npm run db:check`：运行 SQLite 完整性检查并列出已应用 schema migration。
+- `npm run db:backup -- /absolute/path/backup.sqlite`：先校验数据库，再用 SQLite 一致性快照备份；省略路径时写入 `.data/backups/`，不会覆盖已有文件。
+- `npm run eval:live:canary`：使用 `.env.local` 中的 DeepSeek 配置，对 3 个公开一手材料案例各调用一次；每次最多 650 输出 token、最多一次尝试、相同输入复用缓存。结果写入 `.data/evals/`，仅用于工程 canary，不宣称正式研究分数。
+
 ---
 
 ## 维护者附录（可跳过）
@@ -92,8 +104,8 @@ npm run build
 - 独立 App/API 与独立 worker；长任务不绑在单个 HTTP 请求上
 - 持久对象：Conversation、Task/TaskNode、Artifact、append-only Event、Approval、MemoryRecord
 - Message/Trace 从 Event 投影；ContextPackage 为临时装配
-- 当前只启用 Research Lead；其余 Agent 标为 `planned`，不会触发额外模型调用
-- 5 个 Skill：research-framing、research-design、evidence-research、judgment-reasoning、research-delivery
+- 当前只启用 Research Lead；其余 Agent 保持 `candidate`，不会触发额外模型调用
+- 12 个已编写 Skill 由 Capability Release Manifest 分为 active/candidate，并以评测增益作为激活门
 - Domain Semantic Graph 与 Research Provenance Graph 分离
 - 本体、词典、来源指南、Skill 资源包和历史正式包已接入只读增量索引；相对路径生成稳定 ID，内容哈希变化递增版本
 - `source.discover → source.capture → EvidenceFact` 已接通；短引文定位、正文哈希、权限和事实晋级由确定性 Verifier 约束
@@ -165,5 +177,5 @@ Artifact PATCH 不等于 Ontology Action：它只修订 Judgment/Report 等研�
 
 1. 部署实际使用的实时网页/PDF sidecar 与金融 MCP/数据商连接器（认证摄取 bridge 已具备）
 2. 将更多领域失效路径收敛为 Catalog 生成的影响规则
-3. 用 gold task 冻结引用正确率、覆盖率、成本与返工指标
+3. 把 30 个冻结研究价值 fixture 逐步物化为三轨真实产物，完成盲评、严重缺陷召回、弃权和研究员返工指标
 4. 取证并行评测有收益后再启用 Evidence Investigator

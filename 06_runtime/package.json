@@ -7,6 +7,7 @@
     "dev": "next dev --webpack -H 127.0.0.1 -p 3000",
     "build": "next build --webpack",
     "start": "next start -H 127.0.0.1 -p 3000",
+    "start:server": "VNEXT_RUNTIME_MODE=server next start -H 0.0.0.0 -p 3000",
     "start:all": "bash scripts/start-all.sh",
     "worker": "node --import tsx src/worker.ts",
     "test": "vitest run",
@@ -18,8 +19,12 @@
     "evidence:sources:check": "node --import tsx scripts/generate-evidence-source-catalog.ts --check",
     "audit:cutover": "node --import tsx scripts/audit-cutover.ts",
     "eval:gold": "node --import tsx scripts/run-gold-evals.ts",
+    "eval:research:fixtures": "node --import tsx scripts/run-research-value-fixtures.ts",
+    "eval:live:canary": "node --import tsx scripts/run-live-model-canary.ts",
     "eval:formal:audit": "node --import tsx scripts/audit-formal-case.ts",
-    "eval:formal:candidates": "node --import tsx scripts/audit-formal-case.ts ../05_control_evaluation/05_evals/cases/semiconductor-restraint-2026-08-11/manifest.json --require-evidence-ready"
+    "eval:formal:candidates": "node --import tsx scripts/audit-formal-case.ts ../05_control_evaluation/05_evals/cases/semiconductor-restraint-2026-08-11/manifest.json --require-evidence-ready",
+    "db:check": "node --import tsx scripts/database-maintenance.ts check",
+    "db:backup": "node --import tsx scripts/database-maintenance.ts backup"
   },
   "dependencies": {
     "next": "16.3.0",

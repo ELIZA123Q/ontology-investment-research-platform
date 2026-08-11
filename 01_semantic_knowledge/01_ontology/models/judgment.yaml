@@ -68,6 +68,7 @@ object_types:
       result: {type: enum, required: true, cardinality: '1..1', value_role: calculated, nullable_semantics: forbidden, allowed_values: [pass, fail, contested, blocked], description: 结果。}
     constraints: *standard_constraints
   Judgment:
+    implements: [TimeScoped, DecisionArtifact]
     metadata: {id: Judgment, namespace: core.judgment, label_zh: 判断, label_en: Judgment, aliases: [研究结论], definition: 经证据、信号、假设、正式约束与方法应用后形成的有范围、有条件结论。, model: judgment, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [行业处于早期去库阶段J2], counter_examples: [公告显示库存下降]}
     primary_key: id
     title_property: statement

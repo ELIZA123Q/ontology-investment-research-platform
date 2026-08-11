@@ -18,7 +18,9 @@ cd 06_runtime
 npm run dev
 ```
 
-另开一个终端运行 `npm run worker`，然后访问 `http://127.0.0.1:3000`。macOS 也可双击 [`start-light.command`](start-light.command)，它会检查依赖、构建并同时启动应用与 worker。
+另开一个终端运行 `npm run worker`，然后访问 `http://127.0.0.1:3000`。macOS 也可双击 [`start-light.command`](start-light.command)：它会检查 Node.js 24、依赖与端口，构建后启动应用、worker 和可选 AKShare 连接器，健康检查通过后自动打开浏览器。如 3000 被其他程序占用，会选择 3001–3010 中的空闲端口，不会强制终止其他进程。
+
+AKShare 首版只用于手动刷新 A 股研究主题相关的公开新闻和公告，不提供自动定时或实时行情。连接器不可用时主工作台仍可启动，状态会显示为降级。候选新闻与公告必须经过来源快照、证据确认和判断门槛，不会自动成为正式事实。
 
 ## 仓库地图
 

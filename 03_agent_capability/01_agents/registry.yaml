@@ -10,25 +10,36 @@ agents:
     package: 03_agent_capability/01_agents/research_lead
     context_policy: conversation
     can_assume_roles: [research_lead]
-    role: 理解目标、编译受约束任务图、控制预算、执行 Skill/Tool/Verifier、形成判断和交付
+    role: 唯一面向用户；理解目标、编译受约束任务图、控制预算、委派、形成最终判断和交付
 
 candidates:
   - agent_id: evidence-investigator
     lifecycle: planned
-    can_assume_roles: []
-    activation_gate: 取证并行配对评测证明覆盖率或时延有显著收益
-    notes: 对应 Role 尚未在 02_scenario_task/04_roles 建立前，不伪造 can_assume_roles
+    rollout: evaluation_ready_worker
+    can_assume_roles: [evidence_investigator]
+    activation_gate: 至少 12 个可比案例盲评胜率不低于 60%，且证据覆盖提升至少 10 个百分点或中位耗时下降至少 20%；严重来源、时间旅行、公式或权限回归为 0
+    notes: 只接收证据切片，只能写 evidence_package；首期先 shadow/forward test，不进入自动调度
+  - agent_id: financial-modeler
+    lifecycle: planned
+    rollout: evaluation_ready_worker
+    package: 03_agent_capability/01_agents/financial_modeler
+    context_policy: delegated_slice
+    can_assume_roles: [financial_modeler]
+    activation_gate: 至少 12 个可比案例盲评胜率不低于 60%，模型公式、口径、时间旅行和权限严重回归为 0
+    notes: 可写 normalized_financials、financial_model、valuation_analysis；不能批准 Judgment、评级或发布
   - agent_id: analysis-specialist
     lifecycle: planned
     can_assume_roles: []
     activation_gate: 单 Agent 复杂推理失败案例达到启用门槛
   - agent_id: independent-critic
     lifecycle: planned
-    can_assume_roles: []
-    activation_gate: 隔离审查相对确定性 Verifier 和人工复核产生增量价值
+    rollout: evaluation_ready_worker
+    can_assume_roles: [independent_reviewer]
+    activation_gate: 对植入关键缺陷的召回率至少 80%，错误阻断率不高于 10%，并证明相对确定性 Verifier 和人工复核的增量价值
+    notes: 隔离上下文，只输出 review；不得读取生产 Agent 隐藏推理或静默改写主制品
 
 rules:
-  - vNext.1 只能调度 lifecycle=active 的 Agent
+  - vNext.1 只能自动调度 lifecycle=active 的 Agent；evaluation_ready_worker 仅用于 shadow、forward test 或人工批准的演练
   - Role 定义在 02_scenario_task/04_roles；Agent 通过 can_assume_roles 声明可承担的责任位
   - candidates 不进入 Runtime 可调度清单，直至升级为 agents 且 lifecycle=active
   - 专家 Agent 作为 manager-controlled worker，不接管用户对话

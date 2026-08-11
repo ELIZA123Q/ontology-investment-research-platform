@@ -1,4 +1,4 @@
-import type { TaskStatus } from "@/src/contracts";
+import type { Task, TaskStatus } from "@/src/contracts";
 
 export async function apiRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -20,6 +20,14 @@ export const taskStatusLabel: Record<TaskStatus, string> = {
   failed: "执行失败",
   cancelled: "已取消",
 };
+
+export function taskStatusText(task: Task): string {
+  if (task.outcome === "completed_with_judgment") return "已形成正式判断";
+  if (task.outcome === "stopped_insufficient_evidence") return "因证据不足停止";
+  if (task.outcome === "cancelled") return "已取消";
+  if (task.outcome === "failed") return "执行失败";
+  return taskStatusLabel[task.status];
+}
 
 export function formatRelativeTime(value: string): string {
   const delta = Date.now() - Date.parse(value);

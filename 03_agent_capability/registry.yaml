@@ -13,6 +13,7 @@ authority:
   execution_binding: 06_runtime/src/capabilities/registry.ts
 
 source_of_truth:
+  capability_release: 03_agent_capability/releases/current.json
   agents_definition: 03_agent_capability/01_agents/registry.yaml
   skills_definition: 03_agent_capability/02_skills/registry.yaml
   tools_definition: 03_agent_capability/03_tools/registry.yaml

@@ -37,17 +37,22 @@ export function SurfaceRenderer({ surface, nodes, artifacts, events, onArtifactE
       const statusById = new Map(nodes.map((node) => [node.id, node.status]));
       return <article className="artifact-content plan-artifact">
         <header><span>受约束动态计划</span><h2>{surface.title}</h2><p>{surface.data.rationale}</p></header>
-        <div className="plan-graph">{surface.data.nodes.map((node, index) => {
+        {!!surface.data.lensSuggestions?.length && <section className="method-blueprint"><header><strong>建议研究 Lens</strong><span>{surface.data.problemGraph?.lensRefs?.join(" + ") || "待研究员确认"}</span></header><p>Lens 共享同一语义对象和证据链；确认计划后会固化到 ResearchMandate。</p><div>{surface.data.lensSuggestions.map((lens) => <article key={lens.id}><span>{lens.id}</span><div><strong>{lens.label || lens.id}</strong><small>{lens.evidenceRoles?.join(" / ") || "evidence"}</small><p>{lens.reason}</p>{!!lens.requiredOutputs?.length && <p>覆盖：{lens.requiredOutputs.join("、")}</p>}</div></article>)}</div></section>}
+        {surface.data.problemGraph && <section className="method-blueprint"><header><strong>Research Problem Graph</strong><span>{surface.data.problemGraph.taskMotifRefs.join(" · ")}</span></header><p>研究以判断单元为中心；每个单元分别保留主假设、竞争解释和支持／反证／边界证据缺口。</p><div>{surface.data.problemGraph.nodes.filter((node) => node.type === "judgment_unit").map((node) => {
+          const requirements = surface.data.problemGraph!.edges.filter((edge) => edge.toNodeId === node.id && edge.relation === "requires").map((edge) => surface.data.problemGraph!.nodes.find((item) => item.id === edge.fromNodeId)).filter(Boolean);
+          return <article key={node.id}><span>{node.state}</span><div><strong>{node.title}</strong><small>{requirements.map((item) => String(item?.payload.evidenceRole || "evidence")).join(" / ")}</small><p>{node.state === "resolved" ? "已裁决" : node.state === "blocked" ? "专业阻断" : node.state === "indeterminate" ? "暂不可判断" : "等待研究"}</p></div></article>;
+        })}</div></section>}
+        <div className="plan-graph">{surface.data.nodes.map((node) => {
           const status = statusById.get(node.id) || "pending";
           return <div className={`plan-step ${status}`} key={node.id}>
-            <span className="step-index">{status === "completed" ? <CheckIcon /> : index + 1}</span>
-            <div><strong>{node.title}</strong><small>{nodeStatusLabel[status]}{node.dependsOn.length ? ` · 依赖 ${node.dependsOn.length} 项` : " · 可立即开始"}</small></div>
+            <span className="step-index">{status === "completed" ? <CheckIcon /> : "•"}</span>
+            <div><strong>{node.title}</strong><small>{nodeStatusLabel[status]}{node.frontierRef?.evidenceRole ? ` · ${node.frontierRef.evidenceRole} evidence` : node.dependsOn.length ? ` · 依赖 ${node.dependsOn.length} 项` : " · 共享治理节点"}</small></div>
           </div>;
         })}</div>
         {!!surface.data.parallelGroups.length && <div className="artifact-note"><strong>可并行处理</strong><p>{surface.data.parallelGroups.map((group) => group.length + " 个节点").join("、")}</p></div>}
         {surface.data.reportSpec && <div className="artifact-note"><strong>交付规格</strong><p>{REPORT_KIND_LABELS[surface.data.reportSpec.kind]} · {surface.data.reportSpec.audience === "investment_committee" ? "投资决策委员会" : surface.data.reportSpec.audience === "portfolio_manager" ? "投资组合经理" : surface.data.reportSpec.audience === "client" ? "客户" : "研究员"} · {surface.data.reportSpec.depth === "brief" ? "简版" : surface.data.reportSpec.depth === "deep" ? "深度版" : "标准版"} · {surface.data.reportSpec.sections.length} 个受约束章节</p></div>}
         {surface.data.methodPlan && <section className="method-blueprint"><header><strong>专业方法蓝图</strong><span>{surface.data.methodPlan.applications.length} 个章节级 MethodApplication</span></header><p>本次确认会同时冻结以下方法路径；缺少方法输入时章节只能降级，不能由模型补写。</p><div>{surface.data.methodPlan.applications.map((application) => <article key={application.id}><span>{application.id.replace("MA-", "")}</span><div><strong>{application.frameworkIds.join(" + ")}</strong><small>{application.evidenceMethodId} → {application.adjudicationMethodId}</small><p>{application.rationale}</p></div></article>)}</div><footer>{surface.data.methodPlan.exitCondition}</footer></section>}
-        <div className="artifact-note"><strong>停止条件</strong><ul>{surface.data.stopConditions.map((item) => <li key={item}>{item}</li>)}</ul></div>
+        <div className="artifact-note"><strong>停止条件</strong><ul>{(surface.data.stopPredicates?.map((item) => item.kind) || surface.data.stopConditions).map((item) => <li key={item}>{item}</li>)}</ul></div>
         <blockquote>{surface.data.principle}</blockquote>
       </article>;
     }

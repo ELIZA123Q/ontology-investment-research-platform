@@ -18,6 +18,7 @@ object_types:
     constraints: &standard_constraints {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   Company:
     extends: Organization
+    implements: [NamedEntity, ResearchSubject, ObservableSubject]
     metadata: {id: Company, namespace: core.semantic, label_zh: 公司, label_en: Company, aliases: [企业], definition: 以商业经营为主要身份的组织主体。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [上市公司], counter_examples: [行业协会]}
     primary_key: id
     title_property: name
@@ -28,6 +29,7 @@ object_types:
       issuer_identifiers: {type: array, required: false, cardinality: '0..*', value_role: identity, nullable_semantics: null 表示未冻结发行人标识集合。, description: 可归一发行人标识集合（如 ISIN/其他代码）。}
     constraints: *standard_constraints
   Industry:
+    implements: [NamedEntity, ResearchSubject, ObservableSubject]
     metadata: {id: Industry, namespace: core.semantic, label_zh: 行业, label_en: Industry, aliases: [产业], definition: 具有共同供需和竞争结构的经济活动集合。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [半导体行业], counter_examples: [单一公司]}
     primary_key: id
     title_property: name
@@ -40,6 +42,7 @@ object_types:
     attributes: *named_attributes
     constraints: *standard_constraints
   Product:
+    implements: [NamedEntity, ResearchSubject, ObservableSubject]
     metadata: {id: Product, namespace: core.semantic, label_zh: 产品, label_en: Product, aliases: [产品类别], definition: 可被生产、交易、使用或交付的产品或产品类别。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [存储芯片], counter_examples: [库存水平]}
     primary_key: id
     title_property: name
@@ -50,12 +53,14 @@ object_types:
       primary_application_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要应用锚点。, reference_target: Application, description: 该产品在研究中最常用的主要应用锚点。}
     constraints: *standard_constraints
   Technology:
+    implements: [NamedEntity, ResearchSubject]
     metadata: {id: Technology, namespace: core.semantic, label_zh: 技术, label_en: Technology, aliases: [技术路线], definition: 可稳定识别、具有能力边界的技术或技术体系。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [先进封装], counter_examples: [技术成熟度上升]}
     primary_key: id
     title_property: name
     attributes: *named_attributes
     constraints: *standard_constraints
   Region:
+    implements: [NamedEntity, ResearchSubject]
     metadata: {id: Region, namespace: core.semantic, label_zh: 地区, label_en: Region, aliases: [管辖区], definition: 可稳定引用的地理、经济或监管范围。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [中国大陆], counter_examples: [全球需求走强]}
     primary_key: id
     title_property: name
@@ -103,6 +108,7 @@ object_types:
       jurisdiction_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未绑定主要管辖区。, reference_target: Region, description: 政策适用的主要管辖区（可选）。}
     constraints: *standard_constraints
   Asset:
+    implements: [NamedEntity, ResearchSubject]
     metadata: {id: Asset, namespace: core.semantic, label_zh: 资产, label_en: Asset, aliases: [经济资产], definition: 可识别、可归属且能够承载经济利益或风险的资产类别；作为设施类（如 ManufacturingFacility）和金融工具（FinancialInstrument）的公共投影父类。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [公司股权, 半导体制造设施], counter_examples: [看多观点, 市场情绪]}
     primary_key: id
     title_property: name
@@ -112,6 +118,7 @@ object_types:
     constraints: *standard_constraints
   FinancialInstrument:
     extends: Asset
+    implements: [NamedEntity, ResearchSubject, InvestableAsset]
     metadata: {id: FinancialInstrument, namespace: core.semantic, label_zh: 金融工具, label_en: Financial Instrument, aliases: [证券], definition: 体现一方金融资产与另一方权益或负债关系、可被稳定识别的资产。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-27', valid_to: null, replaced_by: [], source: ontology-3.0-content-enhancement, examples: [上市公司普通股], counter_examples: [公司利润]}
     primary_key: id
     title_property: name

@@ -1,10 +1,17 @@
 import { getRuntimeStore } from "@/src/runtime/store";
+import { assertConversationAccess, runtimeAccessStatus } from "@/src/security/runtime-access";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const { id } = await context.params;
+  let id: string;
+  try {
+    ({ id } = await context.params);
+    assertConversationAccess(getRuntimeStore(), request, id);
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: runtimeAccessStatus(error, 400) });
+  }
   const url = new URL(request.url);
   const fromQuery = Number(url.searchParams.get("after") || 0);
   const fromHeader = Number(request.headers.get("last-event-id") || 0);

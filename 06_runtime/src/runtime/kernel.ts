@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { ActionPreviewRequest, ApprovalRequest, Artifact, AssetRef, JudgmentSurfaceData, ReportSpecInput, ReportSurfaceData, ResearchMethodPlan, ResearchPlanSurfaceData, SourceCandidate, Task, TaskNode, UiSurface } from "@/src/contracts";
+import type { ActionPreviewRequest, ApprovalRequest, Artifact, AssetRef, FinancialModelData, JudgmentSurfaceData, NormalizedFinancialsData, ReportSpecInput, ReportSurfaceData, ResearchMethodPlan, ResearchPlanSurfaceData, ResearchProblemGraph, SourceCandidate, Task, TaskNode, ThesisStateData, UiSurface, ValuationAnalysisData } from "@/src/contracts";
 import { verifyArtifactWrite, verifyModelDraftSections, verifyReportClaims, verifyUiSurface } from "@/src/governance/verifiers";
-import { materializeNodes, planResearch, type ResearchPlan } from "@/src/runtime/planner";
+import { classifyIntent, materializeNodes, planFromProblemGraph, planResearch, type ResearchPlan } from "@/src/runtime/planner";
+import { buildResearchProblemGraph } from "@/src/runtime/problem-graph";
 import { compilePlannerProposal, type CompiledResearchPlan, type PlannerProposal } from "@/src/runtime/plan-compiler";
 import { getResearchNodeType } from "@/src/runtime/node-catalog";
 import { RuntimeStore } from "@/src/runtime/store";
@@ -10,6 +11,7 @@ import { ResearchProvenanceStore } from "@/src/semantic/provenance-store";
 import { LocalSourceGateway } from "@/src/tools/local-source-gateway";
 import { OntologyActionService } from "@/src/ontology/action-service";
 import { OntologyFunctionService } from "@/src/ontology/functions";
+import { OntologyQueryService } from "@/src/ontology/query-service";
 import { reportSpecForGoal } from "@/src/reporting/report-spec";
 import { composeProfessionalReport } from "@/src/reporting/report-composer";
 import { assessResearchMethods, deriveEvidenceRoles, selectResearchMethods } from "@/src/research/method-router";
@@ -18,8 +20,11 @@ import type { ModelProvider } from "@/src/providers/model-provider";
 import { requestReportSectionDrafts, type ReportDraftingAttempt } from "@/src/reporting/report-model-drafter";
 import { evaluateReportQuality } from "@/src/evaluation/report-quality-evaluator";
 import { adaptSourceToolResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
+import { consensusComparisonStatus, validateFinancialModel, validateNormalizedFinancials } from "@/src/research/financial-model-contract";
+import { requestBoundedResearchReasoning, type ModelReasoningAttempt } from "@/src/research/model-reasoning";
 
 const DEFAULT_BUDGET = { maxModelCalls: 12, maxToolCalls: 30, maxCostUsd: 3 };
+const includesAny = (value: string, words: string[]) => words.some((word) => value.includes(word));
 
 export interface ConversationSnapshot {
   conversation: ReturnType<RuntimeStore["getConversation"]>;
@@ -60,6 +65,7 @@ export class AgentKernel {
   readonly provenance: ResearchProvenanceStore;
   readonly sources: LocalSourceGateway;
   readonly actions: OntologyActionService;
+  readonly ontologyQuery: OntologyQueryService;
   readonly functions: OntologyFunctionService;
 
   constructor(readonly store: RuntimeStore) {
@@ -67,7 +73,8 @@ export class AgentKernel {
     this.provenance = new ResearchProvenanceStore(store.db);
     this.sources = new LocalSourceGateway(this.semantic, this.provenance);
     this.actions = new OntologyActionService(store);
-    this.functions = new OntologyFunctionService();
+    this.ontologyQuery = new OntologyQueryService(this.actions.ontology);
+    this.functions = new OntologyFunctionService(this.actions.ontology, this.ontologyQuery);
   }
 
   ingestExternalSource(taskId: string, input: UnifiedSourceToolResult): Artifact {
@@ -225,7 +232,26 @@ export class AgentKernel {
     return artifact;
   }
 
-  submitGoal(conversationId: string, content: string, proposal?: PlannerProposal, options: { pinnedAssetRefs?: AssetRef[]; reportSpec?: ReportSpecInput } = {}): { task: Task; approval?: ApprovalRequest } {
+  async prepareModelReasoningNode(taskId: string, nodeId: string, provider: ModelProvider | null): Promise<Artifact | null> {
+    const task = this.requireTask(taskId);
+    const node = this.store.getTaskNode(nodeId);
+    if (!node || node.taskId !== task.id || !["hypothesis", "judgment", "independent_review"].includes(node.kind) || Number(node.budget.maxModelCalls || 0) < 1) return null;
+    const artifacts = this.store.listArtifacts(task.id);
+    const existing = [...artifacts].reverse().find((artifact) => artifact.kind === "review" && artifact.title === "受约束模型研究推理" && artifact.nodeId === node.id && artifact.status !== "superseded");
+    if (existing) return existing;
+    const facts = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估")
+      .flatMap((artifact) => (artifact.data as { facts?: import("@/src/contracts").EvidenceFact[] }).facts || [])
+      .filter((fact) => fact.status === "verified");
+    const authorizedArtifacts = artifacts.filter((artifact) => ["method_application", "evidence_package", "hypothesis_map", "financial_model", "valuation_analysis", "thesis_state", "report"].includes(artifact.kind));
+    const attempt = await requestBoundedResearchReasoning(this.store, provider, { task, node, facts, artifacts: authorizedArtifacts });
+    if (!attempt.attempted) return null;
+    const sourceRefs = [...new Map(authorizedArtifacts.flatMap((artifact) => artifact.sourceRefs).map((source) => [source.sourceId, source])).values()];
+    const artifact = this.store.putArtifact({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, kind: "review", title: "受约束模型研究推理", status: attempt.data ? "verified" : "draft", data: attempt, sourceRefs, createdBy: attempt.provider || provider?.id || "model-reasoning" });
+    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: attempt.data ? "reasoning.model_candidate_verified" : "reasoning.model_candidate_rejected", actorType: "system", actorId: "bounded-model-reasoning", payload: { artifactId: artifact.id, targetKind: node.kind, provider: attempt.provider, model: attempt.model, cached: attempt.cached, fingerprint: attempt.fingerprint, errors: attempt.errors, usage: attempt.usage } });
+    return artifact;
+  }
+
+  submitGoal(conversationId: string, content: string, proposal?: PlannerProposal, options: { pinnedAssetRefs?: AssetRef[]; reportSpec?: ReportSpecInput; lensRefs?: string[] } = {}): { task: Task; approval?: ApprovalRequest } {
     const conversation = this.store.getConversation(conversationId);
     if (!conversation) throw new Error(`Conversation not found: ${conversationId}`);
     const accessibleRefs = this.store.listReleasedAssetRefs(conversation);
@@ -235,26 +261,39 @@ export class AgentKernel {
       throw new Error("Pinned knowledge must belong to the current accessible Release");
     }
     this.store.addMessage({ conversationId, actorType: "researcher", actorId: "researcher", content });
-    const compiled: CompiledResearchPlan = proposal
-      ? compilePlannerProposal(proposal, content, DEFAULT_BUDGET)
-      : { plan: planResearch(content), source: "deterministic", proposalFingerprint: requestFingerprint("local", "deterministic-planner", content), diagnostics: [] };
-    const plan = compiled.plan;
+    const fallbackIntent = classifyIntent(content);
+    const lensResult = fallbackIntent === "clarify" ? { suggestions: [] as Array<Record<string, unknown>> } : this.functions.execute("SuggestResearchLenses", { goal: content }) as { suggestions?: Array<Record<string, unknown>> };
+    const suggestedLensRefs = (lensResult.suggestions || []).map((item) => String(item.id || "")).filter(Boolean);
+    const lensRefs = options.lensRefs?.length ? options.lensRefs : suggestedLensRefs;
+    for (const lensRef of lensRefs) this.functions.execute("AssembleResearchRequirements", { lensRefs: [lensRef] });
+    const lensSuggestions = (lensResult.suggestions || []).map((item) => ({
+      id: String(item.id), label: typeof item.label_zh === "string" ? item.label_zh : String(item.id), reason: String(item.reason || "研究问题与该 Lens 的研究对象和证据要求匹配"),
+      requiredOutputs: Array.isArray(item.required_outputs) ? item.required_outputs.map(String) : [],
+      evidenceRoles: Array.isArray(item.evidence_roles) ? item.evidence_roles.map(String) : [],
+      stopConditions: Array.isArray(item.stop_conditions) ? item.stop_conditions.map(String) : [],
+    }));
     const researchCaseId = this.ensureResearchCase(conversationId, content);
     const reportSpec = reportSpecForGoal(content, options.reportSpec);
     const methodPlan = selectResearchMethods(content, reportSpec);
-    const task = this.store.createTask({ conversationId, researchCaseId, goal: content, intent: plan.intent, reportSpec, status: plan.intent === "clarify" ? "waiting_input" : "waiting_approval", budget: DEFAULT_BUDGET });
+    const task = this.store.createTask({ conversationId, researchCaseId, goal: content, intent: fallbackIntent, reportSpec, status: fallbackIntent === "clarify" ? "waiting_input" : "waiting_approval", budget: DEFAULT_BUDGET });
+    const graph = fallbackIntent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${task.id}`, taskId: task.id, researchCaseId, goal: content, intent: fallbackIntent, lensRefs }));
+    const compiled: CompiledResearchPlan = fallbackIntent === "clarify" && proposal
+      ? compilePlannerProposal(proposal, content, DEFAULT_BUDGET)
+      : { plan: graph ? planFromProblemGraph(graph, DEFAULT_BUDGET) : planResearch(content), source: graph ? "deterministic" : "deterministic_fallback", proposalFingerprint: requestFingerprint("local", graph ? "problem-graph-compiler" : "clarify-planner", content), diagnostics: [] };
+    const plan = compiled.plan;
     this.store.createKnowledgeLock(task.id);
     if (pinnedAssetRefs.length) this.store.appendEvent({ conversationId, taskId: task.id, type: "context.pinned", actorType: "researcher", actorId: "researcher", payload: { assetRefs: pinnedAssetRefs } });
     const nodes = materializeNodes(task.id, plan, task.budget);
     this.store.addTaskNodes(nodes);
+    if (graph) this.store.putArtifact({ conversationId, taskId: task.id, kind: "research_problem_graph", title: "Research Problem Graph（待确认）", status: "draft", data: graph, sourceRefs: [], createdBy: "research-lead" });
     const planArtifact = this.store.putArtifact({
       conversationId, taskId: task.id, kind: "research_plan", title: "可调整研究计划", status: "draft",
-      data: { ...this.publicPlan(plan, nodes, task.reportSpec, methodPlan), planner: { source: compiled.source, proposalFingerprint: compiled.proposalFingerprint, diagnostics: compiled.diagnostics } }, sourceRefs: [], createdBy: "research-lead",
+      data: { ...this.publicPlan(plan, nodes, task.reportSpec, methodPlan, graph, lensSuggestions), planner: { source: compiled.source, proposalFingerprint: compiled.proposalFingerprint, diagnostics: compiled.diagnostics } }, sourceRefs: [], createdBy: "research-lead",
     });
     this.store.appendEvent({ conversationId, taskId: task.id, type: "planner.compiled", actorType: "system", actorId: "plan-compiler", payload: { source: compiled.source, proposalFingerprint: compiled.proposalFingerprint, diagnostics: compiled.diagnostics } });
     this.store.appendEvent({ conversationId, taskId: task.id, type: "plan.proposed", actorType: "agent", actorId: "research-lead", payload: { planArtifactId: planArtifact.id, intent: plan.intent, nodeCount: nodes.length, plannerSource: compiled.source } });
     this.store.checkpoint({ taskId: task.id, phase: "after", state: { milestone: "plan_determined", planArtifactId: planArtifact.id, nodeIds: nodes.map((node) => node.id) } });
-    this.store.putArtifact({ conversationId, taskId: task.id, kind: "ui_surface", title: "研究计划", status: "draft", data: this.planSurface(plan, nodes, task.reportSpec, methodPlan), sourceRefs: [], createdBy: "research-lead" });
+    this.store.putArtifact({ conversationId, taskId: task.id, kind: "ui_surface", title: "研究计划", status: "draft", data: this.planSurface(plan, nodes, task.reportSpec, methodPlan, graph, lensSuggestions), sourceRefs: [], createdBy: "research-lead" });
 
     if (plan.intent === "clarify") {
       this.store.addMessage({ conversationId, actorType: "agent", actorId: "research-lead", content: "在开始研究前，我需要确认研究对象、希望支持的决策和时间范围。你可以直接补充，例如：研究对象 + 未来六个月 + 希望判断的问题。" });
@@ -296,6 +335,7 @@ export class AgentKernel {
     this.store.appendEvent({ conversationId: approval.conversationId, taskId: approval.taskId, nodeId: approval.nodeId, type: "approval.decided", actorType: "researcher", actorId: "researcher", payload: { approvalId: id, decision, note } });
     this.store.checkpoint({ taskId: approval.taskId, nodeId: approval.nodeId, phase: "after", state: { milestone: "user_confirmation", approvalId: id, decision } });
     if (decision === "approved") {
+      if (pending.kind === "plan_confirmation") this.materializeConfirmedProblemGraph(approval);
       if (judgmentRequest) this.commitApprovedJudgment(approval, judgmentRequest);
       if (publicationRequest) this.commitApprovedPublication(approval, publicationRequest);
       this.store.updateTaskStatus(approval.taskId, "queued");
@@ -335,9 +375,38 @@ export class AgentKernel {
     else if (finalNodes.some((node) => node.status === "blocked")) this.store.updateTaskStatus(taskId, "waiting_input");
     else if (finalNodes.every((node) => node.status === "completed" || node.status === "cancelled")) this.store.updateTaskStatus(taskId, "completed");
     const updated = this.requireTask(taskId);
-    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.settled", actorType: "system", actorId: "runtime", payload: { status: updated.status } });
+    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.settled", actorType: "system", actorId: "runtime", payload: { status: updated.status, outcome: updated.outcome } });
     if (["completed", "failed", "cancelled"].includes(updated.status) && !this.store.getMiningRunByTask(taskId)) this.queueMining(taskId);
     return updated;
+  }
+
+  /** Phase 2 scheduler entrypoint.  It only queues dependency-ready frontier nodes;
+   * workers may claim up to three nodes from the same task. */
+  dispatchTask(taskId: string): number {
+    const task = this.requireTask(taskId);
+    if (["cancelled", "completed", "waiting_approval", "waiting_input"].includes(task.status)) return 0;
+    this.store.updateTaskStatus(taskId, "running");
+    let queued = 0;
+    for (const node of this.store.listTaskNodes(taskId)) {
+      if (!["ready", "pending", "failed"].includes(node.status)) continue;
+      const dependencies = node.dependsOn.map((id) => this.store.getTaskNode(id));
+      if (dependencies.some((item) => item?.status === "failed" || item?.status === "blocked")) { this.store.updateNode(node.id, { status: "blocked" }); continue; }
+      if (!dependencies.every((item) => item?.status === "completed")) continue;
+      this.store.updateNode(node.id, { status: "ready" });
+      this.store.enqueueNode(taskId, node.id); queued++;
+    }
+    return queued;
+  }
+
+  executeTaskNode(taskId: string, nodeId: string): void {
+    const task = this.requireTask(taskId);
+    const node = this.store.getTaskNode(nodeId);
+    if (!node || node.taskId !== taskId || !["ready", "pending", "failed"].includes(node.status)) return;
+    if (!node.dependsOn.every((id) => this.store.getTaskNode(id)?.status === "completed")) return;
+    this.executeNode(task, node);
+    if (this.requireTask(taskId).status === "running") this.dispatchTask(taskId);
+    const nodes = this.store.listTaskNodes(taskId);
+    if (nodes.every((item) => item.status === "completed" || item.status === "cancelled")) this.store.updateTaskStatus(taskId, "completed");
   }
 
   cancelTask(taskId: string): Task {
@@ -362,17 +431,20 @@ export class AgentKernel {
   branchTask(taskId: string, revisedGoal?: string): Task {
     const parent = this.requireTask(taskId);
     const goal = revisedGoal?.trim() || parent.goal;
-    const plan = planResearch(goal);
+    const intent = classifyIntent(goal);
     // A legacy 3.0 task may have no persisted ResearchCase. Branching is a new
     // 4.0 run, so create the aggregate root lazily instead of writing back to the
     // legacy task or attempting dual-write migration.
     const researchCaseId = this.ensureResearchCase(parent.conversationId, goal, parent.researchCaseId);
-    const branch = this.store.createTask({ conversationId: parent.conversationId, researchCaseId, parentTaskId: parent.id, goal, intent: plan.intent, reportSpec: parent.reportSpec, status: "waiting_approval", budget: parent.budget });
+    const branch = this.store.createTask({ conversationId: parent.conversationId, researchCaseId, parentTaskId: parent.id, goal, intent, reportSpec: parent.reportSpec, status: "waiting_approval", budget: parent.budget });
+    const graph = intent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${branch.id}`, taskId: branch.id, researchCaseId, goal, intent }));
+    const plan = graph ? planFromProblemGraph(graph, branch.budget) : planResearch(goal);
     this.store.createKnowledgeLock(branch.id);
     const nodes = materializeNodes(branch.id, plan, branch.budget);
     this.store.addTaskNodes(nodes);
     const methodPlan = selectResearchMethods(goal, branch.reportSpec);
-    this.store.putArtifact({ conversationId: branch.conversationId, taskId: branch.id, kind: "research_plan", title: "分支研究计划", status: "draft", data: this.publicPlan(plan, nodes, branch.reportSpec, methodPlan), sourceRefs: [], createdBy: "research-lead" });
+    if (graph) this.store.putArtifact({ conversationId: branch.conversationId, taskId: branch.id, kind: "research_problem_graph", title: "Research Problem Graph（待确认）", status: "draft", data: graph, sourceRefs: [], createdBy: "research-lead" });
+    this.store.putArtifact({ conversationId: branch.conversationId, taskId: branch.id, kind: "research_plan", title: "分支研究计划", status: "draft", data: this.publicPlan(plan, nodes, branch.reportSpec, methodPlan, graph), sourceRefs: [], createdBy: "research-lead" });
     this.store.appendEvent({ conversationId: branch.conversationId, taskId: branch.id, type: "task.branched", actorType: "researcher", actorId: "researcher", payload: { parentTaskId: parent.id, revisedGoal: goal } });
     this.store.checkpoint({ taskId: branch.id, phase: "after", state: { milestone: "plan_determined", parentTaskId: parent.id } });
     this.store.createApproval({ conversationId: branch.conversationId, taskId: branch.id, kind: "plan_confirmation", prompt: "确认开始这个研究分支？" });
@@ -509,6 +581,9 @@ export class AgentKernel {
 
   private executeNodeLocally(task: Task, node: TaskNode): Artifact | null {
     const artifacts = this.store.listArtifacts(task.id);
+    const inputArtifacts = artifacts.filter((artifact) => artifact.nodeId && node.dependsOn.includes(artifact.nodeId));
+    const problemGraph = this.store.getProblemGraph(task.id);
+    const frontierNode = node.frontierRef.problemNodeId ? problemGraph?.nodes.find((item) => item.id === node.frontierRef.problemNodeId) : undefined;
     const base = { conversationId: task.conversationId, taskId: task.id, nodeId: node.id, status: "draft" as const, sourceRefs: [], createdBy: "research-lead" };
     switch (node.kind) {
       case "clarify":
@@ -517,6 +592,15 @@ export class AgentKernel {
         {
           const index = this.semantic.buildIndex();
           const selected = this.semantic.searchSync({ text: task.goal, strategies: ["fts", "structured"], limit: 12 });
+          const baselineState = this.ontologyQuery.queryObjects({
+            typeOrInterface: "StateVariable", limit: 24,
+            accessContext: { actorId: "runtime", actorType: "system", accessScopes: ["*"] },
+          });
+          const goalTerms = task.goal.toLowerCase().split(/[\s，。；、]/).filter((term) => term.length > 1);
+          const matchedBaseline = baselineState.filter((item) => {
+            const text = JSON.stringify(item.properties).toLowerCase();
+            return !goalTerms.length || goalTerms.some((term) => text.includes(term));
+          }).slice(0, 12);
           const lock = this.store.getKnowledgeLock(task.id) || this.store.createKnowledgeLock(task.id);
           const pinnedEvent = [...this.store.listEvents(task.conversationId, 0, 10_000)].reverse().find((event) => event.taskId === task.id && event.type === "context.pinned");
           const pinnedRefs = ((pinnedEvent?.payload as { assetRefs?: AssetRef[] } | undefined)?.assetRefs || []);
@@ -524,6 +608,7 @@ export class AgentKernel {
           const references = [
             ...lock.assetRefs.map((ref) => ({ id: ref.assetId, kind: "semantic" as const, version: ref.version, reason: pinnedKeys.has(`${ref.assetId}:${ref.version}:${ref.fingerprint}`) ? "pinned by researcher from released knowledge" : "selected from released knowledge baseline", freshnessAt: lock.asOf, assetRef: ref })),
             ...selected.map((ref) => ({ id: ref.refId, kind: "semantic" as const, version: ref.version, reason: `${ref.reason}；${ref.path}`, freshnessAt: new Date().toISOString() })),
+            ...matchedBaseline.map((item) => ({ id: item.id, kind: "semantic" as const, version: item.version, reason: "Ontology ObjectSet：已加载领域基线 StateVariable", freshnessAt: lock.asOf })),
           ];
           for (const ref of lock.assetRefs) this.store.observeAssetUsage({ taskId: task.id, assetRef: ref, selectedReason: "context_builder", outcome: "used" });
           this.store.putContextPackage({
@@ -531,28 +616,41 @@ export class AgentKernel {
             releaseIds: { global: lock.globalReleaseId, tenant: lock.tenantReleaseId, user: lock.userReleaseId },
             references, tokenBudget: 8_000,
           });
-          this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "semantic.indexed", actorType: "system", actorId: "semantic-gateway", payload: index });
+          this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "semantic.indexed", actorType: "system", actorId: "semantic-gateway", payload: { ...index, ontologyBaseline: { releases: this.ontologyQuery.releases(), matchedStateVariableRefs: matchedBaseline.map((item) => item.id) } } });
         }
         return null;
       case "method_selection":
         return this.store.putArtifact({ ...base, kind: "method_application", title: "章节方法蓝图", data: selectResearchMethods(task.goal, task.reportSpec) });
       case "impact_analysis":
-        return this.store.putArtifact({ ...base, kind: "research_plan", title: "影响范围", data: { reusedArtifactIds: [], invalidatedArtifactIds: [], reason: "等待可核验的新材料与时间范围元数据" } });
+        {
+          const parent = task.parentTaskId ? this.store.getProblemGraph(task.parentTaskId) : undefined;
+          const text = task.goal.toLowerCase();
+          const affected = (parent?.nodes.filter((item) => item.type === "judgment_unit") || []).filter((unit) => {
+            const type = String(unit.payload.judgmentType || "");
+            if (includesAny(text, ["技术", "成熟度", "良率"])) return type.includes("maturity");
+            if (includesAny(text, ["经营", "利润", "业绩", "公告"])) return type.includes("transmission") || type.includes("impact");
+            return true;
+          });
+          for (const unit of affected) this.store.updateProblemGraphNode(unit.id, { state: "invalidated" });
+          const invalidatedArtifactIds = affected.flatMap((unit) => unit.resolvedArtifactIds);
+          return this.store.putArtifact({ ...base, kind: "research_plan", title: "影响范围", data: { reusedArtifactIds: [], invalidatedArtifactIds, affectedJudgmentUnitRefs: affected.map((item) => item.semanticRef || item.id), reason: affected.length ? "沿 ResearchProblemGraph 的判断单元范围传播失效；只重编译受影响子图。" : "没有识别到需要失效的历史判断单元。" } });
+        }
       case "evidence_discovery": {
         const result = this.store.runToolOnce({ key: `${task.id}:${node.id}:source.discover:v2`, toolId: "source.discover", taskId: task.id }, () => {
-          const candidates = this.sources.discover(task.goal);
+          const scope = typeof frontierNode?.payload.scope === "string" ? frontierNode.payload.scope : "";
+          const candidates = this.sources.discover(`${task.goal} ${scope}`);
           return { candidates, activities: [{ status: candidates.length ? "completed" : "no_match", channel: "local-governed-assets", candidateCount: candidates.length }] };
         }).result;
         this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "source.discovered", actorType: "system", actorId: "source.discover", payload: { candidateCount: result.candidates.length } });
-        return this.store.putArtifact({ ...base, kind: "evidence_package", title: "候选来源", data: result });
+        return this.store.putArtifact({ ...base, kind: "evidence_package", title: "候选来源", data: { ...result, frontierRef: node.frontierRef } });
       }
       case "evidence_capture": {
-        const discovery = [...artifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "候选来源");
+        const discovery = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "候选来源");
         const candidates = ((discovery?.data as { candidates?: SourceCandidate[] } | undefined)?.candidates || []).slice(0, 4);
         const externalCaptures = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "外部来源快照" && artifact.status === "verified")
           .flatMap((artifact) => (artifact.data as { captures?: Array<{ id: string; ontologySnapshotRef?: string }> }).captures || []);
         const captureInputFingerprint = requestFingerprint("source.capture", "v3", { candidateIds: candidates.map((candidate) => candidate.id), externalSnapshotIds: externalCaptures.map((capture) => capture.id).sort() });
-        const result = this.store.runToolOnce({ key: `${task.id}:${node.id}:source.capture:v3:${captureInputFingerprint}`, toolId: "source.capture", taskId: task.id }, () => {
+        const result = this.store.runToolOnce({ key: `${task.id}:source.capture:v4:${captureInputFingerprint}`, toolId: "source.capture", taskId: task.id }, () => {
           const snapshots = candidates.map((candidate) => this.sources.capture(candidate));
           const caseObject = this.actions.ontology.getObject(task.researchCaseId);
           if (!caseObject) throw new Error(`ResearchCase not found: ${task.researchCaseId}`);
@@ -588,10 +686,10 @@ export class AgentKernel {
           return this.sources.toSourceReference(snapshot);
         });
         this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "source.captured", actorType: "system", actorId: "source.capture", payload: { snapshotIds: result.captures.map((capture) => capture.id), verifiedCount: sourceRefs.filter((ref) => ref.verification === "verified").length } });
-        return this.store.putArtifact({ ...base, kind: "evidence_package", title: "来源快照", data: result, sourceRefs });
+        return this.store.putArtifact({ ...base, kind: "evidence_package", title: "来源快照", data: { ...result, frontierRef: node.frontierRef }, sourceRefs });
       }
       case "evidence_evaluation": {
-        const captured = [...artifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "来源快照");
+        const captured = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "来源快照");
         const captures = ((captured?.data as { captures?: Array<{ id: string; ontologySnapshotRef?: string }> } | undefined)?.captures || []);
         const snapshotIds = captures.map((item) => item.id);
         const capturedSourceRefs = snapshotIds.flatMap((id) => {
@@ -628,43 +726,138 @@ export class AgentKernel {
         const facts = [...new Map([...capturedFacts, ...financialFacts].filter((fact) => fact.status === "verified").map((fact) => [fact.id, fact])).values()];
         const sourceRefs = [...new Map([...capturedSourceRefs, ...financialArtifacts.flatMap((artifact) => artifact.sourceRefs)].map((source) => [source.sourceId, source])).values()];
         const independentPublishers = new Set(sourceRefs.map((source) => source.publisherId).filter(Boolean));
-        const functionResult = this.functions.execute("AssessEvidenceUsability", { evidenceRefs: facts.map((fact) => fact.ontologyFactRef).filter(Boolean), judgmentUnitRefs: [] });
-        const sufficient = facts.length >= 2 && independentPublishers.size >= 2 && functionResult.sufficient === true;
+        const role = node.frontierRef.evidenceRole || "context";
+        const minIndependentPublishers = Number(frontierNode?.payload.minIndependentPublishers || (role === "support" ? 2 : 1));
+        const functionResult = this.functions.execute("AssessEvidenceUsability", { evidenceRefs: facts.map((fact) => fact.ontologyFactRef).filter(Boolean), judgmentUnitRefs: node.frontierRef.judgmentUnitRef ? [node.frontierRef.judgmentUnitRef] : [] });
+        const sufficient = facts.length >= minIndependentPublishers && independentPublishers.size >= minIndependentPublishers && functionResult.sufficient === true;
+        const requirementFulfilled = role === "counter" ? Boolean(captured) : sufficient;
         const evidence = this.store.putArtifact({ ...base, status: facts.length ? "verified" : "draft", kind: "evidence_package", title: "证据评估", sourceRefs, data: {
-          facts, qualifiedEvidenceCount: facts.length, independentPublisherCount: independentPublishers.size, sufficient, functionResult,
-          stopReason: sufficient ? undefined : "至少需要两份经 Source Capture 和 provenance verifier 核验、且发布主体不同的相关来源。",
+          frontierRef: node.frontierRef, evidenceRole: role, facts, qualifiedEvidenceCount: facts.length, independentPublisherCount: independentPublishers.size, sufficient, requirementFulfilled, functionResult,
+          stopReason: requirementFulfilled ? undefined : `本 ${role} 证据要求尚未满足：至少需要 ${minIndependentPublishers} 个独立发布主体。`,
         } });
+        if (frontierNode) this.store.updateProblemGraphNode(frontierNode.id, { state: requirementFulfilled ? "resolved" : "blocked", resolvedArtifactIds: [evidence.id] });
         for (const fact of facts) this.provenance.addEdge(fact.id, evidence.id, "included_in");
         this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "evidence.promoted", actorType: "system", actorId: "provenance-verifier", payload: { factIds: facts.map((fact) => fact.id), sufficient } });
-        this.putSurface(task, node, "evidence_matrix", "证据矩阵", { rows: facts, sufficient, gap: sufficient ? undefined : "补充第二份可独立定位且发布主体不同的来源" }, evidence.id);
+        this.putSurface(task, node, "evidence_matrix", "证据矩阵", { rows: facts, sufficient: requirementFulfilled, gap: requirementFulfilled ? undefined : `补充 ${role} 证据要求所需的独立来源` }, evidence.id);
         return evidence;
       }
+      case "financial_normalization": {
+        const financialInputs = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "结构化金融数据" && artifact.status === "verified");
+        const latest = financialInputs.at(-1);
+        const input = latest?.data as { asOf?: string; facts?: Array<{ metric?: { id?: string; value?: number; basis?: string } }> } | undefined;
+        const asOf = input?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
+        const sourceArtifactRefs = latest ? [latest.id] : [];
+        const observations = (input?.facts || []).flatMap((fact) => {
+          const metric = fact.metric;
+          return metric && typeof metric.id === "string" && typeof metric.value === "number" && latest
+            ? [{ metricId: metric.id, value: metric.value, basis: metric.basis === "restated" ? "restated" as const : "reported" as const, period: { start: asOf, end: asOf }, sourceArtifactRef: latest.id }]
+            : [];
+        });
+        const normalized: NormalizedFinancialsData = {
+          asOf, entityRef: task.researchCaseId, accountingBasis: "PRC_GAAP", currency: "CNY", unit: "元",
+          historicalBoundary: { start: asOf, end: asOf }, observations, sourceArtifactRefs,
+          status: observations.length ? "ready" : "insufficient",
+          blockers: observations.length ? undefined : ["缺少通过金融数据摄取合同验证的历史财务观测。"],
+        };
+        const check = validateNormalizedFinancials(normalized);
+        return this.store.putArtifact({ ...base, kind: "normalized_financials", title: "规范化财务", status: check.passed && normalized.status === "ready" ? "verified" : "draft", data: { ...normalized, validation: check }, sourceRefs: latest?.sourceRefs || [] });
+      }
+      case "model_build_or_update": {
+        const normalizedArtifact = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "normalized_financials") || [...artifacts].reverse().find((artifact) => artifact.kind === "normalized_financials");
+        const normalized = normalizedArtifact?.data as NormalizedFinancialsData | undefined;
+        const asOf = normalized?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
+        const nextDay = new Date(Date.parse(asOf) + 86_400_000).toISOString();
+        const nextYear = new Date(Date.parse(asOf) + 365 * 86_400_000).toISOString();
+        const model: FinancialModelData = {
+          asOf, entityRef: task.researchCaseId, accountingBasis: normalized?.accountingBasis || "PRC_GAAP", currency: normalized?.currency || "CNY", unit: normalized?.unit || "元",
+          historicalBoundary: normalized?.historicalBoundary || { start: asOf, end: asOf }, forecastBoundary: { start: nextDay, end: nextYear },
+          assumptions: normalizedArtifact ? [{ id: "historical_revenue_anchor", value: normalized?.observations.find((item) => item.metricId === "revenue")?.value || 0, basis: "reported", sourceArtifactRef: normalizedArtifact.id }] : [],
+          formulaDependencies: normalizedArtifact ? [{ output: "forecast_revenue", inputs: ["historical_revenue_anchor"] }] : [],
+          scenarios: normalizedArtifact ? [{ id: "base", assumptionIds: ["historical_revenue_anchor"] }, { id: "bull", assumptionIds: ["historical_revenue_anchor"] }, { id: "bear", assumptionIds: ["historical_revenue_anchor"] }] : [],
+          audit: normalized?.status === "ready" ? { passed: true, checks: ["historical/forecast boundary", "formula dependency declaration"], errors: [] } : { passed: false, checks: [], errors: ["normalized financials are insufficient"] },
+          sourceArtifactRefs: normalizedArtifact ? [normalizedArtifact.id] : [], status: normalized?.status === "ready" ? "ready" : "blocked",
+        };
+        const check = validateFinancialModel(model);
+        if (!check.passed) model.audit = { passed: false, checks: model.audit.checks, errors: [...new Set([...model.audit.errors, ...check.errors])] };
+        return this.store.putArtifact({ ...base, kind: "financial_model", title: "结构化财务模型", status: model.status === "ready" && model.audit.passed ? "verified" : "draft", data: { ...model, validation: check }, sourceRefs: normalizedArtifact?.sourceRefs || [] });
+      }
+      case "model_audit": {
+        const modelArtifact = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "financial_model") || [...artifacts].reverse().find((artifact) => artifact.kind === "financial_model");
+        const model = modelArtifact?.data as FinancialModelData | undefined;
+        const check = model ? validateFinancialModel(model) : { passed: false, errors: ["missing financial_model"], warnings: [] };
+        return this.store.putArtifact({ ...base, kind: "review", title: "财务模型审计", status: check.passed ? "verified" : "draft", data: { verifier: "financial-model-audit", ...check, modelArtifactRef: modelArtifact?.id }, sourceRefs: modelArtifact?.sourceRefs || [] });
+      }
+      case "valuation_analysis": {
+        const modelArtifact = artifacts.filter((artifact) => artifact.kind === "financial_model").at(-1);
+        const auditArtifact = artifacts.filter((artifact) => artifact.kind === "review" && artifact.title === "财务模型审计").at(-1);
+        const audit = auditArtifact?.data as { passed?: boolean } | undefined;
+        const model = modelArtifact?.data as FinancialModelData | undefined;
+        const valuation: ValuationAnalysisData = {
+          asOf: model?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString(),
+          financialModelRef: modelArtifact?.id || "", modelAuditRef: auditArtifact?.id || "", currency: model?.currency || "CNY", unit: model?.unit || "元",
+          methods: [], assumptions: [], sensitivities: [], status: audit?.passed ? "ready" : "blocked",
+          blockers: audit?.passed ? undefined : ["财务模型审计未通过；估值分析被阻断。"],
+        };
+        return this.store.putArtifact({ ...base, kind: "valuation_analysis", title: "估值分析", status: valuation.status === "ready" ? "verified" : "draft", data: valuation, sourceRefs: modelArtifact?.sourceRefs || [] });
+      }
+      case "thesis_update": {
+        const sourceArtifactRefs = inputArtifacts.map((artifact) => artifact.id);
+        const asOf = this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
+        const consensusStatus = consensusComparisonStatus(undefined);
+        const thesis: ThesisStateData = {
+          asOf, version: artifacts.filter((artifact) => artifact.kind === "thesis_state").length + 1,
+          pillars: [{ id: "primary_thesis", statement: "等待已验证证据与研究员裁决的命题状态。", status: "unresolved" }],
+          signals: sourceArtifactRefs.length ? [{ direction: "context", sourceArtifactRef: sourceArtifactRefs[0], note: "本次更新已登记；尚不代表正式改判。" }] : [],
+          catalysts: [], invalidationConditions: ["出现经核验、同口径的反向证据。"], openEvidenceGaps: ["一致预期比较状态：" + consensusStatus],
+          sourceArtifactRefs,
+        };
+        return this.store.putArtifact({ ...base, kind: "thesis_state", title: "命题状态 v" + thesis.version, data: thesis, sourceRefs: inputArtifacts.flatMap((artifact) => artifact.sourceRefs) });
+      }
+      case "independent_review": {
+        const model = artifacts.filter((artifact) => artifact.kind === "financial_model").at(-1);
+        const modelCheck = model ? validateFinancialModel(model.data as FinancialModelData) : { passed: true, errors: [], warnings: ["no financial model in review scope"] };
+        const reviewScope = artifacts.filter((artifact) => ["report", "financial_model", "valuation_analysis", "thesis_state", "evidence_package"].includes(artifact.kind)).map((artifact) => artifact.id);
+        const modelAttempt = [...artifacts].reverse().find((artifact) => artifact.kind === "review" && artifact.title === "受约束模型研究推理" && artifact.nodeId === node.id)?.data as ModelReasoningAttempt | undefined;
+        return this.store.putArtifact({ ...base, kind: "review", title: "隔离独立复核", status: modelCheck.passed && !modelAttempt?.errors?.length ? "verified" : "draft", data: {
+          verifier: "independent-research-review", passed: modelCheck.passed, errors: modelCheck.errors, warnings: modelCheck.warnings,
+          reviewScopeArtifactIds: reviewScope, contextPolicy: "isolated_review", mutationPolicy: "review_only", modelFindings: modelAttempt?.data?.reviewFindings || [], modelTraceRef: modelAttempt?.fingerprint,
+        }, sourceRefs: [] });
+      }
       case "hypothesis": {
-        const result = this.functions.execute("GenerateHypothesisCandidates", { caseRef: task.researchCaseId, statement: task.goal });
+        const modelAttempt = [...artifacts].reverse().find((artifact) => artifact.kind === "review" && artifact.title === "受约束模型研究推理" && artifact.nodeId === node.id)?.data as ModelReasoningAttempt | undefined;
+        const result = modelAttempt?.data?.hypotheses.length ? { hypothesisCandidates: modelAttempt.data.hypotheses.map((item) => ({ ...item, status: "candidate", source: "bounded_model" })), evidenceAssignments: modelAttempt.data.evidenceAssignments, modelTraceRef: modelAttempt.fingerprint }
+          : this.functions.execute("GenerateHypothesisCandidates", { caseRef: task.researchCaseId, statement: task.goal });
         const artifact = this.store.putArtifact({ ...base, kind: "hypothesis_map", title: "假设与竞争解释", data: { ...result, status: "candidate_only", commitAction: "AcceptHypothesis" } });
         this.putSurface(task, node, "hypothesis_map", "假设与竞争解释", { hypotheses: (result.hypothesisCandidates || []) as Array<{ statement: string; falsificationConditions: string[]; status: string }>, status: "candidate_only" }, artifact.id);
         return artifact;
       }
       case "judgment": {
-        const evidence = [...artifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估");
-        const evidenceData = (evidence?.data || {}) as { sufficient?: boolean; facts?: Array<import("@/src/contracts").EvidenceFact & { ontologyFactRef?: string }> };
-        const evidenceRefs = (evidenceData.facts || []).map((fact) => fact.ontologyFactRef).filter((id): id is string => Boolean(id));
-        const selectedMethods = [...artifacts].reverse().find((artifact) => artifact.kind === "method_application");
-        const assessedMethods = assessResearchMethods((selectedMethods?.data as ResearchMethodPlan | undefined) || selectResearchMethods(task.goal, task.reportSpec), evidenceData.facts || [], false);
+        const evaluations = inputArtifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估");
+        const evaluationData = evaluations.map((artifact) => artifact.data as { sufficient?: boolean; requirementFulfilled?: boolean; evidenceRole?: string; facts?: Array<import("@/src/contracts").EvidenceFact & { ontologyFactRef?: string }> });
+        const evidenceFacts = evaluationData.flatMap((item) => item.facts || []);
+        const evidenceRefs = evidenceFacts.map((fact) => fact.ontologyFactRef).filter((id): id is string => Boolean(id));
+        const selectedMethods = inputArtifacts.find((artifact) => artifact.kind === "method_application") || [...artifacts].reverse().find((artifact) => artifact.kind === "method_application");
+        const assessedMethods = assessResearchMethods((selectedMethods?.data as ResearchMethodPlan | undefined) || selectResearchMethods(task.goal, task.reportSpec), evidenceFacts, false);
         const coreMethod = assessedMethods.applications.find((item) => item.sectionKey === "core_judgments");
         const methodInputsReady = Boolean(coreMethod && coreMethod.missingEvidenceRoles.length === 0);
-        const hasQualified = evidenceData.sufficient === true && methodInputsReady;
+        const supportSatisfied = evaluationData.filter((item) => item.evidenceRole === "support").every((item) => item.requirementFulfilled === true);
+        const counterSearched = evaluationData.some((item) => item.evidenceRole === "counter" && item.requirementFulfilled === true);
+        const boundarySatisfied = evaluationData.filter((item) => item.evidenceRole === "boundary").every((item) => item.requirementFulfilled === true);
+        const hasQualified = supportSatisfied && counterSearched && boundarySatisfied && methodInputsReady;
         const computed = this.functions.execute("ComputeJudgmentProposal", { caseRef: task.researchCaseId, evidenceRefs, hypothesisRefs: [], statement: hasQualified ? "证据门槛已满足，等待研究员复核。" : "暂不可判断" });
-        const executedMethods = hasQualified ? assessResearchMethods(assessedMethods, evidenceData.facts || [], true) : assessedMethods;
+        const executedMethods = hasQualified ? assessResearchMethods(assessedMethods, evidenceFacts, true) : assessedMethods;
         if (selectedMethods) this.store.reviseArtifacts([{ id: selectedMethods.id, expectedVersion: selectedMethods.version, data: executedMethods, createdBy: "ComputeJudgmentProposal" }]);
         const executedCore = executedMethods.applications.find((item) => item.sectionKey === "core_judgments");
         this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "method.applications_assessed", actorType: "system", actorId: "research-design", payload: { methodArtifactId: selectedMethods?.id, executedApplicationIds: executedMethods.applications.filter((item) => item.executionStatus === "executed").map((item) => item.id), blockedApplicationIds: executedMethods.applications.filter((item) => item.executionStatus === "blocked").map((item) => item.id) } });
         const proposal = computed.judgmentProposal as Record<string, unknown>;
-        const signalInputs = (evidenceData.facts || []).flatMap((fact) => fact.ontologyFactRef ? [{ evidenceFactRef: fact.ontologyFactRef, statement: fact.statement, evidenceRoles: fact.evidenceRoles || [] }] : []);
-        const signalRoles = Object.fromEntries(signalInputs.map((input) => [input.evidenceFactRef, "context" as const]));
+        const modelAttempt = [...artifacts].reverse().find((artifact) => artifact.kind === "review" && artifact.title === "受约束模型研究推理" && artifact.nodeId === node.id)?.data as ModelReasoningAttempt | undefined;
+        const modelJudgment = hasQualified ? modelAttempt?.data?.judgment : null;
+        const signalInputs = evidenceFacts.flatMap((fact) => fact.ontologyFactRef ? [{ evidenceFactRef: fact.ontologyFactRef, statement: fact.statement, evidenceRoles: fact.evidenceRoles || [] }] : []);
+        const factOntologyRefs = new Map(evidenceFacts.map((fact) => [fact.id, fact.ontologyFactRef]));
+        const signalRoles = Object.fromEntries(signalInputs.map((input) => [input.evidenceFactRef, modelAttempt?.data?.evidenceAssignments.find((assignment) => factOntologyRefs.get(assignment.evidenceFactId) === input.evidenceFactRef)?.role || "support" as const]));
         const judgmentData: JudgmentSurfaceData & { commitAction: string | null } = {
-          statement: String(proposal.statement || "暂不可判断"),
-          confidence: typeof proposal.confidence === "string" ? proposal.confidence : "insufficient",
+          statement: modelJudgment?.statement || String(proposal.statement || "暂不可判断"),
+          confidence: modelJudgment?.confidence || (typeof proposal.confidence === "string" ? proposal.confidence : "insufficient"),
           epistemicStatus: proposal.epistemicStatus as JudgmentSurfaceData["epistemicStatus"],
           lifecycleStatus: proposal.lifecycleStatus as JudgmentSurfaceData["lifecycleStatus"],
           evidenceRefs,
@@ -676,19 +869,36 @@ export class AgentKernel {
           reasoningRule: { ruleRef: "judgment_evidence_threshold", conditions: [
             { id: "verified_evidence", label: "所有信号输入均为已核验 EvidenceFact", passed: signalInputs.length > 0 },
             { id: "executed_method_application", label: "核心 MethodApplication 已执行并通过", passed: executedCore?.executionStatus === "executed" && executedCore.gateStatus === "passed" },
-            { id: "support_signal_present", label: "研究员至少指定一条支持信号", passed: false },
-            { id: "no_block_signal", label: "不存在阻断信号", passed: true },
+            { id: "support_signal_present", label: "本单元满足支持证据要求", passed: supportSatisfied },
+            { id: "counter_search_completed", label: "已完成反证搜索或记录无结果", passed: counterSearched },
+            { id: "boundary_covered", label: "已处理适用边界", passed: boundarySatisfied },
           ] },
           disposition: hasQualified ? "review_required" : "abstain",
-          changeConditions: hasQualified ? ["核心方法输入出现反向证据", "关键事实完成同口径刷新"] : ["补齐方法缺口：" + (coreMethod?.missingEvidenceRoles.join("、") || "未选择核心方法"), "关键事实完成交叉验证"],
+          changeConditions: hasQualified ? (modelJudgment?.changeConditions.length ? modelJudgment.changeConditions : ["核心方法输入出现反向证据", "关键事实完成同口径刷新"]) : ["补齐方法缺口：" + (coreMethod?.missingEvidenceRoles.join("、") || "未选择核心方法"), "补齐支持、反证或边界证据要求"],
           commitAction: hasQualified ? "ApproveJudgment" : null,
+          modelReasoning: modelJudgment ? { fingerprint: modelAttempt?.fingerprint, summary: modelJudgment.reasoningSummary, status: "candidate_only" as const } : undefined,
         };
-        const judgment = this.store.putArtifact({ ...base, kind: "judgment", title: "当前判断", data: judgmentData });
-        this.putSurface(task, node, "judgment_card", "当前判断", judgmentData, judgment.id, hasQualified ? ["statement", "confidence", "changeConditions", "signalRoles"] : ["changeConditions"]);
+        const terminalState = hasQualified ? "resolved" : "indeterminate";
+        if (frontierNode) this.store.updateProblemGraphNode(frontierNode.id, { state: terminalState, resolvedArtifactIds: [] });
+        const judgment = this.store.putArtifact({ ...base, kind: "judgment", title: "当前判断", data: { ...judgmentData, judgmentUnitRef: node.frontierRef.judgmentUnitRef, problemNodeId: frontierNode?.id, frontierState: terminalState, evidenceByRole: evaluationData } });
+        if (frontierNode) this.store.updateProblemGraphNode(frontierNode.id, { state: terminalState, resolvedArtifactIds: [judgment.id] });
+        this.putSurface(task, node, "judgment_card", `判断单元：${frontierNode?.title || "当前判断"}`, judgmentData, judgment.id, hasQualified ? ["statement", "confidence", "changeConditions", "signalRoles"] : ["changeConditions"]);
         return judgment;
       }
+      case "synthesis": {
+        const graph = this.store.getProblemGraph(task.id);
+        const units = graph?.nodes.filter((item) => item.type === "judgment_unit" && item.required) || [];
+        const terminal = new Set(["resolved", "blocked", "indeterminate"]);
+        if (units.some((item) => !terminal.has(item.state))) throw new Error("Cannot synthesize before every required JudgmentUnit reaches a terminal frontier state");
+        const judgments = artifacts.filter((artifact) => artifact.kind === "judgment" && artifact.title === "当前判断");
+        const bundle = judgments.map((artifact) => ({ artifactId: artifact.id, ...(artifact.data as Record<string, unknown>) }));
+        if (graph) for (const item of graph.nodes.filter((node) => node.type === "synthesis")) this.store.updateProblemGraphNode(item.id, { state: "resolved" });
+        return this.store.putArtifact({ ...base, kind: "judgment", title: "判断汇总", data: { judgmentBundle: bundle, frontierSummary: units.map((unit) => ({ judgmentUnitRef: unit.semanticRef || unit.id, title: unit.title, state: unit.state })), synthesisRule: "required units terminal" } });
+      }
       case "compose": {
-        const judgment = [...artifacts].reverse().find((artifact) => artifact.kind === "judgment");
+        const synthesis = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "judgment" && artifact.title === "判断汇总");
+        const atomicJudgments = artifacts.filter((artifact) => artifact.kind === "judgment" && artifact.title === "当前判断");
+        const judgment = [...atomicJudgments].reverse()[0] || synthesis;
         if (task.intent === "compose_only" && !judgment) throw new Error("没有可复用的正式 Judgment；需要先选择历史制品。");
         const evidence = [...artifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估");
         const hypotheses = [...artifacts].reverse().find((artifact) => artifact.kind === "hypothesis_map");
@@ -703,7 +913,7 @@ export class AgentKernel {
           sourceRefs: evidence?.sourceRefs || [],
           modelDrafting: modelDrafting?.drafts?.length ? modelDrafting : undefined,
         });
-        const report = this.store.putArtifact({ ...base, kind: "report", title: draft.title, data: draft.data, sourceRefs: draft.sourceRefs });
+        const report = this.store.putArtifact({ ...base, kind: "report", title: draft.title, data: { ...(draft.data as unknown as Record<string, unknown>), judgmentBundleRefs: atomicJudgments.map((item) => item.id), synthesisArtifactRef: synthesis?.id }, sourceRefs: draft.sourceRefs });
         const caseObject = this.actions.ontology.getObject(task.researchCaseId);
         if (!caseObject) throw new Error(`ResearchCase not found: ${task.researchCaseId}`);
         const ontologyJudgmentRef = judgment && typeof judgment.data === "object" ? String((judgment.data as { ontologyJudgmentRef?: string }).ontologyJudgmentRef || "") : "";
@@ -741,11 +951,12 @@ export class AgentKernel {
           if (!surfaceArtifact) throw new Error("Report surface is missing during quality evaluation");
           const surface = surfaceArtifact.data as Extract<UiSurface, { component: "report_editor" }>;
           const nextSurface = { ...surface, data: reportData };
+          const verifiedStatus = result.passed && deliverableRef ? "verified" as const : report.status;
           const surfaceCheck = verifyUiSurface(nextSurface);
           if (!surfaceCheck.passed) throw new Error(surfaceCheck.errors.join("; "));
           this.store.reviseArtifacts([
-            { id: report.id, expectedVersion: report.version, data: reportData, status: report.status, createdBy: "report-quality-evaluator" },
-            { id: surfaceArtifact.id, expectedVersion: surfaceArtifact.version, data: nextSurface, status: surfaceArtifact.status, createdBy: "report-quality-evaluator" },
+            { id: report.id, expectedVersion: report.version, data: reportData, status: verifiedStatus, createdBy: "report-quality-evaluator" },
+            { id: surfaceArtifact.id, expectedVersion: surfaceArtifact.version, data: nextSurface, status: verifiedStatus, createdBy: "report-quality-evaluator" },
           ]);
           this.store.appendEvent({
             conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "report.quality_diagnostics_completed",
@@ -777,7 +988,7 @@ export class AgentKernel {
   private requestMilestoneApproval(task: Task, node: TaskNode, artifact: Artifact): void {
     let kind: ApprovalRequest["kind"] | undefined;
     let prompt = "";
-    if (node.kind === "evidence_evaluation" && (artifact.data as { sufficient?: boolean }).sufficient === true) {
+    if (node.kind === "evidence_evaluation" && (!node.frontierRef.evidenceRole || node.frontierRef.evidenceRole === "support") && (artifact.data as { sufficient?: boolean }).sufficient === true) {
       kind = "evidence_confirmation";
       prompt = "关键证据已经达到最低门槛。确认这些证据可以进入判断环节？";
     }
@@ -919,27 +1130,18 @@ export class AgentKernel {
     const caseTarget = [{ id: caseObject.id, type: caseObject.type }];
     const idempotencyBase = `approve-judgment:${artifact.id}:v${artifact.version}`;
     const knowledgeLockId = this.store.getKnowledgeLock(task.id)?.id;
-    const unitResult = this.actions.apply("CreateJudgmentUnit", {
-      targetRefs: caseTarget,
-      parameters: {
-        statement,
-        judgmentType,
-        scopeLabel: "本轮研究范围",
-        scopeDimensions: { research_case_ref: caseObject.id, judgment_statement: statement },
-      },
-      expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version },
-      idempotencyKey: `create-judgment-unit:${idempotencyBase}`,
-      knowledgeLockId,
-    }, context);
-    const judgmentUnit = unitResult.objects.find((object) => object.type === "JudgmentUnit");
-    const scope = unitResult.objects.find((object) => object.type === "ResearchScope")
-      || this.actions.ontology.listLinksForObject(caseObject.id)
-        .filter((link) => link.type === "caseHasScope" && link.sourceRef.id === caseObject.id)
-        .map((link) => this.actions.ontology.getObject(link.targetRef.id))
-        .find((object) => object?.type === "ResearchScope");
-    if (!judgmentUnit || !scope) throw new Error("CreateJudgmentUnit did not produce JudgmentUnit and ResearchScope");
-    const caseAfterUnit = this.actions.ontology.getObject(caseObject.id);
-    if (!caseAfterUnit) throw new Error(`ResearchCase missing after CreateJudgmentUnit: ${caseObject.id}`);
+    // The approved Problem Graph has already materialized the atomic unit under a
+    // plan-confirmation token. A judgment approval must attach to that unit instead
+    // of creating a second, unreviewed unit at the point of adjudication.
+    const judgmentUnitRef = String((data as JudgmentSurfaceData & { judgmentUnitRef?: string }).judgmentUnitRef || "");
+    const judgmentUnit = this.actions.ontology.getObject(judgmentUnitRef);
+    if (!judgmentUnit || judgmentUnit.type !== "JudgmentUnit") throw new Error("Judgment approval requires a materialized Problem Graph JudgmentUnit");
+    const scope = this.actions.ontology.listLinksForObject(judgmentUnit.id)
+      .filter((link) => link.type === "unitUsesScope" && link.sourceRef.id === judgmentUnit.id)
+      .map((link) => this.actions.ontology.getObject(link.targetRef.id))
+      .find((object) => object?.type === "ResearchScope");
+    if (!scope) throw new Error("Materialized JudgmentUnit is missing its ResearchScope");
+    const caseAfterUnit = caseObject;
     const hypothesisResult = this.actions.apply("AcceptHypothesis", {
       targetRefs: caseTarget,
       parameters: {
@@ -1055,12 +1257,101 @@ export class AgentKernel {
     });
   }
 
-  private publicPlan(plan: ResearchPlan, nodes: TaskNode[], reportSpec?: Task["reportSpec"], methodPlan?: ResearchMethodPlan): ResearchPlanSurfaceData {
-    return { intent: plan.intent, rationale: plan.rationale, nodes: nodes.map((node) => ({ id: node.id, title: node.title, kind: node.kind, capability: `${node.capabilityType}:${node.capabilityId}`, dependsOn: node.dependsOn })), parallelGroups: plan.parallelGroups, stopConditions: plan.stopConditions, principle: "确定性负责边界，Agent 负责路径", reportSpec, methodPlan };
+  private publicPlan(plan: ResearchPlan, nodes: TaskNode[], reportSpec?: Task["reportSpec"], methodPlan?: ResearchMethodPlan, graph?: ResearchProblemGraph, lensSuggestions?: ResearchPlanSurfaceData["lensSuggestions"]): ResearchPlanSurfaceData {
+    return { intent: plan.intent, rationale: plan.rationale, nodes: nodes.map((node) => ({ id: node.id, title: node.title, kind: node.kind, capability: `${node.capabilityType}:${node.capabilityId}`, dependsOn: node.dependsOn, frontierRef: node.frontierRef })), parallelGroups: plan.parallelGroups, stopConditions: plan.stopConditions, stopPredicates: plan.stopPredicates, problemGraph: graph ? { id: graph.id, status: graph.status, nodes: graph.nodes, edges: graph.edges, scenarioRefs: graph.scenarioRefs, taskMotifRefs: graph.taskMotifRefs, lensRefs: graph.lensRefs } : undefined, lensSuggestions, principle: "确定性负责边界，Agent 负责路径", reportSpec, methodPlan };
   }
 
-  private planSurface(plan: ResearchPlan, nodes: TaskNode[], reportSpec?: Task["reportSpec"], methodPlan?: ResearchMethodPlan): UiSurface {
-    const surface: Extract<UiSurface, { component: "research_plan" }> = { id: randomUUID(), component: "research_plan", title: "研究计划", editableFields: [], data: this.publicPlan(plan, nodes, reportSpec, methodPlan) };
+  /** The plan confirmation is the authorization boundary for the whole reviewed graph.
+   * Runtime nodes retain graph IDs; semantic refs are attached here only after approval. */
+  private materializeConfirmedProblemGraph(approval: ApprovalRequest): void {
+    const task = this.requireTask(approval.taskId);
+    const graph = this.store.getProblemGraph(task.id);
+    if (!graph || graph.status !== "proposed") return;
+    const caseObject = this.actions.ontology.getObject(task.researchCaseId);
+    if (!caseObject) throw new Error("ResearchCase missing while materializing confirmed Problem Graph");
+    const context = { actorType: "researcher" as const, actorId: "researcher", conversationId: task.conversationId, taskId: task.id };
+    const actionBase = { expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version }, approvalToken: approval.id, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id };
+    const roots = graph.nodes.filter((node) => node.type === "root_question");
+    for (const root of roots) {
+      const result = this.actions.apply("CreateResearchQuestion", {
+        targetRefs: [{ id: caseObject.id, type: caseObject.type }], parameters: { question: String(root.payload.question || root.title), failureRoute: "competing_explanation", scopeLabel: "已确认研究范围", scopeDimensions: { graphId: graph.id } },
+        ...actionBase, idempotencyKey: `problem-graph:${graph.id}:question:${root.id}`,
+      }, context);
+      const question = result.objects.find((object) => object.type === "ResearchQuestion");
+      if (!question) throw new Error("CreateResearchQuestion did not return a ResearchQuestion");
+      this.store.updateProblemGraphNode(root.id, { semanticRef: question.id, state: "active" });
+    }
+    const fresh = this.store.getProblemGraph(task.id)!;
+    const confirmedLensRefs = fresh.lensRefs?.length ? fresh.lensRefs : ["fundamental"];
+    for (const root of fresh.nodes.filter((node) => node.type === "root_question" && node.semanticRef)) {
+      this.actions.apply("ConfirmResearchMandate", {
+        targetRefs: [{ id: caseObject.id, type: caseObject.type }],
+        parameters: {
+          title: `研究委托：${root.title}`,
+          questionRef: root.semanticRef,
+          lensRefs: confirmedLensRefs,
+          horizon: "本轮研究",
+          comparisonBasis: "历史趋势、可比对象与共识预期",
+          materialityBoundary: "以已确认 Problem Graph 的判断单元和证据边界为准",
+          excludedModules: ["投资评级", "目标价", "仓位", "交易执行"],
+        },
+        ...actionBase,
+        idempotencyKey: `problem-graph:${fresh.id}:mandate:${root.id}`,
+      }, context);
+    }
+    const typeFor = (value: unknown): string => {
+      const raw = String(value || "");
+      if (raw.includes("cycle")) return "cycle_phase";
+      if (raw.includes("transmission") || raw.includes("impact")) return "transmission_path";
+      if (raw.includes("maturity")) return "trend_direction";
+      return "mechanism_validation";
+    };
+    for (const unit of fresh.nodes.filter((node) => node.type === "judgment_unit")) {
+      const rootId = fresh.edges.find((edge) => edge.fromNodeId === unit.id && edge.relation === "aggregates")?.toNodeId;
+      const question = rootId ? fresh.nodes.find((node) => node.id === rootId) : undefined;
+      if (!question?.semanticRef) throw new Error("JudgmentUnit is missing its parent ResearchQuestion");
+      const result = this.actions.apply("CreateJudgmentUnit", {
+        targetRefs: [{ id: caseObject.id, type: caseObject.type }], parameters: { statement: unit.title, judgmentType: typeFor(unit.payload.judgmentType), questionRef: question.semanticRef, scopeLabel: "已确认研究范围", scopeDimensions: { graphId: fresh.id } },
+        ...actionBase, idempotencyKey: `problem-graph:${fresh.id}:unit:${unit.id}`,
+      }, context);
+      const formalUnit = result.objects.find((object) => object.type === "JudgmentUnit");
+      if (!formalUnit) throw new Error("CreateJudgmentUnit did not return a JudgmentUnit");
+      this.store.updateProblemGraphNode(unit.id, { semanticRef: formalUnit.id, state: "active" });
+      const currentUnit = this.actions.ontology.getObject(formalUnit.id)!;
+      for (const requirement of fresh.nodes.filter((node) => node.type === "evidence_requirement" && node.payload.judgmentUnitKey === unit.key)) {
+        const resultRequirement = this.actions.apply("RegisterEvidenceRequirement", {
+          targetRefs: [{ id: currentUnit.id, type: currentUnit.type }], parameters: { requirement: requirement.title, evidenceRole: requirement.payload.evidenceRole, minimumIndependentSources: requirement.payload.minIndependentPublishers, noProfileReason: "task_local" },
+          expectedVersions: { [`${currentUnit.type}:${currentUnit.id}`]: currentUnit.version }, idempotencyKey: `problem-graph:${fresh.id}:requirement:${requirement.id}`, knowledgeLockId: actionBase.knowledgeLockId,
+        }, { ...context, actorType: "agent", actorId: "research-lead" });
+        const formalRequirement = resultRequirement.objects.find((object) => object.type === "EvidenceRequirement");
+        if (formalRequirement) this.store.updateProblemGraphNode(requirement.id, { semanticRef: formalRequirement.id, state: "active" });
+      }
+      const primary = fresh.nodes.find((node) => node.type === "hypothesis" && node.payload.judgmentUnitKey === unit.key);
+      if (primary) this.actions.apply("AcceptHypothesis", {
+        targetRefs: [{ id: caseObject.id, type: caseObject.type }], parameters: { statement: primary.title, judgmentUnitRef: formalUnit.id, direction: "neutral", timeHorizon: "本轮研究", falsificationConditions: ["支持证据不足", "竞争解释获得更强区分性证据"], role: "primary" },
+        expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version }, idempotencyKey: `problem-graph:${fresh.id}:hypothesis:${primary.id}`, knowledgeLockId: actionBase.knowledgeLockId,
+      }, { ...context, actorType: "agent", actorId: "research-lead" });
+      const competing = fresh.nodes.find((node) => node.type === "competing_explanation" && node.payload.judgmentUnitKey === unit.key);
+      if (competing) this.actions.apply("RegisterCompetingExplanation", {
+        targetRefs: [{ id: formalUnit.id, type: formalUnit.type }], parameters: { statement: competing.title, discriminatingEvidence: ["区分主假设与竞争解释的直接证据" ] },
+        expectedVersions: { [`${formalUnit.type}:${formalUnit.id}`]: formalUnit.version }, idempotencyKey: `problem-graph:${fresh.id}:competing:${competing.id}`, knowledgeLockId: actionBase.knowledgeLockId,
+      }, { ...context, actorType: "agent", actorId: "research-lead" });
+    }
+    for (const node of this.store.getProblemGraph(task.id)!.nodes.filter((node) => node.type === "synthesis")) this.store.updateProblemGraphNode(node.id, { state: "active" });
+    const materialized = this.store.getProblemGraph(task.id)!;
+    for (const executionNode of this.store.listTaskNodes(task.id)) {
+      const frontier = materialized.nodes.find((node) => node.id === executionNode.frontierRef.problemNodeId);
+      const unitKey = frontier?.type === "judgment_unit" ? frontier.key : String(frontier?.payload.judgmentUnitKey || "");
+      const unit = materialized.nodes.find((node) => node.type === "judgment_unit" && node.key === unitKey);
+      if (!frontier && !unit) continue;
+      this.store.updateNode(executionNode.id, { frontierRef: { ...executionNode.frontierRef, judgmentUnitRef: unit?.semanticRef || executionNode.frontierRef.judgmentUnitRef, evidenceRequirementRef: frontier?.type === "evidence_requirement" ? frontier.semanticRef || executionNode.frontierRef.evidenceRequirementRef : executionNode.frontierRef.evidenceRequirementRef } });
+    }
+    this.store.db.prepare("UPDATE problem_graphs SET status='active' WHERE id=?").run(graph.id);
+    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "problem_graph.materialized", actorType: "researcher", actorId: "researcher", payload: { problemGraphId: graph.id, approvalId: approval.id, lensRefs: confirmedLensRefs } });
+  }
+
+  private planSurface(plan: ResearchPlan, nodes: TaskNode[], reportSpec?: Task["reportSpec"], methodPlan?: ResearchMethodPlan, graph?: ResearchProblemGraph, lensSuggestions?: ResearchPlanSurfaceData["lensSuggestions"]): UiSurface {
+    const surface: Extract<UiSurface, { component: "research_plan" }> = { id: randomUUID(), component: "research_plan", title: "研究计划", editableFields: [], data: this.publicPlan(plan, nodes, reportSpec, methodPlan, graph, lensSuggestions) };
     const verified = verifyUiSurface(surface);
     if (!verified.passed) throw new Error(verified.errors.join("; "));
     return surface;

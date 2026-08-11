@@ -1,0 +1,47 @@
+schema_name: research_lens_registry
+schema_version: 1.0.0
+status: active
+scope: A 股基本面公司与行业研究
+
+selection_policy:
+  deep_research: 必须选择一个 primary_lens 和一个不同的 counter_lens
+  shallow_research: 可不选 lens，但必须说明不适用原因
+  invariant: lens 只改变优先验证的变量与反证，不改变 EvidenceFact、Judgment、审批和发布边界
+
+lenses:
+  - id: quality-compounding
+    suitable_horizon: 中长期（2 年以上）
+    core_variables: [资本回报, 自由现金流, 护城河, 再投资空间, 治理]
+    required_evidence: [分部经营数据, 现金流与资本开支, 竞争位置, 管理层资本配置]
+    typical_counterevidence: [回报率下滑, 护城河被侵蚀, 资本开支失控, 治理恶化]
+    exit_conditions: [再投资回报不再覆盖资本成本, 核心优势无法被验证]
+  - id: growth-expectation
+    suitable_horizon: 中短期（1-3 年）
+    core_variables: [收入增长, 渗透率, 订单, 产能兑现, 预期差]
+    required_evidence: [订单或销量, 价格与份额, 产能进度, 可复现预测假设]
+    typical_counterevidence: [增长基数误读, 订单取消, 份额流失, 市场预期已充分反映]
+    exit_conditions: [增长驱动无法量化或增长路径已被反证]
+  - id: cycle-supply-demand
+    suitable_horizon: 周期区间（季度至 3 年）
+    core_variables: [供给, 需求, 库存, 价格, 利用率, 产能]
+    required_evidence: [供需数据, 库存或渠道数据, 价格, 产能与开工率]
+    typical_counterevidence: [库存口径冲突, 隐性供给, 需求错配, 价格未传导]
+    exit_conditions: [无法确定周期位置或供需链条不闭合]
+  - id: value-reversion
+    suitable_horizon: 中期（1-3 年）
+    core_variables: [盈利正常化, 资产价值, 现金回收, 均值回归触发]
+    required_evidence: [历史周期财务, 资产/负债明细, 现金流, 正常化假设]
+    typical_counterevidence: [价值陷阱, 结构性衰退, 资产不可变现, 资本配置恶化]
+    exit_conditions: [正常化基础不存在或资产价值无法核验]
+  - id: event-catalyst
+    suitable_horizon: 短中期（事件前后）
+    core_variables: [事件时间点, 条件概率, 指引变化, 估值传导]
+    required_evidence: [公司公告, 监管文件, 事件条件, 可验证里程碑]
+    typical_counterevidence: [事件已被定价, 条件未满足, 事件影响不可量化]
+    exit_conditions: [催化剂日期/条件不确定，或事件与经营传导脱节]
+  - id: forensic-risk
+    suitable_horizon: 全期限，优先用于风险筛查与反证
+    core_variables: [收入确认, 现金流质量, 关联交易, 应收/存货, 治理]
+    required_evidence: [审计报告, 财务附注, 现金流, 关联方与股权信息, 监管问询]
+    typical_counterevidence: [可解释且已验证的一次性差异, 多源披露一致]
+    exit_conditions: [关键风险点已被可复现证据充分解释，或风险材料不足以构成判断]

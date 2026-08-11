@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { EvidenceFact, SourceSnapshot } from "@/src/contracts";
+import type { EvidenceFact, PointInTimeEvidenceEnvelope, SourceSnapshot } from "@/src/contracts";
 import { adaptSourceToolResult, type AdaptedSourceResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 
 type JsonScalar = string | number | boolean | null;
@@ -54,6 +54,7 @@ export interface AdaptedFinancialObservation {
   dimensions: Record<string, JsonScalar>;
   factType: EvidenceFact["factType"];
   source: AdaptedSourceResult;
+  pointInTime: PointInTimeEvidenceEnvelope;
 }
 
 export interface AdaptedFinancialDataResult {
@@ -115,6 +116,7 @@ export function adaptFinancialDataResult(result: FinancialDataToolResult): Adapt
       key, metricId, metricName, statement, value, unit, currency: input.currency, businessTime, periodStart, periodEnd,
       basis: input.basis, dimensions, factType: input.basis === "consensus" ? "forecast" as const : ["market", "provider_measurement"].includes(input.basis) ? "measurement" as const : "reported_fact" as const,
       source,
+      pointInTime: { ...source.pointInTime, subjectRef: entity.id, businessTime, asOf, accountingBasis: String(dimensions.accountingBasis || dimensions.accounting_basis || "unspecified"), currency: input.currency, unit },
     };
   });
   return { entity, asOf, observations, providerResponse };

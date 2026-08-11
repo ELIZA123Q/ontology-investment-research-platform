@@ -1,0 +1,44 @@
+schema_name: research_task_contract
+schema_version: 3.0.0
+
+task_id: company_coverage
+name: 公司首次覆盖
+objective: >
+  在明确的研究边界内形成公司商业模式、驱动、财务模型、估值分析和投资命题的可审计输入；
+  不自动产生评级、目标价、仓位或交易指令。
+
+scope:
+  applies_when: [用户要求 A 股公司首次覆盖或结构化基本面研究, 需要模型与估值作为判断输入]
+  excludes_when: [仅核实单一公告或读数, 无公司主体和时间范围, 需要投资指令]
+
+judgment_requirements:
+  - 商业模式、关键 KPI 与竞争优势
+  - 历史财务标准化、驱动式预测和模型审计
+  - 估值方法、假设、区间与敏感性
+  - 主 research lens、counter-lens、反证与失效条件
+
+expected_output: [company_fundamental_input, normalized_financials, financial_model, valuation_analysis, thesis_state, review]
+completion_criteria:
+  - 主 lens 与 counter-lens 已登记
+  - 财务模型通过确定性审计，或明确阻断原因
+  - 估值仅在模型审计通过后形成
+  - 命题状态、反证、催化剂和失效条件已版本化
+uncertainty_policy:
+  allow_insufficient_evidence: true
+  blocked_output_behavior: 输出证据缺口或阻断，不推断缺失财务值
+
+graph_motif:
+  root_question: company_coverage_question
+  judgment_unit_roles:
+    - {id: business_and_kpi, purpose: 商业模式与关键经营变量, required: true}
+    - {id: financial_model_integrity, purpose: 财务标准化与模型完整性, required: true}
+    - {id: valuation_boundary, purpose: 估值假设、范围与敏感性, required: true}
+    - {id: thesis_countercase, purpose: 命题、反证与失效条件, required: true}
+  edges:
+    - {from: business_and_kpi, to: financial_model_integrity, relation: informs}
+    - {from: financial_model_integrity, to: valuation_boundary, relation: requires}
+    - {from: thesis_countercase, to: company_coverage_question, relation: challenges}
+  competing_explanation_policy: {required_for: [business_and_kpi, valuation_boundary], minimum: 1}
+  aggregation: {mode: audited_model_and_countercase, required_units: [business_and_kpi, financial_model_integrity, valuation_boundary, thesis_countercase], allow_partial_with_gaps: true}
+
+capability_requirements: [company_fundamental_research, financial_modeling, valuation_analysis, thesis_monitoring, independent_research_review]

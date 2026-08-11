@@ -17,6 +17,7 @@ object_types:
       route_category: {type: enum, required: true, cardinality: '1..1', value_role: fact, nullable_semantics: forbidden, allowed_values: [process_scaling, device_architecture, memory_architecture, packaging, interconnect, compound_semiconductor, photonics, test, system_integration, other], description: 技术路线类别。}
     constraints: {unique: [name], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   ManufacturingFacility:
+    implements: [NamedEntity, ResearchSubject, Facility]
     projects_to: Asset
     metadata: {id: ManufacturingFacility, namespace: semiconductor, label_zh: 半导体制造设施, label_en: Semiconductor Manufacturing Facility, aliases: [制造基地], definition: 具有独立位置、运营主体、工艺能力和生命周期的半导体制造设施。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [十二英寸晶圆制造基地], counter_examples: [晶圆制造公司法人]}
     primary_key: id
@@ -29,6 +30,7 @@ object_types:
       capacity_scope_summary: {type: string, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示尚未冻结产能口径简述。, description: 用于研究的设施产能口径简述。}
     constraints: {unique: [name, region_ref], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   WaferFab:
+    implements: [NamedEntity, ResearchSubject, Facility]
     extends: ManufacturingFacility
     metadata: {id: WaferFab, namespace: semiconductor, label_zh: 晶圆厂, label_en: Wafer Fab, aliases: [晶圆制造设施], definition: 承担晶圆制造并具有可识别晶圆尺寸、工艺能力和有效产能的制造设施。, model: semantic, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: semiconductor-domain-3.0, examples: [十二英寸逻辑晶圆厂], counter_examples: [无独立设施边界的晶圆制造公司]}
     primary_key: id

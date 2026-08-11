@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
 import type { RuntimeStore } from "@/src/runtime/store";
 import type { ModelProvider } from "@/src/providers/model-provider";
+import { ModelGateway } from "@/src/providers/model-gateway";
 import { RESEARCH_NODE_CATALOG } from "@/src/runtime/node-catalog";
 import { parsePlannerProposal, type PlannerProposal } from "@/src/runtime/plan-compiler";
 
@@ -32,25 +32,25 @@ const schema = {
 export async function requestPlannerProposal(store: RuntimeStore, provider: ModelProvider | null, goal: string): Promise<PlannerModelAttempt> {
   if (!provider) return { attempted: true, cached: false, error: "No configured model provider" };
   const input = { goal, nodeCatalog: RESEARCH_NODE_CATALOG.map(({ kind, preconditions, invariants }) => ({ kind, preconditions, invariants })), schema };
-  const cacheKey = `planner:${createHash("sha256").update(JSON.stringify({ provider: provider.id, input })).digest("hex")}`;
-  const cached = store.getCachedModelResult<{ text: string; model: string; provider: string; usage?: PlannerModelAttempt["usage"] }>(cacheKey);
-  if (cached) {
-    const proposal = parsePlannerProposal(cached.text);
-    return proposal ? { attempted: true, proposal, provider: cached.provider, model: cached.model, usage: cached.usage, cached: true }
-      : { attempted: true, provider: cached.provider, model: cached.model, cached: true, error: "Cached planner output is not valid JSON" };
-  }
   try {
-    const result = await provider.generate({
+    const result = await new ModelGateway(store, provider).generate({
+      operation: "research_planner",
+      promptVersion: "research-planner/2.0.0",
+      schemaVersion: "planner-proposal/1.0.0",
       system: "You propose a research task graph. Output JSON only. You cannot create node kinds or capabilities. Runtime will enforce evidence capture, dependencies and budget.",
       prompt: JSON.stringify(input),
       responseSchema: schema as unknown as Record<string, unknown>,
+      schemaName: "research_plan_proposal",
       maxOutputTokens: 1600,
+      dataPolicy: "private_authorized",
+      validateResponse: (value) => {
+        if (!parsePlannerProposal(JSON.stringify(value))) throw new Error("Planner response failed the proposal contract");
+      },
     });
-    store.cacheModelResult(cacheKey, result.provider, result.model, result);
     const proposal = parsePlannerProposal(result.text);
-    return proposal ? { attempted: true, proposal, provider: result.provider, model: result.model, usage: result.usage, cached: false }
-      : { attempted: true, provider: result.provider, model: result.model, usage: result.usage, cached: false, error: "Planner output is not valid JSON" };
+    return proposal ? { attempted: true, proposal, provider: result.provider, model: result.model, usage: result.usage, cached: result.cached }
+      : { attempted: true, provider: result.provider, model: result.model, usage: result.usage, cached: result.cached, error: "Planner output is not valid JSON" };
   } catch (error) {
-    return { attempted: true, provider: provider.id, cached: false, error: error instanceof Error ? error.message : String(error) };
+    return { attempted: true, provider: provider.id, cached: false, error: `Planner output is not valid JSON or provider call failed: ${error instanceof Error ? error.message : String(error)}` };
   }
 }

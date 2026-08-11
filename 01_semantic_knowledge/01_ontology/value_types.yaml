@@ -1,0 +1,14 @@
+schema_name: investment_research_value_type_catalog
+schema_version: 5.0.0
+status: active
+description: 跨对象复用的金融投研值语义与验证约束。
+value_types:
+  StableIdentifier: {id: StableIdentifier, label_zh: 稳定标识, base_type: string, validation: 'non_empty_stable_identifier', description: 跨来源归一后保持稳定的对象标识。}
+  CurrencyCode: {id: CurrencyCode, label_zh: 币种, base_type: string, validation: 'ISO-4217-or-governed-local-code', description: 金额、价格或估值输入的币种代码。}
+  Money: {id: Money, label_zh: 金额, base_type: object, validation: 'value:number,currency:CurrencyCode', description: 带币种、单位和精度的金额。}
+  Percentage: {id: Percentage, label_zh: 比例, base_type: number, validation: 'finite_number', description: 可比较的比例或增长率。}
+  QuantityWithUnit: {id: QuantityWithUnit, label_zh: 带单位数量, base_type: object, validation: 'value:number,unit:string', description: 带标准单位及可比口径的数量。}
+  ReportingPeriod: {id: ReportingPeriod, label_zh: 报告期, base_type: object, validation: 'start:date,end:date,period_kind:enum', description: 财务或经营数据的报告期间。}
+  TimeHorizon: {id: TimeHorizon, label_zh: 时间窗, base_type: string, validation: 'non_empty_horizon', description: 判断、预测或估值的前瞻时间边界。}
+  ConfidenceLevel: {id: ConfidenceLevel, label_zh: 置信度, base_type: string, validation: 'insufficient|low|medium|high', description: 研究判断或估值评估的置信等级。}
+  AccessScope: {id: AccessScope, label_zh: 访问范围, base_type: string, validation: 'public|internal|restricted|private', description: 需要沿血缘传播的访问边界。}

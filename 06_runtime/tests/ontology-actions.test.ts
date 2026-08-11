@@ -18,14 +18,23 @@ const setup = () => {
   const researchCase = created.objects.find((object) => object.type === "ResearchCase")!;
   const task = store.createTask({ conversationId: conversation.id, researchCaseId: researchCase.id, goal: "判断未来六个月需求", intent: "full_research", status: "running", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
   store.createKnowledgeLock(task.id);
+  const planApproval = store.createApproval({ conversationId: conversation.id, taskId: task.id, kind: "plan_confirmation", prompt: "确认研究问题" });
+  store.decideApproval(planApproval.id, "approved");
+  const questionResult = actions.apply("CreateResearchQuestion", {
+    targetRefs: [{ id: researchCase.id, type: researchCase.type }],
+    parameters: { question: "判断未来六个月需求", failureRoute: "competing_explanation", scopeLabel: "测试研究范围", scopeDimensions: {} },
+    expectedVersions: { [researchCase.id]: researchCase.version }, approvalToken: planApproval.id, idempotencyKey: `question:${conversation.id}`,
+  }, { actorType: "researcher", actorId: "researcher", conversationId: conversation.id, taskId: task.id });
+  const researchQuestion = questionResult.objects.find((object) => object.type === "ResearchQuestion")!;
+  const researchScope = questionResult.objects.find((object) => object.type === "ResearchScope")!;
   store.putArtifact({ conversationId: conversation.id, taskId: task.id, kind: "method_application", title: "方法执行", status: "verified", data: { applications: [{ id: "MA-core_judgments", executionStatus: "executed", gateStatus: "passed" }] }, sourceRefs: [], createdBy: "test" });
-  return { store, conversation, task, actions, researchCase, context: { actorType: "agent" as const, actorId: "research-lead", conversationId: conversation.id, taskId: task.id } };
+  return { store, conversation, task, actions, researchCase, researchQuestion, researchScope, planApprovalId: planApproval.id, context: { actorType: "agent" as const, actorId: "research-lead", conversationId: conversation.id, taskId: task.id } };
 };
 afterEach(() => { while (stores.length) stores.pop()?.close(); });
 
-describe("Ontology 4.0 action platform", () => {
+describe("Ontology 5.0 action platform", () => {
   it("loads one semantic and kinetic catalog without investment execution actions", () => {
-    expect(ontologyCatalog.platformVersion).toBe("4.0.0");
+    expect(ontologyCatalog.platformVersion).toBe("5.0.0");
     expect(ontologyCatalog.listObjectTypes().some((type) => type.id === "ResearchCase")).toBe(true);
     const executionAttributes = ontologyCatalog.getObjectType("ActionExecution").attributes;
     expect(executionAttributes).toHaveProperty("actorType");
@@ -63,7 +72,7 @@ describe("Ontology 4.0 action platform", () => {
   });
 
   it("enforces capture-to-fact provenance and researcher approval before supported judgment", () => {
-    const { store, actions, researchCase, task, context } = setup();
+    const { store, actions, researchCase, researchQuestion, researchScope, planApprovalId, task, context } = setup();
     const captured = actions.apply("CaptureSource", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }],
       parameters: { title: "一手来源", uri: "https://example.com/primary", publishedAt: "2026-08-01T00:00:00Z", sourceTier: "S1", locator: "p1", contentHash: "sha256:primary", capturedAt: "2026-08-02T00:00:00Z", accessScope: "public", quote: "需求增长" },
@@ -87,11 +96,11 @@ describe("Ontology 4.0 action platform", () => {
     const fact = promoted.objects.find((object) => object.type === "EvidenceFact")!;
     const unitResult = actions.apply("CreateJudgmentUnit", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }],
-      parameters: { statement: "需求有条件增长", judgmentType: "trend_direction", scopeLabel: "本轮研究范围", scopeDimensions: { research_case_ref: researchCase.id } },
-      expectedVersions: { [researchCase.id]: researchCase.version }, idempotencyKey: "unit:primary",
+      parameters: { statement: "需求有条件增长", judgmentType: "trend_direction", questionRef: researchQuestion.id, scopeLabel: "本轮研究范围", scopeDimensions: { research_case_ref: researchCase.id } },
+      expectedVersions: { [researchCase.id]: researchCase.version }, approvalToken: planApprovalId, idempotencyKey: "unit:primary",
     }, context);
     const unit = unitResult.objects.find((object) => object.type === "JudgmentUnit")!;
-    const scope = unitResult.objects.find((object) => object.type === "ResearchScope")!;
+    const scope = researchScope;
     const hypothesis = actions.apply("AcceptHypothesis", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }],
       parameters: { statement: "需求有条件增长", judgmentUnitRef: unit.id, direction: "up", timeHorizon: "未来六个月", falsificationConditions: ["新来源反转"], role: "primary" },
@@ -143,7 +152,7 @@ describe("Ontology 4.0 action platform", () => {
   });
 
   it("invalidates downstream formal facts and judgments when a source gets a new snapshot", () => {
-    const { store, actions, researchCase, task, context } = setup();
+    const { store, actions, researchCase, researchQuestion, researchScope, planApprovalId, task, context } = setup();
     const first = actions.apply("CaptureSource", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }], parameters: { title: "来源", uri: "https://example.com/versioned", publishedAt: "2026-08-01T00:00:00Z", sourceTier: "S1", locator: "v1", contentHash: "sha256:v1", capturedAt: "2026-08-01T00:00:00Z", accessScope: "public", quote: "增长" },
       expectedVersions: { [researchCase.id]: 1 }, idempotencyKey: "capture:v1",
@@ -154,11 +163,11 @@ describe("Ontology 4.0 action platform", () => {
     const fact = actions.apply("PromoteEvidenceFact", { targetRefs: [{ id: claim.id, type: claim.type }], parameters: { statement: "增长", subjectRef: researchCase.id, scopeRef: researchCase.id, cutoffAt: "2026-08-01T00:00:00Z" }, expectedVersions: { [claim.id]: 1 }, idempotencyKey: "fact:v1" }, context).objects.find((object) => object.type === "EvidenceFact")!;
     const unitResult = actions.apply("CreateJudgmentUnit", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }],
-      parameters: { statement: "增长", judgmentType: "trend_direction" },
-      expectedVersions: { [researchCase.id]: 1 }, idempotencyKey: "unit:v1",
+      parameters: { statement: "增长", judgmentType: "trend_direction", questionRef: researchQuestion.id },
+      expectedVersions: { [researchCase.id]: 1 }, approvalToken: planApprovalId, idempotencyKey: "unit:v1",
     }, context);
     const unit = unitResult.objects.find((object) => object.type === "JudgmentUnit")!;
-    const scope = unitResult.objects.find((object) => object.type === "ResearchScope")!;
+    const scope = researchScope;
     const hypothesis = actions.apply("AcceptHypothesis", {
       targetRefs: [{ id: researchCase.id, type: researchCase.type }],
       parameters: { statement: "增长", judgmentUnitRef: unit.id, direction: "up", timeHorizon: "未来六个月", falsificationConditions: ["新版本"] },

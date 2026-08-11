@@ -21,6 +21,18 @@ describe("AI-native frontend view models", () => {
     expect(view.connections).toMatchObject({ configured: false, allowedConnectorIds: [], observedConnectorIds: [], sourceCaptureCount: 0, financialBatchCount: 0 });
   });
 
+  it("scopes the complete home projection to the authenticated tenant and user", () => {
+    const store = makeStore();
+    const own = store.createConversation("own", { tenantId: "tenant-a", userId: "analyst-a" });
+    const sameTenantOtherUser = store.createConversation("same tenant", { tenantId: "tenant-a", userId: "analyst-b" });
+    const foreign = store.createConversation("foreign", { tenantId: "tenant-b", userId: "analyst-a" });
+    for (const conversation of [own, sameTenantOtherUser, foreign]) {
+      store.createTask({ conversationId: conversation.id, goal: conversation.title, intent: "full_research", status: "running", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
+    }
+    expect(buildHomeView(store, { tenantId: "tenant-a", userId: "analyst-a", roles: ["research_owner"] }).research.map((item) => item.conversation.id)).toEqual([own.id]);
+    expect(buildHomeView(store, { tenantId: "tenant-a", userId: "admin-a", roles: ["tenant_admin"] }).research.map((item) => item.conversation.id).sort()).toEqual([own.id, sameTenantOtherUser.id].sort());
+  });
+
   it("exposes only current released global knowledge and never candidates", () => {
     const store = makeStore();
     const conversation = store.createConversation("候选来源");

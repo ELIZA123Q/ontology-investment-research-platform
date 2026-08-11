@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { SourceCandidate, SourceSnapshot } from "@/src/contracts";
+import type { PointInTimeEvidenceEnvelope, SourceCandidate, SourceSnapshot } from "@/src/contracts";
 
 type JsonScalar = string | number | boolean | null;
 
@@ -28,6 +28,7 @@ export interface UnifiedSourceToolResult {
 export interface AdaptedSourceResult {
   candidate: SourceCandidate;
   snapshot: Omit<SourceSnapshot, "id" | "verification">;
+  pointInTime: PointInTimeEvidenceEnvelope;
 }
 
 const sha256 = (value: string) => `sha256:${createHash("sha256").update(value).digest("hex")}`;
@@ -70,7 +71,8 @@ export function adaptSourceToolResult(result: UnifiedSourceToolResult): AdaptedS
   const quote = requireText(result.capture.quote, "capture.quote");
   const requestedAt = requireTimestamp(result.requestedAt, "requestedAt");
   const retrievedAt = requireTimestamp(result.retrievedAt, "retrievedAt");
-  const publishedAt = result.upstream.publishedAt ? requireTimestamp(result.upstream.publishedAt, "upstream.publishedAt") : undefined;
+  const publisherId = requireText(result.upstream.publisherId || "", "upstream.publisherId");
+  const publishedAt = requireTimestamp(result.upstream.publishedAt || "", "upstream.publishedAt");
   if (Date.parse(retrievedAt) < Date.parse(requestedAt)) throw new Error("retrievedAt cannot precede requestedAt");
   if (!body.includes(quote)) throw new Error("capture.quote cannot be located in capture.body");
 
@@ -99,7 +101,7 @@ export function adaptSourceToolResult(result: UnifiedSourceToolResult): AdaptedS
       contentHash,
       capturedAt: retrievedAt,
       publishedAt,
-      publisherId: result.upstream.publisherId,
+      publisherId,
       permissionScope: result.capture.permissionScope,
       acquisition: {
         connectorId,
@@ -109,6 +111,11 @@ export function adaptSourceToolResult(result: UnifiedSourceToolResult): AdaptedS
         rawResponseHash: contentHash,
         retrievedAt,
       },
+    },
+    pointInTime: {
+      connectorId, operation, subjectRef: upstreamSourceId, publisherId, sourceUri: uri,
+      publishedAt, businessTime: publishedAt, capturedAt: retrievedAt, asOf: retrievedAt,
+      permissionScope: result.capture.permissionScope, rawResponseFingerprint: contentHash,
     },
   };
 }

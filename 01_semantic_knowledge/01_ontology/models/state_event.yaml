@@ -7,6 +7,7 @@ model: state_event
 description: 对象在特定业务时间和研究范围下的状态、观测与事件；不包含工作流动作。
 object_types:
   StateVariable:
+    implements: [NamedEntity, ObservableSubject, TimeScoped]
     metadata: &sv_meta {id: StateVariable, namespace: core.state_event, label_zh: 状态变量, label_en: State Variable, aliases: [变量], definition: 锚定对象、指标和范围并可随时间变化的研究变量。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [行业库存水平], counter_examples: [库存指标定义]}
     primary_key: id
     title_property: name
@@ -25,6 +26,7 @@ object_types:
       scope_ref: {type: object_ref, required: false, cardinality: '0..1', value_role: metadata, nullable_semantics: null 表示这是稳定变量定义，具体任务尚未绑定范围。, reference_target: ResearchScope, description: 任务实例使用的范围引用。}
     constraints: &standard_constraints {unique: [], mutually_exclusive: [], lifecycle: valid_from_lte_valid_to}
   Observation:
+    implements: [TimeScoped, EvidenceBearing]
     metadata: {id: Observation, namespace: core.state_event, label_zh: 观测, label_en: Observation, aliases: [状态观测], definition: 对状态变量在明确业务时间、公布时间和研究截止时间下的记录。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [季度库存周转天数为90天], counter_examples: [库存将下降]}
     primary_key: id
     title_property: label
@@ -38,6 +40,7 @@ object_types:
       cutoff_at: {type: datetime, required: true, cardinality: '1..1', value_role: metadata, nullable_semantics: forbidden, time_basis: research_cutoff, description: 研究截止时间。}
     constraints: *standard_constraints
   Event:
+    implements: [TimeScoped, EvidenceBearing]
     metadata: {id: Event, namespace: core.state_event, label_zh: 事件, label_en: Event, aliases: [业务事件], definition: 在明确时间发生且可能改变对象状态的事实性变化。, model: state_event, version: 3.0.0, status: active, valid_from: '2026-07-17', valid_to: null, replaced_by: [], source: ontology-3.0-design, examples: [工厂投产], counter_examples: [公司属于设备商]}
     primary_key: id
     title_property: name

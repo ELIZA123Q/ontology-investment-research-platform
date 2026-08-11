@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ApprovalRequest, Artifact, Conversation, Message, RunEvent, Task, TaskNode, UiSurface } from "@/src/contracts";
-import { apiRequest, formatRelativeTime, taskStatusLabel } from "@/app/components/client-api";
+import { apiRequest, formatRelativeTime, taskStatusLabel, taskStatusText } from "@/app/components/client-api";
 import { ArrowIcon, BranchIcon, CloseIcon, MaterialIcon, MenuIcon, PanelIcon, SparkIcon } from "@/app/components/icons";
 import { AuditTimeline, isUiSurface, surfaceLabels, SurfaceRenderer } from "@/app/components/surface-registry";
 
@@ -49,6 +49,7 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
   const [dockOpen, setDockOpen] = useState(false);
   const [mobileView, setMobileView] = useState<"conversation" | "artifacts">("conversation");
   const [activeSurfaceId, setActiveSurfaceId] = useState<string>("audit");
+  const [composerContext, setComposerContext] = useState("");
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshSequence = useRef(0);
   const previousSurfaceCount = useRef(0);
@@ -98,11 +99,30 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
   const activeSurface = surfaceTabs.find((surface) => surface.id === activeSurfaceId);
   const completed = snapshot.nodes.filter((node) => node.status === "completed").length;
   const progress = snapshot.nodes.length ? Math.round(completed / snapshot.nodes.length * 100) : 0;
+  const researchPulse = useMemo(() => {
+    const judgments = snapshot.artifacts.filter((artifact) => artifact.kind === "judgment");
+    const judgment = judgments.at(-1);
+    const previousJudgment = judgments.at(-2);
+    const evidence = [...snapshot.artifacts].reverse().find((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估") || [...snapshot.artifacts].reverse().find((artifact) => artifact.kind === "evidence_package");
+    const judgmentData = judgment?.data as { statement?: string; disposition?: string } | undefined;
+    const evidenceData = evidence?.data as { facts?: unknown[]; stopReason?: string; nextGap?: string; sufficient?: boolean } | undefined;
+    const approval = snapshot.approvals[0];
+    const nextAction = approval?.prompt || (snapshot.task?.status === "running" ? "等待新制品，可随时创建后续分支" : snapshot.task?.status === "completed" ? "复核判断或从新变化创建更新分支" : "继续补充研究边界");
+    const asOf = [...snapshot.artifacts].map((artifact) => artifact.createdAt).sort().at(-1);
+    return {
+      judgment: judgmentData?.statement || (judgmentData?.disposition === "abstain" ? "暂不可判断" : "尚未形成正式判断"),
+      previousJudgment: (previousJudgment?.data as { statement?: string } | undefined)?.statement,
+      factCount: evidenceData?.facts?.length || 0,
+      gap: evidenceData?.stopReason || evidenceData?.nextGap || (evidenceData?.sufficient ? "核心证据门槛已满足" : "等待定位下一项证据缺口"),
+      nextAction,
+      asOf,
+    };
+  }, [snapshot.approvals, snapshot.artifacts, snapshot.task?.status]);
 
-  async function submit() {
-    const content = input.trim();
+  async function submit(contentOverride?: string) {
+    const content = contentOverride?.trim() || `${composerContext ? `[参考制品：${composerContext}] ` : ""}${input.trim()}`;
     if (!content || busy) return;
-    setBusy(true); setError(""); setInput("");
+    setBusy(true); setError(""); setInput(""); setComposerContext("");
     try {
       await apiRequest(`/vnext/conversations/${conversationId}/messages`, { method: "POST", body: JSON.stringify({ content }) });
       setSelectedTaskId(undefined);
@@ -173,6 +193,19 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
     setSelectedTaskId(taskId); setHistoryOpen(false); void refresh(taskId);
   }
 
+  function prepareInstruction(content: string) {
+    setInput(content);
+    setMobileView("conversation");
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
+  function openEvidenceBoundary() {
+    const evidenceSurface = [...surfaceTabs].reverse().find((surface) => surface.component === "evidence_matrix");
+    setActiveSurfaceId(evidenceSurface?.id || "audit");
+    setDockOpen(true);
+    setMobileView("artifacts");
+  }
+
   const canCancel = snapshot.task && ["queued", "running", "waiting_approval", "waiting_input"].includes(snapshot.task.status);
   const canResume = snapshot.task && ["failed", "waiting_input"].includes(snapshot.task.status);
   const canBranch = snapshot.task && ["completed", "cancelled", "failed"].includes(snapshot.task.status);
@@ -182,7 +215,7 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
     <header className="workspace-header">
       <div className="workspace-title">
         <button className="icon-button" onClick={() => setHistoryOpen(true)} aria-label="打开研究历史"><MenuIcon /></button>
-        <div><span>{snapshot.task ? taskStatusLabel[snapshot.task.status] : "研究主题"}</span><h1>{snapshot.task?.goal || snapshot.conversation?.title || "正在打开研究"}</h1></div>
+        <div><span>{snapshot.task ? taskStatusText(snapshot.task) : "研究主题"}</span><h1>{snapshot.task?.goal || snapshot.conversation?.title || "正在打开研究"}</h1></div>
       </div>
       <div className="workspace-progress"><span><i style={{ width: `${progress}%` }}/></span><small>{completed}/{snapshot.nodes.length} 个节点</small></div>
       <div className="workspace-actions">
@@ -194,6 +227,14 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
       </div>
     </header>
 
+    <section className="workspace-pulse" aria-label="研究脉冲">
+      <article><span>当前判断</span><strong>{researchPulse.judgment}</strong></article>
+      <article><span>已核验事实</span><strong>{researchPulse.factCount} 条</strong></article>
+      <article><span>首要缺口</span><strong>{researchPulse.gap}</strong></article>
+      <article><span>下一步</span><strong>{researchPulse.nextAction}</strong></article>
+      <time>{researchPulse.asOf ? `数据截止 ${new Date(researchPulse.asOf).toLocaleString("zh-CN")}` : "等待研究制品"}</time>
+    </section>
+
     <section className={`conversation-column ${mobileView === "conversation" ? "mobile-active" : ""}`}>
       <div className="conversation-scroll">
         {!snapshot.messages.length && <div className="conversation-welcome"><span><SparkIcon /></span><h2>继续告诉我你想判断什么</h2><p>目标、范围和希望支持的决策，是 Research Lead 最需要的上下文。</p></div>}
@@ -201,7 +242,7 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
           <div className="message-avatar">{message.actorType === "researcher" ? "你" : "AI"}</div>
           <div><header><strong>{message.actorType === "researcher" ? "你" : "Research Lead"}</strong><time>{formatRelativeTime(message.createdAt)}</time></header><p>{message.content}</p></div>
         </article>)}
-        {snapshot.task && <article className={`run-state-card ${snapshot.task.status}`}><span className="run-pulse"/><div><strong>{taskStatusLabel[snapshot.task.status]}</strong><p>{snapshot.task.status === "running" ? "Research Lead 正在沿已确认计划执行；新制品会自动进入右侧工作区。" : snapshot.task.status === "completed" ? "本轮已经结束。判断可能仍是“暂不可判断”，请以制品中的证据边界为准。" : snapshot.task.status === "failed" ? "执行没有完成。可在查看审计信息后恢复本轮。" : "当前状态变化会通过实时事件同步。"}</p></div><button onClick={() => { setActiveSurfaceId("audit"); setDockOpen(true); }}>查看过程</button></article>}
+        {snapshot.task && <article className={`run-state-card ${snapshot.task.status} ${snapshot.task.outcome || ""}`}><span className="run-pulse"/><div><strong>{taskStatusText(snapshot.task)}</strong><p>{snapshot.task.status === "running" ? "Research Lead 正在沿已确认计划执行；新制品会自动进入右侧工作区。" : snapshot.task.outcome === "stopped_insufficient_evidence" ? "本轮已按证据门停止，没有把缺口包装成判断；可查看证据边界或创建补证分支。" : snapshot.task.outcome === "completed_with_judgment" ? "本轮已形成经研究员复核的正式判断；请继续关注改判条件。" : snapshot.task.status === "failed" ? "执行没有完成。可在查看审计信息后恢复本轮。" : "当前状态变化会通过实时事件同步。"}</p></div><button onClick={() => { setActiveSurfaceId("audit"); setDockOpen(true); }}>查看过程</button></article>}
         {snapshot.approvals.map((approval) => {
           const judgmentReviewed = approval.kind !== "judgment_confirmation" || snapshot.artifacts.some((artifact) => artifact.kind === "judgment" && artifact.nodeId === approval.nodeId && artifact.createdBy === "researcher");
           const publicationReady = approval.kind !== "publish_confirmation" || snapshot.artifacts.some((artifact) => artifact.kind === "report" && (artifact.data as { publication?: { status?: string } }).publication?.status === "verified_not_published");
@@ -214,13 +255,24 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
       </div>
       <div className="workspace-composer">
         {error && <p className="inline-error" role="alert">{error}</p>}
+        <div className="composer-shortcuts" aria-label="快捷研究指令">
+          <button disabled={busy} onClick={() => void submit(`只补充并核验当前首要证据缺口：${researchPulse.gap}。优先一手来源；若仍不足，请明确停止原因与下一项可操作缺口。`)}>一键补当前缺口</button>
+          <button onClick={openEvidenceBoundary}>查看证据为何不足</button>
+          <button onClick={() => prepareInstruction(researchPulse.previousJudgment
+            ? `比较当前判断“${researchPulse.judgment}”与上一版本“${researchPulse.previousJudgment}”：逐项列出新增/失效证据、措辞变化、置信度变化和改判条件。`
+            : "比较本次判断与上一研究分支或上一可用版本：逐项列出新增/失效证据、措辞变化、置信度变化和改判条件。")}>比较上一版本判断</button>
+          <button onClick={() => prepareInstruction("比较主假设与竞争解释：")}>比较解释</button>
+          <button onClick={() => prepareInstruction("根据新材料更新判断：")}>更新判断</button>
+          <button onClick={() => prepareInstruction("整理为研究简报：")}>整理简报</button>
+        </div>
+        {composerContext && <div className="composer-context"><span>已带入：{composerContext}</span><button onClick={() => setComposerContext("")}>移除</button></div>}
         <textarea ref={textareaRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void submit(); } }} placeholder={snapshot.task?.status === "waiting_input" ? "补充研究对象、时间范围或希望支持的决策…" : "继续提问，或调整范围、补证据、更新判断…"} aria-label="给 Research Lead 发送消息" />
         <div><span>Enter 发送 · Shift+Enter 换行</span><button className="send-button" disabled={!input.trim() || busy} onClick={() => void submit()} aria-label="发送消息"><ArrowIcon /></button></div>
       </div>
     </section>
 
     <aside className={`artifact-dock ${mobileView === "artifacts" ? "mobile-active" : ""}`} aria-label="研究制品">
-      <header><div><span>研究制品</span><strong>{activeSurface ? activeSurface.title : "运行审计"}</strong></div><button className="icon-button" onClick={() => setDockOpen(false)} aria-label="收起制品"><CloseIcon /></button></header>
+      <header><div><span>研究制品</span><strong>{activeSurface ? activeSurface.title : "运行审计"}</strong></div><div className="artifact-header-actions">{activeSurface && <button onClick={() => { setComposerContext(`${activeSurface.title} · ${surfaceLabels[activeSurface.component]}`); setMobileView("conversation"); requestAnimationFrame(() => textareaRef.current?.focus()); }}>带入对话</button>}<button className="icon-button" onClick={() => setDockOpen(false)} aria-label="收起制品"><CloseIcon /></button></div></header>
       <nav className="artifact-tabs" aria-label="制品类型">{surfaceTabs.map((surface) => <button className={activeSurfaceId === surface.id ? "active" : ""} key={surface.id} onClick={() => setActiveSurfaceId(surface.id)}>{surfaceLabels[surface.component]}</button>)}<button className={activeSurfaceId === "audit" ? "active" : ""} onClick={() => setActiveSurfaceId("audit")}>审计</button></nav>
       <div className="artifact-scroll">{activeSurface ? <SurfaceRenderer surface={activeSurface} nodes={snapshot.nodes} artifacts={snapshot.artifacts} events={snapshot.events} onArtifactEdit={editArtifact} /> : <AuditTimeline events={snapshot.events} />}</div>
     </aside>
@@ -228,7 +280,7 @@ export function ResearchWorkspace({ conversationId }: { conversationId: string }
     {historyOpen && <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setHistoryOpen(false); }}><aside className="history-drawer">
       <header><div><span>研究历史</span><h2>{snapshot.conversation?.title}</h2></div><button className="icon-button" onClick={() => setHistoryOpen(false)}><CloseIcon /></button></header>
       <Link className="new-research-link" href="/">＋ 发起新研究</Link>
-      <div className="task-history">{snapshot.tasks.map((task) => <button className={task.id === snapshot.activeTaskId ? "active" : ""} key={task.id} onClick={() => selectTask(task.id)}><span className={`status-dot ${task.status}`}/><div><strong>{task.goal}</strong><small>{taskStatusLabel[task.status]} · {new Date(task.createdAt).toLocaleString("zh-CN")}</small>{task.parentTaskId && <i>研究分支</i>}</div></button>)}</div>
+      <div className="task-history">{snapshot.tasks.map((task) => <button className={task.id === snapshot.activeTaskId ? "active" : ""} key={task.id} onClick={() => selectTask(task.id)}><span className={`status-dot ${task.status} ${task.outcome || ""}`}/><div><strong>{task.goal}</strong><small>{taskStatusText(task)} · {new Date(task.createdAt).toLocaleString("zh-CN")}</small>{task.parentTaskId && <i>研究分支</i>}</div></button>)}</div>
     </aside></div>}
 
     {materialOpen && <div className="drawer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setMaterialOpen(false); }}><aside className="material-drawer">

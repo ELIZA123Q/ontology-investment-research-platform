@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { AgentKernel } from "@/src/runtime/kernel";
 import { getRuntimeStore } from "@/src/runtime/store";
+import { assertTaskAccess, runtimeAccessStatus } from "@/src/security/runtime-access";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string; action: string }> }) {
   try {
     const { id, action } = await context.params;
-    const kernel = new AgentKernel(getRuntimeStore());
+    const store = getRuntimeStore();
+    assertTaskAccess(store, request, id);
+    const kernel = new AgentKernel(store);
     if (action === "resume") return NextResponse.json({ jobId: kernel.resumeTask(id) });
     if (action === "cancel") return NextResponse.json(kernel.cancelTask(id));
     if (action === "branch") {
@@ -16,6 +19,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     }
     return NextResponse.json({ error: "Unknown task action" }, { status: 404 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 400 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: runtimeAccessStatus(error, 400) });
   }
 }

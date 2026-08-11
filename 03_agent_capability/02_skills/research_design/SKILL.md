@@ -23,8 +23,9 @@ progressive_loading: metadata_then_instructions_then_resources
 
 1. 读取 Task / Scenario，识别判断类型与领域。
 2. 从 `registry.yaml` 与 `references/` 匹配候选框架（基础 BF / 行业 IF）。
-3. 记录方法约束、替代方法与退出条件。
-4. 输出可执行的方法应用计划；不重新定义 Task 本身。
+3. 深度研究从 `research_lenses.yaml` 选择一个主 lens 和一个 counter-lens，并记录二者的必要证据、反证与退出条件。
+4. 记录方法约束、替代方法与退出条件。
+5. 输出可执行的方法应用计划；不重新定义 Task 本身。
 
 ## 不做
 
@@ -36,4 +37,5 @@ progressive_loading: metadata_then_instructions_then_resources
 
 1. 本文件（程序）
 2. `registry.yaml`（方法 ID 与适用条件）
-3. 按需加载 `references/基础/` 或 `references/行业/<domain>/`
+3. `research_lenses.yaml`（仅深度研究）
+4. 按需加载 `references/基础/` 或 `references/行业/<domain>/`

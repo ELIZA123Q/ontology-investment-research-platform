@@ -48,5 +48,8 @@ task_definitions:
   - path: cycle_judgment.yaml
   - path: event_impact.yaml
   - path: company_analysis.yaml
+  - path: company_coverage.yaml
+  - path: earnings_update.yaml
+  - path: thesis_review.yaml
   - path: technology_route_analysis.yaml
   - path: value_chain_analysis.yaml

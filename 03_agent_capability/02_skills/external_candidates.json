@@ -14,6 +14,28 @@
     ],
     "boundary": "外部 Skill 只能提供候选程序、模板或连接器实现；本项目的本体、证据晋级、判断门槛、审批和发布规则始终由本地合同控制。"
   },
+  "patternSources": [
+    {
+      "id": "anthropic-financial-services",
+      "upstreamRepository": "https://github.com/anthropics/financial-services",
+      "pinnedCommit": "38652224c10610fa52eee2acee3ac712dcff01f2",
+      "license": "Apache-2.0",
+      "reviewedAt": "2026-08-11",
+      "borrowedPatterns": ["责任型 Agent（market/earnings/model）", "earnings-analysis 与 model-update 的输入边界", "thesis-tracker 的版本化信号结构", "估值、模型和交付的显式依赖"],
+      "localRewrites": ["A 股主体、会计口径、币种和单位", "结构化 Artifact 为权威，XLSX 仅投影", "无 vintage 一致预期阻断 beat/miss", "Research Lead 保留最终 Judgment"],
+      "rejected": ["固定页数或图表数量", "美国数据源与股票覆盖口径", "自动评级、目标价、仓位或交易规则"]
+    },
+    {
+      "id": "sensenova-skills",
+      "upstreamRepository": "https://github.com/OpenSenseNova/SenseNova-Skills",
+      "pinnedCommit": "357990f6e8fe6188cf1c87646b947da19cc8b2b4",
+      "license": "MIT",
+      "reviewedAt": "2026-08-11",
+      "borrowedPatterns": ["研究计划与分工编排", "跨来源综合与交付分离", "报告检索作为来源发现 sidecar"],
+      "localRewrites": ["所有结果经过本地 SourceSnapshot、EvidenceFact 与权限合同", "不把 sub-report 或浏览摘要直接当作证据"],
+      "rejected": ["未审计的外部脚本和网络依赖", "越过本地审批/发布流程的自动执行"]
+    }
+  ],
   "candidates": [
     {
       "id": "anthropic-financial-services/initiating-coverage",

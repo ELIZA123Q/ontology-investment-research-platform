@@ -1,0 +1,41 @@
+schema_name: research_task_contract
+schema_version: 3.0.0
+
+task_id: earnings_update
+name: 业绩更新
+objective: >
+  将实际业绩与内部前值、公司指引及有授权 vintage 的一致预期分别比较，
+  解释差异、更新模型并登记命题影响。
+
+scope:
+  applies_when: [存在定期报告、业绩预告、业绩快报或正式业绩材料, 需要解释业绩变化与命题影响]
+  excludes_when: [无报告期或披露主体, 只需要市场行情摘要]
+
+judgment_requirements:
+  - 实际值、会计口径、一次性项目与可比基础
+  - 与内部前值和公司指引的差异
+  - 一致预期的授权、asOf 与 vintage；缺失时明确阻断 beat/miss
+  - 模型修订和命题支柱影响
+
+expected_output: [normalized_financials, financial_model, thesis_state, review]
+completion_criteria:
+  - 每项比较对象均有口径与时间边界
+  - 无 vintage 的一致预期不产生超/低预期结论
+  - 一次性项目、稀释股本和模型修订已披露或明确缺失
+uncertainty_policy:
+  allow_insufficient_evidence: true
+  consensus_without_vintage: block_comparison
+
+graph_motif:
+  root_question: earnings_update_question
+  judgment_unit_roles:
+    - {id: actual_quality, purpose: 实际值与一次性项目, required: true}
+    - {id: comparison_boundary, purpose: 内部前值、指引和一致预期比较边界, required: true}
+    - {id: model_and_thesis_impact, purpose: 模型与命题影响, required: true}
+  edges:
+    - {from: actual_quality, to: comparison_boundary, relation: requires}
+    - {from: comparison_boundary, to: model_and_thesis_impact, relation: informs}
+  competing_explanation_policy: {required_for: [model_and_thesis_impact], minimum: 1}
+  aggregation: {mode: actual_to_model_to_thesis, required_units: [actual_quality, comparison_boundary, model_and_thesis_impact], allow_partial_with_gaps: true}
+
+capability_requirements: [earnings_update, financial_modeling, thesis_monitoring, independent_research_review]

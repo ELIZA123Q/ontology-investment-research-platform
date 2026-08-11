@@ -53,4 +53,53 @@ functions:
     deterministic: true
     side_effects: false
     implementation: ontology-function/compute-judgment
-
+  SuggestResearchLenses:
+    version: 1.0.0
+    label_zh: 建议研究视角
+    description: 按研究目标、对象与可用语义资产建议可组合 Lens，不写正式对象。
+    inputs: {goal: string, availableLensRefs: array}
+    outputs: {suggestions: array}
+    reads: [ResearchCase, Company, Industry, Event, FinancialInstrument]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/suggest-research-lenses
+  AssembleResearchRequirements:
+    version: 1.0.0
+    label_zh: 装配研究要求
+    description: 将已确认 Lens 的对象接口、证据角色和停止条件组合成 Problem Graph 输入。
+    inputs: {lensRefs: array, mandateRef: object_ref}
+    outputs: {requirements: object}
+    reads: [ResearchMandate, ResearchQuestion, StateVariable, EvidenceRequirement]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/assemble-research-requirements
+  NormalizeFinancialObservation:
+    version: 1.0.0
+    label_zh: 归一财务观测
+    description: 对财务值、单位、报告期、会计口径和版本进行只读归一。
+    inputs: {observation: object, metricRef: object_ref}
+    outputs: {normalizedObservation: object}
+    reads: [FinancialObservation, FinancialMetric, FinancialReport]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/normalize-financial-observation
+  ComputeValuationScenario:
+    version: 1.0.0
+    label_zh: 计算估值情景
+    description: 根据已审计预测和情景假设计算非交易性估值敏感性。
+    inputs: {forecastRefs: array, assumptionRefs: array, method: string}
+    outputs: {valuationScenario: object}
+    reads: [Forecast, ForecastAssumption, FinancialObservation]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/compute-valuation-scenario
+  CompareExpectationGap:
+    version: 1.0.0
+    label_zh: 比较预期差
+    description: 比较研究预测与冻结共识快照，保留期间、口径和截面一致性结果。
+    inputs: {forecastRef: object_ref, consensusRef: object_ref}
+    outputs: {expectationGap: object}
+    reads: [Forecast, ConsensusSnapshot, ExpectationGap]
+    deterministic: true
+    side_effects: false
+    implementation: ontology-function/compare-expectation-gap

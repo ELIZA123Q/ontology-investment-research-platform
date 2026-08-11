@@ -50,6 +50,44 @@ actions:
     post_commit_effects: [append_domain_event, enqueue_impact_analysis]
     approval_policy: {mode: always, kind: plan_confirmation}
     handler: revise-research-scope
+  CreateResearchQuestion:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 创建研究问题
+    description: 在已确认研究范围内创建可追溯的 ResearchQuestion，并连接 ResearchCase。
+    target_types: [ResearchCase]
+    parameters:
+      question: {type: string, required: true}
+      failureRoute: {type: string, required: true}
+      scopeRef: {type: string, required: false}
+      scopeLabel: {type: string, required: false}
+      scopeDimensions: {type: object, required: false}
+    reads: [ResearchCase, ResearchScope]
+    writes: [ResearchScope, ResearchQuestion, caseHasScope, caseAddressesQuestion]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [ensure_ResearchScope, create_ResearchQuestion, create_caseAddressesQuestion]
+    approval_policy: {mode: always, kind: plan_confirmation}
+    handler: create-research-question
+  ConfirmResearchMandate:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 确认研究委托
+    description: 将研究员确认的 Lens、时间窗、比较基准和重要性边界写入 ResearchMandate。
+    target_types: [ResearchCase]
+    parameters:
+      title: {type: string, required: true}
+      questionRef: {type: string, required: true}
+      lensRefs: {type: array, required: true}
+      horizon: {type: string, required: true}
+      comparisonBasis: {type: string, required: true}
+      materialityBoundary: {type: string, required: true}
+      excludedModules: {type: array, required: false}
+    reads: [ResearchCase, ResearchQuestion]
+    writes: [ResearchMandate, mandateForCase]
+    preconditions: [target_exists, expected_version_matches, question_belongs_to_case, lens_profiles_registered]
+    ontology_edits: [create_ResearchMandate, create_mandateForCase]
+    approval_policy: {mode: always, kind: plan_confirmation}
+    handler: confirm-research-mandate
   CaptureSource:
     <<: *defaults
     version: 1.0.0
@@ -150,15 +188,65 @@ actions:
     parameters:
       statement: {type: string, required: true}
       judgmentType: {type: string, required: true}
+      questionRef: {type: string, required: true}
       scopeRef: {type: string, required: false}
       scopeLabel: {type: string, required: false}
       scopeDimensions: {type: object, required: false}
     reads: [ResearchCase, ResearchScope]
-    writes: [ResearchScope, JudgmentUnit, caseHasScope, caseHasJudgmentUnit, unitUsesScope]
+    writes: [ResearchScope, JudgmentUnit, caseHasScope, caseHasJudgmentUnit, unitUsesScope, questionDecomposesIntoUnit]
     preconditions: [target_exists, expected_version_matches, scope_belongs_to_case_when_provided]
-    ontology_edits: [ensure_ResearchScope, create_JudgmentUnit, create_caseHasJudgmentUnit, create_unitUsesScope]
+    ontology_edits: [ensure_ResearchScope, create_JudgmentUnit, create_caseHasJudgmentUnit, create_unitUsesScope, create_questionDecomposesIntoUnit]
+    approval_policy: {mode: always, kind: plan_confirmation}
     automation_allowed: true
     handler: create-judgment-unit
+  RegisterEvidenceRequirement:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 登记证据要求
+    description: 为一个 JudgmentUnit 登记按角色隔离的最低证据合同。
+    target_types: [JudgmentUnit]
+    parameters:
+      requirement: {type: string, required: true}
+      evidenceRole: {type: string, required: true}
+      minimumIndependentSources: {type: integer, required: true}
+      evidenceProfileRefs: {type: array, required: false}
+      noProfileReason: {type: string, required: false}
+    reads: [JudgmentUnit]
+    writes: [EvidenceRequirement, requirementForJudgmentUnit]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [create_EvidenceRequirement, create_requirementForJudgmentUnit]
+    automation_allowed: true
+    handler: register-evidence-requirement
+  RegisterCompetingExplanation:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 登记竞争解释
+    description: 为一个 JudgmentUnit 登记可被区分性证据检验的竞争解释。
+    target_types: [JudgmentUnit]
+    parameters:
+      statement: {type: string, required: true}
+      discriminatingEvidence: {type: array, required: true}
+    reads: [JudgmentUnit]
+    writes: [CompetingExplanation, competingExplanationForUnit]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [create_CompetingExplanation, create_competingExplanationForUnit]
+    automation_allowed: true
+    handler: register-competing-explanation
+  RecordBlockingFactor:
+    <<: *defaults
+    version: 1.0.0
+    label_zh: 记录阻断因素
+    description: 记录限制特定 JudgmentUnit 的专业阻断。
+    target_types: [JudgmentUnit]
+    parameters:
+      statement: {type: string, required: true}
+      effect: {type: string, required: true}
+    reads: [JudgmentUnit]
+    writes: [BlockingFactor, blockingFactorForUnit]
+    preconditions: [target_exists, expected_version_matches]
+    ontology_edits: [create_BlockingFactor, create_blockingFactorForUnit]
+    automation_allowed: true
+    handler: record-blocking-factor
   AcceptHypothesis:
     <<: *defaults
     version: 1.0.0

@@ -11,7 +11,47 @@ export type TaskStatus =
   | "failed"
   | "cancelled";
 export type NodeStatus = "pending" | "ready" | "running" | "blocked" | "completed" | "failed" | "cancelled";
-export type AgentId = "research-lead" | "evidence-investigator" | "analysis-specialist" | "independent-critic";
+export type AgentId = "research-lead" | "evidence-investigator" | "financial-modeler" | "analysis-specialist" | "independent-critic";
+export type ResearchRole = "research_owner" | "research_lead" | "evidence_investigator" | "financial_modeler" | "independent_reviewer";
+export type ResearchRunOutcome = "completed_with_judgment" | "stopped_insufficient_evidence" | "cancelled" | "failed";
+
+export interface ModelCallRecord {
+  id: Id;
+  operation: string;
+  fingerprint: string;
+  provider: string;
+  model: string;
+  promptVersion: string;
+  schemaVersion?: string;
+  contextHash: string;
+  status: "completed" | "failed" | "cached";
+  attempts: number;
+  cacheHit: boolean;
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCostUsd?: number;
+  latencyMs: number;
+  error?: string;
+  createdAt: IsoDate;
+  completedAt: IsoDate;
+}
+
+export interface PointInTimeEvidenceEnvelope {
+  connectorId: string;
+  operation: string;
+  subjectRef: string;
+  publisherId: string;
+  sourceUri: string;
+  publishedAt: IsoDate;
+  businessTime: IsoDate;
+  capturedAt: IsoDate;
+  asOf: IsoDate;
+  permissionScope: string;
+  accountingBasis?: string;
+  currency?: string;
+  unit?: string;
+  rawResponseFingerprint: string;
+}
 
 export interface Conversation {
   id: Id;
@@ -21,6 +61,49 @@ export interface Conversation {
   status: "active" | "archived";
   createdAt: IsoDate;
   updatedAt: IsoDate;
+}
+
+export interface ResearchTrackingProfile {
+  conversationId: Id;
+  enabled: boolean;
+  symbols: string[];
+  keywords: string[];
+  updatedAt: IsoDate;
+}
+
+export type ResearchSignalKind = "news" | "announcement";
+export type ResearchSignalStatus = "new" | "seen" | "dismissed" | "promoted";
+
+export interface ResearchSignalCandidate {
+  id: Id;
+  connectorId: string;
+  conversationId: Id;
+  kind: ResearchSignalKind;
+  status: ResearchSignalStatus;
+  symbol?: string;
+  title: string;
+  excerpt: string;
+  publisher: string;
+  sourceUri: string;
+  sourceType: "primary" | "secondary";
+  publishedAt: IsoDate;
+  capturedAt: IsoDate;
+  matchReason: string;
+  score: number;
+  fingerprint: string;
+  promotedTaskId?: Id;
+}
+
+export interface SignalRefreshRun {
+  id: Id;
+  connectorId: string;
+  status: "queued" | "running" | "completed" | "partial" | "failed";
+  conversationIds: Id[];
+  candidateCount: number;
+  error?: string;
+  createdAt: IsoDate;
+  startedAt?: IsoDate;
+  completedAt?: IsoDate;
 }
 
 export interface Message {
@@ -41,6 +124,7 @@ export interface Task {
   intent: ResearchIntent;
   reportSpec: ReportSpec;
   status: TaskStatus;
+  outcome?: ResearchRunOutcome;
   budget: Budget;
   createdAt: IsoDate;
   updatedAt: IsoDate;
@@ -166,6 +250,7 @@ export interface ResearchProblemGraph {
   intentRefs: string[];
   scenarioRefs: string[];
   taskMotifRefs: string[];
+  lensRefs?: string[];
   fingerprint: string;
   nodes: ProblemGraphNode[];
   edges: ProblemGraphEdge[];
@@ -215,7 +300,74 @@ export type ArtifactKind =
   | "judgment"
   | "report"
   | "review"
+  | "normalized_financials"
+  | "financial_model"
+  | "valuation_analysis"
+  | "thesis_state"
   | "ui_surface";
+
+export type FinancialBasis = "reported" | "restated" | "adjusted" | "guidance" | "internal_prior" | "consensus" | "forecast";
+
+export interface FinancialObservationValue {
+  metricId: string;
+  period: { start: IsoDate; end: IsoDate };
+  value: number;
+  basis: FinancialBasis;
+  sourceArtifactRef: Id;
+}
+
+export interface NormalizedFinancialsData {
+  asOf: IsoDate;
+  entityRef: Id;
+  accountingBasis: "PRC_GAAP" | "IFRS" | "other";
+  currency: string;
+  unit: string;
+  historicalBoundary: { start: IsoDate; end: IsoDate };
+  observations: FinancialObservationValue[];
+  sourceArtifactRefs: Id[];
+  status: "ready" | "insufficient";
+  blockers?: string[];
+}
+
+export interface FinancialModelData {
+  asOf: IsoDate;
+  entityRef: Id;
+  accountingBasis: NormalizedFinancialsData["accountingBasis"];
+  currency: string;
+  unit: string;
+  historicalBoundary: { start: IsoDate; end: IsoDate };
+  forecastBoundary: { start: IsoDate; end: IsoDate };
+  assumptions: Array<{ id: string; value: number | string; basis: FinancialBasis | "analyst_assumption"; sourceArtifactRef?: Id }>;
+  formulaDependencies: Array<{ output: string; inputs: string[] }>;
+  scenarios: Array<{ id: "base" | "bull" | "bear"; assumptionIds: string[] }>;
+  audit: { passed: boolean; checks: string[]; errors: string[] };
+  sourceArtifactRefs: Id[];
+  status: "ready" | "blocked";
+}
+
+export interface ValuationAnalysisData {
+  asOf: IsoDate;
+  financialModelRef: Id;
+  modelAuditRef: Id;
+  currency: string;
+  unit: string;
+  methods: Array<"comps" | "dcf" | "sotp">;
+  assumptions: string[];
+  sensitivities: string[];
+  status: "ready" | "blocked";
+  blockers?: string[];
+}
+
+export interface ThesisStateData {
+  asOf: IsoDate;
+  version: number;
+  pillars: Array<{ id: string; statement: string; status: "intact" | "weakened" | "blocked" | "unresolved" }>;
+  signals: Array<{ direction: "strengthen" | "weaken" | "block" | "context"; sourceArtifactRef: Id; note: string }>;
+  catalysts: string[];
+  invalidationConditions: string[];
+  openEvidenceGaps: string[];
+  sourceArtifactRefs: Id[];
+}
 
 export interface SourceReference {
   sourceId: string;
@@ -415,6 +567,7 @@ export interface SurfacePlanNode {
   kind: string;
   capability?: string;
   dependsOn: Id[];
+  frontierRef?: FrontierRef;
 }
 
 export interface ResearchPlanSurfaceData {
@@ -424,7 +577,15 @@ export interface ResearchPlanSurfaceData {
   parallelGroups: string[][];
   stopConditions: string[];
   stopPredicates?: StopPredicate[];
-  problemGraph?: Pick<ResearchProblemGraph, "id" | "status" | "nodes" | "edges" | "scenarioRefs" | "taskMotifRefs">;
+  problemGraph?: Pick<ResearchProblemGraph, "id" | "status" | "nodes" | "edges" | "scenarioRefs" | "taskMotifRefs" | "lensRefs">;
+  lensSuggestions?: Array<{
+    id: string;
+    label?: string;
+    reason: string;
+    requiredOutputs?: string[];
+    evidenceRoles?: string[];
+    stopConditions?: string[];
+  }>;
   principle: string;
   reportSpec?: ReportSpec;
   methodPlan?: ResearchMethodPlan;
@@ -434,6 +595,28 @@ export interface EvidenceMatrixSurfaceData {
   rows: EvidenceFact[];
   sufficient: boolean;
   gap?: string;
+}
+
+export interface EvidenceRequirementResult {
+  evidenceRequirementRef: Id;
+  judgmentUnitRef: Id;
+  evidenceRole: "support" | "counter" | "boundary" | "context";
+  fulfilled: boolean;
+  qualifiedEvidenceCount: number;
+  independentPublisherCount: number;
+  stopReason?: string;
+}
+
+export interface EvidenceBasketSurfaceData {
+  judgmentUnitRef: Id;
+  evidenceRole: "support" | "counter" | "boundary" | "context";
+  requirementResult: EvidenceRequirementResult;
+  facts: EvidenceFact[];
+}
+
+export interface JudgmentBundleSurfaceData {
+  units: Array<{ judgmentUnitRef: Id; judgmentArtifactRef: Id; frontierState: FrontierState; signalRoles: Record<Id, SignalRole>; blocking?: string }>;
+  synthesisRule: "required units terminal";
 }
 
 export interface HypothesisCandidateSurfaceData {
@@ -468,6 +651,7 @@ export interface JudgmentSurfaceData {
     traceRef: string;
   };
   supersedesReasoningTraceRef?: string;
+  modelReasoning?: { fingerprint?: string; summary: string; status: "candidate_only" };
   changeConditions: string[];
   ontologyJudgmentRef?: string;
   supersedesOntologyJudgmentRef?: string;
@@ -588,6 +772,14 @@ export interface Checkpoint {
 }
 
 export type OntologyActorType = "researcher" | "agent" | "system" | "ontology_admin";
+export interface AccessContext {
+  actorId: string;
+  actorType: OntologyActorType;
+  groups?: string[];
+  entitlements?: string[];
+  /** `public` is implicit; `internal`, `restricted` and `private` require an explicit grant. */
+  accessScopes?: string[];
+}
 export type EpistemicStatus = "supported" | "contested" | "blocked" | "indeterminate" | "invalidated";
 export type JudgmentLifecycleStatus = "proposed" | "review_required" | "approved" | "published" | "superseded";
 
@@ -625,6 +817,7 @@ export interface ActionContext {
   actorId: string;
   conversationId?: Id;
   taskId?: Id;
+  access?: AccessContext;
 }
 
 export interface ActionPreviewRequest {
@@ -846,8 +1039,16 @@ export interface EvaluationRun {
   id: Id;
   candidateId: Id;
   status: "running" | "passed" | "failed";
+  protocol?: "knowledge_candidate" | "research_value";
   caseIds: Id[];
   baselineReleaseId: Id;
+  frozenInputHash?: string;
+  systemArtifactHash?: string;
+  baselineArtifacts?: Array<{ track: "direct_qa" | "evidence_summary"; artifactHash: string }>;
+  judgeVersions?: Array<{ provider: string; model: string; calibrationLevel: string }>;
+  comparableCaseCount?: number;
+  blindWinRate?: number;
+  formalScoreEligible?: boolean;
   summary: EvaluationSummary;
   createdAt: IsoDate;
   completedAt?: IsoDate;
