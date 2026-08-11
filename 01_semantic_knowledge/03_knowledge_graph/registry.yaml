@@ -10,9 +10,8 @@ authority:
   write_entry: 01_semantic_knowledge/03_knowledge_graph/
   read_primary: 01_semantic_knowledge/03_knowledge_graph/contracts/
   runtime_boundary: 06_runtime/src/semantic/graph-contracts.ts
-  governance_validators: 05_control_evaluation/03_校验/knowledge_graph/
-  legacy_compat: 05_control_evaluation/03_校验/legacy_compat/
-  legacy_stage_materializers: legacy/knowledge_graph/
+  governance_validators: 05_control_evaluation/04_verifiers/knowledge_graph/
+  historical_package_compatibility: 05_control_evaluation/04_verifiers/legacy_compat/
 
 source_of_truth:
   graph_contracts:
@@ -41,4 +40,4 @@ notes:
   - Research Provenance ≠ Execution Trace；后者归 Runtime。
   - Knowledge Graph 可以补结构，不可以补业务事实。
   - example_* 字段仅解释视图，不构成类型登记；类型权威在 01_ontology。
-  - 单次图物化结果归 Runtime / workspace；旧 stage 物化器仅作 legacy adapter。
+  - 单次图物化结果归 Runtime / workspace；历史 stage 包仅由 Governance 兼容校验器读取。

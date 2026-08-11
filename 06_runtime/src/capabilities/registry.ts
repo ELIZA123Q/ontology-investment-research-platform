@@ -42,17 +42,17 @@ const skill = (
 
 export const SKILLS: readonly SkillManifest[] = [
   skill("research-framing", "明确对象、期限、决策、成功标准与必要澄清。", "research_plan", ["research-lead"], ["识别会改变路径的缺口", "给出可编辑默认值", "把目标表达为可证伪问题"]),
-  skill("research-method", "按判断类型选择研究、证伪与替代方法。", "method_application", ["research-lead", "analysis-specialist"], ["识别判断类型", "匹配方法约束", "记录替代方法与退出条件"]),
-  skill("evidence-assessment", "评估证据的相关性、可靠性、独立性和覆盖度。", "evidence_package", ["research-lead", "evidence-investigator", "independent-critic"], ["区分候选来源、快照和 EvidenceFact", "检查交叉验证", "证据不足时显式停止"]),
-  skill("hypothesis-analysis", "建立主假设、竞争解释、情景和可证伪信号。", "hypothesis_map", ["research-lead", "analysis-specialist"], ["列出竞争解释", "绑定支持与反证", "定义区分性观察和改判信号"]),
-  skill("research-writing", "把已验证的证据和判断写成边界清晰的研究制品。", "report", ["research-lead"], ["只使用正式制品", "区分事实、推断与观点", "保留不确定性和改判条件"]),
+  skill("research-design", "面对 Task 选择研究框架、判断结构与证伪设计。", "method_application", ["research-lead", "analysis-specialist"], ["识别判断类型", "匹配方法约束", "记录替代方法与退出条件"]),
+  skill("evidence-research", "提出证据需求、选择来源与通道、获取核验、留痕并评估完备度。", "evidence_package", ["research-lead", "evidence-investigator", "independent-critic"], ["区分候选来源、快照和 EvidenceFact", "检查交叉验证", "证据不足时显式停止"]),
+  skill("judgment-reasoning", "建立主假设、竞争解释、因果链、反证、情景与判断强度。", "hypothesis_map", ["research-lead", "analysis-specialist"], ["列出竞争解释", "绑定支持与反证", "定义区分性观察和改判信号"]),
+  skill("research-delivery", "将已验证证据与判断组织为快答、研报、判断卡等交付物。", "report", ["research-lead"], ["只使用正式制品", "区分事实、推断与观点", "保留不确定性和改判条件"]),
 ] as const;
 
 export const TOOLS: readonly ToolManifest[] = [
   { id: "semantic.search", version: "1.0.0", description: "混合检索本体、全文、向量与图引用。", risk: "read", requiresApproval: false, idempotent: true },
   { id: "source.discover", version: "1.0.0", description: "发现候选研究来源。", risk: "read", requiresApproval: false, idempotent: true },
   { id: "source.capture", version: "1.0.0", description: "抓取并快照指定来源。", risk: "write", requiresApproval: false, idempotent: true },
-  { id: "financial.mcp", version: "1.0.0", description: "通过 MCP 查询金融数据；它是 Tool，不是 Skill。", risk: "read", requiresApproval: false, idempotent: true },
+  { id: "source.query", version: "1.0.0", description: "按来源策略查询并检索外部材料；底层可通过 MCP/API/DB 适配。", risk: "read", requiresApproval: false, idempotent: true },
   { id: "artifact.publish", version: "1.0.0", description: "发布正式制品。", risk: "external_side_effect", requiresApproval: true, idempotent: true },
 ] as const;
 
@@ -63,7 +63,7 @@ export const AGENTS: readonly AgentManifest[] = [
     description: "唯一面向研究员，负责目标、计划、预算、委派、判断和交付。",
     canDelegateTo: ["evidence-investigator", "analysis-specialist", "independent-critic"],
     allowedSkills: allSkills,
-    allowedTools: ["semantic.search", "source.discover", "source.capture", "financial.mcp", "artifact.publish"],
+    allowedTools: ["semantic.search", "source.discover", "source.capture", "source.query", "artifact.publish"],
     canWriteArtifactKinds: ["research_plan", "method_application", "evidence_package", "hypothesis_map", "judgment", "report", "review", "ui_surface"],
     contextPolicy: "conversation",
     lifecycle: "active",
@@ -72,8 +72,8 @@ export const AGENTS: readonly AgentManifest[] = [
     id: "evidence-investigator",
     description: "只处理委派证据切片，不负责最终判断。",
     canDelegateTo: [],
-    allowedSkills: ["evidence-assessment"],
-    allowedTools: ["semantic.search", "source.discover", "source.capture", "financial.mcp"],
+    allowedSkills: ["evidence-research"],
+    allowedTools: ["semantic.search", "source.discover", "source.capture", "source.query"],
     canWriteArtifactKinds: ["evidence_package"],
     contextPolicy: "delegated_slice",
     lifecycle: "planned",
@@ -82,8 +82,8 @@ export const AGENTS: readonly AgentManifest[] = [
     id: "analysis-specialist",
     description: "按需处理复杂传导、竞争解释和情景分析。",
     canDelegateTo: [],
-    allowedSkills: ["research-method", "hypothesis-analysis"],
-    allowedTools: ["semantic.search", "financial.mcp"],
+    allowedSkills: ["research-design", "judgment-reasoning"],
+    allowedTools: ["semantic.search", "source.query"],
     canWriteArtifactKinds: ["method_application", "hypothesis_map"],
     contextPolicy: "delegated_slice",
     lifecycle: "planned",
@@ -92,7 +92,7 @@ export const AGENTS: readonly AgentManifest[] = [
     id: "independent-critic",
     description: "在隔离上下文中审查，只能输出 review，不能静默改写主制品。",
     canDelegateTo: [],
-    allowedSkills: ["evidence-assessment"],
+    allowedSkills: ["evidence-research"],
     allowedTools: ["semantic.search"],
     canWriteArtifactKinds: ["review"],
     contextPolicy: "isolated_review",

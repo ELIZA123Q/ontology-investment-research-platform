@@ -19,27 +19,27 @@
 | [`02_dictionary/`](02_dictionary/README.md) | 人话 → 标准语义的归一化（别名/歧义/研究用语） | 词典 YAML；语义权威仍在 ontology |
 | [`03_knowledge_graph/`](03_knowledge_graph/README.md) | 图怎么组织成可查询可追溯的视图 | 图合同 YAML |
 
-总登记见 [`registry.yaml`](./registry.yaml)。跨域「权威在哪」见 [`five_domain_authority.yaml`](../05_control_evaluation/01_架构/five_domain_authority.yaml)。
+总登记见 [`registry.yaml`](./registry.yaml)。跨域「权威在哪」见 [`five_domain_authority.yaml`](../docs/architecture/five_domain_authority.yaml)。
 
 补充边界：
 
 - 通用类型定义位于 `01_ontology/models/`
 - 行业专属正式扩展位于 `01_ontology/domains/<domain>/ontology_extension.yaml`
 - 领域研究参数不得写入 `models/`；人工源在 `parameters/`，Runtime 读生成 Bundle
-- 场景类型目录位于 [`02_scenario_task/scenario_catalog.yaml`](../02_scenario_task/scenario_catalog.yaml)，不属于 Ontology Object Model
+- 场景类型目录位于 [`02_scenario_task/02_scenarios/types.yaml`](../02_scenario_task/02_scenarios/types.yaml)，不属于 Ontology Object Model
 - 本体唯一机器入口：[`01_ontology/platform_registry.yaml`](01_ontology/platform_registry.yaml)
-- 本体校验：[`05_control_evaluation/03_校验/ontology/validate_ontology.py`](../05_control_evaluation/03_校验/ontology/validate_ontology.py)
+- 本体校验：[`05_control_evaluation/04_verifiers/ontology/validate_ontology.py`](../05_control_evaluation/04_verifiers/ontology/validate_ontology.py)
 
 ## 怎么用
 
 1. 先明确你是要查**概念定义**（ontology/dictionary，含 EvidenceFact / provenance）还是**关系结构**（knowledge_graph）。
 2. 打开对应子目录 README，按「最短路径」进正文；证据对象权威见 [`01_ontology/models/evidence.yaml`](01_ontology/models/evidence.yaml)。
-3. 如需查找语义域之外的取证方法与数据访问能力：来源速查与 OPS 见 [`03_agent_capability/05_method_libraries/03_取证/`](../03_agent_capability/05_method_libraries/03_取证/README.md)；MCP 通道见 [`03_agent_capability/04_protocols/mcp/`](../03_agent_capability/04_protocols/mcp/README.md)。
+3. 如需查找语义域之外的取证方法与数据访问能力：来源速查与 OPS 见 [`03_agent_capability/02_skills/evidence_research/references/`](../03_agent_capability/02_skills/evidence_research/references/README.md)；MCP 通道见 [`03_agent_capability/04_protocols/mcp/`](../03_agent_capability/04_protocols/mcp/README.md)。
 
 ## 怎么维护
 
 - 新增或修改正式语义对象：写入本域对应子目录，并更新本域/`子域` registry。
-- 改完跑项目与本体相关校验（见 [`05_control_evaluation/03_校验/`](../05_control_evaluation/03_校验/README.md) 与 ontology 子目录说明）。
+- 改完跑项目与本体相关校验（见 [`05_control_evaluation/04_verifiers/`](../05_control_evaluation/04_verifiers/README.md) 与 ontology 子目录说明）。
 - 不要在 Runtime 里另写一套「平行本体」；Runtime 只消费登记过的语义。
 
 ---
@@ -50,5 +50,5 @@
 |----|----|
 | status | `active` |
 | write_entry | `01_semantic_knowledge/` |
-| 上位 | [`00_五域系统骨架.md`](../05_control_evaluation/01_架构/00_五域系统骨架.md) |
+| 上位 | [`00_五域系统骨架.md`](../docs/architecture/00_五域系统骨架.md) |
 | 权威查找顺序 | five_domain_authority → 本域 registry → 子域 registry |

@@ -1,0 +1,310 @@
+schema_name: ai_native_research_architecture
+schema_version: 1.0.0
+status: active
+authority_index: docs/architecture/five_domain_authority.yaml
+human_readable: docs/architecture/00_五域系统骨架.md
+repo_layout: docs/architecture/repo_layout.yaml
+
+# 核心变化：研究流程从系统骨架降级为可调用策略（Scenario/Task 下的 workflow 模板）。
+# 2026-08-10：已完成 1:1 顶层目录改名（见 migrations/physical_layout_migration.yaml）。
+# 仍禁止：09 Data/Evidence 平级写入口、08 Asset Evolution 独立写入口、Runtime 嵌进 Context。
+
+principle: |
+  确定性负责边界，Agent 负责路径。
+  从「固定流程驱动的研究系统」转向「Agent 驱动的认知工作系统」。
+  Workflow 不再是顶层；Agent 不再是阶段执行器；
+  知识资产不再只是文件库；Runtime 是承载 Agent 运行的基础设施，不是业务能力。
+
+transformation:
+  from: fixed_workflow_driven_research_system
+  to: agent_driven_cognitive_work_system
+  workflow_role: |
+    Deep Research 01→05 与同类流程不是系统本身，而是某个任务的可选执行策略模板。
+    活跃 prior：02_scenario_task/05_workflow_patterns/
+    禁止恢复固定阶段 controller。
+
+# ---------------------------------------------------------------------------
+# 逻辑分层：01–05 职责域；06–07 承载层；08 主题（挂 Control）；数据证据横切
+# ---------------------------------------------------------------------------
+layers:
+  responsibility_domains:
+    description: 写入口权威，对应现行五域；心智名可与物理目录不同。
+    modules:
+      - id: semantic_knowledge
+        display_name: Semantic Knowledge
+        domain_key: semantic
+        physical_path: 01_semantic_knowledge/
+        answers: AI 知道什么？
+        owns:
+          - ontology
+          - dictionary
+          - knowledge_graph_contracts
+          - evidence_semantics
+        does_not_own:
+          - procedural_research_frameworks  # → agent_capability/02_skills
+          - mcp_connectors
+          - runtime_source_capture
+        write_entry: 01_semantic_knowledge/
+        runtime_contract: 06_runtime/src/semantic/graph-contracts.ts
+
+      - id: scenario_task
+        display_name: Scenario & Task
+        domain_key: task
+        physical_path: 02_scenario_task/
+        answers: AI 为什么工作？为了完成什么任务？
+        owns:
+          - intents
+          - scenarios
+          - tasks
+          - roles
+          - workflow_patterns  # Planner prior，不是系统骨架
+        write_entry: 02_scenario_task/
+        runtime_node_catalog: 06_runtime/src/runtime/node-catalog.ts
+        runtime_planner: 06_runtime/src/runtime/planner.ts
+        workflow_patterns: 02_scenario_task/05_workflow_patterns/
+
+      - id: agent_capability
+        display_name: Agent Capability
+        domain_key: capability
+        physical_path: 03_agent_capability/
+        answers: AI 能调用什么能力？
+        owns:
+          - agents
+          - skills
+          - tools
+          - protocols_mcp
+        notes:
+          - Skill 属于能力域，不属于 Workflow。
+          - Skill ≠ Context Builder / Provider / Tool / Policy / Verifier。
+          - 研究框架 / 取证 / 裁决 / 交付方法是 Skill package 的 references/templates，不再并列第五类能力域。
+          - A2A 仅 planned；正式协议层目前只保留 MCP。
+          - 03 是 Capability Definition Authority；06 是 Execution Binding Authority。
+        write_entry: 03_agent_capability/
+        definition_authority: 03_agent_capability/
+        execution_binding: 06_runtime/src/capabilities/registry.ts
+        skill_resources: 03_agent_capability/02_skills/
+        mcp_registry: 03_agent_capability/04_protocols/mcp/registry.yaml
+
+      - id: context_state
+        display_name: Context & State
+        domain_key: execution
+        physical_path: 04_context_state/
+        answers: 现在看见什么、做到哪里、记住什么、正在操作什么
+        owns_contracts:
+          - context
+          - state
+          - memory
+          - workspace
+        does_not_own:
+          - runtime_engine  # → runtime 承载层
+          - historical_demo_cases  # → 05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs
+          - regression_fixtures  # → 05_control_evaluation/04_verifiers/fixtures/regression
+          - live_project_truth_as_repo_yaml  # 单次真相在 Runtime Artifact/Event
+        write_entry: 04_context_state/
+        runtime_implementation:
+          - 06_runtime/src/runtime/kernel.ts
+          - 06_runtime/src/runtime/store.ts
+          - 06_runtime/src/worker.ts
+        temporary_objects:
+          - ContextPackage
+        persisted_via_runtime:
+          - SessionState
+          - TaskState
+          - RunState
+          - MemoryRecord
+          - WorkspaceArtifact
+          - Event
+          - Checkpoint
+
+      - id: control_evaluation
+        display_name: Control & Evaluation
+        domain_key: governance
+        physical_path: 05_control_evaluation/
+        answers: AI 是否可信？
+        owns:
+          - rules
+          - identity
+          - permissions
+          - verifiers
+          - evals
+          - architecture_and_contracts
+          - asset_evolution_contracts  # 08 主题的物理写入口暂挂此处
+        write_entry: 05_control_evaluation/
+        runtime_verifiers: 06_runtime/src/governance/verifiers.ts
+
+  carrier_layers:
+    description: 组合、交互与执行；不是新的世界模型写入口。
+    modules:
+      - id: runtime
+        display_name: Runtime
+        logical_slot: "06"
+        physical_path: 06_runtime/
+        role: Agent 执行环境（发动机）
+        owns:
+          - executor_kernel
+          - planner
+          - event_store
+          - checkpoint
+          - trace_projections
+          - worker
+          - tool_execution
+        is_not:
+          - business_capability
+          - context_definition
+          - product_navigation
+        single_executable_app: true
+        workbench_url: http://127.0.0.1:3000
+        forbidden_parallel_trees:
+          - 06_runtime/agents
+          - 06_runtime/skills
+          - 06_runtime/workflow
+          - 06_runtime/runner
+          - 06_runtime/storage
+
+      - id: workspace
+        display_name: Product Surface
+        logical_slot: runtime_app
+        physical_registry: 06_runtime/app-surface.yaml
+        physical_implementation: 06_runtime/app/
+        role: 人与 Agent 协作空间（产品面）
+        surfaces_examples:
+          - project_view
+          - evidence_board
+          - reasoning_graph
+          - artifact_view
+          - conversation
+        constraints:
+          - 禁止第二套前端实现树
+          - Agent 只能组合可信 UI surface，不能生成任意 HTML/JavaScript
+
+  themes:
+    description: 一级能力主题；物理写入口仍挂既有域，成熟后再考虑独立顶层目录。
+    modules:
+      - id: asset_evolution
+        display_name: Asset Evolution
+        logical_slot: "08"
+        physical_independence: deferred
+        hang_under: control_evaluation
+        answers: 单次研究如何沉淀为可复用认知资产？
+        flow:
+          - execution_episode
+          - asset_candidate
+          - evaluation_and_approval
+          - released_research_asset
+        human_readable: 05_control_evaluation/01_rules/knowledge_promotion.md
+        machine_contract: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+        runtime_implementation: 06_runtime/src/knowledge
+        rule: |
+          候选资产不得绕过 knowledge_learning_contract 直接写入 semantic / capability。
+          未稳定前不新建 08_asset_evolution/ 顶层写入口。
+
+  cross_cutting:
+    description: 可在图上画成底层通道；禁止升为第九平级权威域。
+    modules:
+      - id: data_evidence_channels
+        display_name: Data / Evidence Channels
+        logical_slot: "09_narrative_only"
+        write_entry: null
+        forbid_top_level_domain: true
+        split:
+          what_it_is:
+            domain: semantic_knowledge
+            paths:
+              - 01_semantic_knowledge/01_ontology/models/evidence.yaml
+          how_to_find:
+            domain: agent_capability
+            paths:
+              - 03_agent_capability/02_skills/evidence_research/references/
+              - 03_agent_capability/04_protocols/mcp/
+          how_to_capture_once:
+            domains: [runtime, control_evaluation]
+            notes:
+              - Source Capture 在 Runtime typed nodes
+              - Verifier 与摄取合同在 governance
+              - MCP 是获取通道，不是来源生产者
+        invariants:
+          - 未经 Source Capture 不得形成 EvidenceFact
+          - 无合格 Evidence 时 Judgment 必须降级
+          - 禁止新建 documents/datasets/APIs/snapshots 合一写入口
+
+# ---------------------------------------------------------------------------
+# 心智名 ↔ 物理路径映射（文档可用新名；机器路径保持现行）
+# ---------------------------------------------------------------------------
+naming_map:
+  note: 心智名与现行物理目录已 1:1 对齐；domain_key（semantic/task/…）保持不变以便机器兼容。
+  physical_rename_completed: 2026-08-10
+  entries:
+    - mental: Semantic Knowledge
+      physical: 01_semantic_knowledge/
+      domain_key: semantic
+    - mental: Scenario & Task
+      physical: 02_scenario_task/
+      domain_key: task
+    - mental: Agent Capability
+      physical: 03_agent_capability/
+      domain_key: capability
+    - mental: Context & State
+      physical: 04_context_state/
+      domain_key: execution
+    - mental: Control & Evaluation
+      physical: 05_control_evaluation/
+      domain_key: governance
+    - mental: Runtime
+      physical: 06_runtime/
+      domain_key: null
+    - mental: Product Surface
+      physical_registry: 06_runtime/app-surface.yaml
+      physical_implementation: 06_runtime/app/
+      domain_key: app
+    - mental: Asset Evolution
+      physical_contracts: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+      physical_docs: 05_control_evaluation/01_rules/knowledge_promotion.md
+      domain_key: governance
+    - mental: Data / Evidence Channels
+      physical: cross_cutting
+      domain_key: null
+
+# ---------------------------------------------------------------------------
+# 运行不变量
+# ---------------------------------------------------------------------------
+runtime_invariants:
+  sole_runnable_agent: research-lead
+  planned_agents_may_be_registered: true
+  planned_agents_must_not_run: true
+  sole_capability_manifest: 06_runtime/src/capabilities/registry.ts
+  sole_task_node_catalog: 06_runtime/src/runtime/node-catalog.ts
+  sole_runtime_contracts: 06_runtime/src/contracts.ts
+  sole_store: 06_runtime/src/runtime/store.ts
+  sole_frontend_implementation: 06_runtime/app/
+  workbench_url: http://127.0.0.1:3000
+  dual_graphs:
+    - Domain Semantic Graph
+    - Research Provenance Graph
+  dual_graphs_must_not_merge: true
+
+# ---------------------------------------------------------------------------
+# 显式禁止（本轮与后续物理迁移的边界）
+# ---------------------------------------------------------------------------
+forbidden_now:
+  - promote_data_evidence_to_peer_write_domain
+  - create_09_data_evidence_write_entry
+  - nest_runtime_under_context_state
+  - second_frontend_tree
+  - fixed_stage_controller
+  - merge_evidence_semantics_methods_and_capture_into_one_folder
+  - put_procedural_research_frameworks_under_semantic_knowledge
+  - independent_08_asset_evolution_write_entry_before_learning_loop_stable
+  - revive_06_runtime_parallel_agents_skills_workflow_runner_storage_trees
+
+completed_migrations:
+  - one_to_one_top_level_rename_2026_08_10
+
+deferred_optional:
+  - promote_asset_evolution_directory_after_release_loop_proven
+
+relations:
+  goal_to_task: Intent / Scenario → typed TaskGraph
+  agent_loop: research-lead → Skill → Tool → Runtime execute → Event/Checkpoint → Context update
+  control_gates: Verifier / Policy / Approval gate Agent outputs
+  workspace_projection: Event / Artifact → trusted UI surfaces
+  asset_feedback: released assets → semantic_knowledge or capability overlays per contract

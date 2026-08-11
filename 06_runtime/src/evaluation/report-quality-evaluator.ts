@@ -167,7 +167,7 @@ function formalReadiness(input?: FormalEvaluationPrerequisites): FormalResearchV
     framework: "R/U/delta/S/C",
     status: missing.length ? "not_eligible" : "eligible",
     missingPrerequisites: missing,
-    protocolRef: "05_control_evaluation/14_evals/01_协议/01_评测总纲.md",
+    protocolRef: "05_control_evaluation/05_evals/protocols/01_评测总纲.md",
     claimBoundary: missing.length
       ? "当前结果仅为运行时专业纪律诊断，不代表 R、U、delta、S、C 或研究增益已经通过。"
       : "已满足正式评测准入条件；仍须运行协议并由独立评测结果产生 R、U、delta、S、C。",

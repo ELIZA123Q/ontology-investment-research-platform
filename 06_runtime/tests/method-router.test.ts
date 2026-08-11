@@ -32,9 +32,9 @@ describe("governed research method router", () => {
 
   it("keeps every projected method and framework resolvable to governed registries", () => {
     const plan = selectResearchMethods("研究存储芯片供需、竞争、情景和估值", normalizeReportSpec({ kind: "industry_research", optionalSections: ["scenario_analysis", "valuation_scenarios"] }));
-    const frameworkRegistry = readFileSync("../03_agent_capability/05_method_libraries/02_研究框架/registry.yaml", "utf8");
-    const evidenceRegistry = readFileSync("../03_agent_capability/05_method_libraries/03_取证/03_registry.yaml", "utf8");
-    const routeRegistry = readFileSync("../05_control_evaluation/02_合同/judgment_method_routes.yaml", "utf8");
+    const frameworkRegistry = readFileSync("../03_agent_capability/02_skills/research_design/registry.yaml", "utf8");
+    const evidenceRegistry = readFileSync("../03_agent_capability/02_skills/evidence_research/registry.yaml", "utf8");
+    const routeRegistry = readFileSync("../05_control_evaluation/01_rules/policies/judgment_method_routes.yaml", "utf8");
     for (const application of plan.applications) {
       for (const id of application.frameworkIds) expect(frameworkRegistry).toContain(`${id}:`);
       expect(evidenceRegistry).toContain(`method: ${application.evidenceMethodId.replace("kb03:", "")}`);

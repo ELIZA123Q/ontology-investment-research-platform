@@ -44,4 +44,3 @@ execution_boundary:
     - traceReachableDownstream BFS
     - markReachableDownstreamStale
     - defaultExamplePackages / workspace 样例发现
-  legacy_reference: legacy/knowledge_graph/trace.ts

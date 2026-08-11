@@ -1,0 +1,62 @@
+schema_name: runtime_context_registry
+schema_version: 1.1.0
+status: active
+
+stages:
+  stage_01:
+    assets:
+      - docs/architecture/00_项目定位与边界.md
+      - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  stage_02:
+    assets:
+      - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+      - 01_semantic_knowledge/01_ontology/README.md
+      - 01_semantic_knowledge/01_ontology/domains/semiconductor/README.md
+      - 01_semantic_knowledge/01_ontology/domains/semiconductor/DOMAIN_GUIDE.md
+      - 03_agent_capability/02_skills/research_design/references/README.md
+      # 研究逻辑输出模板（研究员可读的 02 产物结构参考）
+    # 具体基础/行业框架由 method_registry + selected_method_guidance 按任务路由。
+    # 不再同时塞进 knowledge，避免同一方法正文重复两遍导致注意力稀释和超时。
+  stage_03:
+    assets:
+      - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+      - 03_agent_capability/02_skills/evidence_research/references/OPS_证据获取留痕手册.md
+      - 01_semantic_knowledge/01_ontology/README.md
+      - 01_semantic_knowledge/01_ontology/domains/semiconductor/DOMAIN_GUIDE.md
+      - 03_agent_capability/02_skills/evidence_research/references/00_证据质量与结论上限.md
+      - 03_agent_capability/02_skills/evidence_research/references/B00_来源选择与使用边界.md
+      - 03_agent_capability/02_skills/evidence_research/references/B01_通用来源速查.md
+      - 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/B02_半导体来源速查.md
+      - 03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md
+      - 03_agent_capability/04_protocols/mcp/ops/OPS_MCP查询快速参考.md
+      - 03_agent_capability/02_skills/evidence_research/references/OPS_通用真实来源查询与回退手册.md
+      - 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/OPS_半导体真实来源查询与口径手册.md
+      - 03_agent_capability/02_skills/evidence_research/references/OPS_地缘规则与冲击查询手册.md
+      # A01—A09 只经 selected_method_guidance 按本题 MA 路由，不在 knowledge 重复注入。
+      # 附录：证据字段速查、交付素材检查清单
+      # 证据准备输出模板（规范级 preparation_markdown 结构参考）
+  stage_04:
+    assets:
+      - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+      - 01_semantic_knowledge/01_ontology/README.md
+      - 01_semantic_knowledge/01_ontology/domains/semiconductor/DOMAIN_GUIDE.md
+      - 03_agent_capability/02_skills/judgment_reasoning/references/A00_裁决总则.md
+      - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录1_路径与阻断协议.md
+      - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录2_反证与竞争解释协议.md
+      - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录3_改判与版本协议.md
+      - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录4_通用认知错误与误用索引.md
+      # A01—A10 只经 selected_method_guidance 按 02 选定 MA 路由，不在 knowledge 重复注入。
+      # 判断简报输出模板（04 双产物之一的结构参考）
+  stage_05:
+    assets:
+      - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+      - 03_agent_capability/02_skills/research_delivery/references/standards/05_投研表达标准.md
+      - 05_control_evaluation/04_verifiers/deterministic_release_standard.md
+      - 03_agent_capability/02_skills/research_delivery/templates/05_表达审计模板.yaml
+      - 03_agent_capability/02_skills/research_delivery/templates/05_独立语义审查模板.yaml
+    template_by_archetype:
+      industry_cycle_report: 03_agent_capability/02_skills/research_delivery/templates/05C_行业周期判断模板.md
+      event_commentary: 03_agent_capability/02_skills/research_delivery/templates/05A_事件点评模板.md
+      industry_dynamic_commentary: 03_agent_capability/02_skills/research_delivery/templates/05B_行业动态点评模板.md
+      company_earnings_commentary: 03_agent_capability/02_skills/research_delivery/templates/05D_公司业绩点评模板.md
+      theme_deep_dive: 03_agent_capability/02_skills/research_delivery/templates/05E_主题深度研究模板.md

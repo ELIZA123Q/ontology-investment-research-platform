@@ -1,0 +1,27 @@
+schema_name: governance_rules_registry
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: 系统必须遵守什么规则。
+  write_entry: 05_control_evaluation/01_rules/
+  read_primary: 05_control_evaluation/01_rules/
+
+critical_assets:
+  - 05_control_evaluation/01_rules/policies/rule_authority_registry.yaml
+  - 05_control_evaluation/01_rules/policies/parameter_authority_matrix.yaml
+  - 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
+  - 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml
+  - 05_control_evaluation/01_rules/contracts/public_contract.yaml
+  - 05_control_evaluation/01_rules/contracts/package_kinds.yaml
+  - 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+
+owner_boundaries:
+  task_contracts: 02_scenario_task/contracts/
+  capability_and_ingestion_contracts: 03_agent_capability/contracts/
+  runtime_contracts: 06_runtime/contracts/
+  research_quality_eval_contract: 05_control_evaluation/05_evals/protocols/
+
+notes:
+  - 新规则写入本目录，不建立旧路径或平行兼容目录。
+  - 规则归属以 rule_authority_registry.yaml 为唯一登记表。

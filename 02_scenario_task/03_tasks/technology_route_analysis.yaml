@@ -1,11 +1,48 @@
 schema_name: research_task_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
+
 task_id: technology_route_analysis
 name: 技术路线分析
-objective: 评估技术路线成熟度、替代性与商业化约束，并给出可证伪边界
-default_role: research_lead
-optional_workflow_pattern: deep_research
-relevant_skills: [research-framing, research-method, evidence-assessment, hypothesis-analysis]
-relevant_scenario_types: [TechnologyRouteResearch]
-notes:
-  - 用户级 Research Task Contract；不是 Runtime Node。
+description: 评估技术路线的成熟度、替代性与商业化约束，并给出可证伪边界。
+
+objective: >
+  评估给定技术路线相对替代方案的成熟度、替代性与商业化约束，
+  明确可证伪边界与改判条件。
+
+scope:
+  applies_when:
+    - 问题核心是技术能力、成熟度、替代进度或商业化可行性
+    - 存在可比较的技术路线或替代路径
+    - 需要判断“能不能用 / 能不能放量 / 受什么约束”
+  excludes_when:
+    - 仅要求解释技术原理而不形成判断
+    - 核心是公司财务或行业周期，技术只是背景
+    - 没有可识别的技术边界或比较对象
+
+judgment_requirements:
+  - 技术边界与比较对象
+  - 成熟度所处阶段
+  - 相对替代路线的优劣势
+  - 商业化与量产约束
+  - 证伪边界与改判条件
+
+expected_output:
+  - technology_boundary
+  - maturity_stage
+  - substitution_assessment
+  - commercialization_constraints
+  - confidence
+  - falsification_conditions
+
+completion_criteria:
+  - 已形成明确或“暂不可判断”的技术路线结论
+  - 成熟度、替代性与商业化约束均已覆盖或标明缺口
+  - 已给出可证伪边界与改判条件
+
+uncertainty_policy:
+  allow_insufficient_evidence: true
+
+capability_requirements:
+  - technology_maturity_reasoning
+  - comparative_assessment
+  - evidence_assessment

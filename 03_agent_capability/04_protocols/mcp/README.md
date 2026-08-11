@@ -2,6 +2,11 @@
 
 工作台用来拉取公告、行情、研报、新闻等材料的 **MCP 通道配置与操作手册**。
 
+本目录只回答：**已经决定要从某个渠道获取以后，怎么连过去？**
+
+来源路由（找谁、顺序、检索词、核验）见：
+[`evidence-research` / `source_routes.yaml`](../../02_skills/evidence_research/references/source_routes.yaml)
+
 ## 给谁看
 
 - **研究员：** 查该用哪条通道、参数怎么填、不可用时如何回退
@@ -11,29 +16,29 @@
 
 | 资产 | 作用 |
 |---|---|
-| `mcp_channels.yaml` / `source_routes.yaml` 等 | 机器可读通道与路由 |
-| [`B03_MCP通道注册.md`](B03_MCP通道注册.md) | 通道清单与上游来源对照 |
-| [`OPS_MCP查询快速参考.md`](OPS_MCP查询快速参考.md) | 操作卡片 QP-MCP-* |
+| [`mcp_channels.yaml`](mcp_channels.yaml) | 机器可读通道清单 |
+| [`ops/B03_MCP通道注册.md`](ops/B03_MCP通道注册.md) | 通道清单与上游来源对照 |
+| [`ops/OPS_MCP查询快速参考.md`](ops/OPS_MCP查询快速参考.md) | 操作卡片 QP-MCP-* |
 | [`registry.yaml`](./registry.yaml) | 本目录登记 |
 
 **MCP ≠ 来源生产者。** 返回内容是线索/摘录时，写入正式证据前必须核验可核对原文。
 
+## 接入状态
+
+以 `registry.yaml` 的 `adapter_status` 为准（当前：`common_contract_ready_connector_planned`）。  
+统一结果合同已落地；真实 connector 完整映射仍在推进。
+
+## 凭证
+
+MCP credentials/config 由 Runtime / Harness 环境提供，项目仓库不保存凭证。
+
 ## 怎么用
 
-1. 用取证库或来源速查确定「要找什么」。
-2. 在 B03 映射到通道名（如 `cninfo`、`datayes-*`、`htsc_research_mcp`）。
-3. 按 OPS 卡片调用，并按留痕模板记录 connector、上游来源、参数、原始响应位置、权限与时间。
-4. MCP 不可用 → 走 OPS 回退链 / Web 手册路径；**禁止**用 AI 训练数据编造。
+1. 用 `evidence-research` 来源速查 / `source_routes` 确定「要找什么」。
+2. 在 B03 映射到通道名。
+3. 按 OPS 卡片调用，并按留痕模板记录。
+4. MCP 不可用 → 走 OPS 回退链；**禁止**用 AI 训练数据编造。
 
-## 怎么维护
+## Runtime Tool
 
-- 增删改通道时同步 yaml、B03、OPS 与 registry。
-- 不在本目录伪造数据样例冒充生产结果。
-- 与 Runtime 工具对接变更需双边验证（配置在此，执行在 `06_runtime`）。
-
----
-
-## 维护者附录（可跳过）
-
-- **status:** active
-- **不放什么：** 把 MCP 当成来源生产者、A2A 实现、伪造数据
+对应 Tool：`source.query`（动作语义），底层通过 MCP adapter 连接各通道。

@@ -1,11 +1,48 @@
 schema_name: research_task_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
+
 task_id: value_chain_analysis
 name: 产业链分析
-objective: 刻画上下游依赖与瓶颈传导，区分名义供给与有效供给
-default_role: research_lead
-optional_workflow_pattern: deep_research
-relevant_skills: [research-framing, research-method, evidence-assessment, hypothesis-analysis]
-relevant_scenario_types: [ValueChainResearch]
-notes:
-  - 用户级 Research Task Contract；不是 Runtime Node。
+description: 识别上下游结构、瓶颈与传导关系，判断影响方向而非泛泛描述产业链。
+
+objective: >
+  刻画上下游依赖结构、瓶颈位置与传导关系，区分名义供给与有效供给，
+  并判断关键节点变化的影响方向与改判条件。
+
+scope:
+  applies_when:
+    - 问题核心涉及上下游依赖、瓶颈、传导或供给约束
+    - 需要区分结构位置与影响路径
+    - 需要回答“卡在哪里 / 怎么传导 / 影响谁”
+  excludes_when:
+    - 仅要求列举产业链参与者名单
+    - 核心是单一公司命题且不涉及上下游依赖
+    - 仅要求描述单一事件而不涉及结构传导
+
+judgment_requirements:
+  - 上下游结构识别（关键节点与依赖方向）
+  - 瓶颈识别（名义供给 vs 有效供给）
+  - 传导关系（冲击如何沿链传递）
+  - 对关键对象的影响方向
+  - 主要反证与改判条件
+
+expected_output:
+  - structure_map
+  - bottlenecks
+  - transmission_paths
+  - impact_direction
+  - confidence
+  - reversal_conditions
+
+completion_criteria:
+  - 已形成明确或“暂不可判断”的结构/瓶颈/传导结论
+  - 结构识别、瓶颈、传导与影响方向均已覆盖或标明缺口
+  - 已说明主要反证和改判条件
+
+uncertainty_policy:
+  allow_insufficient_evidence: true
+
+capability_requirements:
+  - structural_dependency_reasoning
+  - bottleneck_identification
+  - evidence_assessment

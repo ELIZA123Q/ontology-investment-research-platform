@@ -1,11 +1,48 @@
 schema_name: research_task_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
+
 task_id: cycle_judgment
 name: 周期判断
-objective: 判断给定时间窗内行业或子行业状态是否进入上行/下行周期或拐点区间
-default_role: research_lead
-optional_workflow_pattern: deep_research
-relevant_skills: [research-framing, research-method, evidence-assessment, hypothesis-analysis, research-writing]
-relevant_scenario_types: [IndustryResearch]
-notes:
-  - 用户级 Research Task Contract；不是 Runtime Node。
+description: 对行业或子行业在给定时间窗内的景气周期状态形成可验证判断。
+
+objective: >
+  判断给定时间窗内行业或子行业所处周期状态、变化方向及潜在拐点，
+  并明确判断依据与改判条件。
+
+scope:
+  applies_when:
+    - 问题核心涉及行业景气状态、趋势或拐点
+    - 需要综合多个周期变量判断共同变化
+    - 需要回答“处于什么阶段 / 是否接近拐点”
+  excludes_when:
+    - 仅要求核实单一事实或单一指标读数
+    - 仅要求描述某一事件本身而不涉及周期状态
+    - 核心是公司经营命题而非行业周期命题
+
+judgment_requirements:
+  - 当前周期状态（上行 / 下行 / 筑底 / 见顶 / 拐点区间 / 暂不可判断）
+  - 周期变化方向
+  - 主要驱动变量及约束变量
+  - 是否存在拐点及其确认条件
+  - 主要反证与改判条件
+
+expected_output:
+  - cycle_state
+  - direction
+  - key_drivers
+  - turning_point_assessment
+  - confidence
+  - reversal_conditions
+
+completion_criteria:
+  - 已形成明确或“暂不可判断”的周期结论
+  - 关键判断均存在证据支撑或明确证据缺口
+  - 已说明主要反证和改判条件
+
+uncertainty_policy:
+  allow_insufficient_evidence: true
+
+capability_requirements:
+  - temporal_state_reasoning
+  - evidence_assessment
+  - counterfactual_reasoning

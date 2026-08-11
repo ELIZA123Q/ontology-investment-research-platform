@@ -1,23 +1,57 @@
 schema_name: capability_skills_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
-executable_manifest: 06_runtime/src/capabilities/registry.ts
+definition_authority: 03_agent_capability/02_skills
+execution_binding: 06_runtime/src/capabilities/registry.ts
 progressive_loading: metadata_then_instructions_then_resources
+method_assets: 03_agent_capability/02_skills/method_assets.yaml
+
 skills:
   - skill_id: research-framing
+    package: 03_agent_capability/02_skills/research_framing
+    skill_md: 03_agent_capability/02_skills/research_framing/SKILL.md
     purpose: 明确对象、期限、决策、成功标准与必要澄清
-  - skill_id: research-method
-    purpose: 选择研究、证伪与替代方法
-    resources: 03_agent_capability/05_method_libraries/02_研究框架
-  - skill_id: evidence-assessment
-    purpose: 评估证据相关性、可靠性、独立性与覆盖度
-    resources: 03_agent_capability/05_method_libraries/03_取证
-  - skill_id: hypothesis-analysis
-    purpose: 比较主假设、竞争解释、情景与可证伪信号
-    resources: 03_agent_capability/05_method_libraries/04_裁决
-  - skill_id: research-writing
-    purpose: 将已验证证据和判断写成边界清晰的研究制品
-    resources: 03_agent_capability/05_method_libraries/05_表达
+
+  - skill_id: research-design
+    package: 03_agent_capability/02_skills/research_design
+    skill_md: 03_agent_capability/02_skills/research_design/SKILL.md
+    purpose: 面对 Task 选择研究框架、判断结构与证伪设计
+    resources:
+      - 03_agent_capability/02_skills/research_design/references
+      - 03_agent_capability/02_skills/research_design/registry.yaml
+    replaces: research-design
+
+  - skill_id: evidence-research
+    package: 03_agent_capability/02_skills/evidence_research
+    skill_md: 03_agent_capability/02_skills/evidence_research/SKILL.md
+    purpose: 证据需求、来源选择、获取核验、留痕、完备度与反证
+    resources:
+      - 03_agent_capability/02_skills/evidence_research/references
+      - 03_agent_capability/02_skills/evidence_research/templates
+      - 03_agent_capability/02_skills/evidence_research/registry.yaml
+      - 03_agent_capability/02_skills/evidence_research/references/source_routes.yaml
+    replaces: evidence-research
+
+  - skill_id: judgment-reasoning
+    package: 03_agent_capability/02_skills/judgment_reasoning
+    skill_md: 03_agent_capability/02_skills/judgment_reasoning/SKILL.md
+    purpose: 主假设、竞争解释、因果链、反证、情景与判断强度
+    resources:
+      - 03_agent_capability/02_skills/judgment_reasoning/references
+    replaces: judgment-reasoning
+
+  - skill_id: research-delivery
+    package: 03_agent_capability/02_skills/research_delivery
+    skill_md: 03_agent_capability/02_skills/research_delivery/SKILL.md
+    purpose: 将已验证证据与判断组织为快答、研报、判断卡等交付物
+    resources:
+      - 03_agent_capability/02_skills/research_delivery/references
+      - 03_agent_capability/02_skills/research_delivery/templates
+    replaces: research-delivery
+
 rules:
+  - Skill 是程序性知识包，不是 Runtime 每一步代码
+  - 方法资源属于对应 Skill package，不再使用 05_method_libraries 一级目录
   - 禁止按固定阶段把每个 Runtime 操作拆成 Skill
-  - 禁止在本目录或 .claude 复制 Skill 正文
+  - 禁止在 .claude/skills 复制 Skill 正文
+  - Context Builder / Provider / Tool / Policy / Verifier 不得伪装成 Skill

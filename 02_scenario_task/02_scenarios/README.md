@@ -1,0 +1,15 @@
+# 研究场景
+
+Scenario Type（`types.yaml`）描述高层研究情境；SCN 场景卡描述相对主框架的增量约束。
+
+**Method = 怎么思考**（[`research-design` Skill](../../03_agent_capability/02_skills/research_design/SKILL.md)）。  
+**Scenario = 在什么情形下给思考过程附加什么约束**（本目录）。  
+**Task = 要完成什么标准判断**（`../03_tasks`）；由 Scenario 的 `candidate_tasks` 单向引用，多对多，不 1:1。
+
+| 文件 | 含义 |
+|---|---|
+| [`types.yaml`](types.yaml) | CompanyResearch / IndustryResearch / … + `candidate_tasks` |
+| [`_scenario_card_template.md`](_scenario_card_template.md) | 场景卡模板 |
+| [`semiconductor/`](semiconductor/) | 半导体 SCN-* 唯一正文 |
+
+语义类型清单见 [`research_requirement_profiles.yaml`](../../01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml)。

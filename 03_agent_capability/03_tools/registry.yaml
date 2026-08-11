@@ -1,7 +1,9 @@
 schema_name: capability_tools_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
-executable_manifest: 06_runtime/src/capabilities/registry.ts
+definition_authority: 03_agent_capability/03_tools
+execution_binding: 06_runtime/src/capabilities/registry.ts
+
 tools:
   - tool_id: semantic.search
     risk: read
@@ -12,14 +14,18 @@ tools:
   - tool_id: source.capture
     risk: write
     idempotent: true
-  - tool_id: financial.mcp
+  - tool_id: source.query
     risk: read
     idempotent: true
     protocol_registry: 03_agent_capability/04_protocols/mcp/registry.yaml
+    replaces: source.query
+    notes: 动作语义是查询/检索来源材料；底层可通过 MCP / API / DB 适配，不把协议名暴露为 Tool 名
   - tool_id: artifact.publish
     risk: external_side_effect
     approval_required: true
     idempotent: true
+
 rules:
   - 有副作用动作必须提供 idempotency_key
+  - Tool 表达动作语义，不表达底层传输协议
   - MCP 是 Tool 的连接协议，不是来源生产者

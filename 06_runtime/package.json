@@ -11,7 +11,7 @@
     "worker": "node --import tsx src/worker.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "ontology:validate": "python3 ../05_control_evaluation/03_校验/ontology/validate_ontology.py",
+    "ontology:validate": "python3 ../05_control_evaluation/04_verifiers/ontology/validate_ontology.py",
     "ontology:sync": "python3 scripts/generate-ontology-catalog.py",
     "ontology:check": "python3 scripts/generate-ontology-catalog.py --check",
     "audit:cutover": "node --import tsx scripts/audit-cutover.ts"

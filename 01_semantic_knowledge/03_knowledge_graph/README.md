@@ -50,9 +50,9 @@
 | 职责 | 位置 |
 |---|---|
 | Runtime 图边界类型 | [`06_runtime/src/semantic/graph-contracts.ts`](../../06_runtime/src/semantic/graph-contracts.ts) |
-| 实例图校验 / 任务视图投影 | [`05_control_evaluation/03_校验/knowledge_graph/`](../../05_control_evaluation/03_校验/knowledge_graph/) |
-| 历史 03/04 样例兼容 | [`05_control_evaluation/03_校验/legacy_compat/`](../../05_control_evaluation/03_校验/legacy_compat/) |
-| 旧 stage→graph 物化器（非 vNext，仅 adapter） | [`legacy/knowledge_graph/`](../../legacy/knowledge_graph/) |
+| 实例图校验 / 任务视图投影 | [`05_control_evaluation/04_verifiers/knowledge_graph/`](../../05_control_evaluation/04_verifiers/knowledge_graph/) |
+| 历史 03/04 样例兼容 | [`05_control_evaluation/04_verifiers/legacy_compat/`](../../05_control_evaluation/04_verifiers/legacy_compat/) |
+| 历史 stage 包兼容校验（非 Runtime） | [`05_control_evaluation/04_verifiers/legacy_compat/`](../../05_control_evaluation/04_verifiers/legacy_compat/README.md) |
 
 ## 硬原则
 

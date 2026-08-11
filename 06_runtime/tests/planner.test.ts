@@ -8,7 +8,7 @@ const budget = { maxModelCalls: 12, maxToolCalls: 24, maxCostUsd: 3 };
 
 describe("constrained dynamic planning", () => {
   it("keeps vNext.1 to five procedural skills and one active agent", () => {
-    expect(SKILLS.map((skill) => skill.id)).toEqual(["research-framing", "research-method", "evidence-assessment", "hypothesis-analysis", "research-writing"]);
+    expect(SKILLS.map((skill) => skill.id)).toEqual(["research-framing", "research-design", "evidence-research", "judgment-reasoning", "research-delivery"]);
     expect(AGENTS.filter((agent) => agent.lifecycle === "active").map((agent) => agent.id)).toEqual(["research-lead"]);
   });
 

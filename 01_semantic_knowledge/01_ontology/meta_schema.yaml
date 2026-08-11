@@ -27,7 +27,7 @@ common_metadata:
     - draft 表示已定义但未纳入当前 Runtime 实例图投影；active 才可写入 business_instance_graph。
     - valid_from 与 valid_to 使用 ISO 8601；valid_to 为空表示尚未失效。
     - examples 与 counter_examples 必须至少各有一项，用于约束概念边界。
-    - 场景类型目录位于 02_scenario_task/scenario_catalog.yaml，不再作为 formal model。
+    - 场景类型目录位于 02_scenario_task/02_scenarios/types.yaml，不再作为 formal model。
     - 领域正式扩展位于 domains/<domain>/ontology_extension.yaml；领域研究参数不得写入 models/。
   id_pattern: '^[A-Za-z][A-Za-z0-9_.-]*$'
   semver_pattern: '^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$'
@@ -61,10 +61,12 @@ rule_contract:
     - test_case_role=executable 表示冻结门用 `rule_interpreter` 按 condition/counter_conditions 断言正反例；Runtime 对深公理亦用同一谓词语义判定。
 
 scenario_contract:
-  required: [metadata, scope_dimensions, required_object_types, required_relation_types, required_state_types, required_evidence_types, required_judgment_types, entry_conditions, completion_conditions, invalidation_conditions, update_triggers]
+  # 场景类型正文在 02_scenario_task/02_scenarios/types.yaml；语义类型清单在 research_requirement_profiles.yaml
+  required: [id, label_zh, definition, scope_dimensions, semantic_requirements, judgment_requirements, entry_conditions, completion_conditions, invalidation_conditions, update_triggers]
   enforcement_values: [catalog_only]
   rules:
     - scenario_types.enforcement 必须为 catalog_only：场景类型是任务枚举/设计清单，不是 Runtime 可写对象或入口门禁。
+    - 不得在 Scenario Type 内重定义 required_*_types；应引用 research_requirement_profiles 中的 profile。
 
 action_type_contract:
   required: [version, label_zh, description, target_types, parameters, allowed_actors, reads, writes, preconditions, submission_policy, function_ref, ontology_edits, post_commit_effects, approval_policy, postconditions, idempotency, conflict_control, audit_fields, compensation, automation_allowed, handler]

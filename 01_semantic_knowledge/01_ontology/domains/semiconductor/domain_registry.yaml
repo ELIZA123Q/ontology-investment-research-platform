@@ -15,7 +15,7 @@ business_instances_bundle:
   generated: true
   build_script: build_business_instances.py
 catalog_refs:
-  scenario_catalog: ../../../../02_scenario_task/scenario_catalog.yaml
+  scenario_catalog: ../../../../02_scenario_task/02_scenarios/types.yaml
 
 notes:
   - ontology_extension 定义半导体独有正式对象/关系/事件扩展。

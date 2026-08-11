@@ -18,15 +18,15 @@
 | Ontology 4.0 Catalog 投影与 Action Service | `src/ontology/` |
 | 可执行 Agent/Skill/Tool 清单 | `src/capabilities/registry.ts`（全仓库唯一） |
 | 本地会话数据 | 默认 `06_runtime/.data/vnext.sqlite` |
-| 知识沉淀人类说明 | [`05_control_evaluation/01_架构/03_知识沉淀闭环.md`](../05_control_evaluation/01_架构/03_知识沉淀闭环.md) |
-| 知识沉淀机器合同 | [`05_control_evaluation/02_合同/knowledge_learning_contract.yaml`](../05_control_evaluation/02_合同/knowledge_learning_contract.yaml) |
-| 来源与事实晋级合同 | [`05_control_evaluation/02_合同/research_provenance_contract.yaml`](../05_control_evaluation/02_合同/research_provenance_contract.yaml) |
-| 动态规划编译合同 | [`05_control_evaluation/02_合同/research_planning_contract.yaml`](../05_control_evaluation/02_合同/research_planning_contract.yaml) |
-| 专业研报与章节方法合同 | [`05_control_evaluation/02_合同/report_generation_contract.yaml`](../05_control_evaluation/02_合同/report_generation_contract.yaml) |
-| AI 章节草拟合同 | [`05_control_evaluation/02_合同/ai_report_drafting_contract.yaml`](../05_control_evaluation/02_合同/ai_report_drafting_contract.yaml) |
-| 报告质量与正式评测准入合同 | [`05_control_evaluation/02_合同/report_quality_evaluation_contract.yaml`](../05_control_evaluation/02_合同/report_quality_evaluation_contract.yaml) |
-| 金融数据接入合同 | [`05_control_evaluation/02_合同/financial_data_ingestion_contract.yaml`](../05_control_evaluation/02_合同/financial_data_ingestion_contract.yaml) |
-| 外部连接器摄取合同 | [`05_control_evaluation/02_合同/connector_ingestion_contract.yaml`](../05_control_evaluation/02_合同/connector_ingestion_contract.yaml) |
+| 知识沉淀人类说明 | [`05_control_evaluation/01_rules/knowledge_promotion.md`](../05_control_evaluation/01_rules/knowledge_promotion.md) |
+| 知识沉淀机器合同 | [`05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml`](../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml) |
+| 来源与事实晋级合同 | [`03_agent_capability/contracts/research_provenance_contract.yaml`](../03_agent_capability/contracts/research_provenance_contract.yaml) |
+| 动态规划编译合同 | [`02_scenario_task/contracts/research_planning_contract.yaml`](../02_scenario_task/contracts/research_planning_contract.yaml) |
+| 专业研报与章节方法合同 | [`02_scenario_task/contracts/report_generation_contract.yaml`](../02_scenario_task/contracts/report_generation_contract.yaml) |
+| AI 章节草拟合同 | [`03_agent_capability/contracts/ai_report_drafting_contract.yaml`](../03_agent_capability/contracts/ai_report_drafting_contract.yaml) |
+| 报告质量与正式评测准入合同 | [`05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml`](../05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml) |
+| 金融数据接入合同 | [`03_agent_capability/contracts/financial_data_ingestion_contract.yaml`](../03_agent_capability/contracts/financial_data_ingestion_contract.yaml) |
+| 外部连接器摄取合同 | [`03_agent_capability/contracts/connector_ingestion_contract.yaml`](../03_agent_capability/contracts/connector_ingestion_contract.yaml) |
 
 研究方法正文、本体定义、MCP 通道说明仍分别在 `01`–`05` 域；Runtime **引用**它们，不复制一份业务正文。
 
@@ -59,6 +59,14 @@ npm run worker
 
 每份报告在审计节点都会生成逐项的专业纪律诊断，检查引用、ReportSpec 章节、MethodApplication、EvidenceFact 血缘、改判条件、定制要求与 AI 草拟边界。诊断不合成“专业总分”，也不冒充研究价值评测。用户确认发布时，Runtime 会冻结报告内容投影和证据包哈希，满足正式评测最前面的输入冻结条件；双轨独立密封裁决、四类扰动、C2 评测器校准、同证据直出/摘要基线和模型隔离仍须另行完成。正式 `R/U/delta/S/C` 的 `eligible` 也只表示可以启动协议，不表示已经通过。
 
+## 产品面
+
+研究员在工作台中使用三块区域：左侧是研究主题与长期会话，中间是与 Research Lead 的连续对话、计划与执行状态，右侧是证据矩阵、假设、判断卡、报告与审计时间线等可信制品。关键证据与判断生成后，系统会暂停并将确认集中在中间区域。
+
+判断卡和报告支持直接编辑：每次保存生成新版本；判断修改后重新确认，报告修改后重新审计。证据事实不能在界面中随意改写；Agent 的初始判断只是提案，研究员必须完成一次结构化复核并保存，才可批准。
+
+产品路由、可信交互约束与可编辑字段边界见 [`app-surface.yaml`](app-surface.yaml)。产品界面唯一实现位于 `app/`；不保留第二套前端或单独的顶层 Workspace 目录。
+
 ## 怎么维护
 
 1. 只在本目录改可执行行为；不要在其他域「另写一套 Runtime」。
@@ -85,9 +93,9 @@ npm run build
 - 持久对象：Conversation、Task/TaskNode、Artifact、append-only Event、Approval、MemoryRecord
 - Message/Trace 从 Event 投影；ContextPackage 为临时装配
 - 当前只启用 Research Lead；其余 Agent 标为 `planned`，不会触发额外模型调用
-- 5 个 Skill：research-framing、research-method、evidence-assessment、hypothesis-analysis、research-writing
+- 5 个 Skill：research-framing、research-design、evidence-research、judgment-reasoning、research-delivery
 - Domain Semantic Graph 与 Research Provenance Graph 分离
-- 本体、词典、来源指南、方法库和历史正式包已接入只读增量索引；相对路径生成稳定 ID，内容哈希变化递增版本
+- 本体、词典、来源指南、Skill 资源包和历史正式包已接入只读增量索引；相对路径生成稳定 ID，内容哈希变化递增版本
 - `source.discover → source.capture → EvidenceFact` 已接通；短引文定位、正文哈希、权限和事实晋级由确定性 Verifier 约束
 - 证据充分性要求至少两个不同发布主体；历史 structured evidence packet 不冒充新抓取的原始网页或 PDF
 - PlannerProposal 编译器只接受 Node Catalog 白名单，确定性检查意图、依赖、无环、证据链和预算；非法提案修复一次后回退

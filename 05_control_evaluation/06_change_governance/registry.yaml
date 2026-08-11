@@ -1,0 +1,18 @@
+schema_name: change_governance_registry
+schema_version: 1.0.0
+status: active
+
+authority:
+  answers: 规则与本体自身如何提出变更、检查、审批并发布。
+  write_entry: 05_control_evaluation/06_change_governance/
+  read_primary: 05_control_evaluation/06_change_governance/ontology/model_registry.yaml
+
+ontology:
+  meta_schema: 05_control_evaluation/06_change_governance/ontology/meta_schema.yaml
+  model_registry: 05_control_evaluation/06_change_governance/ontology/model_registry.yaml
+  instances: 05_control_evaluation/06_change_governance/ontology/instances/governance_instance_graph.yaml
+
+compatibility_policy: read_only_projection_only
+boundary:
+  business_ontology: 01_semantic_knowledge/01_ontology/
+  migration_history: docs/migrations/repository_history/ontology_evolution/

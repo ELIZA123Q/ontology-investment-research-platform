@@ -647,7 +647,7 @@ export class AgentKernel {
         const executedMethods = hasQualified ? assessResearchMethods(assessedMethods, evidenceData.facts || [], true) : assessedMethods;
         if (selectedMethods) this.store.reviseArtifacts([{ id: selectedMethods.id, expectedVersion: selectedMethods.version, data: executedMethods, createdBy: "ComputeJudgmentProposal" }]);
         const executedCore = executedMethods.applications.find((item) => item.sectionKey === "core_judgments");
-        this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "method.applications_assessed", actorType: "system", actorId: "research-method", payload: { methodArtifactId: selectedMethods?.id, executedApplicationIds: executedMethods.applications.filter((item) => item.executionStatus === "executed").map((item) => item.id), blockedApplicationIds: executedMethods.applications.filter((item) => item.executionStatus === "blocked").map((item) => item.id) } });
+        this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "method.applications_assessed", actorType: "system", actorId: "research-design", payload: { methodArtifactId: selectedMethods?.id, executedApplicationIds: executedMethods.applications.filter((item) => item.executionStatus === "executed").map((item) => item.id), blockedApplicationIds: executedMethods.applications.filter((item) => item.executionStatus === "blocked").map((item) => item.id) } });
         const proposal = computed.judgmentProposal as Record<string, unknown>;
         const signalInputs = (evidenceData.facts || []).flatMap((fact) => fact.ontologyFactRef ? [{ evidenceFactRef: fact.ontologyFactRef, statement: fact.statement, evidenceRoles: fact.evidenceRoles || [] }] : []);
         const signalRoles = Object.fromEntries(signalInputs.map((input) => [input.evidenceFactRef, "context" as const]));
@@ -833,7 +833,7 @@ export class AgentKernel {
     const evaluationFreeze: NonNullable<ReportSurfaceData["evaluationFreeze"]> = {
       version: "1.0.0", status: "frozen_for_evaluation", frozenAt, reportHash, evidenceBundleHash,
       reportArtifactVersion: report.version, evidenceArtifactId: evidence.id, evidenceArtifactVersion: evidence.version,
-      protocolRef: "05_control_evaluation/14_evals/01_协议/02_案例与数据契约.md",
+      protocolRef: "05_control_evaluation/05_evals/protocols/02_案例与数据契约.md",
     };
     const facts = ((evidence.data as { facts?: import("@/src/contracts").EvidenceFact[] }).facts || []);
     const qualityEvaluation = evaluateReportQuality({

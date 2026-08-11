@@ -1,0 +1,29 @@
+schema_name: repository_layout
+schema_version: 2.0.0
+status: active
+authority: docs/architecture/five_domain_authority.yaml
+runtime_root: 06_runtime
+workbench_url: http://127.0.0.1:3000
+directories:
+  01_semantic_knowledge: semantic_assets
+  02_scenario_task: task_assets_and_templates
+  03_agent_capability: capability_governance_and_method_resources
+  04_context_state: context_state_memory_workspace_contracts
+  examples: historical_research_run_demos
+  05_control_evaluation: rules_permissions_verifiers_evals
+  06_runtime: executable_app_runtime_and_product_surface_registry
+single_sources:
+  capability_manifest: 06_runtime/src/capabilities/registry.ts
+  task_node_catalog: 06_runtime/src/runtime/node-catalog.ts
+  planner: 06_runtime/src/runtime/planner.ts
+  contracts: 06_runtime/src/contracts.ts
+  store: 06_runtime/src/runtime/store.ts
+  product_surface_registry: 06_runtime/app-surface.yaml
+forbidden_directories:
+  - vnext
+  - 90_compat
+  - 06_runtime/agents
+  - 06_runtime/skills
+  - 06_runtime/workflow
+  - 06_runtime/runner
+  - 06_runtime/storage

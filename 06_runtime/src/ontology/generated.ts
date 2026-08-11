@@ -1279,7 +1279,7 @@ export const ONTOLOGY_CATALOG = {
       ]
     }
   },
-  "fingerprint": "sha256:79bf148ecd17ba4436ea41d3b563ab70c6e780f49ca4ff565c14454f2b0ba21b",
+  "fingerprint": "sha256:29265f006d1fe4d7479f0d3e0aa9c81d9398c18e1cde6418a47965fbf5df910d",
   "functions": {
     "AssessEvidenceUsability": {
       "description": "根据快照核验、范围和独立来源计算证据是否足以支撑当前用途。",
@@ -1400,20 +1400,6 @@ export const ONTOLOGY_CATALOG = {
           "required": true,
           "type": "string"
         },
-        "actor_id": {
-          "required": true,
-          "type": "string"
-        },
-        "actor_type": {
-          "allowed_values": [
-            "researcher",
-            "agent",
-            "system",
-            "ontology_admin"
-          ],
-          "required": true,
-          "type": "enum"
-        },
         "completed_at": {
           "required": false,
           "type": "datetime"
@@ -1433,6 +1419,32 @@ export const ONTOLOGY_CATALOG = {
         "parameters": {
           "required": true,
           "type": "object"
+        },
+        "persona": {
+          "allowed_values": [
+            "researcher",
+            "reviewer",
+            "ontology_admin"
+          ],
+          "required": false,
+          "type": "enum"
+        },
+        "principal_id": {
+          "required": true,
+          "type": "string"
+        },
+        "principal_type": {
+          "allowed_values": [
+            "human",
+            "agent",
+            "system_job"
+          ],
+          "required": true,
+          "type": "enum"
+        },
+        "role_id": {
+          "required": false,
+          "type": "string"
         },
         "status": {
           "allowed_values": [

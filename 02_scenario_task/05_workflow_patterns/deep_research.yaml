@@ -20,7 +20,6 @@ human_gates:
   - judgment_confirmation
   - publish_confirmation
 
-legacy_reference: 02_scenario_task/90_legacy/deep_research_v1/
 notes:
   - 禁止把本 pattern 解释为必须按 Stage 01–05 顺序执行。
   - Runtime 只执行 node-catalog 中满足前置条件的节点。

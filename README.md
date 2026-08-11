@@ -30,14 +30,13 @@ bash start-light.sh
 
 | 目录 | 人话 |
 |---|---|
-| [`01_semantic_knowledge/`](01_semantic_knowledge/README.md) | 概念、词典、证据语义 |
-| [`02_scenario_task/`](02_scenario_task/README.md) | 场景与任务定义 |
-| [`03_agent_capability/`](03_agent_capability/README.md) | 方法库、能力登记、数据通道 |
-| [`04_context_state/`](04_context_state/README.md) | 执行合同与历史工作区 |
-| [`05_control_evaluation/`](05_control_evaluation/README.md) | 边界、合同、校验、评测 |
-| [`06_runtime/`](06_runtime/README.md) | 唯一可执行应用与后台 |
-| [`07_workspace/`](07_workspace/README.md) | 产品面说明（实现在 Runtime） |
+| [`01_semantic_knowledge/`](01_semantic_knowledge/README.md) | 世界里有什么：概念、词典、证据语义 |
+| [`02_scenario_task/`](02_scenario_task/README.md) | 现在要完成什么：意图、场景、任务、角色 |
+| [`03_agent_capability/`](03_agent_capability/README.md) | 靠什么完成：Agent / Skill / Tool / Protocol |
+| [`04_context_state/`](04_context_state/README.md) | 现在看见什么、做到哪里、记住什么、正在操作什么 |
+| [`05_control_evaluation/`](05_control_evaluation/README.md) | 什么能做、什么算合格 |
+| [`06_runtime/`](06_runtime/README.md) | 应用、API 与用户工作台；真正加载、组合、执行以上一切 |
 
-更细说明见 [`05_control_evaluation/01_架构/02_仓库地图与文件治理.md`](05_control_evaluation/01_架构/02_仓库地图与文件治理.md)。权威索引：[`five_domain_authority.yaml`](05_control_evaluation/01_架构/five_domain_authority.yaml)。
+更细说明见 [`docs/architecture/02_仓库地图与文件治理.md`](docs/architecture/02_仓库地图与文件治理.md)。权威索引：[`five_domain_authority.yaml`](docs/architecture/five_domain_authority.yaml)。
 
-AI 原生分层（心智名 ↔ 现行目录、Workflow 降级、禁止项）：[`05_control_evaluation/01_架构/00_五域系统骨架.md`](05_control_evaluation/01_架构/00_五域系统骨架.md) · [`architecture.yaml`](05_control_evaluation/01_架构/architecture.yaml)。
+AI 原生分层：[`00_五域系统骨架.md`](docs/architecture/00_五域系统骨架.md) · [`architecture.yaml`](docs/architecture/architecture.yaml)。

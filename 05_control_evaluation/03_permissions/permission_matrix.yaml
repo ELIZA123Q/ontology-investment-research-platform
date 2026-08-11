@@ -1,0 +1,23 @@
+schema_name: governance_permission_matrix
+schema_version: 1.0.0
+status: active
+
+subjects: [researcher, reviewer, ontology_admin, agent, system_job]
+resources: [artifact, formal_report, human_gate, memory, ontology, source_capture]
+actions: [confirm, review, block, promote, release, write, acquire]
+
+rules:
+  - {subject: researcher, resource: artifact, action: confirm, effect: allow}
+  - {subject: researcher, resource: memory, action: write, effect: allow, scope: user_preferences_only}
+  - {subject: reviewer, resource: formal_report, action: review, effect: allow}
+  - {subject: reviewer, resource: formal_report, action: block, effect: allow}
+  - {subject: ontology_admin, resource: ontology, action: release, effect: allow}
+  - {subject: system_job, resource: source_capture, action: acquire, effect: allow, scope: configured_budget_only}
+  - {subject: system_job, resource: human_gate, action: confirm, effect: deny}
+  - {subject: agent, resource: human_gate, action: confirm, effect: deny}
+  - {subject: agent, resource: memory, action: promote, effect: deny}
+
+rule_boundaries:
+  no_invented_sources: 05_control_evaluation/01_rules/policies/rule_authority_registry.yaml
+  knowledge_promotion: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+  judgment_strength: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml

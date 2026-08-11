@@ -1,0 +1,69 @@
+schema_name: memory_contract
+schema_version: 3.0.0
+status: active
+implementation_status: partial_storage
+
+authority:
+  answers: 跨任务可保留什么 / 不可把什么当长期真理
+  write_entry: 04_context_state/03_memory/
+  read_primary: 04_context_state/03_memory/contract.yaml
+  implementation: 06_runtime/src/runtime/store.ts#memory_records
+
+definition: |
+  Memory 是为未来调用优化体验的选择性记忆。
+  它不是正式知识、方法或评测权威；正式真理仍在 01 / 03 / 05。
+
+scopes:
+  - id: user_preferences
+    description: 研究员偏好（默认交付原型、展示语言、确认习惯）
+    retention: until_user_reset
+    promotion_required: false
+  - id: researched_theme_history
+    description: 曾研究过的主题/对象索引（不含单次结论正文）
+    retention: rolling_12_months
+    promotion_required: false
+  - id: validated_failure_modes
+    description: 已验证失败模式的可调用摘要与引用（不复制完整规则正文）
+    retention: until_superseded
+    promotion_required: true
+    promotion_path: 05_control_evaluation/05_evals or knowledge candidate queue
+    authority_note: |
+      Memory 只存 summary + source_ref（如 eval://failure_mode/FM-018）+ freshness；
+      完整规则权威仍在 05_control_evaluation。
+
+may_persist:
+  - user_preferences
+  - researched_theme_history
+  - validated_failure_modes
+
+must_not_persist_as_truth:
+  - single_run_judgments
+  - unverified_evidence_drafts
+  - secrets_or_credentials
+  - raw_model_chain_of_thought
+  - unauthorized_or_non_public_materials
+  - full_copies_of_eval_or_ontology_rules
+
+write_rules:
+  - Memory 写入不得绕过 Workspace 追溯（须能指出来源 run_id / artifact）
+  - 单次 Judgment / ReportClaim 不得直接写成长期 Memory 真理
+  - 候选知识贡献须走元治理/候选队列，不得静默写回正式本体或 methods
+  - validated_failure_modes 只写引用与摘要，不夺 05 的权威
+
+read_rules:
+  - Context 装配可读取 Memory，但必须标注 memory_ref 与新鲜度
+  - Memory 缺失时不得伪造历史偏好或历史结论
+  - 读取 validated_failure_modes 时应能回溯到 Eval / governance source_ref
+
+current_runtime_coverage:
+  implemented:
+    - preference / topic_index / validated_failure_pattern kind 约束
+    - content / provenanceArtifactIds / reviewedAt 存储
+    - Context 装配时的 Memory 版本计数
+  known_gaps:
+    - source_ref 与 freshness 尚未是独立字段
+    - promotion_required 尚未有完整的 Runtime 写入门
+
+notes:
+  - SQLite 已实现 MemoryRecord；只有偏好、主题索引和经治理验证的失败模式可写入。
+  - 与 Workspace（本次产物）严格分离；与 Knowledge / Eval（正式权威）严格分离。

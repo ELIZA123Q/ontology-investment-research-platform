@@ -1,0 +1,54 @@
+schema_name: markdown_validator_requirements_coverage
+schema_version: 1.0.0
+allowed_execution_modes: [automated, semantic_review, human_required]
+rules:
+  - rule_id: LOOP-IDENTITY-001
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#cross_stage_references
+    requirement: 证据波次、依赖投影与阶段产物必须绑定同一任务、运行和 02 视图哈希。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/store.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/store.test.ts]
+  - rule_id: LOOP-ROUTE-001
+    source_ref: 02_scenario_task/contracts/research_planning_contract.yaml
+    requirement: 既有结构内证据回 03，新变量、路径、竞争假设或范围拆分回完整 02。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/planner.ts, 06_runtime/src/runtime/node-catalog.ts]
+    test_refs: [06_runtime/tests/planner.test.ts]
+  - rule_id: LOOP-STALE-001
+    source_ref: docs/architecture/00_项目定位与边界.md
+    requirement: 对象 stale 只向依赖图可达下游传播，不得按阶段一刀切。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/planner.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/planner.test.ts]
+  - rule_id: LOOP-ATTEMPT-001
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#stage_attempt_states
+    requirement: 新 attempt 不覆盖旧 attempt，历史归档哈希必须可复核。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/store.ts, 06_runtime/src/runtime/kernel.ts]
+    test_refs: [06_runtime/tests/store.test.ts, 06_runtime/tests/kernel.test.ts]
+  - rule_id: LOOP-CONVERGENCE-001
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#iteration_semantics
+    requirement: 运行从关键 checkpoint 恢复；未完成节点由依赖状态、停止条件与 worker lease 决定，不使用固定阶段循环次数上限。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/runtime/kernel.ts, 06_runtime/src/runtime/store.ts, 06_runtime/src/worker.ts]
+    test_refs: [06_runtime/tests/kernel.test.ts, 06_runtime/tests/store.test.ts]
+  - rule_id: REASONING-REVISION-001
+    source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#incremental_update_contract
+    requirement: 推理对象修订必须使用 supersedes_trace 和 runtime_revision_operation，保留旧留痕。
+    execution_mode: automated
+    validator_refs: [05_control_evaluation/04_verifiers/stages/stage_04/validate_04_outputs.py, 05_control_evaluation/04_verifiers/validate_run.py]
+    test_refs: [05_control_evaluation/04_verifiers/tests/test_v3_samples.py]
+  - rule_id: EVIDENCE-TRUTH-001
+    source_ref: 03_agent_capability/contracts/research_provenance_contract.yaml
+    requirement: 资料是否真实充分、比较口径是否合理。
+    execution_mode: human_required
+    rationale: 需要领域事实核查和口径判断，确定性校验器只能检查留痕与引用完整性。
+    validator_refs: []
+    test_refs: []
+  - rule_id: REASONING-MEANING-001
+    source_ref: 05_control_evaluation/05_evals/rubrics/research_quality.md
+    requirement: 推理是否具有经济含义与投研增量。
+    execution_mode: semantic_review
+    rationale: 由独立语义审查评估，不由确定性字段校验代替。
+    validator_refs: [05_control_evaluation/04_verifiers/semantic_review.py]
+    test_refs: [05_control_evaluation/04_verifiers/tests/test_v3_samples.py]

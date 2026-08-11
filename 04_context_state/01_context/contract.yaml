@@ -1,0 +1,85 @@
+schema_name: context_contract
+schema_version: 1.0.0
+status: active
+implementation_status: partial_reference_manifest
+
+authority:
+  answers: 单次 Agent 调用前，模型被允许看见什么
+  write_entry: 04_context_state/01_context/
+  read_primary: 04_context_state/01_context/contract.yaml
+  implementation: 06_runtime/src/runtime/kernel.ts
+  type_binding: 06_runtime/src/contracts.ts#ContextPackage
+
+definition: |
+  Context 是 Runtime 在某一时刻，把任务相关信息裁剪、组装成的临时视图。
+  它不保存长期知识，也不替代 State / Memory / Workspace / Knowledge 的权威。
+
+assembly_inputs:
+  - domain: scenario_task
+    path: 02_scenario_task
+    contributes: [task_definition, workflow_pattern, role]
+  - domain: agent_capability
+    path: 03_agent_capability
+    contributes: [agent, skill, tool, protocol]
+  - domain: context_state
+    path: 04_context_state/02_state
+    contributes: [session_state, task_state, run_state]
+  - domain: context_state
+    path: 04_context_state/04_workspace
+    contributes: [workspace_refs, artifact_refs]
+  - domain: context_state
+    path: 04_context_state/03_memory
+    contributes: [memory_refs]
+  - domain: semantic_knowledge
+    path: 01_semantic_knowledge
+    contributes: [ontology_refs, dictionary_refs, graph_refs]
+  - domain: control_evaluation
+    path: 05_control_evaluation
+    contributes: [policy_refs, permission_refs, verifier_refs]
+
+context_package:
+  required_sections:
+    - identity      # conversation / task / run / node
+    - task          # 当前任务目标与约束摘要
+    - state         # 当前状态摘要（来自 State contract）
+    - workspace     # 当前可读工作区资源引用
+    - memory        # 允许注入的跨任务记忆引用
+    - knowledge     # 语义知识引用（带版本/release）
+    - capabilities  # 本步可用 Agent/Skill/Tool
+    - policies      # 本步适用规则与权限过滤结果
+  metadata:
+    - source_ref
+    - asset_version
+    - selection_reason
+    - freshness_at
+    - token_budget
+    - trimmed_reason
+    - permission_filter_result
+
+lifecycle:
+  - assemble   # Runtime 按合同裁剪组装
+  - consume    # Agent 本次调用使用
+  - record     # 以 Event Manifest 留痕（引用/理由/预算），不建可编辑实体
+  - discard    # 对象本身临时，不作为数据库权威实体持久化
+
+invariants:
+  - ContextPackage 不作为长期知识库或独立业务实体仓库
+  - 每次装配必须记录引用、版本、选择理由、预算与新鲜度
+  - 权限过滤后不可见的内容不得进入 Context
+  - Memory / Knowledge / Method / Eval 正文不得整包灌入；只注入本次需要的引用与摘要
+  - Context 缺失时不得伪造历史偏好、正式结论或未授权材料
+
+current_runtime_coverage:
+  implemented:
+    - identity 中的 task_id / node_id
+    - knowledge release / lock 引用
+    - reference reason / version / freshness
+    - token_budget
+    - Event Manifest 留痕
+  known_gaps:
+    - 尚未按合同物化 state / workspace / memory / capabilities / policies 显式分段
+    - trimmed_reason 与 permission_filter_result 尚未成为 ContextPackage 类型的必备字段
+
+notes:
+  - 类型实现绑定见 06_runtime/src/contracts.ts#ContextPackage；合同变更后 Runtime 必须对齐。
+  - 上下文白名单治理仍可参考 docs/architecture/runtime_contexts.yaml。

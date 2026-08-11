@@ -62,7 +62,7 @@ def assemble() -> dict[str, Any]:
         ],
         "catalog_refs": {
             "scenario_catalog": {
-                "path": "../../../../02_scenario_task/scenario_catalog.yaml",
+                "path": "../../../../02_scenario_task/02_scenarios/types.yaml",
                 "role": "task_catalog_only",
                 "note": "场景类型枚举属于 02_scenario_task，不是正式 Ontology Model dependency。",
             }

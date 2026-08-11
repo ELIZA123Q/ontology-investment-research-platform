@@ -8,7 +8,8 @@ const failures: string[] = [];
 
 const forbiddenPaths = [
   "vnext", "90_compat", "06_runtime/agents", "06_runtime/skills", "06_runtime/workflow",
-  "06_runtime/runner", "06_runtime/storage",
+  "06_runtime/runner", "06_runtime/storage", "04_context_state/02_memory",
+  "04_context_state/03_workspace", "04_context_state/04_runtime", "legacy", "examples",
 ];
 for (const path of forbiddenPaths) if (existsSync(join(repoRoot, path))) failures.push(`forbidden legacy path exists: ${path}`);
 
@@ -24,10 +25,15 @@ const authorityFiles = [
   "README.md", "CLAUDE.md", "02_scenario_task/registry.yaml", "03_agent_capability/registry.yaml",
   "03_agent_capability/01_agents/registry.yaml", "03_agent_capability/02_skills/registry.yaml",
   "03_agent_capability/03_tools/registry.yaml", "04_context_state/registry.yaml",
-  "04_context_state/04_runtime/registry.yaml", "05_control_evaluation/01_架构/five_domain_authority.yaml",
-  "07_workspace/registry.yaml",
+  "04_context_state/01_context/contract.yaml", "04_context_state/02_state/contract.yaml",
+  "04_context_state/03_memory/contract.yaml", "04_context_state/04_workspace/contract.yaml",
+  "docs/architecture/five_domain_authority.yaml", "06_runtime/app-surface.yaml",
 ];
-const forbiddenReferences = ["06_runtime/agents", "06_runtime/skills", "06_runtime/workflow", "06_runtime/runner", "06_runtime/storage", "source_of_truth: .claude/skills"];
+const forbiddenReferences = [
+  "06_runtime/agents", "06_runtime/skills", "06_runtime/workflow", "06_runtime/runner", "06_runtime/storage",
+  "04_context_state/02_memory", "04_context_state/03_workspace", "04_context_state/04_runtime",
+  "source_of_truth: .claude/skills",
+];
 for (const file of authorityFiles) {
   const path = join(repoRoot, file);
   if (!existsSync(path)) { failures.push(`missing authority file: ${file}`); continue; }
@@ -39,7 +45,7 @@ for (const file of authorityFiles) {
 if (SKILLS.length !== 5) failures.push(`expected 5 executable skills, found ${SKILLS.length}`);
 const activeAgents = AGENTS.filter((agent) => agent.lifecycle === "active");
 if (activeAgents.length !== 1 || activeAgents[0]?.id !== "research-lead") failures.push(`expected only research-lead active, found ${activeAgents.map((agent) => agent.id).join(",")}`);
-if (!TOOLS.some((tool) => tool.id === "source.capture") || !TOOLS.some((tool) => tool.id === "financial.mcp")) failures.push("required tool manifests are missing");
+if (!TOOLS.some((tool) => tool.id === "source.capture") || !TOOLS.some((tool) => tool.id === "source.query")) failures.push("required tool manifests are missing");
 
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));

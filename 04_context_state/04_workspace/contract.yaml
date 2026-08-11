@@ -1,0 +1,80 @@
+schema_name: workspace_contract
+schema_version: 1.0.0
+status: active
+implementation_status: logical_contract_only
+
+authority:
+  answers: 这一次任务正在操作什么东西
+  write_entry: 04_context_state/04_workspace/
+  read_primary: 04_context_state/04_workspace/contract.yaml
+  implementation: 06_runtime/src/runtime/store.ts
+  physical_storage: 06_runtime/.data/
+
+definition: |
+  Workspace 是一次 Session / Task / Run 的可读写工作环境合同。
+  这是逻辑模型，不要求必须创建同名物理目录；底层可由 SQLite / filesystem / object store 实现。
+
+identity:
+  - workspace_id
+  - session_id
+  - task_id
+  - run_id
+
+resource_types:
+  - id: input
+    description: 当前任务输入（需求、约束、用户补充）
+  - id: scratch
+    description: 临时草稿与中间计算
+  - id: evidence_snapshot
+    description: 取证快照与来源捕获产物
+  - id: intermediate_artifact
+    description: 中间制品（计划、假设、判断草稿等）
+  - id: final_artifact
+    description: 本轮可交付制品
+  - id: export
+    description: 导出包 / handoff 包
+
+logical_layout:
+  - inputs
+  - scratch
+  - evidence
+  - intermediate
+  - artifacts
+  - exports
+
+lifecycle:
+  - create
+  - read
+  - update
+  - freeze
+  - archive
+  - delete
+
+promotion:
+  rule: |
+    Execution Package、Asset-Candidate Package 等先作为 Workspace Artifact 产生；
+    晋升为长期可复用资产后，进入对应正式资产域（语义 / 能力 / 治理），不得把 Workspace 本身变成长期知识库。
+
+not_workspace:
+  - historical_demo_cases: 05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/
+  - regression_fixtures: 05_control_evaluation/04_verifiers/fixtures/regression/
+  - runtime_implementation: 06_runtime/
+  - formal_knowledge: 01_semantic_knowledge/
+  - formal_methods: 03_agent_capability/02_skills/
+
+invariants:
+  - Workspace 资源必须可追溯到 session/task/run
+  - 冻结后的证据快照不得静默改写
+  - 本机运行数据落在 06_runtime/.data/，不入本域目录，不入 Git
+  - 历史样例与回归夹具不属于 Workspace
+
+current_runtime_coverage:
+  implemented:
+    - Task / Artifact 与本机数据目录承载工作产物
+    - Artifact 版本、状态和来源引用
+  known_gaps:
+    - 尚无独立 workspace_id 与 Workspace 实体
+    - freeze / archive / delete 尚未按 Workspace 资源生命周期统一实现
+
+notes:
+  - 合同只定义资源类型与生命周期；物理落盘由 Runtime 决定。

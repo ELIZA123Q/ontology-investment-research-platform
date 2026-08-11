@@ -27,9 +27,6 @@ subdomains:
   workflow_patterns:
     registry: 02_scenario_task/05_workflow_patterns/registry.yaml
     status: active
-  legacy_deep_research_v1:
-    path: 02_scenario_task/90_legacy/deep_research_v1/
-    status: legacy
 
 layers:
   - User Intent → 01_intents/
@@ -41,4 +38,4 @@ layers:
 
 notes:
   - Intent → Scenario → Task Contract 是本域主链。
-  - Deep Research 仅 workflow pattern + legacy 参考，禁止固定 01→05 controller。
+  - Deep Research 仅 workflow pattern prior，禁止固定 01→05 controller；历史正文已删除。

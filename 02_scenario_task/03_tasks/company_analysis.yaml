@@ -1,11 +1,51 @@
 schema_name: research_task_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
+
 task_id: company_analysis
 name: 公司分析
-objective: 在给定范围内评估公司经营与业绩判断的证据充分性、边界与改判条件
-default_role: research_lead
-optional_workflow_pattern: deep_research
-relevant_skills: [research-framing, research-method, evidence-assessment, research-writing]
-relevant_scenario_types: [CompanyResearch]
-notes:
-  - 用户级 Research Task Contract；不是 Runtime Node。
+description: >
+  围绕明确的公司经营或业绩命题，形成可验证的公司层判断；
+  不是对公司做无边界的全面尽调。
+
+objective: >
+  围绕明确的公司经营或业绩命题，判断其关键驱动、证据支持程度、
+  业绩传导路径及改判条件。
+
+scope:
+  applies_when:
+    - 问题中心是特定公司的经营状态、订单、业绩或竞争位置
+    - 已有或可形成明确命题（例如订单兑现、份额变化、利润弹性）
+    - 需要评估证据是否足以支撑该命题
+  excludes_when:
+    - 要求对公司做无命题的“全面研究”
+    - 核心是行业周期、技术路线或产业链结构，公司只是举例对象
+    - 仅要求核实单一公告或单一财务读数
+
+judgment_requirements:
+  - 公司命题的明确表述与范围边界
+  - 关键经营/业绩驱动变量
+  - 证据对命题的支持程度与主要缺口
+  - 从驱动到业绩的传导关系
+  - 主要反证与改判条件
+
+expected_output:
+  - proposition
+  - key_drivers
+  - evidence_support_level
+  - performance_transmission
+  - confidence
+  - reversal_conditions
+
+completion_criteria:
+  - 已形成明确或“暂不可判断”的公司命题结论
+  - 关键驱动与传导已点明，而非罗列公司全貌
+  - 关键判断均存在证据支撑或明确证据缺口
+  - 已说明主要反证和改判条件
+
+uncertainty_policy:
+  allow_insufficient_evidence: true
+
+capability_requirements:
+  - company_operating_reasoning
+  - financial_transmission_reasoning
+  - evidence_assessment

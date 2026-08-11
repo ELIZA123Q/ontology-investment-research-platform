@@ -1,0 +1,24 @@
+schema_name: governance_verifier_registry
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: 确定性条件是否满足。
+  write_entry: 05_control_evaluation/04_verifiers/
+  read_primary: 05_control_evaluation/04_verifiers/
+
+entrypoints:
+  - 05_control_evaluation/04_verifiers/validate_project.py
+  - 05_control_evaluation/04_verifiers/validate_run.py
+  - 05_control_evaluation/04_verifiers/validate_publish.py
+  - 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
+
+assets:
+  fixtures: 05_control_evaluation/04_verifiers/fixtures/
+  tests: 05_control_evaluation/04_verifiers/tests/
+  stage_checks: 05_control_evaluation/04_verifiers/stages/
+
+boundary:
+  does: [schema, fields, source_provenance, traceability, threshold, publish_gate]
+  does_not: [insight_quality, decision_usefulness, comparative_research_value]
+  quality_eval: 05_control_evaluation/05_evals/

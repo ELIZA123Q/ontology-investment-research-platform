@@ -1,53 +1,49 @@
 schema_name: capability_domain_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 
 authority:
-  answers: Capability 权威入口是本文件；可执行 Agent/Skill/Tool manifest 只有一份。
+  answers: |
+    03_agent_capability 是 Capability Definition Authority：
+    定义能力是什么、叫什么、解决什么问题、资源在哪里、可与谁组合、边界是什么。
+    06_runtime 是 Execution Binding Authority：把 capability ID 绑定到 handler / model / context / tool / state。
   write_entry: 03_agent_capability/
   read_primary: 03_agent_capability/registry.yaml
-  executable_manifest: 06_runtime/src/capabilities/registry.ts
+  definition_authority: 03_agent_capability/
+  execution_binding: 06_runtime/src/capabilities/registry.ts
 
 source_of_truth:
-  agents: 06_runtime/src/capabilities/registry.ts
-  skills: 06_runtime/src/capabilities/registry.ts
-  tools: 06_runtime/src/capabilities/registry.ts
+  agents_definition: 03_agent_capability/01_agents/registry.yaml
+  skills_definition: 03_agent_capability/02_skills/registry.yaml
+  tools_definition: 03_agent_capability/03_tools/registry.yaml
+  agents_execution: 06_runtime/src/capabilities/registry.ts
+  skills_execution: 06_runtime/src/capabilities/registry.ts
+  tools_execution: 06_runtime/src/capabilities/registry.ts
   provider_adapters: 06_runtime/src/providers/model-provider.ts
   mcp_channels: 03_agent_capability/04_protocols/mcp/mcp_channels.yaml
 
 subdomains:
   agents:
     target: 03_agent_capability/01_agents
-    source: 06_runtime/src/capabilities/registry.ts
     status: active
   skills:
     target: 03_agent_capability/02_skills
-    source: 06_runtime/src/capabilities/registry.ts
     status: active
+    notes: Skill package = SKILL.md + references/ + templates/；方法资源属于 Skill，不再并列第五类能力域
   tools:
     target: 03_agent_capability/03_tools
-    source: 06_runtime/src/capabilities/registry.ts
     status: active
   protocols_mcp:
     target: 03_agent_capability/04_protocols/mcp
-    source:
-      - 03_agent_capability/04_protocols/mcp/B03_MCP通道注册.md
-      - 03_agent_capability/04_protocols/mcp/OPS_MCP查询快速参考.md
     status: active
+    notes: 只回答「已决定从某渠道获取后如何连接」；来源选择策略在 evidence-research Skill
   protocols_a2a:
-    target: 03_agent_capability/04_protocols/a2a
-    source: null
-    status: shell
-    registry: 03_agent_capability/04_protocols/a2a/registry.yaml
-    boundary: 03_agent_capability/04_protocols/a2a/BOUNDARY.md
+    target: 03_agent_capability/04_protocols/_planned/a2a.md
+    status: planned
     implementation_allowed: false
-  method_libraries:
-    target: 03_agent_capability/05_method_libraries
-    status: active
-    notes: 研究框架/取证方法卡/裁决/表达；证据速查 B00–B02 在 05_method_libraries/03_取证；MCP 在 04_protocols/mcp
 
 notes:
-  - Agent 组织路径；Skill 保存程序性知识；Tool 执行动作；MCP/A2A 是协议边界。
-  - 方法库正文在 05_method_libraries；无顶层 methods / 90_* 目录。
-  - 禁止恢复 .claude、03_agent_capability、06_runtime 三套 Skill 正文。
-  - wave5: A2A 仅边界+registry；禁止假实现。
+  - 03 = 谁来做 + 会怎么做 + 能执行什么动作 + 怎么连接外部能力
+  - 禁止恢复 05_method_libraries 一级能力域与固定 02→03→04→05 方法流水线
+  - Skill 正文只在 02_skills/<skill_package>/SKILL.md；禁止在 .claude 复制第二套正文
+  - A2A 保持 planned，直到出现真实跨 Agent handoff

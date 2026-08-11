@@ -26,5 +26,5 @@ notes:
   - 正式对象、关系及证据/provenance 语义权威归 Ontology。
   - Dictionary 只负责自然语言到正式语义的归一化，不产生新的语义权威。
   - Knowledge Graph 只规定正式语义如何组织成图视图，不重新定义对象和关系。
-  - 取证方法与来源策略归 03_agent_capability/05_method_libraries/03_取证/。
+  - 取证方法与来源策略归 03_agent_capability/02_skills/evidence_research/references/。
   - 不在本域写研究步骤、阶段门、运行状态或单次研究结论。

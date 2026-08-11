@@ -46,11 +46,10 @@ authority_levels:
     description: 无可用图
 
 compatibility_note: >
-  历史 Stage02/03/04 → graph 物化器可作为 Runtime / legacy adapter，
-  但不得回写为本目录的永久合同条款。
+  历史 Stage02/03/04 包仅可由 Governance 的兼容校验器读取；
+  不保留 Runtime adapter，也不得回写为本目录的永久合同条款。
 
 runtime_homes:
   vnext_boundary: 06_runtime/src/semantic/graph-contracts.ts
-  legacy_stage_materializers: legacy/knowledge_graph/
-  governance_validators: 05_control_evaluation/03_校验/knowledge_graph/
-  legacy_compat: 05_control_evaluation/03_校验/legacy_compat/
+  governance_validators: 05_control_evaluation/04_verifiers/knowledge_graph/
+  historical_package_compatibility: 05_control_evaluation/04_verifiers/legacy_compat/

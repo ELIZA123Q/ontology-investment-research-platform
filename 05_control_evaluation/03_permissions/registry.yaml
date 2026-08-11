@@ -1,0 +1,14 @@
+schema_name: governance_permission_registry
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: 谁可以对什么资源执行什么动作。
+  write_entry: 05_control_evaluation/03_permissions/
+  read_primary: 05_control_evaluation/03_permissions/permission_matrix.yaml
+  implementation: deferred_no_rbac
+
+policy_asset: 05_control_evaluation/03_permissions/permission_matrix.yaml
+notes:
+  - 权限矩阵不重复判断阈值、来源真实性或知识晋升规则。
+  - Runtime 实现前，本文件仍是可审计的政策边界，不宣称已存在完整鉴权。

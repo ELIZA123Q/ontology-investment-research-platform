@@ -1,5 +1,5 @@
 schema_name: task_definition_registry
-schema_version: 3.0.0
+schema_version: 3.1.0
 status: active
 
 authority:
@@ -10,13 +10,36 @@ authority:
   workflow_patterns: 02_scenario_task/05_workflow_patterns/registry.yaml
 
 layering:
-  research_task: 用户级研究任务（本目录）
+  research_task: >
+    描述用户希望完成的标准研究判断，定义“做什么”和“何时完成”，
+    不定义具体执行步骤、Skill 或 Runtime Node。
   runtime_node: TaskGraph 执行节点（06_runtime/src/runtime/node-catalog.ts）
   runtime_intent: Planning Intent（06_runtime/src/contracts.ts）
   note: |
     Research Task（02）≠ Runtime Node / Skill（06/03）。
+    Research Task ≠ Workflow Pattern；深度与路径由 Planning Intent + Context + Planner 决定。
+    Scenario → Task 为单向引用（candidate_tasks）；Task 不回写 Scenario。
     evidence_only 是 Runtime ResearchIntent，不是本目录标准研究任务。
     已移除 evidence_verification（原误置于 Task Definition 的子任务）。
+
+contract_fields:
+  required:
+    - task_id
+    - name
+    - objective
+    - scope
+    - judgment_requirements
+    - expected_output
+    - completion_criteria
+    - uncertainty_policy
+  optional:
+    - description
+    - capability_requirements
+  removed:
+    - default_role
+    - optional_workflow_pattern
+    - relevant_skills
+    - relevant_scenario_types
 
 task_definitions:
   - path: cycle_judgment.yaml

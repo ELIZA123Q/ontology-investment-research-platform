@@ -151,7 +151,7 @@ ontology            以正式对象与约束为准
 
 架构 / 文件 / 模型归属迁移，放在：
 
-[`../../05_control_evaluation/migrations/semantic_migration.yaml`](../../05_control_evaluation/migrations/semantic_migration.yaml)
+[`../../docs/migrations/repository_history/semantic_migration.yaml`](../../docs/migrations/repository_history/semantic_migration.yaml)
 
 ---
 
@@ -379,7 +379,7 @@ Dictionary 做的是前半段「听懂人话」；Ontology 做的是后半段「
 | 投研口语，不能直接当对象 | `03_research_terms.yaml` |
 | 一词多义、口径打架 | `04_ambiguity_rules.yaml` |
 | 旧名称还在被使用 | `05_deprecated_terms.yaml` |
-| 文件/模型搬迁了哪 | `05_control_evaluation/migrations/` |
+| 文件/模型搬迁了哪 | `docs/migrations/repository_history/` |
 | 正式定义、关系、约束 | `01_ontology/`，不要回 dictionary 找 |
 
 最短路径：
@@ -433,6 +433,6 @@ Dictionary 做的是前半段「听懂人话」；Ontology 做的是后半段「
 | status | `active` |
 | role | lexical / normalization authority |
 | semantic authority | `01_semantic_knowledge/01_ontology/` |
-| architecture migration | `05_control_evaluation/migrations/semantic_migration.yaml` |
+| architecture migration | `docs/migrations/repository_history/semantic_migration.yaml` |
 | 回答什么 | 人话如何归一到标准语义 |
 | 不放什么 | 正式枚举平行副本、研究流程、单次结论、架构迁移账本、第二套本体 |

@@ -1,0 +1,37 @@
+schema_name: governance_identity_registry
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: 动作是谁发起的。
+  write_entry: 05_control_evaluation/02_identity/
+  read_primary: 05_control_evaluation/02_identity/registry.yaml
+
+authentication:
+  status: deferred
+  note: 本机工作台默认单用户；本目录不实现登录、SSO 或 RBAC。
+
+principal_types:
+  - id: human
+    description: 可承担人工确认与独立复核的自然人主体。
+  - id: agent
+    description: 受约束地提出、执行或草拟的模型/Agent 主体。
+  - id: system_job
+    description: 无人格的 worker、定时任务或确定性执行器。
+
+personas:
+  - id: researcher
+    principal_type: human
+    default_role_id: research_owner
+  - id: reviewer
+    principal_type: human
+    default_role_id: null
+  - id: ontology_admin
+    principal_type: human
+    default_role_id: null
+
+binding_rules:
+  - Identity ≠ Role：Identity 记录主体与 Persona；Role 记录本次任务责任。
+  - Identity ≠ Permission：资源动作的 allow/deny 只在 permission_matrix.yaml 定义。
+  - system_job 与 agent 不得完成需要 human 的确认或审批门。
+  - reviewer 不得与产出方共用调用上下文冒充独立复核。

@@ -3,9 +3,9 @@ import type {
   ReportSpec, ResearchMethodPlan,
 } from "@/src/contracts";
 
-const FRAMEWORK_REGISTRY = "03_agent_capability/05_method_libraries/02_研究框架/registry.yaml";
-const EVIDENCE_REGISTRY = "03_agent_capability/05_method_libraries/03_取证/03_registry.yaml";
-const ADJUDICATION_REGISTRY = "05_control_evaluation/02_合同/judgment_method_routes.yaml";
+const FRAMEWORK_REGISTRY = "03_agent_capability/02_skills/research_design/registry.yaml";
+const EVIDENCE_REGISTRY = "03_agent_capability/02_skills/evidence_research/registry.yaml";
+const ADJUDICATION_REGISTRY = "05_control_evaluation/01_rules/policies/judgment_method_routes.yaml";
 
 interface MethodProfile {
   judgmentType: JudgmentType;

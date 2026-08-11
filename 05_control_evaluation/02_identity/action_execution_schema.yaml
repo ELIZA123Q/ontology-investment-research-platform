@@ -1,0 +1,34 @@
+schema_name: ontology_action_execution_audit_schema
+schema_version: 1.0.0
+status: active
+authority: runtime_governance_audit
+namespace: core.audit
+description: >-
+  Action 执行审计记录。这不是投研世界对象，而是 Runtime / Governance 的审计 schema；
+  正式业务模型不得把它当作 ResearchCase 同级的领域对象。
+
+object_types:
+  ActionExecution:
+    label_zh: 动作执行记录
+    label_en: Action Execution
+    description: 一次 Action 提交的版本、参数、操作者、审批、编辑结果与失败信息。
+    primary_key: id
+    title_property: action_type
+    attributes:
+      action_type: {type: string, required: true}
+      action_version: {type: string, required: true}
+      status: {type: enum, required: true, allowed_values: [previewed, applied, rejected, failed]}
+      principal_type: {type: enum, required: true, allowed_values: [human, agent, system_job]}
+      principal_id: {type: string, required: true}
+      persona: {type: enum, required: false, allowed_values: [researcher, reviewer, ontology_admin]}
+      role_id: {type: string, required: false}
+      submitted_at: {type: datetime, required: true}
+      completed_at: {type: datetime, required: false}
+      idempotency_key: {type: string, required: true}
+      parameters: {type: object, required: true}
+      edits: {type: array, required: true}
+      error: {type: string, required: false}
+
+relation_types:
+  actionEditedObject: {source_types: [ActionExecution], target_types: [ontology_object], inverse_of: objectEditedByAction}
+  objectEditedByAction: {source_types: [ontology_object], target_types: [ActionExecution], inverse_of: actionEditedObject}

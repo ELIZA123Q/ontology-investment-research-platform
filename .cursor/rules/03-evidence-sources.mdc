@@ -32,9 +32,9 @@ alwaysApply: true
 
 ## 03取证标准流程
 
-1. `03_agent_capability/05_method_libraries/03_取证/B01_通用来源速查.md` 或 `domains/semiconductor/B02_半导体来源速查.md` → 确定"要找什么"
-2. `03_agent_capability/04_protocols/mcp/B03_MCP通道注册.md` → 映射到对应 MCP
-3. `03_agent_capability/04_protocols/mcp/OPS_MCP查询快速参考.md` → 获取操作参数
+1. `03_agent_capability/02_skills/evidence_research/references/B01_通用来源速查.md` 或 `domains/semiconductor/B02_半导体来源速查.md` → 确定"要找什么"
+2. `03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md` → 映射到对应 MCP
+3. `03_agent_capability/04_protocols/mcp/ops/OPS_MCP查询快速参考.md` → 获取操作参数
 4. 调用 MCP 获取数据 → 按留痕模板记录
 
 ## 留痕模板
@@ -61,6 +61,6 @@ MCP 不可用时 → `OPS_MCP查询快速参考.md` 回退链 → `OPS_*` 手册
 ## 关键文件
 
 - `CLAUDE.md`：通用 AI 上下文（本文件更多工具支持版）
-- `03_agent_capability/04_protocols/mcp/B03_MCP通道注册.md`：完整 MCP 通道注册
-- `03_agent_capability/04_protocols/mcp/OPS_MCP查询快速参考.md`：操作卡片（QP-MCP-01~16）
-- `03_agent_capability/05_method_libraries/03_取证/03_registry.yaml`：取证方法注册中心
+- `03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md`：完整 MCP 通道注册
+- `03_agent_capability/04_protocols/mcp/ops/OPS_MCP查询快速参考.md`：操作卡片（QP-MCP-01~16）
+- `03_agent_capability/02_skills/evidence_research/registry.yaml`：取证方法注册中心

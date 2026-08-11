@@ -8,11 +8,11 @@
 - 领域参数源文件：[`parameters/`](parameters/)（StateVariable / Evidence / Reasoning / Scenario）
 - Runtime 只读汇总 Bundle：[`business_instances.yaml`](business_instances.yaml)（由 `build_business_instances.py` 生成）
 - 领域登记：[`domain_registry.yaml`](domain_registry.yaml)
-- 取证与裁决方法：[`../../../03_agent_capability/05_method_libraries`](../../../03_agent_capability/05_method_libraries)
+- 取证与裁决方法：[`../../../../03_agent_capability/02_skills`](../../../../03_agent_capability/02_skills/README.md)
 
 研究原则与禁止混用（语义 / 推理 / 证据边界）：[`DOMAIN_GUIDE.md`](DOMAIN_GUIDE.md)
 
-正式扩展依赖五个通用 Model，不能重定义核心 ID；业务参数必须引用正式对象；方法资产不能写回正式本体。场景类型目录属于 [`02_scenario_task/scenario_catalog.yaml`](../../../../02_scenario_task/scenario_catalog.yaml)，不是本领域正式 Model dependency。
+正式扩展依赖五个通用 Model，不能重定义核心 ID；业务参数必须引用正式对象；方法资产不能写回正式本体。场景类型目录属于 [`02_scenario_task/02_scenarios/types.yaml`](../../../../02_scenario_task/02_scenarios/types.yaml)，不是本领域正式 Model dependency。
 
 ## 2. 领域边界
 

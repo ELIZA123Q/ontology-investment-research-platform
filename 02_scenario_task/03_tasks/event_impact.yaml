@@ -1,11 +1,49 @@
 schema_name: research_task_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
+
 task_id: event_impact
 name: 事件影响判断
-objective: 判断事件对对象状态变量与资产影响路径的方向、强度与时滞
-default_role: research_lead
-optional_workflow_pattern: deep_research
-relevant_skills: [research-method, evidence-assessment, hypothesis-analysis]
-relevant_scenario_types: [EventImpactResearch]
-notes:
-  - 用户级 Research Task Contract；不是 Runtime Node。
+description: 对已发生或正在发生的事件，判断其影响方向、强度、路径与时滞。
+
+objective: >
+  判断事件对对象状态变量及资产影响路径的方向、强度与时滞，
+  区分直接影响与间接影响，并明确边界与改判条件。
+
+scope:
+  applies_when:
+    - 问题由具体事件触发，需要判断“影响什么、怎么影响”
+    - 需要区分直接冲击、传导路径与时滞
+    - 事件本身已可核实，重点在影响判断
+  excludes_when:
+    - 仅要求核实事件是否发生或复述事件内容
+    - 核心是长期周期状态而非事件冲击路径
+    - 没有可识别的事件对象或影响对象
+
+judgment_requirements:
+  - 事件事实及其生效范围
+  - 直接影响对象与受影响状态变量
+  - 影响方向、相对强度与主要时滞
+  - 间接传导路径（如有）及其不确定性
+  - 边界条件、反证与改判触发
+
+expected_output:
+  - event_scope
+  - direct_impacts
+  - indirect_paths
+  - intensity_and_lag
+  - confidence
+  - reversal_conditions
+
+completion_criteria:
+  - 已形成明确或“暂不可判断”的影响结论
+  - 直接影响与间接影响已分开表述
+  - 关键判断均存在证据支撑或明确证据缺口
+  - 已说明边界与改判条件
+
+uncertainty_policy:
+  allow_insufficient_evidence: true
+
+capability_requirements:
+  - causal_path_reasoning
+  - evidence_assessment
+  - counterfactual_reasoning

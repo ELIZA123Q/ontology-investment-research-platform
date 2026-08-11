@@ -1,0 +1,188 @@
+schema_name: research_method_asset_registry
+schema_version: 1.1.0
+status: active
+
+method_definition_contract:
+  schema_version: 1.0.0
+  purpose: 统一 kb02、kb03、kb04 的方法定义，并作为 MethodApplication 的唯一方法元数据来源
+  required_fields:
+    - applicability
+    - preconditions
+    - inputs
+    - outputs
+    - not_applicable_when
+    - degrade_policy
+    - alternatives
+    - counter_examples
+  identity_fields: [method_id, method_version, capability_type, source_ref]
+  runtime_projection: MethodApplication
+  invariants:
+    - 方法定义不得保存某次研究的执行状态、证据绑定或结论
+    - 方法实际使用只能记录为 MethodApplication
+    - 方法版本由本登记表的 group.version 唯一决定
+    - 路由只能引用本登记表可解析的方法 ID
+
+routing_authority:
+  method_capabilities: 03_agent_capability/02_skills/method_assets.yaml
+  legal_route_constraints: 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml
+  runtime_selection: 06_runtime/src/runtime/planner.ts
+  run_selection_record: instances
+
+groups:
+  judgment_structure:
+    namespace: [BF, IF, JF, SCN]
+    version: 2.0.0
+    supported_domains: [core, semiconductor]
+    supported_judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path, object_differentiation, impact_realization, expectation_gap, valuation_impact]
+    registry_ref: 03_agent_capability/02_skills/research_design/registry.yaml
+    asset_ids_authority: registry_ref
+    input: [judgment_task, object_scope, time_scope]
+    output: [candidate_frameworks, judgment_units, variables, paths]
+    applicability: 按任务类型、领域、目标输出门槛和前置框架选择
+    failure_condition: 无框架能够承接核心判断且缺口不能通过裁剪消除
+    ontology_dependencies: [JudgmentUnit, StateVariable, ResearchPath]
+    contract_projection:
+      applicability: entry_requires
+      preconditions: entry_requires
+      inputs: entry_requires
+      outputs: output_gates.@keys
+      not_applicable_when: [entry_requirements_unmet]
+      degrade_policy: output_gate_failed_blocks_that_output; quality_gate_failed_caps_precision
+      alternatives: downstream_unlocks+boundary_handoffs.@values
+      counter_examples: [attempt_output_without_gate, cross_framework_conclusion_without_handoff]
+  evidence:
+    namespace: kb03
+    version: 3.2.0
+    supported_domains: [core, semiconductor]
+    supported_judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path, object_differentiation, impact_realization, expectation_gap, valuation_impact]
+    registry_ref: 03_agent_capability/02_skills/evidence_research/registry.yaml
+    asset_ids_authority: registry_ref
+    input: [judgment_unit, evidence_requirement, source_scope]
+    output: [evidence_plan, evidence_instances, readiness_assessment]
+    applicability: 按判断类型、证据角色、来源可得性和最低证据组合选择
+    failure_condition: 关键证据不可获得或无法满足对象、时间、口径和权限约束
+    ontology_dependencies: [EvidenceRequirement, EvidenceClaim, EvidenceFact, EvidenceAssessment]
+    contract_projection:
+      definition_path: methods.*.contract
+  adjudication:
+    namespace: kb04
+    version: 1.0.0
+    supported_domains: [core, semiconductor]
+    supported_judgment_types: [state_measurement, trend_direction, cycle_phase, mechanism_validation, causal_attribution, transmission_path, object_differentiation, impact_realization, expectation_gap, valuation_impact]
+    asset_version_inheritance: group.version
+    input: [judgment_unit, frozen_evidence, competing_explanations]
+    output: [rule_evaluation, judgment, reasoning_trace]
+    applicability: 按判断类型和公共路由合同选择一个主方法及必要辅助方法
+    failure_condition: 适用前提不满足、反证决定性命中或路径被阻断
+    ontology_dependencies: [Hypothesis, Signal, RuleEvaluation, Judgment, ReasoningTrace]
+    methods:
+      - id: kb04:A00
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A00_裁决总则.md
+        applicability: 所有判断的通用裁决、等级、退回和版本控制
+        preconditions: [judgment_unit_defined]
+        inputs: [judgment_unit, frozen_evidence, competing_explanations]
+        outputs: [adjudication_boundary, judgment_grade, return_or_version_action]
+        not_applicable_when: [judgment_unit_undefined]
+        degrade_policy: 任一主方法前提失败时只允许退回、阻断或暂不可判断
+        alternatives: [kb04:A01, kb04:A02, kb04:A03, kb04:A04, kb04:A05, kb04:A06, kb04:A07, kb04:A08, kb04:A09, kb04:A10]
+        counter_examples: [use_general_rule_as_business_conclusion, assign_grade_without_method_evaluation]
+      - id: kb04:A01
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A01_状态判断.md
+        applicability: 裁决对象在指定时间和口径下的状态
+        preconditions: [state_variable_defined, observation_scope_aligned]
+        inputs: [judgment_unit, state_observations, counterevidence]
+        outputs: [state_judgment, rule_evaluation, reasoning_trace]
+        not_applicable_when: [state_variable_undefined, observation_scope_mismatch]
+        degrade_policy: 基准或直接观测不足时降为方向观察或暂不可判断
+        alternatives: [kb04:A00, kb04:A02, kb04:A03]
+        counter_examples: [single_unscoped_observation_as_current_state]
+      - id: kb04:A02
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A02_趋势判断.md
+        applicability: 裁决同口径状态变量的方向和持续性
+        preconditions: [state_measurement_or_equivalent_baseline]
+        inputs: [judgment_unit, time_series_signals, counterevidence]
+        outputs: [trend_judgment, rule_evaluation, reasoning_trace]
+        not_applicable_when: [no_comparable_baseline, time_window_mismatch]
+        degrade_policy: 序列过短或交叉验证不足时降为方向观察
+        alternatives: [kb04:A00, kb04:A01, kb04:A05]
+        counter_examples: [two_incomparable_points_as_trend]
+      - id: kb04:A03
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A03_阶段判断.md
+        applicability: 裁决周期或过程所处阶段
+        preconditions: [state_and_trend_baseline]
+        inputs: [judgment_unit, state_signals, trend_signals, stage_definition]
+        outputs: [stage_judgment, transition_conditions, reasoning_trace]
+        not_applicable_when: [stage_definition_missing, state_or_trend_baseline_missing]
+        degrade_policy: 阶段边界不清时输出相邻阶段竞争解释，不强制归类
+        alternatives: [kb04:A00, kb04:A01, kb04:A02]
+        counter_examples: [single_indicator_as_cycle_phase]
+      - id: kb04:A04
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A04_机制判断.md
+        applicability: 裁决机制是否存在且中间环节是否接通
+        preconditions: [start_fact_identified, mechanism_nodes_defined]
+        inputs: [judgment_unit, mechanism_signals, path_evidence, competing_explanations]
+        outputs: [mechanism_judgment, blocked_node, reasoning_trace]
+        not_applicable_when: [start_fact_unconfirmed, mechanism_nodes_undefined]
+        degrade_policy: 中间节点证据不足时停在最后可验证节点
+        alternatives: [kb04:A00, kb04:A05, kb04:A06]
+        counter_examples: [correlation_as_mechanism]
+      - id: kb04:A05
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A05_归因判断.md
+        applicability: 裁决观察变化的主因、共同驱动或竞争解释
+        preconditions: [observed_change, competing_explanations]
+        inputs: [judgment_unit, causal_signals, alternative_explanations, counterevidence]
+        outputs: [attribution_judgment, discriminating_tests, reasoning_trace]
+        not_applicable_when: [observed_change_unconfirmed, alternatives_not_enumerated]
+        degrade_policy: 解释不可区分时输出共同驱动或归因待定
+        alternatives: [kb04:A00, kb04:A04]
+        counter_examples: [temporal_precedence_as_cause, omitted_common_driver]
+      - id: kb04:A06
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A06_传导判断.md
+        applicability: 裁决影响沿定义路径传到何处及哪里阻断
+        preconditions: [start_fact_identified, path_nodes_defined]
+        inputs: [judgment_unit, segment_evidence, absorption_substitution_amplification_tests]
+        outputs: [transmission_judgment, last_reached_node, first_failed_segment]
+        not_applicable_when: [path_nodes_undefined, endpoint_scope_undefined]
+        degrade_policy: 任一段未通过即停止向下游外推
+        alternatives: [kb04:A00, kb04:A04, kb04:A08]
+        counter_examples: [start_event_directly_as_terminal_effect]
+      - id: kb04:A07
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A07_分化判断.md
+        applicability: 裁决统一口径下不同对象的暴露和结果差异
+        preconditions: [unified_comparison_scope]
+        inputs: [judgment_unit, comparable_object_signals, exposure_mechanisms]
+        outputs: [differentiation_judgment, comparison_dimensions, reasoning_trace]
+        not_applicable_when: [comparison_scope_not_unified]
+        degrade_policy: 口径仅部分可比时只输出分组差异，不输出精确排序
+        alternatives: [kb04:A00, kb04:A08]
+        counter_examples: [different_metric_definitions_as_ranking]
+      - id: kb04:A08
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A08_影响判断.md
+        applicability: 裁决事件或路径对经营、财务或估值输入的实现影响
+        preconditions: [impact_bridge_defined]
+        inputs: [judgment_unit, impact_bridge, baseline, counterevidence]
+        outputs: [impact_judgment, realized_scope, reasoning_trace]
+        not_applicable_when: [impact_bridge_missing, baseline_missing]
+        degrade_policy: 财务桥不完整时只输出作用方向和受影响环节
+        alternatives: [kb04:A00, kb04:A06, kb04:A07, kb04:A09, kb04:A10]
+        counter_examples: [industry_change_as_company_profit_change]
+      - id: kb04:A09
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A09_预期差判断.md
+        applicability: 裁决新事实相对事前预期的差异及定价承接
+        preconditions: [pre_event_expectation_vintage]
+        inputs: [judgment_unit, prior_expectation, new_information, pricing_response]
+        outputs: [expectation_gap_judgment, revised_assumptions, reasoning_trace]
+        not_applicable_when: [prior_expectation_missing, vintage_unclear]
+        degrade_policy: 无可靠事前基线时不得事后构造预期差
+        alternatives: [kb04:A00, kb04:A08, kb04:A10]
+        counter_examples: [price_move_alone_as_expectation_gap]
+      - id: kb04:A10
+        file: 03_agent_capability/02_skills/judgment_reasoning/references/A10_投资命题裁决.md
+        applicability: 汇总既有判断形成有边界、可更新的投资命题
+        preconditions: [upstream_judgments_exist, sensitivity_variables_aligned]
+        inputs: [judgment_unit, upstream_judgments, competing_explanations, invalidation_conditions]
+        outputs: [investment_thesis_judgment, sensitivity_set, invalidation_triggers]
+        not_applicable_when: [upstream_judgments_missing, sensitivity_variables_inconsistent]
+        degrade_policy: 上游判断受限时命题同步封顶，不输出评级、目标价或仓位建议
+        alternatives: [kb04:A00, kb04:A08, kb04:A09]
+        counter_examples: [narrative_summary_as_investment_thesis, unsupported_risk_reward_claim]

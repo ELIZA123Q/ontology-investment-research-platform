@@ -561,7 +561,7 @@ objects:
     id: recipe_cycle_phase
     recipeName: 周期阶段判断取证配方
     judgmentType: cycle_phase
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A03_趋势与阶段判断.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A03_趋势与阶段判断.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -584,7 +584,7 @@ objects:
     id: recipe_transmission_path
     recipeName: 传导路径判断取证配方
     judgmentType: transmission_path
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A04_机制传导验证.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A04_机制传导验证.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -607,7 +607,7 @@ objects:
     id: recipe_state_measurement
     recipeName: 状态度量判断取证配方
     judgmentType: state_measurement
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A02_状态变量测量.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A02_状态变量测量.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -630,7 +630,7 @@ objects:
     id: recipe_trend_direction
     recipeName: 趋势方向判断取证配方
     judgmentType: trend_direction
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A03_趋势与阶段判断.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A03_趋势与阶段判断.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -655,7 +655,7 @@ objects:
     id: recipe_mechanism_validation
     recipeName: 机制验证取证配方
     judgmentType: mechanism_validation
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A04_机制传导验证.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A04_机制传导验证.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -679,7 +679,7 @@ objects:
     id: recipe_causal_attribution
     recipeName: 因果归因取证配方
     judgmentType: causal_attribution
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A04_机制传导验证.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A04_机制传导验证.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -704,7 +704,7 @@ objects:
     id: recipe_object_differentiation
     recipeName: 对象分化比较取证配方
     judgmentType: object_differentiation
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A05_对象分化比较.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A05_对象分化比较.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -729,7 +729,7 @@ objects:
     id: recipe_impact_realization
     recipeName: 影响兑现取证配方
     judgmentType: impact_realization
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A06_财务影响测算.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A06_财务影响测算.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -754,7 +754,7 @@ objects:
     id: recipe_expectation_gap
     recipeName: 预期差取证配方
     judgmentType: expectation_gap
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A07_市场预期与定价.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A07_市场预期与定价.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support
@@ -779,7 +779,7 @@ objects:
     id: recipe_valuation_impact
     recipeName: 估值影响取证配方
     judgmentType: valuation_impact
-    strategyLibraryRef: 03_agent_capability/05_method_libraries/03_取证/A07_市场预期与定价.md
+    strategyLibraryRef: 03_agent_capability/02_skills/evidence_research/references/A07_市场预期与定价.md
     strategyVersion: 3.2.0
     requiredBasketTypes:
     - primary_support

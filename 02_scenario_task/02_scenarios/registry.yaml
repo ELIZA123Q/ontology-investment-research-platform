@@ -31,6 +31,6 @@ scenario_groups:
       - 02_scenario_task/02_scenarios/semiconductor/SCN-AUTO_车规芯片认证与装车场景卡.md
 
 notes:
-  - Method = 怎么思考（03_agent_capability/05_method_libraries）。
+  - Method = 怎么思考（03_agent_capability/02_skills）。
   - Scenario = 在什么情形下给思考过程附加什么约束（本目录）。
   - 方法库不再维护场景卡正文。

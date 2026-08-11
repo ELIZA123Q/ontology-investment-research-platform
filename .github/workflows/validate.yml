@@ -22,19 +22,19 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-          cache-dependency-path: runtime/package-lock.json
+          cache-dependency-path: 06_runtime/package-lock.json
 
       - name: Install Python validation dependency
-        run: python -m pip install -r governance/requirements.txt
+        run: python -m pip install -r 05_control_evaluation/requirements.txt
 
       - name: Install Runtime dependencies
-        run: npm --prefix runtime ci
+        run: npm --prefix 06_runtime ci
 
       - name: Audit production dependencies
-        run: npm --prefix runtime audit --omit=dev
+        run: npm --prefix 06_runtime audit --omit=dev
 
       - name: Run engineering and contract validation
-        run: python "governance/03_校验/validate_project.py"
+        run: python 05_control_evaluation/04_verifiers/validate_project.py
 
       - name: Build Runtime
-        run: npm --prefix runtime run build
+        run: npm --prefix 06_runtime run build

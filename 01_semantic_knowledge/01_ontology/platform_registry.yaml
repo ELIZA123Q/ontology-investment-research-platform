@@ -3,10 +3,10 @@ schema_version: 4.0.0
 status: active
 source_of_truth: 01_semantic_knowledge/01_ontology
 meta_schema: meta_schema.yaml
-legacy_semantic_baseline:
+migration_baseline:
   version: 3.0.0
-  registry: ../../legacy/ontology_3/model_registry.yaml
-  mode: read_only_compatibility
+  registry: ../../docs/migrations/ontology_3_baseline/model_registry.yaml
+  mode: read_only_migration_audit
 semantic_models:
   - models/semantic.yaml
   - models/state_event.yaml
@@ -16,7 +16,7 @@ semantic_models:
 operational_models:
   - models/operational.yaml
 audit_models:
-  - ../../05_control_evaluation/audit/action_execution_schema.yaml
+  - ../../05_control_evaluation/02_identity/action_execution_schema.yaml
 kinetic_models:
   actions: kinetics/action_types.yaml
   functions: kinetics/functions.yaml
@@ -24,11 +24,11 @@ kinetic_models:
   triggers: kinetics/triggers.yaml
 domain_parameter_bundle: domains/semiconductor/business_instances.yaml
 runtime_projection: 06_runtime/src/ontology/generated.ts
-validator: 05_control_evaluation/03_校验/ontology/validate_ontology.py
+validator: 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
 rules:
   - 新运行只写 Ontology 4.0；Ontology 3.0 实例保持只读，不双写。
   - 正式语义对象和关系只能通过 Action Service 写入。
   - Task、TaskNode、队列、重试、缓存与 Checkpoint 不进入业务本体。
-  - 场景类型目录位于 02_scenario_task/scenario_catalog.yaml，不是 formal model。
+  - 场景类型目录位于 02_scenario_task/02_scenarios/types.yaml，语义需求 profile 位于 research_requirement_profiles.yaml，不是 formal model。
   - ActionExecution 属于 Runtime/Governance Audit，不是投研世界对象。
   - 本文件是 01_ontology 唯一机器入口；不要再维护平行 registry。

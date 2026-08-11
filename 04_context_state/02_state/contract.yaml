@@ -1,0 +1,117 @@
+schema_name: runtime_state_contract
+schema_version: 1.0.0
+status: active
+implementation_status: partial_projection
+
+authority:
+  answers: 这个任务现在进行到哪里
+  write_entry: 04_context_state/02_state/
+  read_primary: 04_context_state/02_state/contract.yaml
+  implementation: 06_runtime/src/runtime/store.ts
+  related:
+    events: 06_runtime/src/runtime/store.ts   # append-only 动作记录
+    checkpoints: 06_runtime/src/runtime/store.ts  # 技术恢复快照
+
+definition: |
+  State 描述运行实例的当前状态，不是 Task 定义，也不是聊天记录推断。
+  Event 记录发生过什么；State 描述现在是什么；Checkpoint 是 Runtime 恢复手段。
+
+layers:
+  session:
+    id: SessionState
+    fields:
+      - session_id
+      - conversation_id
+      - status
+      - active_task_instance_id
+      - updated_at
+  task:
+    id: TaskState
+    fields:
+      - task_instance_id
+      - session_id
+      - status
+      - current_goal
+      - current_plan
+      - active_step
+      - pending_action
+      - pending_approval
+      - handoff_ref
+      - last_event
+      - checkpoint_ref
+      - updated_at
+  run:
+    id: RunState
+    fields:
+      - run_id
+      - task_instance_id
+      - status
+      - active_node_id
+      - last_event
+      - checkpoint_ref
+      - updated_at
+
+mvp_fields:
+  - session_id
+  - task_instance_id
+  - run_id
+  - status
+  - current_goal
+  - current_plan
+  - active_step
+  - pending_action
+  - pending_approval
+  - handoff_ref
+  - last_event
+  - checkpoint_ref
+  - updated_at
+
+status_values:
+  - pending
+  - running
+  - paused
+  - waiting_approval
+  - waiting_handoff
+  - completed
+  - failed
+  - cancelled
+
+supports:
+  - pause
+  - resume
+  - replan
+  - handoff
+  - fail_recovery
+
+current_runtime_projection:
+  session_state:
+    sources: [Conversation, active Task]
+    coverage: partial
+  task_state:
+    sources: [Task, TaskNode, Approval, latest Event, latest Checkpoint]
+    coverage: partial
+  run_state:
+    sources: [RuntimeJob, TaskNode, latest Event, latest Checkpoint]
+    coverage: partial
+  known_gaps:
+    - 尚无独立 SessionState / TaskState / RunState 物化表
+    - run_id 目前由 RuntimeJob / execution identity 近似，不是统一 RunState 标识
+    - paused 与 waiting_handoff 尚未成为现行 TaskStatus 的完整可执行状态
+
+boundaries:
+  not_state:
+    - task_type_definition          # 属于 02_scenario_task
+    - method_or_skill_body          # 属于 03_agent_capability
+    - full_event_log                # 属于 Runtime Event
+    - checkpoint_blob_storage       # 属于 Runtime Checkpoint
+    - historical_sample_packages    # 属于 examples / eval fixtures
+
+invariants:
+  - State 必须可由 Checkpoint + 必要投影恢复，但不能用纯聊天记录替代 State
+  - pending_approval / handoff_ref 存在时，status 必须反映等待态
+  - current_plan / active_step 变更应伴随 Event；State 只保留当前值
+  - 本域定义合同；物化与迁移由 06_runtime 负责
+
+notes:
+  - MVP 可先以 Task/Run 投影 + latest Checkpoint 满足合同；后续可显式物化 State 表。
+  - 示例问题：「中微公司研究现在做到哪里了？」应直接读 State，而不是重扫对话。

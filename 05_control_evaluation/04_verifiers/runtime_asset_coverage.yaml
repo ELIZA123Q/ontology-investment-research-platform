@@ -1,0 +1,216 @@
+schema_name: runtime_asset_coverage
+schema_version: 1.0.0
+status: active
+injection_modes:
+  knowledge: docs/architecture/runtime_contexts.yaml 阶段白名单全文（可截断）
+  registry_routed: method_registry / judgment_method_routes 进入 method_candidates
+  guidance_excerpt: method_guidance 按候选截断摘录 selected_method_guidance
+  ontology_slice: ontology_tools / context_assembler 按语义路由切片
+  structured_input: workflow.generate 结构化字段（caps / cards / hints / permission）
+  missing_critical: 应进 Runtime 但尚未接线（须优先补齐）
+knowledge_expected:
+  stage_01:
+  - docs/architecture/00_项目定位与边界.md
+  - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  stage_02:
+  - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  - 01_semantic_knowledge/01_ontology/README.md
+  - 01_semantic_knowledge/01_ontology/domains/semiconductor/README.md
+  - 01_semantic_knowledge/01_ontology/domains/semiconductor/DOMAIN_GUIDE.md
+  - 03_agent_capability/02_skills/research_design/references/README.md
+  stage_03:
+  - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  - 03_agent_capability/02_skills/evidence_research/references/OPS_证据获取留痕手册.md
+  - 01_semantic_knowledge/01_ontology/README.md
+  - 01_semantic_knowledge/01_ontology/domains/semiconductor/DOMAIN_GUIDE.md
+  - 03_agent_capability/02_skills/evidence_research/references/00_证据质量与结论上限.md
+  - 03_agent_capability/02_skills/evidence_research/references/B00_来源选择与使用边界.md
+  - 03_agent_capability/02_skills/evidence_research/references/B01_通用来源速查.md
+  - 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/B02_半导体来源速查.md
+  - 03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md
+  - 03_agent_capability/04_protocols/mcp/ops/OPS_MCP查询快速参考.md
+  - 03_agent_capability/02_skills/evidence_research/references/OPS_通用真实来源查询与回退手册.md
+  - 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/OPS_半导体真实来源查询与口径手册.md
+  - 03_agent_capability/02_skills/evidence_research/references/OPS_地缘规则与冲击查询手册.md
+  stage_04:
+  - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  - 01_semantic_knowledge/01_ontology/README.md
+  - 01_semantic_knowledge/01_ontology/domains/semiconductor/DOMAIN_GUIDE.md
+  - 03_agent_capability/02_skills/judgment_reasoning/references/A00_裁决总则.md
+  - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录1_路径与阻断协议.md
+  - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录2_反证与竞争解释协议.md
+  - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录3_改判与版本协议.md
+  - 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录4_通用认知错误与误用索引.md
+  stage_05:
+  - 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  - 03_agent_capability/02_skills/research_delivery/references/standards/05_投研表达标准.md
+  - 05_control_evaluation/04_verifiers/deterministic_release_standard.md
+  - 03_agent_capability/02_skills/research_delivery/templates/05_表达审计模板.yaml
+  - 03_agent_capability/02_skills/research_delivery/templates/05_独立语义审查模板.yaml
+  - 03_agent_capability/02_skills/research_delivery/templates/05C_行业周期判断模板.md
+assets:
+- id: KB03-B00
+  path: 03_agent_capability/02_skills/evidence_research/references/B00_来源选择与使用边界.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: KB03-B01
+  path: 03_agent_capability/02_skills/evidence_research/references/B01_通用来源速查.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: KB03-B02
+  path: 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/B02_半导体来源速查.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: KB03-B03
+  path: 03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+  note: MCP 是通道不是生产者；须与 OPS 卡片同进 Stage03
+- id: KB03-OPS-MCP
+  path: 03_agent_capability/04_protocols/mcp/ops/OPS_MCP查询快速参考.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: KB03-OPS-WEB
+  path: 03_agent_capability/02_skills/evidence_research/references/OPS_通用真实来源查询与回退手册.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+  note: 公开原始来源与 MCP 通道同级，来源质量按生产者/可核验性判断
+- id: KB03-OPS-SEMI
+  path: 03_agent_capability/02_skills/evidence_research/references/domains/semiconductor/OPS_半导体真实来源查询与口径手册.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: KB03-OPS-GEO
+  path: 03_agent_capability/02_skills/evidence_research/references/OPS_地缘规则与冲击查询手册.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: KB04-A00
+  path: 03_agent_capability/02_skills/judgment_reasoning/references/A00_裁决总则.md
+  injection_mode: knowledge
+  stages:
+  - stage_04
+  critical: true
+- id: KB04-A00-CE
+  path: 03_agent_capability/02_skills/judgment_reasoning/references/A00-附录2_反证与竞争解释协议.md
+  injection_mode: knowledge
+  stages:
+  - stage_04
+  critical: true
+- id: GOV-00A
+  path: 05_control_evaluation/04_verifiers/deterministic_release_standard.md
+  injection_mode: knowledge
+  stages:
+  - stage_05
+  critical: true
+  note: 研究洞见另经 research_value_review 半自动闭环
+- id: GOV-00A-CARD
+  path: 05_control_evaluation/05_evals/rubrics/runtime_quality_card.md
+  injection_mode: knowledge
+  stages:
+  - stage_01
+  - stage_02
+  - stage_03
+  - stage_04
+  critical: true
+  note: 00A 五条短约束前移到 01–04，避免只做结构交差
+- id: WF-03-APPENDIX2
+  path: 03_agent_capability/02_skills/evidence_research/references/OPS_证据获取留痕手册.md
+  injection_mode: knowledge
+  stages:
+  - stage_03
+  critical: true
+- id: DELIVERY-05-STD
+  path: 03_agent_capability/02_skills/research_delivery/references/standards/05_投研表达标准.md
+  injection_mode: knowledge
+  stages:
+  - stage_05
+  critical: true
+- id: DELIVERY-05-INDEPENDENT-REVIEW
+  path: 03_agent_capability/02_skills/research_delivery/templates/05_独立语义审查模板.yaml
+  injection_mode: knowledge
+  stages:
+  - stage_05
+  critical: true
+  note: 05 独立语义审查十项检查结构；04 人类独立审查仅覆盖前五项
+- id: SCN-MEM-CYCLE
+  path: 02_scenario_task/02_scenarios/semiconductor/SCN-MEM-CYCLE_存储周期见顶或反转场景卡.md
+  injection_mode: guidance_excerpt
+  stages:
+  - stage_02
+  critical: true
+  note: 任务命中存储周期关键词时强制进入 selected_method_guidance
+- id: SCN-MEM-HBM
+  path: 02_scenario_task/02_scenarios/semiconductor/SCN-MEM-HBM_HBM供需与资源挤占场景卡.md
+  injection_mode: guidance_excerpt
+  stages:
+  - stage_02
+  critical: true
+  note: 任务命中 HBM 关键词时强制进入 selected_method_guidance
+- id: METHOD-REGISTRY
+  path: 05_control_evaluation/06_change_governance/ontology/method_assets.yaml
+  injection_mode: registry_routed
+  stages:
+  - stage_02
+  - stage_03
+  - stage_04
+  critical: true
+- id: FRAMEWORK-DEP-REG
+  path: 03_agent_capability/02_skills/research_design/registry.yaml
+  injection_mode: registry_routed
+  stages:
+  - stage_02
+  critical: true
+- id: KB03-REGISTRY
+  path: 03_agent_capability/02_skills/evidence_research/registry.yaml
+  injection_mode: registry_routed
+  stages:
+  - stage_03
+  critical: true
+- id: JUDGMENT-THRESHOLD
+  path: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
+  injection_mode: structured_input
+  stages:
+  - stage_03
+  - stage_04
+  critical: true
+- id: ONTOLOGY-DOMAIN
+  path: 01_semantic_knowledge/01_ontology/domains
+  injection_mode: ontology_slice
+  stages:
+  - stage_02
+  - stage_03
+  - stage_04
+  critical: true
+  note: ontology_tools 切片之外，01_ontology/README + domain README/DOMAIN_GUIDE 经 runtime_contexts 进入 02–04
+- id: KB03-A01-A09
+  path: 03_agent_capability/02_skills/evidence_research
+  injection_mode: guidance_excerpt
+  stages:
+  - stage_03
+  critical: true
+  note: A01–A09 正文经 selected_method_guidance 按 MA 截断注入
+- id: KB04-A01-A10
+  path: 03_agent_capability/02_skills/judgment_reasoning
+  injection_mode: guidance_excerpt
+  stages:
+  - stage_04
+  critical: true
+  note: 裁决方法正文经 guidance 注入；A00 另强制优先
+intentionally_excluded:
+- path: 01_semantic_knowledge/01_ontology/
+  reason: 整库不硬塞；README + domain 人读入口 + semantic_route 切片按阶段进入 Runtime

@@ -1,0 +1,20 @@
+schema_name: ontology_3_legacy_model_registry
+schema_version: 1.1.0
+status: archived
+authority: migration_audit_read_only
+fingerprint_algorithm: sha256_over_ordered_repository_path_and_raw_bytes
+description: >
+  Ontology 3.0 迁移语义基线登记（只读审计）。
+  当前正式入口是 01_semantic_knowledge/01_ontology/platform_registry.yaml；
+  本文件仅供兼容与迁移审计引用，不再作为 Runtime 或维护双写权威。
+current_formal_entrypoint: 01_semantic_knowledge/01_ontology/platform_registry.yaml
+model_files:
+  - 01_semantic_knowledge/01_ontology/models/semantic.yaml
+  - 01_semantic_knowledge/01_ontology/models/state_event.yaml
+  - 01_semantic_knowledge/01_ontology/models/evidence.yaml
+  - 01_semantic_knowledge/01_ontology/models/judgment.yaml
+  - 01_semantic_knowledge/01_ontology/models/operational.yaml
+  - 01_semantic_knowledge/01_ontology/domains/semiconductor/ontology_extension.yaml
+notes:
+  - scenario catalog 已迁至 02_scenario_task/02_scenarios/types.yaml
+  - semiconductor_extension 已迁至 domains/semiconductor/ontology_extension.yaml

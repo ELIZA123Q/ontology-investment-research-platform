@@ -8,7 +8,7 @@
 01_ontology = 世界模型 + 变化规则（声明式权威）
 ```
 
-人话口径与别名在 [`../02_dictionary/`](../02_dictionary/README.md)；怎么做一次研究在 `02_scenario_task` / 方法库 / Runtime。
+人话口径与别名在 [`../02_dictionary/`](../02_dictionary/README.md)；怎么做一次研究在 `02_scenario_task` / `03_agent_capability/02_skills` / Runtime。
 
 ---
 
@@ -93,8 +93,8 @@ models/
 
 | 原位置 | 现位置 | 原因 |
 |---|---|---|
-| `scenario.yaml`（场景类型） | [`02_scenario_task/scenario_catalog.yaml`](../../02_scenario_task/scenario_catalog.yaml) | 场景是任务 catalog，不是世界对象模型 |
-| `ActionExecution` | [`05_control_evaluation/audit/`](../../05_control_evaluation/audit/action_execution_schema.yaml) | 运行审计，不是投研世界对象 |
+| `scenario.yaml`（场景类型） | [`02_scenario_task/02_scenarios/types.yaml`](../../02_scenario_task/02_scenarios/types.yaml) | 场景是任务 catalog，不是世界对象模型 |
+| `ActionExecution` | [`05_control_evaluation/02_identity/`](../../05_control_evaluation/02_identity/action_execution_schema.yaml) | 运行审计，不是投研世界对象 |
 | `semiconductor_extension` | `domains/semiconductor/ontology_extension.yaml` | 行业正式扩展属于 Domain |
 | 领域研究参数 | `domains/*/parameters/` | 预置知识，不是通用类型定义 |
 
@@ -122,7 +122,7 @@ domains/semiconductor/
 
 1. **正式扩展**：能进类型系统的东西（如 `WaferFab`、`CapacityMetric`）；依赖五个通用 Model，**不得重定义核心 ID**。
 2. **领域参数**：研究中「通常怎么看」的预置（状态变量、证据画像、传导模板）；必须引用正式对象；改源后重建 Bundle。
-3. **方法资产**：怎么取证、怎么裁决 → 在 `03_agent_capability/05_method_libraries`，**不得写回正式本体**。
+3. **Skill 资源**：怎么取证、怎么裁决 → 在 `03_agent_capability/02_skills`，**不得写回正式本体**。
 
 领域扩展若投影到核心类型，用 `projects_to` / 明确关系，避免错误的 `extends` 继承链。
 
@@ -164,12 +164,12 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
    models / kinetics / domains
 ```
 
-`platform_registry` 登记：`meta_schema`、semantic / operational / kinetic 模型、domain bundle、runtime 投影、validator、legacy 指针。
+`platform_registry` 登记：`meta_schema`、semantic / operational / kinetic 模型、domain bundle、runtime 投影、validator、迁移基线指针。
 
 **不要**再维护平行的 `registry.yaml` / 根目录 `model_registry.yaml`。  
 改一个 Model 却要同步三处登记，就是在制造「平行权威」——而这正是本项目要消灭的问题。
 
-3.0 历史基线只读归档在 [`legacy/ontology_3/`](../../legacy/ontology_3/)；`platform_registry` 里留 legacy 指针即可。新运行只写 4.0。
+3.0 历史基线位于 [`docs/migrations/ontology_3_baseline/`](../../docs/migrations/ontology_3_baseline/)，仅用于迁移审计；`platform_registry` 保留迁移基线指针。新运行只写 4.0。
 
 ---
 
@@ -179,7 +179,7 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
 
 统一校验：
 
-[`05_control_evaluation/03_校验/ontology/validate_ontology.py`](../../05_control_evaluation/03_校验/ontology/validate_ontology.py)
+[`05_control_evaluation/04_verifiers/ontology/validate_ontology.py`](../../05_control_evaluation/04_verifiers/ontology/validate_ontology.py)
 
 它合并了两类能力：
 
@@ -207,7 +207,7 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
 
 1. 只改本目录声明式 YAML，并确保已被 `platform_registry` 登记。  
 2. 领域参数改完后运行 `domains/semiconductor/build_business_instances.py`。  
-3. 跑：`python3 05_control_evaluation/03_校验/ontology/validate_ontology.py`。  
+3. 跑：`python3 05_control_evaluation/04_verifiers/ontology/validate_ontology.py`。  
 4. Runtime 消费侧如需同步：`cd 06_runtime && npm run ontology:sync`。  
 5. **禁止**在 Runtime 或其他域复制平行权威枚举。
 
@@ -221,5 +221,5 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
 | source_of_truth | `01_semantic_knowledge/01_ontology/` |
 | machine_entry | `platform_registry.yaml` |
 | schema 版本 | Platform 4.0 |
-| legacy 3.0 | `legacy/ontology_3/`（read_only） |
-| validator | `05_control_evaluation/03_校验/ontology/` |
+| Ontology 3.0 迁移基线 | `docs/migrations/ontology_3_baseline/`（read_only） |
+| validator | `05_control_evaluation/04_verifiers/ontology/` |

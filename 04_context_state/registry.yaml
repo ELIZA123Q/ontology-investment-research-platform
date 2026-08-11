@@ -1,43 +1,63 @@
-schema_name: execution_domain_registry
-schema_version: 2.0.0
+schema_name: context_state_domain_registry
+schema_version: 3.0.0
 status: active
 
 authority:
-  answers: Execution 权威入口是本文件；上下文白名单权威为 05_control_evaluation/01_架构/runtime_contexts.yaml。
+  answers:
+    - context_contract
+    - runtime_state_contract
+    - memory_contract
+    - workspace_contract
   write_entry: 04_context_state/
   read_primary:
     - 04_context_state/registry.yaml
-    - 05_control_evaluation/01_架构/runtime_contexts.yaml
-  executable_runtime: 06_runtime/src/runtime/kernel.ts
+    - 04_context_state/01_context/contract.yaml
+    - 04_context_state/02_state/contract.yaml
+    - 04_context_state/03_memory/contract.yaml
+    - 04_context_state/04_workspace/contract.yaml
+  does_not_answer:
+    - executable_runtime_implementation
+    - historical_sample_authority
+    - regression_fixture_authority
 
-source_of_truth:
-  context_assembly: 06_runtime/src/runtime/kernel.ts
-  runtime_engine: 06_runtime/src/runtime/kernel.ts
-  runtime_storage: 06_runtime/src/runtime/store.ts
+implementation:
+  runtime: 06_runtime
+  kernel: 06_runtime/src/runtime/kernel.ts
+  store: 06_runtime/src/runtime/store.ts
   worker: 06_runtime/src/worker.ts
-  workspace_records: 04_context_state/03_workspace
+  local_data: 06_runtime/.data/
 
 subdomains:
   context:
-    target: 04_context_state/01_context
-    source: 06_runtime/src/runtime/kernel.ts
+    path: 04_context_state/01_context
+    contract: 04_context_state/01_context/contract.yaml
     status: active
+    implementation_status: partial_reference_manifest
+  state:
+    path: 04_context_state/02_state
+    contract: 04_context_state/02_state/contract.yaml
+    status: active
+    implementation_status: partial_projection
   memory:
-    target: 04_context_state/02_memory
-    source: 06_runtime/src/runtime/store.ts
+    path: 04_context_state/03_memory
+    contract: 04_context_state/03_memory/contract.yaml
     status: active
-    contract: 04_context_state/02_memory/contract.yaml
-    implementation: deferred
+    implementation_status: partial_storage
   workspace:
-    target: 04_context_state/03_workspace
-    source: instances
-    status: historical_assets
-  runtime:
-    target: 04_context_state/04_runtime
-    source: 06_runtime/src/runtime
+    path: 04_context_state/04_workspace
+    contract: 04_context_state/04_workspace/contract.yaml
     status: active
+    implementation_status: logical_contract_only
 
-notes:
-  - Execution 只描述本次运行状态，不定义可复用方法真理。
-  - ContextPackage 是单次调用临时对象，选择理由与引用版本写 Event，不单独持久化。
-  - Workspace 中旧样例是回归资产，不是 Runtime 代码入口。
+related_assets:
+  research_examples: 05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/
+  regression_fixtures: 05_control_evaluation/04_verifiers/fixtures/regression/
+  runtime_local_data: 06_runtime/.data/
+
+principles:
+  - Context 是当前调用视图，不是知识库
+  - State 是运行实例当前状态，不是 Task 定义
+  - Memory 是跨任务选择性记忆，不是正式知识权威
+  - Workspace 是当前任务工作环境，不是历史样例库
+  - Runtime 负责执行上述合同，但不属于本域
+  - Event → Runtime；Checkpoint → Runtime；State Contract → 本域
