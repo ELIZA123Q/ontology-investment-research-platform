@@ -276,12 +276,6 @@ class WorkbenchPackageTests(unittest.TestCase):
             path.write_text(yaml.safe_dump(wrapper, allow_unicode=True), encoding="utf-8")
             self.assertEqual(validator.validate_workbench_package(run_dir), [])
 
-    def test_rejects_v3_sample_directory(self) -> None:
-        sample = ROOT / "05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/01_memory-cycle-run-002"
-        errors = validator.validate_workbench_package(sample)
-        self.assertTrue(errors)
-        self.assertTrue(any("semantic_fixture" in error or "validate_v3_samples" in error for error in errors))
-
     def test_publishable_true_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)

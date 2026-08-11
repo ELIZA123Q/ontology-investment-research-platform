@@ -26,7 +26,6 @@ EXTENSION = ONTOLOGY_DIR / "domains" / "semiconductor" / "ontology_extension.yam
 SCENARIO_CATALOG = ROOT / "02_scenario_task" / "02_scenarios" / "types.yaml"
 RESEARCH_REQUIREMENT_PROFILES = ONTOLOGY_DIR / "research_requirement_profiles.yaml"
 PUBLIC_CONTRACT = ROOT / "05_control_evaluation/01_rules/contracts/public_contract.yaml"
-MIGRATION_LEDGER = ROOT / "docs/migrations/ontology_evolution/2x_to_3_ledger.yaml"
 RULE_REGISTRY = ROOT / "05_control_evaluation/01_rules/policies/rule_authority_registry.yaml"
 PSEUDO_TYPES = {
     "core_object",
@@ -981,10 +980,6 @@ def main() -> int:
     object_ids.update((extension.get("object_types") or {}).keys())
     errors.extend(validate_scenario_catalog(object_ids, (meta.get("scenario_contract") or {})))
     errors.extend(validate_platform_and_kinetics())
-    if not MIGRATION_LEDGER.exists():
-        errors.append("migration ledger is missing")
-    else:
-        errors.extend(validate_migration_ledger(load_yaml(MIGRATION_LEDGER), models, extension))
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

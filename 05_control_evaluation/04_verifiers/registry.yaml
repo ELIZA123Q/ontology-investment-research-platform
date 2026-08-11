@@ -14,7 +14,6 @@ entrypoints:
   - 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
 
 assets:
-  fixtures: 05_control_evaluation/04_verifiers/fixtures/
   tests: 05_control_evaluation/04_verifiers/tests/
   stage_checks: 05_control_evaluation/04_verifiers/stages/
 

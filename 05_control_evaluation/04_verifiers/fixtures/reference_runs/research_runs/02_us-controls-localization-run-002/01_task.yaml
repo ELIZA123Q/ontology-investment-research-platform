@@ -1,8 +1,0 @@
-stage: '01'
-task_id: JTASK-USCTRL-LOCAL-002
-research_scenario: EventImpactResearch
-question: 新一轮美国设备管制是否会提高中国晶圆厂的国产设备导入强度，以及哪些环节能形成可验证替代？
-scope_ref: SCOPE-CN-SEMI-EQP-2026
-scope: {objects: [ChineseWaferFabs, DomesticSemiconductorEquipment], geography: [China, UnitedStates], metrics: [qualification_stage, domestic_share], time: [2026]}
-excluded_outputs: [target_price, rating, position_advice]
-

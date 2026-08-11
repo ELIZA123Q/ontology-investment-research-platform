@@ -12,8 +12,6 @@ from typing import Any, Iterable, Mapping
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "05_control_evaluation" / "04_verifiers" / "knowledge_graph"))
-sys.path.insert(0, str(ROOT / "05_control_evaluation" / "04_verifiers" / "legacy_compat"))
-
 from ontology_instance_graph import materialize_document
 from validator_utils import load_yaml_file, split_refs
 

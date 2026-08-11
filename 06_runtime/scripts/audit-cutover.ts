@@ -22,12 +22,12 @@ if (existsSync(claudeSkills)) {
 }
 
 const authorityFiles = [
-  "README.md", "CLAUDE.md", "02_scenario_task/registry.yaml", "03_agent_capability/registry.yaml",
+  "README.md", "02_scenario_task/registry.yaml", "03_agent_capability/registry.yaml",
   "03_agent_capability/01_agents/registry.yaml", "03_agent_capability/02_skills/registry.yaml",
   "03_agent_capability/03_tools/registry.yaml", "04_context_state/registry.yaml",
   "04_context_state/01_context/contract.yaml", "04_context_state/02_state/contract.yaml",
   "04_context_state/03_memory/contract.yaml", "04_context_state/04_workspace/contract.yaml",
-  "docs/architecture/five_domain_authority.yaml", "06_runtime/app-surface.yaml",
+  "06_runtime/app-surface.yaml",
 ];
 const forbiddenReferences = [
   "06_runtime/agents", "06_runtime/skills", "06_runtime/workflow", "06_runtime/runner", "06_runtime/storage",
@@ -37,7 +37,6 @@ const forbiddenReferences = [
 for (const file of authorityFiles) {
   const path = join(repoRoot, file);
   if (!existsSync(path)) { failures.push(`missing authority file: ${file}`); continue; }
-  if (file.endsWith("five_domain_authority.yaml")) continue;
   const content = readFileSync(path, "utf8");
   for (const token of forbiddenReferences) if (content.includes(token)) failures.push(`${file} still references ${token}`);
 }

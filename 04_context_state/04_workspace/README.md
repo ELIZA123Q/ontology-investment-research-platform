@@ -11,9 +11,6 @@
 
 - **合同：** [`contract.yaml`](./contract.yaml)
 - **物理存储：** `06_runtime/.data/`（由 Runtime 管理，不入 Git）
-- **不是 Workspace：**
-  - 历史示范 → [`05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/`](../../05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/README.md)
-  - 回归夹具 → [`05_control_evaluation/04_verifiers/fixtures/regression/`](../../05_control_evaluation/04_verifiers/fixtures/regression/README.md)
 
 ## 怎么用
 
@@ -25,5 +22,5 @@
 
 ## 怎么维护
 
-- 本目录只保留合同说明，不存放样例、回归包或本机 SQLite。
+- 本目录只保留合同说明，不存放本机 SQLite。
 - **status:** active

@@ -1,5 +1,0 @@
-case_id: ontology-v3-untyped-attribute
-mutation: remove_field
-target: models.semantic.object_types.Company.attributes.name.type
-expected_error: missing
-

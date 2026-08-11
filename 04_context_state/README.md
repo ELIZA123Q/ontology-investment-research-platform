@@ -22,13 +22,12 @@
 
 1. 要看**现行系统怎么跑** → [`06_runtime/README.md`](../06_runtime/README.md)。
 2. 要改装配 / 状态 / 记忆 / 工作区规则 → 先改对应 `contract.yaml`，再同步 Runtime。
-3. 历史示范案例 → [`05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/`](../05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/README.md)；回归夹具 → [`05_control_evaluation/04_verifiers/fixtures/regression/`](../05_control_evaluation/04_verifiers/fixtures/regression/README.md)。二者都不是 Workspace。
 
 ## 怎么维护
 
 - 新的运行实现只进 `06_runtime/`；本域不放 Runtime 索引目录。
 - 合同变更时更新 [`registry.yaml`](./registry.yaml)，并保持与 `06_runtime` 实现一致。
-- 禁止把历史样例、回归夹具、本机 SQLite 重新塞回本域。
+- 禁止把本机 SQLite 重新塞回本域。
 
 ---
 

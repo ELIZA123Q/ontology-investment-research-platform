@@ -1,6 +1,0 @@
-case_id: ontology-v3-dangling-relation
-mutation: replace_value
-target: models.semantic.relation_types.produces.target_types
-value: [MissingProduct]
-expected_error: dangling endpoint
-

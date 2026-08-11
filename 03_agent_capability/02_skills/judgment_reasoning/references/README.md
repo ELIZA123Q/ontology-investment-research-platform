@@ -45,8 +45,6 @@
 
 案例回归入口见历史样例：
 
-- [存储周期判断简报](../../../../05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/01_memory-cycle-run-002/04_judgment.yaml)：A01→A02→A03
-- [管制与国产替代判断简报](../../../../05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/02_us-controls-localization-run-002/04_judgment.yaml)：A04、A06、A08
 
 ## 维护
 

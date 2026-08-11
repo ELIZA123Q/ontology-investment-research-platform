@@ -58,21 +58,6 @@ kinds:
     publishable: false
     notes: 任务所需知识及依赖闭包；不得包含方法执行结果或研究结果。
 
-  semantic_fixture:
-    schema_name: controlled_research_run_manifest_v3
-    schema_version: "1.0.0"
-    layout: compact_v3_yaml
-    validator: 05_control_evaluation/04_verifiers/validate_v3_samples.py
-    discovery_markers:
-      - 01_task.yaml
-      - 02_structure.yaml
-      - incremental_update.yaml
-    publishable: false
-    contract_ref:
-      schema_name: controlled_research_run_manifest
-      schema_version: "1.3.0"
-    notes: Ontology 3.0 / Public Contract 1.3 黄金样例；紧凑 YAML，证明语义链而非发布排版。
-
   workbench_export:
     schema_name: controlled_research_run_manifest_workbench
     schema_version: "1.0.0"
@@ -91,21 +76,15 @@ kinds:
       本类型仅供内部验收与 03_回归，不能替代正式中文命名包。
 
 routing_rules:
-  - if_manifest_package_kind_in: [formal_pack, formal_delivery_pack, research_audit_pack, knowledge_baseline, knowledge_task_slice, semantic_fixture, workbench_export]
+  - if_manifest_package_kind_in: [formal_pack, formal_delivery_pack, research_audit_pack, knowledge_baseline, knowledge_task_slice, workbench_export]
   - if_manifest_schema_name: controlled_research_run_manifest
     then: formal_pack
   - if_manifest_schema_name: controlled_research_run_manifest_workbench
     then: workbench_export
-  - if_manifest_schema_name: controlled_research_run_manifest_v3
-    then: semantic_fixture
   - if_glob: "01-*投研需求说明-*.md"
     then: formal_pack
   - if_files_all: [01_task.yaml, 02_structure.yaml, package_kind.yaml]
     then: workbench_export
-  - if_files_all: [01_task.yaml, 02_structure.yaml, incremental_update.yaml]
-    then: semantic_fixture
   - if_files_all: [01_task.yaml, 02_structure.yaml]
     and_manifest_run_mode: workbench
     then: workbench_export
-  - if_files_all: [01_task.yaml, 02_structure.yaml]
-    then: semantic_fixture

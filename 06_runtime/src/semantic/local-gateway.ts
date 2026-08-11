@@ -18,7 +18,6 @@ const INDEX_ROOTS: ReadonlyArray<{ path: string; kind: SemanticAssetKind }> = [
   { path: "01_semantic_knowledge/01_ontology", kind: "ontology" },
   { path: "01_semantic_knowledge/02_dictionary", kind: "dictionary" },
   { path: "03_agent_capability/02_skills", kind: "method" },
-  { path: "05_control_evaluation/04_verifiers/fixtures/regression", kind: "historical_artifact" },
 ];
 
 export function resolveRepositoryRoot(start = process.cwd()): string {

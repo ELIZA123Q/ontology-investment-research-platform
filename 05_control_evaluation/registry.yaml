@@ -23,8 +23,6 @@ subdomains:
 
 boundary:
   project_architecture: docs/architecture/
-  engineering_roadmap: docs/roadmap/
-  migration_history: docs/migrations/repository_history/
   contract_rule: contract follows owner; this registry only indexes control-plane-owned assets.
 
 notes:

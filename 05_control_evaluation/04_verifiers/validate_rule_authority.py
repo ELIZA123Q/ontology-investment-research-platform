@@ -20,7 +20,6 @@ MODEL_FILES = (
     *tuple((ROOT / "01_semantic_knowledge/01_ontology/models").glob("*.yaml")),
     ROOT / "01_semantic_knowledge/01_ontology/domains/semiconductor/ontology_extension.yaml",
 )
-SAMPLE_FILES = tuple((ROOT / "05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs").glob("*/04_judgment.yaml"))
 METHOD_ID = re.compile(r"^(?:A|kb0[234]:A)[0-9]{2}$")
 AUTHORITY_SECTIONS = (
     "formal_ontology_rules",
@@ -52,13 +51,7 @@ def formal_rule_ids() -> set[str]:
 
 
 def sample_rule_refs() -> list[tuple[str, str]]:
-    refs: list[tuple[str, str]] = []
-    for path in SAMPLE_FILES:
-        document = load(path)
-        for evaluation in document.get("rule_evaluations") or []:
-            if isinstance(evaluation, dict):
-                refs.append((str(path.relative_to(ROOT)), str(evaluation.get("rule_ref") or "")))
-    return refs
+    return []
 
 
 def nested_keys(value: object) -> set[str]:
@@ -178,7 +171,7 @@ def main() -> int:
     print(
         "RULE_AUTHORITY_PASS: "
         f"formal={len(formal_rule_ids())}, "
-        f"samples={len(SAMPLE_FILES)}; 03_agent_capability/02_skills/05_control_evaluation/runtime uniquely separated."
+        "historical_samples=0; 03_agent_capability/02_skills/05_control_evaluation/runtime uniquely separated."
     )
     return 0
 

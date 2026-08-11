@@ -344,8 +344,6 @@ replay_contract:
   minimum_trace_chain: [Q, JU, ER, EV, MA, C, EX]
   version_tracking: run_manifest.versions 记录 contract、ontology、kb02、kb03、kb04 与各阶段 schema 版本；阶段产物 hash 与 attempt 支持波次回放。
   replay_without_markdown: 仅凭 run_manifest + 各阶段结构化产物，应能回答本次对象、所用方法版本、绑定证据、裁决边界与结论强度，无需阅读 05 研报正文。
-  reference_samples:
-    v3_with_method_application: 05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs
 
 runtime_objects:
   - Task

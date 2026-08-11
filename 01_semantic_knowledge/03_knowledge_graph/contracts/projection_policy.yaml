@@ -52,4 +52,3 @@ compatibility_note: >
 runtime_homes:
   vnext_boundary: 06_runtime/src/semantic/graph-contracts.ts
   governance_validators: 05_control_evaluation/04_verifiers/knowledge_graph/
-  historical_package_compatibility: 05_control_evaluation/04_verifiers/legacy_compat/

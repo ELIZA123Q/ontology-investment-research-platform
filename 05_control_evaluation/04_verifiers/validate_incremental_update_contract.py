@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Validate the incremental update contract and both V3 exercises."""
+"""Validate the current incremental-update contract."""
 
 from __future__ import annotations
 
-import importlib.util
 from pathlib import Path
 from typing import Any
 
@@ -42,22 +41,8 @@ def validate_contract_data(public: dict[str, Any]) -> list[str]:
     return errors
 
 
-def load_run(run_dir: Path) -> dict[str, dict[str, Any]]:
-    return {
-        "structure": load(run_dir / "02_structure.yaml"),
-        "evidence": load(run_dir / "03_evidence.yaml"),
-        "judgment": load(run_dir / "04_judgment.yaml"),
-        "expression": load(run_dir / "05_expression.yaml"),
-        "update": load(run_dir / "incremental_update.yaml"),
-    }
-
-
 def main() -> int:
     errors = validate_contract_data(load(CONTRACT_PATH))
-    from incremental_update import validate_incremental_update
-    for run_dir in sorted((ROOT / "05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs").iterdir()):
-        if run_dir.is_dir():
-            errors.extend(f"{run_dir.name}: {error}" for error in validate_incremental_update(load_run(run_dir)))
     if errors:
         for error in errors:
             print(f"ERROR: {error}")

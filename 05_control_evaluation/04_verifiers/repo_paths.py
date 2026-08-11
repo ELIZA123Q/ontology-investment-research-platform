@@ -19,7 +19,6 @@ STAGE_DIRS = (
     RUN_DIR / "stages" / "stage_04",
     RUN_DIR / "stages" / "stage_05",
     ROOT / "05_control_evaluation" / "04_verifiers" / "knowledge_graph",
-    ROOT / "05_control_evaluation" / "04_verifiers" / "legacy_compat",
     ROOT / "05_control_evaluation" / "04_verifiers",
 )
 

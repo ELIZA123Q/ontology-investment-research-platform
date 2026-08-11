@@ -1279,7 +1279,7 @@ export const ONTOLOGY_CATALOG = {
       ]
     }
   },
-  "fingerprint": "sha256:29265f006d1fe4d7479f0d3e0aa9c81d9398c18e1cde6418a47965fbf5df910d",
+  "fingerprint": "sha256:65e98eaa06d0fee9f5a47ae30b7de8cb251882bd12409c3ea8e7330a2748ca98",
   "functions": {
     "AssessEvidenceUsability": {
       "description": "根据快照核验、范围和独立来源计算证据是否足以支撑当前用途。",

@@ -9,12 +9,8 @@ authority:
 
 entrypoints:
   - 05_control_evaluation/05_evals/protocols/
-  - 05_control_evaluation/05_evals/cases/
-  - 05_control_evaluation/05_evals/runners/
-  - 05_control_evaluation/05_evals/decision_logs/
-  - 05_control_evaluation/05_evals/experience/
+  - 05_control_evaluation/05_evals/rubrics/
 
-claim_gate: 05_control_evaluation/05_evals/decision_logs/2026-07-28_本体价值宣称门槛.md
 runtime_bridge: 05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml
 boundary:
   not_a_verifier: true

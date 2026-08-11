@@ -18,7 +18,6 @@ KIND_AUDIT = "research_audit_pack"
 KIND_DELIVERY = "formal_delivery_pack"
 KIND_KNOWLEDGE_BASELINE = "knowledge_baseline"
 KIND_KNOWLEDGE_TASK = "knowledge_task_slice"
-KIND_V3 = "semantic_fixture"
 KIND_WORKBENCH = "workbench_export"
 KIND_UNKNOWN = "unknown"
 
@@ -28,7 +27,6 @@ VALIDATORS = {
     KIND_DELIVERY: "06_runtime/src/governance/verifiers.ts",
     KIND_KNOWLEDGE_BASELINE: "05_control_evaluation/04_verifiers/validate_semantic_baseline.py",
     KIND_KNOWLEDGE_TASK: "05_control_evaluation/04_verifiers/validate_semantic_baseline.py",
-    KIND_V3: "05_control_evaluation/04_verifiers/validate_v3_samples.py",
     KIND_WORKBENCH: "05_control_evaluation/04_verifiers/validate_workbench_package.py",
 }
 
@@ -60,7 +58,7 @@ def _match_rule(rule: dict[str, Any], run_dir: Path, manifest: dict[str, Any]) -
         return current if current in {str(item) for item in package_kinds} else None
 
     kind = str(rule.get("then") or "")
-    if kind not in {KIND_FORMAL, KIND_AUDIT, KIND_DELIVERY, KIND_KNOWLEDGE_BASELINE, KIND_KNOWLEDGE_TASK, KIND_V3, KIND_WORKBENCH}:
+    if kind not in {KIND_FORMAL, KIND_AUDIT, KIND_DELIVERY, KIND_KNOWLEDGE_BASELINE, KIND_KNOWLEDGE_TASK, KIND_WORKBENCH}:
         return None
 
     schema_name = rule.get("if_manifest_schema_name")

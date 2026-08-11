@@ -2,7 +2,7 @@
 
 `05_control_evaluation` 只定义控制面：什么必须遵守、谁发起动作、谁能执行动作、确定性条件是否满足、结果是否有研究价值，以及这些规则与本体如何变更。
 
-它不再存放项目架构、工程路线图或跨域合同的汇总副本。合同跟随真正的 owner；项目级材料见 [`docs/architecture/`](../docs/architecture/README.md)、[`docs/roadmap/`](../docs/roadmap/README.md) 与 [`docs/migrations/repository_history/`](../docs/migrations/repository_history/)。
+它不存放项目架构、路线图或跨域合同的汇总副本；合同跟随真正的 owner。
 
 | 子域 | 回答的问题 | 入口 |
 |---|---|---|

@@ -169,7 +169,6 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
 **不要**再维护平行的 `registry.yaml` / 根目录 `model_registry.yaml`。  
 改一个 Model 却要同步三处登记，就是在制造「平行权威」——而这正是本项目要消灭的问题。
 
-3.0 历史基线位于 [`docs/migrations/ontology_3_baseline/`](../../docs/migrations/ontology_3_baseline/)，仅用于迁移审计；`platform_registry` 保留迁移基线指针。新运行只写 4.0。
 
 ---
 
@@ -221,5 +220,4 @@ CASE → HYPOTHESIS → EVIDENCE → JUDGMENT → DELIVERABLE → MONITORING
 | source_of_truth | `01_semantic_knowledge/01_ontology/` |
 | machine_entry | `platform_registry.yaml` |
 | schema 版本 | Platform 4.0 |
-| Ontology 3.0 迁移基线 | `docs/migrations/ontology_3_baseline/`（read_only） |
 | validator | `05_control_evaluation/04_verifiers/ontology/` |

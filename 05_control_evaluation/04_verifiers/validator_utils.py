@@ -14,7 +14,6 @@ from typing import Any, Iterable
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "05_control_evaluation" / "04_verifiers" / "knowledge_graph"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "05_control_evaluation" / "04_verifiers" / "legacy_compat"))
 from ontology_instance_graph import materialize_document
 
 

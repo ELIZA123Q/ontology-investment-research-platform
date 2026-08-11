@@ -6,7 +6,6 @@ version: 6.2.1
 status: core
 framework_type: horizontal_constraint
 validation_status: pending_two_tasks
-validated_case_refs: [05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/02_us-controls-localization-run-002/02_structure.yaml]
 updated_at: 2026-07-14
 ---
 
@@ -88,4 +87,3 @@ scenarios: [constraint_absorbed, accelerated_localization, substitution_without_
 ## 6. 组合、裁剪与真实任务验证
 
 - 设备：`SCN-LOC-EQP + IF-EQP`；材料：`SCN-LOC-MAT + IF-MAT`；地缘：`SCN-GEO`（市场通道交预期差/估值基础框架）。
-- 成立案例：[`05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/02_us-controls-localization-run-002/...`](../../../../../05_control_evaluation/04_verifiers/fixtures/reference_runs/research_runs/02_us-controls-localization-run-002/02_structure.yaml)。尚需失败案（份额升+新单点依赖）。`尚待两次真实任务验证`。

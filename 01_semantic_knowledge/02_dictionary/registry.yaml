@@ -8,7 +8,6 @@ authority:
   write_entry: 01_semantic_knowledge/02_dictionary/
   read_primary: 01_semantic_knowledge/02_dictionary/
   semantic_authority: 01_semantic_knowledge/01_ontology/
-  architecture_migration: docs/migrations/repository_history/semantic_migration.yaml
   runtime_consumption: >
     Runtime 经 dictionary 得到 canonical_ref 后，必须以 ontology 为语义权威；
     不得默认把本目录当作知识正文权威全文注入。

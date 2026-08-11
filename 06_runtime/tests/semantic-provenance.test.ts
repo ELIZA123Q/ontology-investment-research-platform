@@ -16,10 +16,10 @@ function fixture(): { root: string; store: RuntimeStore; semantic: LocalSemantic
   directories.push(root);
   mkdirSync(join(root, "01_semantic_knowledge/01_ontology"), { recursive: true });
   mkdirSync(join(root, "01_semantic_knowledge/02_dictionary"), { recursive: true });
-  mkdirSync(join(root, "05_control_evaluation/04_verifiers/fixtures/regression/gold/02_assets/source_captures"), { recursive: true });
+  mkdirSync(join(root, "01_semantic_knowledge/01_ontology/source_captures"), { recursive: true });
   writeFileSync(join(root, "01_semantic_knowledge/registry.yaml"), "schema_name: semantic\n");
   writeFileSync(join(root, "01_semantic_knowledge/01_ontology/hbm.yaml"), "id: HBM\nlabel: 高带宽存储\nrelation: AI算力需求\n");
-  const capturePath = join(root, "05_control_evaluation/04_verifiers/fixtures/regression/gold/02_assets/source_captures/SR-01.json");
+  const capturePath = join(root, "01_semantic_knowledge/01_ontology/source_captures/SR-01.json");
   writeFileSync(capturePath, JSON.stringify({
     evidence_claims: [{ statement: "HBM 需求同比增长 40%", locator: "page 3", claim_type: "reported_fact" }],
     evidence_records: [{ claim_text: "HBM 需求同比增长 40%", source_locator: "https://example.test/report.pdf#page=3", source_authority: "primary" }],

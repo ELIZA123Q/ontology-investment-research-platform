@@ -3,7 +3,7 @@ schema_version: 1.1.0
 status: active
 description: >
   仅记录「旧词 → 新词」的名称废弃。
-  文件路径、模型归属、目录重构等架构迁移不在此文件；见 docs/migrations/repository_history/。
+  文件路径、模型归属与目录结构不属于本文件的管理范围。
 
 entries:
   - deprecated_term: Segment
