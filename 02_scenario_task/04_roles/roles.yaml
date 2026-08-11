@@ -23,6 +23,8 @@ roles:
       - clarify_and_frame_problem
       - maintain_research_alignment
       - coordinate_required_tasks
+      - maintain_problem_graph_coherence
+      - select_and_replan_frontiers
       - synthesize_research_judgment
     eligible_actor_types:
       - agent

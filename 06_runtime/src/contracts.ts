@@ -120,6 +120,75 @@ export interface Budget {
   deadlineAt?: IsoDate;
 }
 
+export type ProblemGraphNodeType =
+  | "root_question"
+  | "judgment_unit"
+  | "hypothesis"
+  | "competing_explanation"
+  | "evidence_requirement"
+  | "blocking_factor"
+  | "synthesis";
+export type FrontierState = "proposed" | "unresolved" | "active" | "resolved" | "blocked" | "indeterminate" | "invalidated" | "out_of_scope";
+export type ProblemGraphRelation = "requires" | "informs" | "challenges" | "invalidates" | "aggregates" | "reuses";
+
+export interface ProblemGraphNode {
+  id: Id;
+  graphId: Id;
+  key: string;
+  type: ProblemGraphNodeType;
+  title: string;
+  state: FrontierState;
+  required: boolean;
+  motifRef?: string;
+  semanticRef?: string;
+  payload: Record<string, unknown>;
+  resolvedArtifactIds: Id[];
+  freshnessAt?: IsoDate;
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export interface ProblemGraphEdge {
+  id: Id;
+  graphId: Id;
+  fromNodeId: Id;
+  toNodeId: Id;
+  relation: ProblemGraphRelation;
+  payload: Record<string, unknown>;
+}
+
+export interface ResearchProblemGraph {
+  id: Id;
+  taskId: Id;
+  researchCaseId: Id;
+  version: number;
+  status: "proposed" | "active" | "settled" | "superseded";
+  intentRefs: string[];
+  scenarioRefs: string[];
+  taskMotifRefs: string[];
+  fingerprint: string;
+  nodes: ProblemGraphNode[];
+  edges: ProblemGraphEdge[];
+  createdAt: IsoDate;
+  updatedAt: IsoDate;
+}
+
+export interface FrontierRef {
+  problemGraphId: Id;
+  problemNodeId?: Id;
+  judgmentUnitRef?: Id;
+  evidenceRequirementRef?: Id;
+  evidenceRole?: "support" | "counter" | "boundary" | "context";
+  compilerBoundary?: "scope" | "synthesis" | "compose" | "audit";
+}
+
+export type StopPredicate =
+  | { kind: "required_units_terminal" }
+  | { kind: "evidence_requirement_fulfilled"; requirementRef: Id }
+  | { kind: "budget_exhausted" }
+  | { kind: "information_gain_below"; threshold: number }
+  | { kind: "researcher_stop" };
+
 export interface TaskNode {
   id: Id;
   taskId: Id;
@@ -133,10 +202,13 @@ export interface TaskNode {
   budget: Partial<Budget>;
   inputArtifactIds: Id[];
   outputArtifactIds: Id[];
+  frontierRef: FrontierRef;
+  iteration: number;
 }
 
 export type ArtifactKind =
   | "research_plan"
+  | "research_problem_graph"
   | "method_application"
   | "evidence_package"
   | "hypothesis_map"
@@ -351,6 +423,8 @@ export interface ResearchPlanSurfaceData {
   nodes: SurfacePlanNode[];
   parallelGroups: string[][];
   stopConditions: string[];
+  stopPredicates?: StopPredicate[];
+  problemGraph?: Pick<ResearchProblemGraph, "id" | "status" | "nodes" | "edges" | "scenarioRefs" | "taskMotifRefs">;
   principle: string;
   reportSpec?: ReportSpec;
   methodPlan?: ResearchMethodPlan;

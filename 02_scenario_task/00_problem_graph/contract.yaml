@@ -1,0 +1,136 @@
+schema_name: research_problem_graph_contract
+schema_version: 1.0.0
+status: active
+
+purpose: >
+  规定 User Intent、Scenario 与 Research Task Contract 如何组合成 Research Problem Graph，
+  并把未解决 frontier 增量编译为 Runtime Execution TaskGraph。它不重定义 Ontology
+  对象/关系，也不登记可执行 Node kind。
+
+graph_boundaries:
+  research_problem_graph:
+    owner: 02_scenario_task/00_problem_graph
+    answers: 研究问题由哪些判断单元、竞争解释、证据缺口、阻断与汇总关系组成
+    semantic_type_authority: 01_semantic_knowledge/01_ontology/models
+    instance_owner: 06_runtime
+  research_provenance_graph:
+    owner: 01_semantic_knowledge/03_knowledge_graph
+    answers: 正式研究结论为什么成立
+  execution_task_graph:
+    owner: 06_runtime
+    answers: 本次执行哪些节点、依赖、预算与检查点
+    invariant: 每次编译结果必须为 DAG
+
+catalog_inputs:
+  user_intent: 02_scenario_task/01_intents/types.yaml
+  scenario: 02_scenario_task/02_scenarios/types.yaml
+  scenario_cards: 02_scenario_task/02_scenarios
+  task_motifs: 02_scenario_task/03_tasks
+  role: 02_scenario_task/04_roles/roles.yaml
+  planning_prior: 02_scenario_task/05_workflow_patterns
+
+semantic_node_refs:
+  - ResearchCase
+  - ResearchScope
+  - ResearchQuestion
+  - JudgmentUnit
+  - Hypothesis
+  - CompetingExplanation
+  - BlockingFactor
+  - EvidenceRequirement
+  - Judgment
+
+ontology_relation_refs:
+  - caseAddressesQuestion
+  - questionDecomposesIntoUnit
+  - unitUsesScope
+  - unitHasHypothesis
+  - unitHasCompetingExplanation
+  - unitHasBlockingFactor
+  - judgmentUnitRequiresEvidence
+  - judgmentResolvesUnit
+
+motif_edge_types:
+  requires:
+    meaning: 目标单元在逻辑上必须等待来源单元解决或阻断
+    execution_projection: may_create_dependency
+    acyclic: true
+  informs:
+    meaning: 来源单元结果会改变目标单元，但不要求严格串行
+    execution_projection: context_or_replan_trigger
+    acyclic: false
+  challenges:
+    meaning: 来源单元或竞争解释对目标单元构成反证路径
+    execution_projection: competing_evidence_frontier
+    acyclic: false
+  invalidates:
+    meaning: 来源变化会使目标单元或其既有结果失效
+    execution_projection: downstream_invalidation
+    acyclic: false
+  aggregates:
+    meaning: 来源单元参与目标问题或复合判断汇总
+    execution_projection: synthesis_input
+    acyclic: true
+  reuses:
+    meaning: 不同 motif 共享同一已识别单元、证据要求或已确认制品
+    execution_projection: artifact_or_context_reuse
+    acyclic: false
+
+motif_contract:
+  required_fields:
+    - root_question
+    - judgment_unit_roles
+    - edges
+    - competing_explanation_policy
+    - aggregation
+  judgment_unit_role_fields: [id, purpose, required]
+  edge_fields: [from, to, relation]
+  edge_endpoint_rule: from 与 to 必须引用当前 motif 的 root 或 judgment_unit_roles.id
+  relation_values: [requires, informs, challenges, invalidates, aggregates, reuses]
+
+assembly_cycle:
+  - normalize_request_and_scope
+  - activate_one_or_more_task_motifs
+  - apply_scenario_constraints_and_conditional_affordances
+  - merge_equivalent_units_and_reusable_evidence_requirements
+  - select_unresolved_or_invalidated_frontier
+  - compile_frontier_to_execution_task_graph
+  - commit_authorized_results_and_provenance
+  - propagate_invalidation_and_replan_delta
+
+assembly_cycle_note: >
+  以上是闭环职责，不是必须顺序执行一次的固定 Workflow；在新证据、范围变化、阻断解除
+  或判断改版时可从任一受影响 frontier 重新进入。
+
+frontier_policy:
+  selectable_states: [unresolved, invalidated, blocked_recheck]
+  skip_states: [resolved_and_fresh, out_of_scope]
+  selection_factors:
+    - expected_information_gain
+    - dependency_unlock_value
+    - decision_relevance
+    - evidence_availability
+    - budget_and_deadline
+  stop_when:
+    - 所有 required 判断单元均 resolved、blocked 或 explicit_indeterminate
+    - Task Contract completion_criteria 已满足
+    - 继续扩展的预期信息增益低于预算或时间阈值
+
+invariants:
+  - 不把目录编号解释为执行顺序
+  - 不要求 Scenario 与 Task 一对一
+  - 不要求一个请求只选择一个 Task
+  - 不把 motif edge 直接写成 Ontology relation
+  - 不把语义依赖等同于 TaskNode.dependsOn
+  - 不因两个节点同图出现而推断业务事实
+  - 已解决且新鲜的子图优先复用，变更只重算受影响子图
+  - 每个执行节点必须可回溯到一个 frontier need
+  - 任何正式语义写入仍须经过 Ontology Action 与 authority gate
+
+runtime_mapping:
+  planner_contract: 02_scenario_task/contracts/research_planning_contract.yaml
+  ontology_types: 01_semantic_knowledge/01_ontology/models
+  invalidation_policy: 01_semantic_knowledge/03_knowledge_graph/contracts/trace_policy.yaml
+  node_catalog: 06_runtime/src/runtime/node-catalog.ts
+  planner: 06_runtime/src/runtime/planner.ts
+  compiler: 06_runtime/src/runtime/plan-compiler.ts

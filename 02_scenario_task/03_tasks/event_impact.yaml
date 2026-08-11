@@ -1,5 +1,5 @@
 schema_name: research_task_contract
-schema_version: 2.0.0
+schema_version: 3.0.0
 
 task_id: event_impact
 name: 事件影响判断
@@ -42,6 +42,31 @@ completion_criteria:
 
 uncertainty_policy:
   allow_insufficient_evidence: true
+
+graph_motif:
+  root_question: event_impact_question
+  judgment_unit_roles:
+    - {id: event_scope, purpose: 核验事件事实与生效边界, required: true}
+    - {id: direct_impact, purpose: 判断直接影响对象与状态变量, required: true}
+    - {id: indirect_paths, purpose: 判断间接传导路径, required: false}
+    - {id: intensity_and_lag, purpose: 判断影响强度与时滞, required: true}
+    - {id: boundary_and_reversal, purpose: 登记边界、反证与改判触发, required: true}
+  edges:
+    - {from: event_scope, to: direct_impact, relation: requires}
+    - {from: direct_impact, to: indirect_paths, relation: informs}
+    - {from: direct_impact, to: intensity_and_lag, relation: informs}
+    - {from: indirect_paths, to: intensity_and_lag, relation: informs}
+    - {from: boundary_and_reversal, to: direct_impact, relation: challenges}
+    - {from: direct_impact, to: event_impact_question, relation: aggregates}
+    - {from: indirect_paths, to: event_impact_question, relation: aggregates}
+    - {from: intensity_and_lag, to: event_impact_question, relation: aggregates}
+  competing_explanation_policy:
+    required_for: [direct_impact, indirect_paths]
+    minimum: 1
+  aggregation:
+    mode: direct_path_required_optional_indirect
+    required_units: [event_scope, direct_impact, intensity_and_lag, boundary_and_reversal]
+    allow_partial_with_gaps: true
 
 capability_requirements:
   - causal_path_reasoning

@@ -1,0 +1,22 @@
+schema_name: research_problem_graph_registry
+schema_version: 1.0.0
+status: active
+
+authority:
+  answers: Intent、Scenario 与 Task motif 如何组合为非线性研究问题图
+  contract: 02_scenario_task/00_problem_graph/contract.yaml
+  semantic_type_authority: 01_semantic_knowledge/01_ontology/models
+  execution_authority: 06_runtime/src/runtime
+
+inputs:
+  - 02_scenario_task/01_intents/registry.yaml
+  - 02_scenario_task/02_scenarios/registry.yaml
+  - 02_scenario_task/03_tasks/registry.yaml
+  - 02_scenario_task/04_roles/registry.yaml
+  - 02_scenario_task/05_workflow_patterns/registry.yaml
+
+rules:
+  - 本目录只定义图装配与投影边界，不复制 Ontology 类型。
+  - Task Contract 必须提供 graph_motif，供 Planner 组合而非单选。
+  - Scenario 必须使用带激活条件的 task_affordances。
+  - Runtime TaskGraph 只编译当前 frontier，不复制整张研究问题图。

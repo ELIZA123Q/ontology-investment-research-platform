@@ -16,6 +16,15 @@ planning_hints:
   allow_parallel_evidence: true
   allow_replanning: true
 
+graph_prior:
+  motif_activation: multi_task
+  frontier_strategy: information_gain_and_dependency_unlock
+  max_parallel_frontiers: bounded_by_runtime_budget
+  reuse_resolved_subgraphs: true
+  expand_competing_branches: true
+  replan_on: [new_evidence, scope_change, contradiction, invalidation]
+  convergence: required_units_resolved_blocked_or_explicit_indeterminate
+
 human_gates:
   - judgment_confirmation
   - publish_confirmation

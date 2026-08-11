@@ -1,12 +1,13 @@
 schema_name: research_scenario_types
-schema_version: 2.1.0
+schema_version: 3.0.0
 status: active
 namespace: tasks.scenario
 authority: 02_scenario_task/02_scenarios
 description: |
   高层研究场景类型（catalog_only）。不重定义语义对象；语义/判断类型清单引用
   01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml。
-  Scenario → Task 单向引用（candidate_tasks）；不与 Task 1:1 绑定。
+  Scenario 通过 task_affordances 对 Task motif 施加带条件的激活与约束；
+  不与 Task 1:1 绑定，也不要求一个请求只选择一个 Task。
 enforcement: catalog_only
 profiles_ref: 01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml
 tasks_ref: 02_scenario_task/03_tasks/registry.yaml
@@ -21,12 +22,11 @@ scenario_types:
     scope_dimensions: [object, geography, product, metric, time]
     semantic_requirements: { profile: company_research }
     judgment_requirements: { profile: standard_company_judgment }
-    # 候选 Task（多对多）；Planner 按问题再裁剪，不保证全部执行
-    candidate_tasks:
-      - company_analysis
-      - event_impact
-      - value_chain_analysis
-      - technology_route_analysis
+    task_affordances:
+      - {task_ref: company_analysis, mode: primary, activate_when: [company_proposition_present], contributes: 公司命题与经营传导主图}
+      - {task_ref: event_impact, mode: conditional, activate_when: [specific_material_event_present], contributes: 事件冲击分支}
+      - {task_ref: value_chain_analysis, mode: conditional, activate_when: [upstream_or_downstream_dependency_is_decision_relevant], contributes: 依赖与瓶颈分支}
+      - {task_ref: technology_route_analysis, mode: conditional, activate_when: [technology_route_changes_company_thesis], contributes: 技术可行性与替代分支}
     entry_conditions: [company_identity_resolved, scope_frozen]
     completion_conditions: [critical_units_resolved_or_blocked]
     invalidation_conditions: [company_identity_changed, critical_evidence_invalidated]
@@ -41,11 +41,11 @@ scenario_types:
     scope_dimensions: [industry, geography, value_chain, metric, time]
     semantic_requirements: { profile: industry_research }
     judgment_requirements: { profile: standard_industry_judgment }
-    candidate_tasks:
-      - cycle_judgment
-      - value_chain_analysis
-      - event_impact
-      - technology_route_analysis
+    task_affordances:
+      - {task_ref: cycle_judgment, mode: primary, activate_when: [cycle_or_supply_demand_question_present], contributes: 周期状态与拐点主图}
+      - {task_ref: value_chain_analysis, mode: supporting, activate_when: [bottleneck_or_transmission_matters], contributes: 结构瓶颈与传导子图}
+      - {task_ref: event_impact, mode: conditional, activate_when: [event_explains_material_state_change], contributes: 事件归因分支}
+      - {task_ref: technology_route_analysis, mode: conditional, activate_when: [technology_substitution_changes_industry_structure], contributes: 技术替代分支}
     entry_conditions: [industry_boundary_resolved, time_basis_frozen]
     completion_conditions: [main_and_competing_paths_discriminated]
     invalidation_conditions: [classification_boundary_changed, critical_snapshot_invalidated]
@@ -60,11 +60,11 @@ scenario_types:
     scope_dimensions: [value_chain, object, product, geography, time]
     semantic_requirements: { profile: value_chain_research }
     judgment_requirements: { profile: standard_value_chain_judgment }
-    candidate_tasks:
-      - value_chain_analysis
-      - event_impact
-      - technology_route_analysis
-      - company_analysis
+    task_affordances:
+      - {task_ref: value_chain_analysis, mode: primary, activate_when: [path_endpoints_resolved], contributes: 结构、瓶颈与传导主图}
+      - {task_ref: event_impact, mode: conditional, activate_when: [specific_shock_changes_path], contributes: 冲击传播分支}
+      - {task_ref: technology_route_analysis, mode: conditional, activate_when: [technical_substitute_or_bottleneck_present], contributes: 替代或技术瓶颈分支}
+      - {task_ref: company_analysis, mode: conditional, activate_when: [company_level_realization_is_decision_relevant], contributes: 公司兑现分支}
     entry_conditions: [path_endpoints_resolved]
     completion_conditions: [transmission_nodes_and_blockers_assessed]
     invalidation_conditions: [key_dependency_changed]
@@ -79,11 +79,11 @@ scenario_types:
     scope_dimensions: [technology, product, application, metric, time]
     semantic_requirements: { profile: technology_route_research }
     judgment_requirements: { profile: standard_technology_route_judgment }
-    candidate_tasks:
-      - technology_route_analysis
-      - value_chain_analysis
-      - event_impact
-      - company_analysis
+    task_affordances:
+      - {task_ref: technology_route_analysis, mode: primary, activate_when: [technology_boundary_resolved], contributes: 成熟度、替代性与商业化主图}
+      - {task_ref: value_chain_analysis, mode: supporting, activate_when: [supply_chain_limits_scale_up], contributes: 量产瓶颈子图}
+      - {task_ref: event_impact, mode: conditional, activate_when: [validation_or_policy_event_changes_route], contributes: 事件更新分支}
+      - {task_ref: company_analysis, mode: conditional, activate_when: [company_execution_differentiates_route_outcome], contributes: 公司兑现分支}
     entry_conditions: [technology_boundary_resolved]
     completion_conditions: [performance_and_commercialization_constraints_assessed]
     invalidation_conditions: [technology_definition_changed]
@@ -98,11 +98,11 @@ scenario_types:
     scope_dimensions: [event, object, geography, value_chain, time]
     semantic_requirements: { profile: event_impact_research }
     judgment_requirements: { profile: standard_event_impact_judgment }
-    candidate_tasks:
-      - event_impact
-      - value_chain_analysis
-      - company_analysis
-      - cycle_judgment
+    task_affordances:
+      - {task_ref: event_impact, mode: primary, activate_when: [event_fact_verified], contributes: 直接与间接影响主图}
+      - {task_ref: value_chain_analysis, mode: supporting, activate_when: [impact_propagates_across_dependencies], contributes: 跨节点传导子图}
+      - {task_ref: company_analysis, mode: conditional, activate_when: [company_exposure_or_realization_matters], contributes: 公司影响兑现分支}
+      - {task_ref: cycle_judgment, mode: conditional, activate_when: [event_may_change_cycle_state], contributes: 周期状态更新分支}
     entry_conditions: [event_fact_verified]
     completion_conditions: [direct_and_indirect_impacts_separated]
     invalidation_conditions: [event_retracted_or_scope_revised]

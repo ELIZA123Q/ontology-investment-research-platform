@@ -23,8 +23,8 @@ describe("connector ingestion boundary", () => {
     expect(() => assertConnectorRequestAuthorized(new Request("http://local/ingest"), "secret-token")).toThrow(ConnectorIngestionError);
     expect(() => assertConnectorRequestAuthorized(new Request("http://local/ingest", { headers: { authorization: "Bearer secret-token" } }), "secret-token")).not.toThrow();
     const valid = { taskId: "task-1", kind: "source_capture", result: source("web.capture", "issuer-a.test", 1, "终端需求同比改善") };
-    expect(validateConnectorEnvelope(valid, "web.capture,financial.mcp.wind")).toMatchObject({ taskId: "task-1", kind: "source_capture" });
-    expect(() => validateConnectorEnvelope(valid, "financial.mcp.wind")).toThrow(/not allowed/);
+    expect(validateConnectorEnvelope(valid, "web.capture,datayes-stock-finoper-mcp")).toMatchObject({ taskId: "task-1", kind: "source_capture" });
+    expect(() => validateConnectorEnvelope(valid, "datayes-stock-finoper-mcp")).toThrow(/not allowed/);
     expect(() => validateConnectorEnvelope({ ...valid, result: { ...valid.result, requestParameters: { api_key: "must-not-persist" } } }, "web.capture")).toThrow(/Credential field is forbidden/);
   });
 

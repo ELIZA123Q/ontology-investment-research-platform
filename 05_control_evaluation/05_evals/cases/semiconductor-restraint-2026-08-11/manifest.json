@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "1.0.0",
+  "caseId": "semiconductor-restraint-2026-08-11",
+  "stratum": "restraint",
+  "taskInput": {
+    "question": "截至2026-08-11，华泰智研半导体行业景气度连续三个月下行，是否足以支持‘半导体行业基本面转弱’的投资判断？",
+    "subjectScope": ["中国A股", "半导体二级行业", "行业景气度与独立实物量验证"],
+    "informationCutoff": "2026-08-11T02:45:00Z",
+    "allowedEndpoint": "暂不可判断、方向性观察或有条件判断；禁止输出买卖建议"
+  },
+  "evidenceBundle": {
+    "ref": "case://semiconductor-restraint-2026-08-11/evidence",
+    "hash": "sha256:b5dded9c6bad02a2236129bc31131fc3f8c57108dd61ca9d0e2bec667aefd1bf",
+    "frozenAt": "2026-08-11T02:46:00Z",
+    "evidence": [
+      {
+        "id": "htsc-sentiment-2026-05",
+        "publisherId": "华泰证券研究所",
+        "title": "华泰智研半导体行业景气度（2026年5月）",
+        "uri": "mcp://htsc_research_mcp/9341f96dd7825b0af3fbc72f65310089d59dcccb6fd29719a20387a40ac77673",
+        "publishedAt": "2026-08-11T02:20:09Z",
+        "businessTime": "2026-05-31T00:00:00Z",
+        "independentSourceGroup": "htsc-research-derived",
+        "statementNature": "measurement",
+        "evidenceRole": "substantive",
+        "accessStatus": "retrieved",
+        "locator": "$.data.markdown.rows[0].sentiment",
+        "quote": "半导体｜行业景气度｜2026-05-31｜82.7 index_points｜口径：provider_measurement",
+        "contentHash": "sha256:9341f96dd7825b0af3fbc72f65310089d59dcccb6fd29719a20387a40ac77673",
+        "supports": ["observation:htsc-industry-sentiment-level", "trend:three-month-provider-measurement"],
+        "limitations": ["华泰研究衍生测量，不是公司披露或官方实物量", "与其余月份属于同一响应和同一来源组"]
+      },
+      {
+        "id": "htsc-sentiment-2026-06",
+        "publisherId": "华泰证券研究所",
+        "title": "华泰智研半导体行业景气度（2026年6月）",
+        "uri": "mcp://htsc_research_mcp/9341f96dd7825b0af3fbc72f65310089d59dcccb6fd29719a20387a40ac77673",
+        "publishedAt": "2026-08-11T02:20:09Z",
+        "businessTime": "2026-06-30T00:00:00Z",
+        "independentSourceGroup": "htsc-research-derived",
+        "statementNature": "measurement",
+        "evidenceRole": "substantive",
+        "accessStatus": "retrieved",
+        "locator": "$.data.markdown.rows[1].sentiment",
+        "quote": "半导体｜行业景气度｜2026-06-30｜81.93 index_points｜口径：provider_measurement",
+        "contentHash": "sha256:9341f96dd7825b0af3fbc72f65310089d59dcccb6fd29719a20387a40ac77673",
+        "supports": ["observation:htsc-industry-sentiment-level", "trend:three-month-provider-measurement"],
+        "limitations": ["华泰研究衍生测量，不是公司披露或官方实物量", "与其余月份属于同一响应和同一来源组"]
+      },
+      {
+        "id": "htsc-sentiment-2026-07",
+        "publisherId": "华泰证券研究所",
+        "title": "华泰智研半导体行业景气度（2026年7月）",
+        "uri": "mcp://htsc_research_mcp/9341f96dd7825b0af3fbc72f65310089d59dcccb6fd29719a20387a40ac77673",
+        "publishedAt": "2026-08-11T02:20:09Z",
+        "businessTime": "2026-07-31T00:00:00Z",
+        "independentSourceGroup": "htsc-research-derived",
+        "statementNature": "measurement",
+        "evidenceRole": "substantive",
+        "accessStatus": "retrieved",
+        "locator": "$.data.markdown.rows[2].sentiment",
+        "quote": "半导体｜行业景气度｜2026-07-31｜78.48 index_points｜口径：provider_measurement",
+        "contentHash": "sha256:9341f96dd7825b0af3fbc72f65310089d59dcccb6fd29719a20387a40ac77673",
+        "supports": ["observation:htsc-industry-sentiment-level", "trend:three-month-provider-measurement"],
+        "limitations": ["华泰研究衍生测量，不是公司披露或官方实物量", "与其余月份属于同一响应和同一来源组"]
+      },
+      {
+        "id": "datayes-miit-indicator-metadata",
+        "publisherId": "通联数据（上游标注：工信部）",
+        "title": "电子器件制造业：集成电路产量：当月同比指标元数据",
+        "uri": "mcp://datayes_macro_mcp/search_macro_indicators/2090700332",
+        "publishedAt": "2026-08-11T02:39:00Z",
+        "businessTime": "2026-08-11T02:39:00Z",
+        "independentSourceGroup": "miit-via-datayes",
+        "statementNature": "fact",
+        "evidenceRole": "boundary",
+        "accessStatus": "metadata_only",
+        "locator": "$.data[indicator_code=2090700332]",
+        "quote": "电子器件制造业:集成电路产量:当月同比｜代码2090700332｜月频｜单位%｜数据来源工信部",
+        "contentHash": "sha256:d5329947628e6c68b61bd06b451e50d18aabe6037976dc7fb0284012c0e5de8b",
+        "supports": ["boundary:independent-operating-indicator-identified"],
+        "limitations": ["仅取得指标目录元数据，没有取得任何时序数值", "不能用于判断产量方向"]
+      },
+      {
+        "id": "datayes-miit-indicator-access-gap",
+        "publisherId": "通联数据（DataYes）",
+        "title": "集成电路产量当月同比取数失败记录",
+        "uri": "mcp://datayes_macro_mcp/get_macro_data/2090700332",
+        "publishedAt": "2026-08-11T02:40:00Z",
+        "businessTime": "2026-08-11T02:40:00Z",
+        "independentSourceGroup": "miit-via-datayes",
+        "statementNature": "fact",
+        "evidenceRole": "access_gap",
+        "accessStatus": "unavailable",
+        "locator": "$.code",
+        "quote": "INSUFFICIENT_CREDITS｜积分不足或扣减失败，请稍后重试",
+        "contentHash": "sha256:98bd5b8ca683adf3e461aafd080a167d61f6d9075d1a80e8313d1bf11e5bbb9e",
+        "supports": ["boundary:independent-corroboration-missing"],
+        "limitations": ["没有取得指标数值", "失败记录只证明访问缺口，不能证明行业基本面方向"]
+      }
+    ]
+  },
+  "systemArtifact": {
+    "ref": "",
+    "hash": "",
+    "frozenAt": "",
+    "sealedAdjudicationOpenedAt": ""
+  },
+  "sealedAdjudication": {
+    "ref": "",
+    "independenceMode": "pilot_manual",
+    "notAReferenceReport": true,
+    "frameworkRulesUsage": "boundary_check_only",
+    "routeA": { "modelId": "", "outputHash": "" },
+    "routeB": { "modelId": "", "outputHash": "" },
+    "coordinator": { "modelId": "", "outputHash": "" },
+    "coreClaims": [],
+    "strongestCounterevidence": [],
+    "prohibitedExpressions": [],
+    "updateScenarios": [],
+    "downstreamRequiredUnits": [],
+    "objectiveChecks": {
+      "numbersTimesObjectsSources": "required",
+      "minimumEvidenceExists": "required",
+      "cutoffEnforced": "required",
+      "forecastsNotFacts": "required"
+    }
+  },
+  "perturbations": [
+    { "kind": "delete_key_evidence", "ref": "candidate:delete-2026-05-or-2026-07", "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "expectedAction": "不得声称连续三个月下行；保留暂不可判断" },
+    { "kind": "replace_scope_or_metric", "ref": "candidate:replace-provider-sentiment-with-fundamentals", "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222", "expectedAction": "拒绝把研究衍生景气度偷换为行业基本面" },
+    { "kind": "inject_counterevidence", "ref": "candidate:inject-miit-output-growth", "hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333", "expectedAction": "若独立实物量上行，转为指标冲突并解释口径，不得维持单向转弱结论" },
+    { "kind": "move_information_cutoff", "ref": "candidate:cutoff-before-2026-07", "hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "expectedAction": "过滤7月观测，不得使用截止日后信息" }
+  ],
+  "baselines": {
+    "sameEvidenceDirect": { "ref": "", "hash": "" },
+    "sameEvidenceSummary": { "ref": "", "hash": "" }
+  },
+  "evaluationModels": {
+    "producerModelId": "",
+    "judges": [],
+    "downstream": []
+  }
+}

@@ -12,6 +12,15 @@ planning_hints:
   allow_parallel_evidence: true
   allow_replanning: false
 
+graph_prior:
+  motif_activation: reuse_existing_only
+  frontier_strategy: requested_evidence_gap
+  max_parallel_frontiers: bounded_by_runtime_budget
+  reuse_resolved_subgraphs: true
+  expand_competing_branches: false
+  replan_on: [requested_evidence_invalidated]
+  convergence: requested_evidence_requirements_resolved_or_blocked
+
 human_gates:
   - evidence_confirmation
 

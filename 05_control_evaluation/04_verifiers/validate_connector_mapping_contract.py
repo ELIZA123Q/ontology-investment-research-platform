@@ -15,6 +15,9 @@ PROFILES = ROOT / "01_semantic_knowledge/01_ontology/contracts/ontology_data_map
 B03 = ROOT / "03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md"
 HTSC_MAPPER = ROOT / "06_runtime/src/tools/htsc-industry-sentiment-mapper.ts"
 RUNTIME_CONTRACTS = ROOT / "06_runtime/src/contracts.ts"
+RUNTIME_STORE = ROOT / "06_runtime/src/runtime/store.ts"
+FINANCIAL_ADAPTER = ROOT / "06_runtime/src/tools/financial-data-adapter.ts"
+KERNEL = ROOT / "06_runtime/src/runtime/kernel.ts"
 
 
 def unique(items: list[dict], field: str, label: str) -> set[str]:
@@ -67,10 +70,19 @@ def main() -> int:
     contracts = RUNTIME_CONTRACTS.read_text(encoding="utf-8")
     if '"authorized_research_use"' not in contracts:
         raise AssertionError("Runtime SourceSnapshot lacks authorized_research_use permission scope")
+    store = RUNTIME_STORE.read_text(encoding="utf-8")
+    adapter = FINANCIAL_ADAPTER.read_text(encoding="utf-8")
+    kernel = KERNEL.read_text(encoding="utf-8")
+    if "CREATE TABLE IF NOT EXISTS connector_response_blobs" not in store or "getConnectorResponseBlobMetadata" not in store:
+        raise AssertionError("Runtime lacks a private connector response vault with metadata-only access")
+    if "providerResponse body does not match contentHash" not in adapter or "responseFingerprint" not in adapter:
+        raise AssertionError("financial adapter does not bind raw provider response to its fingerprint")
+    if "putConnectorResponseBlob" not in kernel or "providerResponseRef" not in kernel:
+        raise AssertionError("financial ingestion does not freeze provider responses or project their safe reference")
 
     print(
         f"CONNECTOR_MAPPING_CONTRACT_PASS: channels={len(channel_ids)}, "
-        f"active_profile_connectors={len(active_profile_connectors)}, htsc={htsc['runtime_status']}."
+        f"active_profile_connectors={len(active_profile_connectors)}, htsc={htsc['runtime_status']}, raw_vault=active."
     )
     return 0
 

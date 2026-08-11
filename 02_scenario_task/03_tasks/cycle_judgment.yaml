@@ -1,5 +1,5 @@
 schema_name: research_task_contract
-schema_version: 2.0.0
+schema_version: 3.0.0
 
 task_id: cycle_judgment
 name: 周期判断
@@ -41,6 +41,31 @@ completion_criteria:
 
 uncertainty_policy:
   allow_insufficient_evidence: true
+
+graph_motif:
+  root_question: cycle_question
+  judgment_unit_roles:
+    - {id: cycle_state, purpose: 判断当前周期位置, required: true}
+    - {id: direction, purpose: 判断周期变化方向, required: true}
+    - {id: drivers_and_constraints, purpose: 区分驱动变量与约束变量, required: true}
+    - {id: turning_point, purpose: 判断拐点及确认条件, required: true}
+    - {id: reversal_conditions, purpose: 登记反证与改判条件, required: true}
+  edges:
+    - {from: drivers_and_constraints, to: cycle_state, relation: informs}
+    - {from: drivers_and_constraints, to: direction, relation: informs}
+    - {from: cycle_state, to: turning_point, relation: requires}
+    - {from: direction, to: turning_point, relation: requires}
+    - {from: reversal_conditions, to: cycle_state, relation: challenges}
+    - {from: cycle_state, to: cycle_question, relation: aggregates}
+    - {from: direction, to: cycle_question, relation: aggregates}
+    - {from: turning_point, to: cycle_question, relation: aggregates}
+  competing_explanation_policy:
+    required_for: [cycle_state, turning_point]
+    minimum: 1
+  aggregation:
+    mode: required_units_with_explicit_block
+    required_units: [cycle_state, direction, drivers_and_constraints, turning_point, reversal_conditions]
+    allow_partial_with_gaps: true
 
 capability_requirements:
   - temporal_state_reasoning

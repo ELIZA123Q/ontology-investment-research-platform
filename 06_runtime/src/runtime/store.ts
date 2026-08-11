@@ -24,6 +24,9 @@ import type {
   Message,
   MemoryRecord,
   MiningRun,
+  ProblemGraphEdge,
+  ProblemGraphNode,
+  ResearchProblemGraph,
   RunEvent,
   RuntimeJobKind,
   Task,
@@ -52,6 +55,22 @@ const GLOBAL_AUTHORITY_REFS: AssetRef[] = [
   authorityRef,
 }));
 
+export interface ConnectorResponseBlobMetadata {
+  fingerprint: string;
+  connectorId: string;
+  operation: string;
+  byteLength: number;
+  permissionScope: string;
+  replayability: "replayable" | "time_sensitive" | "non_replayable";
+  usageRestriction: string;
+  riskDisclosure?: string;
+  capturedAt: string;
+}
+
+export interface ConnectorResponseBlobInput extends ConnectorResponseBlobMetadata {
+  body: string;
+}
+
 export function defaultDatabasePath(): string {
   return process.env.VNEXT_DB_PATH || resolve(process.cwd(), ".data/vnext.sqlite");
 }
@@ -70,6 +89,51 @@ export class RuntimeStore {
     this.db.close();
   }
 
+  putConnectorResponseBlob(input: ConnectorResponseBlobInput): ConnectorResponseBlobMetadata {
+    const calculated = `sha256:${createHash("sha256").update(input.body, "utf8").digest("hex")}`;
+    if (calculated !== input.fingerprint) throw new Error("connector response body does not match its fingerprint");
+    if (!input.connectorId.trim() || !input.operation.trim()) throw new Error("connector response identity is required");
+    if (!input.usageRestriction.trim()) throw new Error("connector response usage restriction is required");
+    if (Number.isNaN(Date.parse(input.capturedAt))) throw new Error("connector response capturedAt must be an ISO timestamp");
+    const byteLength = Buffer.byteLength(input.body, "utf8");
+    if (input.byteLength !== byteLength) throw new Error("connector response byte length mismatch");
+    const normalized = {
+      ...input,
+      connectorId: input.connectorId.trim(),
+      operation: input.operation.trim(),
+      usageRestriction: input.usageRestriction.trim(),
+      riskDisclosure: input.riskDisclosure?.trim() || undefined,
+      capturedAt: new Date(input.capturedAt).toISOString(),
+      byteLength,
+    };
+    const existing = this.getConnectorResponseBlobMetadata(input.fingerprint);
+    if (existing) {
+      const comparable = ({ fingerprint: hash, connectorId, operation, byteLength: bytes, permissionScope, replayability, usageRestriction, riskDisclosure, capturedAt }: ConnectorResponseBlobMetadata) =>
+        ({ fingerprint: hash, connectorId, operation, byteLength: bytes, permissionScope, replayability, usageRestriction, riskDisclosure, capturedAt });
+      if (json(comparable(existing)) !== json(comparable(normalized))) throw new Error("connector response fingerprint is already bound to different metadata");
+      return existing;
+    }
+    this.db.prepare(`INSERT INTO connector_response_blobs
+      (fingerprint,connector_id,operation,body,byte_length,permission_scope,replayability,usage_restriction,risk_disclosure,captured_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(normalized.fingerprint, normalized.connectorId, normalized.operation, normalized.body, normalized.byteLength,
+        normalized.permissionScope, normalized.replayability, normalized.usageRestriction, normalized.riskDisclosure || null, normalized.capturedAt);
+    return this.getConnectorResponseBlobMetadata(input.fingerprint)!;
+  }
+
+  getConnectorResponseBlobMetadata(fingerprintValue: string): ConnectorResponseBlobMetadata | null {
+    const row = this.db.prepare(`SELECT fingerprint,connector_id,operation,byte_length,permission_scope,replayability,
+      usage_restriction,risk_disclosure,captured_at FROM connector_response_blobs WHERE fingerprint=?`).get(fingerprintValue) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    return {
+      fingerprint: String(row.fingerprint), connectorId: String(row.connector_id), operation: String(row.operation),
+      byteLength: Number(row.byte_length), permissionScope: String(row.permission_scope),
+      replayability: String(row.replayability) as ConnectorResponseBlobMetadata["replayability"],
+      usageRestriction: String(row.usage_restriction), riskDisclosure: row.risk_disclosure ? String(row.risk_disclosure) : undefined,
+      capturedAt: String(row.captured_at),
+    };
+  }
+
   private migrate(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS conversations (
@@ -85,7 +149,23 @@ export class RuntimeStore {
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), kind TEXT NOT NULL, title TEXT NOT NULL,
         capability_type TEXT NOT NULL, capability_id TEXT NOT NULL, assigned_agent TEXT NOT NULL, depends_on_json TEXT NOT NULL,
         status TEXT NOT NULL, budget_json TEXT NOT NULL, input_artifact_ids_json TEXT NOT NULL,
-        output_artifact_ids_json TEXT NOT NULL
+        output_artifact_ids_json TEXT NOT NULL, frontier_ref_json TEXT NOT NULL DEFAULT '{}', iteration INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS problem_graphs (
+        id TEXT PRIMARY KEY, task_id TEXT UNIQUE NOT NULL REFERENCES tasks(id), research_case_id TEXT NOT NULL,
+        version INTEGER NOT NULL, status TEXT NOT NULL, intent_refs_json TEXT NOT NULL, scenario_refs_json TEXT NOT NULL,
+        task_motif_refs_json TEXT NOT NULL, fingerprint TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS problem_graph_nodes (
+        id TEXT PRIMARY KEY, graph_id TEXT NOT NULL REFERENCES problem_graphs(id), node_key TEXT NOT NULL,
+        type TEXT NOT NULL, title TEXT NOT NULL, state TEXT NOT NULL, required INTEGER NOT NULL,
+        motif_ref TEXT, semantic_ref TEXT, payload_json TEXT NOT NULL, resolved_artifact_ids_json TEXT NOT NULL,
+        freshness_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(graph_id, node_key)
+      );
+      CREATE TABLE IF NOT EXISTS problem_graph_edges (
+        id TEXT PRIMARY KEY, graph_id TEXT NOT NULL REFERENCES problem_graphs(id), from_node_id TEXT NOT NULL REFERENCES problem_graph_nodes(id),
+        to_node_id TEXT NOT NULL REFERENCES problem_graph_nodes(id), relation TEXT NOT NULL, payload_json TEXT NOT NULL,
+        UNIQUE(graph_id, from_node_id, to_node_id, relation)
       );
       CREATE TABLE IF NOT EXISTS artifacts (
         id TEXT NOT NULL, version INTEGER NOT NULL, conversation_id TEXT NOT NULL REFERENCES conversations(id),
@@ -124,6 +204,12 @@ export class RuntimeStore {
       CREATE TABLE IF NOT EXISTS model_call_cache (
         fingerprint TEXT PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL,
         result_json TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS connector_response_blobs (
+        fingerprint TEXT PRIMARY KEY, connector_id TEXT NOT NULL, operation TEXT NOT NULL,
+        body TEXT NOT NULL, byte_length INTEGER NOT NULL, permission_scope TEXT NOT NULL,
+        replayability TEXT NOT NULL, usage_restriction TEXT NOT NULL, risk_disclosure TEXT,
+        captured_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS knowledge_locks (
         id TEXT PRIMARY KEY, task_id TEXT UNIQUE NOT NULL REFERENCES tasks(id), scope_json TEXT NOT NULL,
@@ -206,6 +292,7 @@ export class RuntimeStore {
       CREATE INDEX IF NOT EXISTS task_nodes_task_status ON task_nodes(task_id, status);
       CREATE INDEX IF NOT EXISTS artifacts_task_kind ON artifacts(task_id, kind);
       CREATE INDEX IF NOT EXISTS runtime_jobs_claim ON runtime_jobs(status, available_at);
+      CREATE INDEX IF NOT EXISTS connector_response_blobs_connector ON connector_response_blobs(connector_id, operation, captured_at);
       CREATE INDEX IF NOT EXISTS asset_candidates_status_risk ON asset_candidates(status, risk_level, updated_at);
       CREATE INDEX IF NOT EXISTS asset_candidates_identity ON asset_candidates(identity_key, asset_kind);
       CREATE INDEX IF NOT EXISTS asset_revisions_lookup ON asset_revisions(asset_id, version DESC);
@@ -223,6 +310,8 @@ export class RuntimeStore {
     this.ensureColumn("asset_releases", "rollback_of_release_id", "TEXT");
     this.ensureColumn("tasks", "research_case_id", "TEXT NOT NULL DEFAULT ''");
     this.ensureColumn("tasks", "report_spec_json", "TEXT NOT NULL DEFAULT '{}'");
+    this.ensureColumn("task_nodes", "frontier_ref_json", "TEXT NOT NULL DEFAULT '{}'");
+    this.ensureColumn("task_nodes", "iteration", "INTEGER NOT NULL DEFAULT 0");
     try {
       this.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS research_fts USING fts5(ref_id UNINDEXED, kind UNINDEXED, title, body);`);
     } catch {
@@ -300,10 +389,12 @@ export class RuntimeStore {
   }
 
   addTaskNodes(nodes: TaskNode[]): void {
-    const insert = this.db.prepare("INSERT INTO task_nodes VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    const insert = this.db.prepare(`INSERT INTO task_nodes
+      (id,task_id,kind,title,capability_type,capability_id,assigned_agent,depends_on_json,status,budget_json,input_artifact_ids_json,output_artifact_ids_json,frontier_ref_json,iteration)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      for (const n of nodes) insert.run(n.id, n.taskId, n.kind, n.title, n.capabilityType, n.capabilityId, n.assignedAgent, json(n.dependsOn), n.status, json(n.budget), json(n.inputArtifactIds), json(n.outputArtifactIds));
+      for (const n of nodes) insert.run(n.id, n.taskId, n.kind, n.title, n.capabilityType, n.capabilityId, n.assignedAgent, json(n.dependsOn), n.status, json(n.budget), json(n.inputArtifactIds), json(n.outputArtifactIds), json(n.frontierRef), n.iteration);
       this.db.exec("COMMIT");
     } catch (error) {
       this.db.exec("ROLLBACK");
@@ -326,6 +417,56 @@ export class RuntimeStore {
     const next = { ...current, ...patch };
     this.db.prepare("UPDATE task_nodes SET status = ?, input_artifact_ids_json = ?, output_artifact_ids_json = ? WHERE id = ?")
       .run(next.status, json(next.inputArtifactIds), json(next.outputArtifactIds), id);
+  }
+
+  createProblemGraph(input: Omit<ResearchProblemGraph, "id" | "version" | "fingerprint" | "createdAt" | "updatedAt"> & { id?: string }): ResearchProblemGraph {
+    const stamp = now();
+    const graph: ResearchProblemGraph = {
+      ...input,
+      id: input.id || randomUUID(),
+      version: 1,
+      fingerprint: fingerprint({ taskId: input.taskId, researchCaseId: input.researchCaseId, intentRefs: input.intentRefs, scenarioRefs: input.scenarioRefs, taskMotifRefs: input.taskMotifRefs, nodes: input.nodes, edges: input.edges }),
+      createdAt: stamp,
+      updatedAt: stamp,
+    };
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      this.db.prepare(`INSERT INTO problem_graphs
+        (id,task_id,research_case_id,version,status,intent_refs_json,scenario_refs_json,task_motif_refs_json,fingerprint,created_at,updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(graph.id, graph.taskId, graph.researchCaseId, graph.version, graph.status, json(graph.intentRefs), json(graph.scenarioRefs), json(graph.taskMotifRefs), graph.fingerprint, stamp, stamp);
+      const insertNode = this.db.prepare(`INSERT INTO problem_graph_nodes
+        (id,graph_id,node_key,type,title,state,required,motif_ref,semantic_ref,payload_json,resolved_artifact_ids_json,freshness_at,created_at,updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (const node of graph.nodes) insertNode.run(node.id, graph.id, node.key, node.type, node.title, node.state, node.required ? 1 : 0, node.motifRef ?? null, node.semanticRef ?? null, json(node.payload), json(node.resolvedArtifactIds), node.freshnessAt ?? null, node.createdAt || stamp, node.updatedAt || stamp);
+      const insertEdge = this.db.prepare("INSERT INTO problem_graph_edges (id,graph_id,from_node_id,to_node_id,relation,payload_json) VALUES (?, ?, ?, ?, ?, ?)");
+      for (const edge of graph.edges) insertEdge.run(edge.id, graph.id, edge.fromNodeId, edge.toNodeId, edge.relation, json(edge.payload));
+      this.db.exec("COMMIT");
+      return graph;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  getProblemGraph(taskId: string): ResearchProblemGraph | null {
+    const row = this.db.prepare("SELECT * FROM problem_graphs WHERE task_id=?").get(taskId) as Record<string, unknown> | undefined;
+    if (!row) return null;
+    const graphId = String(row.id);
+    const nodes = (this.db.prepare("SELECT * FROM problem_graph_nodes WHERE graph_id=? ORDER BY rowid").all(graphId) as Record<string, unknown>[]).map(this.mapProblemGraphNode);
+    const edges = (this.db.prepare("SELECT * FROM problem_graph_edges WHERE graph_id=? ORDER BY rowid").all(graphId) as Record<string, unknown>[]).map(this.mapProblemGraphEdge);
+    return { id: graphId, taskId: String(row.task_id), researchCaseId: String(row.research_case_id), version: Number(row.version), status: row.status as ResearchProblemGraph["status"], intentRefs: parse(row.intent_refs_json, []), scenarioRefs: parse(row.scenario_refs_json, []), taskMotifRefs: parse(row.task_motif_refs_json, []), fingerprint: String(row.fingerprint), nodes, edges, createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  }
+
+  updateProblemGraphNode(id: string, patch: Partial<Pick<ProblemGraphNode, "state" | "semanticRef" | "payload" | "resolvedArtifactIds" | "freshnessAt">>): ProblemGraphNode {
+    const row = this.db.prepare("SELECT * FROM problem_graph_nodes WHERE id=?").get(id) as Record<string, unknown> | undefined;
+    if (!row) throw new Error(`Problem graph node not found: ${id}`);
+    const current = this.mapProblemGraphNode(row);
+    const next = { ...current, ...patch, updatedAt: now() };
+    this.db.prepare("UPDATE problem_graph_nodes SET state=?,semantic_ref=?,payload_json=?,resolved_artifact_ids_json=?,freshness_at=?,updated_at=? WHERE id=?")
+      .run(next.state, next.semanticRef ?? null, json(next.payload), json(next.resolvedArtifactIds), next.freshnessAt ?? null, next.updatedAt, id);
+    this.db.prepare("UPDATE problem_graphs SET version=version+1, updated_at=? WHERE id=?").run(next.updatedAt, next.graphId);
+    return next;
   }
 
   putArtifact<T>(input: Omit<Artifact<T>, "id" | "version" | "createdAt"> & { id?: string }): Artifact<T> {
@@ -1000,7 +1141,18 @@ export class RuntimeStore {
     status: r.status as Conversation["status"], createdAt: String(r.created_at), updatedAt: String(r.updated_at),
   });
   private mapTask = (r: Record<string, unknown>): Task => ({ id: String(r.id), conversationId: String(r.conversation_id), researchCaseId: r.research_case_id ? String(r.research_case_id) : String(r.id), parentTaskId: r.parent_task_id ? String(r.parent_task_id) : undefined, goal: String(r.goal), intent: r.intent as Task["intent"], reportSpec: normalizeReportSpec(parse(r.report_spec_json, {})), status: r.status as Task["status"], budget: parse(r.budget_json, { maxModelCalls: 0, maxToolCalls: 0, maxCostUsd: 0 }), createdAt: String(r.created_at), updatedAt: String(r.updated_at) });
-  private mapNode = (r: Record<string, unknown>): TaskNode => ({ id: String(r.id), taskId: String(r.task_id), kind: String(r.kind), title: String(r.title), capabilityType: r.capability_type as TaskNode["capabilityType"], capabilityId: String(r.capability_id), assignedAgent: r.assigned_agent as TaskNode["assignedAgent"], dependsOn: parse(r.depends_on_json, []), status: r.status as TaskNode["status"], budget: parse(r.budget_json, {}), inputArtifactIds: parse(r.input_artifact_ids_json, []), outputArtifactIds: parse(r.output_artifact_ids_json, []) });
+  private mapNode = (r: Record<string, unknown>): TaskNode => ({ id: String(r.id), taskId: String(r.task_id), kind: String(r.kind), title: String(r.title), capabilityType: r.capability_type as TaskNode["capabilityType"], capabilityId: String(r.capability_id), assignedAgent: r.assigned_agent as TaskNode["assignedAgent"], dependsOn: parse(r.depends_on_json, []), status: r.status as TaskNode["status"], budget: parse(r.budget_json, {}), inputArtifactIds: parse(r.input_artifact_ids_json, []), outputArtifactIds: parse(r.output_artifact_ids_json, []), frontierRef: parse(r.frontier_ref_json, { problemGraphId: `problem-graph:${String(r.task_id)}` }), iteration: Number(r.iteration || 0) });
+  private mapProblemGraphNode = (r: Record<string, unknown>): ProblemGraphNode => ({
+    id: String(r.id), graphId: String(r.graph_id), key: String(r.node_key), type: r.type as ProblemGraphNode["type"],
+    title: String(r.title), state: r.state as ProblemGraphNode["state"], required: Boolean(r.required),
+    motifRef: r.motif_ref ? String(r.motif_ref) : undefined, semanticRef: r.semantic_ref ? String(r.semantic_ref) : undefined,
+    payload: parse<Record<string, unknown>>(r.payload_json, {}), resolvedArtifactIds: parse<string[]>(r.resolved_artifact_ids_json, []),
+    freshnessAt: r.freshness_at ? String(r.freshness_at) : undefined, createdAt: String(r.created_at), updatedAt: String(r.updated_at),
+  });
+  private mapProblemGraphEdge = (r: Record<string, unknown>): ProblemGraphEdge => ({
+    id: String(r.id), graphId: String(r.graph_id), fromNodeId: String(r.from_node_id), toNodeId: String(r.to_node_id),
+    relation: r.relation as ProblemGraphEdge["relation"], payload: parse<Record<string, unknown>>(r.payload_json, {}),
+  });
   private mapArtifact = (r: Record<string, unknown>): Artifact => ({ id: String(r.id), version: Number(r.version), conversationId: String(r.conversation_id), taskId: String(r.task_id), nodeId: r.node_id ? String(r.node_id) : undefined, kind: r.kind as Artifact["kind"], title: String(r.title), status: r.status as Artifact["status"], data: parse(r.data_json, {}), sourceRefs: parse(r.source_refs_json, []), createdBy: String(r.created_by), createdAt: String(r.created_at) });
   private mapApproval = (r: Record<string, unknown>): ApprovalRequest => ({ id: String(r.id), conversationId: String(r.conversation_id), taskId: String(r.task_id), nodeId: r.node_id ? String(r.node_id) : undefined, kind: r.kind as ApprovalRequest["kind"], prompt: String(r.prompt), status: r.status as ApprovalRequest["status"], decisionNote: r.decision_note ? String(r.decision_note) : undefined, createdAt: String(r.created_at), decidedAt: r.decided_at ? String(r.decided_at) : undefined });
 }

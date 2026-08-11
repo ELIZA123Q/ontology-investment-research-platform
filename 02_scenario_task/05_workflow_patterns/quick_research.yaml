@@ -15,6 +15,15 @@ planning_hints:
   allow_parallel_evidence: false
   allow_replanning: true
 
+graph_prior:
+  motif_activation: minimum_decision_relevant_set
+  frontier_strategy: dependency_unlock_then_decision_relevance
+  max_parallel_frontiers: 1
+  reuse_resolved_subgraphs: true
+  expand_competing_branches: only_for_core_judgment
+  replan_on: [decisive_contradiction, critical_invalidation]
+  convergence: core_required_units_resolved_or_explicit_indeterminate
+
 human_gates:
   - judgment_confirmation
   - publish_confirmation

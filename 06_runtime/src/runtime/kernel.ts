@@ -116,6 +116,17 @@ export class AgentKernel {
     const task = this.requireTask(taskId);
     this.assertEvidenceIngestionAllowed(task);
     const adapted = adaptFinancialDataResult(input);
+    const providerResponseRef = input.providerResponse && adapted.providerResponse
+      ? this.store.putConnectorResponseBlob({
+        ...adapted.providerResponse,
+        body: input.providerResponse.body,
+        fingerprint: adapted.providerResponse.contentHash,
+        connectorId: input.connectorId,
+        operation: input.operation,
+        permissionScope: input.permissionScope,
+        capturedAt: input.retrievedAt,
+      })
+      : undefined;
     const ingestionKey = requestFingerprint(input.connectorId, input.operation, { asOf: adapted.asOf, snapshots: adapted.observations.map((item) => item.source.snapshot.contentHash) });
     const existing = this.store.listArtifacts(task.id).find((artifact) => artifact.kind === "evidence_package" && (artifact.data as { ingestionKey?: string }).ingestionKey === ingestionKey);
     if (existing) return existing;
@@ -170,10 +181,10 @@ export class AgentKernel {
     const sourceRefs = captured.map(({ snapshot }) => this.sources.toSourceReference(snapshot));
     const artifact = this.store.putArtifact({
       conversationId: task.conversationId, taskId: task.id, kind: "evidence_package", title: "结构化金融数据", status: "verified",
-      data: { ingestionKey, connectorId: input.connectorId, operation: input.operation, entity: adapted.entity, asOf: adapted.asOf, facts }, sourceRefs, createdBy: input.connectorId,
+      data: { ingestionKey, connectorId: input.connectorId, operation: input.operation, entity: adapted.entity, asOf: adapted.asOf, providerResponseRef, facts }, sourceRefs, createdBy: input.connectorId,
     });
     for (const fact of facts) this.provenance.addEdge(fact.id, artifact.id, "included_in");
-    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "financial.data_ingested", actorType: "system", actorId: input.connectorId, payload: { artifactId: artifact.id, entity: adapted.entity, asOf: adapted.asOf, factIds: facts.map((fact) => fact.id), ontologyFactRefs: facts.map((fact) => fact.ontologyFactRef) } });
+    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "financial.data_ingested", actorType: "system", actorId: input.connectorId, payload: { artifactId: artifact.id, entity: adapted.entity, asOf: adapted.asOf, responseFingerprint: providerResponseRef?.fingerprint, factIds: facts.map((fact) => fact.id), ontologyFactRefs: facts.map((fact) => fact.ontologyFactRef) } });
     this.queueEvidenceRecompute(task, "evidence_evaluation", artifact.id);
     return artifact;
   }

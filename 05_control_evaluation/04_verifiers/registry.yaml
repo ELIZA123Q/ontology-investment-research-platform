@@ -9,6 +9,7 @@ authority:
 
 entrypoints:
   - 05_control_evaluation/04_verifiers/validate_project.py
+  - 05_control_evaluation/04_verifiers/validate_scenario_task_graph.py
   - 05_control_evaluation/04_verifiers/ontology/validate_ontology.py
   - 05_control_evaluation/04_verifiers/validate_rule_authority.py
   - 05_control_evaluation/04_verifiers/validate_method_assets.py

@@ -18,6 +18,7 @@ required_result_fields:
   entity: [id, name]
   upstream: [sourceId, uri, title, sourceType]
   observation: [metricId, metricName, value, unit, businessTime, basis, locator]
+  authorized_provider_response_when_present: [body, contentHash, replayability, usageRestriction]
 
 value_bases:
   reported: 已披露且未经后续重述的报告值
@@ -43,6 +44,7 @@ deterministic_gates:
   - 同一 metricId、businessTime、dimensions 在一个结果中唯一
   - 每条 Observation 生成可定位的规范化 statement，并保持 connector 与 upstream publisher 分离
   - 规范化结果必须继续通过 SourceSnapshot 和 EvidenceFact verifier，不得直接写 Judgment
+  - providerResponse 正文必须与 contentHash 和 requestParameters.responseFingerprint 一致，并私密冻结；证据包和事件只能投影元数据
 
 promotion_path:
   - FinancialDataToolResult
@@ -65,6 +67,7 @@ runtime_mapping:
   htsc_profile: htsc_industry_sentiment_observation@1.0.0
   common_source_boundary: 06_runtime/src/tools/source-result-adapter.ts
   provenance_store: 06_runtime/src/semantic/provenance-store.ts
+  licensed_response_vault: 06_runtime/src/runtime/store.ts#connector_response_blobs
   verifier: 06_runtime/src/governance/provenance-verifier.ts
   tool_manifest: 06_runtime/src/capabilities/registry.ts#source.query
 

@@ -1,5 +1,5 @@
 schema_name: research_task_contract
-schema_version: 2.0.0
+schema_version: 3.0.0
 
 task_id: value_chain_analysis
 name: 产业链分析
@@ -41,6 +41,31 @@ completion_criteria:
 
 uncertainty_policy:
   allow_insufficient_evidence: true
+
+graph_motif:
+  root_question: value_chain_question
+  judgment_unit_roles:
+    - {id: structure_map, purpose: 识别关键节点与依赖方向, required: true}
+    - {id: bottlenecks, purpose: 区分名义供给与有效供给并识别瓶颈, required: true}
+    - {id: transmission_paths, purpose: 判断冲击如何沿依赖网络传递, required: true}
+    - {id: impact_direction, purpose: 判断关键对象的影响方向, required: true}
+    - {id: reversal_conditions, purpose: 登记反证与改判条件, required: true}
+  edges:
+    - {from: structure_map, to: bottlenecks, relation: informs}
+    - {from: structure_map, to: transmission_paths, relation: requires}
+    - {from: bottlenecks, to: transmission_paths, relation: informs}
+    - {from: transmission_paths, to: impact_direction, relation: requires}
+    - {from: reversal_conditions, to: impact_direction, relation: challenges}
+    - {from: structure_map, to: value_chain_question, relation: aggregates}
+    - {from: bottlenecks, to: value_chain_question, relation: aggregates}
+    - {from: impact_direction, to: value_chain_question, relation: aggregates}
+  competing_explanation_policy:
+    required_for: [bottlenecks, transmission_paths, impact_direction]
+    minimum: 1
+  aggregation:
+    mode: structure_path_and_impact_required
+    required_units: [structure_map, bottlenecks, transmission_paths, impact_direction, reversal_conditions]
+    allow_partial_with_gaps: true
 
 capability_requirements:
   - structural_dependency_reasoning

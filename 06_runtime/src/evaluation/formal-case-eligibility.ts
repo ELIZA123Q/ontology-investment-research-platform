@@ -4,6 +4,8 @@ import type { FormalEvaluationPrerequisites } from "@/src/evaluation/report-qual
 export type FormalEvaluationStratum = "report_value" | "restraint";
 export type PerturbationKind = "delete_key_evidence" | "replace_scope_or_metric" | "inject_counterevidence" | "move_information_cutoff";
 export type CalibrationLevel = "C0" | "C1" | "C2" | "C3";
+export type FormalEvidenceRole = "substantive" | "access_gap" | "boundary";
+export type FormalEvidenceAccessStatus = "retrieved" | "metadata_only" | "unavailable";
 
 interface FrozenRef { ref: string; hash: string; }
 
@@ -28,6 +30,8 @@ export interface FormalEvaluationCaseManifest {
       businessTime: string;
       independentSourceGroup: string;
       statementNature: "fact" | "measurement" | "forecast" | "interpretation";
+      evidenceRole: FormalEvidenceRole;
+      accessStatus: FormalEvidenceAccessStatus;
       locator: string;
       quote: string;
       contentHash: string;
@@ -101,6 +105,10 @@ function canonicalize(value: unknown): string {
   return JSON.stringify(value);
 }
 
+export function hashFormalEvidenceBundle(evidence: FormalEvaluationCaseManifest["evidenceBundle"]["evidence"]): string {
+  return sha256(canonicalize(evidence));
+}
+
 function check(id: string, passed: boolean, note: string): FormalEligibilityCheck {
   return { id, passed, note };
 }
@@ -113,14 +121,27 @@ export function evaluateFormalCaseEligibility(manifest: FormalEvaluationCaseMani
   const judgeIds = manifest.evaluationModels.judges.map((item) => item.modelId);
   const downstreamIds = manifest.evaluationModels.downstream.map((item) => item.modelId);
   const perturbationKinds = new Set(manifest.perturbations.map((item) => item.kind));
+  const substantiveEvidence = manifest.evidenceBundle.evidence.filter((item) => item.evidenceRole === "substantive" && item.accessStatus === "retrieved");
+  const accessGaps = manifest.evidenceBundle.evidence.filter((item) => item.evidenceRole === "access_gap" && item.accessStatus === "unavailable");
+  const substantiveSourceGroups = new Set(substantiveEvidence.map((item) => item.independentSourceGroup));
+  const allSourceGroups = new Set(manifest.evidenceBundle.evidence.map((item) => item.independentSourceGroup));
+  const accessGapsOnlySupportBoundaries = accessGaps.every((item) => item.supports.every((support) => support.startsWith("boundary:")));
+  const evidenceRoleCoherent = manifest.evidenceBundle.evidence.every((item) => (
+    (item.evidenceRole === "substantive" && item.accessStatus === "retrieved")
+    || (item.evidenceRole === "access_gap" && item.accessStatus === "unavailable")
+    || (item.evidenceRole === "boundary" && ["retrieved", "metadata_only"].includes(item.accessStatus))
+  ));
 
   const checks: FormalEligibilityCheck[] = [
     check("task_input", nonEmpty(manifest.caseId) && nonEmpty(manifest.taskInput.question) && manifest.taskInput.subjectScope.length > 0 && manifest.taskInput.subjectScope.every(nonEmpty) && isTime(manifest.taskInput.informationCutoff) && nonEmpty(manifest.taskInput.allowedEndpoint), "公开任务输入包含问题、对象、截止日和允许终点。"),
     check("frozen_hashes", [manifest.evidenceBundle.hash, manifest.systemArtifact.hash, manifest.baselines.sameEvidenceDirect.hash, manifest.baselines.sameEvidenceSummary.hash].every(isHash), "证据、系统产物和两份同证据基线均使用 SHA-256 冻结。"),
+    check("evidence_bundle_integrity", isTime(manifest.evidenceBundle.frozenAt) && manifest.evidenceBundle.hash === hashFormalEvidenceBundle(manifest.evidenceBundle.evidence), "证据包哈希必须由规范化证据清单重新计算通过。"),
+    check("evidence_before_artifact", isTime(manifest.evidenceBundle.frozenAt) && isTime(manifest.systemArtifact.frozenAt) && Date.parse(manifest.evidenceBundle.frozenAt) <= Date.parse(manifest.systemArtifact.frozenAt), "证据包在系统产物之前或同时冻结。"),
     check("freeze_before_seal", isTime(manifest.systemArtifact.frozenAt) && isTime(manifest.systemArtifact.sealedAdjudicationOpenedAt) && Date.parse(manifest.systemArtifact.frozenAt) < Date.parse(manifest.systemArtifact.sealedAdjudicationOpenedAt), "系统产物在打开密封裁决前冻结。"),
-    check("evidence_contract", manifest.evidenceBundle.evidence.length >= 3 && evidenceIds.size === manifest.evidenceBundle.evidence.length && manifest.evidenceBundle.evidence.every((item) => nonEmpty(item.publisherId) && nonEmpty(item.title) && /^https?:\/\//u.test(item.uri) && isTime(item.publishedAt) && isTime(item.businessTime) && nonEmpty(item.independentSourceGroup) && nonEmpty(item.locator) && nonEmpty(item.quote) && isHash(item.contentHash) && item.supports.length > 0 && item.limitations.length > 0), "冻结证据至少三条且具备发布者、定位、摘录、哈希、支持点和限制点。"),
+    check("evidence_contract", manifest.evidenceBundle.evidence.length >= 3 && evidenceIds.size === manifest.evidenceBundle.evidence.length && evidenceRoleCoherent && manifest.evidenceBundle.evidence.every((item) => nonEmpty(item.publisherId) && nonEmpty(item.title) && /^(?:https?|mcp):\/\//u.test(item.uri) && isTime(item.publishedAt) && isTime(item.businessTime) && nonEmpty(item.independentSourceGroup) && nonEmpty(item.locator) && nonEmpty(item.quote) && isHash(item.contentHash) && item.supports.length > 0 && item.supports.every(nonEmpty) && item.limitations.length > 0), "冻结证据至少三条；MCP URI、支持点、证据角色与访问状态必须自洽。"),
     check("cutoff", Number.isFinite(cutoff) && manifest.evidenceBundle.evidence.every((item) => Date.parse(item.publishedAt) <= cutoff), "全部证据发布时间不晚于研究截止日。"),
-    check("independent_sources", new Set(manifest.evidenceBundle.evidence.map((item) => item.independentSourceGroup)).size >= 2, "冻结包至少包含两个独立来源组。"),
+    check("independent_sources", manifest.stratum === "report_value" ? substantiveSourceGroups.size >= 2 : substantiveSourceGroups.size >= 1 && allSourceGroups.size >= 2, manifest.stratum === "report_value" ? "报告价值案例至少包含两个已取回的实质证据来源组；访问失败不能伪装成独立佐证。" : "克制案例至少包含一个已取回实质来源和一个不同来源组的受审计边界或缺口。"),
+    check("stratum_evidence_boundary", manifest.stratum === "report_value" ? substantiveEvidence.length >= 3 : substantiveEvidence.length >= 1 && accessGaps.length >= 1 && accessGapsOnlySupportBoundaries, manifest.stratum === "report_value" ? "报告价值案例至少三条实质证据。" : "克制案例必须含真实访问缺口，且缺口只能支持边界判断，不能支持价值结论。"),
     check("dual_route_seal", manifest.sealedAdjudication.independenceMode === "dual_route_independent" && manifest.sealedAdjudication.notAReferenceReport && manifest.sealedAdjudication.frameworkRulesUsage === "boundary_check_only" && new Set(routes).size === 3 && [manifest.sealedAdjudication.routeA.outputHash, manifest.sealedAdjudication.routeB.outputHash, manifest.sealedAdjudication.coordinator.outputHash].every(isHash), "密封裁决由三个相互独立模型角色生成，体系规则只做边界检查。"),
     check("core_claims", manifest.sealedAdjudication.coreClaims.length >= 3 && manifest.sealedAdjudication.coreClaims.length <= 7 && claimIds.size === manifest.sealedAdjudication.coreClaims.length && manifest.sealedAdjudication.coreClaims.some((item) => item.criticality === "primary") && manifest.sealedAdjudication.coreClaims.every((item) => nonEmpty(item.statement) && nonEmpty(item.strengthCeiling) && item.minimumEvidenceBasket.length > 0 && item.minimumEvidenceBasket.every((id) => evidenceIds.has(id))), "密封裁决含 3—7 条核心判断，且最低证据篮子真实存在。"),
     check("counter_and_updates", manifest.sealedAdjudication.strongestCounterevidence.length > 0 && manifest.sealedAdjudication.prohibitedExpressions.length > 0 && manifest.sealedAdjudication.updateScenarios.length >= 2 && manifest.sealedAdjudication.updateScenarios.every((item) => item.affectedClaimIds.length > 0 && item.affectedClaimIds.every((id) => claimIds.has(id))) && manifest.sealedAdjudication.downstreamRequiredUnits.length > 0, "最强反证、禁止表达、至少两个更新场景和下游必需单元齐全。"),

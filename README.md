@@ -1,6 +1,6 @@
 # 投研判断工作台
 
-面向专业研究员的 AI 原生投研工作台。系统把研究目标转成受约束的任务图，沉淀可核验的证据、竞争解释、正式判断和可编辑交付物；证据不足时明确降级为「暂不可判断」，不会用流畅表达掩盖证据缺口。
+面向专业研究员的 AI 原生投研工作台。目标架构把研究目标展开成可分支、可合流、可失效传播的 Research Problem Graph，再把当前未解决 frontier 编译成受约束的 Execution TaskGraph；运行结果沉淀为可核验的证据、竞争解释、正式判断和可编辑交付物。证据不足时明确降级为「暂不可判断」，不会用流畅表达掩盖证据缺口。当前 Runtime 已执行 TaskGraph，Problem Graph 的完整运行时物化仍按 `02_scenario_task` 合同逐步接入。
 
 ## 产品原则
 
@@ -27,7 +27,7 @@ npm run dev
 | 目录 | 人话 |
 |---|---|
 | [`01_semantic_knowledge/`](01_semantic_knowledge/README.md) | 世界里有什么：概念、词典、证据语义 |
-| [`02_scenario_task/`](02_scenario_task/README.md) | 现在要完成什么：意图、场景、任务、角色 |
+| [`02_scenario_task/`](02_scenario_task/README.md) | 现在要解决什么：研究问题图、意图、场景、任务 motif、角色 |
 | [`03_agent_capability/`](03_agent_capability/README.md) | 靠什么完成：Agent / Skill / Tool / Protocol |
 | [`04_context_state/`](04_context_state/README.md) | 现在看见什么、做到哪里、记住什么、正在操作什么 |
 | [`05_control_evaluation/`](05_control_evaluation/README.md) | 什么能做、什么算合格 |
@@ -37,4 +37,4 @@ npm run dev
 
 ## 当前成熟度
 
-已具备本地持久化、受约束规划、证据溯源、结构化审批、报告审计、知识沉淀控制面和可信前端。现有华泰智研 MCP 的半导体行业景气度已完成真实调用与受授权 Runtime 映射；DataYes 财务表当前因积分不足未取得样本，其他实时网页/PDF/金融数据仍需继续映射。正式研究价值评测必须满足独立密封裁决、扰动集、模型隔离和同证据基线，不以运行时自检冒充研究质量分数。
+已具备本地持久化、受约束规划、证据溯源、结构化审批、报告审计、知识沉淀控制面和可信前端。现有华泰智研 MCP 的半导体行业景气度已完成真实调用、受授权 Runtime 映射和原始响应私密冻结；研报、事件、前端与模型只接收指纹和许可边界。DataYes 财务表当前因积分不足未取得样本，其他实时网页/PDF/金融数据仍需继续映射。正式研究价值评测必须满足独立密封裁决、扰动集、模型隔离和同证据基线，不以运行时自检冒充研究质量分数。

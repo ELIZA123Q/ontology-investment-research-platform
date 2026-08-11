@@ -28,6 +28,7 @@ invariants:
   - 未保存 body、locator、quote、content_hash 和 captured_at 的对象不是 SourceSnapshot。
   - Connector 只说明如何获取数据；upstream_source_id 与 publisher_id 才说明谁生产了来源，不得把 MCP 或 API 当成发布主体。
   - 外部 Tool 结果必须记录请求参数指纹、原始响应哈希与获取时间；raw_response_hash 必须能复核捕获正文。
+  - 授权 MCP 的供应商原始响应必须进入私密响应库；Artifact、Event、前端与模型只可接收指纹、许可、字节数、回放属性和风险限制，不得接收原文。
   - quote 必须能在捕获 body 中逐字定位，content_hash 必须与 body 一致。
   - restricted 权限的快照不能晋级 EvidenceFact；authorized_research_use 只允许在授权研究环境内晋级和引用。
   - EvidenceFact 的 verified 仅表示晋级链可重复验证；研究可信度仍由证据评估和 Eval 判断。
@@ -39,6 +40,7 @@ runtime_mapping:
   contracts: 06_runtime/src/contracts.ts
   semantic_gateway: 06_runtime/src/semantic/local-gateway.ts
   provenance_store: 06_runtime/src/semantic/provenance-store.ts
+  licensed_response_vault: 06_runtime/src/runtime/store.ts#connector_response_blobs
   source_adapter: 06_runtime/src/tools/local-source-gateway.ts
   unified_tool_result_adapter: 06_runtime/src/tools/source-result-adapter.ts
   deterministic_verifier: 06_runtime/src/governance/provenance-verifier.ts

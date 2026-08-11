@@ -1,5 +1,5 @@
 schema_name: research_intent_types
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 authority: 02_scenario_task/01_intents
 description: |
@@ -11,13 +11,33 @@ intent_types:
     label_zh: 投研判断
     definition: 围绕标的、行业或事件形成可审计的投资相关判断
     typical_tasks: [cycle_judgment, event_impact, company_analysis, technology_route_analysis, value_chain_analysis]
+    graph_policy:
+      activation: compose_relevant_task_motifs
+      allow_multiple_tasks: true
+      initial_frontier: unresolved_required_judgment_units
+      stop_basis: task_completion_criteria_and_graph_coverage
   evidence_audit:
     label_zh: 证据审计
     definition: 用户明确只要核验/补齐证据链，不要求完整判断交付
     note: 映射到 Runtime ResearchIntent=evidence_only；不是 03_tasks 标准研究任务
+    graph_policy:
+      activation: reuse_existing_problem_graph
+      allow_multiple_tasks: true
+      initial_frontier: unresolved_or_stale_evidence_requirements
+      stop_basis: requested_evidence_frontier_resolved_or_blocked
   judgment_update:
     label_zh: 判断更新
     definition: 在已有研究基础上因新事实/新事件改判或复核
+    graph_policy:
+      activation: reopen_impacted_subgraph
+      allow_multiple_tasks: true
+      initial_frontier: invalidated_judgment_units_and_dependents
+      stop_basis: affected_subgraph_recomputed_or_explicitly_blocked
   delivery_only:
     label_zh: 仅交付表达
     definition: 判断已确认，只需合成可读交付物
+    graph_policy:
+      activation: project_resolved_graph
+      allow_multiple_tasks: true
+      initial_frontier: deliverable_projection_only
+      stop_basis: delivery_contract_satisfied

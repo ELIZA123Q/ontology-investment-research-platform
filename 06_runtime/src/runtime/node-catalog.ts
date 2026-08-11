@@ -20,6 +20,7 @@ export const RESEARCH_NODE_CATALOG: readonly ResearchNodeType[] = [
   { kind: "evidence_evaluation", capabilityType: "function", capabilityId: "AssessEvidenceUsability", outputKind: "evidence_package", preconditions: ["来源已经 capture，或明确记录无可用来源"], invariants: ["Function 只读", "未经 capture 不得升级为 EvidenceFact", "不合格 Evidence 不能支持 Claim"], checkpointAfter: true },
   { kind: "hypothesis", capabilityType: "function", capabilityId: "GenerateHypothesisCandidates", outputKind: "hypothesis_map", preconditions: ["证据评估已完成"], invariants: ["候选不是正式 Hypothesis", "至少包含一个竞争解释或说明不适用"], checkpointAfter: false },
   { kind: "judgment", capabilityType: "function", capabilityId: "ComputeJudgmentProposal", outputKind: "judgment", preconditions: ["证据评估已完成"], invariants: ["Function 只生成提案", "正式 Judgment 必须通过 ApproveJudgment", "没有合格 Evidence 时 Judgment 必须降级为暂不可判断", "改判条件必须显式"], checkpointAfter: true },
+  { kind: "synthesis", capabilityType: "function", capabilityId: "SynthesizeJudgmentBundle", outputKind: "judgment", preconditions: ["所有 required JudgmentUnit 已进入终态"], invariants: ["不得用总置信度覆盖单元差异", "只能汇总正式或明确暂不可判断的原子裁决"], checkpointAfter: true },
   { kind: "compose", capabilityType: "skill", capabilityId: "research-delivery", outputKind: "report", preconditions: ["存在可交付的判断或证据包"], invariants: ["正式 Claim 必须绑定已验证来源"], checkpointAfter: false },
   { kind: "audit", capabilityType: "verifier", capabilityId: "citation-and-expression", outputKind: "review", preconditions: ["存在待审计 Artifact"], invariants: ["Verifier 结果与质量 Eval 分开", "审计不得静默改写主制品"], checkpointAfter: false },
 ] as const;

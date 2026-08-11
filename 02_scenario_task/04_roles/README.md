@@ -18,12 +18,13 @@ Role 描述“需要有人对什么负责”，不描述具体由哪个 Agent �
 因此：
 
 ```text
-Task → requires Role
+Problem Graph → requires Role responsibility
 Agent → can_assume Role
-Runtime → resolves Actor
+Runtime → resolves Actor for the current frontier
 ```
 
 Role 与 Agent 不建立静态一一映射。
+同一 Role 可以跨多个 Task motif 对共享子图负责，不能因图分支而静态复制成多个 Agent 身份。
 
 ## 当前角色
 

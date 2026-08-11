@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { AgentId, Budget, ResearchIntent, TaskNode } from "@/src/contracts";
+import type { AgentId, Budget, FrontierRef, ResearchIntent, ResearchProblemGraph, StopPredicate, TaskNode } from "@/src/contracts";
+import { judgmentUnitRequirements } from "@/src/runtime/problem-graph";
 import { getResearchNodeType } from "@/src/runtime/node-catalog";
 
 export interface PlannedNode {
@@ -9,6 +10,8 @@ export interface PlannedNode {
   agent: AgentId;
   dependsOn: string[];
   budget?: Partial<Budget>;
+  frontierRef?: FrontierRef;
+  iteration?: number;
 }
 
 export interface ResearchPlan {
@@ -17,6 +20,7 @@ export interface ResearchPlan {
   nodes: PlannedNode[];
   parallelGroups: string[][];
   stopConditions: string[];
+  stopPredicates?: StopPredicate[];
 }
 
 const includesAny = (value: string, words: string[]) => words.some((word) => value.includes(word));
@@ -104,6 +108,50 @@ export function planResearch(goal: string): ResearchPlan {
   };
 }
 
+/** Compile an execution graph from an already reviewed research problem graph.
+ * The old keyword planner remains only as an explicit clarify/failure fallback. */
+export function planFromProblemGraph(graph: ResearchProblemGraph, budget: Budget): ResearchPlan {
+  const nodes: PlannedNode[] = [];
+  const boundary = (key: string, kind: string, title: string, dependsOn: string[], compilerBoundary: NonNullable<FrontierRef["compilerBoundary"]>) =>
+    nodes.push({ key, kind, title, agent: "research-lead", dependsOn, frontierRef: { problemGraphId: graph.id, compilerBoundary } });
+  boundary("context", "semantic_context", "装配研究范围与历史上下文", [], "scope");
+
+  const judgmentUnits = graph.nodes.filter((node) => node.type === "judgment_unit" && node.required);
+  for (const unit of judgmentUnits) {
+    const prefix = unit.key.replace(/[^a-zA-Z0-9_:-]/g, "_");
+    const unitFrontier: FrontierRef = { problemGraphId: graph.id, problemNodeId: unit.id, judgmentUnitRef: unit.semanticRef || unit.id };
+    const methodKey = `${prefix}:method`;
+    const hypothesisKey = `${prefix}:hypothesis`;
+    nodes.push({ key: methodKey, kind: "method_selection", title: `选择证伪方法：${unit.title}`, agent: "research-lead", dependsOn: ["context"], frontierRef: unitFrontier });
+    nodes.push({ key: hypothesisKey, kind: "hypothesis", title: `主假设与竞争解释：${unit.title}`, agent: "research-lead", dependsOn: [methodKey], frontierRef: unitFrontier });
+    const evaluations: string[] = [];
+    for (const requirement of judgmentUnitRequirements(graph, unit)) {
+      const role = requirement.payload.evidenceRole as FrontierRef["evidenceRole"];
+      const requirementFrontier: FrontierRef = { ...unitFrontier, problemNodeId: requirement.id, evidenceRequirementRef: requirement.semanticRef || requirement.id, evidenceRole: role };
+      const discoverKey = `${prefix}:discover:${role}`;
+      const captureKey = `${prefix}:capture:${role}`;
+      const evaluateKey = `${prefix}:evaluate:${role}`;
+      nodes.push({ key: discoverKey, kind: "evidence_discovery", title: `发现${role === "support" ? "支持" : role === "counter" ? "反证" : "边界"}证据：${unit.title}`, agent: "research-lead", dependsOn: [methodKey], frontierRef: requirementFrontier });
+      nodes.push({ key: captureKey, kind: "evidence_capture", title: `保存来源快照：${unit.title}`, agent: "research-lead", dependsOn: [discoverKey], frontierRef: requirementFrontier });
+      nodes.push({ key: evaluateKey, kind: "evidence_evaluation", title: `评估${role === "support" ? "支持" : role === "counter" ? "反证" : "边界"}证据：${unit.title}`, agent: "research-lead", dependsOn: [captureKey], frontierRef: requirementFrontier });
+      evaluations.push(evaluateKey);
+    }
+    nodes.push({ key: `${prefix}:judgment`, kind: "judgment", title: `裁决判断单元：${unit.title}`, agent: "research-lead", dependsOn: [hypothesisKey, ...evaluations], frontierRef: unitFrontier });
+  }
+  const judgmentKeys = nodes.filter((node) => node.kind === "judgment").map((node) => node.key);
+  boundary("synthesis", "synthesis", "综合原子判断并保留局部差异", judgmentKeys, "synthesis");
+  boundary("compose", "compose", "生成可编辑研究制品", ["synthesis"], "compose");
+  boundary("audit", "audit", "确定性审计引用与表达", ["compose"], "audit");
+  const parallelGroups = [nodes.filter((node) => node.kind === "method_selection").map((node) => node.key), nodes.filter((node) => node.kind === "evidence_discovery").map((node) => node.key)]
+    .filter((group) => group.length > 1);
+  return {
+    intent: graph.intentRefs[0] as ResearchIntent || "full_research",
+    rationale: "由已确认的 Research Problem Graph 编译；证据与裁决均按判断单元和证据角色隔离。",
+    nodes, parallelGroups, stopConditions: ["required units terminal", "budget exhausted", "researcher stop"],
+    stopPredicates: [{ kind: "required_units_terminal" }, { kind: "budget_exhausted" }, { kind: "researcher_stop" }],
+  };
+}
+
 export function materializeNodes(taskId: string, plan: ResearchPlan, budget: Budget): TaskNode[] {
   const ids = new Map(plan.nodes.map((node) => [node.key, randomUUID()]));
   return plan.nodes.map((node) => {
@@ -112,7 +160,7 @@ export function materializeNodes(taskId: string, plan: ResearchPlan, budget: Bud
     id: ids.get(node.key)!, taskId, kind: node.kind, title: node.title, capabilityType: type.capabilityType, capabilityId: type.capabilityId,
     assignedAgent: node.agent, dependsOn: node.dependsOn.map((key) => ids.get(key)!), status: node.dependsOn.length ? "pending" : "ready",
     budget: node.budget || { maxModelCalls: Math.max(1, Math.floor(budget.maxModelCalls / plan.nodes.length)), maxToolCalls: Math.max(1, Math.floor(budget.maxToolCalls / plan.nodes.length)), maxCostUsd: budget.maxCostUsd / plan.nodes.length },
-    inputArtifactIds: [], outputArtifactIds: [],
+    inputArtifactIds: [], outputArtifactIds: [], frontierRef: node.frontierRef || { problemGraphId: `problem-graph:${taskId}`, compilerBoundary: node.kind === "compose" ? "compose" : node.kind === "audit" ? "audit" : node.kind === "judgment" ? "synthesis" : "scope" }, iteration: node.iteration || 0,
     });
   });
 }

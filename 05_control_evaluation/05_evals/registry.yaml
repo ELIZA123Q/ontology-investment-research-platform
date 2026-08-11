@@ -10,10 +10,12 @@ authority:
 entrypoints:
   - 05_control_evaluation/05_evals/protocols/
   - 05_control_evaluation/05_evals/rubrics/
+  - 05_control_evaluation/05_evals/cases/
 
 runtime_bridge: 05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml
 boundary:
   not_a_verifier: true
   deterministic_checks: 05_control_evaluation/04_verifiers/
   current_formal_cases: 0
+  current_evidence_ready_candidates: 1
   gold_tasks_are_engineering_regression: true

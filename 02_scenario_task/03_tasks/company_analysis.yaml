@@ -1,5 +1,5 @@
 schema_name: research_task_contract
-schema_version: 2.0.0
+schema_version: 3.0.0
 
 task_id: company_analysis
 name: 公司分析
@@ -44,6 +44,30 @@ completion_criteria:
 
 uncertainty_policy:
   allow_insufficient_evidence: true
+
+graph_motif:
+  root_question: company_proposition_question
+  judgment_unit_roles:
+    - {id: proposition_scope, purpose: 冻结公司命题与范围, required: true}
+    - {id: key_drivers, purpose: 判断关键经营或业绩驱动, required: true}
+    - {id: evidence_support, purpose: 判断证据支持程度与缺口, required: true}
+    - {id: performance_transmission, purpose: 判断从驱动到业绩的传导, required: true}
+    - {id: countercase_and_reversal, purpose: 登记反证与改判条件, required: true}
+  edges:
+    - {from: proposition_scope, to: evidence_support, relation: requires}
+    - {from: key_drivers, to: performance_transmission, relation: informs}
+    - {from: evidence_support, to: performance_transmission, relation: informs}
+    - {from: countercase_and_reversal, to: proposition_scope, relation: challenges}
+    - {from: key_drivers, to: company_proposition_question, relation: aggregates}
+    - {from: evidence_support, to: company_proposition_question, relation: aggregates}
+    - {from: performance_transmission, to: company_proposition_question, relation: aggregates}
+  competing_explanation_policy:
+    required_for: [key_drivers, performance_transmission]
+    minimum: 1
+  aggregation:
+    mode: proposition_with_transmission_and_evidence_ceiling
+    required_units: [proposition_scope, key_drivers, evidence_support, performance_transmission, countercase_and_reversal]
+    allow_partial_with_gaps: true
 
 capability_requirements:
   - company_operating_reasoning

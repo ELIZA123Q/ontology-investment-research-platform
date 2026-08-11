@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { FinancialDataToolResult } from "@/src/tools/financial-data-adapter";
 
 export const HTSC_CONNECTOR_ID = "htsc_research_mcp";
@@ -18,6 +19,7 @@ export interface HtscIndustrySentimentReceipt {
   retrievedAt: string;
   asOf: string;
   responseFingerprint: string;
+  providerResponseBody: string;
   mappingProfile: typeof HTSC_INDUSTRY_SENTIMENT_PROFILE;
   replayability: "time_sensitive" | "replayable";
   riskDisclosure: string;
@@ -38,16 +40,21 @@ export interface HtscIndustrySentimentMcpPayload {
 export class HtscIndustrySentimentMappingError extends Error {}
 
 export function parseHtscIndustrySentimentMcpPayload(input: {
-  payload: HtscIndustrySentimentMcpPayload;
+  rawResponseBody: string;
   request: HtscIndustrySentimentReceipt["request"];
   requestedAt: string;
   retrievedAt: string;
-  responseFingerprint: string;
 }): HtscIndustrySentimentReceipt {
-  if (input.payload.status !== "success" || input.payload.message !== "查询成功") {
+  let payload: HtscIndustrySentimentMcpPayload;
+  try {
+    payload = JSON.parse(input.rawResponseBody) as HtscIndustrySentimentMcpPayload;
+  } catch {
+    throw new HtscIndustrySentimentMappingError("HTSC MCP raw response is not valid JSON");
+  }
+  if (payload.status !== "success" || payload.message !== "查询成功") {
     throw new HtscIndustrySentimentMappingError("HTSC MCP response is not successful");
   }
-  const body = requireText(input.payload.data, "payload.data");
+  const body = requireText(payload.data, "payload.data");
   if (!body.includes("华泰智研MCP数据服务") || !body.includes("华泰证券研究所")) {
     throw new HtscIndustrySentimentMappingError("HTSC MCP provider identity is missing");
   }
@@ -65,7 +72,8 @@ export function parseHtscIndustrySentimentMcpPayload(input: {
     requestedAt: input.requestedAt,
     retrievedAt: input.retrievedAt,
     asOf: input.retrievedAt,
-    responseFingerprint: input.responseFingerprint,
+    responseFingerprint: `sha256:${createHash("sha256").update(input.rawResponseBody, "utf8").digest("hex")}`,
+    providerResponseBody: input.rawResponseBody,
     mappingProfile: HTSC_INDUSTRY_SENTIMENT_PROFILE,
     replayability: "time_sensitive",
     riskDisclosure: riskMatch[1].trim(),
@@ -113,6 +121,13 @@ export function mapHtscIndustrySentimentReceipt(receipt: HtscIndustrySentimentRe
       sourceType: "secondary",
     },
     permissionScope: "authorized_research_use",
+    providerResponse: {
+      body: receipt.providerResponseBody,
+      contentHash: receipt.responseFingerprint,
+      replayability: receipt.replayability,
+      usageRestriction: "authorized_research_only_no_redistribution",
+      riskDisclosure,
+    },
     observations: receipt.observations.map((item, index) => ({
       metricId: "htsc.industry_sentiment",
       metricName: "行业景气度",

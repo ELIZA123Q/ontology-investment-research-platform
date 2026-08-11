@@ -1,5 +1,5 @@
 schema_name: research_task_contract
-schema_version: 2.0.0
+schema_version: 3.0.0
 
 task_id: technology_route_analysis
 name: 技术路线分析
@@ -41,6 +41,31 @@ completion_criteria:
 
 uncertainty_policy:
   allow_insufficient_evidence: true
+
+graph_motif:
+  root_question: technology_route_question
+  judgment_unit_roles:
+    - {id: technology_boundary, purpose: 冻结技术边界与比较对象, required: true}
+    - {id: maturity_stage, purpose: 判断成熟度阶段, required: true}
+    - {id: substitution_assessment, purpose: 判断相对替代路线优劣, required: true}
+    - {id: commercialization_constraints, purpose: 判断商业化与量产约束, required: true}
+    - {id: falsification_conditions, purpose: 登记证伪边界与改判条件, required: true}
+  edges:
+    - {from: technology_boundary, to: maturity_stage, relation: requires}
+    - {from: technology_boundary, to: substitution_assessment, relation: requires}
+    - {from: maturity_stage, to: commercialization_constraints, relation: informs}
+    - {from: commercialization_constraints, to: substitution_assessment, relation: informs}
+    - {from: falsification_conditions, to: substitution_assessment, relation: challenges}
+    - {from: maturity_stage, to: technology_route_question, relation: aggregates}
+    - {from: substitution_assessment, to: technology_route_question, relation: aggregates}
+    - {from: commercialization_constraints, to: technology_route_question, relation: aggregates}
+  competing_explanation_policy:
+    required_for: [substitution_assessment, commercialization_constraints]
+    minimum: 1
+  aggregation:
+    mode: comparative_route_with_commercialization_gate
+    required_units: [technology_boundary, maturity_stage, substitution_assessment, commercialization_constraints, falsification_conditions]
+    allow_partial_with_gaps: true
 
 capability_requirements:
   - technology_maturity_reasoning

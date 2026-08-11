@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateFormalCaseEligibility, type FormalEvaluationCaseManifest } from "@/src/evaluation/formal-case-eligibility";
+import { evaluateFormalCaseEligibility, hashFormalEvidenceBundle, type FormalEvaluationCaseManifest } from "@/src/evaluation/formal-case-eligibility";
 
 const hash = (character: string) => `sha256:${character.repeat(64)}`;
 
@@ -13,6 +13,8 @@ function manifest(): FormalEvaluationCaseManifest {
     businessTime: `2025-12-${20 + index}T00:00:00Z`,
     independentSourceGroup: index === 0 ? "issuer" : `provider-${index}`,
     statementNature: index === 2 ? "interpretation" as const : "fact" as const,
+    evidenceRole: "substantive" as const,
+    accessStatus: "retrieved" as const,
     locator: `p.${index + 1}`,
     quote: `证据摘录 ${index + 1}`,
     contentHash: hash(String(index + 1)),
@@ -24,7 +26,7 @@ function manifest(): FormalEvaluationCaseManifest {
     caseId: "formal-case-1",
     stratum: "report_value",
     taskInput: { question: "冻结问题", subjectScope: ["半导体"], informationCutoff: "2026-04-01T00:00:00Z", allowedEndpoint: "方向性行业判断" },
-    evidenceBundle: { ref: "evidence:1", hash: hash("a"), frozenAt: "2026-04-02T00:00:00Z", evidence },
+    evidenceBundle: { ref: "evidence:1", hash: hashFormalEvidenceBundle(evidence), frozenAt: "2026-04-02T00:00:00Z", evidence },
     systemArtifact: { ref: "artifact:1", hash: hash("b"), frozenAt: "2026-04-03T00:00:00Z", sealedAdjudicationOpenedAt: "2026-04-04T00:00:00Z" },
     sealedAdjudication: {
       ref: "sealed:1", independenceMode: "dual_route_independent", notAReferenceReport: true, frameworkRulesUsage: "boundary_check_only",
@@ -77,5 +79,33 @@ describe("formal evaluation case eligibility", () => {
     expect(result.status).toBe("not_eligible");
     expect(result.prerequisites).toBeUndefined();
     expect(result.checks.filter((item) => !item.passed).map((item) => item.id)).toEqual(expect.arrayContaining(["cutoff", "perturbations", "model_isolation"]));
+  });
+
+  it("does not count an unavailable source as corroboration for a report-value case", () => {
+    const input = manifest();
+    input.evidenceBundle.evidence[1].independentSourceGroup = "issuer";
+    input.evidenceBundle.evidence[2].independentSourceGroup = "datayes";
+    input.evidenceBundle.evidence[2].evidenceRole = "access_gap";
+    input.evidenceBundle.evidence[2].accessStatus = "unavailable";
+    input.evidenceBundle.evidence[2].supports = ["boundary:independent-corroboration-missing"];
+    const result = evaluateFormalCaseEligibility(input);
+    expect(result.status).toBe("not_eligible");
+    expect(result.checks.filter((item) => !item.passed).map((item) => item.id)).toEqual(expect.arrayContaining(["independent_sources", "stratum_evidence_boundary"]));
+  });
+
+  it("allows a restraint case to audit a real access gap without treating it as value evidence", () => {
+    const input = manifest();
+    input.stratum = "restraint";
+    for (const item of input.evidenceBundle.evidence) item.independentSourceGroup = "htsc-research";
+    input.evidenceBundle.evidence.push({
+      id: "gap-datayes", publisherId: "DataYes", title: "独立实物量指标取数失败",
+      uri: "mcp://datayes-macro/2090700332", publishedAt: "2026-03-20T00:00:00Z", businessTime: "2026-03-20T00:00:00Z",
+      independentSourceGroup: "datayes-miit", statementNature: "fact", evidenceRole: "access_gap", accessStatus: "unavailable",
+      locator: "error.code", quote: "INSUFFICIENT_CREDITS", contentHash: hash("8"), supports: ["boundary:independent-corroboration-missing"], limitations: ["没有取得指标数值"],
+    });
+    input.evidenceBundle.hash = hashFormalEvidenceBundle(input.evidenceBundle.evidence);
+    const result = evaluateFormalCaseEligibility(input);
+    expect(result.status).toBe("eligible");
+    expect(result.checks.find((item) => item.id === "stratum_evidence_boundary")?.passed).toBe(true);
   });
 });

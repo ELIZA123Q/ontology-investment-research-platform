@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { EvidenceFact, SourceSnapshot } from "@/src/contracts";
 import { adaptSourceToolResult, type AdaptedSourceResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 
@@ -28,6 +29,13 @@ export interface FinancialDataToolResult {
   entity: { id: string; name: string; instrumentId?: string };
   upstream: UnifiedSourceToolResult["upstream"];
   permissionScope: SourceSnapshot["permissionScope"];
+  providerResponse?: {
+    body: string;
+    contentHash: string;
+    replayability: "replayable" | "time_sensitive" | "non_replayable";
+    usageRestriction: string;
+    riskDisclosure?: string;
+  };
   observations: FinancialObservationInput[];
 }
 
@@ -52,6 +60,13 @@ export interface AdaptedFinancialDataResult {
   entity: FinancialDataToolResult["entity"];
   asOf: string;
   observations: AdaptedFinancialObservation[];
+  providerResponse?: {
+    contentHash: string;
+    byteLength: number;
+    replayability: "replayable" | "time_sensitive" | "non_replayable";
+    usageRestriction: string;
+    riskDisclosure?: string;
+  };
 }
 
 export function adaptFinancialDataResult(result: FinancialDataToolResult): AdaptedFinancialDataResult {
@@ -62,6 +77,7 @@ export function adaptFinancialDataResult(result: FinancialDataToolResult): Adapt
   if (Date.parse(asOf) > Date.parse(retrievedAt)) throw new Error("asOf cannot be later than retrievedAt");
   const entity = { id: requireText(result.entity.id, "entity.id"), name: requireText(result.entity.name, "entity.name"), instrumentId: result.entity.instrumentId?.trim() || undefined };
   if (!result.observations.length) throw new Error("at least one financial observation is required");
+  const providerResponse = validateProviderResponse(result);
   const seen = new Set<string>();
   const observations = result.observations.map((input) => {
     const metricId = requireText(input.metricId, "observation.metricId");
@@ -101,7 +117,24 @@ export function adaptFinancialDataResult(result: FinancialDataToolResult): Adapt
       source,
     };
   });
-  return { entity, asOf, observations };
+  return { entity, asOf, observations, providerResponse };
+}
+
+function validateProviderResponse(result: FinancialDataToolResult): AdaptedFinancialDataResult["providerResponse"] {
+  if (!result.providerResponse) return undefined;
+  const contentHash = requireText(result.providerResponse.contentHash, "providerResponse.contentHash");
+  if (!/^sha256:[a-f0-9]{64}$/u.test(contentHash)) throw new Error("providerResponse.contentHash must be sha256");
+  const calculated = `sha256:${createHash("sha256").update(result.providerResponse.body, "utf8").digest("hex")}`;
+  if (calculated !== contentHash) throw new Error("providerResponse body does not match contentHash");
+  const responseFingerprint = result.requestParameters.responseFingerprint;
+  if (responseFingerprint !== undefined && responseFingerprint !== contentHash) throw new Error("providerResponse contentHash does not match responseFingerprint");
+  return {
+    contentHash,
+    byteLength: Buffer.byteLength(result.providerResponse.body, "utf8"),
+    replayability: result.providerResponse.replayability,
+    usageRestriction: requireText(result.providerResponse.usageRestriction, "providerResponse.usageRestriction"),
+    riskDisclosure: result.providerResponse.riskDisclosure?.trim() || undefined,
+  };
 }
 
 function requireText(value: string, field: string): string {

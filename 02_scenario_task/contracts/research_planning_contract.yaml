@@ -1,12 +1,32 @@
 schema_name: research_planning_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 
-principle: 模型提出候选路径，确定性编译器负责边界，Runtime 只执行编译后的 TaskGraph。
+principle: >
+  先从 Intent、Scenario 与 Task motif 装配 Research Problem Graph，再由模型提出当前
+  frontier 的候选执行路径；确定性编译器负责边界，Runtime 只执行编译后的 TaskGraph。
+
+problem_graph_input:
+  contract: 02_scenario_task/00_problem_graph/contract.yaml
+  required_context:
+    - active_intent_refs
+    - active_scenario_refs
+    - active_task_motif_refs
+    - unresolved_or_invalidated_frontier
+    - reusable_resolved_subgraphs
+  rules:
+    - 一个请求可激活多个 Task motif
+    - 等价 JudgmentUnit 与 EvidenceRequirement 应合并复用
+    - Planner 只为当前 frontier 提案，不复制整张问题图
+    - 每个候选执行节点必须记录其服务的 frontier_ref
 
 planner_proposal:
   required: [intent, rationale, nodes, stop_conditions]
-  node_fields: [key, kind, title, depends_on, budget, reason]
+  node_fields: [key, kind, title, depends_on, budget, reason, frontier_ref]
+  node_field_notes:
+    frontier_ref: >
+      指向本节点服务的 Research Problem Graph frontier；当前 Runtime 尚未物化该字段时，
+      编译器生成的强制边界节点可使用 compiler_boundary 占位。
   forbidden:
     - 自定义 Node kind、Capability ID 或执行代码
     - 指定未启用 Agent
@@ -21,6 +41,7 @@ compiler:
     - intent 必须与确定性意图分类一致
     - key 唯一且依赖只能引用计划内节点
     - TaskGraph 无环
+    - 每个节点均可回溯到 Research Problem Graph frontier；确定性强制边界节点可记录 compiler_boundary
     - full_research、evidence_only、update_judgment 均保留 discover → capture → evaluate 证据链
     - Judgment 必须位于 evidence evaluation 下游
     - 节点预算合计不超过 Task 预算
@@ -45,3 +66,4 @@ current_boundary:
   - 默认仍使用确定性 planner；模型规划必须显式启用。
   - 模型规划只决定候选路径，不拥有权限、预算、节点执行器或 Artifact schema。
   - 当前 repair 是确定性结构修复，不进行第二次模型调用。
+  - Runtime 尚未完整物化 Research Problem Graph；在此之前，frontier_ref 是规划合同要求而非正式语义写入。

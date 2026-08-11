@@ -7,5 +7,6 @@ authority:
   types: 02_scenario_task/01_intents/types.yaml
   runtime_planning_intent: 06_runtime/src/contracts.ts
 notes:
-  - User Intent → Scenario → Task Contract 属于 02。
+  - User Intent、Scenario constraints 与 Task motifs 是 Research Problem Graph 的组合输入，属于 02。
+  - Intent 不规定固定执行顺序，也不限制为单一 Task。
   - ResearchIntent（full_research/evidence_only/…）属于 Runtime Planner。

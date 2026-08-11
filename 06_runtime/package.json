@@ -14,8 +14,12 @@
     "ontology:validate": "python3 ../05_control_evaluation/04_verifiers/ontology/validate_ontology.py",
     "ontology:sync": "python3 scripts/generate-ontology-catalog.py",
     "ontology:check": "python3 scripts/generate-ontology-catalog.py --check",
+    "evidence:sources:sync": "node --import tsx scripts/generate-evidence-source-catalog.ts",
+    "evidence:sources:check": "node --import tsx scripts/generate-evidence-source-catalog.ts --check",
     "audit:cutover": "node --import tsx scripts/audit-cutover.ts",
-    "eval:gold": "node --import tsx scripts/run-gold-evals.ts"
+    "eval:gold": "node --import tsx scripts/run-gold-evals.ts",
+    "eval:formal:audit": "node --import tsx scripts/audit-formal-case.ts",
+    "eval:formal:candidates": "node --import tsx scripts/audit-formal-case.ts ../05_control_evaluation/05_evals/cases/semiconductor-restraint-2026-08-11/manifest.json --require-evidence-ready"
   },
   "dependencies": {
     "next": "16.3.0",

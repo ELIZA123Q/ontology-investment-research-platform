@@ -6,7 +6,7 @@ import { verifySourceSnapshot } from "@/src/governance/provenance-verifier";
 
 function financialResult(overrides: Partial<UnifiedSourceToolResult> = {}): UnifiedSourceToolResult {
   return {
-    connectorId: "financial.mcp.wind",
+    connectorId: "web.capture",
     operation: "company_guidance",
     requestParameters: { ticker: "2330.TW", asOf: "2026-08-09" },
     requestedAt: "2026-08-09T04:00:00.000Z",
@@ -35,10 +35,10 @@ describe("unified source tool result adapter", () => {
     try {
       const provenance = new ResearchProvenanceStore(store.db);
       const adapted = adaptSourceToolResult(financialResult());
-      expect(adapted.candidate.discoveryReason).toContain("financial.mcp.wind");
+      expect(adapted.candidate.discoveryReason).toContain("web.capture");
       expect(adapted.snapshot).toMatchObject({
         publisherId: "TSMC",
-        acquisition: { connectorId: "financial.mcp.wind", upstreamSourceId: "tsmc:2026-q2-earnings-call" },
+        acquisition: { connectorId: "web.capture", upstreamSourceId: "tsmc:2026-q2-earnings-call" },
       });
       expect(adapted.snapshot.acquisition.requestFingerprint).toMatch(/^sha256:/);
       expect(adapted.snapshot.acquisition.rawResponseHash).toBe(adapted.snapshot.contentHash);

@@ -1,5 +1,5 @@
 schema_name: task_definition_registry
-schema_version: 3.1.0
+schema_version: 4.0.0
 status: active
 
 authority:
@@ -18,7 +18,8 @@ layering:
   note: |
     Research Task（02）≠ Runtime Node / Skill（06/03）。
     Research Task ≠ Workflow Pattern；深度与路径由 Planning Intent + Context + Planner 决定。
-    Scenario → Task 为单向引用（candidate_tasks）；Task 不回写 Scenario。
+    Scenario 通过带条件的 task_affordances 引用 Task motif；Task 不回写 Scenario。
+    一个请求可组合多个 Task motif，并合并等价判断单元与证据要求。
     evidence_only 是 Runtime ResearchIntent，不是本目录标准研究任务。
     已移除 evidence_verification（原误置于 Task Definition 的子任务）。
 
@@ -32,9 +33,11 @@ contract_fields:
     - expected_output
     - completion_criteria
     - uncertainty_policy
+    - graph_motif
   optional:
     - description
     - capability_requirements
+  graph_motif_contract: 02_scenario_task/00_problem_graph/contract.yaml#motif_contract
   removed:
     - default_role
     - optional_workflow_pattern

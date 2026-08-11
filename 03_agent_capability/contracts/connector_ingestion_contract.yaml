@@ -42,6 +42,10 @@ financial_data_path:
     mapping_profile: htsc_industry_sentiment_observation@1.0.0
     permission_scope: authorized_research_use
     live_status: live_real_semiconductor_sample_received
+  licensed_response_vault:
+    table: connector_response_blobs
+    private_payload: 原始响应正文只保存在 Runtime DB 私密表，不进入 Artifact、Event、前端或模型上下文
+    projected_metadata: [fingerprint, connector_id, operation, byte_length, permission_scope, replayability, usage_restriction, risk_disclosure, captured_at]
 
 researcher_material_path:
   endpoint: POST /vnext/tasks/{id}/materials
@@ -67,6 +71,7 @@ deterministic_gates:
   - 结果对象不得含密钥、Token、Cookie、密码或 Credential 字段
   - quote 必须能在 body 中定位
   - body hash、raw response hash 与 request fingerprint 必须一致
+  - 携带 providerResponse 时，原文哈希必须等于 responseFingerprint；同一指纹不得绑定不同 Connector、许可或风险元数据
   - restricted capture 不得晋级
   - authorized_research_use 只能在授权研究环境内晋级和引用
   - 金融单位、业务时间、asOf、basis 与重复观测必须通过校验
@@ -85,6 +90,7 @@ runtime_mapping:
   source_adapter: 06_runtime/src/tools/source-result-adapter.ts
   financial_adapter: 06_runtime/src/tools/financial-data-adapter.ts
   htsc_industry_sentiment_mapper: 06_runtime/src/tools/htsc-industry-sentiment-mapper.ts
+  licensed_response_vault: 06_runtime/src/runtime/store.ts#connector_response_blobs
   kernel: 06_runtime/src/runtime/kernel.ts
   home_view: 06_runtime/src/ui/view-models.ts
   researcher_material_adapter: 06_runtime/src/tools/researcher-material.ts

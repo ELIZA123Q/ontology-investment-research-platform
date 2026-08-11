@@ -1,9 +1,9 @@
 schema_name: workflow_pattern_registry
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 
 authority:
-  answers: Workflow Pattern 是 Planner prior，不是固定阶段控制器。
+  answers: Workflow Pattern 是问题图扩展与 frontier 选择的 Planner prior，不是固定阶段控制器。
   write_entry: 02_scenario_task/05_workflow_patterns/
   read_primary: 02_scenario_task/05_workflow_patterns/registry.yaml
   runtime_node_catalog: 06_runtime/src/runtime/node-catalog.ts
@@ -16,4 +16,6 @@ patterns:
 
 notes:
   - 活跃区不得再出现 Stage 01/02/03/04/05 编排正文。
+  - Pattern 不得新增 Task motif edge、Ontology relation 或 Runtime Node kind。
+  - Pattern 不得要求复制整张 Research Problem Graph 到 Execution TaskGraph。
   - 旧 Deep Research stages/supporting/templates 已删除，不再保留 90_legacy。
