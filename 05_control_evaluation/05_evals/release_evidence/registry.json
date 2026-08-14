@@ -1,0 +1,7 @@
+{
+  "schemaName": "capability_release_evidence_registry",
+  "schemaVersion": "1.0.0",
+  "status": "current",
+  "purpose": "Only completed, formally eligible same-evidence evaluation runs may authorize a candidate capability for production.",
+  "evidenceRuns": []
+}

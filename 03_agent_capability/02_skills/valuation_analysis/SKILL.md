@@ -6,6 +6,14 @@ purpose: 在已审计模型和冻结输入基础上形成可比、DCF/SOTP 与�
 consumes: [financial_model, normalized_financials, evidence_package]
 output_kind: valuation_analysis
 resources: [references/]
+typed_io:
+  input: {required: [audited_financial_model, normalized_financials, evidence_package, as_of]}
+  output: {kind: valuation_analysis, required: [methods, assumptions, sensitivities, status]}
+permissions: [read_verified_evidence, deterministic_calculation, create_candidate_artifact]
+failure_states: [model_audit_failed, missing_as_of, missing_unit, unauthorized_market_input]
+cost_budget: 3
+latency_budget_ms: 90000
+degradation: return_blocked_valuation_without_numeric_conclusion
 progressive_loading: metadata_then_instructions_then_resources
 ---
 

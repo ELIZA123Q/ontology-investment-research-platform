@@ -1,0 +1,18 @@
+id: CR-2026-08-13-source-document-attestation
+date: 2026-08-13
+summary: 将完整公开文件指纹与可定位摘录哈希分离，形成统一来源合同、Runtime 投影、验证器、持久化与本地封装工具。
+classifications: [reusable_deterministic_constraint, execution_mechanics]
+authority_refs:
+  - 05_control_evaluation/01_rules/policies/source_document_attestation_policy.yaml
+execution_refs:
+  - 06_runtime/src/tools/source-result-adapter.ts
+  - 06_runtime/src/governance/provenance-verifier.ts
+  - 06_runtime/src/semantic/provenance-store.ts
+  - 06_runtime/src/tools/financial-data-adapter.ts
+  - 06_runtime/scripts/prepare-public-document-material.ts
+  - 06_runtime/src/evaluation/formal-case-eligibility.ts
+verification_refs:
+  - 05_control_evaluation/04_verifiers/validate_source_document_attestation_policy.py
+  - 06_runtime/tests/source-result-adapter.test.ts
+  - 06_runtime/tests/researcher-material.test.ts
+  - 06_runtime/tests/formal-case-eligibility.test.ts

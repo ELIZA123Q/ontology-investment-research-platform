@@ -98,6 +98,7 @@ export function buildHomeView(store: RuntimeStore, scope?: { tenantId: string; u
       createdAt: approval.createdAt,
     }));
     if (approvals.length) return approvals;
+    if (task.status === "waiting_approval") return [{ id: `integrity:${task.id}`, kind: "failure", conversationId: item.conversation.id, taskId: task.id, title: item.conversation.title, detail: "这项研究停在确认阶段，但缺少可处理的确认请求。请重新发起 Goal，或检查执行状态。", createdAt: task.updatedAt }];
     if (task.status === "waiting_input") return [{ id: task.id, kind: "input", conversationId: item.conversation.id, taskId: task.id, title: item.conversation.title, detail: "Research Lead 需要你补充研究边界或调整方向。", createdAt: task.updatedAt }];
     if (task.status === "failed") return [{ id: task.id, kind: "failure", conversationId: item.conversation.id, taskId: task.id, title: item.conversation.title, detail: "本轮研究执行失败，可以查看原因后恢复。", createdAt: task.updatedAt }];
     if (task.status === "cancelled") return [{ id: task.id, kind: "resume", conversationId: item.conversation.id, taskId: task.id, title: item.conversation.title, detail: "本轮已取消，可以创建研究分支继续。", createdAt: task.updatedAt }];

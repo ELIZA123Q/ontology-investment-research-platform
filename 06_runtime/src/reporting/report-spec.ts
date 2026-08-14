@@ -1,4 +1,5 @@
 import type { ReportKind, ReportSectionKey, ReportSpec, ReportSpecInput } from "@/src/contracts";
+import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
 
 export const REPORT_SECTION_LABELS: Record<ReportSectionKey, string> = {
   executive_summary: "核心摘要",
@@ -27,22 +28,14 @@ export const REPORT_KIND_LABELS: Record<ReportKind, string> = {
   judgment_update: "判断更新",
 };
 
-const BASE_REQUIRED: ReportSectionKey[] = [
-  "executive_summary", "research_scope", "core_judgments", "evidence_analysis", "risks_change_conditions", "source_appendix",
-];
-
-const KIND_REQUIRED: Record<ReportKind, ReportSectionKey[]> = {
-  company_research: ["business_model", "financial_operating_analysis", "competitive_landscape", "valuation_scenarios"],
-  industry_research: ["industry_structure", "cycle_supply_demand", "competitive_landscape"],
-  thematic_research: ["mechanism_chain", "scenario_analysis", "alternative_hypotheses"],
-  evidence_update: ["delta_since_prior"],
-  judgment_update: ["delta_since_prior", "alternative_hypotheses"],
-};
+const reportContract = DOMAIN_CATALOG.reportGeneration.report_spec;
+const BASE_REQUIRED = reportContract.base_required_sections as readonly ReportSectionKey[];
+const KIND_REQUIRED = reportContract.kind_required_sections as unknown as Record<ReportKind, readonly ReportSectionKey[]>;
 
 const SECTION_ORDER = Object.keys(REPORT_SECTION_LABELS) as ReportSectionKey[];
-const validKinds = new Set(Object.keys(REPORT_KIND_LABELS));
-const validAudiences = new Set(["portfolio_manager", "investment_committee", "research_analyst", "client"]);
-const validDepths = new Set(["brief", "standard", "deep"]);
+const validKinds = new Set<string>(reportContract.kinds);
+const validAudiences = new Set<string>(reportContract.audiences);
+const validDepths = new Set<string>(reportContract.depths);
 const validSections = new Set(SECTION_ORDER);
 
 export function normalizeReportSpec(input: ReportSpecInput | (Partial<ReportSpec> & { optionalSections?: ReportSectionKey[] }) = {}): ReportSpec {
@@ -65,11 +58,12 @@ export function normalizeReportSpec(input: ReportSpecInput | (Partial<ReportSpec
 
 export function inferReportKind(goal: string): ReportKind {
   const text = goal.toLowerCase();
-  if (/公司|企业|个股|标的|财务|估值/.test(text)) return "company_research";
-  if (/行业|产业|供需|周期|竞争格局/.test(text)) return "industry_research";
-  if (/更新判断|重新判断|改判/.test(text)) return "judgment_update";
-  if (/只补|证据更新|补充来源/.test(text)) return "evidence_update";
-  return "thematic_research";
+  const inference = reportContract.kind_inference as unknown as Record<string, readonly string[] | string>;
+  for (const kind of reportContract.kinds) {
+    const terms = inference[kind];
+    if (Array.isArray(terms) && terms.some((term) => text.includes(term.toLowerCase()))) return kind as ReportKind;
+  }
+  return inference.fallback as ReportKind;
 }
 
 export function reportSpecForGoal(goal: string, input?: ReportSpecInput): ReportSpec {

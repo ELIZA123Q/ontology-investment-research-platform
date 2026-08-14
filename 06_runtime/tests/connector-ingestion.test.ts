@@ -3,7 +3,7 @@ import { AgentKernel } from "@/src/runtime/kernel";
 import { RuntimeStore } from "@/src/runtime/store";
 import type { UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 import { assertConnectorRequestAuthorized, ConnectorIngestionError, validateConnectorEnvelope } from "@/src/tools/connector-ingestion";
-import { POST as ingestRoute } from "@/app/vnext/connectors/ingest/route";
+import { POST as ingestRoute } from "@/app/api/v2/connectors/ingest/route";
 
 const stores: RuntimeStore[] = [];
 afterEach(() => { while (stores.length) stores.pop()?.close(); });
@@ -34,9 +34,9 @@ describe("connector ingestion boundary", () => {
     process.env.VNEXT_CONNECTOR_INGEST_TOKEN = "server-secret";
     process.env.VNEXT_CONNECTOR_IDS = "web.capture";
     try {
-      const unauthorized = await ingestRoute(new Request("http://local/vnext/connectors/ingest", { method: "POST", body: JSON.stringify({}) }));
+      const unauthorized = await ingestRoute(new Request("http://local/api/v2/connectors/ingest", { method: "POST", body: JSON.stringify({}) }));
       expect(unauthorized.status).toBe(401);
-      const forbidden = await ingestRoute(new Request("http://local/vnext/connectors/ingest", {
+      const forbidden = await ingestRoute(new Request("http://local/api/v2/connectors/ingest", {
         method: "POST", headers: { authorization: "Bearer server-secret", "content-type": "application/json" },
         body: JSON.stringify({ taskId: "task-1", kind: "source_capture", result: source("pdf.capture", "issuer.test", 1, "需求改善") }),
       }));

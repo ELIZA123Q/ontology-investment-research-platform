@@ -61,4 +61,28 @@ describe("unified source tool result adapter", () => {
     }))).toThrow(/cannot be located/);
     expect(() => adaptSourceToolResult(financialResult({ retrievedAt: "2026-08-09T03:59:59.000Z" }))).toThrow(/cannot precede/);
   });
+
+  it("keeps a full public-document fingerprint separate from the located excerpt hash", () => {
+    const rawHash = `sha256:${"a".repeat(64)}`;
+    const adapted = adaptSourceToolResult(financialResult({
+      capture: {
+        body: "公告原文摘录：Management expects AI accelerator demand to remain robust.",
+        locator: "page 3 / outlook",
+        quote: "Management expects AI accelerator demand to remain robust.",
+        permissionScope: "public_research_use",
+        documentAttestation: { rawContentHash: rawHash, byteLength: 93_572, mimeType: "application/pdf" },
+      },
+    }));
+    expect(adapted.snapshot.documentAttestation).toEqual({ rawContentHash: rawHash, byteLength: 93_572, mimeType: "application/pdf" });
+    expect(adapted.snapshot.contentHash).not.toBe(rawHash);
+    expect(verifySourceSnapshot({ ...adapted.snapshot, id: "snapshot:attested", verification: "verified" }).passed).toBe(true);
+  });
+
+  it("rejects partial, malformed, or conflated full-document attestations", () => {
+    const base = financialResult();
+    expect(() => adaptSourceToolResult({ ...base, capture: { ...base.capture, documentAttestation: { rawContentHash: `sha256:${"a".repeat(64)}`, mimeType: "application/pdf" } as never } })).toThrow(/byte_length/);
+    expect(() => adaptSourceToolResult({ ...base, capture: { ...base.capture, documentAttestation: { rawContentHash: "sha256:not-a-hash", byteLength: 1, mimeType: "application/pdf" } } })).toThrow(/rawContentHash/);
+    const conflated = adaptSourceToolResult(base);
+    expect(verifySourceSnapshot({ ...conflated.snapshot, id: "snapshot:conflated", verification: "verified", documentAttestation: { rawContentHash: conflated.snapshot.contentHash, byteLength: 10, mimeType: "application/pdf" } }).passed).toBe(false);
+  });
 });

@@ -16,6 +16,10 @@ objects:
     required: [candidate_id, uri, locator, quote, body, content_hash, captured_at, permission_scope, verification, acquisition]
     acquisition_required: [connector_id, upstream_source_id, request_fingerprint, request_parameters, raw_response_hash, retrieved_at]
     verification_means: 快照完整性、定位和使用权限通过确定性检查，不代表外部陈述必然为真
+    optional_document_attestation:
+      fields: [raw_content_hash, byte_length, mime_type]
+      policy: 05_control_evaluation/01_rules/policies/source_document_attestation_policy.yaml
+      boundary: 完整原始文件指纹与引用摘录的 content_hash 分别保存；前者不替代 quote 定位或事实核验。
   EvidenceFact:
     identity: sha256(snapshot_id + statement)
     required: [snapshot_id, statement, fact_type, confidence, status, created_at]
@@ -30,6 +34,7 @@ invariants:
   - 外部 Tool 结果必须记录请求参数指纹、原始响应哈希与获取时间；raw_response_hash 必须能复核捕获正文。
   - 授权 MCP 的供应商原始响应必须进入私密响应库；Artifact、Event、前端与模型只可接收指纹、许可、字节数、回放属性和风险限制，不得接收原文。
   - quote 必须能在捕获 body 中逐字定位，content_hash 必须与 body 一致。
+  - 如声明完整原始文件指纹，raw_content_hash、byte_length 和 mime_type 必须同时通过 source_document_attestation_policy.yaml；完整文件哈希不得复用为摘录 body 的 content_hash。
   - restricted 权限的快照不能晋级 EvidenceFact；authorized_research_use 只允许在授权研究环境内晋级和引用。
   - EvidenceFact 的 verified 仅表示晋级链可重复验证；研究可信度仍由证据评估和 Eval 判断。
   - evidence sufficient 至少要求两个不同发布主体的已验证快照；数量门槛不能替代质量评估。
@@ -43,6 +48,7 @@ runtime_mapping:
   licensed_response_vault: 06_runtime/src/runtime/store.ts#connector_response_blobs
   source_adapter: 06_runtime/src/tools/local-source-gateway.ts
   unified_tool_result_adapter: 06_runtime/src/tools/source-result-adapter.ts
+  source_document_attestation: 06_runtime/src/tools/source-document-attestation.ts
   deterministic_verifier: 06_runtime/src/governance/provenance-verifier.ts
   node_executor: 06_runtime/src/runtime/kernel.ts
 
@@ -52,6 +58,7 @@ current_scope:
     - SQLite FTS5 可用时的全文召回与确定性词项复核
     - 历史 governed capture 的重新登记、哈希校验、定位校验和 EvidenceFact 晋级
     - 网页、PDF、金融 MCP 与用户材料可共同采用的统一 Source Tool Result 适配合同
+    - 已下载公开 PDF/HTML 的可选完整文件指纹；运行 `npm run evidence:prepare-document -- --file=/绝对路径/文件.pdf` 生成，不上传字节
     - 华泰行业景气度回执到 FinancialDataToolResult 的受授权映射；已取得真实半导体月度样本
   not_yet_supported:
     - 实时互联网网页或 PDF 抓取

@@ -55,13 +55,16 @@ cd 06_runtime
 npm run domain:sync       # 把定义同步到程序
 npm run audit:domain      # 检查跨域引用一致性
 npm run audit:cutover     # 检查能力发布切换
+npm run signal:evidence:rules:check # 检查信号只能作为线索、原文快照才可进证据链的规则投影
 npm run build             # 重新构建
 ```
 
-### 合并前必须通过的四项检查
+### 合并前必须通过的检查
 
 ```bash
+npm run lint              # 静态缺陷检查（不可达代码、调试器、重复分支等）
 npm test                  # 运行测试
+npm run test:coverage     # 核心 Runtime/Provider/Research/Security 覆盖率门
 npm run typecheck         # 类型检查
 npm run audit:domain      # 跨域审计
 npm run build             # 构建
@@ -73,6 +76,9 @@ npm run build             # 构建
 |------|------|
 | `npm run db:check` | 检查数据库完整性、列出已应用的 schema 迁移 |
 | `npm run db:backup -- /路径/备份.sqlite` | 先校验再一致性快照备份（省略路径写到 `.data/backups/`） |
+| `npm run db:restore -- /路径/备份.sqlite [/路径/恢复副本.sqlite]` | 校验备份后生成新的恢复副本；**不会覆盖**当前数据库 |
+
+发布前或夜间联网运行 `npm run security:audit`：它只读取 npm 官方安全公告库，检查全部依赖的高危及以上漏洞。离线项目门禁不依赖公网，因此不会将网络不可用误判为代码失败。
 
 ### 运行模式
 
@@ -127,7 +133,7 @@ A：判断卡和报告支持直接编辑，每次保存生成新版本。判断�
 | Ontology 5.0 Catalog 投影与 Action Service | `src/ontology/` |
 | Agent/Skill/Tool 定义与发布状态 | `../03_agent_capability/`（唯一定义权威） |
 | 可执行能力绑定 | `src/capabilities/registry.ts`（消费 03 生成投影） |
-| 本地会话数据 | `.data/vnext.sqlite`（可用 `VNEXT_DB_PATH` 覆盖） |
+| 本地研究数据 | `.data/research-v2.sqlite`（可用 `VNEXT_DB_PATH` 覆盖） |
 | 知识沉淀人类说明 | [`../05_control_evaluation/01_rules/knowledge_promotion.md`](../05_control_evaluation/01_rules/knowledge_promotion.md) |
 | 知识沉淀机器合同 | [`../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml`](../05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml) |
 | 来源与事实晋级合同 | [`../03_agent_capability/contracts/research_provenance_contract.yaml`](../03_agent_capability/contracts/research_provenance_contract.yaml) |
@@ -140,11 +146,11 @@ A：判断卡和报告支持直接编辑，每次保存生成新版本。判断�
 
 ### 产品面
 
-研究首页将「决策收件箱、关注变化、最近研究」并列，只展示命中当前研究代码或关键词的候选材料。研究工作区中，左侧是与 Research Lead 的对话式研究指令，右侧是证据矩阵、假设、判断卡、报告与审计时间线等可信制品，顶部研究脉冲条持续显示当前判断、证据数、首要缺口和下一步。关键证据与判断生成后，系统会暂停等待研究员确认。
+研究首页围绕 A 股公司基本面案例创建、最近研究和待办介入组织。公司工作台以非线性“决策脊柱”展示范围与问题图、证据篮子、商业模式/KPI、财务模型、判断与反证、估值边界、报告与审计。每个单元独立显示 ready、limited、blocked、waiting approval 或 invalidated，并可局部补证、重算和重审。
 
 判断卡和报告支持直接编辑：每次保存生成新版本；判断修改后重新确认，报告修改后重新审计。证据事实不能在界面中随意改写；Agent 的初始判断只是提案，研究员必须完成一次结构化复核并保存，才可批准。
 
-产品路由、可信交互约束与可编辑字段边界见 [`app-surface.yaml`](app-surface.yaml)。产品界面唯一实现位于 `app/`；不保留第二套前端或单独的顶层 Workspace 目录。
+产品路由、可信交互约束与可编辑字段边界见 [`app-surface.yaml`](app-surface.yaml)。v2 是唯一产品路径；旧 API、旧工作台和数据库迁移均不保留。
 
 ### 模型调用策略
 
@@ -152,12 +158,23 @@ A：判断卡和报告支持直接编辑，每次保存生成新版本。判断�
 
 所有调用统一经过 Model Gateway，记录 Prompt/Schema 版本、模型标识、上下文哈希、用量、成本、延迟、缓存与脱敏错误，并执行超时、有限重试和数据出境策略。来源权限会自动汇总为调用策略；`restricted`、缺少权限字段或事实找不到对应来源时，外部调用会在缓存读取之前被阻断并留下 `blocked` 记录。模型只能提出假设、证据角色、候选判断、独立批判或获得授权的章节表达；任何虚构数值、越权引用、评级或目标价都会被拒绝。财务运算、证据真实性、正式本体写入和发布仍由确定性组件控制。
 
+### 公开公告的完整文件复验
+
+研究员材料必须提供可定位的原文摘录；如已本地下载公开 PDF/HTML，可额外运行下列命令生成 SHA-256、字节数和媒体类型，再把结果填入“完整原始文件校验”展开项。该指纹与摘录的 `contentHash` 独立保存，文件字节不会上传到 Runtime 或外部模型。
+
+```bash
+npm run evidence:prepare-document -- --file=/绝对路径/公告.pdf
+```
+
 ### 评测命令
 
 | 命令 | 用途 |
 |------|------|
 | `npm run eval:live:canary` | 工程 canary（3 个案例，DeepSeek，每次最多 650 token，最多一次尝试，相同输入复用缓存） |
+| `npm run eval:public:evidence:pilot` | 单个公开冻结案例的系统/直答/摘要三轨诊断（非正式、不计算胜率；默认总输出上限 980 token） |
 | `npm run eval:earnings:replay` | 业绩快报确定性回放（无模型、零 token，重算同比/单位/利润差额，检查三表/估值阻断） |
+| `npm run eval:earnings:runtime` | 将冻结公开业绩快报贯通到现有 Kernel，验证来源认证、财务模型、估值阻断和单一来源判断边界（无模型 token） |
+| `npm run eval:earnings:verify-source -- --file=/绝对路径/PDF` | 校验已下载的公开业绩快报是否仍与冻结字节数、SHA-256 一致（不把原文发送给模型） |
 
 ### 服务器模式详情
 
@@ -205,16 +222,13 @@ flowchart LR
 
 ### API（摘要）
 
-- `GET | POST /vnext/conversations`
-- `POST /vnext/connectors/ingest`（服务端 Token + connectorId 白名单）
-- `POST /vnext/tasks/{id}/materials`
-- `GET | POST /vnext/conversations/{id}/messages`
-- `GET /vnext/conversations/{id}/events`（SSE）
-- `POST /vnext/tasks/{id}/resume|cancel|branch`
-- `POST /vnext/approvals/{id}/decision`
-- `GET /vnext/artifacts/{id}`
-- `PATCH /vnext/artifacts/{id}`（`expectedVersion` + editable field changes）
-- 内部知识治理：`/vnext/internal/knowledge/*`
+- `GET | POST /api/v2/research-cases`
+- `GET /api/v2/research-cases/{id}`
+- `GET /api/v2/research-cases/{id}/events`（SSE）
+- `POST /api/v2/research-cases/{id}/commands`（统一命令、乐观锁与幂等键）
+- `GET /api/v2/artifacts/{id}`
+- `POST /api/v2/connectors/ingest`（服务端 Token + connectorId 白名单）
+- `GET /api/v2/health`
 - `GET /ontology/objects/{type}/{id}/actions`
 - `POST /ontology/actions/{actionType}/preview`
 - `POST /ontology/actions/{actionType}/apply`
@@ -223,7 +237,7 @@ flowchart LR
 
 `preview`/`apply` 请求顶层包含 `targetRefs`、`parameters`、`expectedVersions`、`idempotencyKey`、`context`，可选 `knowledgeLockId` 与 `approvalToken`。业务代码不得直接写 `ontology_objects` 或 `ontology_links`。
 
-Artifact PATCH 不等于 Ontology Action：它只修订 Judgment/Report 等研究制品的白名单字段，采用乐观锁保存新版本，并通过 Event 触发下游失效与重算。
+Judgment/Report 修订不提供通用 PATCH：必须经过 ResearchCase Command API，可编辑字段取自 05 治理投影，以乐观锁保存新版本并触发下游失效、重审或重算。
 
 ### 当前成熟度
 

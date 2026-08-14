@@ -3,6 +3,7 @@ import type { ModelProvider } from "@/src/providers/model-provider";
 import { ModelGateway } from "@/src/providers/model-gateway";
 import type { RuntimeStore } from "@/src/runtime/store";
 import { deriveModelDataPolicy } from "@/src/providers/model-data-policy";
+import { BOUNDED_MODEL_REASONING_PROTOCOL } from "@/src/research/generated/bounded-model-reasoning-protocol";
 
 export interface BoundedResearchReasoning {
   evidenceAssignments: Array<{ evidenceFactId: string; role: SignalRole; rationale: string }>;
@@ -33,6 +34,7 @@ const schema = {
 
 const numericTokens = (text: string) => new Set(text.match(/\d+(?:\.\d+)?%?/g) || []);
 const textList = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean) : [];
+const protocol = BOUNDED_MODEL_REASONING_PROTOCOL;
 
 function validate(raw: unknown, task: Task, facts: EvidenceFact[], artifacts: Artifact[]): { data?: BoundedResearchReasoning; errors: string[] } {
   if (!raw || typeof raw !== "object") return { errors: ["Model reasoning output must be an object"] };
@@ -42,7 +44,7 @@ function validate(raw: unknown, task: Task, facts: EvidenceFact[], artifacts: Ar
   const artifactIds = new Set(artifacts.map((artifact) => artifact.id));
   const allowedNumbers = numericTokens(JSON.stringify({ goal: task.goal, facts: facts.map((fact) => fact.statement) }));
   const assertText = (text: string, field: string) => {
-    if (/买入|卖出|增持|减持|目标价|保证收益|稳赚/i.test(text)) errors.push(`${field} contains a prohibited investment recommendation`);
+    if (protocol.deterministic_output_screen.prohibited_investment_terms.some((term) => text.includes(term))) errors.push(`${field} contains a prohibited investment recommendation`);
     for (const token of numericTokens(text)) if (!allowedNumbers.has(token)) errors.push(`${field} introduces unsupported numeric token ${token}`);
   };
   const evidenceAssignments = (Array.isArray(item.evidenceAssignments) ? item.evidenceAssignments : []).flatMap((rawAssignment) => {
@@ -103,25 +105,19 @@ export async function requestBoundedResearchReasoning(store: RuntimeStore, provi
     target: input.node.kind, researchGoal: input.task.goal,
     evidenceFacts: input.facts.map((fact) => ({ id: fact.id, statement: fact.statement, factType: fact.factType, businessTime: fact.businessTime, existingEvidenceRoles: fact.evidenceRoles || [] })),
     authorizedArtifacts: input.artifacts.map((artifact) => ({ id: artifact.id, kind: artifact.kind, title: artifact.title, status: artifact.status, data: artifact.data })),
-    hardRules: [
-      "EvidenceFact verification is already decided and must not be changed.",
-      "Use only supplied EvidenceFact and Artifact IDs; do not create facts, numbers, sources or references.",
-      "Return competing hypotheses and explicit falsification conditions.",
-      "A judgment is only a wording proposal; Runtime decides whether it can be committed.",
-      "Do not output ratings, target prices, trades, positions or guaranteed returns.",
-      "For independent review, report defects only and never rewrite an artifact.",
-    ],
+    hardRules: protocol.hard_rules,
+    targetInstruction: protocol.target_instructions[input.node.kind as keyof typeof protocol.target_instructions],
   };
   const sourceRefs = input.artifacts.flatMap((artifact) => artifact.sourceRefs);
   const dataPolicy = deriveModelDataPolicy(sourceRefs, input.facts.map((fact) => fact.snapshotId));
   try {
     const result = await new ModelGateway(store, provider).generate({
       operation: `research_reasoning:${input.node.kind}`,
-      promptVersion: "bounded-research-reasoning/1.0.0",
-      schemaVersion: "bounded-research-reasoning/1.0.0",
+      promptVersion: protocol.runtime_projection.prompt_version,
+      schemaVersion: protocol.runtime_projection.schema_version,
       schemaName: "bounded_research_reasoning",
-      system: "你是受约束的专业投研推理组件。你只能在提供的已核验事实与授权制品内形成候选分析；正式性、证据门和写权限由 Runtime 决定。只输出 JSON。",
-      prompt: JSON.stringify(promptInput), responseSchema: schema as unknown as Record<string, unknown>, maxOutputTokens: 2400,
+      system: protocol.runtime_projection.system_instruction,
+      prompt: JSON.stringify(promptInput), responseSchema: schema as unknown as Record<string, unknown>, maxOutputTokens: protocol.runtime_projection.max_output_tokens,
       dataPolicy,
       validateResponse: (value) => {
         const checked = validate(value, input.task, input.facts, input.artifacts);

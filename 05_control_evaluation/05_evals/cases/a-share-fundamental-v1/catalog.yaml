@@ -1,8 +1,12 @@
 schema_name: a_share_fundamental_forward_test_catalog
-schema_version: 1.0.0
-status: frozen_design
+schema_version: 1.1.0
+status: engineering_replayable
 asOf: 2026-08-11T00:00:00Z
-purpose: 工程回归与 worker 激活门；不作为正式 R/U/delta/S/C 研究可靠率。
+purpose: 工程回归与 worker 激活门；每一条均绑定 Runtime 冻结夹具与三轨基线合同；不作为正式 R/U/delta/S/C 研究可靠率。
+
+runtime_fixture_catalog: 05_control_evaluation/05_evals/fixtures/research-value-fixtures.json
+runtime_materializer: 06_runtime/src/evaluation/research-value-evaluator.ts
+replay_command: cd 06_runtime && npm run eval:research:fixtures
 
 common_requirements:
   - 所有材料必须冻结 informationCutoff、主体、会计口径、币种、单位和来源权限
@@ -11,21 +15,21 @@ common_requirements:
   - 产物必须独立运行新增专业 Skill 与当前五 Skill 基线对照
 
 cases:
-  - {id: ashare-01-company-coverage-quality, category: company_coverage, primary_lens: quality-compounding, counter_lens: forensic-risk, expected: 审计通过的模型与命题状态}
-  - {id: ashare-02-company-coverage-growth, category: company_coverage, primary_lens: growth-expectation, counter_lens: value-reversion, expected: 增长驱动与预期边界分离}
-  - {id: ashare-03-company-coverage-insufficient, category: insufficient_evidence, primary_lens: growth-expectation, counter_lens: forensic-risk, expected: 缺口阻断且不生成估值数值}
-  - {id: ashare-04-earnings-actual-vs-internal, category: earnings_update, primary_lens: growth-expectation, counter_lens: forensic-risk, expected: 仅比较实际值与内部前值}
-  - {id: ashare-05-earnings-authorized-consensus, category: earnings_update, primary_lens: event-catalyst, counter_lens: forensic-risk, expected: 有 vintage 的一致预期比较}
-  - {id: ashare-06-earnings-no-vintage, category: negative_consensus, primary_lens: event-catalyst, counter_lens: forensic-risk, expected: 阻断 beat/miss consensus}
-  - {id: ashare-07-one-off-profit, category: negative_one_off, primary_lens: value-reversion, counter_lens: forensic-risk, expected: 一次性收益不得伪装为增长}
-  - {id: ashare-08-unit-and-currency, category: negative_unit, primary_lens: quality-compounding, counter_lens: forensic-risk, expected: 单位/币种错误被模型审计阻断}
-  - {id: ashare-09-gaap-adjusted-mix, category: negative_basis, primary_lens: growth-expectation, counter_lens: forensic-risk, expected: 报告口径与调整口径混用被阻断}
-  - {id: ashare-10-future-data-leakage, category: negative_time_travel, primary_lens: event-catalyst, counter_lens: forensic-risk, expected: asOf 后数据被拒绝}
-  - {id: ashare-11-diluted-shares, category: negative_dilution, primary_lens: value-reversion, counter_lens: forensic-risk, expected: 稀释股本遗漏被复核发现}
-  - {id: ashare-12-three-statement-break, category: negative_model_audit, primary_lens: quality-compounding, counter_lens: forensic-risk, expected: 三表不勾稽阻断估值}
-  - {id: ashare-13-sector-cycle-semiconductor, category: sector_cycle, primary_lens: cycle-supply-demand, counter_lens: growth-expectation, expected: 供需库存价格映射公司且保留反证}
-  - {id: ashare-14-thesis-downgrade, category: thesis_review, primary_lens: forensic-risk, counter_lens: quality-compounding, expected: 命题支柱削弱/阻断的版本化记录}
-  - {id: ashare-15-counterevidence-missing, category: negative_counterevidence, primary_lens: growth-expectation, counter_lens: value-reversion, expected: 反证缺失时判断降级}
+  - {id: ashare-01-company-coverage-quality, category: company_coverage, primary_lens: quality-compounding, counter_lens: forensic-risk, expected: 审计通过的模型与命题状态, fixture_ids: [rv-01-company-quality]}
+  - {id: ashare-02-company-coverage-growth, category: company_coverage, primary_lens: growth-expectation, counter_lens: value-reversion, expected: 增长驱动与预期边界分离, fixture_ids: [rv-02-company-growth]}
+  - {id: ashare-03-company-coverage-insufficient, category: insufficient_evidence, primary_lens: growth-expectation, counter_lens: forensic-risk, expected: 缺口阻断且不生成估值数值, fixture_ids: [rv-09-insufficient-supply-chain]}
+  - {id: ashare-04-earnings-actual-vs-internal, category: earnings_update, primary_lens: growth-expectation, counter_lens: forensic-risk, expected: 仅比较实际值与内部前值, fixture_ids: [rv-05-earnings-internal]}
+  - {id: ashare-05-earnings-authorized-consensus, category: earnings_update, primary_lens: event-catalyst, counter_lens: forensic-risk, expected: 有 vintage 的一致预期比较, fixture_ids: [rv-06-earnings-consensus]}
+  - {id: ashare-06-earnings-no-vintage, category: negative_consensus, primary_lens: event-catalyst, counter_lens: forensic-risk, expected: 阻断 beat/miss consensus, fixture_ids: [rv-07-earnings-no-vintage]}
+  - {id: ashare-07-one-off-profit, category: negative_one_off, primary_lens: value-reversion, counter_lens: forensic-risk, expected: 一次性收益不得伪装为增长, fixture_ids: [rv-23-one-off-profit]}
+  - {id: ashare-08-unit-and-currency, category: negative_unit, primary_lens: quality-compounding, counter_lens: forensic-risk, expected: 单位/币种错误被模型审计阻断, fixture_ids: [rv-20-unit-currency]}
+  - {id: ashare-09-gaap-adjusted-mix, category: negative_basis, primary_lens: growth-expectation, counter_lens: forensic-risk, expected: 报告口径与调整口径混用被阻断, fixture_ids: [rv-19-basis-gaap-adjusted]}
+  - {id: ashare-10-future-data-leakage, category: negative_time_travel, primary_lens: event-catalyst, counter_lens: forensic-risk, expected: asOf 后数据被拒绝, fixture_ids: [rv-16-time-future-fact]}
+  - {id: ashare-11-diluted-shares, category: negative_dilution, primary_lens: value-reversion, counter_lens: forensic-risk, expected: 稀释股本遗漏被复核发现, fixture_ids: [rv-24-diluted-shares]}
+  - {id: ashare-12-three-statement-break, category: negative_model_audit, primary_lens: quality-compounding, counter_lens: forensic-risk, expected: 三表不勾稽阻断估值, fixture_ids: [rv-25-three-statement-break]}
+  - {id: ashare-13-sector-cycle-semiconductor, category: sector_cycle, primary_lens: cycle-supply-demand, counter_lens: growth-expectation, expected: 供需库存价格映射公司且保留反证, fixture_ids: [rv-13-counter-demand]}
+  - {id: ashare-14-thesis-downgrade, category: thesis_review, primary_lens: forensic-risk, counter_lens: quality-compounding, expected: 命题支柱削弱/阻断的版本化记录, fixture_ids: [rv-04-company-risk]}
+  - {id: ashare-15-counterevidence-missing, category: negative_counterevidence, primary_lens: growth-expectation, counter_lens: value-reversion, expected: 反证缺失时判断降级, fixture_ids: [rv-15-counter-missing]}
 
 activation_gates:
   serious_source_time_formula_permission_regressions: 0

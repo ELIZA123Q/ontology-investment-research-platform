@@ -1,0 +1,20 @@
+schema_name: evidence_sufficiency_policy
+schema_version: 1.0.0
+status: active
+
+default_minimum_independent_publishers:
+  support: 2
+  counter: 1
+  boundary: 1
+  context: 1
+  weaken: 1
+  block: 1
+
+rules:
+  - 任务或 EvidenceRequirement 可以声明更高门槛，但不得低于本策略默认值。
+  - 相同 publisher_id 的多个材料只计为一个独立发布主体。
+  - 未完成 Source Capture 或未验证的事实不得计入门槛。
+  - counter 证据要求以是否取得有效反证为完成条件，不以支持证据数量替代。
+  - 未满足门槛时必须输出 stopped_insufficient_evidence 或明确阻断，不得自动补写结论。
+
+runtime_projection: 06_runtime/src/generated/domain-catalog.ts

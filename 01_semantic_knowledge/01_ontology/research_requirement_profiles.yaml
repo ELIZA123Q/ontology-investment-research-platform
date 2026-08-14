@@ -8,10 +8,13 @@ description: |
 
 semantic_profiles:
   company_research:
-    required_object_types: [Company, Product, Industry, ResearchScope]
-    required_relation_types: [belongsTo, produces, competesWith, dependsOn]
-    required_state_types: [StateVariable, Observation, Event]
-    required_evidence_types: [SourceDocument, EvidenceFact, EvidenceAssessment, EvidenceBasket]
+    semantic_contract: contracts/company_fundamental_semantics.yaml
+    required_object_types: [Company, FinancialInstrument, Product, Industry, Metric, ResearchScope]
+    required_relation_types: [belongsTo, produces, competesWith, dependsOn, represents]
+    required_state_types: [StateVariable, Observation, Event, StateSnapshot]
+    required_evidence_types: [SourceDocument, EvidenceRequirement, EvidenceFact, EvidenceAssessment, EvidenceBasket]
+    required_financial_types: [FinancialObservation, Forecast, ForecastAssumption, ValuationAssessment]
+    required_operational_types: [ResearchCase, ResearchDeliverable]
   industry_research:
     required_object_types: [Industry, ValueChainSegment, Product, Metric, ResearchScope]
     required_relation_types: [belongsTo, contains, competesWith, dependsOn]

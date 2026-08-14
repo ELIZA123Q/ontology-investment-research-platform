@@ -1,0 +1,13 @@
+id: CR-2026-08-13-bounded-model-reasoning-protocol
+date: 2026-08-13
+summary: 将受约束模型推理的输入边界、候选输出、竞争解释和独立复核禁区从 Runtime 提示词沉淀为 judgment-reasoning Skill 的版本化协议与生成投影。
+classifications: [reusable_research_method, execution_mechanics]
+authority_refs:
+  - 03_agent_capability/02_skills/judgment_reasoning/references/bounded-model-reasoning-protocol.yaml
+  - 03_agent_capability/02_skills/judgment_reasoning/SKILL.md
+execution_refs:
+  - 06_runtime/scripts/generate-bounded-model-reasoning-protocol.py
+  - 06_runtime/src/research/model-reasoning.ts
+verification_refs:
+  - 05_control_evaluation/04_verifiers/validate_bounded_model_reasoning_protocol.py
+  - 06_runtime/tests/model-reasoning.test.ts

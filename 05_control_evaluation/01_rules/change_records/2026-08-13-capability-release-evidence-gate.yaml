@@ -1,0 +1,13 @@
+id: CR-2026-08-13-capability-release-evidence-gate
+date: 2026-08-13
+summary: 候选能力进入生产 Release 时，必须引用已完成、正式可计分且同证据对比的评测记录；Release 自报指标不再构成激活证据。
+classifications: [reusable_deterministic_constraint, evaluation_knowledge]
+authority_refs:
+  - 05_control_evaluation/01_rules/policies/capability_activation_policy.yaml
+  - 05_control_evaluation/05_evals/release_evidence/registry.json
+execution_refs:
+  - 06_runtime/scripts/audit-cutover.ts
+  - 06_runtime/src/capabilities/registry.ts
+verification_refs:
+  - 05_control_evaluation/04_verifiers/validate_capability_activation_policy.py
+  - 05_control_evaluation/04_verifiers/tests/test_capability_activation_policy.py

@@ -23,6 +23,7 @@ interfaces: interfaces.yaml
 value_types: value_types.yaml
 research_lens_profiles: research_lens_profiles.yaml
 data_mapping_profiles: contracts/ontology_data_mapping_profiles.yaml
+company_fundamental_semantics: contracts/company_fundamental_semantics.yaml
 domain_parameter_bundles:
   semiconductor: domains/semiconductor/business_instances.yaml
 migration_manifest: migrations/4.0-to-5.0.yaml

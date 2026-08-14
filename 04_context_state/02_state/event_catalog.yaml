@@ -1,0 +1,19 @@
+schema_name: runtime_event_catalog
+schema_version: 1.0.0
+status: active
+
+event_families:
+  research_case: [research_case.created, research_case.activated, research_case.completed, research_case.cancelled]
+  task: [plan.confirmed, task.queued, task.started, task.paused, task.input_requested, task.completed, task.failed, task.cancelled]
+  node: [node.ready, node.started, node.completed, node.blocked, node.failed, node.invalidated, node.cancelled]
+  material: [material.attached, source.captured, evidence.promoted]
+  artifact: [artifact.created, artifact.verified, artifact.edited, artifact.superseded, artifact.recompute_queued]
+  approval: [approval.requested, approval.approved, approval.rejected, approval.superseded]
+  signal: [signal.seen, signal.dismissed, signal.promoted]
+  job: [job.queued, job.started, job.completed, job.failed, job.cancelled]
+  checkpoint: [checkpoint.current, checkpoint.superseded]
+
+required_envelope: [id, type, actorType, actorId, createdAt, payload]
+optional_identity: [conversationId, researchCaseId, taskId, nodeId, artifactId, approvalId]
+append_only: true
+unknown_event_behavior: reject

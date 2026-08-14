@@ -1,12 +1,12 @@
 ---
 doc_status: active
-version: 1.1.0
+version: 1.2.0
 authority: knowledge_learning_architecture
 owners:
   - governance_owner
   - ontology_steward
   - method_owner
-last_updated: 2026-08-09
+last_updated: 2026-08-13
 machine_contract: knowledge_promotion/knowledge_learning_contract.yaml
 ---
 

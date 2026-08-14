@@ -42,8 +42,7 @@ export class OntologyStore {
 
   recordRejected(execution: ActionExecution): ActionExecution {
     const stamp = execution.completedAt || now();
-    this.runtime.db.exec("BEGIN IMMEDIATE");
-    try {
+    return this.runtime.transaction(() => {
       this.insertExecution(execution);
       this.createObject({
         operation: "create_object", ref: { id: execution.id, type: "ActionExecution" },
@@ -64,12 +63,8 @@ export class OntologyStore {
           actorId: execution.actorId, payload: { actionExecutionId: execution.id, actionType: execution.actionType, error: execution.error },
         });
       }
-      this.runtime.db.exec("COMMIT");
       return execution;
-    } catch (error) {
-      this.runtime.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
   commit(execution: ActionExecution): { execution: ActionExecution; objects: OntologyObject[]; links: OntologyLink[] } {
@@ -77,8 +72,7 @@ export class OntologyStore {
     const completed: ActionExecution = { ...execution, status: "applied", completedAt: stamp };
     const touchedObjects: OntologyObject[] = [];
     const touchedLinks: OntologyLink[] = [];
-    this.runtime.db.exec("BEGIN IMMEDIATE");
-    try {
+    return this.runtime.transaction(() => {
       for (const target of completed.request.targetRefs) {
         const current = this.getObject(target.id);
         const expected = completed.request.expectedVersions[`${target.type}:${target.id}`]
@@ -122,12 +116,8 @@ export class OntologyStore {
           payload: { actionExecutionId: completed.id, actionType: completed.actionType, outputRefs: completed.outputRefs, invalidatedRefs: completed.invalidatedRefs },
         });
       }
-      this.runtime.db.exec("COMMIT");
       return { execution: completed, objects: touchedObjects, links: touchedLinks };
-    } catch (error) {
-      this.runtime.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
   private createObject(edit: Extract<OntologyEdit, { operation: "create_object" }>, stamp: string): OntologyObject {

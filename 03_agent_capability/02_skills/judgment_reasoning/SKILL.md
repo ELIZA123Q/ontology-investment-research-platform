@@ -35,5 +35,6 @@ progressive_loading: metadata_then_instructions_then_resources
 ## 资源加载顺序
 
 1. 本文件
-2. `references/A00_裁决总则.md` 与相关附录
-3. 按判断类型加载 `A01`–`A10`
+2. `references/bounded-model-reasoning-protocol.yaml`（仅在调用模型形成候选假设、候选判断或独立复核时）
+3. `references/A00_裁决总则.md` 与相关附录
+4. 按判断类型加载 `A01`–`A10`

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { FormalEvaluationPrerequisites } from "@/src/evaluation/report-quality-evaluator";
+import { normalizeSourceDocumentAttestation, type SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 
 export type FormalEvaluationStratum = "report_value" | "restraint";
 export type PerturbationKind = "delete_key_evidence" | "replace_scope_or_metric" | "inject_counterevidence" | "move_information_cutoff";
@@ -35,6 +36,12 @@ export interface FormalEvaluationCaseManifest {
       locator: string;
       quote: string;
       contentHash: string;
+      /**
+       * Fingerprint of the complete retrieved public document. This is
+       * deliberately separate from contentHash, which fingerprints only the
+       * cited excerpt/normalized capture.
+       */
+      documentAttestation?: SourceDocumentAttestation;
       supports: string[];
       limitations: string[];
     }>;
@@ -99,6 +106,16 @@ const isTime = (value: string) => !Number.isNaN(Date.parse(value));
 const nonEmpty = (value: string) => Boolean(value?.trim());
 const calibrationRank: Record<CalibrationLevel, number> = { C0: 0, C1: 1, C2: 2, C3: 3 };
 
+function hasValidPublicDocumentAttestation(item: FormalEvaluationCaseManifest["evidenceBundle"]["evidence"][number]): boolean {
+  if (!/^https?:\/\//u.test(item.uri) || item.accessStatus !== "retrieved") return true;
+  try {
+    const attestation = normalizeSourceDocumentAttestation(item.documentAttestation);
+    return attestation !== undefined && attestation.rawContentHash !== item.contentHash;
+  } catch {
+    return false;
+  }
+}
+
 function canonicalize(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
   if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`).join(",")}}`;
@@ -139,6 +156,7 @@ export function evaluateFormalCaseEligibility(manifest: FormalEvaluationCaseMani
     check("evidence_before_artifact", isTime(manifest.evidenceBundle.frozenAt) && isTime(manifest.systemArtifact.frozenAt) && Date.parse(manifest.evidenceBundle.frozenAt) <= Date.parse(manifest.systemArtifact.frozenAt), "证据包在系统产物之前或同时冻结。"),
     check("freeze_before_seal", isTime(manifest.systemArtifact.frozenAt) && isTime(manifest.systemArtifact.sealedAdjudicationOpenedAt) && Date.parse(manifest.systemArtifact.frozenAt) < Date.parse(manifest.systemArtifact.sealedAdjudicationOpenedAt), "系统产物在打开密封裁决前冻结。"),
     check("evidence_contract", manifest.evidenceBundle.evidence.length >= 3 && evidenceIds.size === manifest.evidenceBundle.evidence.length && evidenceRoleCoherent && manifest.evidenceBundle.evidence.every((item) => nonEmpty(item.publisherId) && nonEmpty(item.title) && /^(?:https?|mcp):\/\//u.test(item.uri) && isTime(item.publishedAt) && isTime(item.businessTime) && nonEmpty(item.independentSourceGroup) && nonEmpty(item.locator) && nonEmpty(item.quote) && isHash(item.contentHash) && item.supports.length > 0 && item.supports.every(nonEmpty) && item.limitations.length > 0), "冻结证据至少三条；MCP URI、支持点、证据角色与访问状态必须自洽。"),
+    check("public_document_attestation", manifest.evidenceBundle.evidence.every(hasValidPublicDocumentAttestation), "每条已取回的 HTTP(S) 正式证据均须保存完整原始文件指纹，且不得以摘录哈希冒充文件哈希；不可获取来源仍只能作为受审计缺口。"),
     check("cutoff", Number.isFinite(cutoff) && manifest.evidenceBundle.evidence.every((item) => Date.parse(item.publishedAt) <= cutoff), "全部证据发布时间不晚于研究截止日。"),
     check("independent_sources", manifest.stratum === "report_value" ? substantiveSourceGroups.size >= 2 : substantiveSourceGroups.size >= 1 && allSourceGroups.size >= 2, manifest.stratum === "report_value" ? "报告价值案例至少包含两个已取回的实质证据来源组；访问失败不能伪装成独立佐证。" : "克制案例至少包含一个已取回实质来源和一个不同来源组的受审计边界或缺口。"),
     check("stratum_evidence_boundary", manifest.stratum === "report_value" ? substantiveEvidence.length >= 3 : substantiveEvidence.length >= 1 && accessGaps.length >= 1 && accessGapsOnlySupportBoundaries, manifest.stratum === "report_value" ? "报告价值案例至少三条实质证据。" : "克制案例必须含真实访问缺口，且缺口只能支持边界判断，不能支持价值结论。"),

@@ -1,0 +1,54 @@
+schema_name: capability_activation_policy
+schema_version: 1.0.0
+status: active
+authority: control_policy
+scope: Skill、Agent 与 Tool 从候选状态进入生产 Release 的证据门
+purpose: >-
+  防止通过修改 lifecycle 或 executionScopes 直接把候选能力投入生产。此策略不评价研究结论；
+  它只规定能力发布必须携带的评测证据与不可突破的安全回归边界。
+
+rule_ids:
+  - GOV-CAPABILITY-ACTIVATION-001
+
+release_manifest: 03_agent_capability/releases/current.json
+runtime_binding: 06_runtime/src/capabilities/registry.ts
+release_evidence_registry: 05_control_evaluation/05_evals/release_evidence/registry.json
+
+production_activation:
+  candidate_production_dispatch_allowed: false
+  required_evidence_type: evaluation_run
+  required_metrics:
+    comparable_cases: {minimum: 12}
+    blind_win_rate: {minimum: 0.60}
+    severe_regressions: {maximum: 0}
+  required_evidence_fields: [evaluation_run_refs, evaluated_at, metrics]
+  evaluation_run_requirements:
+    registry_only: true
+    status: completed
+    formal_score_eligible: true
+    minimum_case_count: 12
+    capability_must_be_listed: true
+    release_metrics_must_match_run: true
+  metric_extensions:
+    evidence_investigator: {minimum_evidence_coverage_pp: 10, alternative_median_latency_reduction: 0.20}
+    independent_critic: {minimum_critical_defect_recall: 0.80, maximum_false_veto_rate: 0.10}
+  safety_regressions: [source, time_travel, formula, permission]
+
+foundational_baseline:
+  allowed: true
+  condition: 仅适用于本 Release 已存在的生产基线；不得作为新候选能力的豁免理由。
+  required_evidence_fields: [rationale, evaluated_at]
+  permitted_entries:
+    skills: [research-framing, research-design, evidence-research, judgment-reasoning, research-delivery]
+    agents: [research-lead]
+    tools: [semantic.search, source.discover, source.capture, source.query, artifact.publish, financial.model.validate]
+
+governance:
+  source_of_truth: 05_control_evaluation/01_rules/policies/capability_activation_policy.yaml
+  release_manifest: 03_agent_capability/releases/current.json
+  runtime_registry: 06_runtime/src/capabilities/registry.ts
+  runtime_audit: 06_runtime/scripts/audit-cutover.ts
+  release_evidence_registry: 05_control_evaluation/05_evals/release_evidence/registry.json
+  tests:
+    - 06_runtime/tests/financial-capability.test.ts
+    - 06_runtime/tests/domain-projection.test.ts

@@ -16,6 +16,8 @@ export interface ModelResult {
 export interface ModelProvider {
   readonly id: string;
   readonly modelId?: string;
+  /** Defaults to external: only an explicit local deployment may receive restricted context. */
+  readonly deployment?: "local" | "external";
   generate(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult>;
 }
 
@@ -26,6 +28,7 @@ export class ModelProviderError extends Error {
 export class OpenAICompatibleProvider implements ModelProvider {
   readonly id: string;
   readonly modelId: string;
+  readonly deployment = "external" as const;
   constructor(private readonly config: { apiKey: string; baseUrl: string; model: string; id?: string; structuredOutput?: "json_schema" | "json_object" | "prompt_only"; thinking?: "enabled" | "disabled" }) { this.id = config.id || "openai-compatible"; this.modelId = config.model; }
 
   async generate(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult> {
@@ -54,6 +57,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
 export class AnthropicProvider implements ModelProvider {
   readonly id = "anthropic";
   readonly modelId: string;
+  readonly deployment = "external" as const;
   constructor(private readonly config: { apiKey: string; model: string }) { this.modelId = config.model; }
 
   async generate(request: ModelRequest, signal?: AbortSignal): Promise<ModelResult> {

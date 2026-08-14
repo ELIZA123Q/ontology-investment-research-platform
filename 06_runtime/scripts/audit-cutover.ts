@@ -7,7 +7,7 @@ const repoRoot = resolve(runtimeRoot, "..");
 const failures: string[] = [];
 
 const forbiddenPaths = [
-  "vnext", "90_compat", "06_runtime/agents", "06_runtime/skills", "06_runtime/workflow",
+  "vnext", "90_compat", "06_runtime/app/vnext", "06_runtime/app/legacy", "06_runtime/agents", "06_runtime/skills", "06_runtime/workflow",
   "06_runtime/runner", "06_runtime/storage", "04_context_state/02_memory",
   "04_context_state/03_workspace", "04_context_state/04_runtime", "legacy", "examples",
 ];
@@ -42,6 +42,12 @@ for (const file of authorityFiles) {
   for (const token of forbiddenReferences) if (content.includes(token)) failures.push(`${file} still references ${token}`);
 }
 
+for (const file of ["06_runtime/app/page.tsx", "06_runtime/src/runtime/store.ts", "06_runtime/app-surface.yaml"]) {
+  const content = readFileSync(join(repoRoot, file), "utf8");
+  if (content.includes("VNEXT_PRODUCT_VERSION")) failures.push(`${file} still contains the removed product-version switch`);
+  if (content.includes("/vnext")) failures.push(`${file} still contains a removed /vnext route`);
+}
+
 const compareRelease = (kind: "skills" | "agents" | "tools", runtime: Array<{ id: string; version?: string; lifecycle?: string }>) => {
   const released = CAPABILITY_RELEASE[kind];
   const runtimeIds = [...runtime.map((item) => item.id)].sort();
@@ -60,6 +66,28 @@ const activeAgents = AGENTS.filter((agent) => agent.lifecycle === "active");
 const releasedActiveAgents = CAPABILITY_RELEASE.agents.filter((agent) => agent.lifecycle === "active").map((agent) => agent.id).sort();
 if (JSON.stringify(activeAgents.map((agent) => agent.id).sort()) !== JSON.stringify(releasedActiveAgents)) failures.push(`active agents differ from Capability Release: runtime=${activeAgents.map((agent) => agent.id).join(",")}, release=${releasedActiveAgents.join(",")}`);
 if (!TOOLS.some((tool) => tool.id === "source.capture") || !TOOLS.some((tool) => tool.id === "source.query")) failures.push("required tool manifests are missing");
+const activationPolicy = CAPABILITY_RELEASE.activationPolicy;
+if (activationPolicy.candidateProductionDispatchAllowed !== false || activationPolicy.minimumComparableCases < 12 || activationPolicy.minimumBlindWinRate < 0.6 || activationPolicy.maximumSevereRegressions !== 0) failures.push("Capability Release activation policy weakens governed candidate gates");
+const releaseEvidencePath = join(repoRoot, "05_control_evaluation/05_evals/release_evidence/registry.json");
+const releaseEvidence = existsSync(releaseEvidencePath) ? JSON.parse(readFileSync(releaseEvidencePath, "utf8")) as { schemaName?: string; status?: string; evidenceRuns?: Array<{ id?: string; status?: string; formalScoreEligible?: boolean; capabilityIds?: string[]; caseIds?: string[]; metrics?: Record<string, number> }> } : undefined;
+if (releaseEvidence?.schemaName !== "capability_release_evidence_registry" || releaseEvidence?.status !== "current" || !Array.isArray(releaseEvidence.evidenceRuns)) failures.push("capability release evidence registry is invalid");
+const releaseEvidenceById = new Map((releaseEvidence?.evidenceRuns || []).filter((run) => run.id).map((run) => [run.id!, run]));
+for (const kind of ["skills", "agents", "tools"] as const) {
+  for (const entry of CAPABILITY_RELEASE[kind]) {
+    if (!entry.executionScopes.includes("production")) continue;
+    const evidence = entry.activationEvidence;
+    if (!evidence?.evaluatedAt || Number.isNaN(Date.parse(evidence.evaluatedAt))) failures.push(`${kind.slice(0, -1)} ${entry.id} lacks dated activation evidence`);
+    if (evidence?.type === "foundational_baseline" && !evidence.rationale?.trim()) failures.push(`${kind.slice(0, -1)} ${entry.id} foundational activation lacks rationale`);
+    if (evidence?.type === "evaluation_run") {
+      const refs = evidence.evaluationRunRefs || [];
+      const run = refs.length === 1 ? releaseEvidenceById.get(refs[0]) : undefined;
+      if (!run || run.status !== "completed" || run.formalScoreEligible !== true || !run.capabilityIds?.includes(entry.id) || (run.caseIds?.length || 0) < activationPolicy.minimumComparableCases) failures.push(`${kind.slice(0, -1)} ${entry.id} lacks a completed formally eligible release evaluation`);
+      const metrics = evidence.metrics;
+      if (!metrics || metrics.comparableCases !== run?.metrics?.comparableCases || metrics.blindWinRate !== run?.metrics?.blindWinRate || metrics.severeRegressions !== run?.metrics?.severeRegressions) failures.push(`${kind.slice(0, -1)} ${entry.id} activation metrics are not attested by its release evaluation`);
+    }
+    if (entry.lifecycle !== "active") failures.push(`non-active ${kind.slice(0, -1)} ${entry.id} has production execution scope`);
+  }
+}
 
 const externalCandidatesPath = join(repoRoot, "03_agent_capability/02_skills/external_candidates.json");
 if (existsSync(externalCandidatesPath)) {

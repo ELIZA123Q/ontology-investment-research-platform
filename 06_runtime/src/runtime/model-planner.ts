@@ -1,6 +1,7 @@
 import type { RuntimeStore } from "@/src/runtime/store";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { ModelGateway } from "@/src/providers/model-gateway";
+import { deriveModelDataPolicy } from "@/src/providers/model-data-policy";
 import { RESEARCH_NODE_CATALOG } from "@/src/runtime/node-catalog";
 import { parsePlannerProposal, type PlannerProposal } from "@/src/runtime/plan-compiler";
 
@@ -45,7 +46,7 @@ export async function requestPlannerProposal(store: RuntimeStore, provider: Mode
       responseSchema: schema as unknown as Record<string, unknown>,
       schemaName: "research_plan_proposal",
       maxOutputTokens: 1600,
-      dataPolicy: "private_authorized",
+      dataPolicy: deriveModelDataPolicy([]),
       validateResponse: (value) => {
         const parsed = parsePlannerProposal(JSON.stringify(value));
         if (!parsed || parsed.nodes.some((node) => !node.frontierRef?.problemGraphId || !node.frontierRef.compilerBoundary)) throw new Error("Planner response failed the proposal frontier contract");

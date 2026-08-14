@@ -33,6 +33,17 @@ describe("AI-native frontend view models", () => {
     expect(buildHomeView(store, { tenantId: "tenant-a", userId: "admin-a", roles: ["tenant_admin"] }).research.map((item) => item.conversation.id).sort()).toEqual([own.id, sameTenantOtherUser.id].sort());
   });
 
+  it("surfaces an orphaned approval state as a recoverable integrity issue", () => {
+    const store = makeStore();
+    const conversation = store.createConversation("缺失审批请求");
+    const task = store.createTask({ conversationId: conversation.id, goal: "判断供应链变化", intent: "full_research", status: "waiting_approval", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
+
+    const view = buildHomeView(store);
+
+    expect(view.attention).toEqual([expect.objectContaining({ id: `integrity:${task.id}`, kind: "failure", taskId: task.id })]);
+    expect(view.counts.needsAttention).toBe(1);
+  });
+
   it("exposes only current released global knowledge and never candidates", () => {
     const store = makeStore();
     const conversation = store.createConversation("候选来源");

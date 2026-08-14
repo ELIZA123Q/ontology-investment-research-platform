@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { EvidenceFact, SourceSnapshot } from "@/src/contracts";
 import type { VerificationResult } from "@/src/governance/verifiers";
+import { normalizeSourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 
 const hashBody = (body: string) => `sha256:${createHash("sha256").update(body).digest("hex")}`;
 
@@ -15,6 +16,12 @@ export function verifySourceSnapshot(snapshot: SourceSnapshot): VerificationResu
   if (!snapshot.acquisition.upstreamSourceId.trim()) errors.push("upstream source id is required");
   if (!snapshot.acquisition.requestFingerprint.startsWith("sha256:")) errors.push("request fingerprint is required");
   if (snapshot.acquisition.rawResponseHash !== snapshot.contentHash) errors.push("raw response hash mismatch");
+  try {
+    const attestation = normalizeSourceDocumentAttestation(snapshot.documentAttestation);
+    if (attestation && attestation.rawContentHash === snapshot.contentHash) errors.push("document raw hash must not be reused as captured excerpt body hash");
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
   if (Number.isNaN(Date.parse(snapshot.acquisition.retrievedAt))) errors.push("retrieval timestamp is invalid");
   if (snapshot.permissionScope === "restricted") errors.push("restricted capture cannot be promoted");
   return { verifier: "source-snapshot", passed: errors.length === 0, errors, warnings: [] };

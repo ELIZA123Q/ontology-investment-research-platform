@@ -5,7 +5,7 @@ import { runEarningsUpdateReplay, type EarningsUpdateReplayFixture } from "@/src
 
 describe("frozen public earnings update replay", () => {
   it("recomputes the issuer figures, supports only the descriptive judgment and blocks causal overreach and valuation", () => {
-    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), "evals/earnings-update-replay-dongwei.json"), "utf8")) as EarningsUpdateReplayFixture;
+    const fixture = JSON.parse(readFileSync(resolve(process.cwd(), "../05_control_evaluation/05_evals/fixtures/earnings-update-replay-dongwei.json"), "utf8")) as EarningsUpdateReplayFixture;
     const result = runEarningsUpdateReplay(fixture);
     expect(result.passed).toBe(true);
     expect(result.outcome).toBe("completed_with_judgment");

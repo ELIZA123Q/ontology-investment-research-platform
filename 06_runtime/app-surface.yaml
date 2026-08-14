@@ -1,35 +1,27 @@
 schema_name: app_surface_registry
-schema_version: 2.0.0
+schema_version: 3.0.0
 status: active
 source_of_truth: 06_runtime/app
 workbench_url: http://127.0.0.1:3000
 routes:
+  - path: /api/v2/health
+    file: 06_runtime/app/api/v2/health/route.ts
+  - path: /api/v2/research-cases
+    file: 06_runtime/app/api/v2/research-cases/route.ts
+  - path: /api/v2/research-cases/{id}
+    file: 06_runtime/app/api/v2/research-cases/[id]/route.ts
+  - path: /api/v2/research-cases/{id}/events
+    file: 06_runtime/app/api/v2/research-cases/[id]/events/route.ts
+  - path: /api/v2/research-cases/{id}/commands
+    file: 06_runtime/app/api/v2/research-cases/[id]/commands/route.ts
+  - path: /api/v2/artifacts/{id}
+    file: 06_runtime/app/api/v2/artifacts/[id]/route.ts
+  - path: /api/v2/connectors/ingest
+    file: 06_runtime/app/api/v2/connectors/ingest/route.ts
   - path: /
     file: 06_runtime/app/page.tsx
-  - path: /vnext/conversations
-    file: 06_runtime/app/vnext/conversations/route.ts
-  - path: /vnext/conversations/{id}/messages
-    file: 06_runtime/app/vnext/conversations/[id]/messages/route.ts
-  - path: /vnext/conversations/{id}/events
-    file: 06_runtime/app/vnext/conversations/[id]/events/route.ts
-  - path: /vnext/conversations/{id}/tracking
-    file: 06_runtime/app/vnext/conversations/[id]/tracking/route.ts
-  - path: /vnext/signals
-    file: 06_runtime/app/vnext/signals/route.ts
-  - path: /vnext/signals/refresh
-    file: 06_runtime/app/vnext/signals/refresh/route.ts
-  - path: /vnext/signals/{id}/decision
-    file: 06_runtime/app/vnext/signals/[id]/decision/route.ts
-  - path: /vnext/health
-    file: 06_runtime/app/vnext/health/route.ts
-  - path: /vnext/tasks/{id}/{action}
-    file: 06_runtime/app/vnext/tasks/[id]/[action]/route.ts
-  - path: /vnext/tasks/{id}/materials
-    file: 06_runtime/app/vnext/tasks/[id]/materials/route.ts
-  - path: /vnext/approvals/{id}/decision
-    file: 06_runtime/app/vnext/approvals/[id]/decision/route.ts
-  - path: /vnext/artifacts/{id}
-    file: 06_runtime/app/vnext/artifacts/[id]/route.ts
+  - path: /research/{id}
+    file: 06_runtime/app/research/[conversationId]/page.tsx
   - path: /ontology/objects/{type}/{id}/actions
     file: 06_runtime/app/ontology/objects/[type]/[id]/actions/route.ts
   - path: /ontology/actions/{actionType}/preview
@@ -41,12 +33,12 @@ routes:
   - path: /ontology/research-cases/{id}/graph
     file: 06_runtime/app/ontology/research-cases/[id]/graph/route.ts
 notes:
-  - 主界面只有研究主题、连续对话与动态可信画布。
+  - 首页仅创建和查看公司研究案例，工程对象不作为主导航。
+  - 研究工作台按非线性决策脊柱展示范围、证据、KPI、模型、判断、估值、报告与审计。
+  - UI 只消费 Case Snapshot，状态、门槛和编辑权限来自 04–05 投影。
   - Ontology/Agent/Skill/Tool/Eval 不作为研究员主导航。
   - 正式语义写入只能经过 Ontology Action preview/apply 接口。
-  - /vnext/artifacts/{id} 的 PATCH 只允许 UiSurface editableFields 白名单字段，并要求 expectedVersion。
+  - 制品编辑只能通过 /api/v2/research-cases/{id}/commands，并要求 expectedVersion 和 idempotencyKey。
   - 关键证据和 Judgment 会暂停等待研究员确认；报告编辑后自动重新审计。
   - 研究员材料通过独立抽屉结构化录入来源、发布主体、原文定位与摘录；不能用聊天文本绕过 SourceSnapshot 和 evidence_confirmation。
-  - AKShare 信号仅作为候选材料；“用于研究”仍进入 source_capture，并在运行中或终态任务上创建 evidence_only 子分支。
-  - 研究主题按可编辑代码和关键词追踪；不提供全市场无差别信息流，AKShare 降级不阻止核心工作台启动。
   - 计划面展示受治理的章节级方法蓝图；报告面展示 MethodApplication、方法输入事实数量和缺口。

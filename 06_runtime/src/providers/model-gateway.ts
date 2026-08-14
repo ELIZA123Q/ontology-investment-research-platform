@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { RuntimeStore } from "@/src/runtime/store";
 import { ModelProviderError, type ModelProvider, type ModelRequest, type ModelResult } from "@/src/providers/model-provider";
+import { MODEL_DATA_EGRESS_RULES } from "@/src/providers/generated/model-data-egress-rules";
 
 export type ModelDataPolicy = "public" | "private_authorized" | "restricted_no_egress";
 
@@ -53,11 +54,17 @@ export class ModelGateway {
   constructor(private readonly store: RuntimeStore, private readonly provider: ModelProvider) {}
 
   async generate(request: ModelGatewayRequest, outerSignal?: AbortSignal): Promise<ModelGatewayResult> {
+    const defaultDataPolicy = MODEL_DATA_EGRESS_RULES.aggregation.no_source_behavior as ModelDataPolicy;
+    const dataPolicy = request.dataPolicy || defaultDataPolicy;
+    const egressRule = MODEL_DATA_EGRESS_RULES.policies[dataPolicy];
+    if (!egressRule) throw new Error(`Unknown governed model data policy: ${dataPolicy}`);
     const contextHash = hash({ system: request.system, prompt: request.prompt });
-    const fingerprint = hash({ provider: this.provider.id, model: this.provider.modelId || "provider-default", operation: request.operation, promptVersion: request.promptVersion, schemaVersion: request.schemaVersion, schemaName: request.schemaName, responseSchema: request.responseSchema, maxOutputTokens: request.maxOutputTokens, dataPolicy: request.dataPolicy || "private_authorized", contextHash });
+    const fingerprint = hash({ provider: this.provider.id, model: this.provider.modelId || "provider-default", operation: request.operation, promptVersion: request.promptVersion, schemaVersion: request.schemaVersion, schemaName: request.schemaName, responseSchema: request.responseSchema, maxOutputTokens: request.maxOutputTokens, dataPolicy, contextHash });
     const startedAt = new Date().toISOString();
     const started = Date.now();
-    if (request.dataPolicy === "restricted_no_egress" && this.provider.id !== "local") {
+    const allowedDeployments = (egressRule as { allowed_provider_deployments?: readonly ("local" | "external")[] }).allowed_provider_deployments || [];
+    const providerDeployment = this.provider.deployment || "external";
+    if (!egressRule.external_provider_allowed && !allowedDeployments.includes(providerDeployment)) {
       const error = "Model data policy forbids external egress";
       this.store.recordModelCall({ operation: request.operation, fingerprint, provider: this.provider.id, model: this.provider.modelId || "unknown", promptVersion: request.promptVersion, schemaVersion: request.schemaVersion, contextHash, status: "blocked", attempts: 0, cacheHit: false, latencyMs: Date.now() - started, error, createdAt: startedAt });
       throw new Error(error);

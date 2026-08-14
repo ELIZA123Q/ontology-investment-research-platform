@@ -1,4 +1,5 @@
 import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
+import { TASK_OUTCOME_VALUES } from "@/src/runtime/state-machine";
 
 export type Id = string;
 export type IsoDate = string;
@@ -12,7 +13,7 @@ type CandidateAgentDefinition = typeof DOMAIN_CATALOG.capabilities.agents.candid
 export type AgentId = ActiveAgentDefinition["agent_id"] | CandidateAgentDefinition["agent_id"];
 export const RESEARCH_ROLE_VALUES = DOMAIN_CATALOG.roles.map((role) => role.role_id);
 export type ResearchRole = typeof RESEARCH_ROLE_VALUES[number];
-export type ResearchRunOutcome = "completed_with_judgment" | "stopped_insufficient_evidence" | "cancelled" | "failed";
+export type ResearchRunOutcome = typeof TASK_OUTCOME_VALUES[number];
 
 export interface ModelCallRecord {
   id: Id;
@@ -437,6 +438,13 @@ export interface SourceAcquisition {
   retrievedAt: IsoDate;
 }
 
+/** Full raw document fingerprint; separate from the captured excerpt body hash. */
+export interface SourceDocumentAttestation {
+  rawContentHash: string;
+  byteLength: number;
+  mimeType: string;
+}
+
 export interface SourceSnapshot {
   id: Id;
   candidateId: Id;
@@ -452,6 +460,7 @@ export interface SourceSnapshot {
   publishedAt?: IsoDate;
   publisherId?: string;
   permissionScope: "public_research_use" | "authorized_research_use" | "user_supplied" | "restricted";
+  documentAttestation?: SourceDocumentAttestation;
   verification: "unverified" | "verified" | "rejected";
   acquisition: SourceAcquisition;
 }
@@ -541,7 +550,7 @@ export interface ApprovalRequest {
   nodeId?: Id;
   kind: "risk_action" | "evidence_confirmation" | "judgment_confirmation" | "publish_confirmation" | "plan_confirmation";
   prompt: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "superseded";
   decisionNote?: string;
   createdAt: IsoDate;
   decidedAt?: IsoDate;
@@ -814,6 +823,7 @@ export interface Checkpoint {
   id: Id;
   taskId: Id;
   nodeId?: Id;
+  status: "created" | "current" | "superseded";
   phase: "before" | "after" | "failure" | "pause";
   state: Record<string, unknown>;
   createdAt: IsoDate;

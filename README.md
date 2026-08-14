@@ -144,7 +144,11 @@ macOS 双击 `start-light.command`：检查 Node.js 24、依赖与端口，构�
 | `npm run build` | 构建 |
 | `npm run db:check` | SQLite 完整性检查 |
 | `npm run db:backup -- /path/backup.sqlite` | 数据库备份 |
+| `npm run db:restore -- /path/backup.sqlite [/path/restored.sqlite]` | 生成校验后的恢复副本，不覆盖当前数据库 |
+
+发布前或夜间运行 `cd 06_runtime && npm run security:audit`，检查生产依赖的高危及以上安全公告；项目的离线验收不会将网络不可用误判为代码失败。
 | `npm run eval:live:canary` | 工程 canary 评测（3 个案例，DeepSeek） |
+| `npm run eval:public:evidence:pilot` | 一个公开冻结案例的三轨同证据诊断（系统/直答/摘要；不计入正式评测） |
 | `npm run eval:earnings:replay` | 业绩快报确定性回放 |
 | `python3 05_control_evaluation/04_verifiers/validate_project.py` | 全库一致性校验 |
 

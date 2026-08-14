@@ -80,7 +80,7 @@ runtime_mapping:
   proposal_and_commit: 06_runtime/src/runtime/kernel.ts
   action_boundary: 06_runtime/src/ontology/action-service.ts#ApproveJudgment
   action_schema: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml#ApproveJudgment
-  trusted_ui: 06_runtime/app/components/surface-registry.tsx#JudgmentEditor
+  trusted_ui: 06_runtime/app/components/company-case-workspace.tsx
 
 verification:
   tests:

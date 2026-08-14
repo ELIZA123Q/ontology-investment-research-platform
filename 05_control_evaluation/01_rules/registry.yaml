@@ -1,5 +1,5 @@
 schema_name: governance_rules_registry
-schema_version: 3.0.0
+schema_version: 4.0.0
 status: active
 
 authority:
@@ -13,16 +13,27 @@ critical_assets:
   - 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
   - 05_control_evaluation/01_rules/policies/judgment_method_routes.yaml
   - 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
+  - 05_control_evaluation/01_rules/policies/model_data_egress_policy.yaml
+  - 05_control_evaluation/01_rules/policies/capability_activation_policy.yaml
+  - 05_control_evaluation/01_rules/policies/change_deposition_policy.yaml
+  - 05_control_evaluation/01_rules/policies/signal_evidence_admission_policy.yaml
+  - 05_control_evaluation/01_rules/policies/source_document_attestation_policy.yaml
+  - 05_control_evaluation/01_rules/policies/asset_authority_matrix.yaml
+  - 05_control_evaluation/01_rules/policies/evidence_sufficiency_policy.yaml
+  - 05_control_evaluation/01_rules/policies/artifact_editing_policy.yaml
   - 05_control_evaluation/01_rules/contracts/public_contract.yaml
   - 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
 
 owner_boundaries:
   task_contracts: 02_scenario_task/contracts/
   capability_and_ingestion_contracts: 03_agent_capability/contracts/
-  runtime_contracts: 06_runtime/contracts/
+  runtime_transport_contracts: 06_runtime/src/
+  artifact_lifecycle: 04_context_state/02_state/lifecycle_contract.yaml
+  artifact_editing_policy: 05_control_evaluation/01_rules/policies/artifact_editing_policy.yaml
   research_quality_eval_contract: 05_control_evaluation/05_evals/protocols/
 
 notes:
   - 新规则写入本目录，不建立旧路径或平行兼容目录。
   - 规则归属以 rule_authority_registry.yaml 为唯一登记表。
+  - 实质修改先按 change_deposition_policy.yaml 分类并留下可追溯记录；Runtime 只能是其中的执行面。
   - Public Contract 2.0 只描述 vNext TaskGraph、Artifact、Action 与发布边界。

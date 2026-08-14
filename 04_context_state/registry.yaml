@@ -1,5 +1,5 @@
 schema_name: context_state_domain_registry
-schema_version: 3.0.0
+schema_version: 4.0.0
 status: active
 
 authority:
@@ -13,6 +13,8 @@ authority:
     - 04_context_state/registry.yaml
     - 04_context_state/01_context/contract.yaml
     - 04_context_state/02_state/contract.yaml
+    - 04_context_state/02_state/lifecycle_contract.yaml
+    - 04_context_state/02_state/event_catalog.yaml
     - 04_context_state/03_memory/contract.yaml
     - 04_context_state/04_workspace/contract.yaml
   does_not_answer:
@@ -34,6 +36,8 @@ subdomains:
   state:
     path: 04_context_state/02_state
     contract: 04_context_state/02_state/contract.yaml
+    lifecycle_contract: 04_context_state/02_state/lifecycle_contract.yaml
+    event_catalog: 04_context_state/02_state/event_catalog.yaml
     status: active
     implementation_status: runtime_projection
   memory:
@@ -56,4 +60,4 @@ principles:
   - Memory 是跨任务选择性记忆，不是正式知识权威
   - Workspace 是当前任务工作环境，不是长期知识库
   - Runtime 负责执行上述合同，但不属于本域
-  - Event → Runtime；Checkpoint → Runtime；State Contract → 本域
+  - Event 实例与 Checkpoint 数据 → Runtime；Event Catalog、State 与 Lifecycle Contract → 本域

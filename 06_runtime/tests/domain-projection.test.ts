@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { evaluateJudgmentThreshold } from "@/src/governance/judgment-threshold";
 import { normalizeResearchLanguage } from "@/src/semantic/dictionary-normalizer";
-import { buildResearchProblemGraph, selectWorkflowPattern } from "@/src/runtime/problem-graph";
+import { buildResearchProblemGraph, selectTaskMotifs, selectWorkflowPattern } from "@/src/runtime/problem-graph";
 import { planFromProblemGraph } from "@/src/runtime/planner";
 import { AgentKernel } from "@/src/runtime/kernel";
 import { RuntimeStore } from "@/src/runtime/store";
@@ -36,6 +36,11 @@ describe("01-05 generated Runtime projections", () => {
     expect(plan.nodes.some((node) => node.kind === "evidence_evaluation")).toBe(true);
     expect(plan.nodes.some((node) => ["judgment", "synthesis", "compose", "audit"].includes(node.kind))).toBe(false);
     expect(plan.stopConditions.some((condition) => condition.startsWith("scenario entry must hold:"))).toBe(true);
+  });
+
+  it("selects composite company coverage without duplicating the narrow company-analysis motif", () => {
+    const motifs = selectTaskMotifs("对东微半导开展结构化公司基本面研究", ["fundamental", "quality"]);
+    expect(motifs.map((task) => task.task_id)).toEqual(["company_coverage"]);
   });
 
   it("uses the lowest policy cap for the maximum Judgment level", () => {

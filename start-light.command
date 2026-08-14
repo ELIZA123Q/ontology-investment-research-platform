@@ -21,7 +21,8 @@ NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 [ "$NODE_MAJOR" -ge 24 ] || fail "当前 Node.js 为 $(node -v)，需要 24 或更高版本。"
 
 for candidate in $(seq 3000 3010); do
-  if curl --noproxy '*' -fsS --max-time 1 "http://127.0.0.1:$candidate/vnext/health" 2>/dev/null | grep -q 'investment-research-copilot-vnext'; then
+  HEALTH_RESPONSE="$(curl --noproxy '*' -fsS --max-time 1 "http://127.0.0.1:$candidate/api/v2/health" 2>/dev/null || true)"
+  if printf '%s' "$HEALTH_RESPONSE" | grep -q '"productVersion":"v2"' && printf '%s' "$HEALTH_RESPONSE" | grep -q '"status":"ready"'; then
     echo "工作台已在 http://127.0.0.1:$candidate 运行，正在打开。"
     open "http://127.0.0.1:$candidate"
     exit 0

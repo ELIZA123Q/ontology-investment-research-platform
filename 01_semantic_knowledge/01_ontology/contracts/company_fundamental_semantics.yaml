@@ -1,0 +1,39 @@
+schema_name: company_fundamental_semantics
+schema_version: 1.0.0
+status: active
+scope: A 股半导体公司基本面研究
+
+identity_contract:
+  research_subject: Company
+  security_subject: FinancialInstrument
+  reporting_subject: Company
+  required_identifiers: [company_code, company_name]
+  optional_identifiers: [exchange, unified_social_credit_code]
+  invariants:
+    - 公司主体、证券和报告主体必须显式关联，不得仅凭简称合并。
+    - 证券价格或估值观测必须指向 FinancialInstrument，公司经营事实必须指向 Company。
+
+measurement_context:
+  required: [as_of, period, currency, unit, accounting_basis, value_origin]
+  accounting_basis: [reported, restated, adjusted]
+  value_origin: [historical_actual, internal_prior, company_guidance, authorized_consensus, analyst_forecast, scenario_assumption]
+  comparison_rules:
+    historical_actual: 可与相同主体、指标、期间、单位和会计口径的历史值比较。
+    internal_prior: 必须保留形成时间与版本。
+    company_guidance: 必须保留披露来源、区间和适用期间。
+    authorized_consensus: 必须保留 provider、permission_scope、as_of 与 vintage。
+    analyst_forecast: 必须引用冻结假设或明确标记 analyst_assumption。
+    scenario_assumption: 只能用于情景，不得伪装为预测事实。
+
+financial_bridge:
+  operating_inputs: [volume, price, product_mix, utilization, yield, order_backlog, delivery, customer_qualification]
+  income_statement: [revenue, gross_profit, operating_profit, net_profit]
+  cash_flow: [operating_cash_flow, capital_expenditure, free_cash_flow]
+  balance_sheet: [inventory, contract_liability, receivables, fixed_assets, debt, cash]
+  required_edge_metadata: [period, direction, evidence_ref, assumption_status]
+
+semantic_boundaries:
+  - 行业景气证据不能直接证明公司兑现，必须通过公司暴露和经营传导。
+  - 管理层表述属于来源材料，只有可定位并核验后才能成为 EvidenceFact。
+  - 估值输入必须来自审计通过的 financial_model 或显式受限的敏感性假设。
+  - 本合同不授权评级、目标价、仓位或交易指令。

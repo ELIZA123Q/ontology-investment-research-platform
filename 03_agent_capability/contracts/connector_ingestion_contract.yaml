@@ -1,5 +1,5 @@
 schema_name: connector_ingestion_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 
 purpose: >-
@@ -17,7 +17,7 @@ deployment_boundary:
 
 endpoint:
   method: POST
-  path: /vnext/connectors/ingest
+  path: /api/v2/connectors/ingest
   response_status: 202
   envelope:
     required: [taskId, kind, result]
@@ -48,7 +48,7 @@ financial_data_path:
     projected_metadata: [fingerprint, connector_id, operation, byte_length, permission_scope, replayability, usage_restriction, risk_disclosure, captured_at]
 
 researcher_material_path:
-  endpoint: POST /vnext/tasks/{id}/materials
+  endpoint: POST /api/v2/research-cases/{id}/commands#attach_material
   input_contract: 06_runtime/src/tools/researcher-material.ts#ResearcherMaterialInput
   required: [public_http_uri, title, locator, quote, permissionConfirmed]
   optional: [publisherId, publishedAt, sourceType, context_containing_quote]
@@ -85,7 +85,7 @@ ui_projection:
   researcher_material_drawer: [uri, title, publisherId, publishedAt, sourceType, locator, quote, context, permissionConfirmed]
 
 runtime_mapping:
-  endpoint: 06_runtime/app/vnext/connectors/ingest/route.ts
+  endpoint: 06_runtime/app/api/v2/connectors/ingest/route.ts
   envelope_guard: 06_runtime/src/tools/connector-ingestion.ts
   source_adapter: 06_runtime/src/tools/source-result-adapter.ts
   financial_adapter: 06_runtime/src/tools/financial-data-adapter.ts
@@ -94,7 +94,7 @@ runtime_mapping:
   kernel: 06_runtime/src/runtime/kernel.ts
   home_view: 06_runtime/src/ui/view-models.ts
   researcher_material_adapter: 06_runtime/src/tools/researcher-material.ts
-  researcher_material_endpoint: 06_runtime/app/vnext/tasks/[id]/materials/route.ts
+  researcher_material_endpoint: 06_runtime/app/api/v2/research-cases/[id]/commands/route.ts
 
 verification:
   tests: [06_runtime/tests/connector-ingestion.test.ts, 06_runtime/tests/source-result-adapter.test.ts, 06_runtime/tests/financial-data-adapter.test.ts, 06_runtime/tests/htsc-industry-sentiment-mapper.test.ts, 06_runtime/tests/researcher-material.test.ts]

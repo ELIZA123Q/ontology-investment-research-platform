@@ -1,0 +1,66 @@
+schema_name: governed_change_deposition_policy
+schema_version: 1.0.0
+status: active
+authority: control_policy
+scope: 所有会改变后续研究、治理或产品行为的项目修改
+purpose: >-
+  防止可复用知识、确定性业务约束和评测经验只散落在 Runtime 代码中。
+  本策略不是要求把所有代码改动都写成 Rule；它要求每项实质改动先归类，
+  再沉淀到唯一权威资产，并把执行投影、验证和变更记录连起来。
+
+rule_ids: [GOV-CHANGE-DEPOSITION-001]
+
+classification_routes:
+  stable_domain_semantics:
+    when: 跨任务稳定成立的对象、关系、时态或证据语义发生变化。
+    authority: 01_semantic_knowledge/01_ontology/
+    required_artifacts: [ontology_change, migration_or_projection, semantic_validation, replay]
+  reusable_deterministic_constraint:
+    when: 可重复计算、校验或阻断的业务约束、阈值、权限或合规边界发生变化。
+    authority: 05_control_evaluation/01_rules/policies/
+    required_artifacts: [policy, generated_projection_or_explicit_consumer, drift_validator, regression_test]
+  reusable_research_method:
+    when: 研究步骤、提示、判断方法、Skill 输入输出或失败边界发生变化。
+    authority: 03_agent_capability/02_skills/
+    required_artifacts: [method_or_skill_asset, version, evaluation_case_or_replay, release_evidence]
+  source_or_task_specific_evidence:
+    when: 只适用于某来源、公司、时间点或冻结任务的事实、映射和异常发生变化。
+    authority: 02_scenario_task/ or 05_control_evaluation/05_evals/cases/
+    required_artifacts: [point_in_time_envelope, provenance, frozen_case_or_fixture]
+  evaluation_knowledge:
+    when: 新发现失败模式、质量标准、基线或评测指标发生变化。
+    authority: 05_control_evaluation/05_evals/
+    required_artifacts: [case_or_rubric, assertion, baseline_or_judge_version, replay]
+  execution_mechanics:
+    when: 不改变业务语义的编排、存储、性能、可观测性或界面实现发生变化。
+    authority: 06_runtime/ or app/
+    required_artifacts: [contract_or_design_note, automated_test, operational_check]
+
+classification_rules:
+  - 不得把可复用确定性业务约束只保留为 Runtime 常量、条件分支或 UI 文案。
+  - 不得把一次研究的临时结论直接提升为全局 Rule、Ontology 或 Skill。
+  - 不得让 LLM 输出绕过受治理的确定性计算、权限、时态、引用和正式写入边界。
+  - 仅在不改变对外行为、业务语义、数据口径、权限或评测结论时，允许纯重构不新增治理资产；仍须保留测试证据。
+  - 若一项修改同时满足多个路由，必须拆分或同时登记全部适用权威，禁止以 Runtime 实现替代上游资产。
+
+change_record:
+  required_for: 所有实质行为修改
+  location: 05_control_evaluation/01_rules/change_records/
+  required_fields:
+    - id
+    - date
+    - summary
+    - classifications
+    - authority_refs
+    - execution_refs
+    - verification_refs
+  allowed_classifications: [stable_domain_semantics, reusable_deterministic_constraint, reusable_research_method, source_or_task_specific_evidence, evaluation_knowledge, execution_mechanics]
+  immutable_history: true
+  update_behavior: append_new_record
+
+governance:
+  source_of_truth: 05_control_evaluation/01_rules/policies/change_deposition_policy.yaml
+  record_directory: 05_control_evaluation/01_rules/change_records/
+  validator: 05_control_evaluation/04_verifiers/validate_change_deposition_policy.py
+  regression_test: 05_control_evaluation/04_verifiers/tests/test_change_deposition_policy.py
+  runtime_consumer: none_classification_and_traceability_control

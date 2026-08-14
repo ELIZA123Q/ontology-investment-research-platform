@@ -6,6 +6,14 @@ purpose: 在隔离上下文中检查来源越权、时间旅行、模型错误�
 consumes: [artifact_manifest, review_scope]
 output_kind: review
 resources: [references/]
+typed_io:
+  input: {required: [artifact_manifest, source_refs, review_scope, as_of]}
+  output: {kind: review, required: [findings, severity, evidence_locator, blocking_recommendations, false_positive_notes]}
+permissions: [read_review_bundle, create_review_artifact]
+failure_states: [review_bundle_incomplete, source_not_locatable, model_isolation_broken, permission_denied]
+cost_budget: 3
+latency_budget_ms: 90000
+degradation: block_release_and_report_missing_review_inputs
 progressive_loading: metadata_then_instructions_then_resources
 ---
 

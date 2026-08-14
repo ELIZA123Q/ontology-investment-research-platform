@@ -5,11 +5,11 @@
   "status": "current",
   "productScope": "local-first-a-share-semiconductor-research",
   "skills": [
-    { "id": "research-framing", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "research-design", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "evidence-research", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "judgment-reasoning", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "research-delivery", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "research-framing", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "vNext 研究范围与任务定义基线；候选扩张期间保持生产稳定。" } },
+    { "id": "research-design", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "vNext 受约束任务图与方法路由基线；候选扩张期间保持生产稳定。" } },
+    { "id": "evidence-research", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "vNext 证据来源、时态与权限治理基线；候选扩张期间保持生产稳定。" } },
+    { "id": "judgment-reasoning", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "vNext 受约束判断与弃权基线；候选扩张期间保持生产稳定。" } },
+    { "id": "research-delivery", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "vNext 引用溯源与受控交付基线；候选扩张期间保持生产稳定。" } },
     { "id": "company-fundamental-research", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
     { "id": "sector-cycle-research", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
     { "id": "financial-modeling", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
@@ -19,19 +19,19 @@
     { "id": "independent-research-review", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] }
   ],
   "agents": [
-    { "id": "research-lead", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
+    { "id": "research-lead", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "唯一面向用户且受审批约束的 vNext 编排基线。" } },
     { "id": "evidence-investigator", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
     { "id": "financial-modeler", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
     { "id": "analysis-specialist", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] },
     { "id": "independent-critic", "version": "1.0.0", "lifecycle": "candidate", "executionScopes": ["evaluation"] }
   ],
   "tools": [
-    { "id": "semantic.search", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "source.discover", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "source.capture", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "source.query", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "artifact.publish", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] },
-    { "id": "financial.model.validate", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"] }
+    { "id": "semantic.search", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "只读语义检索基线。" } },
+    { "id": "source.discover", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "受治理来源发现基线。" } },
+    { "id": "source.capture", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "快照、哈希与权限留痕基线。" } },
+    { "id": "source.query", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "受治理来源查询基线。" } },
+    { "id": "artifact.publish", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "审批后发布与版本留痕基线。" } },
+    { "id": "financial.model.validate", "version": "1.0.0", "lifecycle": "active", "executionScopes": ["production", "evaluation"], "activationEvidence": { "type": "foundational_baseline", "evaluatedAt": "2026-08-11T00:00:00.000Z", "rationale": "确定性财务完整性校验基线。" } }
   ],
   "activationPolicy": {
     "minimumComparableCases": 12,

@@ -1,0 +1,176 @@
+schema_name: runtime_lifecycle_contract
+schema_version: 2.0.0
+status: active
+
+authority:
+  answers: 运行聚合的状态、命令、转换、结果、事件、幂等与恢复边界
+  write_entry: 04_context_state/02_state/
+  runtime_projection: 06_runtime/src/generated/domain-catalog.ts
+  executor: 06_runtime/src/runtime/state-machine.ts
+
+task_outcomes:
+  - completed_supported
+  - completed_indeterminate
+  - stopped_insufficient_evidence
+  - blocked_permission
+  - blocked_missing_source
+  - blocked_policy
+  - failed_technical
+  - cancelled_by_user
+
+task_outcome_labels:
+  completed_supported: 已完成（有证据支持）
+  completed_indeterminate: 已完成（暂不可判断）
+  stopped_insufficient_evidence: 证据不足，已克制停止
+  blocked_permission: 来源或操作权限受阻
+  blocked_missing_source: 缺少必需来源
+  blocked_policy: 治理政策阻断
+  failed_technical: 技术执行失败
+  cancelled_by_user: 研究员已结束本轮
+
+approval_command_mapping:
+  plan_confirmation: {command: confirm_plan, label: 确认计划并开始}
+  evidence_confirmation: {command: confirm_evidence, label: 确认这组证据}
+  judgment_confirmation: {command: approve_judgment, label: 批准判断}
+  publish_confirmation: {command: publish, label: 确认发布}
+
+command_contract:
+  required_fields: [type, expectedVersion, idempotencyKey, payload]
+  commands:
+    - confirm_plan
+    - attach_material
+    - confirm_evidence
+    - revise_judgment
+    - approve_judgment
+    - revise_report
+    - publish
+    - retry
+    - cancel
+  invalid_transition:
+    http_status: 409
+    error_code: invalid_state_transition
+  duplicate_idempotency_key:
+    behavior: return_original_result
+    creates_event: false
+
+state_machines:
+  ResearchCase:
+    states: [draft, active, waiting_input, completed, cancelled]
+    initial: draft
+    terminal: [completed, cancelled]
+    transitions:
+      - {from: draft, command: confirm_plan, to: active, event: research_case.activated}
+      - {from: [active, waiting_input], command: attach_material, to: active, event: material.attached}
+      - {from: [active, waiting_input], command: confirm_evidence, to: active, event: evidence.confirmed}
+      - {from: active, command: revise_judgment, to: active, event: judgment.revised}
+      - {from: active, command: approve_judgment, to: active, event: judgment.approved}
+      - {from: active, command: revise_report, to: active, event: report.revised}
+      - {from: waiting_input, command: retry, to: active, event: research_case.retried}
+      - {from: active, command: publish, to: completed, event: research_case.completed}
+      - {from: [draft, active, waiting_input], command: cancel, to: cancelled, event: research_case.cancelled}
+  Task:
+    states: [planned, queued, running, paused, waiting_input, waiting_approval, waiting_handoff, completed, failed, cancelled]
+    initial: planned
+    terminal: [completed, failed, cancelled]
+    transitions:
+      - {from: planned, command: confirm_plan, to: queued, event: plan.confirmed}
+      - {from: planned, command: request_input, to: waiting_input, event: task.input_requested}
+      - {from: planned, command: request_approval, to: waiting_approval, event: approval.requested}
+      - {from: queued, command: runtime_start, to: running, event: task.started}
+      - {from: running, command: request_input, to: waiting_input, event: task.input_requested}
+      - {from: [queued, running, completed], command: request_approval, to: waiting_approval, event: approval.requested}
+      - {from: waiting_approval, command: confirm_plan, to: queued, event: plan.confirmed}
+      - {from: waiting_approval, command: approve, to: queued, event: task.queued}
+      - {from: waiting_approval, command: reject, to: waiting_input, event: task.input_requested}
+      - {from: [queued, running], command: pause, to: paused, event: task.paused}
+      - {from: [waiting_input, waiting_approval, paused, failed], command: retry, to: queued, event: task.queued}
+      - {from: [waiting_input, waiting_approval, completed, failed], command: invalidate, to: queued, event: task.queued}
+      - {from: [planned, queued, running, paused, waiting_input, waiting_approval, waiting_handoff], command: cancel, to: cancelled, event: task.cancelled}
+      - {from: running, command: runtime_complete, to: completed, event: task.completed}
+      - {from: [queued, running], command: runtime_fail, to: failed, event: task.failed}
+  TaskNode:
+    states: [pending, ready, running, blocked, completed, failed, cancelled]
+    initial: pending
+    terminal: [completed, cancelled]
+    transitions:
+      - {from: pending, command: dependencies_ready, to: ready, event: node.ready}
+      - {from: ready, command: runtime_start, to: running, event: node.started}
+      - {from: running, command: runtime_complete, to: completed, event: node.completed}
+      - {from: [pending, ready, running], command: policy_block, to: blocked, event: node.blocked}
+      - {from: [pending, ready, failed], command: dependency_block, to: blocked, event: node.blocked}
+      - {from: running, command: runtime_fail, to: failed, event: node.failed}
+      - {from: [blocked, failed], command: retry, to: ready, event: node.ready}
+      - {from: [ready, blocked, completed, failed], command: invalidate, to: pending, event: node.invalidated}
+      - {from: [pending, ready, running, blocked, failed], command: cancel, to: cancelled, event: node.cancelled}
+  Artifact:
+    states: [draft, verified, superseded]
+    initial: draft
+    terminal: [superseded]
+    transitions:
+      - {from: draft, command: verify, to: verified, event: artifact.verified}
+      - {from: [draft, verified], command: revise, to: superseded, event: artifact.superseded}
+      - {from: [draft, verified], command: revise_judgment, to: superseded, event: artifact.superseded}
+      - {from: [draft, verified], command: revise_report, to: superseded, event: artifact.superseded}
+  Approval:
+    states: [pending, approved, rejected, superseded]
+    initial: pending
+    terminal: [approved, rejected, superseded]
+    transitions:
+      - {from: pending, command: approve, to: approved, event: approval.approved}
+      - {from: pending, command: reject, to: rejected, event: approval.rejected}
+      - {from: pending, command: artifact_revised, to: superseded, event: approval.superseded}
+  ResearchSignal:
+    states: [new, seen, dismissed, promoted]
+    initial: new
+    terminal: [dismissed, promoted]
+    transitions:
+      - {from: new, command: mark_seen, to: seen, event: signal.seen}
+      - {from: [new, seen], command: dismiss, to: dismissed, event: signal.dismissed}
+      - {from: [new, seen], command: promote, to: promoted, event: signal.promoted}
+  KnowledgeCandidate:
+    states: [observed, normalized, proposed, evaluating, review_required, approved, released, rejected, superseded, monitor]
+    initial: observed
+    terminal: [released, rejected, superseded]
+    transition_authority: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+  RuntimeJob:
+    states: [queued, running, completed, failed, cancelled]
+    initial: queued
+    terminal: [completed, cancelled]
+    transitions:
+      - {from: queued, command: lease, to: running, event: job.started}
+      - {from: running, command: runtime_complete, to: completed, event: job.completed}
+      - {from: running, command: runtime_fail, to: failed, event: job.failed}
+      - {from: failed, command: retry, to: queued, event: job.queued}
+      - {from: [queued, running, failed], command: cancel, to: cancelled, event: job.cancelled}
+  Checkpoint:
+    states: [created, current, superseded]
+    initial: created
+    terminal: [superseded]
+    transitions:
+      - {from: created, command: activate, to: current, event: checkpoint.current}
+      - {from: current, command: replace, to: superseded, event: checkpoint.superseded}
+
+outcome_rules:
+  completed_supported:
+    when: approved_or_published_judgment_exists
+  completed_indeterminate:
+    when: required_units_explicit_indeterminate_and_no_open_required_frontier
+  stopped_insufficient_evidence:
+    when: evidence_requirement_unfulfilled_or_abstain_judgment
+  blocked_permission:
+    when: required_source_or_action_denied_by_permission
+  blocked_missing_source:
+    when: required_source_unavailable_without_permission_denial
+  blocked_policy:
+    when: governance_policy_prevents_required_action
+  failed_technical:
+    when: unrecoverable_runtime_failure
+  cancelled_by_user:
+    when: user_cancel_command
+
+invariants:
+  - 终态必须有 task_outcome，非终态不得伪装为完成结果。
+  - 每次状态变化必须在同一事务中追加声明的 Event。
+  - Checkpoint 只负责恢复，不替代 Event 或当前 State。
+  - Artifact 修订产生新版本并使旧版本 superseded，禁止原地覆盖。
+  - Approval 绑定具体 Artifact 版本，版本变化后旧 Approval 必须 superseded。

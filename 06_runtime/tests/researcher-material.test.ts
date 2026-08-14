@@ -32,6 +32,12 @@ describe("researcher material intake", () => {
     expect(() => buildResearcherMaterialResult({ ...material("issuer-a", "https://issuer-a.test/report", "需求改善"), permissionConfirmed: false })).toThrow(/must be confirmed/);
     expect(() => buildResearcherMaterialResult({ ...material("issuer-a", "https://issuer-a.test/report", "需求改善"), context: "另一段文字" })).toThrow(/quote must be locatable/);
     expect(() => buildResearcherMaterialResult({ ...material("issuer-a", "file:///private/report.pdf", "需求改善") })).toThrow(/public http/);
+    expect(() => buildResearcherMaterialResult({ ...material("issuer-a", "https://issuer-a.test/report", "需求改善"), documentAttestation: { rawContentHash: `sha256:${"b".repeat(64)}`, byteLength: 0, mimeType: "application/pdf" } })).toThrow(/byteLength/);
+  });
+
+  it("carries a separately verified public-document fingerprint without treating it as the excerpt hash", () => {
+    const result = buildResearcherMaterialResult({ ...material("issuer-a", "https://issuer-a.test/report.pdf", "需求改善"), documentAttestation: { rawContentHash: `sha256:${"c".repeat(64)}`, byteLength: 93_572, mimeType: "application/pdf" } });
+    expect(result.capture.documentAttestation).toMatchObject({ byteLength: 93_572, mimeType: "application/pdf" });
   });
 
   it("joins two researcher materials to the governed evidence path and still pauses for evidence confirmation", () => {

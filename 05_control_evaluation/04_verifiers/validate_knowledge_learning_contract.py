@@ -14,7 +14,7 @@ CONTRACT = ROOT / "05_control_evaluation/01_rules/knowledge_promotion/knowledge_
 ARCHITECTURE = ROOT / "05_control_evaluation/01_rules/knowledge_promotion.md"
 TYPESCRIPT = ROOT / "06_runtime/src/contracts.ts"
 STORE = ROOT / "06_runtime/src/runtime/store.ts"
-OBSERVATION_ROUTE = ROOT / "06_runtime/app/vnext/internal/knowledge/assets/[id]/observation/route.ts"
+KERNEL = ROOT / "06_runtime/src/runtime/kernel.ts"
 
 
 def union_values(source: str, name: str) -> set[str]:
@@ -33,6 +33,7 @@ def main() -> int:
     document = yaml.safe_load(CONTRACT.read_text(encoding="utf-8"))
     runtime = TYPESCRIPT.read_text(encoding="utf-8")
     store = STORE.read_text(encoding="utf-8")
+    kernel = KERNEL.read_text(encoding="utf-8")
     architecture = ARCHITECTURE.read_text(encoding="utf-8")
 
     frontmatter_match = re.match(r"---\n(.*?)\n---", architecture, re.S)
@@ -69,7 +70,7 @@ def main() -> int:
     fail_if("userReleaseId" not in runtime or "user_release_id" not in store, "KnowledgeLock 未锁定 user Release")
     fail_if("asOf" not in runtime or "as_of" not in store, "KnowledgeLock 未固定时态 asOf")
     fail_if("putContextPackage" not in store or 'type: "context.assembled"' not in store, "ContextPackage 未以 append-only Event Manifest 留痕")
-    fail_if("observeAssetUsage" not in store or not OBSERVATION_ROUTE.is_file(), "Usage helpful/regression 回流未接入 Runtime/API")
+    fail_if("observeAssetUsage" not in store or "observeAssetUsage" not in kernel, "Usage helpful/regression 回流未接入 Runtime 执行闭环")
 
     authority_paths = re.findall(r'"(0[1-5]_[a-z_]+/registry\.yaml)"', store)
     fail_if(len(authority_paths) != 5, "global Release 未完整引用五域权威")

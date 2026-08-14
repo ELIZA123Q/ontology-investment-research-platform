@@ -18,8 +18,9 @@ export interface LiveCanaryAnswer {
   missingEvidence: string[];
   changeConditions: string[];
 }
+export type LiveCanaryTrack = "system" | "direct_qa" | "evidence_summary";
 export interface LiveCanaryResult {
-  caseId: string; passed: boolean; cached: boolean; fingerprint: string; provider: string; model: string;
+  caseId: string; track: LiveCanaryTrack; passed: boolean; cached: boolean; fingerprint: string; provider: string; model: string;
   expectedOutcome: LiveCanaryOutcome; answer?: LiveCanaryAnswer; failures: string[];
   usage?: { inputTokens?: number; outputTokens?: number };
 }
@@ -84,33 +85,59 @@ function validateAnswer(item: LiveCanaryCase, answer: LiveCanaryAnswer): string[
   return [...new Set(failures)];
 }
 
-export async function runLiveCanaryCase(store: RuntimeStore, provider: ModelProvider, catalog: LiveCanaryCatalog, item: LiveCanaryCase): Promise<LiveCanaryResult> {
+function promptForTrack(track: LiveCanaryTrack, promptInput: Record<string, unknown>): { system: string; prompt: string; version: string } {
+  if (track === "system") return {
+    system: "你是受约束的A股半导体研究验证组件。宁可停止，也不能把缺失证据包装成结论。只输出JSON。",
+    prompt: JSON.stringify({ ...promptInput, rules: [
+      "只使用输入中的 factId 与事实，不补充外部知识。",
+      "区分披露数字、前瞻指引和因果解释；没有原因证据时必须停止。",
+      "证据不足时 outcome=stopped_insufficient_evidence 且 judgment=null。",
+      "禁止评级、目标价、交易指令、仓位和任何输入之外的数字。",
+      "只输出符合 schema 的 JSON，保持简短。",
+    ] }),
+    version: "live-research-canary/system/1.2.0",
+  };
+  const framing = track === "direct_qa"
+    ? "直接回答问题。"
+    : "先自行压缩输入事实，再据此回答问题；不要描述你的中间过程。";
+  return {
+    system: "你是公开证据的对照基线。只输出JSON；不得使用输入外知识、数值或投资建议。",
+    prompt: JSON.stringify({ ...promptInput, rules: [framing, "证据不足时必须停止。", "只输出符合 schema 的 JSON，保持简短。"] }),
+    version: `live-research-canary/${track}/1.0.0`,
+  };
+}
+
+export async function runLiveCanaryTrack(store: RuntimeStore, provider: ModelProvider, catalog: LiveCanaryCatalog, item: LiveCanaryCase, track: LiveCanaryTrack = "system"): Promise<LiveCanaryResult> {
   const catalogFailures = validateLiveCanaryCatalog(catalog);
-  if (catalogFailures.length) return { caseId: item.id, passed: false, cached: false, fingerprint: sha256(item), provider: provider.id, model: "not_called", expectedOutcome: item.expectedOutcome, failures: catalogFailures };
+  if (catalogFailures.length) return { caseId: item.id, track, passed: false, cached: false, fingerprint: sha256(item), provider: provider.id, model: "not_called", expectedOutcome: item.expectedOutcome, failures: catalogFailures };
   const promptInput = {
     asOf: catalog.asOf, question: item.question,
     sources: item.sources.map((source) => ({
       id: source.id, publisherId: source.publisherId, sourceUri: source.sourceUri, publishedAt: source.publishedAt,
       businessTime: source.businessTime, locator: source.locator, facts: source.facts,
     })),
-    rules: [
-      "只使用输入中的 factId 与事实，不补充外部知识。",
-      "区分披露数字、前瞻指引和因果解释；没有原因证据时必须停止。",
-      "证据不足时 outcome=stopped_insufficient_evidence 且 judgment=null。",
-      "禁止评级、目标价、交易指令、仓位和任何输入之外的数字。",
-      "只输出符合 schema 的 JSON，保持简短。",
-    ],
   };
-  const result = await new ModelGateway(store, provider).generate({
-    operation: `live_research_canary:${item.id}`,
-    promptVersion: "live-research-canary/1.1.0",
-    schemaVersion: "live-research-canary/1.1.0",
-    schemaName: "live_research_canary",
-    system: "你是受约束的A股半导体研究验证组件。宁可停止，也不能把缺失证据包装成结论。只输出JSON。",
-    prompt: JSON.stringify(promptInput), responseSchema: responseSchema as unknown as Record<string, unknown>,
-    maxOutputTokens: 650, maxAttempts: 1, dataPolicy: "public", cache: "read_write",
-    validateResponse: assertAnswerShape,
-  });
+  const request = promptForTrack(track, promptInput);
+  let result;
+  try {
+    result = await new ModelGateway(store, provider).generate({
+      operation: `live_research_canary:${track}:${item.id}`,
+      promptVersion: request.version,
+      schemaVersion: "live-research-canary/1.2.0",
+      schemaName: "live_research_canary",
+      system: request.system,
+      prompt: request.prompt, responseSchema: responseSchema as unknown as Record<string, unknown>,
+      maxOutputTokens: track === "system" ? 420 : 280, maxAttempts: 1, dataPolicy: "public", cache: "read_write",
+      validateResponse: assertAnswerShape,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      caseId: item.id, track, passed: false, cached: false, fingerprint: sha256(promptInput), provider: provider.id,
+      model: provider.modelId || "unknown", expectedOutcome: item.expectedOutcome,
+      failures: [`model call failed: ${message}`],
+    };
+  }
   let answer: LiveCanaryAnswer | undefined;
   let failures: string[] = [];
   try {
@@ -120,7 +147,11 @@ export async function runLiveCanaryCase(store: RuntimeStore, provider: ModelProv
     failures = ["model output is not valid JSON"];
   }
   return {
-    caseId: item.id, passed: failures.length === 0, cached: result.cached, fingerprint: result.fingerprint,
+    caseId: item.id, track, passed: failures.length === 0, cached: result.cached, fingerprint: result.fingerprint,
     provider: result.provider, model: result.model, expectedOutcome: item.expectedOutcome, answer, failures, usage: result.usage,
   };
+}
+
+export async function runLiveCanaryCase(store: RuntimeStore, provider: ModelProvider, catalog: LiveCanaryCatalog, item: LiveCanaryCase): Promise<LiveCanaryResult> {
+  return runLiveCanaryTrack(store, provider, catalog, item, "system");
 }

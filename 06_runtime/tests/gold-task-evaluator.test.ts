@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { evaluateGoldTask, evaluateGoldTasks, type GoldTaskContract } from "@/src/evaluation/gold-task-evaluator";
 
-const tasks = JSON.parse(readFileSync(resolve(process.cwd(), "evals/gold-tasks.json"), "utf8")) as GoldTaskContract[];
+const tasks = JSON.parse(readFileSync(resolve(process.cwd(), "../05_control_evaluation/05_evals/fixtures/gold-tasks.json"), "utf8")) as GoldTaskContract[];
 
 describe("gold task contract evaluator", () => {
   it("keeps every representative research route inside its professional contract", () => {

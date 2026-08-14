@@ -1,5 +1,5 @@
 schema_name: knowledge_learning_contract
-schema_version: 1.1.0
+schema_version: 1.2.0
 status: active
 authority:
   human_readable: 05_control_evaluation/01_rules/knowledge_promotion.md
@@ -65,6 +65,13 @@ approval_policies:
   skill: [method_owner, runtime_owner, independent_reviewer]
   other_L3: [governance_owner, runtime_owner, independent_reviewer]
   reject_is_terminal: true
+  asset_kind_routes:
+    temporal_or_mapping: [temporal_fact, source_profile, data_mapping]
+    method_prompt_template: [method, prompt, template]
+    case_or_failure: [case, eval_case, failure_pattern]
+    ontology: [ontology]
+    skill: [skill]
+  automatic_risk_levels: [0, 1]
 
 promotion_thresholds:
   temporal_fact:
@@ -87,6 +94,16 @@ promotion_thresholds:
   eval_case:
     minimum_source_failures: 1
     required_checks: [deidentified, replayable, reviewer_approved]
+  default:
+    minimum_distinct_runs: 1
+    minimum_task_families: 1
+    minimum_score_delta: 0
+    maximum_severe_regressions: 0
+  asset_kind_routes:
+    method_prompt_template: [method, prompt, template]
+    skill: [skill]
+    ontology: [ontology]
+    eval_case: [eval_case]
 
 baseline_rules:
   lock_at_task_creation: true

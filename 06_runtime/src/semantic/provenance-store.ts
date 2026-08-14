@@ -17,6 +17,7 @@ export class ResearchProvenanceStore {
         connector_id TEXT NOT NULL DEFAULT 'legacy', upstream_source_id TEXT NOT NULL DEFAULT '',
         request_fingerprint TEXT NOT NULL DEFAULT '', request_parameters_json TEXT NOT NULL DEFAULT '{}',
         raw_response_hash TEXT NOT NULL DEFAULT '', retrieved_at TEXT NOT NULL DEFAULT '',
+        document_raw_content_hash TEXT, document_byte_length INTEGER, document_mime_type TEXT,
         UNIQUE(candidate_id, content_hash)
       );
       CREATE TABLE IF NOT EXISTS evidence_facts (
@@ -43,6 +44,9 @@ export class ResearchProvenanceStore {
       ["request_parameters_json", "TEXT NOT NULL DEFAULT '{}'"],
       ["raw_response_hash", "TEXT NOT NULL DEFAULT ''"],
       ["retrieved_at", "TEXT NOT NULL DEFAULT ''"],
+      ["document_raw_content_hash", "TEXT"],
+      ["document_byte_length", "INTEGER"],
+      ["document_mime_type", "TEXT"],
     ];
     for (const [name, definition] of migrations) {
       if (!columns.some((column) => column.name === name)) this.db.exec(`ALTER TABLE source_snapshots ADD COLUMN ${name} ${definition}`);
@@ -55,18 +59,21 @@ export class ResearchProvenanceStore {
     const snapshot = { ...proposed, verification: verification.passed ? "verified" as const : "rejected" as const };
     this.db.prepare(`INSERT INTO source_snapshots
       (id,candidate_id,uri,title,source_type,repository_path,locator,quote,body,content_hash,captured_at,permission_scope,verification,
-       published_at,publisher_id,connector_id,upstream_source_id,request_fingerprint,request_parameters_json,raw_response_hash,retrieved_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       published_at,publisher_id,connector_id,upstream_source_id,request_fingerprint,request_parameters_json,raw_response_hash,retrieved_at,
+       document_raw_content_hash,document_byte_length,document_mime_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(candidate_id,content_hash) DO UPDATE SET locator=excluded.locator,quote=excluded.quote,
       body=excluded.body,captured_at=excluded.captured_at,permission_scope=excluded.permission_scope,verification=excluded.verification,
       published_at=excluded.published_at,publisher_id=excluded.publisher_id,connector_id=excluded.connector_id,
       upstream_source_id=excluded.upstream_source_id,request_fingerprint=excluded.request_fingerprint,
-      request_parameters_json=excluded.request_parameters_json,raw_response_hash=excluded.raw_response_hash,retrieved_at=excluded.retrieved_at`)
+      request_parameters_json=excluded.request_parameters_json,raw_response_hash=excluded.raw_response_hash,retrieved_at=excluded.retrieved_at,
+      document_raw_content_hash=excluded.document_raw_content_hash,document_byte_length=excluded.document_byte_length,document_mime_type=excluded.document_mime_type`)
       .run(snapshot.id, snapshot.candidateId, snapshot.uri, snapshot.title, snapshot.sourceType, snapshot.repositoryPath ?? null,
         snapshot.locator, snapshot.quote, snapshot.body, snapshot.contentHash, snapshot.capturedAt,
         snapshot.permissionScope, snapshot.verification, snapshot.publishedAt ?? null, snapshot.publisherId ?? null,
         snapshot.acquisition.connectorId, snapshot.acquisition.upstreamSourceId, snapshot.acquisition.requestFingerprint,
-        JSON.stringify(snapshot.acquisition.requestParameters), snapshot.acquisition.rawResponseHash, snapshot.acquisition.retrievedAt);
+        JSON.stringify(snapshot.acquisition.requestParameters), snapshot.acquisition.rawResponseHash, snapshot.acquisition.retrievedAt,
+        snapshot.documentAttestation?.rawContentHash ?? null, snapshot.documentAttestation?.byteLength ?? null, snapshot.documentAttestation?.mimeType ?? null);
     this.addEdge(snapshot.candidateId, snapshot.id, "captured_as");
     return snapshot;
   }
@@ -129,6 +136,7 @@ export class ResearchProvenanceStore {
       body: String(row.body), contentHash: String(row.content_hash), capturedAt: String(row.captured_at),
       publishedAt: row.published_at ? String(row.published_at) : undefined, publisherId: row.publisher_id ? String(row.publisher_id) : undefined,
       permissionScope: row.permission_scope as SourceSnapshot["permissionScope"], verification: row.verification as SourceSnapshot["verification"],
+      documentAttestation: row.document_raw_content_hash ? { rawContentHash: String(row.document_raw_content_hash), byteLength: Number(row.document_byte_length), mimeType: String(row.document_mime_type) } : undefined,
       acquisition: {
         connectorId: String(row.connector_id || "legacy"), upstreamSourceId: String(row.upstream_source_id || row.candidate_id),
         requestFingerprint: String(row.request_fingerprint || row.content_hash),

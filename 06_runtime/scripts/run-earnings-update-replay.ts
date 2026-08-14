@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { runEarningsUpdateReplay, type EarningsUpdateReplayFixture } from "@/src/evaluation/earnings-update-replay";
 
 const runtimeRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const fixturePath = process.argv[2] ? resolve(process.argv[2]) : resolve(runtimeRoot, "evals/earnings-update-replay-dongwei.json");
+const fixturePath = process.argv[2] ? resolve(process.argv[2]) : resolve(runtimeRoot, "../05_control_evaluation/05_evals/fixtures/earnings-update-replay-dongwei.json");
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8")) as EarningsUpdateReplayFixture;
 const result = runEarningsUpdateReplay(fixture);
 const outputDir = resolve(runtimeRoot, ".data/evals");

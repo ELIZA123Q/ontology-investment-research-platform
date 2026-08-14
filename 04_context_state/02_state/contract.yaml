@@ -1,5 +1,5 @@
 schema_name: runtime_state_contract
-schema_version: 1.0.0
+schema_version: 2.0.0
 status: active
 implementation_status: runtime_projection
 
@@ -8,6 +8,8 @@ authority:
   write_entry: 04_context_state/02_state/
   read_primary: 04_context_state/02_state/contract.yaml
   implementation: 06_runtime/src/runtime/store.ts
+  lifecycle_contract: 04_context_state/02_state/lifecycle_contract.yaml
+  event_catalog: 04_context_state/02_state/event_catalog.yaml
   related:
     events: 06_runtime/src/runtime/store.ts   # append-only 动作记录
     checkpoints: 06_runtime/src/runtime/store.ts  # 技术恢复快照
@@ -75,6 +77,8 @@ status_values:
   - completed
   - failed
   - cancelled
+
+task_outcome_authority: 04_context_state/02_state/lifecycle_contract.yaml#task_outcomes
 
 runtime_status_projection:
   task_status_values: [planned, queued, running, paused, waiting_input, waiting_approval, waiting_handoff, completed, failed, cancelled]

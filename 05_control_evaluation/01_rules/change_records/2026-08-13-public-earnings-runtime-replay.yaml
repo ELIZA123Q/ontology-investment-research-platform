@@ -1,0 +1,13 @@
+id: CR-2026-08-13-public-earnings-runtime-replay
+date: 2026-08-13
+summary: 将东微半导公开业绩快报作为冻结输入贯通到现有研究 Kernel，验证完整文件认证、财务规范化、确定性模型、估值阻断与单一来源的正式判断边界。
+classifications: [source_or_task_specific_evidence, execution_mechanics]
+authority_refs:
+  - 05_control_evaluation/05_evals/cases/dongwei-688261-2025-preliminary-results/README.md
+  - 05_control_evaluation/05_evals/fixtures/earnings-update-replay-dongwei.json
+execution_refs:
+  - 06_runtime/scripts/run-public-earnings-runtime-replay.ts
+  - 06_runtime/src/tools/financial-data-adapter.ts
+verification_refs:
+  - 06_runtime/tests/public-earnings-runtime-replay.test.ts
+  - 06_runtime/tests/earnings-update-replay.test.ts

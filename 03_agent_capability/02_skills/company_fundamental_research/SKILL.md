@@ -6,6 +6,14 @@ purpose: 将 A 股公司的商业模式、KPI、竞争优势和财务传导组�
 consumes: [research_plan, evidence_package, research_lens]
 output_kind: hypothesis_map
 resources: [references/]
+typed_io:
+  input: {required: [research_plan, evidence_package, research_lens, company_identity, as_of]}
+  output: {kind: hypothesis_map, required: [business_model, key_kpis, financial_bridge, competing_explanations, evidence_gaps, change_signals]}
+permissions: [read_verified_evidence, read_semantic_catalog, create_candidate_artifact]
+failure_states: [missing_company_identity, missing_as_of, insufficient_evidence, inconsistent_financial_basis]
+cost_budget: 4
+latency_budget_ms: 120000
+degradation: return_explicit_gaps_without_formal_judgment
 progressive_loading: metadata_then_instructions_then_resources
 ---
 

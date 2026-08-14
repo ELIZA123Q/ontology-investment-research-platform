@@ -64,7 +64,7 @@ claim_boundary:
 runtime_mapping:
   evaluator: 06_runtime/src/evaluation/report-quality-evaluator.ts
   audit_node: 06_runtime/src/runtime/kernel.ts
-  trusted_ui: 06_runtime/app/components/surface-registry.tsx
+  trusted_ui: 06_runtime/app/components/company-case-workspace.tsx
 
 verification:
   tests:

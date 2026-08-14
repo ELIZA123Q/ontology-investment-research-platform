@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import catalogJson from "../evals/live-canary-cases.json";
+import catalogJson from "../../05_control_evaluation/05_evals/fixtures/live-canary-cases.json";
 import { runLiveCanaryCase, validateLiveCanaryCatalog, type LiveCanaryCatalog } from "../src/evaluation/live-model-canary";
 import { providerFromEnv } from "../src/providers/model-provider";
 import { RuntimeStore } from "../src/runtime/store";

@@ -1,10 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { authorizeRuntimeRequest, RuntimeAccessError } from "@/src/security/runtime-access";
 
-const independentlyAuthorized = ["/vnext/health", "/vnext/connectors/ingest", "/vnext/signals/ingest", "/vnext/internal/knowledge"];
-
 export function proxy(request: NextRequest) {
-  if (independentlyAuthorized.some((prefix) => request.nextUrl.pathname.startsWith(prefix))) return NextResponse.next();
   try {
     const identity = authorizeRuntimeRequest(request);
     const headers = new Headers(request.headers);
@@ -24,4 +21,4 @@ export function proxy(request: NextRequest) {
   }
 }
 
-export const config = { matcher: ["/vnext/:path*", "/ontology/:path*"] };
+export const config = { matcher: ["/ontology/:path*"] };

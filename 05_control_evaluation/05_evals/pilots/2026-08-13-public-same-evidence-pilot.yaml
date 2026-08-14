@@ -1,0 +1,43 @@
+schema_name: public_same_evidence_pilot_record
+schema_version: 1.0.0
+status: diagnostic_only
+formal_score_eligible: false
+run_mode: pipeline_only
+date: 2026-08-13
+case_id: live-smic-guidance-restraint
+evidence_policy: public_only
+artifact:
+  local_path: 06_runtime/.data/evals/public-evidence-pilot-1786605440661.json
+  sha256: sha256:0aa28dcc04aba928af0e487f3601857a43133666e2c7fe5714eb4e99d9f39048
+  retention: local_private_run_output
+model:
+  provider: deepseek
+  model_id: deepseek-v4-flash
+tracks:
+  - id: system
+    result: passed
+    outcome: stopped_insufficient_evidence
+    input_tokens: 616
+    output_tokens: 140
+  - id: direct_qa
+    result: passed
+    outcome: stopped_insufficient_evidence
+    input_tokens: 553
+    output_tokens: 121
+  - id: evidence_summary
+    result: passed
+    outcome: stopped_insufficient_evidence
+    input_tokens: 566
+    output_tokens: 118
+observations:
+  - 三条路径均没有把单季度前瞻指引写成“基本面已经转弱”。
+  - 三条路径均输出证据不足与可操作补证条件。
+not_proven:
+  - 研究系统优于任一基线
+  - 盲评胜率、R/U/delta/S/C
+  - 评测器校准、模型隔离或下游任务效用
+  - 正式案例资格
+governance:
+  command: cd 06_runtime && npm run eval:public:evidence:pilot
+  source_catalog: 05_control_evaluation/05_evals/fixtures/live-canary-cases.json
+  interpretation_boundary: 仅验证公开冻结输入上的三条同证据生成路径结构与安全结果；禁止将其计入正式评测分数或能力激活证据。

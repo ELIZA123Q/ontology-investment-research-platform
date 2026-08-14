@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { EvidenceFact, PointInTimeEvidenceEnvelope, SourceSnapshot } from "@/src/contracts";
 import { adaptSourceToolResult, type AdaptedSourceResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
+import type { SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 
 type JsonScalar = string | number | boolean | null;
 export type FinancialValueBasis = "reported" | "restated" | "consensus" | "market" | "provider_measurement" | "calculated";
@@ -29,6 +30,8 @@ export interface FinancialDataToolResult {
   entity: { id: string; name: string; instrumentId?: string };
   upstream: UnifiedSourceToolResult["upstream"];
   permissionScope: SourceSnapshot["permissionScope"];
+  /** Full-document fingerprint when normalized observations originate from one public file. */
+  documentAttestation?: SourceDocumentAttestation;
   providerResponse?: {
     body: string;
     contentHash: string;
@@ -110,7 +113,7 @@ export function adaptFinancialDataResult(result: FinancialDataToolResult): Adapt
       requestedAt,
       retrievedAt,
       upstream: { ...result.upstream, sourceId: `${result.upstream.sourceId}:${key}`, title: `${result.upstream.title} · ${metricName}` },
-      capture: { body: normalizedEnvelope, locator, quote: statement, permissionScope: result.permissionScope },
+      capture: { body: normalizedEnvelope, locator, quote: statement, permissionScope: result.permissionScope, documentAttestation: result.documentAttestation },
     });
     return {
       key, metricId, metricName, statement, value, unit, currency: input.currency, businessTime, periodStart, periodEnd,

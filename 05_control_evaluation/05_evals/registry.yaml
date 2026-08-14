@@ -11,6 +11,14 @@ entrypoints:
   - 05_control_evaluation/05_evals/protocols/
   - 05_control_evaluation/05_evals/rubrics/
   - 05_control_evaluation/05_evals/cases/
+  - 05_control_evaluation/05_evals/release_evidence/
+  - 05_control_evaluation/05_evals/fixtures/
+
+fixture_authorities:
+  engineering_gold: 05_control_evaluation/05_evals/fixtures/gold-tasks.json
+  live_canary: 05_control_evaluation/05_evals/fixtures/live-canary-cases.json
+  research_value: 05_control_evaluation/05_evals/fixtures/research-value-fixtures.json
+  public_earnings_replay: 05_control_evaluation/05_evals/fixtures/earnings-update-replay-dongwei.json
 
 runtime_bridge: 05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml
 boundary:
@@ -19,3 +27,4 @@ boundary:
   current_formal_cases: 0
   current_evidence_ready_candidates: 1
   gold_tasks_are_engineering_regression: true
+  capability_activation_requires: completed_formal_same_evidence_evaluation_run

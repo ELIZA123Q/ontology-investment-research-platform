@@ -1,0 +1,53 @@
+schema_name: asset_authority_matrix
+schema_version: 1.0.0
+status: active
+
+principle: 01-05 是声明控制面，06 是执行与实例数据面；消费者可以生成投影，但不得建立第二套业务权威。
+
+asset_classes:
+  semantic:
+    declaration_authority: 01_semantic_knowledge/
+    runtime_projection: 06_runtime/src/ontology/generated.ts
+    instance_data: 06_runtime/.data/research-v2.sqlite
+  scenario_task:
+    declaration_authority: 02_scenario_task/
+    runtime_projection: 06_runtime/src/generated/domain-catalog.ts
+    execution_binding: 06_runtime/src/runtime/
+  capability:
+    declaration_authority: 03_agent_capability/
+    runtime_projection: 06_runtime/src/generated/domain-catalog.ts
+    execution_binding: 06_runtime/src/capabilities/registry.ts
+  context_state:
+    declaration_authority: 04_context_state/
+    runtime_projection: 06_runtime/src/generated/domain-catalog.ts
+    execution_binding: 06_runtime/src/runtime/state-machine.ts
+  governance:
+    declaration_authority: 05_control_evaluation/
+    runtime_projection: 06_runtime/src/generated/domain-catalog.ts
+    execution_binding: 06_runtime/src/governance/policy-engine.ts
+  evaluation:
+    declaration_authority: 05_control_evaluation/05_evals/
+    runtime_projection: 06_runtime/src/generated/domain-catalog.ts
+    execution_binding: 06_runtime/src/evaluation/
+  transport_and_ui:
+    declaration_authority: 06_runtime/app-surface.yaml
+    restriction: 只能声明路由和组件映射，不得拥有业务状态、阈值、权限或审批规则。
+  runtime_instance:
+    authority: 06_runtime/.data/
+    restriction: 实例数据不得反向成为 01-05 定义权威。
+
+runtime_allowed:
+  - 技术超时、连接池、租约、重试和数据库参数
+  - API transport schema 与外部提供方适配类型
+  - 白名单 Node handler、状态执行器和数据库实现
+  - 由 01-05 生成且带来源指纹的只读投影
+
+runtime_forbidden:
+  - 业务枚举或生命周期第二权威
+  - 证据、判断、审批或知识晋级门槛
+  - 评测案例输入、rubric 或能力激活条件
+  - 公司研究章节、任务完成条件或方法路由第二权威
+
+governance_code_exception:
+  path: 05_control_evaluation/04_verifiers/
+  rule: 可包含不参与产品请求的确定性校验器；不得连接生产数据库、调用外部服务或实现研究执行。

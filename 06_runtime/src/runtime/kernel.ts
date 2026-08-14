@@ -1,8 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
-import type { ActionPreviewRequest, ApprovalRequest, Artifact, AssetRef, FinancialModelData, JudgmentSurfaceData, NormalizedFinancialsData, ReportSpecInput, ReportSurfaceData, ResearchMethodPlan, ResearchPlanSurfaceData, ResearchProblemGraph, SourceCandidate, Task, TaskNode, ThesisStateData, UiSurface, ValuationAnalysisData } from "@/src/contracts";
+import type { ActionPreviewRequest, ApprovalRequest, Artifact, AssetRef, FinancialModelData, JudgmentSurfaceData, MemoryRecord, NormalizedFinancialsData, ReportSpecInput, ReportSurfaceData, ResearchMethodPlan, ResearchPlanSurfaceData, ResearchProblemGraph, SourceCandidate, Task, TaskNode, ThesisStateData, UiSurface, ValuationAnalysisData } from "@/src/contracts";
 import { verifyArtifactWrite, verifyModelDraftSections, verifyReportClaims, verifyUiSurface } from "@/src/governance/verifiers";
 import { classifyIntent, materializeNodes, planFromProblemGraph, planResearch, type ResearchPlan } from "@/src/runtime/planner";
 import { buildResearchProblemGraph } from "@/src/runtime/problem-graph";
+import { assertArtifactEditAllowed, editableArtifactFields, minimumIndependentPublishers } from "@/src/governance/policy-engine";
 import { compilePlannerProposal, type CompiledResearchPlan, type PlannerProposal } from "@/src/runtime/plan-compiler";
 import { getResearchNodeType } from "@/src/runtime/node-catalog";
 import { RuntimeStore } from "@/src/runtime/store";
@@ -49,6 +50,14 @@ export interface ConversationSnapshot {
   artifacts: Artifact[];
   approvals: ApprovalRequest[];
   events: ReturnType<RuntimeStore["listEvents"]>;
+  context: {
+    asOf?: string;
+    assembledAt?: string;
+    trimmedReason?: string;
+    knowledge: Array<Pick<AssetRef, "assetId" | "kind" | "identityKey" | "version" | "authorityRef">>;
+    references: Array<{ id: string; kind: "message" | "artifact" | "memory" | "semantic" | "source"; reason: string; freshnessAt?: string }>;
+    memory: MemoryRecord[];
+  } | null;
 }
 
 export interface ArtifactRevisionResult {
@@ -292,7 +301,7 @@ export class AgentKernel {
     const researchCaseId = this.ensureResearchCase(conversationId, content);
     const reportSpec = reportSpecForGoal(content, options.reportSpec);
     const methodPlan = selectResearchMethods(content, reportSpec);
-    const task = this.store.createTask({ conversationId, researchCaseId, goal: content, intent: fallbackIntent, reportSpec, status: fallbackIntent === "clarify" ? "waiting_input" : "waiting_approval", budget: DEFAULT_BUDGET });
+    const task = this.store.createTask({ conversationId, researchCaseId, goal: content, intent: fallbackIntent, reportSpec, status: "planned", budget: DEFAULT_BUDGET });
     const graph = fallbackIntent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${task.id}`, taskId: task.id, researchCaseId, goal: content, intent: fallbackIntent, reportDepth: reportSpec.depth, lensRefs }));
     const proposalCompiled = proposal ? compilePlannerProposal(proposal, content, DEFAULT_BUDGET) : undefined;
     const deterministicPlan = graph ? planFromProblemGraph(graph, DEFAULT_BUDGET) : planResearch(content);
@@ -316,11 +325,11 @@ export class AgentKernel {
 
     if (plan.intent === "clarify") {
       this.store.addMessage({ conversationId, actorType: "agent", actorId: "research-lead", content: "在开始研究前，我需要确认研究对象、希望支持的决策和时间范围。你可以直接补充，例如：研究对象 + 未来六个月 + 希望判断的问题。" });
-      return { task };
+      return { task: this.store.transitionTask(task.id, "request_input", { actorType: "agent", actorId: "research-lead", payload: { reason: "clarification_required" } }) };
     }
     const approval = this.store.createApproval({ conversationId, taskId: task.id, kind: "plan_confirmation", prompt: "按这份动态计划开始研究？你仍可直接修改目标或范围。" });
-    this.store.appendEvent({ conversationId, taskId: task.id, type: "approval.requested", actorType: "system", actorId: "runtime", payload: { approvalId: approval.id, kind: approval.kind } });
-    return { task, approval };
+    const waitingTask = this.store.transitionTask(task.id, "request_approval", { payload: { approvalId: approval.id, kind: approval.kind } });
+    return { task: waitingTask, approval };
   }
 
   decideApproval(id: string, decision: "approved" | "rejected", note?: string): ApprovalRequest {
@@ -358,19 +367,18 @@ export class AgentKernel {
       if (pending.kind === "plan_confirmation") this.materializeConfirmedProblemGraph(approval);
       if (judgmentRequest) this.commitApprovedJudgment(approval, judgmentRequest);
       if (publicationRequest) this.commitApprovedPublication(approval, publicationRequest);
-      this.store.updateTaskStatus(approval.taskId, "queued");
+      this.store.transitionTask(approval.taskId, pending.kind === "plan_confirmation" ? "confirm_plan" : "approve", { actorType: "researcher", actorId: "researcher", payload: { approvalId: approval.id, kind: pending.kind } });
       this.store.enqueueTask(approval.taskId, "execute");
     } else {
-      this.store.updateTaskStatus(approval.taskId, "waiting_input");
+      this.store.transitionTask(approval.taskId, "reject", { actorType: "researcher", actorId: "researcher", payload: { approvalId: approval.id, kind: pending.kind } });
     }
     return approval;
   }
 
   executeTask(taskId: string): Task {
-    const task = this.requireTask(taskId);
-    if (["cancelled", "completed", "paused", "waiting_handoff"].includes(task.status)) return task;
-    this.store.updateTaskStatus(taskId, "running");
-    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.started", actorType: "agent", actorId: "research-lead", payload: { recoveryCheckpoint: this.store.latestCheckpoint(taskId)?.id } });
+    let task = this.requireTask(taskId);
+    if (["cancelled", "completed", "paused", "waiting_handoff", "waiting_approval", "waiting_input"].includes(task.status)) return task;
+    if (task.status === "queued") task = this.store.transitionTask(taskId, "runtime_start", { actorType: "agent", actorId: "research-lead", payload: { recoveryCheckpoint: this.store.latestCheckpoint(taskId)?.id } });
 
     let progressed = true;
     while (progressed) {
@@ -380,7 +388,7 @@ export class AgentKernel {
         if (!["ready", "pending", "failed"].includes(node.status)) continue;
         const deps = node.dependsOn.map((id) => this.store.getTaskNode(id));
         if (deps.some((dep) => dep?.status === "failed" || dep?.status === "blocked")) {
-          this.store.updateNode(node.id, { status: "blocked" });
+          this.store.transitionNode(node.id, "dependency_block", {}, { payload: { dependencyIds: node.dependsOn } });
           continue;
         }
         if (!deps.every((dep) => dep?.status === "completed")) continue;
@@ -391,9 +399,9 @@ export class AgentKernel {
     }
 
     const finalNodes = this.store.listTaskNodes(taskId);
-    if (finalNodes.some((node) => node.status === "failed")) this.store.updateTaskStatus(taskId, "failed");
-    else if (finalNodes.some((node) => node.status === "blocked")) this.store.updateTaskStatus(taskId, "waiting_input");
-    else if (finalNodes.every((node) => node.status === "completed" || node.status === "cancelled")) this.store.updateTaskStatus(taskId, "completed");
+    if (finalNodes.some((node) => node.status === "failed")) this.store.transitionTask(taskId, "runtime_fail");
+    else if (finalNodes.some((node) => node.status === "blocked")) this.store.transitionTask(taskId, "request_input", { payload: { reason: "blocked_frontier" } });
+    else if (finalNodes.every((node) => node.status === "completed" || node.status === "cancelled")) this.store.transitionTask(taskId, "runtime_complete");
     const updated = this.requireTask(taskId);
     this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.settled", actorType: "system", actorId: "runtime", payload: { status: updated.status, outcome: updated.outcome } });
     if (["completed", "failed", "cancelled"].includes(updated.status) && !this.store.getMiningRunByTask(taskId)) this.queueMining(taskId);
@@ -403,16 +411,17 @@ export class AgentKernel {
   /** Phase 2 scheduler entrypoint.  It only queues dependency-ready frontier nodes;
    * workers may claim up to three nodes from the same task. */
   dispatchTask(taskId: string): number {
-    const task = this.requireTask(taskId);
+    let task = this.requireTask(taskId);
     if (["cancelled", "completed", "paused", "waiting_handoff", "waiting_approval", "waiting_input"].includes(task.status)) return 0;
-    this.store.updateTaskStatus(taskId, "running");
+    if (task.status === "queued") task = this.store.transitionTask(taskId, "runtime_start", { actorType: "agent", actorId: "research-lead", payload: { recoveryCheckpoint: this.store.latestCheckpoint(taskId)?.id } });
     let queued = 0;
     for (const node of this.store.listTaskNodes(taskId)) {
       if (!["ready", "pending", "failed"].includes(node.status)) continue;
       const dependencies = node.dependsOn.map((id) => this.store.getTaskNode(id));
-      if (dependencies.some((item) => item?.status === "failed" || item?.status === "blocked")) { this.store.updateNode(node.id, { status: "blocked" }); continue; }
+      if (dependencies.some((item) => item?.status === "failed" || item?.status === "blocked")) { this.store.transitionNode(node.id, "dependency_block", {}, { payload: { dependencyIds: node.dependsOn } }); continue; }
       if (!dependencies.every((item) => item?.status === "completed")) continue;
-      this.store.updateNode(node.id, { status: "ready" });
+      if (node.status === "pending") this.store.transitionNode(node.id, "dependencies_ready");
+      else if (node.status === "failed") this.store.transitionNode(node.id, "retry");
       this.store.enqueueNode(taskId, node.id); queued++;
     }
     return queued;
@@ -427,14 +436,13 @@ export class AgentKernel {
     this.executeNode(task, node);
     if (this.requireTask(taskId).status === "running") this.dispatchTask(taskId);
     const nodes = this.store.listTaskNodes(taskId);
-    if (nodes.every((item) => item.status === "completed" || item.status === "cancelled")) this.store.updateTaskStatus(taskId, "completed");
+    if (nodes.every((item) => item.status === "completed" || item.status === "cancelled")) this.store.transitionTask(taskId, "runtime_complete");
   }
 
   cancelTask(taskId: string): Task {
     const task = this.requireTask(taskId);
-    this.store.updateTaskStatus(taskId, "cancelled");
-    for (const node of this.store.listTaskNodes(taskId)) if (["pending", "ready", "running"].includes(node.status)) this.store.updateNode(node.id, { status: "cancelled" });
-    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.cancelled", actorType: "researcher", actorId: "researcher", payload: {} });
+    this.store.transitionTask(taskId, "cancel", { actorType: "researcher", actorId: "researcher" });
+    for (const node of this.store.listTaskNodes(taskId)) if (["pending", "ready", "running", "blocked", "failed"].includes(node.status)) this.store.transitionNode(node.id, "cancel", {}, { actorType: "researcher", actorId: "researcher" });
     if (!this.store.getMiningRunByTask(taskId)) this.queueMining(taskId);
     return this.requireTask(taskId);
   }
@@ -442,18 +450,16 @@ export class AgentKernel {
   pauseTask(taskId: string): Task {
     const task = this.requireTask(taskId);
     if (["cancelled", "completed", "failed"].includes(task.status)) throw new Error(`Task ${task.status} cannot be paused`);
-    this.store.updateTaskStatus(taskId, "paused");
-    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.paused", actorType: "researcher", actorId: "researcher", payload: { checkpointId: this.store.latestCheckpoint(taskId)?.id } });
+    this.store.transitionTask(taskId, "pause", { actorType: "researcher", actorId: "researcher", payload: { checkpointId: this.store.latestCheckpoint(taskId)?.id } });
     return this.requireTask(taskId);
   }
 
   resumeTask(taskId: string): string {
     const task = this.requireTask(taskId);
     if (task.status === "cancelled") throw new Error("Cancelled task cannot be resumed; branch it instead.");
-    for (const node of this.store.listTaskNodes(taskId)) if (node.status === "failed") this.store.updateNode(node.id, { status: "pending" });
-    this.store.updateTaskStatus(taskId, "queued");
+    for (const node of this.store.listTaskNodes(taskId)) if (node.status === "failed") this.store.transitionNode(node.id, "retry");
+    this.store.transitionTask(taskId, "retry", { actorType: "researcher", actorId: "researcher", payload: { checkpointId: this.store.latestCheckpoint(taskId)?.id } });
     const jobId = this.store.enqueueTask(taskId, "resume");
-    this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.resume_queued", actorType: "researcher", actorId: "researcher", payload: { jobId, checkpointId: this.store.latestCheckpoint(taskId)?.id } });
     return jobId;
   }
 
@@ -465,7 +471,7 @@ export class AgentKernel {
     // 4.0 run, so create the aggregate root lazily instead of writing back to the
     // legacy task or attempting dual-write migration.
     const researchCaseId = this.ensureResearchCase(parent.conversationId, goal, parent.researchCaseId);
-    const branch = this.store.createTask({ conversationId: parent.conversationId, researchCaseId, parentTaskId: parent.id, goal, intent, reportSpec: parent.reportSpec, status: "waiting_approval", budget: parent.budget });
+    const branch = this.store.createTask({ conversationId: parent.conversationId, researchCaseId, parentTaskId: parent.id, goal, intent, reportSpec: parent.reportSpec, status: "planned", budget: parent.budget });
     const graph = intent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${branch.id}`, taskId: branch.id, researchCaseId, goal, intent, reportDepth: branch.reportSpec.depth }));
     const plan = graph ? planFromProblemGraph(graph, branch.budget) : planResearch(goal);
     this.store.createKnowledgeLock(branch.id);
@@ -476,8 +482,8 @@ export class AgentKernel {
     this.store.putArtifact({ conversationId: branch.conversationId, taskId: branch.id, kind: "research_plan", title: "分支研究计划", status: "draft", data: this.publicPlan(plan, nodes, branch.reportSpec, methodPlan, graph), sourceRefs: [], createdBy: "research-lead" });
     this.store.appendEvent({ conversationId: branch.conversationId, taskId: branch.id, type: "task.branched", actorType: "researcher", actorId: "researcher", payload: { parentTaskId: parent.id, revisedGoal: goal } });
     this.store.checkpoint({ taskId: branch.id, phase: "after", state: { milestone: "plan_determined", parentTaskId: parent.id } });
-    this.store.createApproval({ conversationId: branch.conversationId, taskId: branch.id, kind: "plan_confirmation", prompt: "确认开始这个研究分支？" });
-    return branch;
+    const approval = this.store.createApproval({ conversationId: branch.conversationId, taskId: branch.id, kind: "plan_confirmation", prompt: "确认开始这个研究分支？" });
+    return this.store.transitionTask(branch.id, "request_approval", { payload: { approvalId: approval.id, kind: approval.kind } });
   }
 
   reviseArtifact(artifactId: string, expectedVersion: number, changes: Record<string, unknown>): ArtifactRevisionResult {
@@ -492,8 +498,9 @@ export class AgentKernel {
     const surface = surfaceArtifact.data as UiSurface;
     const fields = Object.keys(changes);
     if (!fields.length) throw new Error("At least one artifact change is required");
-    const forbidden = fields.filter((field) => !surface.editableFields.includes(field));
-    if (forbidden.length) throw new Error(`Fields are not editable: ${forbidden.join(", ")}`);
+    const evidenceSufficient = current.kind !== "judgment"
+      || !["abstain", "insufficient"].includes(String((current.data as Record<string, unknown>).disposition || (current.data as Record<string, unknown>).confidence));
+    assertArtifactEditAllowed(current.kind, fields, evidenceSufficient);
     const nextData = current.kind === "judgment"
       ? refreshJudgmentReasoningRule({ ...(current.data as Record<string, unknown>), ...changes })
       : { ...(current.data as Record<string, unknown>), ...changes };
@@ -529,7 +536,9 @@ export class AgentKernel {
     const ownerNode = this.store.getTaskNode(current.nodeId);
     if (!ownerNode) throw new Error(`Artifact owner node not found: ${current.nodeId}`);
     const descendants = this.descendantNodes(current.taskId, ownerNode.id);
-    for (const node of descendants) this.store.updateNode(node.id, { status: "pending", inputArtifactIds: [], outputArtifactIds: [] });
+    for (const node of descendants) {
+      if (["ready", "blocked", "completed", "failed"].includes(node.status)) this.store.transitionNode(node.id, "invalidate", { inputArtifactIds: [], outputArtifactIds: [] }, { actorId: "artifact-service", payload: { artifactId, artifactVersion: expectedVersion + 1 } });
+    }
     if (current.kind === "judgment") {
       const staleModelDrafts = this.store.listArtifacts(current.taskId).filter((artifact) => artifact.kind === "review" && artifact.title === "受约束模型章节草拟" && artifact.status !== "superseded");
       for (const draft of staleModelDrafts) this.store.reviseArtifacts([{ id: draft.id, expectedVersion: draft.version, status: "superseded", data: { ...(draft.data as Record<string, unknown>), invalidatedByArtifactId: current.id, invalidatedByVersion: expectedVersion + 1 }, createdBy: "artifact-invalidation" }]);
@@ -547,10 +556,11 @@ export class AgentKernel {
         conversationId: current.conversationId, taskId: current.taskId, nodeId: current.nodeId, kind: "judgment_confirmation",
         prompt: `判断已按你的修改更新为 v${revised.version}。确认后重新生成下游报告？`,
       });
-      this.store.updateTaskStatus(current.taskId, "waiting_approval");
-      this.store.appendEvent({ conversationId: current.conversationId, taskId: current.taskId, nodeId: current.nodeId, type: "approval.requested", actorType: "system", actorId: "runtime", payload: { approvalId: approval.id, kind: approval.kind, artifactId, artifactVersion: revised.version } });
+      const task = this.requireTask(current.taskId);
+      if (task.status !== "waiting_approval") this.store.transitionTask(current.taskId, "request_approval", { payload: { approvalId: approval.id, kind: approval.kind, artifactId, artifactVersion: revised.version } });
     } else if (descendants.length) {
-      this.store.updateTaskStatus(current.taskId, "queued");
+      const task = this.requireTask(current.taskId);
+      if (task.status !== "queued") this.store.transitionTask(current.taskId, "invalidate", { actorId: "artifact-service", payload: { artifactId, artifactVersion: revised.version } });
       this.store.enqueueTask(current.taskId, "resume");
       this.store.appendEvent({ conversationId: current.conversationId, taskId: current.taskId, nodeId: current.nodeId, type: "artifact.recompute_queued", actorType: "system", actorId: "runtime", payload: { artifactId, artifactVersion: revised.version, nodeIds: descendants.map((node) => node.id) } });
     }
@@ -560,11 +570,21 @@ export class AgentKernel {
   snapshot(conversationId: string, requestedTaskId?: string): ConversationSnapshot {
     const tasks = this.store.listTasks(conversationId);
     const task = (requestedTaskId ? tasks.find((item) => item.id === requestedTaskId) : undefined) || tasks[0] || null;
+    const knowledgeLock = task ? this.store.getKnowledgeLock(task.id) : null;
+    const contextPackage = task ? this.store.getContextPackage(task.id) : null;
     return {
       conversation: this.store.getConversation(conversationId), messages: this.store.listMessages(conversationId), task,
       activeTaskId: task?.id || null, tasks,
       nodes: task ? this.store.listTaskNodes(task.id) : [], artifacts: task ? this.store.listArtifacts(task.id) : [],
       approvals: this.store.listPendingApprovals(conversationId), events: this.store.listEvents(conversationId),
+      context: task ? {
+        asOf: contextPackage?.asOf || knowledgeLock?.asOf,
+        assembledAt: contextPackage?.assembledAt,
+        trimmedReason: contextPackage?.trimmedReason,
+        knowledge: (knowledgeLock?.assetRefs || []).map(({ assetId, kind, identityKey, version, authorityRef }) => ({ assetId, kind, identityKey, version, authorityRef })),
+        references: (contextPackage?.references || []).map(({ id, kind, reason, freshnessAt }) => ({ id, kind, reason, freshnessAt })),
+        memory: this.store.listMemory(conversationId),
+      } : null,
     };
   }
 
@@ -595,7 +615,7 @@ export class AgentKernel {
         if (!executingAgent.allowedSkills.includes(nodeType.capabilityId)) throw new Error(`Agent ${executingAgent.id} is not allowed to execute Skill ${nodeType.capabilityId}`);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        this.store.updateNode(node.id, { status: "blocked" });
+        this.store.transitionNode(node.id, "policy_block", {}, { actorId: "capability-release-gate", payload: { capabilityId: node.capabilityId, error: message } });
         this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "capability.release_blocked", actorType: "system", actorId: "capability-release-gate", payload: { capabilityId: node.capabilityId, executionScope: runtimeExecutionScope(), error: message } });
         return;
       }
@@ -604,18 +624,21 @@ export class AgentKernel {
       const capabilityCheck = verifyArtifactWrite(node.assignedAgent, nodeType.outputKind);
       if (!capabilityCheck.passed) throw new Error(capabilityCheck.errors.join("; "));
     }
-    this.store.updateNode(node.id, { status: "running" });
+    let currentNode = this.store.getTaskNode(node.id)!;
+    if (currentNode.status === "pending") currentNode = this.store.transitionNode(node.id, "dependencies_ready");
+    else if (currentNode.status === "failed") currentNode = this.store.transitionNode(node.id, "retry");
+    this.store.transitionNode(currentNode.id, "runtime_start", {}, { actorType: "agent", actorId: "research-lead", payload: { capabilityId: node.capabilityId } });
     const started = Date.now();
     this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: `${node.capabilityType}.started`, actorType: "agent", actorId: "research-lead", payload: { capabilityId: node.capabilityId, inputArtifactIds: node.inputArtifactIds } });
     try {
       const artifact = this.executeNodeLocally(task, node);
-      this.store.updateNode(node.id, { status: "completed", outputArtifactIds: artifact ? [artifact.id] : [] });
+      this.store.transitionNode(node.id, "runtime_complete", { outputArtifactIds: artifact ? [artifact.id] : [] }, { actorType: "agent", actorId: "research-lead", payload: { capabilityId: node.capabilityId, artifactId: artifact?.id } });
       this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: `${node.capabilityType}.completed`, actorType: "agent", actorId: "research-lead", payload: { capabilityId: node.capabilityId, artifactId: artifact?.id, latencyMs: Date.now() - started } });
       if (nodeType.checkpointAfter) this.store.checkpoint({ taskId: task.id, nodeId: node.id, phase: "after", state: { milestone: node.kind, artifactId: artifact?.id } });
       if (artifact) this.requestMilestoneApproval(task, node, artifact);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.store.updateNode(node.id, { status: "failed" });
+      this.store.transitionNode(node.id, "runtime_fail", {}, { payload: { capabilityId: node.capabilityId, error: message } });
       this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: `${node.capabilityType}.failed`, actorType: "system", actorId: "runtime", payload: { capabilityId: node.capabilityId, error: message } });
       throw error;
     }
@@ -783,7 +806,9 @@ export class AgentKernel {
         const sourceRefs = [...new Map([...capturedSourceRefs, ...financialArtifacts.flatMap((artifact) => artifact.sourceRefs)].map((source) => [source.sourceId, source])).values()];
         const independentPublishers = new Set(sourceRefs.map((source) => source.publisherId).filter(Boolean));
         const role = node.frontierRef.evidenceRole || "context";
-        const minIndependentPublishers = Number(frontierNode?.payload.minIndependentPublishers || (role === "support" ? 2 : 1));
+        const governedMinimum = minimumIndependentPublishers(role);
+        const requestedMinimum = Number(frontierNode?.payload.minIndependentPublishers || governedMinimum);
+        const minIndependentPublishers = Math.max(governedMinimum, requestedMinimum);
         const functionResult = this.functions.execute("AssessEvidenceUsability", { evidenceRefs: facts.map((fact) => fact.ontologyFactRef).filter(Boolean), judgmentUnitRefs: node.frontierRef.judgmentUnitRef ? [node.frontierRef.judgmentUnitRef] : [] });
         const sufficient = facts.length >= minIndependentPublishers && independentPublishers.size >= minIndependentPublishers && functionResult.sufficient === true;
         const requirementFulfilled = role === "counter" ? Boolean(captured) : sufficient;
@@ -962,7 +987,7 @@ export class AgentKernel {
         if (frontierNode) this.store.updateProblemGraphNode(frontierNode.id, { state: terminalState, resolvedArtifactIds: [] });
         const judgment = this.store.putArtifact({ ...base, kind: "judgment", title: "当前判断", data: { ...judgmentData, judgmentUnitRef: node.frontierRef.judgmentUnitRef, problemNodeId: frontierNode?.id, frontierState: terminalState, evidenceByRole: evaluationData } });
         if (frontierNode) this.store.updateProblemGraphNode(frontierNode.id, { state: terminalState, resolvedArtifactIds: [judgment.id] });
-        this.putSurface(task, node, "judgment_card", `判断单元：${frontierNode?.title || "当前判断"}`, judgmentData, judgment.id, hasQualified ? ["statement", "confidence", "changeConditions", "signalRoles"] : ["changeConditions"]);
+        this.putSurface(task, node, "judgment_card", `判断单元：${frontierNode?.title || "当前判断"}`, judgmentData, judgment.id);
         return judgment;
       }
       case "synthesis": {
@@ -1009,7 +1034,7 @@ export class AgentKernel {
         }, { actorType: "agent", actorId: "research-lead", conversationId: task.conversationId, taskId: task.id });
         const deliverableRef = created.objects.find((object) => object.type === "ResearchDeliverable")?.id;
         const reportWithRef = this.store.putArtifact({ ...report, id: report.id, data: { ...(report.data as unknown as Record<string, unknown>), ontologyDeliverableRef: deliverableRef } });
-        this.putSurface(task, node, "report_editor", report.title, reportWithRef.data as ReportSurfaceData, reportWithRef.id, ["summary", "boundary"]);
+        this.putSurface(task, node, "report_editor", report.title, reportWithRef.data as ReportSurfaceData, reportWithRef.id);
         return reportWithRef;
       }
       case "audit": {
@@ -1086,8 +1111,7 @@ export class AgentKernel {
     }
     if (!kind) return;
     const approval = this.store.createApproval({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, kind, prompt });
-    this.store.updateTaskStatus(task.id, "waiting_approval");
-    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "approval.requested", actorType: "system", actorId: "runtime", payload: { approvalId: approval.id, kind, artifactId: artifact.id, artifactVersion: artifact.version } });
+    this.store.transitionTask(task.id, "request_approval", { payload: { approvalId: approval.id, kind, artifactId: artifact.id, artifactVersion: artifact.version } });
     this.store.checkpoint({ taskId: task.id, nodeId: node.id, phase: "pause", state: { milestone: kind, approvalId: approval.id, artifactId: artifact.id, artifactVersion: artifact.version } });
   }
 
@@ -1309,7 +1333,11 @@ export class AgentKernel {
     this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node?.id, type: "judgment.committed", actorType: "researcher", actorId: "researcher", payload: { artifactId: revised.id, artifactVersion: revised.version, ontologyJudgmentRef: formal.id, reasoningTraceRef: trace.id, judgmentUnitRef: judgmentUnit.id, hypothesisRef: hypothesis.id, signalRefs: signals.map((signal) => signal.id), ruleEvaluationRef: ruleEvaluation.id, supersededJudgmentRef: prepared.previousJudgmentRef, supersededReasoningTraceRef: (artifact.data as JudgmentSurfaceData).supersedesReasoningTraceRef, actionExecutionId: result.execution.id, supersedeExecutionId } });
   }
 
-  private putSurface<C extends UiSurface["component"]>(task: Task, node: TaskNode, component: C, title: string, data: Extract<UiSurface, { component: C }>["data"], artifactId?: string, editableFields: string[] = []): Artifact {
+  private putSurface<C extends UiSurface["component"]>(task: Task, node: TaskNode, component: C, title: string, data: Extract<UiSurface, { component: C }>["data"], artifactId?: string): Artifact {
+    const judgmentState = component === "judgment_card" ? data as JudgmentSurfaceData : undefined;
+    const editableFields = component === "judgment_card"
+      ? [...editableArtifactFields("judgment", !["abstain", "insufficient"].includes(String(judgmentState?.disposition || judgmentState?.confidence)))]
+      : component === "report_editor" ? [...editableArtifactFields("report")] : [];
     const surface = { id: randomUUID(), component, title, data, editableFields, artifactId } as unknown as Extract<UiSurface, { component: C }>;
     const verified = verifyUiSurface(surface);
     if (!verified.passed) throw new Error(verified.errors.join("; "));
@@ -1328,9 +1356,10 @@ export class AgentKernel {
     if (!affected.some((node) => ["completed", "failed", "blocked", "cancelled"].includes(node.status))) return;
     for (const node of affected) {
       this.store.supersedePendingApprovals(node.id, `新连接器材料 ${artifactId} 要求重新计算证据及下游制品`);
-      this.store.updateNode(node.id, { status: "pending", inputArtifactIds: [], outputArtifactIds: [] });
+      if (["ready", "blocked", "completed", "failed"].includes(node.status)) this.store.transitionNode(node.id, "invalidate", { inputArtifactIds: [], outputArtifactIds: [] }, { actorId: "artifact-service", payload: { artifactId } });
     }
-    this.store.updateTaskStatus(task.id, "queued");
+    const currentTask = this.requireTask(task.id);
+    if (currentTask.status !== "queued") this.store.transitionTask(task.id, "invalidate", { actorId: "artifact-service", payload: { artifactId } });
     const jobId = this.store.enqueueTask(task.id, "resume");
     this.store.appendEvent({
       conversationId: task.conversationId, taskId: task.id, nodeId: start.id, type: "connector.evidence_recompute_queued",

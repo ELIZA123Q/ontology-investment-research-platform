@@ -1,0 +1,33 @@
+schema_name: artifact_editing_policy
+schema_version: 1.0.0
+status: active
+
+request_contract:
+  required: [artifact_id, expected_version, changes]
+  concurrency: optimistic_lock
+  conflict_status: 409
+
+editable_artifacts:
+  judgment:
+    evidence_sufficient: [statement, confidence, changeConditions, signalRoles]
+    evidence_insufficient: [changeConditions]
+    after_edit: [supersede_pending_approval, request_judgment_confirmation, invalidate_descendants]
+  report:
+    fields: [summary, boundary]
+    after_edit: [invalidate_descendants, queue_deterministic_audit]
+
+non_editable_by_generic_patch: [evidence_fact, source_snapshot, formal_claim, ontology_object, task_graph_nodes]
+
+milestone_approvals:
+  plan_confirmation: {pauses_before: task_execution}
+  evidence_confirmation: {condition: evidence_sufficient, pauses_before: judgment}
+  judgment_confirmation: {condition: judgment_review_required, pauses_before: report_composition}
+  publish_confirmation: {condition: report_verified, pauses_before: publication}
+
+invariants:
+  - 每次编辑创建新版本，历史版本不可覆盖。
+  - 暂不可判断的 Judgment 不能通过直接编辑升级为 supported。
+  - Judgment 修改后必须重新确认，Report 修改后必须重新审计。
+  - 旧版本审批不得对新版本生效。
+
+runtime_projection: 06_runtime/src/generated/domain-catalog.ts

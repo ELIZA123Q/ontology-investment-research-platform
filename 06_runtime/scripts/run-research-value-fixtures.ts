@@ -1,4 +1,4 @@
-import catalogJson from "../evals/research-value-fixtures.json";
+import catalogJson from "../../05_control_evaluation/05_evals/fixtures/research-value-fixtures.json";
 import { validateResearchValueCatalog, type ResearchValueFixtureCatalog } from "../src/evaluation/research-value-evaluator";
 
 const result = validateResearchValueCatalog(catalogJson as ResearchValueFixtureCatalog);

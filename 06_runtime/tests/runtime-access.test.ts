@@ -16,17 +16,17 @@ describe("runtime access boundary", () => {
   it("uses a server-side identity and rejects unauthenticated server requests", () => {
     process.env.VNEXT_RUNTIME_MODE = "server";
     process.env.VNEXT_SERVER_IDENTITIES_JSON = JSON.stringify([{ token: "secret-token", tenantId: "tenant-a", userId: "analyst-a", roles: ["research_owner"] }]);
-    expect(authorizeRuntimeRequest(new Request("https://research.test/vnext/conversations", { headers: { authorization: "Bearer secret-token" } }))).toEqual({ tenantId: "tenant-a", userId: "analyst-a", roles: ["research_owner"] });
-    expect(() => authorizeRuntimeRequest(new Request("https://research.test/vnext/conversations"))).toThrow(RuntimeAccessError);
+    expect(authorizeRuntimeRequest(new Request("https://research.test/api/v2/research-cases", { headers: { authorization: "Bearer secret-token" } }))).toEqual({ tenantId: "tenant-a", userId: "analyst-a", roles: ["research_owner"] });
+    expect(() => authorizeRuntimeRequest(new Request("https://research.test/api/v2/research-cases"))).toThrow(RuntimeAccessError);
   });
 
   it("requires an allowed origin and CSRF token for server mutations", () => {
     process.env.VNEXT_RUNTIME_MODE = "server";
     process.env.VNEXT_SERVER_IDENTITIES_JSON = JSON.stringify([{ token: "secret-token", tenantId: "tenant-a", userId: "analyst-a", roles: ["research_owner"] }]);
     process.env.VNEXT_ALLOWED_ORIGINS = "https://research.test"; process.env.VNEXT_SERVER_CSRF_TOKEN = "csrf-secret";
-    const authorized = new Request("https://research.test/vnext/conversations", { method: "POST", headers: { authorization: "Bearer secret-token", origin: "https://research.test", "x-vnext-csrf-token": "csrf-secret" } });
+    const authorized = new Request("https://research.test/api/v2/research-cases", { method: "POST", headers: { authorization: "Bearer secret-token", origin: "https://research.test", "x-vnext-csrf-token": "csrf-secret" } });
     expect(authorizeRuntimeRequest(authorized).tenantId).toBe("tenant-a");
-    expect(() => authorizeRuntimeRequest(new Request("https://research.test/vnext/conversations", { method: "POST", headers: { authorization: "Bearer secret-token", origin: "https://evil.test", "x-vnext-csrf-token": "csrf-secret" } }))).toThrow(/origin/i);
+    expect(() => authorizeRuntimeRequest(new Request("https://research.test/api/v2/research-cases", { method: "POST", headers: { authorization: "Bearer secret-token", origin: "https://evil.test", "x-vnext-csrf-token": "csrf-secret" } }))).toThrow(/origin/i);
   });
 
   it("enforces tenant and user ownership for every direct research resource", () => {
@@ -38,7 +38,7 @@ describe("runtime access boundary", () => {
     const task = store.createTask({ conversationId: own.id, goal: "test", intent: "full_research", status: "running", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
     const artifact = store.putArtifact({ conversationId: own.id, taskId: task.id, kind: "evidence_package", title: "evidence", status: "verified", data: {}, sourceRefs: [], createdBy: "system" });
     const approval = store.createApproval({ conversationId: own.id, taskId: task.id, kind: "plan_confirmation", prompt: "confirm" });
-    const request = new Request("https://research.test/vnext/home", { headers: { "x-vnext-auth-tenant": "tenant-a", "x-vnext-auth-user": "analyst-a", "x-vnext-auth-roles": "research_owner" } });
+    const request = new Request("https://research.test/api/v2/research-cases", { headers: { "x-vnext-auth-tenant": "tenant-a", "x-vnext-auth-user": "analyst-a", "x-vnext-auth-roles": "research_owner" } });
 
     expect(assertConversationAccess(store, request, own.id).id).toBe(own.id);
     expect(assertTaskAccess(store, request, task.id).id).toBe(task.id);
@@ -54,7 +54,7 @@ describe("runtime access boundary", () => {
     const store = new RuntimeStore(":memory:"); stores.push(store);
     const sameTenant = store.createConversation("same", { tenantId: "tenant-a", userId: "analyst-b" });
     const otherTenant = store.createConversation("other", { tenantId: "tenant-b", userId: "analyst-b" });
-    const request = new Request("https://research.test/vnext/home", { headers: { "x-vnext-auth-tenant": "tenant-a", "x-vnext-auth-user": "admin-a", "x-vnext-auth-roles": "tenant_admin" } });
+    const request = new Request("https://research.test/api/v2/research-cases", { headers: { "x-vnext-auth-tenant": "tenant-a", "x-vnext-auth-user": "admin-a", "x-vnext-auth-roles": "tenant_admin" } });
     expect(assertConversationAccess(store, request, sameTenant.id).id).toBe(sameTenant.id);
     expect(() => assertConversationAccess(store, request, otherTenant.id)).toThrow(/Resource not found/);
   });

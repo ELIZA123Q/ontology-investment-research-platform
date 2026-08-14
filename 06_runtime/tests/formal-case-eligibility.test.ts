@@ -18,6 +18,7 @@ function manifest(): FormalEvaluationCaseManifest {
     locator: `p.${index + 1}`,
     quote: `证据摘录 ${index + 1}`,
     contentHash: hash(String(index + 1)),
+    documentAttestation: { rawContentHash: hash(String(index + 4)), byteLength: 1024 + index, mimeType: "application/pdf" },
     supports: ["c1"],
     limitations: ["仅覆盖冻结窗口"],
   }));
@@ -79,6 +80,17 @@ describe("formal evaluation case eligibility", () => {
     expect(result.status).toBe("not_eligible");
     expect(result.prerequisites).toBeUndefined();
     expect(result.checks.filter((item) => !item.passed).map((item) => item.id)).toEqual(expect.arrayContaining(["cutoff", "perturbations", "model_isolation"]));
+  });
+
+  it("blocks a retrieved public document when its full-file attestation is missing, malformed, or substituted by an excerpt hash", () => {
+    const input = manifest();
+    delete input.evidenceBundle.evidence[0].documentAttestation;
+    input.evidenceBundle.evidence[1].documentAttestation!.rawContentHash = input.evidenceBundle.evidence[1].contentHash;
+    input.evidenceBundle.evidence[2].documentAttestation!.mimeType = "application/octet-stream";
+    input.evidenceBundle.hash = hashFormalEvidenceBundle(input.evidenceBundle.evidence);
+    const result = evaluateFormalCaseEligibility(input);
+    expect(result.status).toBe("not_eligible");
+    expect(result.checks.find((item) => item.id === "public_document_attestation")).toMatchObject({ passed: false });
   });
 
   it("does not count an unavailable source as corroboration for a report-value case", () => {

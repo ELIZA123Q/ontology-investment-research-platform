@@ -3,6 +3,8 @@ schema_version: 3.0.0
 
 task_id: company_coverage
 name: 公司首次覆盖
+description: A 股半导体公司结构化基本面标杆任务；组合多个可复用判断单元，但不形成固定流水线。
+task_layer: composite_company_fundamental
 objective: >
   在明确的研究边界内形成公司商业模式、驱动、财务模型、估值分析和投资命题的可审计输入；
   不自动产生评级、目标价、仓位或交易指令。
@@ -17,7 +19,7 @@ judgment_requirements:
   - 估值方法、假设、区间与敏感性
   - 主 research lens、counter-lens、反证与失效条件
 
-expected_output: [company_fundamental_input, normalized_financials, financial_model, valuation_analysis, thesis_state, review]
+expected_output: [research_plan, research_problem_graph, company_fundamental_input, evidence_package, normalized_financials, financial_model, valuation_analysis, hypothesis_map, judgment, thesis_state, review, report]
 completion_criteria:
   - 主 lens 与 counter-lens 已登记
   - 财务模型通过确定性审计，或明确阻断原因
@@ -26,28 +28,99 @@ completion_criteria:
 uncertainty_policy:
   allow_insufficient_evidence: true
   blocked_output_behavior: 输出证据缺口或阻断，不推断缺失财务值
+  governed_outcomes: [completed_supported, completed_indeterminate, stopped_insufficient_evidence, blocked_permission, blocked_missing_source, blocked_policy, failed_technical, cancelled_by_user]
+
+input_semantics:
+  authority: 01_semantic_knowledge/01_ontology/contracts/company_fundamental_semantics.yaml
+  required: [company_code, company_name, as_of, research_question, primary_lens, counter_lens, report_spec, source_policy]
+
+required_unit_contracts:
+  scope_and_lenses:
+    inputs: [Company, FinancialInstrument, ResearchScope]
+    evidence_roles: [boundary]
+    artifact: research_plan
+    complete_when: 主体、截止日、研究问题、主 lens 与 counter lens 均冻结
+    blocked_outcomes: [blocked_policy]
+  business_and_kpi:
+    inputs: [Company, Product, Metric, StateVariable]
+    evidence_roles: [support, counter, boundary]
+    artifact: company_fundamental_input
+    complete_when: 商业模式、关键 KPI、竞争位置和财务桥均有证据或显式缺口
+    blocked_outcomes: [stopped_insufficient_evidence, blocked_missing_source]
+  financial_model_integrity:
+    inputs: [FinancialObservation, ForecastAssumption]
+    evidence_roles: [support, boundary]
+    artifacts: [normalized_financials, financial_model]
+    complete_when: 历史标准化与确定性模型审计通过或形成可定位阻断
+    blocked_outcomes: [stopped_insufficient_evidence, blocked_permission, blocked_policy]
+  valuation_boundary:
+    inputs: [financial_model, ValuationAssessment]
+    evidence_roles: [support, counter, boundary]
+    artifact: valuation_analysis
+    complete_when: 估值方法、asOf、输入、区间和敏感性可审计，或模型失败导致明确阻断
+    blocked_outcomes: [blocked_policy, stopped_insufficient_evidence]
+  thesis_countercase:
+    inputs: [Hypothesis, CompetingExplanation, EvidenceFact]
+    evidence_roles: [support, counter]
+    artifacts: [hypothesis_map, judgment, thesis_state]
+    complete_when: 命题、最强反证、催化剂、失效条件与改判信号均版本化
+    blocked_outcomes: [completed_indeterminate, stopped_insufficient_evidence]
+  independent_review:
+    inputs: [artifact_manifest, source_refs, review_scope]
+    evidence_roles: [boundary]
+    artifact: review
+    complete_when: 权限、截止日、单位、模型、反证和表达边界均已检查
+    blocked_outcomes: [blocked_policy]
+  report_and_sources:
+    inputs: [approved_judgment, verified_artifacts, report_spec]
+    evidence_roles: [support, counter, boundary]
+    artifact: report
+    complete_when: 强制章节、来源附录和确定性审计完成；发布仍需独立确认
+    blocked_outcomes: [blocked_policy, completed_indeterminate]
+
+invalidation_contract:
+  - {change: scope_or_as_of, invalidates: [scope_and_lenses, business_and_kpi, financial_model_integrity, valuation_boundary, thesis_countercase, independent_review, report_and_sources]}
+  - {change: source_or_evidence, invalidates: [business_and_kpi, financial_model_integrity, thesis_countercase, independent_review, report_and_sources]}
+  - {change: financial_model, invalidates: [valuation_boundary, thesis_countercase, independent_review, report_and_sources]}
+  - {change: judgment, invalidates: [thesis_countercase, independent_review, report_and_sources]}
+  - {change: report, invalidates: [independent_review, report_and_sources]}
 
 graph_motif:
   root_question: company_coverage_question
   judgment_unit_roles:
+    - {id: scope_and_lenses, purpose: 冻结主体、范围、主 lens 与 counter lens, required: true}
     - {id: business_and_kpi, purpose: 商业模式与关键经营变量, required: true}
     - {id: financial_model_integrity, purpose: 财务标准化与模型完整性, required: true}
     - {id: valuation_boundary, purpose: 估值假设、范围与敏感性, required: true}
     - {id: thesis_countercase, purpose: 命题、反证与失效条件, required: true}
+    - {id: independent_review, purpose: 独立检查来源、时间、模型、反证与表达边界, required: true}
+    - {id: report_and_sources, purpose: 形成带来源附录和审计状态的公司研究报告, required: true}
   edges:
+    - {from: scope_and_lenses, to: business_and_kpi, relation: informs}
+    - {from: scope_and_lenses, to: financial_model_integrity, relation: informs}
     - {from: business_and_kpi, to: financial_model_integrity, relation: informs}
     - {from: financial_model_integrity, to: valuation_boundary, relation: requires}
     - {from: thesis_countercase, to: company_coverage_question, relation: challenges}
+    - {from: business_and_kpi, to: thesis_countercase, relation: informs}
+    - {from: valuation_boundary, to: thesis_countercase, relation: informs}
+    - {from: thesis_countercase, to: independent_review, relation: requires}
+    - {from: independent_review, to: report_and_sources, relation: requires}
+    - {from: report_and_sources, to: company_coverage_question, relation: aggregates}
   competing_explanation_policy: {required_for: [business_and_kpi, valuation_boundary], minimum: 1}
-  aggregation: {mode: audited_model_and_countercase, required_units: [business_and_kpi, financial_model_integrity, valuation_boundary, thesis_countercase], allow_partial_with_gaps: true}
+  aggregation: {mode: audited_model_countercase_and_delivery, required_units: [scope_and_lenses, business_and_kpi, financial_model_integrity, valuation_boundary, thesis_countercase, independent_review, report_and_sources], allow_partial_with_gaps: true}
 
 capability_requirements: [company_fundamental_research, financial_modeling, valuation_analysis, thesis_monitoring, independent_research_review]
 
 runtime_projection:
+  selection_priority: 100
+  suppresses_when_selected: [company_analysis]
   scenario_refs: [CompanyResearch]
-  activation_terms: [首次覆盖, 首覆, 公司覆盖, 结构化基本面, 深度公司研究]
+  activation_terms: [首次覆盖, 首覆, 公司覆盖, 结构化基本面, 结构化公司基本面, 深度公司研究]
   unit_judgment_types:
+    scope_and_lenses: state_measurement
     business_and_kpi: causal_attribution
     financial_model_integrity: impact_realization
     valuation_boundary: valuation_impact
     thesis_countercase: causal_attribution
+    independent_review: state_measurement
+    report_and_sources: impact_realization

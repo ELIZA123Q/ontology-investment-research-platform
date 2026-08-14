@@ -81,7 +81,7 @@ runtime_mapping:
   drafter: 06_runtime/src/reporting/report-model-drafter.ts
   composer: 06_runtime/src/reporting/report-composer.ts
   worker: 06_runtime/src/worker.ts
-  trusted_ui: 06_runtime/app/components/surface-registry.tsx
+  trusted_ui: 06_runtime/app/components/company-case-workspace.tsx
 
 verification:
   tests:

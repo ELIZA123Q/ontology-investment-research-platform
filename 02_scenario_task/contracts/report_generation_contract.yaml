@@ -1,5 +1,5 @@
 schema_name: professional_report_generation_contract
-schema_version: 1.2.0
+schema_version: 2.0.0
 status: active
 
 purpose: >-
@@ -20,6 +20,34 @@ report_spec:
     thematic_research: [mechanism_chain, scenario_analysis, alternative_hypotheses]
     evidence_update: [delta_since_prior]
     judgment_update: [delta_since_prior, alternative_hypotheses]
+  kind_inference:
+    company_research: [公司, 企业, 个股, 标的, 财务, 估值]
+    industry_research: [行业, 产业, 供需, 周期, 竞争格局]
+    judgment_update: [更新判断, 重新判断, 改判]
+    evidence_update: [只补, 证据更新, 补充来源]
+    fallback: thematic_research
+
+method_profiles:
+  sections:
+    business_model: {judgmentType: state_measurement, frameworkIds: [BF-BM-01], evidenceMethodId: 'kb03:A02', adjudicationMethodId: 'kb04:A01', requiredEvidenceRoles: [business_model, financial], rationale: 先验证收入机制与单位经济，再讨论商业模式质量。}
+    financial_operating_analysis: {judgmentType: impact_realization, frameworkIds: [BF-FQ-01, BF-EE-01], evidenceMethodId: 'kb03:A06', adjudicationMethodId: 'kb04:A08', requiredEvidenceRoles: [financial, business_model], rationale: 把报表事实、正常化基线和经营到财务的桥接分开核验。}
+    industry_structure: {judgmentType: state_measurement, frameworkIds: [BF-IC-01], evidenceMethodId: 'kb03:A02', adjudicationMethodId: 'kb04:A01', requiredEvidenceRoles: [competition, supply], rationale: 先冻结可替代市场边界，再比较参与者、产能和利润池。}
+    cycle_supply_demand: {judgmentType: cycle_phase, frameworkIds: [BF-SD-01], evidenceMethodId: 'kb03:A03', adjudicationMethodId: 'kb04:A03', requiredEvidenceRoles: [demand, supply, price], rationale: 以需求、有效供给和价格/库存时钟共同判断周期，禁止单指标定阶段。}
+    competitive_landscape: {judgmentType: object_differentiation, frameworkIds: [BF-IC-01], evidenceMethodId: 'kb03:A05', adjudicationMethodId: 'kb04:A07', requiredEvidenceRoles: [competition, financial], rationale: 所有竞争对象必须使用统一产品、地域、期间和指标口径。}
+    valuation_scenarios: {judgmentType: valuation_impact, frameworkIds: [BF-EE-01, BF-FS-01, BF-EG-01, BF-VA-01], evidenceMethodId: 'kb03:A07', adjudicationMethodId: 'kb04:A08', requiredEvidenceRoles: [financial, expectation, valuation], rationale: 估值只能承接已通过的盈利桥、预测基线和事前预期，不能从主题判断直接跳到目标价。}
+    mechanism_chain: {judgmentType: transmission_path, frameworkIds: [BF-VT-01], evidenceMethodId: 'kb03:A04', adjudicationMethodId: 'kb04:A06', requiredEvidenceRoles: [mechanism, demand, supply], rationale: 逐段验证起点、传导节点、吸收或放大机制与终点结果。}
+    scenario_analysis: {judgmentType: impact_realization, frameworkIds: [BF-RS-01, BF-FS-01], evidenceMethodId: 'kb03:A06', adjudicationMethodId: 'kb04:A08', requiredEvidenceRoles: [risk, financial, expectation], rationale: 情景必须绑定可观察触发条件、经营/财务变量和退出条件。}
+    alternative_hypotheses: {judgmentType: causal_attribution, frameworkIds: [BF-VT-01], evidenceMethodId: 'kb03:A04', adjudicationMethodId: 'kb04:A05', requiredEvidenceRoles: [mechanism, demand], rationale: 枚举竞争解释并寻找能够区分解释的证据，而不是罗列同义原因。}
+    delta_since_prior: {judgmentType: trend_direction, frameworkIds: [JF-TREND], evidenceMethodId: 'kb03:A03', adjudicationMethodId: 'kb04:A02', requiredEvidenceRoles: [expectation, demand], rationale: 只比较同口径、同范围且带版本时间戳的历史判断。}
+    risks_change_conditions: {judgmentType: impact_realization, frameworkIds: [BF-RS-01], evidenceMethodId: 'kb03:A06', adjudicationMethodId: 'kb04:A08', requiredEvidenceRoles: [risk], rationale: 风险必须写成可观察触发、暴露、缓冲和恢复路径。}
+  core_by_kind:
+    company_research: {judgmentType: impact_realization, frameworkIds: [BF-BM-01, BF-EE-01], evidenceMethodId: 'kb03:A06', adjudicationMethodId: 'kb04:A08', requiredEvidenceRoles: [business_model, financial], rationale: 公司主判断必须落到经营、盈利或现金桥，而不是停在行业叙事。}
+    industry_research: {judgmentType: cycle_phase, frameworkIds: [BF-SD-01], evidenceMethodId: 'kb03:A03', adjudicationMethodId: 'kb04:A03', requiredEvidenceRoles: [demand, supply, price], rationale: 行业主判断用供需、价格和周期阶段形成可证伪结论。}
+    thematic_research: {judgmentType: transmission_path, frameworkIds: [BF-VT-01], evidenceMethodId: 'kb03:A04', adjudicationMethodId: 'kb04:A06', requiredEvidenceRoles: [mechanism, demand, supply], rationale: 主题主判断必须经过机制与路径验证，不能把共现当作传导。}
+    evidence_update: {judgmentType: trend_direction, frameworkIds: [JF-TREND], evidenceMethodId: 'kb03:A03', adjudicationMethodId: 'kb04:A02', requiredEvidenceRoles: [demand, expectation], rationale: 证据更新只说明同口径事实的新增方向，不自动升级原判断。}
+    judgment_update: {judgmentType: trend_direction, frameworkIds: [JF-TREND], evidenceMethodId: 'kb03:A03', adjudicationMethodId: 'kb04:A02', requiredEvidenceRoles: [demand, expectation], rationale: 改判必须说明相对旧版本的新增事实、方向和失效条件。}
+  domain_extensions:
+    semiconductor_cycle: {match: [半导体, 芯片, 存储, DRAM, NAND, HBM, 封装, 晶圆], judgmentType: cycle_phase, appendFrameworkId: IF-SC-01}
 
 section_statuses:
   ready: 具备与该章节匹配的正式制品或已核验证据
@@ -80,9 +108,9 @@ runtime_mapping:
   publication_commit: 06_runtime/src/runtime/kernel.ts#commitApprovedPublication
   deliverable_action: 01_semantic_knowledge/01_ontology/kinetics/action_types.yaml#CreateResearchDeliverable
   ontology_object: 01_semantic_knowledge/01_ontology/models/operational.yaml#ResearchDeliverable
-  intake_ui: 06_runtime/app/components/research-home.tsx
-  report_ui: 06_runtime/app/components/surface-registry.tsx
-  approval_ui: 06_runtime/app/components/research-workspace.tsx
+  intake_ui: 06_runtime/app/components/company-research-home.tsx
+  report_ui: 06_runtime/app/components/company-case-workspace.tsx
+  approval_ui: 06_runtime/app/components/company-case-workspace.tsx
 
 verification:
   tests:

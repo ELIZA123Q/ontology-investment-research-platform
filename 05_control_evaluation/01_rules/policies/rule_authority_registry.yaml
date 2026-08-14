@@ -34,6 +34,11 @@ execution_coverage_required:
   - REASONING-MEANING-001
   - REASONING-REVISION-001
   - FIN-MODEL-INTEGRITY-001
+  - GOV-MODEL-DATA-EGRESS-001
+  - GOV-CAPABILITY-ACTIVATION-001
+  - GOV-CHANGE-DEPOSITION-001
+  - GOV-SIGNAL-EVIDENCE-ADMISSION-001
+  - GOV-SOURCE-DOCUMENT-ATTESTATION-001
 
 formal_ontology_rules:
   evidence_scope_time_alignment:
@@ -190,6 +195,41 @@ governance_rules:
     execution_mode: automated
     validator_refs: [06_runtime/src/research/financial-model-contract.ts, 06_runtime/src/research/deterministic-financial-model.ts]
     test_refs: [06_runtime/tests/financial-capability.test.ts, 06_runtime/tests/financial-model-rules-projection.test.ts]
+    business_support_allowed: false
+  GOV-MODEL-DATA-EGRESS-001:
+    source_ref: 05_control_evaluation/01_rules/policies/model_data_egress_policy.yaml
+    requirement: 模型上下文必须按全部来源的受治理权限聚合；受限或未知权限仅允许本地模型，缺少必需来源不得出境。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/providers/model-data-policy.ts, 06_runtime/src/providers/model-gateway.ts]
+    test_refs: [06_runtime/tests/model-data-policy.test.ts, 06_runtime/tests/model-data-egress-rules-projection.test.ts, 06_runtime/tests/model-gateway.test.ts]
+    business_support_allowed: false
+  GOV-CAPABILITY-ACTIVATION-001:
+    source_ref: 05_control_evaluation/01_rules/policies/capability_activation_policy.yaml
+    requirement: 候选能力进入生产 Release 必须携带受治理的可比案例、盲评和零严重回归证据；仅已有基线可带明示理由，候选不得借此豁免。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/capabilities/registry.ts, 06_runtime/scripts/audit-cutover.ts]
+    test_refs: [06_runtime/tests/financial-capability.test.ts, 06_runtime/tests/domain-projection.test.ts]
+    business_support_allowed: false
+  GOV-CHANGE-DEPOSITION-001:
+    source_ref: 05_control_evaluation/01_rules/policies/change_deposition_policy.yaml
+    requirement: 实质修改必须先归类至本体、确定性规则、方法/Skill、任务证据、评测资产或执行机制，并登记权威、执行与验证引用；不得只落在 Runtime。
+    execution_mode: automated
+    validator_refs: [05_control_evaluation/04_verifiers/validate_change_deposition_policy.py]
+    test_refs: [05_control_evaluation/04_verifiers/tests/test_change_deposition_policy.py]
+    business_support_allowed: false
+  GOV-SIGNAL-EVIDENCE-ADMISSION-001:
+    source_ref: 05_control_evaluation/01_rules/policies/signal_evidence_admission_policy.yaml
+    requirement: 信号连接器输出只能作为发现和原文核验线索；未重新冻结可定位原文的标题、摘要和链接不得直接进入 SourceSnapshot、EvidenceFact 或 Judgment。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/tools/signal-evidence-admission.ts]
+    test_refs: [06_runtime/tests/signal-evidence-admission.test.ts, 05_control_evaluation/04_verifiers/tests/test_signal_evidence_admission_policy.py]
+    business_support_allowed: false
+  GOV-SOURCE-DOCUMENT-ATTESTATION-001:
+    source_ref: 05_control_evaluation/01_rules/policies/source_document_attestation_policy.yaml
+    requirement: 完整原始文件指纹与可定位摘录哈希必须分离；一旦声明文件指纹，哈希、字节数和媒体类型均需通过确定性校验，且不得替代摘录定位。
+    execution_mode: automated
+    validator_refs: [06_runtime/src/tools/source-result-adapter.ts, 06_runtime/src/governance/provenance-verifier.ts, 06_runtime/src/semantic/provenance-store.ts]
+    test_refs: [06_runtime/tests/source-result-adapter.test.ts, 06_runtime/tests/researcher-material.test.ts]
     business_support_allowed: false
   GOV-VALIDATION-OUTCOME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract, business_support_allowed: false}
   GOV-VALIDATION-TIME-001: {source_ref: 05_control_evaluation/01_rules/contracts/public_contract.yaml#artifact_contract, business_support_allowed: false}

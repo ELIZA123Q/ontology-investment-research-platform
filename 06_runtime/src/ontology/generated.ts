@@ -7887,7 +7887,7 @@ export const ONTOLOGY_CATALOG = {
       "schema_version": "1.0.0"
     }
   },
-  "fingerprint": "sha256:07fff2dc0d94ff228e4574b7cdeca23a0cf4943f72a102c13e9b7fccf08e802c",
+  "fingerprint": "sha256:c705aa1d3c59d8165a8b59d46d373fcb2cd6b136d4a40425bc5ced922cf3fc3d",
   "functions": {
     "AssembleResearchRequirements": {
       "description": "将已确认 Lens 的对象接口、证据角色和停止条件组合成 Problem Graph 输入。",

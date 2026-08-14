@@ -6,6 +6,14 @@ purpose: 版本化维护研究命题支柱、信号、催化剂、失效条件�
 consumes: [judgment, evidence_package, financial_model, valuation_analysis]
 output_kind: thesis_state
 resources: [references/]
+typed_io:
+  input: {required: [research_case, judgment, evidence_package, as_of]}
+  output: {kind: thesis_state, required: [version, pillars, signals, catalysts, invalidation_conditions, open_evidence_gaps]}
+permissions: [read_verified_evidence, read_approved_judgment, create_candidate_artifact]
+failure_states: [missing_research_case, unapproved_judgment, stale_evidence, unresolved_invalidation]
+cost_budget: 2
+latency_budget_ms: 60000
+degradation: preserve_prior_version_and_record_gap
 progressive_loading: metadata_then_instructions_then_resources
 ---
 

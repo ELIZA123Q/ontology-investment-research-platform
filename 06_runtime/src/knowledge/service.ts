@@ -12,6 +12,7 @@ import type {
 } from "@/src/contracts";
 import { DEFAULT_KNOWLEDGE_MINERS } from "@/src/knowledge/miners";
 import { RuntimeStore } from "@/src/runtime/store";
+import { knowledgeCandidateAutoReleaseAllowed, knowledgePromotionThreshold, requiredKnowledgeApprovalRoles } from "@/src/governance/policy-engine";
 
 const EXTRACTOR_VERSION = "knowledge-learning/1.0.0";
 const openCandidateStatuses = new Set<CandidateStatus>(["observed", "normalized", "proposed", "evaluating", "review_required", "approved", "monitor"]);
@@ -21,18 +22,6 @@ const asRecord = (value: unknown): Record<string, unknown> => value && typeof va
 function candidateScope(kind: AssetKind, task: Task, tenantId: string, userId: string): KnowledgeScope {
   if (kind === "preference" || kind === "topic_index") return { kind: "user", tenantId, userId };
   return { kind: "tenant", tenantId };
-}
-
-function requiredApprovalRoles(candidate: AssetCandidate): CandidateDecision["reviewerRole"][] {
-  if (candidate.riskLevel < 2) return [];
-  if (candidate.riskLevel === 2) {
-    if (["method", "prompt", "template", "skill"].includes(candidate.assetKind)) return ["method_owner"];
-    if (["temporal_fact", "source_profile", "data_mapping"].includes(candidate.assetKind)) return ["ontology_steward"];
-    return ["governance_owner"];
-  }
-  if (candidate.assetKind === "ontology") return ["ontology_steward", "runtime_owner", "independent_reviewer"];
-  if (candidate.assetKind === "skill") return ["method_owner", "runtime_owner", "independent_reviewer"];
-  return ["governance_owner", "runtime_owner", "independent_reviewer"];
 }
 
 export class KnowledgeLearningService {
@@ -103,7 +92,7 @@ export class KnowledgeLearningService {
     this.store.putCandidateOccurrence({ candidateId: candidate.id, taskId: task.id });
     this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "candidate.created", actorType: "system", actorId: "knowledge-learning", payload: { candidateId: candidate.id, assetKind: candidate.assetKind, operation: candidate.operation, riskLevel: candidate.riskLevel } });
     if (candidate.assetKind === "eval_case") this.createEvaluationCase(candidate, task);
-    if (candidate.riskLevel === 1) candidate = this.autoReleaseLowRisk(candidate, task);
+    if (candidate.operation !== "no_op" && knowledgeCandidateAutoReleaseAllowed(candidate.riskLevel)) candidate = this.autoReleaseLowRisk(candidate, task);
     return candidate;
   }
 
@@ -142,13 +131,8 @@ export class KnowledgeLearningService {
     const taskFamilies = new Set(tasks.map((task) => task.intent));
     const content = asRecord(revision.content);
     const provenanceComplete = candidate.provenanceRefs.length > 0;
-    let requiredRuns = 1;
-    let requiredFamilies = 1;
-    let requiredDelta = 0;
-    if (["method", "prompt", "template"].includes(candidate.assetKind)) { requiredRuns = 3; requiredFamilies = 2; requiredDelta = 0.05; }
-    if (candidate.assetKind === "skill") { requiredRuns = 5; requiredFamilies = 3; requiredDelta = 0.05; }
     const ontologyChecks = candidate.assetKind !== "ontology" || (content.compatibilityCheckPassed === true && content.impactReplayPassed === true);
-    if (candidate.assetKind === "ontology") requiredRuns = content.stewardInitiated === true ? 1 : 2;
+    const threshold = knowledgePromotionThreshold(candidate.assetKind, content.stewardInitiated === true);
     const scoreDelta = Number(content.evaluationScoreDelta || (candidate.assetKind === "failure_pattern" || candidate.assetKind === "eval_case" ? 0.05 : 0));
     const evalCaseValid = candidate.assetKind !== "eval_case" || (content.deidentified === true && content.replayable === true);
     const sourceQualifications = Array.isArray(content.sourceQualifications) ? content.sourceQualifications.map(asRecord) : [];
@@ -163,8 +147,8 @@ export class KnowledgeLearningService {
       Boolean(content.version) && Number(content.costBudget) > 0 && Number(content.latencyBudgetMs) > 0
     );
     const severeRegressions = Number(content.severeRegressions || 0);
-    const passed = provenanceComplete && taskIds.size >= requiredRuns && taskFamilies.size >= requiredFamilies &&
-      scoreDelta >= requiredDelta && severeRegressions === 0 && evalCaseValid && temporalValid && skillContractValid && ontologyChecks;
+    const passed = provenanceComplete && taskIds.size >= threshold.minimumDistinctRuns && taskFamilies.size >= threshold.minimumTaskFamilies &&
+      scoreDelta >= threshold.minimumScoreDelta && severeRegressions <= threshold.maximumSevereRegressions && evalCaseValid && temporalValid && skillContractValid && ontologyChecks;
     const summary: EvaluationSummary = {
       passed, scoreDelta, severeRegressions,
       metrics: {
@@ -187,7 +171,7 @@ export class KnowledgeLearningService {
     if (candidate.conflicts.length) throw new Error("Candidate has unresolved rebase conflicts");
     if (candidate.riskLevel >= 2 && !candidate.evaluationSummary?.passed && input.decision === "approved") throw new Error("Candidate must pass evaluation before approval");
     if (!input.reviewer.trim() || input.note.trim().length < 8) throw new Error("Review decision requires reviewer and a meaningful note");
-    const required = requiredApprovalRoles(candidate);
+    const required = requiredKnowledgeApprovalRoles(candidate);
     if (!required.includes(input.reviewerRole) && input.decision === "approved") throw new Error(`Reviewer role is not required for this candidate: ${input.reviewerRole}`);
     this.store.putCandidateDecision({ candidateId: candidate.id, reviewer: input.reviewer.trim(), reviewerRole: input.reviewerRole, decision: input.decision, note: input.note.trim() });
     const decisions = this.store.listCandidateDecisions(candidate.id);

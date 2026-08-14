@@ -1,9 +1,10 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { ArtifactVersionConflictError, RuntimeStore } from "@/src/runtime/store";
+import type { TaskNode } from "@/src/contracts";
+import { randomUUID } from "node:crypto";
 import { normalizeReportSpec } from "@/src/reporting/report-spec";
 
 const stores: RuntimeStore[] = [];
@@ -77,6 +78,38 @@ describe("runtime store", () => {
     expect(store.claimJob()?.taskId).toBe(task.id);
   });
 
+  it("binds job completion to the worker that owns the lease and exposes retry/dead-letter queue metrics", () => {
+    const store = makeStore();
+    const conversation = store.createConversation("租约");
+    const task = store.createTask({ conversationId: conversation.id, goal: "目标", intent: "full_research", status: "queued", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
+    store.enqueueTask(task.id);
+    const claimed = store.claimJob("worker:a")!;
+    expect(store.renewJobLease(claimed.id, "worker:a")).toBe(true);
+    expect(store.renewJobLease(claimed.id, "worker:b")).toBe(false);
+    expect(() => store.finishJob(claimed.id, "worker:b")).toThrow(/lease is not owned/);
+    store.failJob(claimed.id, "retryable", true, "worker:a");
+    expect(store.runtimeQueueStats()).toMatchObject({ queued: 1, retrying: 1, deadLetter: 0 });
+    store.db.prepare("UPDATE runtime_jobs SET available_at='2000-01-01T00:00:00.000Z' WHERE id=?").run(claimed.id);
+    const retried = store.claimJob("worker:a")!;
+    store.failJob(retried.id, "terminal", false, "worker:a");
+    expect(store.runtimeQueueStats()).toMatchObject({ failed: 1, deadLetter: 1 });
+  });
+
+  it("tracks node-job lease ownership and clears it during stale recovery", () => {
+    const store = makeStore();
+    const conversation = store.createConversation("节点租约");
+    const task = store.createTask({ conversationId: conversation.id, goal: "目标", intent: "full_research", status: "queued", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
+    const node: TaskNode = { id: randomUUID(), taskId: task.id, kind: "semantic_context", title: "上下文", capabilityType: "function", capabilityId: "context", assignedAgent: "research-lead", dependsOn: [], budget: {}, status: "pending", inputArtifactIds: [], outputArtifactIds: [], frontierRef: { problemGraphId: "graph", compilerBoundary: "scope" }, iteration: 0 };
+    store.addTaskNodes([node]);
+    store.enqueueNode(task.id, node.id);
+    const claimed = store.claimNodeJob(3, "worker:a")!;
+    expect(store.renewNodeJobLease(claimed.id, "worker:a")).toBe(true);
+    expect(() => store.finishNodeJob(claimed.id, "worker:b")).toThrow(/lease is not owned/);
+    store.db.prepare("UPDATE node_jobs SET locked_at='2000-01-01T00:00:00.000Z' WHERE id=?").run(claimed.id);
+    expect(store.recoverStaleNodeJobs()).toBe(1);
+    expect(store.db.prepare("SELECT leased_by FROM node_jobs WHERE id=?").get(claimed.id)).toMatchObject({ leased_by: null });
+  });
+
   it("boots a file-backed database with a global knowledge release", () => {
     const directory = mkdtempSync(join(tmpdir(), "vnext-store-"));
     try {
@@ -89,56 +122,4 @@ describe("runtime store", () => {
     }
   });
 
-  it("migrates pre-asOf knowledge locks without replacing the database", () => {
-    const directory = mkdtempSync(join(tmpdir(), "vnext-migrate-"));
-    const path = join(directory, "runtime.sqlite");
-    try {
-      const legacy = new DatabaseSync(path);
-      legacy.exec(`CREATE TABLE knowledge_locks (
-        id TEXT PRIMARY KEY, task_id TEXT UNIQUE NOT NULL, scope_json TEXT NOT NULL,
-        global_release_id TEXT NOT NULL, tenant_release_id TEXT, user_release_id TEXT, user_memory_version INTEGER,
-        asset_refs_json TEXT NOT NULL, fingerprint TEXT NOT NULL, created_at TEXT NOT NULL
-      )`);
-      legacy.close();
-      const store = new RuntimeStore(path);
-      stores.push(store);
-      const columns = store.db.prepare("PRAGMA table_info(knowledge_locks)").all() as Array<{ name: string }>;
-      expect(columns.some((column) => column.name === "as_of")).toBe(true);
-    } finally {
-      stores.pop()?.close();
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
-
-  it("adds research_case_id to legacy tasks without rewriting their identity", () => {
-    const directory = mkdtempSync(join(tmpdir(), "vnext-task-migrate-"));
-    const path = join(directory, "runtime.sqlite");
-    try {
-      const legacy = new DatabaseSync(path);
-      legacy.exec(`
-        CREATE TABLE conversations (
-          id TEXT PRIMARY KEY, title TEXT NOT NULL, status TEXT NOT NULL,
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-        );
-        CREATE TABLE tasks (
-          id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL, parent_task_id TEXT,
-          goal TEXT NOT NULL, intent TEXT NOT NULL, status TEXT NOT NULL, budget_json TEXT NOT NULL,
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL
-        );
-        INSERT INTO conversations VALUES ('legacy-conversation', '历史会话', 'active', '2026-01-01', '2026-01-01');
-        INSERT INTO tasks VALUES ('legacy-task', 'legacy-conversation', NULL, '历史目标', 'full_research', 'completed', '{}', '2026-01-01', '2026-01-01');
-      `);
-      legacy.close();
-      const store = new RuntimeStore(path);
-      stores.push(store);
-      const columns = store.db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>;
-      expect(columns.some((column) => column.name === "research_case_id")).toBe(true);
-      expect(columns.some((column) => column.name === "report_spec_json")).toBe(true);
-      expect(store.getTask("legacy-task")?.researchCaseId).toBe("legacy-task");
-      expect(store.getTask("legacy-task")?.reportSpec.sections).toContain("source_appendix");
-    } finally {
-      stores.pop()?.close();
-      rmSync(directory, { recursive: true, force: true });
-    }
-  });
 });

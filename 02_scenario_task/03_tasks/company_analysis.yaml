@@ -21,6 +21,9 @@ scope:
     - 核心是行业周期、技术路线或产业链结构，公司只是举例对象
     - 仅要求核实单一公告或单一财务读数
 
+task_layer: narrow_company_proposition
+composition_rule: 可作为 company_coverage、earnings_update 或行业研究中的公司兑现分支复用；不得自动扩张为首次覆盖。
+
 judgment_requirements:
   - 公司命题的明确表述与范围边界
   - 关键经营/业绩驱动变量
@@ -44,6 +47,7 @@ completion_criteria:
 
 uncertainty_policy:
   allow_insufficient_evidence: true
+  governed_outcomes: [completed_supported, completed_indeterminate, stopped_insufficient_evidence, blocked_permission, blocked_missing_source, blocked_policy]
 
 graph_motif:
   root_question: company_proposition_question
@@ -75,6 +79,7 @@ capability_requirements:
   - evidence_assessment
 
 runtime_projection:
+  selection_priority: 10
   scenario_refs: [CompanyResearch]
   activation_terms: [公司, 企业, 经营, 收入, 利润, 订单, 份额, 竞争位置]
   default_when_no_match: true

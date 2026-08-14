@@ -1,0 +1,12 @@
+id: CR-2026-08-13-signal-evidence-admission
+date: 2026-08-13
+summary: 将 AKShare 公告和新闻信号从可直接写入证据链的实现改为只能触发原文核验请求，防止标题、摘要和链接冒充证据正文。
+classifications: [reusable_deterministic_constraint, execution_mechanics]
+authority_refs:
+  - 05_control_evaluation/01_rules/policies/signal_evidence_admission_policy.yaml
+execution_refs:
+  - 06_runtime/src/tools/signal-evidence-admission.ts
+verification_refs:
+  - 05_control_evaluation/04_verifiers/validate_signal_evidence_admission_policy.py
+  - 05_control_evaluation/04_verifiers/tests/test_signal_evidence_admission_policy.py
+  - 06_runtime/tests/signal-evidence-admission.test.ts

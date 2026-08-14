@@ -9,6 +9,13 @@ export interface CapabilityReleaseEntry {
   version: string;
   lifecycle: CapabilityLifecycle;
   executionScopes: CapabilityExecutionScope[];
+  activationEvidence?: {
+    type: "foundational_baseline" | "evaluation_run";
+    evaluatedAt: string;
+    rationale?: string;
+    evaluationRunRefs?: string[];
+    metrics?: { comparableCases: number; blindWinRate: number; severeRegressions: number; [key: string]: number };
+  };
 }
 
 export interface CapabilityReleaseManifest {

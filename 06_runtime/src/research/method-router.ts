@@ -2,6 +2,7 @@ import type {
   EvidenceFact, EvidenceRole, JudgmentType, MethodApplication, ReportKind, ReportSectionKey,
   ReportSpec, ResearchMethodPlan,
 } from "@/src/contracts";
+import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
 
 const FRAMEWORK_REGISTRY = "03_agent_capability/02_skills/research_design/registry.yaml";
 const EVIDENCE_REGISTRY = "03_agent_capability/02_skills/evidence_research/registry.yaml";
@@ -16,40 +17,19 @@ interface MethodProfile {
   rationale: string;
 }
 
-const profiles: Partial<Record<ReportSectionKey, MethodProfile>> = {
-  business_model: profile("state_measurement", ["BF-BM-01"], "kb03:A02", "kb04:A01", ["business_model", "financial"], "先验证收入机制与单位经济，再讨论商业模式质量。"),
-  financial_operating_analysis: profile("impact_realization", ["BF-FQ-01", "BF-EE-01"], "kb03:A06", "kb04:A08", ["financial", "business_model"], "把报表事实、正常化基线和经营到财务的桥接分开核验。"),
-  industry_structure: profile("state_measurement", ["BF-IC-01"], "kb03:A02", "kb04:A01", ["competition", "supply"], "先冻结可替代市场边界，再比较参与者、产能和利润池。"),
-  cycle_supply_demand: profile("cycle_phase", ["BF-SD-01"], "kb03:A03", "kb04:A03", ["demand", "supply", "price"], "以需求、有效供给和价格/库存时钟共同判断周期，禁止单指标定阶段。"),
-  competitive_landscape: profile("object_differentiation", ["BF-IC-01"], "kb03:A05", "kb04:A07", ["competition", "financial"], "所有竞争对象必须使用统一产品、地域、期间和指标口径。"),
-  valuation_scenarios: profile("valuation_impact", ["BF-EE-01", "BF-FS-01", "BF-EG-01", "BF-VA-01"], "kb03:A07", "kb04:A08", ["financial", "expectation", "valuation"], "估值只能承接已通过的盈利桥、预测基线和事前预期，不能从主题判断直接跳到目标价。"),
-  mechanism_chain: profile("transmission_path", ["BF-VT-01"], "kb03:A04", "kb04:A06", ["mechanism", "demand", "supply"], "逐段验证起点、传导节点、吸收或放大机制与终点结果。"),
-  scenario_analysis: profile("impact_realization", ["BF-RS-01", "BF-FS-01"], "kb03:A06", "kb04:A08", ["risk", "financial", "expectation"], "情景必须绑定可观察触发条件、经营/财务变量和退出条件。"),
-  alternative_hypotheses: profile("causal_attribution", ["BF-VT-01"], "kb03:A04", "kb04:A05", ["mechanism", "demand"], "枚举竞争解释并寻找能够区分解释的证据，而不是罗列同义原因。"),
-  delta_since_prior: profile("trend_direction", ["JF-TREND"], "kb03:A03", "kb04:A02", ["expectation", "demand"], "只比较同口径、同范围且带版本时间戳的历史判断。"),
-  risks_change_conditions: profile("impact_realization", ["BF-RS-01"], "kb03:A06", "kb04:A08", ["risk"], "风险必须写成可观察触发、暴露、缓冲和恢复路径。"),
-};
-
-const coreByKind: Record<ReportKind, MethodProfile> = {
-  company_research: profile("impact_realization", ["BF-BM-01", "BF-EE-01"], "kb03:A06", "kb04:A08", ["business_model", "financial"], "公司主判断必须落到经营、盈利或现金桥，而不是停在行业叙事。"),
-  industry_research: profile("cycle_phase", ["BF-SD-01"], "kb03:A03", "kb04:A03", ["demand", "supply", "price"], "行业主判断用供需、价格和周期阶段形成可证伪结论。"),
-  thematic_research: profile("transmission_path", ["BF-VT-01"], "kb03:A04", "kb04:A06", ["mechanism", "demand", "supply"], "主题主判断必须经过机制与路径验证，不能把共现当作传导。"),
-  evidence_update: profile("trend_direction", ["JF-TREND"], "kb03:A03", "kb04:A02", ["demand", "expectation"], "证据更新只说明同口径事实的新增方向，不自动升级原判断。"),
-  judgment_update: profile("trend_direction", ["JF-TREND"], "kb03:A03", "kb04:A02", ["demand", "expectation"], "改判必须说明相对旧版本的新增事实、方向和失效条件。"),
-};
-
-function profile(judgmentType: JudgmentType, frameworkIds: string[], evidenceMethodId: string, adjudicationMethodId: string, requiredEvidenceRoles: EvidenceRole[], rationale: string): MethodProfile {
-  return { judgmentType, frameworkIds, evidenceMethodId, adjudicationMethodId, requiredEvidenceRoles, rationale };
-}
+const governedProfiles = DOMAIN_CATALOG.reportGeneration.method_profiles;
+const profiles = governedProfiles.sections as unknown as Partial<Record<ReportSectionKey, MethodProfile>>;
+const coreByKind = governedProfiles.core_by_kind as unknown as Record<ReportKind, MethodProfile>;
 
 export function selectResearchMethods(goal: string, reportSpec: ReportSpec): ResearchMethodPlan {
   const substantive = reportSpec.sections.filter((key) => profiles[key]);
   const sections = ["core_judgments" as const, ...substantive.filter((key) => key !== "core_judgments")];
-  const semiconductor = /半导体|芯片|存储|dram|nand|hbm|封装|晶圆|semiconductor/i.test(goal);
+  const domainExtension = governedProfiles.domain_extensions.semiconductor_cycle;
+  const semiconductor = domainExtension.match.some((term) => goal.toLowerCase().includes(term.toLowerCase()));
   const applications = sections.map((sectionKey) => {
     const selected = sectionKey === "core_judgments" ? coreByKind[reportSpec.kind] : profiles[sectionKey]!;
     const frameworkIds = [...selected.frameworkIds];
-    if (semiconductor && selected.judgmentType === "cycle_phase" && !frameworkIds.includes("IF-SC-01")) frameworkIds.push("IF-SC-01");
+    if (semiconductor && selected.judgmentType === domainExtension.judgmentType && !frameworkIds.includes(domainExtension.appendFrameworkId)) frameworkIds.push(domainExtension.appendFrameworkId);
     return application(sectionKey, selected, frameworkIds);
   });
   return {

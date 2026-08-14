@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { JudgmentType, ProblemGraphEdge, ProblemGraphNode, ReportDepth, ResearchIntent, ResearchProblemGraph } from "@/src/contracts";
 import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
 import { normalizeResearchLanguage } from "@/src/semantic/dictionary-normalizer";
+import { minimumIndependentPublishers } from "@/src/governance/policy-engine";
 
 type UnitRole = { id: string; purpose: string; required: boolean };
 type MotifEdge = { from: string; to: string; relation: ProblemGraphEdge["relation"] };
@@ -21,6 +22,8 @@ type TaskDefinition = {
   runtime_projection: {
     scenario_refs: string[];
     activation_terms: string[];
+    selection_priority?: number;
+    suppresses_when_selected?: string[];
     default_when_no_match?: boolean;
     unit_judgment_types: Record<string, JudgmentType>;
   };
@@ -56,8 +59,11 @@ export function selectWorkflowPattern(intent: ResearchIntent, reportDepth: Repor
 /** Select task motifs from declarative activation hints owned by 02_scenario_task. */
 export function selectTaskMotifs(goal: string, lensRefs: string[] = []): TaskDefinition[] {
   const text = `${normalizeResearchLanguage(goal).normalizedText} ${lensRefs.join(" ")}`.toLowerCase();
-  const selected = Object.values(TASKS).filter((task) => task.runtime_projection.activation_terms.some((term) => text.includes(term.toLowerCase())));
-  const result = selected.length ? selected : Object.values(TASKS).filter((task) => task.runtime_projection.default_when_no_match);
+  const matched = Object.values(TASKS).filter((task) => task.runtime_projection.activation_terms.some((term) => text.includes(term.toLowerCase())));
+  const selected = matched.length ? matched : Object.values(TASKS).filter((task) => task.runtime_projection.default_when_no_match);
+  const suppressed = new Set(selected.flatMap((task) => task.runtime_projection.suppresses_when_selected || []));
+  const result = selected.filter((task) => !suppressed.has(task.task_id))
+    .sort((left, right) => (right.runtime_projection.selection_priority || 0) - (left.runtime_projection.selection_priority || 0));
   for (const task of result) {
     for (const scenarioRef of task.runtime_projection.scenario_refs) {
       const scenario = SCENARIOS[scenarioRef];
@@ -142,7 +148,7 @@ export function buildResearchProblemGraph(input: {
         }
         for (const evidenceRole of ["support", "counter", "boundary"] as const) {
           const requirement = node(`${task.task_id}:${role.id}:evidence:${evidenceRole}`, "evidence_requirement", `${evidenceRole === "support" ? "支持" : evidenceRole === "counter" ? "反证" : "边界"}证据：${role.purpose}`, role.required, task.task_id, {
-            evidenceRole, judgmentUnitKey: unit.key, minIndependentPublishers: evidenceRole === "support" ? 2 : 1,
+            evidenceRole, judgmentUnitKey: unit.key, minIndependentPublishers: minimumIndependentPublishers(evidenceRole),
             requiredSourceTypes: evidenceRole === "support" ? ["primary", "secondary"] : ["primary"], scope: role.purpose,
           });
           edge(requirement, unit, "requires", { evidenceRole });

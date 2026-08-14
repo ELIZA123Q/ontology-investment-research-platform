@@ -6,6 +6,14 @@ purpose: 构建可审计的结构化历史财务、驱动式预测、三表、�
 consumes: [evidence_package, normalized_financials, research_lens]
 output_kind: financial_model
 resources: [references/, ../../../contracts/financial_model_artifact_contract.yaml]
+typed_io:
+  input: {required: [normalized_financials, evidence_package, research_lens, as_of]}
+  output: {kind: financial_model, required: [assumptions, formula_dependencies, scenarios, computed_outputs, reconciliations, audit]}
+permissions: [read_verified_evidence, deterministic_calculation, create_candidate_artifact]
+failure_states: [missing_basis, missing_unit, missing_period, circular_dependency, reconciliation_failed]
+cost_budget: 3
+latency_budget_ms: 90000
+degradation: block_valuation_and_return_model_gaps
 progressive_loading: metadata_then_instructions_then_resources
 ---
 

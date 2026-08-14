@@ -1,5 +1,6 @@
 import type { SourceCandidate } from "@/src/contracts";
 import type { UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
+import { normalizeSourceDocumentAttestation, type SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 
 export interface ResearcherMaterialInput {
   uri: string;
@@ -11,6 +12,7 @@ export interface ResearcherMaterialInput {
   quote: string;
   context?: string;
   permissionConfirmed: boolean;
+  documentAttestation?: SourceDocumentAttestation;
 }
 
 export class ResearcherMaterialError extends Error {
@@ -63,6 +65,7 @@ export function buildResearcherMaterialResult(input: unknown, capturedAt = new D
   const captured = new Date(capturedAt);
   if (Number.isNaN(captured.getTime())) throw new ResearcherMaterialError("capturedAt must be a valid timestamp");
   const isoCapturedAt = captured.toISOString();
+  const documentAttestation = normalizeSourceDocumentAttestation(material.documentAttestation);
   return {
     connectorId: "researcher.material",
     operation: "submit_located_excerpt",
@@ -81,7 +84,7 @@ export function buildResearcherMaterialResult(input: unknown, capturedAt = new D
       body: context || quote,
       locator,
       quote,
-      permissionScope: "user_supplied",
+      permissionScope: "user_supplied", documentAttestation,
     },
   };
 }

@@ -1,0 +1,12 @@
+id: CR-2026-08-13-change-deposition-classifier
+date: 2026-08-13
+summary: 增加显式修改归类器与回归，要求实质修改在实现前选择沉淀路由并生成可追溯记录骨架。
+classifications: [execution_mechanics]
+authority_refs:
+  - 05_control_evaluation/01_rules/policies/change_deposition_policy.yaml
+execution_refs:
+  - 05_control_evaluation/04_verifiers/classify_change.py
+  - 05_control_evaluation/04_verifiers/validate_project.py
+verification_refs:
+  - 05_control_evaluation/04_verifiers/tests/test_classify_change.py
+  - 05_control_evaluation/04_verifiers/tests/test_change_deposition_policy.py

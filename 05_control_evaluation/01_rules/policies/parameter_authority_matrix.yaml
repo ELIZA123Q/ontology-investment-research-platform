@@ -51,6 +51,22 @@ parameters:
     authority_kind: control_policy
     authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml
     consumers: [evidence_assessment, judgment]
+  - id: evidence_sufficiency_thresholds
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/evidence_sufficiency_policy.yaml
+    consumers: [evidence_assessment, task_outcome]
+  - id: artifact_editing_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/artifact_editing_policy.yaml
+    consumers: [artifact_store, approvals, trusted_ui]
+  - id: runtime_lifecycle_and_outcomes
+    authority_kind: context_state_contract
+    authority_ref: 04_context_state/02_state/lifecycle_contract.yaml
+    consumers: [state_machine, task_store, command_api, trusted_ui]
+  - id: knowledge_promotion_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+    consumers: [knowledge_service, governance_policy_engine]
   - id: evidence_roles
     authority_kind: control_policy
     authority_ref: 05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml#operational_basket_roles
@@ -63,6 +79,26 @@ parameters:
     authority_kind: control_policy
     authority_ref: 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
     consumers: [financial_normalization, financial_model, valuation_analysis]
+  - id: model_data_egress_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/model_data_egress_policy.yaml
+    consumers: [model_context_policy, model_gateway]
+  - id: capability_activation_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/capability_activation_policy.yaml
+    consumers: [capability_release, cutover_audit]
+  - id: change_deposition_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/change_deposition_policy.yaml
+    consumers: [change_review, governance_verifier]
+  - id: signal_evidence_admission_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/signal_evidence_admission_policy.yaml
+    consumers: [signal_workbench, source_capture, evidence_assessment]
+  - id: source_document_attestation_rules
+    authority_kind: control_policy
+    authority_ref: 05_control_evaluation/01_rules/policies/source_document_attestation_policy.yaml
+    consumers: [source_result_adapter, provenance_verifier, provenance_store, researcher_material]
   - id: method_assets
     authority_kind: capability_registry
     authority_ref: 03_agent_capability/02_skills/method_assets.yaml

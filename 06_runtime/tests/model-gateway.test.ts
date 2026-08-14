@@ -76,6 +76,22 @@ describe("model gateway", () => {
     expect(store.listModelCalls()).toEqual([expect.objectContaining({ status: "blocked", attempts: 0, provider: "external" })]);
   });
 
+  it("treats an undeclared or misleading provider ID as external for restricted context", async () => {
+    const store = new RuntimeStore(":memory:");
+    stores.push(store);
+    let called = false;
+    const provider: ModelProvider = { id: "local", async generate() { called = true; return { provider: "local", model: "not-local", text: "{}" }; } };
+    await expect(new ModelGateway(store, provider).generate({ ...request, dataPolicy: "restricted_no_egress" })).rejects.toThrow(/forbids external egress/);
+    expect(called).toBe(false);
+  });
+
+  it("allows restricted context only for an explicitly local deployment", async () => {
+    const store = new RuntimeStore(":memory:");
+    stores.push(store);
+    const provider: ModelProvider = { id: "private-ollama", deployment: "local", async generate() { return { provider: "private-ollama", model: "local-model", text: '{"ok":true}' }; } };
+    await expect(new ModelGateway(store, provider).generate({ ...request, dataPolicy: "restricted_no_egress" })).resolves.toMatchObject({ provider: "private-ollama" });
+  });
+
   it("does not persist JSON that fails the caller response contract", async () => {
     const store = new RuntimeStore(":memory:");
     stores.push(store);

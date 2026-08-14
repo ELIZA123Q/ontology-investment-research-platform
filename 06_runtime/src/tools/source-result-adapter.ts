@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { PointInTimeEvidenceEnvelope, SourceCandidate, SourceSnapshot } from "@/src/contracts";
+import { normalizeSourceDocumentAttestation, type SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 
 type JsonScalar = string | number | boolean | null;
 
@@ -22,6 +23,7 @@ export interface UnifiedSourceToolResult {
     locator: string;
     quote: string;
     permissionScope: SourceSnapshot["permissionScope"];
+    documentAttestation?: SourceDocumentAttestation;
   };
 }
 
@@ -78,6 +80,7 @@ export function adaptSourceToolResult(result: UnifiedSourceToolResult): AdaptedS
 
   const requestFingerprint = sha256(canonicalize({ connectorId, operation, requestParameters: result.requestParameters }));
   const contentHash = sha256(body);
+  const documentAttestation = normalizeSourceDocumentAttestation(result.capture.documentAttestation);
   const candidateId = `source:${sha256(`${connectorId}:${upstreamSourceId}`).slice(7, 31)}`;
   const candidate: SourceCandidate = {
     id: candidateId,
@@ -103,6 +106,7 @@ export function adaptSourceToolResult(result: UnifiedSourceToolResult): AdaptedS
       publishedAt,
       publisherId,
       permissionScope: result.capture.permissionScope,
+      documentAttestation,
       acquisition: {
         connectorId,
         upstreamSourceId,

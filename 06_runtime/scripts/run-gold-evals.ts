@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { evaluateGoldTasks, type GoldTaskContract } from "../src/evaluation/gold-task-evaluator";
 
-const file = resolve(process.cwd(), "evals/gold-tasks.json");
+const file = resolve(process.cwd(), "../05_control_evaluation/05_evals/fixtures/gold-tasks.json");
 const tasks = JSON.parse(readFileSync(file, "utf8")) as GoldTaskContract[];
 const results = evaluateGoldTasks(tasks);
 

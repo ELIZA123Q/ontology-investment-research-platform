@@ -1,0 +1,18 @@
+id: CR-2026-08-13-governed-runtime-controls
+date: 2026-08-13
+summary: 将财务勾稽、模型数据出境和能力激活从 Runtime 隐式逻辑提升为受治理策略，并增加运行可靠性质量门。
+classifications: [reusable_deterministic_constraint, execution_mechanics]
+authority_refs:
+  - 05_control_evaluation/01_rules/policies/financial_model_integrity_policy.yaml
+  - 05_control_evaluation/01_rules/policies/model_data_egress_policy.yaml
+  - 05_control_evaluation/01_rules/policies/capability_activation_policy.yaml
+execution_refs:
+  - 06_runtime/src/research/deterministic-financial-model.ts
+  - 06_runtime/src/providers/model-gateway.ts
+  - 06_runtime/scripts/audit-cutover.ts
+verification_refs:
+  - 05_control_evaluation/04_verifiers/validate_financial_model_integrity_policy.py
+  - 05_control_evaluation/04_verifiers/validate_model_data_egress_policy.py
+  - 05_control_evaluation/04_verifiers/validate_capability_activation_policy.py
+  - 06_runtime/tests/financial-model-rules-projection.test.ts
+  - 06_runtime/tests/model-data-egress-rules-projection.test.ts

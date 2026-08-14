@@ -41,6 +41,7 @@ import type {
   UsageObservation,
 } from "@/src/contracts";
 import { normalizeReportSpec } from "@/src/reporting/report-spec";
+import { transitionState } from "@/src/runtime/state-machine";
 
 const now = () => new Date().toISOString();
 const json = (value: unknown) => JSON.stringify(value);
@@ -79,21 +80,50 @@ export interface ConnectorResponseBlobInput extends ConnectorResponseBlobMetadat
 }
 
 export function defaultDatabasePath(): string {
-  return process.env.VNEXT_DB_PATH || resolve(process.cwd(), ".data/vnext.sqlite");
+  if (process.env.VNEXT_DB_PATH) return process.env.VNEXT_DB_PATH;
+  return resolve(process.cwd(), ".data/research-v2.sqlite");
 }
 
 export class RuntimeStore {
   readonly db: DatabaseSync;
+  private transactionDepth = 0;
+  private transactionSequence = 0;
 
   constructor(path = defaultDatabasePath()) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;");
-    this.migrate();
+    this.initializeSchema();
   }
 
   close(): void {
     this.db.close();
+  }
+
+  /**
+   * Runs a synchronous unit of work atomically. Nested callers use SAVEPOINTs so
+   * aggregate services can own the outer transaction without breaking the
+   * smaller atomic store operations they compose.
+   */
+  transaction<T>(work: () => T): T {
+    const outermost = this.transactionDepth === 0;
+    const savepoint = `runtime_tx_${++this.transactionSequence}`;
+    this.db.exec(outermost ? "BEGIN IMMEDIATE" : `SAVEPOINT ${savepoint}`);
+    this.transactionDepth += 1;
+    try {
+      const result = work();
+      this.db.exec(outermost ? "COMMIT" : `RELEASE SAVEPOINT ${savepoint}`);
+      return result;
+    } catch (error) {
+      if (outermost) this.db.exec("ROLLBACK");
+      else {
+        this.db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+        this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+      }
+      throw error;
+    } finally {
+      this.transactionDepth -= 1;
+    }
   }
 
   putConnectorResponseBlob(input: ConnectorResponseBlobInput): ConnectorResponseBlobMetadata {
@@ -141,7 +171,7 @@ export class RuntimeStore {
     };
   }
 
-  private migrate(): void {
+  private initializeSchema(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS conversations (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, tenant_id TEXT NOT NULL DEFAULT 'default', user_id TEXT NOT NULL DEFAULT 'researcher', status TEXT NOT NULL,
@@ -152,6 +182,20 @@ export class RuntimeStore {
         goal TEXT NOT NULL, intent TEXT NOT NULL, report_spec_json TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL, outcome TEXT, budget_json TEXT NOT NULL,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS research_cases (
+        id TEXT PRIMARY KEY, conversation_id TEXT UNIQUE NOT NULL REFERENCES conversations(id),
+        task_id TEXT UNIQUE NOT NULL REFERENCES tasks(id), owner_id TEXT NOT NULL, version INTEGER NOT NULL,
+        company_code TEXT NOT NULL, company_name TEXT NOT NULL, as_of TEXT NOT NULL,
+        research_question TEXT NOT NULL, primary_lens TEXT NOT NULL, counter_lens TEXT NOT NULL,
+        report_spec_json TEXT NOT NULL, source_policy_json TEXT NOT NULL, status TEXT NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS research_case_commands (
+        id TEXT PRIMARY KEY, case_id TEXT NOT NULL REFERENCES research_cases(id), idempotency_key TEXT NOT NULL,
+        command_type TEXT NOT NULL, actor_id TEXT NOT NULL, expected_version INTEGER NOT NULL, payload_json TEXT NOT NULL,
+        status TEXT NOT NULL, result_json TEXT, error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+        UNIQUE(case_id,idempotency_key)
+      );
       CREATE TABLE IF NOT EXISTS task_nodes (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), kind TEXT NOT NULL, title TEXT NOT NULL,
         capability_type TEXT NOT NULL, capability_id TEXT NOT NULL, assigned_agent TEXT NOT NULL, depends_on_json TEXT NOT NULL,
@@ -161,7 +205,7 @@ export class RuntimeStore {
       CREATE TABLE IF NOT EXISTS node_jobs (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), node_id TEXT NOT NULL REFERENCES task_nodes(id),
         status TEXT NOT NULL, attempts INTEGER NOT NULL, available_at TEXT NOT NULL, locked_at TEXT, last_error TEXT,
-        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(node_id, status)
+        leased_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(node_id, status)
       );
       CREATE TABLE IF NOT EXISTS problem_graphs (
         id TEXT PRIMARY KEY, task_id TEXT UNIQUE NOT NULL REFERENCES tasks(id), research_case_id TEXT NOT NULL,
@@ -193,7 +237,7 @@ export class RuntimeStore {
       );
       CREATE TABLE IF NOT EXISTS checkpoints (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), node_id TEXT,
-        phase TEXT NOT NULL, state_json TEXT NOT NULL, created_at TEXT NOT NULL
+        status TEXT NOT NULL, phase TEXT NOT NULL, state_json TEXT NOT NULL, created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS approvals (
         id TEXT PRIMARY KEY, conversation_id TEXT NOT NULL REFERENCES conversations(id),
@@ -207,11 +251,12 @@ export class RuntimeStore {
       CREATE TABLE IF NOT EXISTS runtime_jobs (
         id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), kind TEXT NOT NULL,
         status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, available_at TEXT NOT NULL,
-        locked_at TEXT, last_error TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+        locked_at TEXT, last_error TEXT, leased_by TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS memory_records (
         id TEXT PRIMARY KEY, conversation_id TEXT, kind TEXT NOT NULL, content TEXT NOT NULL,
-        provenance_artifact_ids_json TEXT NOT NULL, reviewed_at TEXT, created_at TEXT NOT NULL
+        provenance_artifact_ids_json TEXT NOT NULL, source_ref TEXT NOT NULL DEFAULT '',
+        freshness_at TEXT NOT NULL DEFAULT '', reviewed_at TEXT, created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS model_call_cache (
         fingerprint TEXT PRIMARY KEY, provider TEXT NOT NULL, model TEXT NOT NULL,
@@ -229,8 +274,8 @@ export class RuntimeStore {
         worker_id TEXT PRIMARY KEY, pid INTEGER NOT NULL, status TEXT NOT NULL,
         started_at TEXT NOT NULL, heartbeat_at TEXT NOT NULL, stopped_at TEXT
       );
-      CREATE TABLE IF NOT EXISTS schema_migrations (
-        migration_id TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TEXT NOT NULL
+      CREATE TABLE IF NOT EXISTS runtime_schema_versions (
+        version TEXT PRIMARY KEY, schema_hash TEXT NOT NULL, created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS connector_response_blobs (
         fingerprint TEXT PRIMARY KEY, connector_id TEXT NOT NULL, operation TEXT NOT NULL,
@@ -338,6 +383,7 @@ export class RuntimeStore {
       );
       CREATE INDEX IF NOT EXISTS run_events_conversation_sequence ON run_events(conversation_id, sequence);
       CREATE INDEX IF NOT EXISTS tasks_conversation_updated ON tasks(conversation_id, updated_at);
+      CREATE INDEX IF NOT EXISTS research_cases_updated ON research_cases(updated_at DESC);
       CREATE INDEX IF NOT EXISTS task_nodes_task_status ON task_nodes(task_id, status);
       CREATE INDEX IF NOT EXISTS node_jobs_claim ON node_jobs(status, available_at, task_id);
       CREATE INDEX IF NOT EXISTS artifacts_task_kind ON artifacts(task_id, kind);
@@ -357,35 +403,8 @@ export class RuntimeStore {
       CREATE INDEX IF NOT EXISTS ontology_links_target ON ontology_links(target_id, type);
       CREATE INDEX IF NOT EXISTS action_executions_context ON action_executions(conversation_id, task_id, created_at);
     `);
-    this.applyMigration("001-runtime-identity-and-releases", () => {
-      this.ensureColumn("conversations", "tenant_id", "TEXT NOT NULL DEFAULT 'default'");
-      this.ensureColumn("conversations", "user_id", "TEXT NOT NULL DEFAULT 'researcher'");
-      this.ensureColumn("knowledge_locks", "user_release_id", "TEXT");
-      this.ensureColumn("knowledge_locks", "as_of", "TEXT");
-      this.ensureColumn("asset_releases", "rollback_of_release_id", "TEXT");
-    });
-    this.applyMigration("002-problem-graph-and-report-spec", () => {
-      this.ensureColumn("tasks", "research_case_id", "TEXT NOT NULL DEFAULT ''");
-      this.ensureColumn("tasks", "report_spec_json", "TEXT NOT NULL DEFAULT '{}'");
-      this.ensureColumn("task_nodes", "frontier_ref_json", "TEXT NOT NULL DEFAULT '{}'");
-      this.ensureColumn("task_nodes", "iteration", "INTEGER NOT NULL DEFAULT 0");
-    });
-    this.applyMigration("003-run-outcome-model-observability-worker-health", () => {
-      this.ensureColumn("tasks", "outcome", "TEXT");
-    });
-    this.applyMigration("004-research-evaluation-runs", () => {
-      this.db.exec(`CREATE TABLE IF NOT EXISTS research_evaluation_runs (
-        id TEXT PRIMARY KEY, case_id TEXT NOT NULL, protocol_version TEXT NOT NULL, status TEXT NOT NULL,
-        task_input_hash TEXT NOT NULL, evidence_bundle_hash TEXT NOT NULL, system_artifact_json TEXT NOT NULL,
-        baseline_artifacts_json TEXT NOT NULL, judge_versions_json TEXT NOT NULL, formal_score_eligible INTEGER NOT NULL,
-        metrics_json TEXT NOT NULL, notes_json TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT
-      )`);
-      this.db.exec("CREATE INDEX IF NOT EXISTS research_evaluation_runs_case_created ON research_evaluation_runs(case_id, created_at DESC)");
-    });
-    this.applyMigration("005-memory-provenance-fields", () => {
-      this.ensureColumn("memory_records", "source_ref", "TEXT NOT NULL DEFAULT ''");
-      this.ensureColumn("memory_records", "freshness_at", "TEXT NOT NULL DEFAULT ''");
-    });
+    this.db.prepare("INSERT OR IGNORE INTO runtime_schema_versions (version,schema_hash,created_at) VALUES ('2.0.0', ?, ?)")
+      .run(fingerprint({ schema: "runtime-v2", version: "2.0.0" }), now());
     try {
       this.db.exec(`CREATE VIRTUAL TABLE IF NOT EXISTS research_fts USING fts5(ref_id UNINDEXED, kind UNINDEXED, title, body);`);
     } catch {
@@ -394,32 +413,9 @@ export class RuntimeStore {
     this.ensureGlobalRelease();
   }
 
-  private ensureColumn(table: string, column: string, definition: string): void {
-    const columns = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-    if (!columns.some((item) => item.name === column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
-  }
-
-  private applyMigration(id: string, apply: () => void): void {
-    const checksum = fingerprint({ id, runtimeSchema: 1 });
-    const existing = this.db.prepare("SELECT checksum FROM schema_migrations WHERE migration_id=?").get(id) as { checksum?: string } | undefined;
-    if (existing) {
-      if (existing.checksum !== checksum) throw new Error(`Runtime schema migration checksum changed: ${id}`);
-      return;
-    }
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      apply();
-      this.db.prepare("INSERT INTO schema_migrations (migration_id,checksum,applied_at) VALUES (?, ?, ?)").run(id, checksum, now());
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
-  }
-
-  listSchemaMigrations(): Array<{ id: string; checksum: string; appliedAt: string }> {
-    return (this.db.prepare("SELECT * FROM schema_migrations ORDER BY applied_at, migration_id").all() as Record<string, unknown>[])
-      .map((row) => ({ id: String(row.migration_id), checksum: String(row.checksum), appliedAt: String(row.applied_at) }));
+  listSchemaVersions(): Array<{ version: string; schemaHash: string; createdAt: string }> {
+    return (this.db.prepare("SELECT * FROM runtime_schema_versions ORDER BY created_at, version").all() as Record<string, unknown>[])
+      .map((row) => ({ version: String(row.version), schemaHash: String(row.schema_hash), createdAt: String(row.created_at) }));
   }
 
   integrityCheck(): { passed: boolean; details: string[] } {
@@ -445,17 +441,25 @@ export class RuntimeStore {
     this.db.prepare("UPDATE worker_heartbeats SET status='stopped',heartbeat_at=?,stopped_at=? WHERE worker_id=?").run(stamp, stamp, workerId);
   }
 
-  workerHealth(maxAgeMs = 15_000): { status: "ready" | "stale" | "unmanaged"; workerId?: string; pid?: number; heartbeatAt?: string; ageMs?: number } {
+  workerHealth(maxAgeMs = 15_000): { status: "ready" | "stale" | "unmanaged"; workerId?: string; pid?: number; heartbeatAt?: string; ageMs?: number; activeWorkers?: number } {
     const row = this.db.prepare("SELECT * FROM worker_heartbeats WHERE stopped_at IS NULL ORDER BY heartbeat_at DESC LIMIT 1").get() as Record<string, unknown> | undefined;
-    if (!row) return { status: "unmanaged" };
+    if (!row) return { status: "unmanaged", activeWorkers: 0 };
     const heartbeatAt = String(row.heartbeat_at);
     const ageMs = Math.max(0, Date.now() - Date.parse(heartbeatAt));
-    return { status: ageMs <= maxAgeMs ? "ready" : "stale", workerId: String(row.worker_id), pid: Number(row.pid), heartbeatAt, ageMs };
+    const activeWorkers = Number((this.db.prepare("SELECT COUNT(*) AS count FROM worker_heartbeats WHERE stopped_at IS NULL AND heartbeat_at>=?").get(new Date(Date.now() - maxAgeMs).toISOString()) as { count: number }).count);
+    return { status: ageMs <= maxAgeMs ? "ready" : "stale", workerId: String(row.worker_id), pid: Number(row.pid), heartbeatAt, ageMs, activeWorkers };
   }
 
-  runtimeQueueStats(): { queued: number; running: number; failed: number; nodeQueued: number; nodeRunning: number; nodeFailed: number } {
+  runtimeQueueStats(): { queued: number; running: number; failed: number; deadLetter: number; retrying: number; oldestQueuedAgeMs?: number; nodeQueued: number; nodeRunning: number; nodeFailed: number; nodeDeadLetter: number; nodeRetrying: number; nodeOldestQueuedAgeMs?: number } {
     const count = (table: "runtime_jobs" | "node_jobs", status: string) => Number((this.db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE status=?`).get(status) as { count: number }).count);
-    return { queued: count("runtime_jobs", "queued"), running: count("runtime_jobs", "running"), failed: count("runtime_jobs", "failed"), nodeQueued: count("node_jobs", "queued"), nodeRunning: count("node_jobs", "running"), nodeFailed: count("node_jobs", "failed") };
+    const retrying = (table: "runtime_jobs" | "node_jobs") => Number((this.db.prepare(`SELECT COUNT(*) AS count FROM ${table} WHERE status='queued' AND attempts>0`).get() as { count: number }).count);
+    const oldestAge = (table: "runtime_jobs" | "node_jobs") => {
+      const row = this.db.prepare(`SELECT MIN(created_at) AS oldest FROM ${table} WHERE status='queued'`).get() as { oldest?: string | null };
+      return row.oldest ? Math.max(0, Date.now() - Date.parse(row.oldest)) : undefined;
+    };
+    const failed = count("runtime_jobs", "failed");
+    const nodeFailed = count("node_jobs", "failed");
+    return { queued: count("runtime_jobs", "queued"), running: count("runtime_jobs", "running"), failed, deadLetter: failed, retrying: retrying("runtime_jobs"), oldestQueuedAgeMs: oldestAge("runtime_jobs"), nodeQueued: count("node_jobs", "queued"), nodeRunning: count("node_jobs", "running"), nodeFailed, nodeDeadLetter: nodeFailed, nodeRetrying: retrying("node_jobs"), nodeOldestQueuedAgeMs: oldestAge("node_jobs") };
   }
 
   createConversation(title = "新的研究主题", identity: { tenantId?: string; userId?: string } = {}): Conversation {
@@ -541,21 +545,16 @@ export class RuntimeStore {
       ON CONFLICT(conversation_id,fingerprint) DO UPDATE SET title=excluded.title,excerpt=excluded.excerpt,content_text=excluded.content_text,
       publisher=excluded.publisher,source_uri=excluded.source_uri,source_type=excluded.source_type,published_at=excluded.published_at,
       captured_at=excluded.captured_at,match_reason=excluded.match_reason,score=excluded.score`);
-    let changed = 0;
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    return this.transaction(() => {
+      let changed = 0;
       for (const input of inputs) {
         const result = statement.run(randomUUID(), input.connectorId, input.conversationId, input.kind, input.symbol || null,
           input.title, input.excerpt, input.content, input.publisher, input.sourceUri, input.sourceType, input.publishedAt,
           input.capturedAt, input.matchReason, input.score, input.fingerprint);
         changed += Number(result.changes);
       }
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
-    return changed;
+      return changed;
+    });
   }
 
   listSignalCandidates(options: { status?: ResearchSignalCandidate["status"]; limit?: number; conversationId?: string } = {}): ResearchSignalCandidate[] {
@@ -624,37 +623,53 @@ export class RuntimeStore {
     return (this.db.prepare("SELECT * FROM tasks WHERE conversation_id = ? ORDER BY created_at DESC").all(conversationId) as Record<string, unknown>[]).map(this.mapTask);
   }
 
-  updateTaskStatus(id: string, status: Task["status"]): void {
-    let outcome: Task["outcome"];
-    if (status === "cancelled") outcome = "cancelled";
-    else if (status === "failed") outcome = "failed";
-    else if (status === "completed") outcome = this.inferTaskOutcome(id);
-    this.db.prepare("UPDATE tasks SET status = ?, outcome = ?, updated_at = ? WHERE id = ?").run(status, outcome ?? null, now(), id);
+  transitionTask(
+    id: string,
+    command: string,
+    options: { actorType?: RunEvent["actorType"]; actorId?: string; payload?: Record<string, unknown> } = {},
+  ): Task {
+    return this.transaction(() => {
+      const current = this.getTask(id);
+      if (!current) throw new Error(`Task not found: ${id}`);
+      const transition = transitionState("Task", current.status, command);
+      let outcome: Task["outcome"];
+      if (transition.to === "cancelled") outcome = "cancelled_by_user";
+      else if (transition.to === "failed") outcome = "failed_technical";
+      else if (transition.to === "completed") outcome = this.inferTaskOutcome(id);
+      const stamp = now();
+      const result = this.db.prepare("UPDATE tasks SET status=?,outcome=?,updated_at=? WHERE id=? AND status=?")
+        .run(transition.to, outcome ?? null, stamp, id, transition.from);
+      if (Number(result.changes) !== 1) throw new Error(`Task transition lost optimistic lock: ${id}`);
+      this.appendEvent({
+        conversationId: current.conversationId,
+        taskId: current.id,
+        type: transition.event,
+        actorType: options.actorType || "system",
+        actorId: options.actorId || "runtime",
+        payload: { command, from: transition.from, to: transition.to, ...(options.payload || {}) },
+      });
+      return this.getTask(id)!;
+    });
   }
 
   private inferTaskOutcome(taskId: string): Task["outcome"] {
     const artifacts = this.listArtifacts(taskId);
     const judgment = [...artifacts].reverse().find((artifact) => artifact.kind === "judgment" && artifact.title === "当前判断");
     const data = judgment?.data as { disposition?: string; lifecycleStatus?: string; ontologyJudgmentRef?: string; statement?: string } | undefined;
-    if (data?.ontologyJudgmentRef || data?.lifecycleStatus === "approved" || (data?.disposition === "review_required" && data?.statement && data.statement !== "暂不可判断")) return "completed_with_judgment";
+    if (data?.ontologyJudgmentRef || data?.lifecycleStatus === "approved" || (data?.disposition === "review_required" && data?.statement && data.statement !== "暂不可判断")) return "completed_supported";
     const evidenceFacts = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "证据评估")
       .flatMap((artifact) => (artifact.data as { facts?: unknown[] }).facts || []);
     if (data?.disposition === "abstain" || data?.statement === "暂不可判断" || evidenceFacts.length === 0) return "stopped_insufficient_evidence";
-    return undefined;
+    return "completed_indeterminate";
   }
 
   addTaskNodes(nodes: TaskNode[]): void {
     const insert = this.db.prepare(`INSERT INTO task_nodes
       (id,task_id,kind,title,capability_type,capability_id,assigned_agent,depends_on_json,status,budget_json,input_artifact_ids_json,output_artifact_ids_json,frontier_ref_json,iteration)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    this.transaction(() => {
       for (const n of nodes) insert.run(n.id, n.taskId, n.kind, n.title, n.capabilityType, n.capabilityId, n.assignedAgent, json(n.dependsOn), n.status, json(n.budget), json(n.inputArtifactIds), json(n.outputArtifactIds), json(n.frontierRef), n.iteration);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
   listTaskNodes(taskId: string): TaskNode[] {
@@ -666,12 +681,41 @@ export class RuntimeStore {
     return row ? this.mapNode(row) : null;
   }
 
-  updateNode(id: string, patch: Partial<Pick<TaskNode, "status" | "inputArtifactIds" | "outputArtifactIds" | "frontierRef" | "iteration">>): void {
+  updateNode(id: string, patch: Partial<Pick<TaskNode, "inputArtifactIds" | "outputArtifactIds" | "frontierRef" | "iteration">>): void {
     const current = this.getTaskNode(id);
     if (!current) throw new Error(`Task node not found: ${id}`);
     const next = { ...current, ...patch };
     this.db.prepare("UPDATE task_nodes SET status = ?, input_artifact_ids_json = ?, output_artifact_ids_json = ?, frontier_ref_json = ?, iteration = ? WHERE id = ?")
       .run(next.status, json(next.inputArtifactIds), json(next.outputArtifactIds), json(next.frontierRef), next.iteration, id);
+  }
+
+  transitionNode(
+    id: string,
+    command: string,
+    patch: Partial<Pick<TaskNode, "inputArtifactIds" | "outputArtifactIds" | "frontierRef" | "iteration">> = {},
+    options: { actorType?: RunEvent["actorType"]; actorId?: string; payload?: Record<string, unknown> } = {},
+  ): TaskNode {
+    return this.transaction(() => {
+      const current = this.getTaskNode(id);
+      if (!current) throw new Error(`Task node not found: ${id}`);
+      const task = this.getTask(current.taskId);
+      if (!task) throw new Error(`Task not found: ${current.taskId}`);
+      const transition = transitionState("TaskNode", current.status, command);
+      const next = { ...current, ...patch, status: transition.to as TaskNode["status"] };
+      const result = this.db.prepare("UPDATE task_nodes SET status=?,input_artifact_ids_json=?,output_artifact_ids_json=?,frontier_ref_json=?,iteration=? WHERE id=? AND status=?")
+        .run(next.status, json(next.inputArtifactIds), json(next.outputArtifactIds), json(next.frontierRef), next.iteration, id, transition.from);
+      if (Number(result.changes) !== 1) throw new Error(`TaskNode transition lost optimistic lock: ${id}`);
+      this.appendEvent({
+        conversationId: task.conversationId,
+        taskId: task.id,
+        nodeId: current.id,
+        type: transition.event,
+        actorType: options.actorType || "system",
+        actorId: options.actorId || "runtime",
+        payload: { command, from: transition.from, to: transition.to, ...(options.payload || {}) },
+      });
+      return this.getTaskNode(id)!;
+    });
   }
 
   createProblemGraph(input: Omit<ResearchProblemGraph, "id" | "version" | "fingerprint" | "createdAt" | "updatedAt"> & { id?: string }): ResearchProblemGraph {
@@ -684,8 +728,7 @@ export class RuntimeStore {
       createdAt: stamp,
       updatedAt: stamp,
     };
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    return this.transaction(() => {
       this.db.prepare(`INSERT INTO problem_graphs
         (id,task_id,research_case_id,version,status,intent_refs_json,scenario_refs_json,task_motif_refs_json,fingerprint,created_at,updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -696,12 +739,8 @@ export class RuntimeStore {
       for (const node of graph.nodes) insertNode.run(node.id, graph.id, node.key, node.type, node.title, node.state, node.required ? 1 : 0, node.motifRef ?? null, node.semanticRef ?? null, json(node.payload), json(node.resolvedArtifactIds), node.freshnessAt ?? null, node.createdAt || stamp, node.updatedAt || stamp);
       const insertEdge = this.db.prepare("INSERT INTO problem_graph_edges (id,graph_id,from_node_id,to_node_id,relation,payload_json) VALUES (?, ?, ?, ?, ?, ?)");
       for (const edge of graph.edges) insertEdge.run(edge.id, graph.id, edge.fromNodeId, edge.toNodeId, edge.relation, json(edge.payload));
-      this.db.exec("COMMIT");
       return graph;
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
   getProblemGraph(taskId: string): ResearchProblemGraph | null {
@@ -752,8 +791,7 @@ export class RuntimeStore {
     createdBy: string;
   }>): Artifact[] {
     if (!inputs.length) throw new Error("At least one artifact revision is required");
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    return this.transaction(() => {
       const current = inputs.map((input) => {
         const artifact = this.getArtifact(input.id);
         if (!artifact) throw new Error(`Artifact not found: ${input.id}`);
@@ -769,16 +807,18 @@ export class RuntimeStore {
         createdAt: now(),
       }));
       const insert = this.db.prepare("INSERT INTO artifacts VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-      for (const artifact of revisions) {
+      for (const [index, artifact] of revisions.entries()) {
+        const prior = current[index];
+        const transition = transitionState("Artifact", prior.status, "revise");
+        const superseded = this.db.prepare("UPDATE artifacts SET status=? WHERE id=? AND version=? AND status=?")
+          .run(transition.to, prior.id, prior.version, transition.from);
+        if (Number(superseded.changes) !== 1) throw new ArtifactVersionConflictError(prior.id, prior.version, this.getArtifact(prior.id)?.version || prior.version);
         insert.run(artifact.id, artifact.version, artifact.conversationId, artifact.taskId, artifact.nodeId ?? null, artifact.kind, artifact.title, artifact.status, json(artifact.data), json(artifact.sourceRefs), artifact.createdBy, artifact.createdAt);
+        this.appendEvent({ conversationId: prior.conversationId, taskId: prior.taskId, nodeId: prior.nodeId, type: transition.event, actorType: "system", actorId: "artifact-service", payload: { artifactId: prior.id, fromVersion: prior.version, toVersion: artifact.version, command: "revise", from: transition.from, to: transition.to } });
       }
-      this.db.exec("COMMIT");
       for (const artifact of revisions) this.indexText(artifact.id, "artifact", artifact.title, json(artifact.data));
       return revisions;
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
   getArtifact(id: string): Artifact | null {
@@ -798,16 +838,28 @@ export class RuntimeStore {
     return { ...input, id, sequence: Number(result.lastInsertRowid), createdAt };
   }
 
-  listEvents(conversationId: string, after = 0, limit = 500): RunEvent[] {
+  listEvents(conversationId: string, after = 0, limit = 5_000): RunEvent[] {
     return (this.db.prepare("SELECT * FROM run_events WHERE conversation_id=? AND sequence>? ORDER BY sequence LIMIT ?").all(conversationId, after, limit) as Record<string, unknown>[]).map((r) => ({
       id: String(r.id), sequence: Number(r.sequence), conversationId: String(r.conversation_id), taskId: r.task_id ? String(r.task_id) : undefined, nodeId: r.node_id ? String(r.node_id) : undefined, type: String(r.type), actorType: r.actor_type as RunEvent["actorType"], actorId: String(r.actor_id), payload: parse(r.payload_json, {}), createdAt: String(r.created_at),
     }));
   }
 
-  checkpoint(input: Omit<Checkpoint, "id" | "createdAt">): Checkpoint {
-    const item: Checkpoint = { ...input, id: randomUUID(), createdAt: now() };
-    this.db.prepare("INSERT INTO checkpoints VALUES (?, ?, ?, ?, ?, ?)").run(item.id, item.taskId, item.nodeId ?? null, item.phase, json(item.state), item.createdAt);
-    return item;
+  checkpoint(input: Omit<Checkpoint, "id" | "status" | "createdAt">): Checkpoint {
+    const item: Checkpoint = { ...input, id: randomUUID(), status: "current", createdAt: now() };
+    return this.transaction(() => {
+      const task = this.getTask(item.taskId);
+      if (!task) throw new Error(`Task not found: ${item.taskId}`);
+      const prior = this.latestCheckpoint(item.taskId);
+      if (prior) {
+        const replaced = transitionState("Checkpoint", prior.status, "replace");
+        this.db.prepare("UPDATE checkpoints SET status=? WHERE id=? AND status=?").run(replaced.to, prior.id, replaced.from);
+        this.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: prior.nodeId, type: replaced.event, actorType: "system", actorId: "checkpoint-service", payload: { checkpointId: prior.id, replacementId: item.id, command: "replace", from: replaced.from, to: replaced.to } });
+      }
+      const activated = transitionState("Checkpoint", "created", "activate");
+      this.db.prepare("INSERT INTO checkpoints VALUES (?, ?, ?, ?, ?, ?, ?)").run(item.id, item.taskId, item.nodeId ?? null, item.status, item.phase, json(item.state), item.createdAt);
+      this.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: item.nodeId, type: activated.event, actorType: "system", actorId: "checkpoint-service", payload: { checkpointId: item.id, command: "activate", from: activated.from, to: activated.to, phase: item.phase } });
+      return item;
+    });
   }
 
   getLatestCheckpoint(taskId: string): Checkpoint | null {
@@ -815,8 +867,8 @@ export class RuntimeStore {
   }
 
   latestCheckpoint(taskId: string): Checkpoint | null {
-    const r = this.db.prepare("SELECT * FROM checkpoints WHERE task_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1").get(taskId) as Record<string, unknown> | undefined;
-    return r ? { id: String(r.id), taskId: String(r.task_id), nodeId: r.node_id ? String(r.node_id) : undefined, phase: r.phase as Checkpoint["phase"], state: parse(r.state_json, {}), createdAt: String(r.created_at) } : null;
+    const r = this.db.prepare("SELECT * FROM checkpoints WHERE task_id=? AND status='current' ORDER BY created_at DESC, rowid DESC LIMIT 1").get(taskId) as Record<string, unknown> | undefined;
+    return r ? { id: String(r.id), taskId: String(r.task_id), nodeId: r.node_id ? String(r.node_id) : undefined, status: r.status as Checkpoint["status"], phase: r.phase as Checkpoint["phase"], state: parse(r.state_json, {}), createdAt: String(r.created_at) } : null;
   }
 
   getWorkspaceProjection(taskId: string): WorkspaceProjection {
@@ -859,17 +911,31 @@ export class RuntimeStore {
   }
 
   supersedePendingApprovals(nodeId: string, note: string): number {
-    const result = this.db.prepare("UPDATE approvals SET status='rejected', decision_note=?, decided_at=? WHERE node_id=? AND status='pending'")
-      .run(note, now(), nodeId);
-    return Number(result.changes);
+    return this.transaction(() => {
+      const approvals = this.db.prepare("SELECT id FROM approvals WHERE node_id=? AND status='pending'").all(nodeId) as Array<{ id: string }>;
+      for (const row of approvals) {
+        const approval = this.getApproval(String(row.id))!;
+        const transition = transitionState("Approval", approval.status, "artifact_revised");
+        this.db.prepare("UPDATE approvals SET status=?,decision_note=?,decided_at=? WHERE id=? AND status=?")
+          .run(transition.to, note, now(), approval.id, transition.from);
+        this.appendEvent({ conversationId: approval.conversationId, taskId: approval.taskId, nodeId: approval.nodeId, type: transition.event, actorType: "system", actorId: "artifact-service", payload: { approvalId: approval.id, command: "artifact_revised", from: transition.from, to: transition.to, note } });
+      }
+      return approvals.length;
+    });
   }
 
   decideApproval(id: string, status: "approved" | "rejected", note?: string): ApprovalRequest {
-    const result = this.db.prepare("UPDATE approvals SET status=?, decision_note=?, decided_at=? WHERE id=? AND status='pending'").run(status, note ?? null, now(), id);
-    const item = this.getApproval(id);
-    if (!item) throw new Error(`Approval not found: ${id}`);
-    if (Number(result.changes) !== 1) throw new ApprovalDecisionConflictError(id, item.status);
-    return item;
+    return this.transaction(() => {
+      const current = this.getApproval(id);
+      if (!current) throw new Error(`Approval not found: ${id}`);
+      const command = status === "approved" ? "approve" : "reject";
+      const transition = transitionState("Approval", current.status, command);
+      const result = this.db.prepare("UPDATE approvals SET status=?,decision_note=?,decided_at=? WHERE id=? AND status=?")
+        .run(transition.to, note ?? null, now(), id, transition.from);
+      if (Number(result.changes) !== 1) throw new ApprovalDecisionConflictError(id, current.status);
+      this.appendEvent({ conversationId: current.conversationId, taskId: current.taskId, nodeId: current.nodeId, type: transition.event, actorType: "researcher", actorId: "researcher", payload: { approvalId: id, command, from: transition.from, to: transition.to, note } });
+      return this.getApproval(id)!;
+    });
   }
 
   enqueueTask(taskId: string, kind: RuntimeJobKind = "execute"): string {
@@ -878,37 +944,58 @@ export class RuntimeStore {
     if (existing?.id) return existing.id;
     const id = randomUUID();
     const stamp = now();
-    this.db.prepare("INSERT INTO runtime_jobs VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL, ?, ?)").run(id, taskId, kind, stamp, stamp, stamp);
+    this.db.prepare("INSERT INTO runtime_jobs (id,task_id,kind,status,attempts,available_at,locked_at,last_error,leased_by,created_at,updated_at) VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL, NULL, ?, ?)").run(id, taskId, kind, stamp, stamp, stamp);
+    const task = this.getTask(taskId);
+    if (task) this.appendEvent({ conversationId: task.conversationId, taskId, type: "job.queued", actorType: "system", actorId: "runtime-queue", payload: { jobId: id, kind, status: "queued" } });
     return id;
   }
 
-  claimJob(): { id: string; taskId: string; kind: RuntimeJobKind; attempts: number } | null {
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+  claimJob(workerId?: string): { id: string; taskId: string; kind: RuntimeJobKind; attempts: number } | null {
+    return this.transaction(() => {
       const row = this.db.prepare("SELECT * FROM runtime_jobs WHERE status='queued' AND available_at<=? ORDER BY created_at LIMIT 1").get(now()) as Record<string, unknown> | undefined;
-      if (!row) { this.db.exec("COMMIT"); return null; }
-      this.db.prepare("UPDATE runtime_jobs SET status='running', attempts=attempts+1, locked_at=?, updated_at=? WHERE id=?").run(now(), now(), String(row.id));
-      this.db.exec("COMMIT");
+      if (!row) return null;
+      const transition = transitionState("RuntimeJob", String(row.status), "lease");
+      this.db.prepare("UPDATE runtime_jobs SET status=?,attempts=attempts+1,locked_at=?,leased_by=?,updated_at=? WHERE id=? AND status=?").run(transition.to, now(), workerId || null, now(), String(row.id), transition.from);
+      const task = this.getTask(String(row.task_id));
+      if (task) this.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: transition.event, actorType: "system", actorId: workerId || "runtime-worker", payload: { jobId: String(row.id), command: "lease", from: transition.from, to: transition.to } });
       return { id: String(row.id), taskId: String(row.task_id), kind: String(row.kind) as RuntimeJobKind, attempts: Number(row.attempts) + 1 };
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
-  finishJob(id: string): void {
-    this.db.prepare("UPDATE runtime_jobs SET status='completed', locked_at=NULL, updated_at=? WHERE id=?").run(now(), id);
+  finishJob(id: string, workerId?: string): void {
+    this.transaction(() => {
+      const row = this.db.prepare("SELECT * FROM runtime_jobs WHERE id=?").get(id) as Record<string, unknown> | undefined;
+      if (!row) throw new Error(`Runtime job not found: ${id}`);
+      const transition = transitionState("RuntimeJob", String(row.status), "runtime_complete");
+      const result = this.db.prepare(`UPDATE runtime_jobs SET status=?,locked_at=NULL,leased_by=NULL,updated_at=? WHERE id=? AND status=?${workerId ? " AND leased_by=?" : ""}`).run(transition.to, now(), id, transition.from, ...(workerId ? [workerId] : []));
+      if (Number(result.changes) !== 1) throw new Error(`Runtime job lease is not owned by ${workerId || "current worker"}: ${id}`);
+      const task = this.getTask(String(row.task_id));
+      if (task) this.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: transition.event, actorType: "system", actorId: workerId || "runtime-worker", payload: { jobId: id, command: "runtime_complete", from: transition.from, to: transition.to } });
+    });
   }
 
-  failJob(id: string, error: string, retry = true): void {
-    const available = new Date(Date.now() + 2_000).toISOString();
-    this.db.prepare("UPDATE runtime_jobs SET status=?, available_at=?, locked_at=NULL, last_error=?, updated_at=? WHERE id=?")
-      .run(retry ? "queued" : "failed", available, error, now(), id);
+  failJob(id: string, error: string, retry = true, workerId?: string): void {
+    this.transaction(() => {
+      const row = this.db.prepare("SELECT * FROM runtime_jobs WHERE id=?").get(id) as Record<string, unknown> | undefined;
+      if (!row) throw new Error(`Runtime job not found: ${id}`);
+      const failed = transitionState("RuntimeJob", String(row.status), "runtime_fail");
+      const result = this.db.prepare(`UPDATE runtime_jobs SET status=?,locked_at=NULL,leased_by=NULL,last_error=?,updated_at=? WHERE id=? AND status=?${workerId ? " AND leased_by=?" : ""}`)
+        .run(failed.to, error, now(), id, failed.from, ...(workerId ? [workerId] : []));
+      if (Number(result.changes) !== 1) throw new Error(`Runtime job lease is not owned by ${workerId || "current worker"}: ${id}`);
+      const task = this.getTask(String(row.task_id));
+      if (task) this.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: failed.event, actorType: "system", actorId: workerId || "runtime-worker", payload: { jobId: id, command: "runtime_fail", from: failed.from, to: failed.to, error } });
+      if (retry) {
+        const queued = transitionState("RuntimeJob", failed.to, "retry");
+        this.db.prepare("UPDATE runtime_jobs SET status=?,available_at=?,updated_at=? WHERE id=? AND status=?")
+          .run(queued.to, new Date(Date.now() + 2_000).toISOString(), now(), id, queued.from);
+        if (task) this.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: queued.event, actorType: "system", actorId: "runtime-queue", payload: { jobId: id, command: "retry", from: queued.from, to: queued.to, error } });
+      }
+    });
   }
 
   recoverStaleJobs(staleMs = 30_000): number {
     const cutoff = new Date(Date.now() - staleMs).toISOString();
-    const result = this.db.prepare("UPDATE runtime_jobs SET status='queued', locked_at=NULL, last_error='worker lease expired', available_at=?, updated_at=? WHERE status='running' AND locked_at<?").run(now(), now(), cutoff);
+    const result = this.db.prepare("UPDATE runtime_jobs SET status='queued', locked_at=NULL, leased_by=NULL, last_error='worker lease expired', available_at=?, updated_at=? WHERE status='running' AND locked_at<?").run(now(), now(), cutoff);
     return Number(result.changes);
   }
 
@@ -916,25 +1003,29 @@ export class RuntimeStore {
     const existing = this.db.prepare("SELECT id FROM node_jobs WHERE node_id=? AND status IN ('queued','running') ORDER BY created_at LIMIT 1").get(nodeId) as { id?: string } | undefined;
     if (existing?.id) return existing.id;
     const id = randomUUID(); const stamp = now();
-    this.db.prepare("INSERT INTO node_jobs VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL, ?, ?)").run(id, taskId, nodeId, stamp, stamp, stamp);
+    this.db.prepare("INSERT INTO node_jobs (id,task_id,node_id,status,attempts,available_at,locked_at,last_error,leased_by,created_at,updated_at) VALUES (?, ?, ?, 'queued', 0, ?, NULL, NULL, NULL, ?, ?)").run(id, taskId, nodeId, stamp, stamp, stamp);
     return id;
   }
 
-  claimNodeJob(maxConcurrencyPerTask = 3): { id: string; taskId: string; nodeId: string; attempts: number } | null {
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      const rows = this.db.prepare("SELECT * FROM node_jobs WHERE status='queued' AND available_at<=? ORDER BY created_at").all(now()) as Record<string, unknown>[];
-      const row = rows.find((candidate) => Number((this.db.prepare("SELECT COUNT(*) AS count FROM node_jobs WHERE task_id=? AND status='running'").get(String(candidate.task_id)) as { count: number }).count) < maxConcurrencyPerTask);
-      if (!row) { this.db.exec("COMMIT"); return null; }
-      this.db.prepare("UPDATE node_jobs SET status='running',attempts=attempts+1,locked_at=?,updated_at=? WHERE id=?").run(now(), now(), String(row.id));
-      this.db.exec("COMMIT");
-      return { id: String(row.id), taskId: String(row.task_id), nodeId: String(row.node_id), attempts: Number(row.attempts) + 1 };
-    } catch (error) { this.db.exec("ROLLBACK"); throw error; }
+  renewJobLease(id: string, workerId: string): boolean {
+    const result = this.db.prepare("UPDATE runtime_jobs SET locked_at=?, updated_at=? WHERE id=? AND status='running' AND leased_by=?").run(now(), now(), id, workerId);
+    return Number(result.changes) === 1;
   }
 
-  finishNodeJob(id: string): void { this.db.prepare("UPDATE node_jobs SET status='completed',locked_at=NULL,updated_at=? WHERE id=?").run(now(), id); }
-  failNodeJob(id: string, error: string, retry = true): void { this.db.prepare("UPDATE node_jobs SET status=?,available_at=?,locked_at=NULL,last_error=?,updated_at=? WHERE id=?").run(retry ? "queued" : "failed", new Date(Date.now() + 2_000).toISOString(), error, now(), id); }
-  recoverStaleNodeJobs(staleMs = 30_000): number { const cutoff = new Date(Date.now() - staleMs).toISOString(); const result = this.db.prepare("UPDATE node_jobs SET status='queued',locked_at=NULL,last_error='worker lease expired',available_at=?,updated_at=? WHERE status='running' AND locked_at<?").run(now(), now(), cutoff); return Number(result.changes); }
+  claimNodeJob(maxConcurrencyPerTask = 3, workerId?: string): { id: string; taskId: string; nodeId: string; attempts: number } | null {
+    return this.transaction(() => {
+      const rows = this.db.prepare("SELECT * FROM node_jobs WHERE status='queued' AND available_at<=? ORDER BY created_at").all(now()) as Record<string, unknown>[];
+      const row = rows.find((candidate) => Number((this.db.prepare("SELECT COUNT(*) AS count FROM node_jobs WHERE task_id=? AND status='running'").get(String(candidate.task_id)) as { count: number }).count) < maxConcurrencyPerTask);
+      if (!row) return null;
+      this.db.prepare("UPDATE node_jobs SET status='running',attempts=attempts+1,locked_at=?,leased_by=?,updated_at=? WHERE id=?").run(now(), workerId || null, now(), String(row.id));
+      return { id: String(row.id), taskId: String(row.task_id), nodeId: String(row.node_id), attempts: Number(row.attempts) + 1 };
+    });
+  }
+
+  renewNodeJobLease(id: string, workerId: string): boolean { const result = this.db.prepare("UPDATE node_jobs SET locked_at=?,updated_at=? WHERE id=? AND status='running' AND leased_by=?").run(now(), now(), id, workerId); return Number(result.changes) === 1; }
+  finishNodeJob(id: string, workerId?: string): void { const result = this.db.prepare(`UPDATE node_jobs SET status='completed',locked_at=NULL,leased_by=NULL,updated_at=? WHERE id=?${workerId ? " AND leased_by=?" : ""}`).run(now(), id, ...(workerId ? [workerId] : [])); if (workerId && Number(result.changes) !== 1) throw new Error(`Node job lease is not owned by ${workerId}: ${id}`); }
+  failNodeJob(id: string, error: string, retry = true, workerId?: string): void { const result = this.db.prepare(`UPDATE node_jobs SET status=?,available_at=?,locked_at=NULL,leased_by=NULL,last_error=?,updated_at=? WHERE id=?${workerId ? " AND leased_by=?" : ""}`).run(retry ? "queued" : "failed", new Date(Date.now() + 2_000).toISOString(), error, now(), id, ...(workerId ? [workerId] : [])); if (workerId && Number(result.changes) !== 1) throw new Error(`Node job lease is not owned by ${workerId}: ${id}`); }
+  recoverStaleNodeJobs(staleMs = 30_000): number { const cutoff = new Date(Date.now() - staleMs).toISOString(); const result = this.db.prepare("UPDATE node_jobs SET status='queued',locked_at=NULL,leased_by=NULL,last_error='worker lease expired',available_at=?,updated_at=? WHERE status='running' AND locked_at<?").run(now(), now(), cutoff); return Number(result.changes); }
 
   runToolOnce<T>(input: { key: string; toolId: string; taskId: string }, execute: () => T): { reused: boolean; result: T } {
     assertToolExecutionAllowed(input.toolId, runtimeExecutionScope());
@@ -1335,8 +1426,7 @@ export class RuntimeStore {
       id: randomUUID(), ...releaseInput, status: "current", fingerprint: fingerprint(releaseInput),
       createdBy: input.createdBy, createdAt: now(),
     };
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    this.transaction(() => {
       if (current) this.db.prepare("UPDATE asset_releases SET status='superseded' WHERE id=?").run(current.id);
       this.insertRelease(release);
       const memberInsert = this.db.prepare("INSERT INTO release_members VALUES (?, ?, ?)");
@@ -1353,11 +1443,7 @@ export class RuntimeStore {
         this.db.prepare("UPDATE asset_revisions SET status=? WHERE id=?").run(retained ? "released" : "deprecated", revision.id);
       }
       for (const id of input.candidateIds) this.db.prepare("UPDATE asset_candidates SET status='released',updated_at=? WHERE id=?").run(now(), id);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
     return release;
   }
 
@@ -1375,8 +1461,7 @@ export class RuntimeStore {
       id: randomUUID(), ...releaseInput, status: "current", fingerprint: fingerprint(releaseInput),
       createdBy: input.createdBy, createdAt: now(),
     };
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    this.transaction(() => {
       this.db.prepare("UPDATE asset_releases SET status='superseded' WHERE id=?").run(current.id);
       this.insertRelease(release);
       const memberInsert = this.db.prepare("INSERT INTO release_members VALUES (?, ?, ?)");
@@ -1384,11 +1469,7 @@ export class RuntimeStore {
         const revision = this.getAssetRevisionByRef(ref);
         if (revision) memberInsert.run(release.id, ref.assetId, revision.id);
       }
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
     return release;
   }
 
@@ -1449,15 +1530,10 @@ export class RuntimeStore {
     if (current && (current.createdBy !== "bootstrap" || current.assetRefs.length > 0)) return;
     const input = { scope, parentReleaseId: current?.id, rollbackOfReleaseId: undefined, candidateIds: [] as string[], assetRefs: GLOBAL_AUTHORITY_REFS };
     const release: AssetRelease = { id: randomUUID(), ...input, status: "current", fingerprint: fingerprint(input), createdBy: "bootstrap", createdAt: now() };
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
+    this.transaction(() => {
       if (current) this.db.prepare("UPDATE asset_releases SET status='superseded' WHERE id=?").run(current.id);
       this.insertRelease(release);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
+    });
   }
 
   private emptyReleaseFingerprint(scope: KnowledgeScope): string {
@@ -1515,7 +1591,7 @@ export class RuntimeStore {
   private mapTrackingProfile = (r: Record<string, unknown>): ResearchTrackingProfile => ({ conversationId: String(r.conversation_id), enabled: Boolean(r.enabled), symbols: parse<string[]>(r.symbols_json, []), keywords: parse<string[]>(r.keywords_json, []), updatedAt: String(r.updated_at) });
   private mapSignalRefreshRun = (r: Record<string, unknown>): SignalRefreshRun => ({ id: String(r.id), connectorId: String(r.connector_id), status: r.status as SignalRefreshRun["status"], conversationIds: parse<string[]>(r.conversation_ids_json, []), candidateCount: Number(r.candidate_count), error: r.error ? String(r.error) : undefined, createdAt: String(r.created_at), startedAt: r.started_at ? String(r.started_at) : undefined, completedAt: r.completed_at ? String(r.completed_at) : undefined });
   private mapSignalCandidate = (r: Record<string, unknown>): ResearchSignalCandidate => ({ id: String(r.id), connectorId: String(r.connector_id), conversationId: String(r.conversation_id), kind: r.kind as ResearchSignalCandidate["kind"], status: r.status as ResearchSignalCandidate["status"], symbol: r.symbol ? String(r.symbol) : undefined, title: String(r.title), excerpt: String(r.excerpt), publisher: String(r.publisher), sourceUri: String(r.source_uri), sourceType: r.source_type as ResearchSignalCandidate["sourceType"], publishedAt: String(r.published_at), capturedAt: String(r.captured_at), matchReason: String(r.match_reason), score: Number(r.score), fingerprint: String(r.fingerprint), promotedTaskId: r.promoted_task_id ? String(r.promoted_task_id) : undefined });
-  private mapTask = (r: Record<string, unknown>): Task => ({ id: String(r.id), conversationId: String(r.conversation_id), researchCaseId: r.research_case_id ? String(r.research_case_id) : String(r.id), parentTaskId: r.parent_task_id ? String(r.parent_task_id) : undefined, goal: String(r.goal), intent: r.intent as Task["intent"], reportSpec: normalizeReportSpec(parse(r.report_spec_json, {})), status: r.status as Task["status"], outcome: r.outcome ? r.outcome as Task["outcome"] : undefined, budget: parse(r.budget_json, { maxModelCalls: 0, maxToolCalls: 0, maxCostUsd: 0 }), createdAt: String(r.created_at), updatedAt: String(r.updated_at) });
+  private mapTask = (r: Record<string, unknown>): Task => ({ id: String(r.id), conversationId: String(r.conversation_id), researchCaseId: String(r.research_case_id), parentTaskId: r.parent_task_id ? String(r.parent_task_id) : undefined, goal: String(r.goal), intent: r.intent as Task["intent"], reportSpec: normalizeReportSpec(parse(r.report_spec_json, {})), status: r.status as Task["status"], outcome: r.outcome ? r.outcome as Task["outcome"] : undefined, budget: parse(r.budget_json, { maxModelCalls: 0, maxToolCalls: 0, maxCostUsd: 0 }), createdAt: String(r.created_at), updatedAt: String(r.updated_at) });
   private mapNode = (r: Record<string, unknown>): TaskNode => ({ id: String(r.id), taskId: String(r.task_id), kind: String(r.kind), title: String(r.title), capabilityType: r.capability_type as TaskNode["capabilityType"], capabilityId: String(r.capability_id), assignedAgent: r.assigned_agent as TaskNode["assignedAgent"], dependsOn: parse(r.depends_on_json, []), status: r.status as TaskNode["status"], budget: parse(r.budget_json, {}), inputArtifactIds: parse(r.input_artifact_ids_json, []), outputArtifactIds: parse(r.output_artifact_ids_json, []), frontierRef: parse(r.frontier_ref_json, { problemGraphId: `problem-graph:${String(r.task_id)}` }), iteration: Number(r.iteration || 0) });
   private mapProblemGraphNode = (r: Record<string, unknown>): ProblemGraphNode => ({
     id: String(r.id), graphId: String(r.graph_id), key: String(r.node_key), type: r.type as ProblemGraphNode["type"],
