@@ -1,4 +1,6 @@
-import type { Artifact, AssetRef, AssetRevision, Conversation, ResearchSignalCandidate, ResearchTrackingProfile, SignalRefreshRun, Task, TaskNode, TaskStatus } from "@/src/contracts";
+import type { Conversation, ResearchSignalCandidate, ResearchTrackingProfile, SignalRefreshRun, Task, TaskNode, TaskStatus } from "@/src/contracts";
+import type { Artifact } from "@/src/contracts/evidence";
+import type { AssetRef, AssetRevision } from "@/src/contracts/knowledge";
 import type { RuntimeStore } from "@/src/runtime/store";
 
 export interface HomeResearchItem {
@@ -178,10 +180,10 @@ const textFrom = (content: Record<string, unknown>, keys: string[]) => {
 };
 
 export function buildPublicLibraryView(store: RuntimeStore): LibraryView {
-  const release = store.getCurrentRelease({ kind: "global" });
+  const release = store.knowledge.getCurrentRelease({ kind: "global" });
   if (!release) return { releaseId: null, releaseFingerprint: null, items: [] };
   const items = release.assetRefs.flatMap<LibraryItem>((ref) => {
-    const persisted = store.getAssetRevisionByRef(ref);
+    const persisted = store.knowledge.getAssetRevisionByRef(ref);
     const revision: AssetRevision | null = persisted || (ref.authorityRef ? {
       id: `release-member:${release.id}:${ref.assetId}`,
       assetId: ref.assetId,

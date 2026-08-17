@@ -57,11 +57,11 @@ describe("connector ingestion boundary", () => {
     const stalePublishApproval = store.listPendingApprovals(conversation.id)[0];
     expect(stalePublishApproval.kind).toBe("publish_confirmation");
 
-    const first = kernel.ingestExternalSource(submitted.task.id, source("web.capture", "issuer-a.test", 1, "终端需求同比改善"));
-    expect(kernel.ingestExternalSource(submitted.task.id, source("web.capture", "issuer-a.test", 1, "终端需求同比改善")).id).toBe(first.id);
-    const second = kernel.ingestExternalSource(submitted.task.id, source("pdf.capture", "issuer-b.test", 2, "有效供给与产能利用率提升"));
+    const first = kernel.ingestion.ingestExternalSource(submitted.task.id, source("web.capture", "issuer-a.test", 1, "终端需求同比改善"));
+    expect(kernel.ingestion.ingestExternalSource(submitted.task.id, source("web.capture", "issuer-a.test", 1, "终端需求同比改善")).id).toBe(first.id);
+    const second = kernel.ingestion.ingestExternalSource(submitted.task.id, source("pdf.capture", "issuer-b.test", 2, "有效供给与产能利用率提升"));
     expect(second.id).not.toBe(first.id);
-    expect(store.getApproval(stalePublishApproval.id)?.status).toBe("rejected");
+    expect(store.getApproval(stalePublishApproval.id)?.status).toBe("superseded");
     expect(store.getTask(submitted.task.id)?.status).toBe("queued");
     expect(store.listEvents(conversation.id).filter((event) => event.type === "connector.source_ingested")).toHaveLength(2);
     expect(store.listEvents(conversation.id).filter((event) => event.type === "connector.evidence_recompute_queued")).toHaveLength(1);
@@ -85,6 +85,6 @@ describe("connector ingestion boundary", () => {
     kernel.decideApproval(store.listPendingApprovals(conversation.id)[0].id, "approved");
     kernel.executeTask(submitted.task.id);
     expect(store.getTask(submitted.task.id)?.status).toBe("completed");
-    expect(() => kernel.ingestExternalSource(submitted.task.id, source("web.capture", "issuer-a.test", 1, "新增需求信号"))).toThrow(/create an update branch/);
+    expect(() => kernel.ingestion.ingestExternalSource(submitted.task.id, source("web.capture", "issuer-a.test", 1, "新增需求信号"))).toThrow(/create an update branch/);
   });
 });

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { AGENTS, SKILLS } from "@/src/capabilities/registry";
 import { RESEARCH_NODE_CATALOG } from "@/src/runtime/node-catalog";
-import { materializeNodes, planResearch } from "@/src/runtime/planner";
+import { EARNINGS_UPDATE_INITIAL_NODE_LIMIT, materializeNodes, planFromProblemGraph, planResearch } from "@/src/runtime/planner";
 import { compilePlannerProposal, parsePlannerProposal, type PlannerProposal } from "@/src/runtime/plan-compiler";
+import { buildResearchProblemGraph } from "@/src/runtime/problem-graph";
 
 const budget = { maxModelCalls: 12, maxToolCalls: 24, maxCostUsd: 3 };
 
@@ -74,5 +75,25 @@ describe("constrained dynamic planning", () => {
   it("parses a fenced JSON proposal but rejects non-JSON model output", () => {
     expect(parsePlannerProposal('```json\n{"intent":"clarify","rationale":"x","nodes":[],"stopConditions":[]}\n```')?.intent).toBe("clarify");
     expect(parsePlannerProposal("I think the plan should be flexible.")).toBeNull();
+  });
+
+  it("compiles earnings update into a bounded contract-specific graph with a conserved budget", () => {
+    const graph = buildResearchProblemGraph({
+      taskId: "earnings-task", researchCaseId: "earnings-case", intent: "full_research", reportDepth: "standard",
+      goal: "截至 2026-08-14 对东微半导 688261 开展业绩更新与投资命题复核",
+      lensRefs: ["fundamental", "risk_first"],
+    }) as Parameters<typeof planFromProblemGraph>[0];
+    const production = planFromProblemGraph(graph, budget, "production");
+    const evaluation = planFromProblemGraph(graph, budget, "evaluation");
+    expect(production.nodes.length).toBeLessThanOrEqual(EARNINGS_UPDATE_INITIAL_NODE_LIMIT);
+    expect(evaluation.nodes.length).toBeLessThanOrEqual(EARNINGS_UPDATE_INITIAL_NODE_LIMIT);
+    expect(production.nodes.filter((node) => node.kind === "judgment")).toHaveLength(3);
+    expect(production.nodes.some((node) => node.kind === "valuation_analysis")).toBe(false);
+    expect(production.nodes.some((node) => node.kind === "independent_review")).toBe(false);
+    expect(evaluation.nodes.some((node) => node.kind === "independent_review")).toBe(true);
+    const materialized = materializeNodes("earnings-task", production, budget);
+    expect(materialized.reduce((sum, node) => sum + Number(node.budget.maxModelCalls || 0), 0)).toBeLessThanOrEqual(budget.maxModelCalls);
+    expect(materialized.reduce((sum, node) => sum + Number(node.budget.maxToolCalls || 0), 0)).toBeLessThanOrEqual(budget.maxToolCalls);
+    expect(materialized.reduce((sum, node) => sum + Number(node.budget.maxCostUsd || 0), 0)).toBeLessThanOrEqual(budget.maxCostUsd + 1e-9);
   });
 });

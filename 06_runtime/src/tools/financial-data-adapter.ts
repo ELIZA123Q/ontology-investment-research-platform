@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { EvidenceFact, PointInTimeEvidenceEnvelope, SourceSnapshot } from "@/src/contracts";
+import type { PointInTimeEvidenceEnvelope } from "@/src/contracts";
+import type { EvidenceFact, SourceSnapshot } from "@/src/contracts/evidence";
 import { adaptSourceToolResult, type AdaptedSourceResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 import type { SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 

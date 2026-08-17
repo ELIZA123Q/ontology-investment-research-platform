@@ -1,4 +1,4 @@
-import type { ActionContext, ActionPreviewRequest } from "@/src/contracts";
+import type { ActionContext, ActionPreviewRequest } from "@/src/contracts/ontology";
 
 const isRecord = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 

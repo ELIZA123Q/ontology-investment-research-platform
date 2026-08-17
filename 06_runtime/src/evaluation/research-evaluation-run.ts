@@ -1,7 +1,14 @@
 import { createHash } from "node:crypto";
-import type { ResearchEvaluationRun } from "@/src/contracts";
+import type { ResearchEvaluationRun } from "@/src/contracts/knowledge";
 import { evaluateFormalCaseEligibility, type FormalEvaluationCaseManifest } from "@/src/evaluation/formal-case-eligibility";
-import { RuntimeStore } from "@/src/runtime/store";
+
+export interface ResearchEvaluationRunStore {
+  knowledge: {
+    putResearchEvaluationRun(
+      input: Omit<ResearchEvaluationRun, "id" | "createdAt"> & { id?: string; createdAt?: string },
+    ): ResearchEvaluationRun;
+  };
+}
 
 export interface FrozenEvaluationArtifact {
   ref: string;
@@ -34,7 +41,7 @@ export function sha256(value: unknown): string {
   return `sha256:${createHash("sha256").update(canonicalJson(value), "utf8").digest("hex")}`;
 }
 
-export function prepareResearchEvaluationRun(store: RuntimeStore, input: PrepareResearchEvaluationRunInput): PreparedResearchEvaluationRun {
+export function prepareResearchEvaluationRun(store: ResearchEvaluationRunStore, input: PrepareResearchEvaluationRunInput): PreparedResearchEvaluationRun {
   const baselineTracks: Array<"direct_qa" | "evidence_summary"> = ["direct_qa", "evidence_summary"];
   const artifactTimes = [input.systemArtifact, ...input.baselines].map((item) => Date.parse(item.frozenAt));
   if (artifactTimes.some((value) => !Number.isFinite(value))) throw new Error("Evaluation artifacts require ISO frozenAt timestamps");
@@ -50,7 +57,7 @@ export function prepareResearchEvaluationRun(store: RuntimeStore, input: Prepare
     evidenceFrozenAt <= Date.parse(input.systemArtifact.frozenAt) ? "evidence precedes system artifact" : "invalid chronology: system artifact predates evidence",
     formalEligibility.status === "eligible" ? "formal eligibility attested" : `formal eligibility pending: ${formalEligibility.checks.filter((item) => !item.passed).map((item) => item.id).join(",")}`,
   ];
-  const run = store.putResearchEvaluationRun({
+  const run = store.knowledge.putResearchEvaluationRun({
     caseId: input.manifest.caseId,
     protocolVersion: input.manifest.schemaVersion,
     status: evidenceFrozenAt <= Date.parse(input.systemArtifact.frozenAt) ? "prepared" : "invalid",

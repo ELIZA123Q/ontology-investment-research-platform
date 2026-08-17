@@ -70,29 +70,29 @@ describe("runtime store", () => {
     const store = makeStore();
     const conversation = store.createConversation("测试");
     const task = store.createTask({ conversationId: conversation.id, goal: "目标", intent: "full_research", status: "queued", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-    store.enqueueTask(task.id);
-    const claimed = store.claimJob();
+    store.queue.enqueueTask(task.id);
+    const claimed = store.queue.claimJob();
     expect(claimed).not.toBeNull();
     store.db.prepare("UPDATE runtime_jobs SET locked_at='2000-01-01T00:00:00.000Z' WHERE id=?").run(claimed!.id);
-    expect(store.recoverStaleJobs()).toBe(1);
-    expect(store.claimJob()?.taskId).toBe(task.id);
+    expect(store.queue.recoverStaleJobs()).toBe(1);
+    expect(store.queue.claimJob()?.taskId).toBe(task.id);
   });
 
   it("binds job completion to the worker that owns the lease and exposes retry/dead-letter queue metrics", () => {
     const store = makeStore();
     const conversation = store.createConversation("租约");
     const task = store.createTask({ conversationId: conversation.id, goal: "目标", intent: "full_research", status: "queued", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-    store.enqueueTask(task.id);
-    const claimed = store.claimJob("worker:a")!;
-    expect(store.renewJobLease(claimed.id, "worker:a")).toBe(true);
-    expect(store.renewJobLease(claimed.id, "worker:b")).toBe(false);
-    expect(() => store.finishJob(claimed.id, "worker:b")).toThrow(/lease is not owned/);
-    store.failJob(claimed.id, "retryable", true, "worker:a");
-    expect(store.runtimeQueueStats()).toMatchObject({ queued: 1, retrying: 1, deadLetter: 0 });
+    store.queue.enqueueTask(task.id);
+    const claimed = store.queue.claimJob("worker:a")!;
+    expect(store.queue.renewJobLease(claimed.id, "worker:a")).toBe(true);
+    expect(store.queue.renewJobLease(claimed.id, "worker:b")).toBe(false);
+    expect(() => store.queue.finishJob(claimed.id, "worker:b")).toThrow(/lease is not owned/);
+    store.queue.failJob(claimed.id, "retryable", true, "worker:a");
+    expect(store.workers.queueStats()).toMatchObject({ queued: 1, retrying: 1, deadLetter: 0 });
     store.db.prepare("UPDATE runtime_jobs SET available_at='2000-01-01T00:00:00.000Z' WHERE id=?").run(claimed.id);
-    const retried = store.claimJob("worker:a")!;
-    store.failJob(retried.id, "terminal", false, "worker:a");
-    expect(store.runtimeQueueStats()).toMatchObject({ failed: 1, deadLetter: 1 });
+    const retried = store.queue.claimJob("worker:a")!;
+    store.queue.failJob(retried.id, "terminal", false, "worker:a");
+    expect(store.workers.queueStats()).toMatchObject({ failed: 1, deadLetter: 1 });
   });
 
   it("tracks node-job lease ownership and clears it during stale recovery", () => {
@@ -101,12 +101,12 @@ describe("runtime store", () => {
     const task = store.createTask({ conversationId: conversation.id, goal: "目标", intent: "full_research", status: "queued", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
     const node: TaskNode = { id: randomUUID(), taskId: task.id, kind: "semantic_context", title: "上下文", capabilityType: "function", capabilityId: "context", assignedAgent: "research-lead", dependsOn: [], budget: {}, status: "pending", inputArtifactIds: [], outputArtifactIds: [], frontierRef: { problemGraphId: "graph", compilerBoundary: "scope" }, iteration: 0 };
     store.addTaskNodes([node]);
-    store.enqueueNode(task.id, node.id);
-    const claimed = store.claimNodeJob(3, "worker:a")!;
-    expect(store.renewNodeJobLease(claimed.id, "worker:a")).toBe(true);
-    expect(() => store.finishNodeJob(claimed.id, "worker:b")).toThrow(/lease is not owned/);
+    store.queue.enqueueNode(task.id, node.id);
+    const claimed = store.queue.claimNodeJob(3, "worker:a")!;
+    expect(store.queue.renewNodeJobLease(claimed.id, "worker:a")).toBe(true);
+    expect(() => store.queue.finishNodeJob(claimed.id, "worker:b")).toThrow(/lease is not owned/);
     store.db.prepare("UPDATE node_jobs SET locked_at='2000-01-01T00:00:00.000Z' WHERE id=?").run(claimed.id);
-    expect(store.recoverStaleNodeJobs()).toBe(1);
+    expect(store.queue.recoverStaleNodeJobs()).toBe(1);
     expect(store.db.prepare("SELECT leased_by FROM node_jobs WHERE id=?").get(claimed.id)).toMatchObject({ leased_by: null });
   });
 
@@ -115,7 +115,7 @@ describe("runtime store", () => {
     try {
       const store = new RuntimeStore(join(directory, "runtime.sqlite"));
       stores.push(store);
-      expect(store.getCurrentRelease({ kind: "global" })?.createdBy).toBe("bootstrap");
+      expect(store.knowledge.getCurrentRelease({ kind: "global" })?.createdBy).toBe("bootstrap");
     } finally {
       stores.pop()?.close();
       rmSync(directory, { recursive: true, force: true });

@@ -1,13 +1,12 @@
-import { getRuntimeStore } from "@/src/runtime/store";
-import { ResearchCaseService } from "@/src/runtime-v2/research-case-service";
+import { getWorkbenchApplication } from "@/src/application/workbench-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
-  const store = getRuntimeStore();
-  const researchCase = new ResearchCaseService(store).get(id);
+  const application = getWorkbenchApplication();
+  const researchCase = application.getResearchCase(id);
   if (!researchCase) return Response.json({ error: "ResearchCase not found" }, { status: 404 });
   const url = new URL(request.url);
   let cursor = Math.max(Number(url.searchParams.get("after") || 0), Number(request.headers.get("last-event-id") || 0));
@@ -17,7 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const stream = new ReadableStream({
     start(controller) {
       const push = () => {
-        const events = store.listEvents(researchCase.conversationId, cursor, 200);
+        const events = application.listResearchCaseEvents(id, cursor, 200) || [];
         for (const event of events) {
           cursor = event.sequence;
           controller.enqueue(encoder.encode(`id: ${event.sequence}\nevent: message\ndata: ${JSON.stringify(event)}\n\n`));

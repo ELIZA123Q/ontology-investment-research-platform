@@ -28,8 +28,8 @@ try {
   const kernel = new AgentKernel(store);
   const conversation = store.createConversation("真实 MCP 摄取验收");
   const submitted = kernel.submitGoal(conversation.id, "核验半导体行业景气度变化，只形成证据候选，不直接形成投资结论");
-  const artifact = kernel.ingestFinancialData(submitted.task.id, mapHtscIndustrySentimentReceipt(receipt));
-  const providerResponseRef = store.getConnectorResponseBlobMetadata(receipt.responseFingerprint);
+  const artifact = kernel.ingestion.ingestFinancialData(submitted.task.id, mapHtscIndustrySentimentReceipt(receipt));
+  const providerResponseRef = store.connectorResponses.get(receipt.responseFingerprint);
   const data = artifact.data as { facts: Array<{ id: string; statement: string; metric: { value: number; unit: string } }> };
   process.stdout.write(`${JSON.stringify({
     source: "华泰智研MCP数据服务",

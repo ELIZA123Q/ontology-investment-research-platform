@@ -1,4 +1,4 @@
-import type { OntologyLink, OntologyObjectRef } from "@/src/contracts";
+import type { OntologyLink, OntologyObjectRef } from "@/src/contracts/ontology";
 import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
 import type { OntologyStore } from "@/src/ontology/store";
 

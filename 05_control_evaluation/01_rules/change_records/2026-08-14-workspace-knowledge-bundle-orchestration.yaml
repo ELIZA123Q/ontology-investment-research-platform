@@ -1,0 +1,19 @@
+id: CR-2026-08-14-workspace-knowledge-bundle-orchestration
+date: 2026-08-14
+summary: 将 Runtime 建立为有向依赖的 Workspace 模块单体，把 01-05 编译为按 Run 锁定的不可变知识包，并以业绩更新冻结案例验证受约束主管-worker编排和审批后知识晋级。
+classifications: [reusable_deterministic_constraint, execution_mechanics, evaluation_knowledge]
+authority_refs:
+  - DOMAIN_AUTHORITY.md
+  - 02_scenario_task/03_tasks/earnings_update.yaml
+  - 03_agent_capability/01_agents/registry.yaml
+  - 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+execution_refs:
+  - 06_runtime/packages/domain/src/index.ts
+  - 06_runtime/packages/orchestrator/src/index.ts
+  - 06_runtime/packages/knowledge/src/index.ts
+  - 06_runtime/src/application/workbench-service.ts
+verification_refs:
+  - 06_runtime/tests/workspace-architecture.test.ts
+  - 06_runtime/tests/knowledge-bundle-integration.test.ts
+  - 06_runtime/tests/orchestrated-earnings-golden.test.ts
+  - 06_runtime/scripts/run-orchestrated-earnings-update.ts

@@ -1,5 +1,6 @@
 import { ONTOLOGY_CATALOG } from "@/src/ontology/generated";
-import type { OntologyActorType, OntologyObjectRef } from "@/src/contracts";
+import type { OntologyActorType } from "@/src/contracts";
+import type { OntologyObjectRef } from "@/src/contracts/ontology";
 
 export interface OntologyObjectTypeDefinition {
   id: string;

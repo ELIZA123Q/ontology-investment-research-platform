@@ -18,7 +18,7 @@ const setup = () => {
   }, { actorType: "researcher", actorId: "researcher", conversationId: conversation.id });
   const researchCase = created.objects.find((object) => object.type === "ResearchCase")!;
   const task = store.createTask({ conversationId: conversation.id, researchCaseId: researchCase.id, goal: "判断未来六个月需求", intent: "full_research", status: "running", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-  store.createKnowledgeLock(task.id);
+  store.knowledge.createKnowledgeLock(task.id);
   const planApproval = store.createApproval({ conversationId: conversation.id, taskId: task.id, kind: "plan_confirmation", prompt: "确认研究问题" });
   store.decideApproval(planApproval.id, "approved");
   const questionResult = actions.apply("CreateResearchQuestion", {

@@ -14,10 +14,10 @@ describe("single-agent vertical slice", () => {
     expect(submitted.task.status).toBe("waiting_approval");
     expect(submitted.approval?.status).toBe("pending");
     kernel.decideApproval(submitted.approval!.id, "approved");
-    const job = store.claimJob();
+    const job = store.queue.claimJob();
     expect(job?.taskId).toBe(submitted.task.id);
     const settled = kernel.executeTask(submitted.task.id);
-    store.finishJob(job!.id);
+    store.queue.finishJob(job!.id);
     expect(settled.status).toBe("waiting_approval");
     const publishApproval = store.listPendingApprovals(conversation.id)[0];
     expect(publishApproval.kind).toBe("publish_confirmation");

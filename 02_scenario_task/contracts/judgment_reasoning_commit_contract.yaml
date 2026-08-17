@@ -34,6 +34,7 @@ proposal_boundary:
     - 绕过研究员修改、保存和 judgment_confirmation
 
 signal_roles:
+  values: [support, weaken, block, context]
   support: 直接增加当前 Hypothesis 成立的证据权重
   weaken: 降低成立强度但不足以否决
   context: 提供范围或解释背景，不计入支持门槛

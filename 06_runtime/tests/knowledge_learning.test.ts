@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { AssetKind, KnowledgeMiner, KnowledgeScope, Task } from "@/src/contracts";
+import type { Task } from "@/src/contracts";
+import type { AssetKind, KnowledgeMiner, KnowledgeScope } from "@/src/contracts/knowledge";
 import { KnowledgeLearningService } from "@/src/knowledge/service";
 import { AgentKernel } from "@/src/runtime/kernel";
 import { RuntimeStore } from "@/src/runtime/store";
@@ -11,20 +12,20 @@ afterEach(() => { while (stores.length) stores.pop()?.close(); });
 function terminalTask(store: RuntimeStore, tenantId = "tenant-a", userId = "user-a", intent: Task["intent"] = "full_research", goal = "研究先进封装") {
   const conversation = store.createConversation(goal, { tenantId, userId });
   const task = store.createTask({ conversationId: conversation.id, goal, intent, status: "completed", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-  store.createKnowledgeLock(task.id);
+  store.knowledge.createKnowledgeLock(task.id);
   return { conversation, task };
 }
 
 function manualCandidate(store: RuntimeStore, task: Task, scope: KnowledgeScope, kind: AssetKind, identityKey: string, content: Record<string, unknown>, riskLevel: 0 | 1 | 2 | 3, validity: { validFrom?: string; validTo?: string } = {}) {
-  const mining = store.createMiningRun(task.id, "test/1");
-  const revision = store.putAssetRevision({ assetId: `asset:${store.scopeKey(scope)}:${kind}:${identityKey}`, kind, scope, status: "candidate", content: { ...content, identityKey }, provenanceRefs: [`task:${task.id}`], supersedes: [], ...validity });
-  const candidate = store.putCandidate({
+  const mining = store.knowledge.createMiningRun(task.id, "test/1");
+  const revision = store.knowledge.putAssetRevision({ assetId: `asset:${store.knowledge.scopeKey(scope)}:${kind}:${identityKey}`, kind, scope, status: "candidate", content: { ...content, identityKey }, provenanceRefs: [`task:${task.id}`], supersedes: [], ...validity });
+  const candidate = store.knowledge.putCandidate({
     miningRunId: mining.id, taskId: task.id, scope, assetKind: kind, operation: "add", identityKey,
     proposedRevisionId: revision.id, provenanceRefs: [`task:${task.id}`],
-    runBaselineFingerprint: store.getKnowledgeLock(task.id)!.fingerprint,
-    currentBaselineFingerprint: store.currentBaselineFingerprint(scope), riskLevel, confidence: 0.9, novelty: 1, conflicts: [], status: "proposed",
+    runBaselineFingerprint: store.knowledge.getKnowledgeLock(task.id)!.fingerprint,
+    currentBaselineFingerprint: store.knowledge.currentBaselineFingerprint(scope), riskLevel, confidence: 0.9, novelty: 1, conflicts: [], status: "proposed",
   });
-  store.putCandidateOccurrence({ candidateId: candidate.id, taskId: task.id });
+  store.knowledge.putCandidateOccurrence({ candidateId: candidate.id, taskId: task.id });
   return candidate;
 }
 
@@ -34,15 +35,15 @@ describe("knowledge learning loop", () => {
     const first = terminalTask(store, "tenant-a", "u1");
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const candidate = manualCandidate(store, first.task, scope, "failure_pattern", "failure:coverage", { reason: "coverage" }, 1);
-    store.updateCandidate(candidate.id, { status: "approved", evaluationSummary: { passed: true, scoreDelta: 0.05, severeRegressions: 0, metrics: {} } });
-    const release = store.publishRelease({ scope, candidateIds: [candidate.id], createdBy: "tester" });
+    store.knowledge.updateCandidate(candidate.id, { status: "approved", evaluationSummary: { passed: true, scoreDelta: 0.05, severeRegressions: 0, metrics: {} } });
+    const release = store.knowledge.publishRelease({ scope, candidateIds: [candidate.id], createdBy: "tester" });
 
     const a = terminalTask(store, "tenant-a", "u2", "full_research", "A 后续任务");
     const b = terminalTask(store, "tenant-b", "u2", "full_research", "B 后续任务");
-    expect(store.getKnowledgeLock(a.task.id)?.tenantReleaseId).toBe(release.id);
-    expect(store.getKnowledgeLock(a.task.id)?.assetRefs.some((ref) => ref.assetId.includes("failure:coverage"))).toBe(true);
-    expect(store.getKnowledgeLock(b.task.id)?.assetRefs.some((ref) => ref.assetId.includes("failure:coverage"))).toBe(false);
-    expect(store.getKnowledgeLock(a.task.id)?.assetRefs.filter((ref) => ref.authorityRef?.endsWith("registry.yaml"))).toHaveLength(5);
+    expect(store.knowledge.getKnowledgeLock(a.task.id)?.tenantReleaseId).toBe(release.id);
+    expect(store.knowledge.getKnowledgeLock(a.task.id)?.assetRefs.some((ref) => ref.assetId.includes("failure:coverage"))).toBe(true);
+    expect(store.knowledge.getKnowledgeLock(b.task.id)?.assetRefs.some((ref) => ref.assetId.includes("failure:coverage"))).toBe(false);
+    expect(store.knowledge.getKnowledgeLock(a.task.id)?.assetRefs.filter((ref) => ref.authorityRef?.endsWith("registry.yaml"))).toHaveLength(5);
   });
 
   it("applies global, tenant, then user overlay precedence by stable identity", () => {
@@ -54,29 +55,35 @@ describe("knowledge learning loop", () => {
       [{ kind: "user", tenantId: "tenant-a", userId: "u1" } as KnowledgeScope, "user", terminalTask(store, "tenant-a", "u1", "full_research", "user proposal").task],
     ] as const) {
       const candidate = manualCandidate(store, task, scope, "failure_pattern", identity, { value }, 1);
-      store.updateCandidate(candidate.id, { status: "approved" });
-      store.publishRelease({ scope, candidateIds: [candidate.id], createdBy: "tester" });
+      store.knowledge.updateCandidate(candidate.id, { status: "approved" });
+      store.knowledge.publishRelease({ scope, candidateIds: [candidate.id], createdBy: "tester" });
     }
     const next = terminalTask(store, "tenant-a", "u1", "full_research", "优先级检查");
-    const selected = store.getKnowledgeLock(next.task.id)!.assetRefs.filter((ref) => ref.identityKey === identity);
+    const selected = store.knowledge.getKnowledgeLock(next.task.id)!.assetRefs.filter((ref) => ref.identityKey === identity);
     expect(selected).toHaveLength(1);
     expect(selected[0].scope).toEqual({ kind: "user", tenantId: "tenant-a", userId: "u1" });
   });
 
-  it("mines five asset streams deterministically and auto-releases only L1 memory", () => {
+  it("mines five asset streams deterministically without silently releasing formal knowledge", () => {
     const store = makeStore();
     const { task, conversation } = terminalTask(store);
     store.putArtifact({ conversationId: conversation.id, taskId: task.id, kind: "research_plan", title: "研究方法", status: "verified", data: { method: "证据三角验证", exitCondition: "不足则停止", variables: [{ ontology_node_id: "task_local:demand", name: "先进封装需求", category: "state", variable_kind: "level" }] }, sourceRefs: [], createdBy: "research-lead" });
     store.putArtifact({ conversationId: conversation.id, taskId: task.id, kind: "evidence_package", title: "证据评估", status: "verified", data: { facts: [], sufficient: false, stopReason: "缺少可核验一手来源" }, sourceRefs: [], createdBy: "research-lead" });
     const run = new KnowledgeLearningService(store).runMining(task.id);
     expect(run?.status).toBe("completed");
-    const candidates = store.listCandidates({ taskId: task.id });
+    const candidates = store.knowledge.listCandidates({ taskId: task.id });
     expect(new Set(candidates.map((item) => item.assetKind))).toEqual(new Set(["ontology", "method", "failure_pattern", "eval_case", "topic_index"]));
-    expect(candidates.find((item) => item.assetKind === "topic_index")?.status).toBe("released");
-    expect(candidates.filter((item) => item.riskLevel >= 2).every((item) => item.status === "proposed")).toBe(true);
+    const topic = candidates.find((item) => item.assetKind === "topic_index")!;
+    expect(topic.status).toBe("proposed");
+    expect(candidates.every((item) => item.status === "proposed")).toBe(true);
+    expect(store.listMemory(conversation.id).some((item) => item.kind === "topic_index")).toBe(false);
+    const service = new KnowledgeLearningService(store);
+    expect(() => service.decideCandidate({ candidateId: topic.id, decision: "approved", reviewer: "张三", reviewerRole: "method_owner", note: "低风险索引仍需治理审批" })).toThrow(/role/);
+    expect(service.decideCandidate({ candidateId: topic.id, decision: "approved", reviewer: "治理员", reviewerRole: "governance_owner", note: "确认作用域和来源后批准索引" }).status).toBe("approved");
+    service.publishCandidates([topic.id], "治理员");
     expect(store.listMemory(conversation.id).some((item) => item.kind === "topic_index")).toBe(true);
     const next = terminalTask(store, "tenant-a", "user-a", "full_research", "后续任务");
-    expect(store.getKnowledgeLock(next.task.id)?.userReleaseId).toBe(store.getCurrentRelease({ kind: "user", tenantId: "tenant-a", userId: "user-a" })?.id);
+    expect(store.knowledge.getKnowledgeLock(next.task.id)?.userReleaseId).toBe(store.knowledge.getCurrentRelease({ kind: "user", tenantId: "tenant-a", userId: "user-a" })?.id);
   });
 
   it("enforces replay thresholds and role-based approval before release", () => {
@@ -86,8 +93,8 @@ describe("knowledge learning loop", () => {
     const third = terminalTask(store, "tenant-a", "u1", "full_research", "任务三");
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const candidate = manualCandidate(store, first.task, scope, "method", "method:triangulation", { name: "证据三角验证", evaluationScoreDelta: 0.06 }, 2);
-    store.putCandidateOccurrence({ candidateId: candidate.id, taskId: second.task.id });
-    store.putCandidateOccurrence({ candidateId: candidate.id, taskId: third.task.id });
+    store.knowledge.putCandidateOccurrence({ candidateId: candidate.id, taskId: second.task.id });
+    store.knowledge.putCandidateOccurrence({ candidateId: candidate.id, taskId: third.task.id });
     const service = new KnowledgeLearningService(store);
     const evaluated = service.evaluateCandidate(candidate.id);
     expect(evaluated.evaluationSummary).toMatchObject({ passed: true, scoreDelta: 0.06, severeRegressions: 0 });
@@ -96,7 +103,7 @@ describe("knowledge learning loop", () => {
     expect(approved.status).toBe("approved");
     const release = service.publishCandidates([candidate.id], "李四");
     expect(release.status).toBe("current");
-    expect(store.getCandidate(candidate.id)?.status).toBe("released");
+    expect(store.knowledge.getCandidate(candidate.id)?.status).toBe("released");
   });
 
   it("requires multi-role approval for L3 ontology changes", () => {
@@ -105,7 +112,7 @@ describe("knowledge learning loop", () => {
     const second = terminalTask(store, "tenant-a", "u1", "update_judgment", "任务二");
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const candidate = manualCandidate(store, first.task, scope, "ontology", "ontology:demand", { name: "先进封装需求", compatibilityCheckPassed: true, impactReplayPassed: true }, 3);
-    store.putCandidateOccurrence({ candidateId: candidate.id, taskId: second.task.id });
+    store.knowledge.putCandidateOccurrence({ candidateId: candidate.id, taskId: second.task.id });
     const service = new KnowledgeLearningService(store);
     expect(service.evaluateCandidate(candidate.id).evaluationSummary?.passed).toBe(true);
     expect(service.decideCandidate({ candidateId: candidate.id, decision: "approved", reviewer: "A", reviewerRole: "ontology_steward", note: "语义定义和边界检查通过" }).status).toBe("review_required");
@@ -128,7 +135,7 @@ describe("knowledge learning loop", () => {
       failureStates: ["insufficient_evidence"], version: "1.0.0", costBudget: 0.5, latencyBudgetMs: 10_000,
       evaluationScoreDelta: 0.06, severeRegressions: 0,
     }, 3);
-    for (const task of tasks.slice(1)) store.putCandidateOccurrence({ candidateId: candidate.id, taskId: task.id });
+    for (const task of tasks.slice(1)) store.knowledge.putCandidateOccurrence({ candidateId: candidate.id, taskId: task.id });
     const service = new KnowledgeLearningService(store);
     const evaluated = service.evaluateCandidate(candidate.id);
     expect(evaluated.evaluationSummary).toMatchObject({ passed: true, scoreDelta: 0.06, severeRegressions: 0 });
@@ -143,10 +150,10 @@ describe("knowledge learning loop", () => {
     const conversation = store.createConversation("后续使用 Skill", { tenantId: "tenant-a", userId: "u1" });
     const submitted = kernel.submitGoal(conversation.id, "评估新政策证据并输出判断");
     kernel.decideApproval(submitted.approval!.id, "approved");
-    const job = store.claimJob()!;
+    const job = store.queue.claimJob()!;
     kernel.executeTask(submitted.task.id);
-    store.finishJob(job.id);
-    expect(store.listUsage(submitted.task.id).some((item) => item.assetRef.identityKey === "skill:evidence-evaluation" && item.outcome === "used")).toBe(true);
+    store.queue.finishJob(job.id);
+    expect(store.knowledge.listUsage(submitted.task.id).some((item) => item.assetRef.identityKey === "skill:evidence-evaluation" && item.outcome === "used")).toBe(true);
   });
 
   it("requires applicability and one primary or two independent secondary sources for temporal facts", () => {
@@ -168,18 +175,18 @@ describe("knowledge learning loop", () => {
     const first = terminalTask(store, "tenant-a", "u1");
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const initial = manualCandidate(store, first.task, scope, "temporal_fact", "fact:policy", { identityKey: "fact:policy", subjectRef: "policy", predicate: "status", value: "draft", recordedAt: "2026-01-01", sourceRefs: ["s1"] }, 1);
-    store.updateCandidate(initial.id, { status: "approved" });
-    store.publishRelease({ scope, candidateIds: [initial.id], createdBy: "tester" });
-    const oldRevision = store.getAssetRevision(initial.proposedRevisionId)!;
+    store.knowledge.updateCandidate(initial.id, { status: "approved" });
+    store.knowledge.publishRelease({ scope, candidateIds: [initial.id], createdBy: "tester" });
+    const oldRevision = store.knowledge.getAssetRevision(initial.proposedRevisionId)!;
 
     const second = terminalTask(store, "tenant-a", "u1", "update_judgment", "政策生效更新");
-    const mining = store.createMiningRun(second.task.id, "test/1");
-    const target = store.getReleasedAssetByIdentity("fact:policy", "temporal_fact", scope)!;
-    const revision = store.putAssetRevision({ assetId: target.assetId, kind: "temporal_fact", scope, status: "candidate", content: { identityKey: "fact:policy", subjectRef: "policy", predicate: "status", value: "effective", recordedAt: "2026-02-01", sourceRefs: ["s2"] }, provenanceRefs: [`task:${second.task.id}`], supersedes: [oldRevision.id] });
-    const update = store.putCandidate({ miningRunId: mining.id, taskId: second.task.id, scope, assetKind: "temporal_fact", operation: "modify", identityKey: "fact:policy", targetAssetRef: target, proposedRevisionId: revision.id, provenanceRefs: [`task:${second.task.id}`], runBaselineFingerprint: store.getKnowledgeLock(second.task.id)!.fingerprint, currentBaselineFingerprint: store.currentBaselineFingerprint(scope), riskLevel: 1, confidence: 0.9, novelty: 0.5, conflicts: [], status: "proposed" });
-    store.updateCandidate(update.id, { status: "approved" });
-    store.publishRelease({ scope, candidateIds: [update.id], createdBy: "tester" });
-    const lineage = store.assetLineage(target.assetId);
+    const mining = store.knowledge.createMiningRun(second.task.id, "test/1");
+    const target = store.knowledge.getReleasedAssetByIdentity("fact:policy", "temporal_fact", scope)!;
+    const revision = store.knowledge.putAssetRevision({ assetId: target.assetId, kind: "temporal_fact", scope, status: "candidate", content: { identityKey: "fact:policy", subjectRef: "policy", predicate: "status", value: "effective", recordedAt: "2026-02-01", sourceRefs: ["s2"] }, provenanceRefs: [`task:${second.task.id}`], supersedes: [oldRevision.id] });
+    const update = store.knowledge.putCandidate({ miningRunId: mining.id, taskId: second.task.id, scope, assetKind: "temporal_fact", operation: "modify", identityKey: "fact:policy", targetAssetRef: target, proposedRevisionId: revision.id, provenanceRefs: [`task:${second.task.id}`], runBaselineFingerprint: store.knowledge.getKnowledgeLock(second.task.id)!.fingerprint, currentBaselineFingerprint: store.knowledge.currentBaselineFingerprint(scope), riskLevel: 1, confidence: 0.9, novelty: 0.5, conflicts: [], status: "proposed" });
+    store.knowledge.updateCandidate(update.id, { status: "approved" });
+    store.knowledge.publishRelease({ scope, candidateIds: [update.id], createdBy: "tester" });
+    const lineage = store.knowledge.assetLineage(target.assetId);
     expect(lineage.revisions).toHaveLength(2);
     expect(lineage.revisions[0]).toMatchObject({ status: "deprecated" });
     expect(lineage.revisions[0].validTo).toBeTruthy();
@@ -194,17 +201,17 @@ describe("knowledge learning loop", () => {
       subjectRef: "policy", predicate: "status", value: "effective", recordedAt: "2025-01-01",
       applicabilityScope: "CN", sourceRefs: ["s1"], sourceQualifications: [{ sourceId: "s1", sourceType: "primary", publisherId: "gov" }],
     }, 1, { validFrom: "2025-01-01T00:00:00.000Z", validTo: "2025-06-01T00:00:00.000Z" });
-    store.updateCandidate(candidate.id, { status: "approved" });
-    store.publishRelease({ scope, candidateIds: [candidate.id], createdBy: "tester" });
+    store.knowledge.updateCandidate(candidate.id, { status: "approved" });
+    store.knowledge.publishRelease({ scope, candidateIds: [candidate.id], createdBy: "tester" });
 
     const conversation = store.createConversation("时态回放", { tenantId: "tenant-a", userId: "u1" });
     const historical = store.createTask({ conversationId: conversation.id, goal: "historical", intent: "full_research", status: "completed", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-    const historicalLock = store.createKnowledgeLock(historical.id, "2025-03-01T00:00:00.000Z");
+    const historicalLock = store.knowledge.createKnowledgeLock(historical.id, "2025-03-01T00:00:00.000Z");
     expect(historicalLock.assetRefs.some((ref) => ref.identityKey === "fact:bounded")).toBe(true);
     const current = store.createTask({ conversationId: conversation.id, goal: "current", intent: "full_research", status: "completed", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-    const currentLock = store.createKnowledgeLock(current.id, "2025-07-01T00:00:00.000Z");
+    const currentLock = store.knowledge.createKnowledgeLock(current.id, "2025-07-01T00:00:00.000Z");
     expect(currentLock.assetRefs.some((ref) => ref.identityKey === "fact:bounded")).toBe(false);
-    expect(store.getCurrentRelease(scope)?.assetRefs.some((ref) => ref.identityKey === "fact:bounded")).toBe(true);
+    expect(store.knowledge.getCurrentRelease(scope)?.assetRefs.some((ref) => ref.identityKey === "fact:bounded")).toBe(true);
   });
 
   it("rolls back by creating a new immutable release linked to the old baseline", () => {
@@ -212,19 +219,19 @@ describe("knowledge learning loop", () => {
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const firstTask = terminalTask(store, "tenant-a", "u1", "full_research", "初始基线").task;
     const first = manualCandidate(store, firstTask, scope, "failure_pattern", "failure:rollback", { value: "v1" }, 1);
-    store.updateCandidate(first.id, { status: "approved" });
-    const releaseOne = store.publishRelease({ scope, candidateIds: [first.id], createdBy: "tester" });
+    store.knowledge.updateCandidate(first.id, { status: "approved" });
+    const releaseOne = store.knowledge.publishRelease({ scope, candidateIds: [first.id], createdBy: "tester" });
     const secondTask = terminalTask(store, "tenant-a", "u1", "update_judgment", "更新基线").task;
     const second = manualCandidate(store, secondTask, scope, "failure_pattern", "failure:rollback", { value: "v2" }, 1);
-    store.updateCandidate(second.id, { status: "approved" });
-    const releaseTwo = store.publishRelease({ scope, candidateIds: [second.id], createdBy: "tester" });
+    store.knowledge.updateCandidate(second.id, { status: "approved" });
+    const releaseTwo = store.knowledge.publishRelease({ scope, candidateIds: [second.id], createdBy: "tester" });
 
-    const rollback = store.rollbackRelease({ releaseId: releaseOne.id, createdBy: "governance_owner" });
+    const rollback = store.knowledge.rollbackRelease({ releaseId: releaseOne.id, createdBy: "governance_owner" });
     expect(rollback).toMatchObject({ status: "current", parentReleaseId: releaseTwo.id, rollbackOfReleaseId: releaseOne.id });
     expect(rollback.id).not.toBe(releaseOne.id);
     expect(rollback.assetRefs).toEqual(releaseOne.assetRefs);
-    expect(store.getRelease(releaseOne.id)?.status).toBe("superseded");
-    expect(store.getRelease(releaseTwo.id)?.status).toBe("superseded");
+    expect(store.knowledge.getRelease(releaseOne.id)?.status).toBe("superseded");
+    expect(store.knowledge.getRelease(releaseTwo.id)?.status).toBe("superseded");
   });
 
   it("blocks stale concurrent proposals until conflicts are resolved", () => {
@@ -234,10 +241,10 @@ describe("knowledge learning loop", () => {
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const one = manualCandidate(store, first.task, scope, "failure_pattern", "failure:same", { reason: "v1" }, 1);
     const two = manualCandidate(store, second.task, scope, "failure_pattern", "failure:same", { reason: "v2" }, 2);
-    store.updateCandidate(one.id, { status: "approved", evaluationSummary: { passed: true, scoreDelta: 0.05, severeRegressions: 0, metrics: {} } });
-    store.publishRelease({ scope, candidateIds: [one.id], createdBy: "tester" });
+    store.knowledge.updateCandidate(one.id, { status: "approved", evaluationSummary: { passed: true, scoreDelta: 0.05, severeRegressions: 0, metrics: {} } });
+    store.knowledge.publishRelease({ scope, candidateIds: [one.id], createdBy: "tester" });
     expect(() => new KnowledgeLearningService(store).evaluateCandidate(two.id)).toThrow(/conflicts/);
-    expect(store.getCandidate(two.id)?.conflicts.length).toBeGreaterThan(0);
+    expect(store.knowledge.getCandidate(two.id)?.conflicts.length).toBeGreaterThan(0);
   });
 
   it("keeps delivery terminal state when background mining fails", () => {
@@ -246,7 +253,7 @@ describe("knowledge learning loop", () => {
     const failingMiner: KnowledgeMiner = { id: "failing", version: "1", mine: () => { throw new Error("extractor unavailable"); } };
     expect(() => new KnowledgeLearningService(store, [failingMiner]).runMining(task.id)).toThrow("extractor unavailable");
     expect(store.getTask(task.id)?.status).toBe("completed");
-    expect(store.getMiningRunByTask(task.id)?.status).toBe("failed");
+    expect(store.knowledge.getMiningRunByTask(task.id)?.status).toBe("failed");
   });
 
   it("keeps mining observations, queued jobs, and publish retries idempotent", () => {
@@ -255,20 +262,20 @@ describe("knowledge learning loop", () => {
     store.putArtifact({ conversationId: conversation.id, taskId: task.id, kind: "evidence_package", title: "证据评估", status: "verified", data: { facts: [], sufficient: false, stopReason: "重复证据缺口" }, sourceRefs: [], createdBy: "research-lead" });
     const service = new KnowledgeLearningService(store);
     const firstRun = service.runMining(task.id)!;
-    const firstCandidates = store.listCandidates({ taskId: task.id });
+    const firstCandidates = store.knowledge.listCandidates({ taskId: task.id });
     const secondRun = service.runMining(task.id)!;
     expect(secondRun.id).toBe(firstRun.id);
-    expect(store.listCandidates({ taskId: task.id })).toHaveLength(firstCandidates.length);
-    for (const candidate of firstCandidates) expect(store.listCandidateOccurrences(candidate.id)).toHaveLength(1);
+    expect(store.knowledge.listCandidates({ taskId: task.id })).toHaveLength(firstCandidates.length);
+    for (const candidate of firstCandidates) expect(store.knowledge.listCandidateOccurrences(candidate.id)).toHaveLength(1);
 
-    const firstJob = store.enqueueTask(task.id, "rebuild_knowledge_index");
-    expect(store.enqueueTask(task.id, "rebuild_knowledge_index")).toBe(firstJob);
+    const firstJob = store.queue.enqueueTask(task.id, "rebuild_knowledge_index");
+    expect(store.queue.enqueueTask(task.id, "rebuild_knowledge_index")).toBe(firstJob);
     const publishable = manualCandidate(store, task, { kind: "tenant", tenantId: "tenant-a" }, "failure_pattern", "failure:idempotent-release", { reason: "same" }, 1);
-    store.updateCandidate(publishable.id, { status: "approved" });
+    store.knowledge.updateCandidate(publishable.id, { status: "approved" });
     expect(service.publishApprovedForTask(task.id)).toHaveLength(1);
-    const current = store.getCurrentRelease({ kind: "tenant", tenantId: "tenant-a" })!.id;
+    const current = store.knowledge.getCurrentRelease({ kind: "tenant", tenantId: "tenant-a" })!.id;
     expect(service.publishApprovedForTask(task.id)).toHaveLength(0);
-    expect(store.getCurrentRelease({ kind: "tenant", tenantId: "tenant-a" })?.id).toBe(current);
+    expect(store.knowledge.getCurrentRelease({ kind: "tenant", tenantId: "tenant-a" })?.id).toBe(current);
   });
 
   it("rejects illegal candidate lifecycle transitions", () => {
@@ -276,7 +283,7 @@ describe("knowledge learning loop", () => {
     const { task } = terminalTask(store);
     const scope: KnowledgeScope = { kind: "tenant", tenantId: "tenant-a" };
     const candidate = manualCandidate(store, task, scope, "method", "method:illegal", { name: "方法" }, 2);
-    expect(() => store.updateCandidate(candidate.id, { status: "released" })).toThrow(/Illegal candidate transition/);
+    expect(() => store.knowledge.updateCandidate(candidate.id, { status: "released" })).toThrow(/Illegal candidate transition/);
   });
 
   it("queues mining automatically after the research task settles", () => {
@@ -285,31 +292,31 @@ describe("knowledge learning loop", () => {
     const conversation = store.createConversation("先进封装", { tenantId: "tenant-a", userId: "u1" });
     const submitted = kernel.submitGoal(conversation.id, "研究先进封装需求并输出判断");
     kernel.decideApproval(submitted.approval!.id, "approved");
-    const job = store.claimJob()!;
+    const job = store.queue.claimJob()!;
     kernel.executeTask(submitted.task.id);
-    store.finishJob(job.id);
+    store.queue.finishJob(job.id);
     const publishApproval = store.listPendingApprovals(conversation.id)[0];
     expect(publishApproval.kind).toBe("publish_confirmation");
     kernel.decideApproval(publishApproval.id, "approved");
-    const completionJob = store.claimJob()!;
+    const completionJob = store.queue.claimJob()!;
     kernel.executeTask(submitted.task.id);
-    store.finishJob(completionJob.id);
-    const miningJob = store.claimJob();
+    store.queue.finishJob(completionJob.id);
+    const miningJob = store.queue.claimJob();
     expect(miningJob).toMatchObject({ taskId: submitted.task.id, kind: "mine_assets" });
-    expect(store.getMiningRunByTask(submitted.task.id)?.status).toBe("queued");
+    expect(store.knowledge.getMiningRunByTask(submitted.task.id)?.status).toBe("queued");
     const contextPackage = store.getContextPackage(submitted.task.id);
     expect(contextPackage).toMatchObject({
       taskId: submitted.task.id,
-      knowledgeLockId: store.getKnowledgeLock(submitted.task.id)?.id,
-      releaseIds: { global: store.getKnowledgeLock(submitted.task.id)?.globalReleaseId },
+      knowledgeLockId: store.knowledge.getKnowledgeLock(submitted.task.id)?.id,
+      releaseIds: { global: store.knowledge.getKnowledgeLock(submitted.task.id)?.globalReleaseId },
     });
     expect(contextPackage?.references.every((ref) => ref.reason && ref.version != null)).toBe(true);
-    expect(contextPackage?.references.filter((ref) => ref.assetRef)).toHaveLength(store.getKnowledgeLock(submitted.task.id)!.assetRefs.length);
+    expect(contextPackage?.references.filter((ref) => ref.assetRef)).toHaveLength(store.knowledge.getKnowledgeLock(submitted.task.id)!.assetRefs.length);
 
     const selected = contextPackage!.references.find((ref) => ref.assetRef)!.assetRef!;
-    const helpful = store.observeAssetUsage({ taskId: submitted.task.id, assetRef: selected, outcome: "helpful", selectedReason: "冻结 Replay 显示该资产减少了证据返工" });
-    expect(store.observeAssetUsage({ taskId: submitted.task.id, assetRef: selected, outcome: "helpful", selectedReason: "冻结 Replay 显示该资产减少了证据返工" }).id).toBe(helpful.id);
+    const helpful = store.knowledge.observeAssetUsage({ taskId: submitted.task.id, assetRef: selected, outcome: "helpful", selectedReason: "冻结 Replay 显示该资产减少了证据返工" });
+    expect(store.knowledge.observeAssetUsage({ taskId: submitted.task.id, assetRef: selected, outcome: "helpful", selectedReason: "冻结 Replay 显示该资产减少了证据返工" }).id).toBe(helpful.id);
     expect(store.listEvents(conversation.id).filter((event) => event.type === "asset.helpful")).toHaveLength(1);
-    expect(() => store.observeAssetUsage({ taskId: submitted.task.id, assetRef: { ...selected, fingerprint: "sha256:tampered" }, outcome: "regression", selectedReason: "tampered" })).toThrow(/KnowledgeLock/);
+    expect(() => store.knowledge.observeAssetUsage({ taskId: submitted.task.id, assetRef: { ...selected, fingerprint: "sha256:tampered" }, outcome: "regression", selectedReason: "tampered" })).toThrow(/KnowledgeLock/);
   });
 });

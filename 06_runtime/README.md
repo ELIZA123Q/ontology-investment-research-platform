@@ -9,6 +9,7 @@
 | 目录/文件 | 一句话说明 | 你需要管吗 |
 |----------|-----------|-----------|
 | `app/` | **网页和接口**：所有页面、API 路由、UI 组件 | 改界面时看 |
+| `packages/` | **模块内核**：领域、知识包、编排、SQLite 与外部适配器 | 改核心边界时看 |
 | `src/` | **核心程序**：AI 引擎、规划器、数据库、能力绑定 | 改逻辑时看 |
 | `tests/` | 测试文件 | 改代码后要跑 |
 | `scripts/` | 脚本：生成投影、审计、评测、运维 | 运维时用 |
@@ -35,10 +36,10 @@ npm run worker     # 启动后台处理进程
 ```
 访问 `http://127.0.0.1:3000`。
 
-### 做一次研究的流程
+### 做一次业绩更新与命题复核
 
-1. 在网页上提出研究目标
-2. Research Lead（AI 助手）给出受约束的研究计划
+1. 输入 A 股公司、截止日和业绩复核问题
+2. Research Lead 按 `earnings_update` 合同给出最多 15 个初始节点的计划
 3. 你确认计划后，后台 Worker 自动执行
 4. 右侧实时展示证据、判断、报告等产出
 5. 证据和判断需要你确认后才会成为正式结论
@@ -53,7 +54,9 @@ npm run worker     # 启动后台处理进程
 ```bash
 cd 06_runtime
 npm run domain:sync       # 把定义同步到程序
+npm run knowledge:bundle  # 编译并冻结不可变知识包
 npm run audit:domain      # 检查跨域引用一致性
+npm run audit:architecture # 检查 Workspace 单向依赖与纯领域边界
 npm run audit:cutover     # 检查能力发布切换
 npm run signal:evidence:rules:check # 检查信号只能作为线索、原文快照才可进证据链的规则投影
 npm run build             # 重新构建
@@ -129,7 +132,11 @@ A：判断卡和报告支持直接编辑，每次保存生成新版本。判断�
 | 内容 | 位置 |
 |------|------|
 | 网页与 API | `app/` |
-| Agent 内核、存储、规划 | `src/runtime/`、`src/worker.ts` |
+| ResearchCase 命令、Reducer 与只读 Projection | `src/application/` |
+| 稳定领域、知识与编排模块 | `packages/` |
+| 集中式兼容层退场账本 | `MIGRATION.md` |
+| 生产 Worker 应用端口 | `src/application/production-worker-runtime.ts`、`src/worker.ts` |
+| 兼容期 Agent 内核、存储、规划 | `src/runtime/`（不得被生产入口直接导入） |
 | Ontology 5.0 Catalog 投影与 Action Service | `src/ontology/` |
 | Agent/Skill/Tool 定义与发布状态 | `../03_agent_capability/`（唯一定义权威） |
 | 可执行能力绑定 | `src/capabilities/registry.ts`（消费 03 生成投影） |
@@ -146,11 +153,21 @@ A：判断卡和报告支持直接编辑，每次保存生成新版本。判断�
 
 ### 产品面
 
-研究首页围绕 A 股公司基本面案例创建、最近研究和待办介入组织。公司工作台以非线性“决策脊柱”展示范围与问题图、证据篮子、商业模式/KPI、财务模型、判断与反证、估值边界、报告与审计。每个单元独立显示 ready、limited、blocked、waiting approval 或 invalidated，并可局部补证、重算和重审。
+研究首页围绕 A 股半导体公司业绩更新创建、最近研究和待办介入组织。生产工作台只展示范围、证据、正式披露财务读数、判断与报告；完整首次覆盖、预测模型和估值保留在 evaluation/candidate 范围，不在首页承诺。每个单元独立显示 ready、limited、blocked、waiting approval 或 invalidated，并可局部补证、重算和重审。
 
 判断卡和报告支持直接编辑：每次保存生成新版本；判断修改后重新确认，报告修改后重新审计。证据事实不能在界面中随意改写；Agent 的初始判断只是提案，研究员必须完成一次结构化复核并保存，才可批准。
 
 产品路由、可信交互约束与可编辑字段边界见 [`app-surface.yaml`](app-surface.yaml)。v2 是唯一产品路径；旧 API、旧工作台和数据库迁移均不保留。
+
+### Application 写入边界与知识包
+
+`src/application/` 将产品聚合入口拆为合同、Command Handler、ResearchCase State Reducer 与只读 Case Projection。公共 `/api/v2` 只能通过 Application Service 进入，不能直接访问 Store 或 Kernel。案例创建以及每个 Command 的副作用、案例乐观锁、幂等记录和 Event 在同一可嵌套事务中提交；任一环节失败会整体回滚。
+
+01-05 会编译为 `.data/knowledge-bundles/<sha256>/manifest.json` 与 `bundle.json`。ResearchRun 创建时锁定 bundle ID，运行中禁止切换；正式候选通过评测、审批和发布后形成派生 bundle，下一次任务才能读取。
+
+Task、TaskNode、Artifact、Approval、RuntimeJob 与 Checkpoint 的状态只能消费 04 的 `lifecycle_contract.yaml` 转换。Kernel 和 Worker 不得直接写 Task/Node 状态；`npm run audit:authority` 会扫描全部 Runtime 源文件并拒绝第二套业务枚举、状态写入、审批角色、门槛与评测默认值。
+
+业绩更新架构黄金路径运行 `npm run eval:earnings:orchestrated`：Evidence Investigator、Financial Modeler、Research Lead 和 Independent Critic 只接收 WorkOrder、只返回其权限范围内的 ArtifactEnvelope，并经过证据、判断和发布三个人工门。
 
 ### 模型调用策略
 
@@ -174,6 +191,8 @@ npm run evidence:prepare-document -- --file=/绝对路径/公告.pdf
 | `npm run eval:public:evidence:pilot` | 单个公开冻结案例的系统/直答/摘要三轨诊断（非正式、不计算胜率；默认总输出上限 980 token） |
 | `npm run eval:earnings:replay` | 业绩快报确定性回放（无模型、零 token，重算同比/单位/利润差额，检查三表/估值阻断） |
 | `npm run eval:earnings:runtime` | 将冻结公开业绩快报贯通到现有 Kernel，验证来源认证、财务模型、估值阻断和单一来源判断边界（无模型 token） |
+| `npm run eval:earnings:orchestrated` | 运行携带 `skillId` 且必须命中 typed handler 的受约束黄金链路 |
+| `npm run eval:ontology:ablation -- paired-results.json` | 校验至少 12 组同证据 P1/P2 本体消融结果；未完成盲评和人工效用评审时不得发布 |
 | `npm run eval:earnings:verify-source -- --file=/绝对路径/PDF` | 校验已下载的公开业绩快报是否仍与冻结字节数、SHA-256 一致（不把原文发送给模型） |
 
 ### 服务器模式详情
@@ -195,6 +214,8 @@ npm run evidence:prepare-document -- --file=/绝对路径/公告.pdf
 - 历史业绩更新由确定性财务引擎完成
 - Task 创建时冻结 KnowledgeLock；终态后异步挖矿
 - `ResearchCase` 是长期业务聚合根，`Task` 是一次可重试执行
+- ResearchCase Command 采用事务、幂等键和乐观锁；失败命令不留下部分 Artifact、Ontology、Job 或 Event
+- Task、TaskNode、Artifact、Approval、RuntimeJob 和 Checkpoint 统一经过 04 状态机并产生声明事件
 - `ReportSpec` 随 Task 固定报告类型、受众、深度与章节
 - 审计节点把运行时专业纪律诊断回写到报告可信 UI
 - 统一连接器摄取入口把网页/PDF 快照和金融观测接入 provenance/ontology
@@ -228,6 +249,7 @@ flowchart LR
 - `POST /api/v2/research-cases/{id}/commands`（统一命令、乐观锁与幂等键）
 - `GET /api/v2/artifacts/{id}`
 - `POST /api/v2/connectors/ingest`（服务端 Token + connectorId 白名单）
+- `POST /api/v2/connectors/query`（服务端 Token；查询巨潮正式公告并经统一 provenance 边界摄取）
 - `GET /api/v2/health`
 - `GET /ontology/objects/{type}/{id}/actions`
 - `POST /ontology/actions/{actionType}/preview`

@@ -45,6 +45,30 @@ export interface ResearchProvenanceGraph {
   }>;
 }
 
+export interface OntologyContextSlice {
+  asOf: string;
+  seedRefIds: string[];
+  objects: Array<{
+    id: string;
+    type: string;
+    version: number;
+    validAt: string;
+    selectionReason: string;
+  }>;
+  paths: Array<{
+    relationId: string;
+    relationType: string;
+    fromRef: string;
+    toRef: string;
+    version: number;
+  }>;
+  sourceVersionRefs: Array<{
+    objectRef: string;
+    sourceRef: string;
+    version: number;
+  }>;
+}
+
 export interface HybridRetrievalQuery {
   text: string;
   strategies: Array<"fts" | "vector" | "structured" | "domain_graph" | "provenance_graph">;

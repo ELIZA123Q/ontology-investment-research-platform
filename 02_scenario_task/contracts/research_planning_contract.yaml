@@ -6,6 +6,10 @@ principle: >
   先从 Intent、Scenario 与 Task motif 装配 Research Problem Graph，再由模型提出当前
   frontier 的候选执行路径；确定性编译器负责边界，Runtime 只执行编译后的 TaskGraph。
 
+runtime_execution_projection:
+  intent_values: [full_research, evidence_only, update_judgment, compose_only, clarify]
+  rule: 该值域是 User Intent 与 Workflow Pattern 编译后的执行先验，不是新的用户意图分类。
+
 problem_graph_input:
   contract: 02_scenario_task/00_problem_graph/contract.yaml
   required_context:

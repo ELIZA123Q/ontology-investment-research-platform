@@ -21,7 +21,7 @@ function input(): FinancialDataToolResult {
 }
 
 describe("public earnings update through the product Kernel", () => {
-  it("keeps a real public document attested while completing deterministic finance and blocking valuation", () => {
+  it("keeps a real public document attested while completing deterministic finance without dispatching valuation", () => {
     const prior = process.env.VNEXT_EXECUTION_SCOPE;
     process.env.VNEXT_EXECUTION_SCOPE = "evaluation";
     const store = new RuntimeStore(":memory:");
@@ -29,7 +29,7 @@ describe("public earnings update through the product Kernel", () => {
       const kernel = new AgentKernel(store);
       const conversation = store.createConversation("东微业绩更新");
       const submitted = kernel.submitGoal(conversation.id, "东微半导 2025 年业绩快报更新：核验收入增长是否伴随营业利润改善，并明确估值输入缺失时的阻断边界。");
-      const ingested = kernel.ingestFinancialData(submitted.task.id, input());
+      const ingested = kernel.ingestion.ingestFinancialData(submitted.task.id, input());
       kernel.decideApproval(submitted.approval!.id, "approved");
       kernel.executeTask(submitted.task.id);
       const artifacts = store.listArtifacts(submitted.task.id);
@@ -42,7 +42,7 @@ describe("public earnings update through the product Kernel", () => {
       expect(model.audit?.passed).toBe(true);
       expect(model.computedOutputs?.find((item) => item.id === "revenue_growth")?.value).toBeCloseTo(24.8667, 4);
       expect(model.computedOutputs?.find((item) => item.id === "operating_profit_growth")?.value).toBeCloseTo(-8.4357, 4);
-      expect(valuation.status).toBe("blocked");
+      expect(valuation).toBeUndefined();
       expect(judgments).not.toHaveLength(0);
     } finally {
       store.close();

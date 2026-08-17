@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiRequest, formatRelativeTime, taskStageText } from "@/app/components/client-api";
 import type { Artifact, Task } from "@/src/contracts";
 
-interface CaseData { id: string; version: number; companyCode: string; companyName: string; asOf: string; researchQuestion: string; primaryLens: string; counterLens: string; status: string; updatedAt: string }
+interface CaseData { id: string; version: number; companyCode: string; companyName: string; asOf: string; researchQuestion: string; primaryLens: string; counterLens: string; status: string; updatedAt: string; bundleId?: string }
 interface SpineItem { id: string; status: "ready" | "limited" | "blocked" | "waiting_approval" | "invalidated"; artifactIds: string[] }
 interface Snapshot {
   researchCase: CaseData;
@@ -20,6 +20,7 @@ const spineLabels: Record<string, { title: string; note: string }> = {
   business_and_kpi: { title: "商业模式 / KPI", note: "经营变量与财务桥" }, financial_model: { title: "财务模型", note: "标准化、三表与审计" },
   judgment: { title: "判断与反证", note: "命题、边界与改判条件" }, valuation: { title: "估值边界", note: "方法、输入与敏感性" }, report: { title: "报告与审计", note: "正式交付与来源附录" },
 };
+const productionSpineIds = new Set(["scope", "evidence", "financial_model", "judgment", "report"]);
 
 export function CompanyCaseWorkspace({ researchCaseId }: { researchCaseId: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -47,7 +48,8 @@ export function CompanyCaseWorkspace({ researchCaseId }: { researchCaseId: strin
   }
 
   const artifactsById = useMemo(() => new Map(snapshot?.runtime.artifacts.map((item) => [item.id, item]) || []), [snapshot]);
-  const selectedSpine = snapshot?.decisionSpine.find((item) => item.id === selected);
+  const visibleSpine = snapshot?.decisionSpine.filter((item) => productionSpineIds.has(item.id)) || [];
+  const selectedSpine = visibleSpine.find((item) => item.id === selected);
   const selectedArtifacts = selectedSpine?.artifactIds.map((id) => artifactsById.get(id)).filter(Boolean) as Artifact[] | undefined;
 
   if (!snapshot) return <main className="v2-workspace loading"><p>{error || "正在装配公司研究上下文…"}</p></main>;
@@ -55,12 +57,12 @@ export function CompanyCaseWorkspace({ researchCaseId }: { researchCaseId: strin
   const intervention = snapshot.intervention;
 
   return <main className="v2-workspace">
-    <header className="v2-case-header"><div><a href="/">← 返回研究首页</a><span>{researchCase.companyCode} · 截止 {researchCase.asOf.slice(0, 10)}</span><h1>{researchCase.companyName}</h1><p>{researchCase.researchQuestion}</p><div className="v2-lens-pair"><b>主 Lens · {lensLabel(researchCase.primaryLens)}</b><b>反 Lens · {lensLabel(researchCase.counterLens)}</b></div></div><div className="v2-case-state"><small>{snapshot.taskOutcome ? "Task Outcome" : "当前结果"}</small><strong>{snapshot.taskOutcome?.label || (runtime.task ? taskStageText(runtime.task) : "等待建立任务")}</strong><span>v{researchCase.version} · {formatRelativeTime(researchCase.updatedAt)}</span></div><nav><button onClick={() => setMaterialOpen(!materialOpen)}>＋ 补充证据</button>{runtime.task?.status === "failed" && <button onClick={() => void command("retry")}>恢复执行</button>}<button className="danger" onClick={() => void command("cancel")}>结束本轮</button></nav></header>
+    <header className="v2-case-header"><div><a href="/">← 返回研究首页</a><span>{researchCase.companyCode} · 截止 {researchCase.asOf.slice(0, 10)}</span><h1>{researchCase.companyName}</h1><p>{researchCase.researchQuestion}</p><div className="v2-lens-pair"><b>主 Lens · {lensLabel(researchCase.primaryLens)}</b><b>反 Lens · {lensLabel(researchCase.counterLens)}</b>{researchCase.bundleId && <b>知识包 · {researchCase.bundleId.slice(7, 19)}</b>}</div></div><div className="v2-case-state"><small>{snapshot.taskOutcome ? "Task Outcome" : "当前结果"}</small><strong>{snapshot.taskOutcome?.label || (runtime.task ? taskStageText(runtime.task) : "等待建立任务")}</strong><span>v{researchCase.version} · {formatRelativeTime(researchCase.updatedAt)}</span></div><nav><button onClick={() => setMaterialOpen(!materialOpen)}>＋ 补充证据</button>{runtime.task?.status === "failed" && <button onClick={() => void command("retry")}>恢复执行</button>}<button className="danger" onClick={() => void command("cancel")}>结束本轮</button></nav></header>
 
     {intervention && <section className="v2-intervention"><div><span>需要你的判断</span><strong>{intervention.prompt}</strong><p>系统会停在这里，直到你确认当前制品和边界。</p></div><button disabled={busy} onClick={() => void command(intervention.command)}>{busy ? "处理中…" : intervention.label}</button></section>}
     {error && <p className="v2-error workspace-error" role="alert">{error}</p>}
 
-    <section className="v2-spine" aria-label="研究决策脊柱">{snapshot.decisionSpine.map((item, index) => <button className={selected === item.id ? "active" : ""} key={item.id} onClick={() => setSelected(item.id)}><i>{index + 1}</i><span><strong>{spineLabels[item.id].title}</strong><small>{spineLabels[item.id].note}</small></span><b className={item.status}>{statusLabel(item.status)}</b></button>)}</section>
+    <section className="v2-spine" aria-label="业绩更新决策脊柱">{visibleSpine.map((item, index) => <button className={selected === item.id ? "active" : ""} key={item.id} onClick={() => setSelected(item.id)}><i>{index + 1}</i><span><strong>{spineLabels[item.id].title}</strong><small>{item.id === "financial_model" ? "正式披露财务读数；模型更新仍处于评估范围" : spineLabels[item.id].note}</small></span><b className={item.status}>{statusLabel(item.status)}</b></button>)}</section>
 
     <section className="v2-case-body">
       <article className="v2-artifact-panel"><header><div><span>{selected.toUpperCase()}</span><h2>{spineLabels[selected].title}</h2><p>{spineLabels[selected].note}</p></div><small>{selectedArtifacts?.length || 0} 个制品</small></header>

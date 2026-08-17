@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { EvidenceFact, SourceSnapshot } from "@/src/contracts";
+import type { EvidenceFact, SourceSnapshot } from "@/src/contracts/evidence";
 import type { VerificationResult } from "@/src/governance/verifiers";
 import { normalizeSourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 

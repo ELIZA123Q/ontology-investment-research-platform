@@ -183,3 +183,16 @@
   .artifact-header-actions button:not(.icon-button) { padding: 0 8px; font-size: 9px; }
   .plan-overview { grid-template-columns: 1fr; }
 }
+.v2-knowledge-governance { margin: 28px 0 0; padding: 28px; background: var(--surface, #fff); border: 1px solid var(--line, #dde1e6); border-radius: 18px; }
+.v2-knowledge-governance > header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }
+.v2-knowledge-governance > header span { color: #766137; font-size: 11px; letter-spacing: .12em; }
+.v2-knowledge-governance > header h2 { margin: 6px 0; }
+.v2-knowledge-governance > header p { margin: 0; color: #667085; }
+.v2-knowledge-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 20px; }
+.v2-knowledge-list article { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; background: #fafaf8; }
+.v2-knowledge-list article > div, .v2-knowledge-list article footer { display: flex; justify-content: space-between; gap: 10px; }
+.v2-knowledge-list article span, .v2-knowledge-list article time, .v2-knowledge-list article p, .v2-knowledge-list article small { color: #667085; font-size: 12px; }
+.v2-knowledge-list article strong { display: block; margin-top: 10px; overflow-wrap: anywhere; }
+.v2-knowledge-list article footer { align-items: center; margin-top: 14px; }
+.v2-knowledge-list article button { border: 1px solid #d0d5dd; border-radius: 8px; padding: 7px 10px; background: white; }
+.v2-knowledge-list article button:last-child { background: #1d2939; color: white; border-color: #1d2939; }

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import type { EvidenceFact } from "@/src/contracts";
+import type { EvidenceFact } from "@/src/contracts/evidence";
 import { assessResearchMethods, deriveEvidenceRoles, selectResearchMethods } from "@/src/research/method-router";
 import { normalizeReportSpec } from "@/src/reporting/report-spec";
 

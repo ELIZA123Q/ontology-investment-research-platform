@@ -28,7 +28,7 @@ describe("research evaluation run persistence", () => {
       expect(prepared.run).toMatchObject({ status: "prepared", formalScoreEligible: false, baselineArtifacts: [{ track: "direct_qa" }, { track: "evidence_summary" }] });
       expect(prepared.formalEligibility.status).toBe("not_eligible");
       expect(prepared.run.notes.join(" ")).toContain("formal eligibility pending");
-      expect(store.listResearchEvaluationRuns("eval-run-case")).toEqual([expect.objectContaining({ id: prepared.run.id, systemArtifact: expect.objectContaining({ artifactHash: prepared.systemArtifactHash }) })]);
+      expect(store.knowledge.listResearchEvaluationRuns("eval-run-case")).toEqual([expect.objectContaining({ id: prepared.run.id, systemArtifact: expect.objectContaining({ artifactHash: prepared.systemArtifactHash }) })]);
     } finally { store.close(); }
   });
 

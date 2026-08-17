@@ -1,4 +1,4 @@
-import type { SourceCandidate } from "@/src/contracts";
+import type { SourceCandidate } from "@/src/contracts/evidence";
 import type { UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 import { normalizeSourceDocumentAttestation, type SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 

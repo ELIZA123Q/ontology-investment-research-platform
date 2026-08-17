@@ -24,7 +24,12 @@
     "paths": {
       "@/*": [
         "./*"
-      ]
+      ],
+      "@investment/domain": ["./packages/domain/src/index.ts"],
+      "@investment/knowledge": ["./packages/knowledge/src/index.ts"],
+      "@investment/orchestrator": ["./packages/orchestrator/src/index.ts"],
+      "@investment/persistence-sqlite": ["./packages/persistence-sqlite/src/index.ts"],
+      "@investment/adapters": ["./packages/adapters/src/index.ts"]
     },
     "allowJs": true
   },

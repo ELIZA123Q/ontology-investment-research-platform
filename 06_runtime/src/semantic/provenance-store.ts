@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
-import type { EvidenceFact, ProvenanceEdge, SourceSnapshot } from "@/src/contracts";
+import type { EvidenceFact, ProvenanceEdge, SourceSnapshot } from "@/src/contracts/evidence";
 import { verifyEvidenceFactPromotion, verifySourceSnapshot } from "@/src/governance/provenance-verifier";
 
 const now = () => new Date().toISOString();

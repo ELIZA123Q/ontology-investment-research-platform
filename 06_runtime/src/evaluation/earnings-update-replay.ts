@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { NormalizedFinancialsData, ValuationAnalysisData } from "@/src/contracts";
+import type { NormalizedFinancialsData, ValuationAnalysisData } from "@/src/contracts/evidence";
 import { buildDeterministicFinancialModel } from "@/src/research/deterministic-financial-model";
 import { validateFinancialModel, validateValuationAnalysis } from "@/src/research/financial-model-contract";
 

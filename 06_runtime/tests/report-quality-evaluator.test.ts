@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { EvidenceFact, ReportSurfaceData, SourceReference } from "@/src/contracts";
+import type { ReportSurfaceData } from "@/src/contracts";
+import type { EvidenceFact, SourceReference } from "@/src/contracts/evidence";
 import { evaluateReportQuality } from "@/src/evaluation/report-quality-evaluator";
 
 const source: SourceReference = {

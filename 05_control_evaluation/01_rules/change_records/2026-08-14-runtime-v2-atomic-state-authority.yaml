@@ -1,0 +1,23 @@
+id: CR-2026-08-14-runtime-v2-atomic-state-authority
+date: 2026-08-14
+summary: 将 ResearchCase v2 命令的 Kernel、本体、制品、审批、队列、版本与事件写入收敛为可嵌套原子事务，并让 Task、TaskNode、Artifact、Approval、RuntimeJob、Checkpoint 及业务类型统一消费 01-05 生成权威。
+classifications: [reusable_deterministic_constraint, execution_mechanics]
+authority_refs:
+  - 02_scenario_task/00_problem_graph/contract.yaml
+  - 02_scenario_task/contracts/research_planning_contract.yaml
+  - 02_scenario_task/contracts/report_generation_contract.yaml
+  - 04_context_state/02_state/lifecycle_contract.yaml
+  - 04_context_state/02_state/event_catalog.yaml
+  - 05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml
+execution_refs:
+  - 06_runtime/src/application/research-case-command-handler.ts
+  - 06_runtime/src/application/research-case-state-reducer.ts
+  - 06_runtime/src/application/research-case-projection.ts
+  - 06_runtime/src/runtime/store.ts
+  - 06_runtime/src/runtime/kernel.ts
+  - 06_runtime/scripts/audit-runtime-authority.ts
+verification_refs:
+  - 06_runtime/tests/research-case-v2.test.ts
+  - 06_runtime/tests/state-machine-policy.test.ts
+  - 06_runtime/tests/store.test.ts
+  - 05_control_evaluation/04_verifiers/validate_project.py

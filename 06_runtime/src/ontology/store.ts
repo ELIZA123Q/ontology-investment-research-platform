@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ActionExecution, OntologyEdit, OntologyLink, OntologyObject, OntologyObjectRef } from "@/src/contracts";
+import type { ActionExecution, OntologyEdit, OntologyLink, OntologyObject, OntologyObjectRef } from "@/src/contracts/ontology";
 import { RuntimeStore } from "@/src/runtime/store";
 
 const now = () => new Date().toISOString();

@@ -1,5 +1,8 @@
-import { createHash, randomUUID } from "node:crypto";
-import type { ActionPreviewRequest, ApprovalRequest, Artifact, AssetRef, FinancialModelData, JudgmentSurfaceData, MemoryRecord, NormalizedFinancialsData, ReportSpecInput, ReportSurfaceData, ResearchMethodPlan, ResearchPlanSurfaceData, ResearchProblemGraph, SourceCandidate, Task, TaskNode, ThesisStateData, UiSurface, ValuationAnalysisData } from "@/src/contracts";
+import { randomUUID } from "node:crypto";
+import type { ApprovalRequest, JudgmentSurfaceData, MemoryRecord, ReportSpecInput, ReportSurfaceData, ResearchMethodPlan, ResearchPlanSurfaceData, ResearchProblemGraph, Task, TaskNode, UiSurface } from "@/src/contracts";
+import type { Artifact, FinancialModelData, NormalizedFinancialsData, SourceCandidate, ThesisStateData, ValuationAnalysisData } from "@/src/contracts/evidence";
+import type { AssetRef } from "@/src/contracts/knowledge";
+import type { ActionPreviewRequest } from "@/src/contracts/ontology";
 import { verifyArtifactWrite, verifyModelDraftSections, verifyReportClaims, verifyUiSurface } from "@/src/governance/verifiers";
 import { classifyIntent, materializeNodes, planFromProblemGraph, planResearch, type ResearchPlan } from "@/src/runtime/planner";
 import { buildResearchProblemGraph } from "@/src/runtime/problem-graph";
@@ -16,18 +19,17 @@ import { OntologyQueryService } from "@/src/ontology/query-service";
 import { reportSpecForGoal } from "@/src/reporting/report-spec";
 import { composeProfessionalReport } from "@/src/reporting/report-composer";
 import { assessResearchMethods, deriveEvidenceRoles, selectResearchMethods } from "@/src/research/method-router";
-import { adaptFinancialDataResult, type FinancialDataToolResult } from "@/src/tools/financial-data-adapter";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { requestReportSectionDrafts, type ReportDraftingAttempt } from "@/src/reporting/report-model-drafter";
 import { evaluateReportQuality } from "@/src/evaluation/report-quality-evaluator";
-import { adaptSourceToolResult, type UnifiedSourceToolResult } from "@/src/tools/source-result-adapter";
 import { consensusComparisonStatus, validateFinancialModel, validateNormalizedFinancials, validateValuationAnalysis } from "@/src/research/financial-model-contract";
 import { requestBoundedResearchReasoning, type ModelReasoningAttempt } from "@/src/research/model-reasoning";
 import { buildDeterministicFinancialModel } from "@/src/research/deterministic-financial-model";
 import { assertAgentExecutionAllowed, assertSkillExecutionAllowed, getAgent, isSkillExecutionAllowed, isToolExecutionAllowed, runtimeExecutionScope } from "@/src/capabilities/registry";
 import { evaluateJudgmentThreshold, type EvidenceGrade } from "@/src/governance/judgment-threshold";
 import { assertApprovalDecisionPermission } from "@/src/governance/permission-policy";
-
+import { ResearchDataIngestionService } from "@/src/application/research-data-ingestion";
+import { requestFingerprint } from "@/src/application/idempotency";
 const DEFAULT_BUDGET = { maxModelCalls: 12, maxToolCalls: 30, maxCostUsd: 3 };
 const includesAny = (value: string, words: string[]) => words.some((word) => value.includes(word));
 const applyProposalPrior = (graphPlan: ResearchPlan, proposalPlan: ResearchPlan): ResearchPlan => {
@@ -39,7 +41,6 @@ const applyProposalPrior = (graphPlan: ResearchPlan, proposalPlan: ResearchPlan)
     stopConditions: [...new Set([...graphPlan.stopConditions, ...proposalPlan.stopConditions])],
   };
 };
-
 export interface ConversationSnapshot {
   conversation: ReturnType<RuntimeStore["getConversation"]>;
   messages: ReturnType<RuntimeStore["listMessages"]>;
@@ -59,7 +60,6 @@ export interface ConversationSnapshot {
     memory: MemoryRecord[];
   } | null;
 }
-
 export interface ArtifactRevisionResult {
   artifact: Artifact;
   surfaceArtifact: Artifact;
@@ -80,7 +80,7 @@ interface PreparedPublicationCommit {
   deliverableRef: string;
 }
 
-export class EvidenceIngestionConflictError extends Error {}
+export { EvidenceIngestionConflictError } from "@/src/application/research-data-ingestion";
 
 export class AgentKernel {
   readonly semantic: LocalSemanticGateway;
@@ -89,6 +89,7 @@ export class AgentKernel {
   readonly actions: OntologyActionService;
   readonly ontologyQuery: OntologyQueryService;
   readonly functions: OntologyFunctionService;
+  readonly ingestion: ResearchDataIngestionService;
 
   constructor(readonly store: RuntimeStore) {
     this.semantic = new LocalSemanticGateway(store.db);
@@ -97,130 +98,9 @@ export class AgentKernel {
     this.actions = new OntologyActionService(store);
     this.ontologyQuery = new OntologyQueryService(this.actions.ontology);
     this.functions = new OntologyFunctionService(this.actions.ontology, this.ontologyQuery);
+    this.ingestion = new ResearchDataIngestionService(store, this.provenance, this.sources, this.actions);
   }
 
-  ingestExternalSource(taskId: string, input: UnifiedSourceToolResult): Artifact {
-    const task = this.requireTask(taskId);
-    this.assertEvidenceIngestionAllowed(task);
-    const adapted = adaptSourceToolResult(input);
-    const ingestionKey = requestFingerprint(input.connectorId, input.operation, { requestFingerprint: adapted.snapshot.acquisition.requestFingerprint, contentHash: adapted.snapshot.contentHash });
-    const existing = this.store.listArtifacts(task.id).find((artifact) => artifact.kind === "evidence_package" && artifact.title === "外部来源快照" && (artifact.data as { ingestionKey?: string }).ingestionKey === ingestionKey);
-    if (existing) return existing;
-    const snapshot = this.provenance.saveSnapshot(adapted.snapshot);
-    if (snapshot.verification !== "verified") {
-      this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "connector.ingestion_rejected", actorType: "system", actorId: input.connectorId, payload: { kind: "source_capture", ingestionKey, snapshotId: snapshot.id, verification: snapshot.verification } });
-      throw new Error("External source capture failed provenance verification");
-    }
-    const caseObject = this.actions.ontology.getObject(task.researchCaseId);
-    if (!caseObject) throw new Error(`ResearchCase not found: ${task.researchCaseId}`);
-    const captured = this.actions.apply("CaptureSource", {
-      targetRefs: [{ id: caseObject.id, type: caseObject.type }], parameters: {
-        title: snapshot.title, uri: snapshot.uri, publishedAt: snapshot.publishedAt || snapshot.capturedAt,
-        sourceTier: snapshot.sourceType === "primary" ? "S1" : "S3", locator: snapshot.locator, contentHash: snapshot.contentHash,
-        capturedAt: snapshot.capturedAt, accessScope: snapshot.permissionScope, quote: snapshot.quote,
-      }, expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version },
-      idempotencyKey: `capture-external:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
-    }, { actorType: "system", actorId: input.connectorId, conversationId: task.conversationId, taskId: task.id });
-    const ontologySnapshot = captured.objects.find((object) => object.type === "SourceSnapshot");
-    if (!ontologySnapshot) throw new Error("CaptureSource did not create an external SourceSnapshot");
-    const verified = this.actions.apply("VerifySourceSnapshot", {
-      targetRefs: [{ id: ontologySnapshot.id, type: ontologySnapshot.type }], parameters: { decision: snapshot.verification, note: "external connector adapter and provenance verifier passed" },
-      expectedVersions: { [`${ontologySnapshot.type}:${ontologySnapshot.id}`]: ontologySnapshot.version },
-      idempotencyKey: `verify-external:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
-    }, { actorType: "system", actorId: "provenance-verifier", conversationId: task.conversationId, taskId: task.id });
-    const verifiedSnapshot = verified.objects.find((object) => object.type === "SourceSnapshot");
-    if (!verifiedSnapshot) throw new Error("VerifySourceSnapshot did not return the external SourceSnapshot");
-    const { body: _body, ...safeSnapshot } = snapshot;
-    const artifact = this.store.putArtifact({
-      conversationId: task.conversationId, taskId: task.id, kind: "evidence_package", title: "外部来源快照", status: "verified",
-      data: { ingestionKey, connectorId: input.connectorId, operation: input.operation, captures: [{ ...safeSnapshot, ontologySnapshotRef: verifiedSnapshot.id }] },
-      sourceRefs: [this.sources.toSourceReference(snapshot)], createdBy: input.connectorId,
-    });
-    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "connector.source_ingested", actorType: "system", actorId: input.connectorId, payload: { artifactId: artifact.id, ingestionKey, snapshotId: snapshot.id, ontologySnapshotRef: verifiedSnapshot.id, publisherId: snapshot.publisherId } });
-    this.queueEvidenceRecompute(task, "evidence_capture", artifact.id);
-    return artifact;
-  }
-
-  ingestFinancialData(taskId: string, input: FinancialDataToolResult): Artifact {
-    const task = this.requireTask(taskId);
-    this.assertEvidenceIngestionAllowed(task);
-    const adapted = adaptFinancialDataResult(input);
-    const providerResponseRef = input.providerResponse && adapted.providerResponse
-      ? this.store.putConnectorResponseBlob({
-        ...adapted.providerResponse,
-        body: input.providerResponse.body,
-        fingerprint: adapted.providerResponse.contentHash,
-        connectorId: input.connectorId,
-        operation: input.operation,
-        permissionScope: input.permissionScope,
-        capturedAt: input.retrievedAt,
-      })
-      : undefined;
-    const ingestionKey = requestFingerprint(input.connectorId, input.operation, { asOf: adapted.asOf, snapshots: adapted.observations.map((item) => item.source.snapshot.contentHash) });
-    const existing = this.store.listArtifacts(task.id).find((artifact) => artifact.kind === "evidence_package" && (artifact.data as { ingestionKey?: string }).ingestionKey === ingestionKey);
-    if (existing) return existing;
-    const caseObject = this.actions.ontology.getObject(task.researchCaseId);
-    if (!caseObject) throw new Error(`ResearchCase not found: ${task.researchCaseId}`);
-    const captured = adapted.observations.map((observation) => {
-      const snapshot = this.provenance.saveSnapshot(observation.source.snapshot);
-      const capture = this.actions.apply("CaptureSource", {
-        targetRefs: [{ id: caseObject.id, type: caseObject.type }],
-        parameters: {
-          title: snapshot.title, uri: snapshot.uri, publishedAt: snapshot.publishedAt || snapshot.capturedAt,
-          sourceTier: snapshot.sourceType === "primary" ? "S1" : "S3", locator: snapshot.locator,
-          contentHash: snapshot.contentHash, capturedAt: snapshot.capturedAt, accessScope: snapshot.permissionScope, quote: snapshot.quote,
-        },
-        expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version },
-        idempotencyKey: `capture-financial:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
-      }, { actorType: "system", actorId: input.connectorId, conversationId: task.conversationId, taskId: task.id });
-      const ontologySnapshot = capture.objects.find((object) => object.type === "SourceSnapshot");
-      if (!ontologySnapshot) throw new Error("CaptureSource did not create a financial SourceSnapshot");
-      const verified = this.actions.apply("VerifySourceSnapshot", {
-        targetRefs: [{ id: ontologySnapshot.id, type: ontologySnapshot.type }],
-        parameters: { decision: snapshot.verification, note: "financial data adapter and provenance verifier passed" },
-        expectedVersions: { [`${ontologySnapshot.type}:${ontologySnapshot.id}`]: ontologySnapshot.version },
-        idempotencyKey: `verify-financial:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
-      }, { actorType: "system", actorId: "provenance-verifier", conversationId: task.conversationId, taskId: task.id });
-      const verifiedSnapshot = verified.objects.find((object) => object.type === "SourceSnapshot");
-      if (!verifiedSnapshot) throw new Error("VerifySourceSnapshot did not return the financial SourceSnapshot");
-      return { observation, snapshot, ontologySnapshot: verifiedSnapshot };
-    });
-    const facts = captured.map(({ observation, snapshot, ontologySnapshot }) => {
-      const fact = this.provenance.promoteFact({ snapshotId: snapshot.id, statement: observation.statement, factType: observation.factType, businessTime: observation.businessTime, confidence: "medium" });
-      const accepted = this.actions.apply("AcceptClaim", {
-        targetRefs: [{ id: ontologySnapshot.id, type: ontologySnapshot.type }],
-        parameters: { statement: observation.statement, locator: snapshot.locator, cutoffAt: adapted.asOf, semanticRefs: [adapted.entity.id, observation.metricId] },
-        expectedVersions: { [`${ontologySnapshot.type}:${ontologySnapshot.id}`]: ontologySnapshot.version },
-        idempotencyKey: `accept-financial-claim:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
-      }, { actorType: "agent", actorId: "research-lead", conversationId: task.conversationId, taskId: task.id });
-      const claim = accepted.objects.find((object) => object.type === "EvidenceClaim");
-      if (!claim) throw new Error("AcceptClaim did not create a financial EvidenceClaim");
-      const promoted = this.actions.apply("PromoteEvidenceFact", {
-        targetRefs: [{ id: claim.id, type: claim.type }],
-        parameters: { statement: observation.statement, subjectRef: task.researchCaseId, scopeRef: task.researchCaseId, cutoffAt: adapted.asOf },
-        expectedVersions: { [`${claim.type}:${claim.id}`]: claim.version },
-        idempotencyKey: `promote-financial-fact:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
-      }, { actorType: "agent", actorId: "research-lead", conversationId: task.conversationId, taskId: task.id });
-      return {
-        ...fact, ontologyFactRef: promoted.objects.find((object) => object.type === "EvidenceFact")?.id,
-        evidenceRoles: deriveEvidenceRoles(`${observation.metricName} ${observation.statement}`),
-        metric: {
-          id: observation.metricId, name: observation.metricName, value: observation.value, unit: observation.unit,
-          currency: observation.currency, basis: observation.basis, dimensions: observation.dimensions,
-          businessTime: observation.businessTime, periodStart: observation.periodStart, periodEnd: observation.periodEnd,
-        },
-      };
-    });
-    const sourceRefs = captured.map(({ snapshot }) => this.sources.toSourceReference(snapshot));
-    const artifact = this.store.putArtifact({
-      conversationId: task.conversationId, taskId: task.id, kind: "evidence_package", title: "结构化金融数据", status: "verified",
-      data: { ingestionKey, connectorId: input.connectorId, operation: input.operation, entity: adapted.entity, asOf: adapted.asOf, providerResponseRef, facts }, sourceRefs, createdBy: input.connectorId,
-    });
-    for (const fact of facts) this.provenance.addEdge(fact.id, artifact.id, "included_in");
-    this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, type: "financial.data_ingested", actorType: "system", actorId: input.connectorId, payload: { artifactId: artifact.id, entity: adapted.entity, asOf: adapted.asOf, responseFingerprint: providerResponseRef?.fingerprint, factIds: facts.map((fact) => fact.id), ontologyFactRefs: facts.map((fact) => fact.ontologyFactRef) } });
-    this.queueEvidenceRecompute(task, "evidence_evaluation", artifact.id);
-    return artifact;
-  }
 
   async prepareModelReportDraft(taskId: string, provider: ModelProvider | null): Promise<Artifact | null> {
     const task = this.requireTask(taskId);
@@ -280,7 +160,7 @@ export class AgentKernel {
   submitGoal(conversationId: string, content: string, proposal?: PlannerProposal, options: { pinnedAssetRefs?: AssetRef[]; reportSpec?: ReportSpecInput; lensRefs?: string[] } = {}): { task: Task; approval?: ApprovalRequest } {
     const conversation = this.store.getConversation(conversationId);
     if (!conversation) throw new Error(`Conversation not found: ${conversationId}`);
-    const accessibleRefs = this.store.listReleasedAssetRefs(conversation);
+    const accessibleRefs = this.store.knowledge.listReleasedAssetRefs(conversation);
     const accessibleKeys = new Set(accessibleRefs.map((ref) => `${ref.assetId}:${ref.version}:${ref.fingerprint}`));
     const pinnedAssetRefs = options.pinnedAssetRefs || [];
     if (pinnedAssetRefs.some((ref) => !accessibleKeys.has(`${ref.assetId}:${ref.version}:${ref.fingerprint}`))) {
@@ -309,7 +189,7 @@ export class AgentKernel {
       ? { ...proposalCompiled, plan: graph ? applyProposalPrior(deterministicPlan, proposalCompiled.plan) : proposalCompiled.plan }
       : { plan: deterministicPlan, source: graph ? "deterministic" : "deterministic_fallback", proposalFingerprint: requestFingerprint("local", graph ? "problem-graph-compiler" : "clarify-planner", content), diagnostics: [] };
     const plan = compiled.plan;
-    this.store.createKnowledgeLock(task.id);
+    this.store.knowledge.createKnowledgeLock(task.id);
     if (pinnedAssetRefs.length) this.store.appendEvent({ conversationId, taskId: task.id, type: "context.pinned", actorType: "researcher", actorId: "researcher", payload: { assetRefs: pinnedAssetRefs } });
     const nodes = materializeNodes(task.id, plan, task.budget);
     this.store.addTaskNodes(nodes);
@@ -368,7 +248,7 @@ export class AgentKernel {
       if (judgmentRequest) this.commitApprovedJudgment(approval, judgmentRequest);
       if (publicationRequest) this.commitApprovedPublication(approval, publicationRequest);
       this.store.transitionTask(approval.taskId, pending.kind === "plan_confirmation" ? "confirm_plan" : "approve", { actorType: "researcher", actorId: "researcher", payload: { approvalId: approval.id, kind: pending.kind } });
-      this.store.enqueueTask(approval.taskId, "execute");
+      this.store.queue.enqueueTask(approval.taskId, "execute");
     } else {
       this.store.transitionTask(approval.taskId, "reject", { actorType: "researcher", actorId: "researcher", payload: { approvalId: approval.id, kind: pending.kind } });
     }
@@ -404,7 +284,7 @@ export class AgentKernel {
     else if (finalNodes.every((node) => node.status === "completed" || node.status === "cancelled")) this.store.transitionTask(taskId, "runtime_complete");
     const updated = this.requireTask(taskId);
     this.store.appendEvent({ conversationId: task.conversationId, taskId, type: "task.settled", actorType: "system", actorId: "runtime", payload: { status: updated.status, outcome: updated.outcome } });
-    if (["completed", "failed", "cancelled"].includes(updated.status) && !this.store.getMiningRunByTask(taskId)) this.queueMining(taskId);
+    if (["completed", "failed", "cancelled"].includes(updated.status) && !this.store.knowledge.getMiningRunByTask(taskId)) this.queueMining(taskId);
     return updated;
   }
 
@@ -422,7 +302,7 @@ export class AgentKernel {
       if (!dependencies.every((item) => item?.status === "completed")) continue;
       if (node.status === "pending") this.store.transitionNode(node.id, "dependencies_ready");
       else if (node.status === "failed") this.store.transitionNode(node.id, "retry");
-      this.store.enqueueNode(taskId, node.id); queued++;
+      this.store.queue.enqueueNode(taskId, node.id); queued++;
     }
     return queued;
   }
@@ -443,7 +323,7 @@ export class AgentKernel {
     const task = this.requireTask(taskId);
     this.store.transitionTask(taskId, "cancel", { actorType: "researcher", actorId: "researcher" });
     for (const node of this.store.listTaskNodes(taskId)) if (["pending", "ready", "running", "blocked", "failed"].includes(node.status)) this.store.transitionNode(node.id, "cancel", {}, { actorType: "researcher", actorId: "researcher" });
-    if (!this.store.getMiningRunByTask(taskId)) this.queueMining(taskId);
+    if (!this.store.knowledge.getMiningRunByTask(taskId)) this.queueMining(taskId);
     return this.requireTask(taskId);
   }
 
@@ -459,7 +339,7 @@ export class AgentKernel {
     if (task.status === "cancelled") throw new Error("Cancelled task cannot be resumed; branch it instead.");
     for (const node of this.store.listTaskNodes(taskId)) if (node.status === "failed") this.store.transitionNode(node.id, "retry");
     this.store.transitionTask(taskId, "retry", { actorType: "researcher", actorId: "researcher", payload: { checkpointId: this.store.latestCheckpoint(taskId)?.id } });
-    const jobId = this.store.enqueueTask(taskId, "resume");
+    const jobId = this.store.queue.enqueueTask(taskId, "resume");
     return jobId;
   }
 
@@ -474,7 +354,7 @@ export class AgentKernel {
     const branch = this.store.createTask({ conversationId: parent.conversationId, researchCaseId, parentTaskId: parent.id, goal, intent, reportSpec: parent.reportSpec, status: "planned", budget: parent.budget });
     const graph = intent === "clarify" ? undefined : this.store.createProblemGraph(buildResearchProblemGraph({ id: `problem-graph:${branch.id}`, taskId: branch.id, researchCaseId, goal, intent, reportDepth: branch.reportSpec.depth }));
     const plan = graph ? planFromProblemGraph(graph, branch.budget) : planResearch(goal);
-    this.store.createKnowledgeLock(branch.id);
+    this.store.knowledge.createKnowledgeLock(branch.id);
     const nodes = materializeNodes(branch.id, plan, branch.budget);
     this.store.addTaskNodes(nodes);
     const methodPlan = selectResearchMethods(goal, branch.reportSpec);
@@ -561,7 +441,7 @@ export class AgentKernel {
     } else if (descendants.length) {
       const task = this.requireTask(current.taskId);
       if (task.status !== "queued") this.store.transitionTask(current.taskId, "invalidate", { actorId: "artifact-service", payload: { artifactId, artifactVersion: revised.version } });
-      this.store.enqueueTask(current.taskId, "resume");
+      this.store.queue.enqueueTask(current.taskId, "resume");
       this.store.appendEvent({ conversationId: current.conversationId, taskId: current.taskId, nodeId: current.nodeId, type: "artifact.recompute_queued", actorType: "system", actorId: "runtime", payload: { artifactId, artifactVersion: revised.version, nodeIds: descendants.map((node) => node.id) } });
     }
     return { artifact: revised, surfaceArtifact: revisedSurface, invalidatedNodeIds: descendants.map((node) => node.id), approval };
@@ -570,7 +450,7 @@ export class AgentKernel {
   snapshot(conversationId: string, requestedTaskId?: string): ConversationSnapshot {
     const tasks = this.store.listTasks(conversationId);
     const task = (requestedTaskId ? tasks.find((item) => item.id === requestedTaskId) : undefined) || tasks[0] || null;
-    const knowledgeLock = task ? this.store.getKnowledgeLock(task.id) : null;
+    const knowledgeLock = task ? this.store.knowledge.getKnowledgeLock(task.id) : null;
     const contextPackage = task ? this.store.getContextPackage(task.id) : null;
     return {
       conversation: this.store.getConversation(conversationId), messages: this.store.listMessages(conversationId), task,
@@ -657,23 +537,21 @@ export class AgentKernel {
         {
           const index = this.semantic.buildIndex();
           const selected = this.semantic.searchSync({ text: task.goal, strategies: ["fts", "structured"], limit: 12 });
-          const baselineState = this.ontologyQuery.queryObjects({
-            typeOrInterface: "StateVariable", limit: 24,
+          const lock = this.store.knowledge.getKnowledgeLock(task.id) || this.store.knowledge.createKnowledgeLock(task.id);
+          const ontologySlice = this.ontologyQuery.contextSlice({
+            text: task.goal,
+            seedRefs: [{ id: task.researchCaseId, type: "ResearchCase" }],
+            asOf: lock.asOf,
             accessContext: { actorId: "runtime", actorType: "system", accessScopes: ["*"] },
+            limit: 16,
           });
-          const goalTerms = task.goal.toLowerCase().split(/[\s，。；、]/).filter((term) => term.length > 1);
-          const matchedBaseline = baselineState.filter((item) => {
-            const text = JSON.stringify(item.properties).toLowerCase();
-            return !goalTerms.length || goalTerms.some((term) => text.includes(term));
-          }).slice(0, 12);
-          const lock = this.store.getKnowledgeLock(task.id) || this.store.createKnowledgeLock(task.id);
           const pinnedEvent = [...this.store.listEvents(task.conversationId, 0, 10_000)].reverse().find((event) => event.taskId === task.id && event.type === "context.pinned");
           const pinnedRefs = ((pinnedEvent?.payload as { assetRefs?: AssetRef[] } | undefined)?.assetRefs || []);
           const pinnedKeys = new Set(pinnedRefs.map((ref) => `${ref.assetId}:${ref.version}:${ref.fingerprint}`));
           const references = [
             ...lock.assetRefs.map((ref) => ({ id: ref.assetId, kind: "semantic" as const, version: ref.version, reason: pinnedKeys.has(`${ref.assetId}:${ref.version}:${ref.fingerprint}`) ? "pinned by researcher from released knowledge" : "selected from released knowledge baseline", freshnessAt: lock.asOf, assetRef: ref })),
             ...selected.map((ref) => ({ id: ref.refId, kind: "semantic" as const, version: ref.version, reason: `${ref.reason}；${ref.path}`, freshnessAt: new Date().toISOString() })),
-            ...matchedBaseline.map((item) => ({ id: item.id, kind: "semantic" as const, version: item.version, reason: "Ontology ObjectSet：已加载领域基线 StateVariable", freshnessAt: lock.asOf })),
+            ...ontologySlice.objects.map((item) => ({ id: item.id, kind: "semantic" as const, version: item.version, reason: `Ontology Context Slice：${item.selectionReason}`, freshnessAt: item.validAt })),
           ];
           const memoryRecords = this.store.listMemory(task.conversationId);
           const pendingApprovals = this.store.listPendingApprovals(task.conversationId).filter((approval) => approval.taskId === task.id);
@@ -681,7 +559,7 @@ export class AgentKernel {
           const latestCheckpoint = this.store.getLatestCheckpoint(task.id);
           const permissionFilterResult = { decision: "allowed" as const, excludedRefIds: [] as string[], reasons: ["Context 仅包含当前 KnowledgeLock、当前任务制品和允许的 Memory 引用"] };
           const agent = getAgent(node.assignedAgent);
-          for (const ref of lock.assetRefs) this.store.observeAssetUsage({ taskId: task.id, assetRef: ref, selectedReason: "context_builder", outcome: "used" });
+          for (const ref of lock.assetRefs) this.store.knowledge.observeAssetUsage({ taskId: task.id, assetRef: ref, selectedReason: "context_builder", outcome: "used" });
           this.store.putContextPackage({
             taskId: task.id, nodeId: node.id, knowledgeLockId: lock.id, asOf: lock.asOf,
             releaseIds: { global: lock.globalReleaseId, tenant: lock.tenantReleaseId, user: lock.userReleaseId },
@@ -691,11 +569,12 @@ export class AgentKernel {
             workspace: this.store.getWorkspaceProjection(task.id),
             memory: { refs: memoryRecords.map((memory) => ({ id: memory.id, kind: memory.kind, sourceRef: memory.sourceRef, freshnessAt: memory.freshnessAt })) },
             knowledge: { assetRefs: lock.assetRefs, releaseIds: { global: lock.globalReleaseId, tenant: lock.tenantReleaseId, user: lock.userReleaseId } },
+            ontology: ontologySlice,
             capabilities: { agentId: node.assignedAgent, assumedRoleIds: agent.canAssumeRoles, capabilityType: node.capabilityType, capabilityId: node.capabilityId, allowedSkillIds: agent.allowedSkills.filter((skillId) => isSkillExecutionAllowed(skillId, runtimeExecutionScope())), allowedToolIds: agent.allowedTools.filter((toolId) => isToolExecutionAllowed(toolId, runtimeExecutionScope())) },
             policies: { policyRefs: ["05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml", "05_control_evaluation/03_permissions/permission_matrix.yaml"], permissionFilterResult },
             references, tokenBudget: 8_000, trimmedReason: selected.length >= 12 ? "semantic selection limited to the top 12 authorized references" : undefined, permissionFilterResult,
           });
-          this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "semantic.indexed", actorType: "system", actorId: "semantic-gateway", payload: { ...index, ontologyBaseline: { releases: this.ontologyQuery.releases(), matchedStateVariableRefs: matchedBaseline.map((item) => item.id) } } });
+          this.store.appendEvent({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, type: "semantic.indexed", actorType: "system", actorId: "semantic-gateway", payload: { ...index, ontologyContext: { releases: this.ontologyQuery.releases(), objectRefs: ontologySlice.objects.map((item) => item.id), pathCount: ontologySlice.paths.length, sourceVersionRefCount: ontologySlice.sourceVersionRefs.length } } });
         }
         return null;
       case "method_selection":
@@ -743,7 +622,7 @@ export class AgentKernel {
                 accessScope: snapshot.permissionScope, quote: snapshot.quote,
               },
               expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version },
-              idempotencyKey: `capture-source:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
+              idempotencyKey: `capture-source:${snapshot.id}`, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id,
             }, { actorType: "system", actorId: "source.capture", conversationId: task.conversationId, taskId: task.id });
             const ontologySnapshot = captured.objects.find((object) => object.type === "SourceSnapshot");
             if (!ontologySnapshot) throw new Error("CaptureSource did not create SourceSnapshot");
@@ -751,7 +630,7 @@ export class AgentKernel {
               targetRefs: [{ id: ontologySnapshot.id, type: ontologySnapshot.type }],
               parameters: { decision: snapshot.verification, note: "provenance verifier result" },
               expectedVersions: { [`${ontologySnapshot.type}:${ontologySnapshot.id}`]: ontologySnapshot.version },
-              idempotencyKey: `verify-source:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
+              idempotencyKey: `verify-source:${snapshot.id}`, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id,
             }, { actorType: "system", actorId: "provenance-verifier", conversationId: task.conversationId, taskId: task.id });
             const { body: _body, ...safeSnapshot } = snapshot;
             return { ...safeSnapshot, ontologySnapshotRef: ontologySnapshot.id };
@@ -788,7 +667,7 @@ export class AgentKernel {
             targetRefs: [{ id: ontologySnapshot.id, type: ontologySnapshot.type }],
             parameters: { statement: snapshot.quote, locator: snapshot.locator, cutoffAt: snapshot.capturedAt, semanticRefs: [] },
             expectedVersions: { [`${ontologySnapshot.type}:${ontologySnapshot.id}`]: ontologySnapshot.version },
-            idempotencyKey: `accept-claim:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
+            idempotencyKey: `accept-claim:${snapshot.id}`, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id,
           }, { actorType: "agent", actorId: "research-lead", conversationId: task.conversationId, taskId: task.id });
           const claim = accepted.objects.find((object) => object.type === "EvidenceClaim");
           if (!claim) throw new Error("AcceptClaim did not create EvidenceClaim");
@@ -796,7 +675,7 @@ export class AgentKernel {
             targetRefs: [{ id: claim.id, type: claim.type }],
             parameters: { statement: snapshot.quote, subjectRef: task.researchCaseId, scopeRef: task.researchCaseId, cutoffAt: snapshot.capturedAt },
             expectedVersions: { [`${claim.type}:${claim.id}`]: claim.version },
-            idempotencyKey: `promote-fact:${snapshot.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
+            idempotencyKey: `promote-fact:${snapshot.id}`, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id,
           }, { actorType: "agent", actorId: "research-lead", conversationId: task.conversationId, taskId: task.id });
           return [{ ...fact, evidenceRoles, ontologyFactRef: promoted.objects.find((object) => object.type === "EvidenceFact")?.id }];
         });
@@ -826,7 +705,7 @@ export class AgentKernel {
         const financialInputs = artifacts.filter((artifact) => artifact.kind === "evidence_package" && artifact.title === "结构化金融数据" && artifact.status === "verified");
         const latest = financialInputs.at(-1);
         const input = latest?.data as { asOf?: string; facts?: Array<{ metric?: { id?: string; name?: string; value?: number; basis?: string; unit?: string; currency?: string; dimensions?: Record<string, string | number | boolean | null>; businessTime?: string; periodStart?: string; periodEnd?: string } }> } | undefined;
-        const asOf = input?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
+        const asOf = input?.asOf || this.store.knowledge.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
         const sourceArtifactRefs = latest ? [latest.id] : [];
         const observations = (input?.facts || []).flatMap((fact) => {
           const metric = fact.metric;
@@ -858,7 +737,7 @@ export class AgentKernel {
       case "model_build_or_update": {
         const normalizedArtifact = [...inputArtifacts].reverse().find((artifact) => artifact.kind === "normalized_financials") || [...artifacts].reverse().find((artifact) => artifact.kind === "normalized_financials");
         const normalized = normalizedArtifact?.data as NormalizedFinancialsData | undefined;
-        const asOf = normalized?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
+        const asOf = normalized?.asOf || this.store.knowledge.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
         const model: FinancialModelData = normalized
           ? buildDeterministicFinancialModel(normalized).model
           : {
@@ -888,7 +767,7 @@ export class AgentKernel {
         const audit = auditArtifact?.data as { passed?: boolean } | undefined;
         const model = modelArtifact?.data as FinancialModelData | undefined;
         const valuation: ValuationAnalysisData = {
-          asOf: model?.asOf || this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString(),
+          asOf: model?.asOf || this.store.knowledge.getKnowledgeLock(task.id)?.asOf || new Date().toISOString(),
           financialModelRef: modelArtifact?.id || "", modelAuditRef: auditArtifact?.id || "", currency: model?.currency || "CNY", unit: model?.unit || "元",
           methods: [], assumptions: [], sensitivities: [], status: "blocked",
           blockers: [audit?.passed ? "缺少经验证的预测输出、估值方法、估值假设与敏感性输入；禁止生成空估值。" : "财务模型审计未通过；估值分析被阻断。"],
@@ -898,7 +777,7 @@ export class AgentKernel {
       }
       case "thesis_update": {
         const sourceArtifactRefs = inputArtifacts.map((artifact) => artifact.id);
-        const asOf = this.store.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
+        const asOf = this.store.knowledge.getKnowledgeLock(task.id)?.asOf || new Date().toISOString();
         const consensusStatus = consensusComparisonStatus(undefined);
         const thesis: ThesisStateData = {
           asOf, version: artifacts.filter((artifact) => artifact.kind === "thesis_state").length + 1,
@@ -994,7 +873,8 @@ export class AgentKernel {
         const graph = this.store.getProblemGraph(task.id);
         const units = graph?.nodes.filter((item) => item.type === "judgment_unit" && item.required) || [];
         const terminal = new Set(["resolved", "blocked", "indeterminate"]);
-        if (units.some((item) => !terminal.has(item.state))) throw new Error("Cannot synthesize before every required JudgmentUnit reaches a terminal frontier state");
+        const unresolvedUnits = units.filter((item) => !terminal.has(item.state));
+        if (unresolvedUnits.length) throw new Error(`Cannot synthesize before every required JudgmentUnit reaches a terminal frontier state: ${unresolvedUnits.map((item) => `${item.key}=${item.state}`).join(", ")}`);
         const judgments = artifacts.filter((artifact) => artifact.kind === "judgment" && artifact.title === "当前判断");
         const bundle = judgments.map((artifact) => ({ artifactId: artifact.id, ...(artifact.data as Record<string, unknown>) }));
         if (graph) for (const item of graph.nodes.filter((node) => node.type === "synthesis")) this.store.updateProblemGraphNode(item.id, { state: "resolved" });
@@ -1030,7 +910,7 @@ export class AgentKernel {
             reportSpecVersion: task.reportSpec.version, sectionKeys: task.reportSpec.sections,
           },
           expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version },
-          idempotencyKey: `create-deliverable:${report.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
+          idempotencyKey: `create-deliverable:${report.id}`, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id,
         }, { actorType: "agent", actorId: "research-lead", conversationId: task.conversationId, taskId: task.id });
         const deliverableRef = created.objects.find((object) => object.type === "ResearchDeliverable")?.id;
         const reportWithRef = this.store.putArtifact({ ...report, id: report.id, data: { ...(report.data as unknown as Record<string, unknown>), ontologyDeliverableRef: deliverableRef } });
@@ -1075,7 +955,7 @@ export class AgentKernel {
           if (deliverable) this.actions.apply("VerifyResearchDeliverable", {
             targetRefs: [{ id: deliverable.id, type: deliverable.type }], parameters: { verifierRef: review.id, passed: true },
             expectedVersions: { [`${deliverable.type}:${deliverable.id}`]: deliverable.version },
-            idempotencyKey: `verify-deliverable:${review.id}`, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id,
+            idempotencyKey: `verify-deliverable:${review.id}`, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id,
           }, { actorType: "system", actorId: "citation-and-expression", conversationId: task.conversationId, taskId: task.id });
         }
         return review;
@@ -1086,8 +966,8 @@ export class AgentKernel {
   }
 
   private queueMining(taskId: string): void {
-    this.store.createMiningRun(taskId, "knowledge-learning/1.0.0");
-    this.store.enqueueTask(taskId, "mine_assets");
+    this.store.knowledge.createMiningRun(taskId, "knowledge-learning/1.0.0");
+    this.store.queue.enqueueTask(taskId, "mine_assets");
   }
 
   private requestMilestoneApproval(task: Task, node: TaskNode, artifact: Artifact): void {
@@ -1130,7 +1010,7 @@ export class AgentKernel {
         parameters: { publicationNote: note?.trim() || "研究员确认发布当前已核验版本" },
         expectedVersions: { [`${deliverable.type}:${deliverable.id}`]: deliverable.version },
         idempotencyKey: `publish-deliverable:${deliverable.id}:approval:${approval.id}`,
-        knowledgeLockId: this.store.getKnowledgeLock(approval.taskId)?.id,
+        knowledgeLockId: this.store.knowledge.getKnowledgeLock(approval.taskId)?.id,
       },
     };
   }
@@ -1234,7 +1114,7 @@ export class AgentKernel {
     const context = { actorType: "researcher" as const, actorId: "researcher", conversationId: approval.conversationId, taskId: approval.taskId };
     const caseTarget = [{ id: caseObject.id, type: caseObject.type }];
     const idempotencyBase = `approve-judgment:${artifact.id}:v${artifact.version}`;
-    const knowledgeLockId = this.store.getKnowledgeLock(task.id)?.id;
+    const knowledgeLockId = this.store.knowledge.getKnowledgeLock(task.id)?.id;
     // The approved Problem Graph has already materialized the atomic unit under a
     // plan-confirmation token. A judgment approval must attach to that unit instead
     // of creating a second, unreviewed unit at the point of adjudication.
@@ -1344,28 +1224,6 @@ export class AgentKernel {
     return this.store.putArtifact({ conversationId: task.conversationId, taskId: task.id, nodeId: node.id, kind: "ui_surface", title, status: "draft", data: surface, sourceRefs: [], createdBy: "research-lead" });
   }
 
-  private assertEvidenceIngestionAllowed(task: Task): void {
-    if (["completed", "cancelled"].includes(task.status)) throw new EvidenceIngestionConflictError("A published or cancelled task cannot be mutated by a connector; create an update branch instead");
-    if (task.status === "running") throw new EvidenceIngestionConflictError("A connector cannot mutate evidence while the task is running; retry when it reaches a checkpoint");
-  }
-
-  private queueEvidenceRecompute(task: Task, startKind: "evidence_capture" | "evidence_evaluation", artifactId: string): void {
-    const start = this.store.listTaskNodes(task.id).find((node) => node.kind === startKind);
-    if (!start) return;
-    const affected = [start, ...this.descendantNodes(task.id, start.id)];
-    if (!affected.some((node) => ["completed", "failed", "blocked", "cancelled"].includes(node.status))) return;
-    for (const node of affected) {
-      this.store.supersedePendingApprovals(node.id, `新连接器材料 ${artifactId} 要求重新计算证据及下游制品`);
-      if (["ready", "blocked", "completed", "failed"].includes(node.status)) this.store.transitionNode(node.id, "invalidate", { inputArtifactIds: [], outputArtifactIds: [] }, { actorId: "artifact-service", payload: { artifactId } });
-    }
-    const currentTask = this.requireTask(task.id);
-    if (currentTask.status !== "queued") this.store.transitionTask(task.id, "invalidate", { actorId: "artifact-service", payload: { artifactId } });
-    const jobId = this.store.enqueueTask(task.id, "resume");
-    this.store.appendEvent({
-      conversationId: task.conversationId, taskId: task.id, nodeId: start.id, type: "connector.evidence_recompute_queued",
-      actorType: "system", actorId: "connector-ingestion", payload: { artifactId, startKind, affectedNodeIds: affected.map((node) => node.id), jobId },
-    });
-  }
 
   private publicPlan(plan: ResearchPlan, nodes: TaskNode[], reportSpec?: Task["reportSpec"], methodPlan?: ResearchMethodPlan, graph?: ResearchProblemGraph, lensSuggestions?: ResearchPlanSurfaceData["lensSuggestions"]): ResearchPlanSurfaceData {
     return { intent: plan.intent, rationale: plan.rationale, nodes: nodes.map((node) => ({ id: node.id, title: node.title, kind: node.kind, capability: `${node.capabilityType}:${node.capabilityId}`, dependsOn: node.dependsOn, frontierRef: node.frontierRef })), parallelGroups: plan.parallelGroups, stopConditions: plan.stopConditions, stopPredicates: plan.stopPredicates, problemGraph: graph ? { id: graph.id, status: graph.status, nodes: graph.nodes, edges: graph.edges, scenarioRefs: graph.scenarioRefs, taskMotifRefs: graph.taskMotifRefs, lensRefs: graph.lensRefs } : undefined, lensSuggestions, principle: "确定性负责边界，Agent 负责路径", reportSpec, methodPlan };
@@ -1380,7 +1238,7 @@ export class AgentKernel {
     const caseObject = this.actions.ontology.getObject(task.researchCaseId);
     if (!caseObject) throw new Error("ResearchCase missing while materializing confirmed Problem Graph");
     const context = { actorType: "researcher" as const, actorId: "researcher", conversationId: task.conversationId, taskId: task.id };
-    const actionBase = { expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version }, approvalToken: approval.id, knowledgeLockId: this.store.getKnowledgeLock(task.id)?.id };
+    const actionBase = { expectedVersions: { [`${caseObject.type}:${caseObject.id}`]: caseObject.version }, approvalToken: approval.id, knowledgeLockId: this.store.knowledge.getKnowledgeLock(task.id)?.id };
     const roots = graph.nodes.filter((node) => node.type === "root_question");
     for (const root of roots) {
       const result = this.actions.apply("CreateResearchQuestion", {
@@ -1521,9 +1379,7 @@ export class AgentKernel {
   }
 }
 
-export function requestFingerprint(provider: string, model: string, input: unknown): string {
-  return createHash("sha256").update(JSON.stringify({ provider, model, input })).digest("hex");
-}
+export { requestFingerprint } from "@/src/application/idempotency";
 
 function inferTimeHorizon(goal: string): string {
   const normalized = goal.replace(/\s+/g, "");

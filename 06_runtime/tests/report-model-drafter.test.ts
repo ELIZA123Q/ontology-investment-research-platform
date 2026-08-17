@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { EvidenceFact, JudgmentSurfaceData, SourceReference, Task } from "@/src/contracts";
+import type { JudgmentSurfaceData, Task } from "@/src/contracts";
+import type { EvidenceFact, SourceReference } from "@/src/contracts/evidence";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { composeProfessionalReport } from "@/src/reporting/report-composer";
 import { requestReportSectionDrafts } from "@/src/reporting/report-model-drafter";

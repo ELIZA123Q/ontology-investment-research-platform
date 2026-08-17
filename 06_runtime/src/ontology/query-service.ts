@@ -1,7 +1,8 @@
 import { ONTOLOGY_CATALOG } from "@/src/ontology/generated";
-import type { AccessContext, OntologyLink, OntologyObject, OntologyObjectRef } from "@/src/contracts";
+import type { AccessContext, OntologyLink, OntologyObject, OntologyObjectRef } from "@/src/contracts/ontology";
 import { ontologyCatalog } from "@/src/ontology/catalog";
 import { OntologyStore } from "@/src/ontology/store";
+import type { OntologyContextSlice } from "@/src/semantic/graph-contracts";
 
 export interface OntologyQuery {
   typeOrInterface?: string;
@@ -140,6 +141,48 @@ export class OntologyQueryService {
       }
     }
     return { objects: [...visited].map((id) => allObjects.get(id)).filter((item): item is OntologyObject => Boolean(item)), links };
+  }
+
+  contextSlice(input: { text: string; seedRefs?: OntologyObjectRef[]; asOf: string; accessContext: AccessContext; limit?: number }): OntologyContextSlice {
+    const limit = Math.max(1, Math.min(input.limit || 16, 50));
+    const terms = [...new Set(input.text.toLowerCase().split(/[\s，。；、：（）()]+/u).map((item) => item.trim()).filter((item) => item.length > 1))];
+    const seedIds = new Set((input.seedRefs || []).map((item) => item.id));
+    const objects = [...this.baselineObjects(), ...this.overlay.listObjects()]
+      .filter((item) => canRead(item.properties, input.accessContext) && inTime(item.properties, input.asOf));
+    const scored = objects.map((object) => {
+      const text = `${object.id} ${object.type} ${JSON.stringify(object.properties)}`.toLowerCase();
+      const matched = terms.filter((term) => text.includes(term));
+      const score = (seedIds.has(object.id) ? 100 : 0) + matched.length + (["Company", "Listing", "ResearchCase", "SourceDocument", "EvidenceFact", "StateVariable"].includes(object.type) ? 0.25 : 0);
+      return { object, score, matched };
+    }).filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score || left.object.id.localeCompare(right.object.id));
+    const selected = new Map(scored.slice(0, limit).map((item) => [item.object.id, item]));
+    const links = [...this.baselineLinks(), ...this.overlayLinks()]
+      .filter((link) => selected.has(link.sourceRef.id) || selected.has(link.targetRef.id));
+    for (const link of links) {
+      if (selected.size >= limit) break;
+      for (const ref of [link.sourceRef, link.targetRef]) {
+        if (selected.has(ref.id)) continue;
+        const object = objects.find((item) => item.id === ref.id);
+        if (object) selected.set(ref.id, { object, score: 0.1, matched: [] });
+      }
+    }
+    const selectedLinks = links.filter((link) => selected.has(link.sourceRef.id) && selected.has(link.targetRef.id));
+    const sourceVersionRefs = [...selected.values()].flatMap(({ object }) => {
+      const raw = [object.properties.source_ref, object.properties.authority_ref, object.properties.ontology_origin, ...(Array.isArray(object.properties.source_refs) ? object.properties.source_refs : [])]
+        .filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+      return [...new Set(raw)].map((sourceRef) => ({ objectRef: object.id, sourceRef, version: object.version }));
+    });
+    return {
+      asOf: input.asOf,
+      seedRefIds: [...seedIds],
+      objects: [...selected.values()].map(({ object, matched, score }) => ({
+        id: object.id, type: object.type, version: object.version, validAt: String(object.properties.cutoff_at || object.properties.as_of || object.updatedAt),
+        selectionReason: seedIds.has(object.id) ? "explicit task seed" : matched.length ? `matched: ${matched.slice(0, 4).join(", ")}` : score > 0.2 ? "governed domain object" : "one-hop ontology neighbor",
+      })),
+      paths: selectedLinks.map((link) => ({ relationId: link.id, relationType: link.type, fromRef: link.sourceRef.id, toRef: link.targetRef.id, version: link.version })),
+      sourceVersionRefs,
+    };
   }
 
   private resolveTypes(typeOrInterface: string): Set<string> {

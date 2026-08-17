@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
+import type { Artifact } from "@/src/contracts/evidence";
 import type {
-  Artifact,
   KnowledgeMiner,
   KnowledgeMinerOutput,
   KnowledgeMiningContext,
   TemporalFact,
-} from "@/src/contracts";
+} from "@/src/contracts/knowledge";
 
 const normalize = (value: unknown) => String(value || "").normalize("NFKC").trim().toLocaleLowerCase("zh-CN").replace(/[\s\p{P}\p{S}]+/gu, "");
 const identity = (...parts: unknown[]) => createHash("sha256").update(parts.map(normalize).join("|")).digest("hex").slice(0, 24);

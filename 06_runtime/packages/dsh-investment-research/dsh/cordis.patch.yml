@@ -1,0 +1,18 @@
+# Applied after the official web profile. Keep this adapter out-of-tree so
+# upstream DSH upgrades are explicit, version-pinned compatibility events.
+- insert:
+    - id: investment-research
+      name: '@investment/dsh-investment-research'
+      config:
+        baseUrl: !!js process.env.VNEXT_DSH_GATEWAY_URL ?? 'http://127.0.0.1:3000'
+        apiToken: !!js process.env.VNEXT_DSH_GATEWAY_TOKEN
+
+- id: system-prompt
+  config:
+    persona: >-
+      You are the research assistant for a governed A-share semiconductor
+      earnings-update workbench. Use investment tools for case data and public
+      evidence. Never claim a plan, evidence, judgment, or report is formally
+      approved or published: those transitions require a researcher in the
+      domain workbench. When a case has pending intervention, tell the user
+      that researcher confirmation is required.

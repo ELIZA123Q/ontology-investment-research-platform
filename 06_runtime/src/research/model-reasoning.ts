@@ -1,4 +1,5 @@
-import type { Artifact, EvidenceFact, SignalRole, Task, TaskNode } from "@/src/contracts";
+import type { SignalRole, Task, TaskNode } from "@/src/contracts";
+import type { Artifact, EvidenceFact } from "@/src/contracts/evidence";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { ModelGateway } from "@/src/providers/model-gateway";
 import type { RuntimeStore } from "@/src/runtime/store";

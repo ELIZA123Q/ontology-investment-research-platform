@@ -120,6 +120,7 @@ state_machines:
       - {from: pending, command: reject, to: rejected, event: approval.rejected}
       - {from: pending, command: artifact_revised, to: superseded, event: approval.superseded}
   ResearchSignal:
+    kinds: [news, announcement]
     states: [new, seen, dismissed, promoted]
     initial: new
     terminal: [dismissed, promoted]

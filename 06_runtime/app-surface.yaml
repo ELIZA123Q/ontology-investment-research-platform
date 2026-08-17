@@ -18,6 +18,12 @@ routes:
     file: 06_runtime/app/api/v2/artifacts/[id]/route.ts
   - path: /api/v2/connectors/ingest
     file: 06_runtime/app/api/v2/connectors/ingest/route.ts
+  - path: /api/v2/knowledge/candidates
+    file: 06_runtime/app/api/v2/knowledge/candidates/route.ts
+  - path: /api/v2/knowledge/candidates/{id}/decisions
+    file: 06_runtime/app/api/v2/knowledge/candidates/[id]/decisions/route.ts
+  - path: /api/v2/knowledge/releases
+    file: 06_runtime/app/api/v2/knowledge/releases/route.ts
   - path: /
     file: 06_runtime/app/page.tsx
   - path: /research/{id}
@@ -42,3 +48,4 @@ notes:
   - 关键证据和 Judgment 会暂停等待研究员确认；报告编辑后自动重新审计。
   - 研究员材料通过独立抽屉结构化录入来源、发布主体、原文定位与摘录；不能用聊天文本绕过 SourceSnapshot 和 evidence_confirmation。
   - 计划面展示受治理的章节级方法蓝图；报告面展示 MethodApplication、方法输入事实数量和缺口。
+  - 知识治理面只展示候选；L1 仍需治理责任人明确审批，L2/L3 继续受专项评测和多角色审批约束，任何候选不得由 UI 静默写回。

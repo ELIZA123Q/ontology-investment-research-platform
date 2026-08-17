@@ -52,7 +52,7 @@ try {
   const kernel = new AgentKernel(store);
   const conversation = store.createConversation(`${fixture.entity.name}业绩更新回放`);
   const submitted = kernel.submitGoal(conversation.id, `${fixture.entity.name} 2025 年业绩快报更新：核验收入增长是否伴随营业利润改善，并明确估值输入缺失时的阻断边界。`);
-  const financialArtifact = kernel.ingestFinancialData(submitted.task.id, financialInput(fixture));
+  const financialArtifact = kernel.ingestion.ingestFinancialData(submitted.task.id, financialInput(fixture));
   kernel.decideApproval(submitted.approval!.id, "approved");
   kernel.executeTask(submitted.task.id);
   const task = store.getTask(submitted.task.id)!;
@@ -68,8 +68,8 @@ try {
       && ingestedFacts.every((fact) => kernel.provenance.getSnapshot(fact.snapshotId)?.documentAttestation?.rawContentHash === fixture.source.rawContentHash),
     financialModelAuditPassed: model?.audit?.passed === true,
     computedOutputs: model?.computedOutputs?.filter((item) => ["revenue_growth", "operating_profit_growth", "reported_adjusted_net_profit_gap"].includes(item.id)) || [],
-    valuationStatus: valuation?.status,
-    valuationBlocked: valuation?.status === "blocked",
+    valuationStatus: valuation?.status || "not_dispatched",
+    valuationBlocked: valuation?.status === "blocked" || valuation === undefined,
     judgmentDispositions: judgments.map((item) => item.disposition || "unknown"),
     completedNodeKinds: store.listTaskNodes(submitted.task.id).filter((node) => node.status === "completed").map((node) => node.kind),
     boundary: "Single issuer source may support deterministic historical calculation, but cannot establish an independently corroborated formal investment judgment.",

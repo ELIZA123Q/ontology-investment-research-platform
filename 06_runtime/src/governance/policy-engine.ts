@@ -1,5 +1,5 @@
 import { GOVERNANCE_POLICY_CATALOG } from "@/src/generated/domain-catalog";
-import type { AssetKind, CandidateDecision } from "@/src/contracts";
+import type { AssetKind, CandidateDecision } from "@/src/contracts/knowledge";
 
 type RecordValue = Record<string, unknown>;
 
@@ -22,13 +22,13 @@ export function minimumIndependentPublishers(role: string): number {
   return value;
 }
 
-export function knowledgeCandidateAutoReleaseAllowed(riskLevel: number): boolean {
-  return strings(record(knowledge.approval_policies).automatic_risk_levels).map(Number).includes(riskLevel);
-}
-
 export function requiredKnowledgeApprovalRoles(input: { riskLevel: number; assetKind: AssetKind }): CandidateDecision["reviewerRole"][] {
-  if (input.riskLevel < 2) return [];
   const policies = record(knowledge.approval_policies);
+  if (input.riskLevel < 2) {
+    const roles = strings(policies.low_risk_scope_local);
+    if (!roles.length) throw new Error("No governed approval route for low-risk knowledge candidates");
+    return roles as CandidateDecision["reviewerRole"][];
+  }
   const routes = record(policies.asset_kind_routes);
   const kind = input.assetKind;
   const route = Object.entries(routes).find(([, kinds]) => strings(kinds).includes(kind))?.[0];
@@ -75,4 +75,14 @@ export function assertArtifactEditAllowed(kind: string, fields: readonly string[
   const allowed = editableArtifactFields(kind, evidenceSufficient);
   const forbidden = fields.filter((field) => !allowed.includes(field));
   if (forbidden.length) throw new Error(`Fields are not editable by governed policy: ${forbidden.join(", ")}`);
+}
+
+export function evaluationCaseDefaults(): { assertions: Array<{ metric: string; operator: "gte" | "lte" | "eq"; expected: number | string | boolean }>; status: "candidate" } {
+  const defaults = record(knowledge.eval_case_defaults);
+  const assertions = Array.isArray(defaults.assertions) ? defaults.assertions.map((item) => {
+    const value = record(item);
+    return { metric: String(value.metric), operator: String(value.operator) as "gte" | "lte" | "eq", expected: value.expected as number | string | boolean };
+  }) : [];
+  if (!assertions.length) throw new Error("Knowledge policy has no default eval-case assertions");
+  return { assertions, status: String(defaults.status) as "candidate" };
 }

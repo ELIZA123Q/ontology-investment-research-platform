@@ -24,6 +24,12 @@ measurement_context:
     authorized_consensus: 必须保留 provider、permission_scope、as_of 与 vintage。
     analyst_forecast: 必须引用冻结假设或明确标记 analyst_assumption。
     scenario_assumption: 只能用于情景，不得伪装为预测事实。
+  runtime_financial_basis_projection:
+    values: [reported, restated, adjusted, guidance, internal_prior, consensus, forecast]
+    semantic_mapping:
+      guidance: company_guidance
+      consensus: authorized_consensus
+      forecast: analyst_forecast
 
 financial_bridge:
   operating_inputs: [volume, price, product_mix, utilization, yield, order_backlog, delivery, customer_qualification]

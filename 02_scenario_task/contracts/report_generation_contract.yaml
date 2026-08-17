@@ -27,6 +27,8 @@ report_spec:
     evidence_update: [只补, 证据更新, 补充来源]
     fallback: thematic_research
 
+evidence_role_values: [demand, supply, inventory, price, utilization, competition, business_model, financial, expectation, valuation, mechanism, risk]
+
 method_profiles:
   sections:
     business_model: {judgmentType: state_measurement, frameworkIds: [BF-BM-01], evidenceMethodId: 'kb03:A02', adjudicationMethodId: 'kb04:A01', requiredEvidenceRoles: [business_model, financial], rationale: 先验证收入机制与单位经济，再讨论商业模式质量。}

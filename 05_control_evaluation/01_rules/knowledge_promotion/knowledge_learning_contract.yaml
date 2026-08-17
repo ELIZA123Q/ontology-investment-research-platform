@@ -44,7 +44,7 @@ risk_levels:
     automatic: true
     examples: [run_episode, usage_observation, source_snapshot, exact_duplicate, derived_index]
   L1:
-    automatic: true
+    automatic: false
     reversible: true
     scope_limited: true
     examples: [preference, topic_index, candidate_cluster]
@@ -58,6 +58,7 @@ risk_levels:
     examples: [ontology, rule, skill, deprecation, cross_scope_promotion]
 
 approval_policies:
+  low_risk_scope_local: [governance_owner]
   temporal_or_mapping: [ontology_steward]
   method_prompt_template: [method_owner]
   case_or_failure: [governance_owner]
@@ -71,7 +72,7 @@ approval_policies:
     case_or_failure: [case, eval_case, failure_pattern]
     ontology: [ontology]
     skill: [skill]
-  automatic_risk_levels: [0, 1]
+  automatic_risk_levels: [0]
 
 promotion_thresholds:
   temporal_fact:
@@ -104,6 +105,11 @@ promotion_thresholds:
     skill: [skill]
     ontology: [ontology]
     eval_case: [eval_case]
+
+eval_case_defaults:
+  assertions:
+    - {metric: severe_regressions, operator: eq, expected: 0}
+  status: candidate
 
 baseline_rules:
   lock_at_task_creation: true

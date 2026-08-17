@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SourceReference } from "@/src/contracts";
+import type { SourceReference } from "@/src/contracts/evidence";
 import { deriveModelDataPolicy } from "@/src/providers/model-data-policy";
 
 const source = (id: string, permissionScope?: SourceReference["permissionScope"]): SourceReference => ({

@@ -1,4 +1,5 @@
-import type { AgentId, ArtifactKind, ResearchRole, TrustedComponentKind } from "@/src/contracts";
+import type { AgentId, ResearchRole, TrustedComponentKind } from "@/src/contracts";
+import type { ArtifactKind } from "@/src/contracts/evidence";
 import { DOMAIN_CATALOG } from "@/src/generated/domain-catalog";
 
 export type CapabilityLifecycle = "authored" | "candidate" | "active" | "retired";

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import type { PointInTimeEvidenceEnvelope, SourceCandidate, SourceSnapshot } from "@/src/contracts";
+import type { PointInTimeEvidenceEnvelope } from "@/src/contracts";
+import type { SourceCandidate, SourceSnapshot } from "@/src/contracts/evidence";
 import { normalizeSourceDocumentAttestation, type SourceDocumentAttestation } from "@/src/tools/source-document-attestation";
 
 type JsonScalar = string | number | boolean | null;

@@ -1,4 +1,4 @@
-import type { SourceReference } from "@/src/contracts";
+import type { SourceReference } from "@/src/contracts/evidence";
 import type { ModelDataPolicy } from "@/src/providers/model-gateway";
 import { MODEL_DATA_EGRESS_RULES } from "@/src/providers/generated/model-data-egress-rules";
 

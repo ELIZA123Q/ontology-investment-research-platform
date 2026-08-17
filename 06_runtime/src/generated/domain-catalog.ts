@@ -1275,6 +1275,22 @@ export const DOMAIN_CATALOG = {
         "accounting_basis",
         "value_origin"
       ],
+      "runtime_financial_basis_projection": {
+        "semantic_mapping": {
+          "consensus": "authorized_consensus",
+          "forecast": "analyst_forecast",
+          "guidance": "company_guidance"
+        },
+        "values": [
+          "reported",
+          "restated",
+          "adjusted",
+          "guidance",
+          "internal_prior",
+          "consensus",
+          "forecast"
+        ]
+      },
       "value_origin": [
         "historical_actual",
         "internal_prior",
@@ -1804,6 +1820,10 @@ export const DOMAIN_CATALOG = {
         },
         "ResearchSignal": {
           "initial": "new",
+          "kinds": [
+            "news",
+            "announcement"
+          ],
           "states": [
             "new",
             "seen",
@@ -3917,6 +3937,106 @@ export const DOMAIN_CATALOG = {
       "schema_name": "governance_eval_registry",
       "schema_version": "3.0.0",
       "status": "active"
+    },
+    "reportQuality": {
+      "claim_boundary": {
+        "forbidden": [
+          "用纪律诊断通过率称作研究可靠率",
+          "将章节完整性或引用完整性称为 U",
+          "在缺少同证据基线时声称 delta",
+          "用单次模型输出声称 S",
+          "未校准评测器时展示正式 R/U/delta",
+          "合成专业总分抵消硬错误"
+        ],
+        "required_ui_copy": "当前结果仅为运行时专业纪律诊断，不代表 R、U、delta、S、C 或研究增益已经通过。"
+      },
+      "formal_research_value": {
+        "authority_ref": "05_control_evaluation/05_evals/protocols/01_评测总纲.md",
+        "eligibility_semantics": "eligible 只表示允许启动正式协议，不表示 R/U/delta/S/C 已经通过；正式结果只能来自独立评测运行。",
+        "entry_statuses": [
+          "eligible",
+          "not_eligible"
+        ],
+        "executable_eligibility": {
+          "attestation_required": true,
+          "behavior": "只有全部案例、冻结、密封、扰动、基线、校准与模型隔离门通过后，才能签发 FormalEvaluationPrerequisites；report_value 的访问失败不得计为独立佐证，restraint 的访问缺口只能支持 boundary 判断；任一缺口都不得输出正式分数。",
+          "evaluator": "06_runtime/src/evaluation/formal-case-eligibility.ts"
+        },
+        "framework": "R/U/delta/S/C",
+        "prerequisites": [
+          "冻结且哈希锁定的评测证据包",
+          "在打开密封裁决前冻结的系统产物哈希",
+          "dual_route_independent 密封裁决契约",
+          "删除关键证据、口径替换、反证注入、截止日调整四类扰动",
+          "两个独立评测模型分别达到 C2",
+          "同证据直接生成完整报告基线",
+          "同证据普通摘要基线",
+          "与生产模型隔离的下游执行模型"
+        ],
+        "publication_freeze": {
+          "audit_event": "report.evaluation_inputs_frozen",
+          "effect": "仅满足冻结证据包与冻结系统产物两项准入条件；其余条件不得推断或自动补齐",
+          "outputs": [
+            "reportHash",
+            "evidenceBundleHash",
+            "reportArtifactVersion",
+            "evidenceArtifactId",
+            "evidenceArtifactVersion",
+            "frozenAt"
+          ],
+          "report_projection": [
+            "ReportSpec",
+            "summary",
+            "boundary",
+            "claims",
+            "sections",
+            "MethodApplication",
+            "SourceReference"
+          ],
+          "trigger": "研究员批准 publish_confirmation 且 PublishDeliverable 已提交"
+        }
+      },
+      "purpose": "把每次报告可即时执行的专业纪律诊断与需要独立实验才能产生的正式研究价值评测分开， 让 Runtime 可以暴露质量边界，但不能用确定性自检冒充 R、U、delta、S 或 C。",
+      "runtime_discipline_diagnostics": {
+        "aggregation": "no_composite_score",
+        "behavior": [
+          "每项单独展示分子、分母或不适用原因",
+          "没有 Claim 时引用指标为 not_applicable，不记为满分",
+          "attention 用于定位返工，不自动改写报告",
+          "纪律诊断不阻断已经通过 Verifier 的 ResearchDeliverable"
+        ],
+        "kind": "runtime_discipline_diagnostics",
+        "metrics": [
+          "citation_provenance",
+          "requested_section_coverage",
+          "method_traceability",
+          "evidence_lineage",
+          "change_condition_operability",
+          "personalization_traceability",
+          "model_drafting_boundary",
+          "abstention_discipline"
+        ],
+        "statuses": [
+          "passed",
+          "attention",
+          "not_applicable"
+        ]
+      },
+      "runtime_mapping": {
+        "audit_node": "06_runtime/src/runtime/kernel.ts",
+        "evaluator": "06_runtime/src/evaluation/report-quality-evaluator.ts",
+        "trusted_ui": "06_runtime/app/components/company-case-workspace.tsx"
+      },
+      "schema_name": "report_quality_evaluation_contract",
+      "schema_version": "1.0.0",
+      "status": "active",
+      "verification": {
+        "tests": [
+          "06_runtime/tests/report-quality-evaluator.test.ts",
+          "06_runtime/tests/formal-case-eligibility.test.ts",
+          "06_runtime/tests/kernel.test.ts"
+        ]
+      }
     }
   },
   "generatorVersion": "2.0.0",
@@ -4619,10 +4739,12 @@ export const DOMAIN_CATALOG = {
           ]
         },
         "automatic_risk_levels": [
-          0,
-          1
+          0
         ],
         "case_or_failure": [
+          "governance_owner"
+        ],
+        "low_risk_scope_local": [
           "governance_owner"
         ],
         "method_prompt_template": [
@@ -4772,6 +4894,16 @@ export const DOMAIN_CATALOG = {
           "selection_reason"
         ]
       },
+      "eval_case_defaults": {
+        "assertions": [
+          {
+            "expected": 0,
+            "metric": "severe_regressions",
+            "operator": "eq"
+          }
+        ],
+        "status": "candidate"
+      },
       "event_types": [
         "knowledge.mining.started",
         "knowledge.mining.completed",
@@ -4882,7 +5014,7 @@ export const DOMAIN_CATALOG = {
           ]
         },
         "L1": {
-          "automatic": true,
+          "automatic": false,
           "examples": [
             "preference",
             "topic_index",
@@ -5017,6 +5149,217 @@ export const DOMAIN_CATALOG = {
       "schema_name": "governance_permission_matrix",
       "schema_version": "2.0.0",
       "status": "active"
+    },
+    "publicContract": {
+      "action_contract": {
+        "execution_audit": "05_control_evaluation/02_identity/action_execution_schema.yaml",
+        "formal_writes_via_actions_only": true,
+        "idempotency_required": true,
+        "optimistic_lock_required": true,
+        "preview_apply_flow": true,
+        "rules": [
+          "Function 只计算候选，正式 Object 与 Link 只能由 Action Service 原子写入。",
+          "Action 必须检查 allowed_actors、approval_policy、expectedVersions 与 idempotencyKey。",
+          "每次 apply 必须记录 edits、outputRefs、invalidatedRefs 与执行结果。"
+        ]
+      },
+      "artifact_contract": {
+        "authority_ref": "04_context_state/04_workspace/contract.yaml#artifact_contract",
+        "identity_fields": [
+          "id",
+          "conversationId",
+          "taskId",
+          "kind",
+          "version"
+        ],
+        "provenance_fields": [
+          "nodeId",
+          "sourceRefs",
+          "createdBy",
+          "createdAt"
+        ],
+        "rules": [
+          "修改 Artifact 必须创建新版本，禁止覆盖历史版本。",
+          "上游语义变化只使依赖图中可达的下游 Artifact 失效。",
+          "verified 表示确定性校验通过，不代表正式研究价值评测通过。"
+        ]
+      },
+      "authority": {
+        "action_catalog": "01_semantic_knowledge/01_ontology/kinetics/action_types.yaml",
+        "action_policies": "01_semantic_knowledge/01_ontology/kinetics/policies.yaml",
+        "judgment_thresholds": "05_control_evaluation/01_rules/policies/judgment_threshold_policy.yaml",
+        "method_routes": "05_control_evaluation/01_rules/policies/judgment_method_routes.yaml",
+        "node_catalog": "06_runtime/src/runtime/node-catalog.ts",
+        "ontology_models": "01_semantic_knowledge/01_ontology/platform_registry.yaml",
+        "runtime_types": "06_runtime/src/contracts.ts"
+      },
+      "compatibility": {
+        "fixed_five_stage_runtime": "unsupported",
+        "legacy_package_validation": "unsupported",
+        "migration_source": "git_history_only"
+      },
+      "formal_ontology_version": "5.0.0",
+      "incremental_update_contract": {
+        "required_behavior": [
+          "新材料先执行 impact analysis，明确 changed roots、复用对象和受影响后代。",
+          "Artifact 修订创建新版本，旧版本保留为 superseded。",
+          "未受影响的 Artifact、证据事实与正式对象保持复用。",
+          "已发布 Task 的更新必须创建分支，不得原地改写冻结交付物。",
+          "时间范围变化必须触发来源新鲜度和 KnowledgeLock 检查。"
+        ],
+        "runtime_owner": "06_runtime/src/runtime/kernel.ts",
+        "schema_version": "2.0.0"
+      },
+      "method_application_contract": {
+        "execution_statuses": [
+          "candidate",
+          "bound",
+          "executed",
+          "blocked"
+        ],
+        "gate_statuses": [
+          "selected",
+          "passed",
+          "provisional",
+          "blocked",
+          "not_applicable"
+        ],
+        "required_fields": [
+          "id",
+          "sectionKey",
+          "judgmentType",
+          "frameworkIds",
+          "evidenceMethodId",
+          "adjudicationMethodId",
+          "requiredEvidenceRoles",
+          "matchedEvidenceRoles",
+          "missingEvidenceRoles",
+          "evidenceFactIds",
+          "rationale",
+          "gateStatus",
+          "executionStatus",
+          "sourceRefs"
+        ],
+        "rules": [
+          "方法 ID 必须来自受治理的方法资产与 judgment_method_routes。",
+          "缺少必需证据角色时不得标记 executed。",
+          "方法输入、证据事实、判断与报告章节必须保持可追溯关系。",
+          "blocked 必须保留缺口与退出条件，不得静默丢弃方法。"
+        ],
+        "runtime_type": "06_runtime/src/contracts.ts#MethodApplication",
+        "schema_version": "2.0.0"
+      },
+      "object_validity_propagation": {
+        "dependency_order": [
+          [
+            "EvidenceClaim_or_EvidenceFact",
+            "EvidenceAssessment_or_EvidenceBasket_or_MethodApplication_or_Observation_or_Event_or_Signal_or_MarketExpectation"
+          ],
+          [
+            "Observation_or_Event_or_Signal",
+            "Hypothesis"
+          ],
+          [
+            "Hypothesis",
+            "RuleEvaluation"
+          ],
+          [
+            "RuleEvaluation",
+            "Judgment"
+          ],
+          [
+            "MethodApplication",
+            "Judgment"
+          ],
+          [
+            "Judgment",
+            "ReasoningTrace_or_Expression"
+          ],
+          [
+            "Judgment",
+            "ExpectationGap_or_AssetImpact"
+          ],
+          [
+            "MarketExpectation",
+            "ExpectationGap"
+          ],
+          [
+            "ExpectationGap_or_AssetImpact",
+            "ReportClaim"
+          ]
+        ],
+        "formal_object_types": [
+          "EvidenceClaim",
+          "EvidenceFact",
+          "EvidenceAssessment",
+          "EvidenceBasket",
+          "Observation",
+          "Event",
+          "Signal",
+          "MarketExpectation",
+          "Hypothesis",
+          "RuleEvaluation",
+          "Judgment",
+          "ReasoningTrace",
+          "ExpectationGap",
+          "AssetImpact"
+        ],
+        "invalidation_rule": "只传播到实际依赖图可达的下游对象，不按目录编号或固定阶段整批失效。",
+        "runtime_projection_types": [
+          "ReportClaim",
+          "Expression",
+          "MethodApplication"
+        ]
+      },
+      "publication_contract": {
+        "action": "PublishDeliverable",
+        "preconditions": [
+          "报告已通过来源、Claim 与表达边界校验。",
+          "正式 Judgment 已完成研究员确认。",
+          "reportHash、evidenceBundleHash 与 Artifact 版本已经冻结。"
+        ],
+        "required_approval": "publish_confirmation",
+        "result_semantics": [
+          "发布前状态为 verified_not_published。",
+          "发布成功只证明确定性发布条件满足。",
+          "R、U、delta、S、C 只能由独立评测协议产生。"
+        ]
+      },
+      "reasoning_trace_contract": {
+        "minimum_chain": [
+          "SourceSnapshot",
+          "EvidenceFact",
+          "EvidenceClaim",
+          "Signal",
+          "Hypothesis",
+          "RuleEvaluation",
+          "MethodApplication",
+          "Judgment",
+          "ReasoningTrace",
+          "ResearchDeliverable"
+        ],
+        "rules": [
+          "未经 capture 与验证的来源不得晋级为 EvidenceFact。",
+          "EvidenceFact 不得绕过 Signal、Hypothesis 与 RuleEvaluation 直接形成正式 Judgment。",
+          "正式 Judgment 必须经 ApproveJudgment Action 与研究员确认。",
+          "报告 Claim 只能引用已验证来源和正式判断允许的证据边界。"
+        ],
+        "schema_version": "2.0.0"
+      },
+      "schema_name": "controlled_research_public_contract",
+      "schema_version": "2.0.0",
+      "status": "active",
+      "task_graph_contract": {
+        "allowed_node_catalog": "06_runtime/src/runtime/node-catalog.ts",
+        "graph_owner": "06_runtime/src/runtime/plan-compiler.ts",
+        "requirements": [
+          "节点类型、输出 Artifact 类型与 Capability 必须来自白名单。",
+          "TaskGraph 必须无环，依赖完成后节点才可执行。",
+          "Agent 只能写其 Capability 明确允许的 Artifact 类型。",
+          "Checkpoint 只用于恢复，Event 保留追加式执行审计。",
+          "规划器可以提议路径，但不能创建白名单外节点或绕过审批门。"
+        ]
+      }
     }
   },
   "intentTypes": {
@@ -5067,6 +5410,125 @@ export const DOMAIN_CATALOG = {
         "stop_basis": "affected_subgraph_recomputed_or_explicitly_blocked"
       },
       "label_zh": "判断更新"
+    }
+  },
+  "judgmentCommit": {
+    "deterministic_gates": {
+      "failure_behavior": "拒绝整次 ApproveJudgment；不得写入部分对象或关系",
+      "supported_judgment_requires": [
+        "所有 Signal 输入均来自当前 Judgment 引用的 verified EvidenceFact",
+        "Signal statement 原样保留 EvidenceFact statement",
+        "至少一条 Signal.role=support",
+        "不存在 Signal.role=block",
+        "至少一个当前 Task 中 execution_status=executed 且 gate_status=passed 的 MethodApplication",
+        "judgment_type 属于治理枚举",
+        "statement、time_horizon 与 invalidation_conditions 非空"
+      ]
+    },
+    "formal_chain": {
+      "atomic_commit": true,
+      "authority_action": "ApproveJudgment",
+      "authority_action_creates": [
+        "Signal",
+        "RuleEvaluation",
+        "Judgment",
+        "ReasoningTrace"
+      ],
+      "order": [
+        "ResearchScope",
+        "JudgmentUnit",
+        "EvidenceFact",
+        "Signal",
+        "Hypothesis",
+        "RuleEvaluation",
+        "Judgment",
+        "ReasoningTrace"
+      ],
+      "prerequisite_actions": [
+        "CreateJudgmentUnit",
+        "AcceptHypothesis"
+      ],
+      "required_relations": [
+        "unitUsesScope",
+        "unitHasHypothesis",
+        "factSupportsSignal",
+        "signalEvaluatesHypothesis",
+        "judgmentResolvesUnit",
+        "judgmentBasedOnHypothesis",
+        "judgmentHasRuleEvaluation",
+        "judgmentHasReasoningTrace",
+        "traceIncludesNode"
+      ]
+    },
+    "proposal_boundary": {
+      "agent_may": [
+        "提出待复核判断表述、置信边界和改判条件",
+        "把已核验 EvidenceFact 装配为候选 Signal 输入",
+        "在治理目录中选择 JudgmentType 与 MethodApplication"
+      ],
+      "agent_must_not": [
+        "自动决定 EvidenceFact 对当前 Hypothesis 的支持方向",
+        "把初始占位提案提交为正式 Judgment",
+        "绕过研究员修改、保存和 judgment_confirmation"
+      ]
+    },
+    "purpose": "规定从研究员复核的 JudgmentProposal 到正式 Judgment 的最小可审计推理链， 防止证据 ID、模型文本或流程完成状态被直接当作专业判断。",
+    "revision_and_invalidation": {
+      "judgment_revision": [
+        "清除当前正式 reasoningChain 投影",
+        "记录 supersedesReasoningTraceRef",
+        "重新执行研究员确认与原子提交",
+        "旧 ReasoningTrace 保持不可变"
+      ],
+      "source_refresh": [
+        "下游 EvidenceFact 与 Signal 进入 stale",
+        "依赖该事实的 Judgment 进入 invalidated/review_required"
+      ]
+    },
+    "runtime_mapping": {
+      "action_boundary": "06_runtime/src/ontology/action-service.ts#ApproveJudgment",
+      "action_schema": "01_semantic_knowledge/01_ontology/kinetics/action_types.yaml#ApproveJudgment",
+      "proposal_and_commit": "06_runtime/src/runtime/kernel.ts",
+      "trusted_ui": "06_runtime/app/components/company-case-workspace.tsx",
+      "types": "06_runtime/src/contracts.ts#JudgmentSurfaceData"
+    },
+    "schema_name": "judgment_reasoning_commit_contract",
+    "schema_version": "1.0.0",
+    "signal_roles": {
+      "block": "触发硬阻断；不得提交 supported Judgment",
+      "context": "提供范围或解释背景，不计入支持门槛",
+      "researcher_confirmation_required": true,
+      "support": "直接增加当前 Hypothesis 成立的证据权重",
+      "values": [
+        "support",
+        "weaken",
+        "block",
+        "context"
+      ],
+      "weaken": "降低成立强度但不足以否决"
+    },
+    "status": "active",
+    "trace_requirements": {
+      "immutable_after_commit": true,
+      "includes": [
+        "当前 ResearchScope",
+        "JudgmentUnit",
+        "全部输入 EvidenceFact",
+        "全部派生 Signal",
+        "主 Hypothesis",
+        "RuleEvaluation"
+      ],
+      "ui_projection": [
+        "展示每条 EvidenceFact 的研究员确认角色",
+        "展示确定性规则条件及通过状态",
+        "提交后展示正式链和 ReasoningTrace 引用"
+      ]
+    },
+    "verification": {
+      "tests": [
+        "06_runtime/tests/ontology-actions.test.ts",
+        "06_runtime/tests/kernel.test.ts"
+      ]
     }
   },
   "planningContract": {
@@ -5156,8 +5618,203 @@ export const DOMAIN_CATALOG = {
       "planner.compiled",
       "plan.proposed"
     ],
+    "runtime_execution_projection": {
+      "intent_values": [
+        "full_research",
+        "evidence_only",
+        "update_judgment",
+        "compose_only",
+        "clarify"
+      ],
+      "rule": "该值域是 User Intent 与 Workflow Pattern 编译后的执行先验，不是新的用户意图分类。"
+    },
     "schema_name": "research_planning_contract",
     "schema_version": "2.0.0",
+    "status": "active"
+  },
+  "problemGraphContract": {
+    "assembly_cycle": [
+      "normalize_request_and_scope",
+      "activate_one_or_more_task_motifs",
+      "apply_scenario_constraints_and_conditional_affordances",
+      "merge_equivalent_units_and_reusable_evidence_requirements",
+      "select_unresolved_or_invalidated_frontier",
+      "compile_frontier_to_execution_task_graph",
+      "commit_authorized_results_and_provenance",
+      "propagate_invalidation_and_replan_delta"
+    ],
+    "assembly_cycle_note": "以上是闭环职责，不是必须顺序执行一次的固定 Workflow；在新证据、范围变化、阻断解除 或判断改版时可从任一受影响 frontier 重新进入。\n",
+    "catalog_inputs": {
+      "planning_prior": "02_scenario_task/05_workflow_patterns",
+      "role": "02_scenario_task/04_roles/roles.yaml",
+      "scenario": "02_scenario_task/02_scenarios/types.yaml",
+      "scenario_cards": "02_scenario_task/02_scenarios",
+      "task_motifs": "02_scenario_task/03_tasks",
+      "user_intent": "02_scenario_task/01_intents/types.yaml"
+    },
+    "frontier_policy": {
+      "selectable_states": [
+        "unresolved",
+        "invalidated",
+        "blocked_recheck"
+      ],
+      "selection_factors": [
+        "expected_information_gain",
+        "dependency_unlock_value",
+        "decision_relevance",
+        "evidence_availability",
+        "budget_and_deadline"
+      ],
+      "skip_states": [
+        "resolved_and_fresh",
+        "out_of_scope"
+      ],
+      "stop_when": [
+        "所有 required 判断单元均 resolved、blocked 或 explicit_indeterminate",
+        "Task Contract completion_criteria 已满足",
+        "继续扩展的预期信息增益低于预算或时间阈值"
+      ]
+    },
+    "graph_boundaries": {
+      "execution_task_graph": {
+        "answers": "本次执行哪些节点、依赖、预算与检查点",
+        "invariant": "每次编译结果必须为 DAG",
+        "owner": "06_runtime"
+      },
+      "research_problem_graph": {
+        "answers": "研究问题由哪些判断单元、竞争解释、证据缺口、阻断与汇总关系组成",
+        "instance_owner": "06_runtime",
+        "owner": "02_scenario_task/00_problem_graph",
+        "semantic_type_authority": "01_semantic_knowledge/01_ontology/models"
+      },
+      "research_provenance_graph": {
+        "answers": "正式研究结论为什么成立",
+        "owner": "01_semantic_knowledge/03_knowledge_graph"
+      }
+    },
+    "invariants": [
+      "不把目录编号解释为执行顺序",
+      "不要求 Scenario 与 Task 一对一",
+      "不要求一个请求只选择一个 Task",
+      "不把 motif edge 直接写成 Ontology relation",
+      "不把语义依赖等同于 TaskNode.dependsOn",
+      "不因两个节点同图出现而推断业务事实",
+      "已解决且新鲜的子图优先复用，变更只重算受影响子图",
+      "每个执行节点必须可回溯到一个 frontier need",
+      "任何正式语义写入仍须经过 Ontology Action 与 authority gate"
+    ],
+    "motif_contract": {
+      "edge_endpoint_rule": "from 与 to 必须引用当前 motif 的 root 或 judgment_unit_roles.id",
+      "edge_fields": [
+        "from",
+        "to",
+        "relation"
+      ],
+      "judgment_unit_role_fields": [
+        "id",
+        "purpose",
+        "required"
+      ],
+      "relation_values": [
+        "requires",
+        "informs",
+        "challenges",
+        "invalidates",
+        "aggregates",
+        "reuses"
+      ],
+      "required_fields": [
+        "root_question",
+        "judgment_unit_roles",
+        "edges",
+        "competing_explanation_policy",
+        "aggregation"
+      ]
+    },
+    "motif_edge_types": {
+      "aggregates": {
+        "acyclic": true,
+        "execution_projection": "synthesis_input",
+        "meaning": "来源单元参与目标问题或复合判断汇总"
+      },
+      "challenges": {
+        "acyclic": false,
+        "execution_projection": "competing_evidence_frontier",
+        "meaning": "来源单元或竞争解释对目标单元构成反证路径"
+      },
+      "informs": {
+        "acyclic": false,
+        "execution_projection": "context_or_replan_trigger",
+        "meaning": "来源单元结果会改变目标单元，但不要求严格串行"
+      },
+      "invalidates": {
+        "acyclic": false,
+        "execution_projection": "downstream_invalidation",
+        "meaning": "来源变化会使目标单元或其既有结果失效"
+      },
+      "requires": {
+        "acyclic": true,
+        "execution_projection": "may_create_dependency",
+        "meaning": "目标单元在逻辑上必须等待来源单元解决或阻断"
+      },
+      "reuses": {
+        "acyclic": false,
+        "execution_projection": "artifact_or_context_reuse",
+        "meaning": "不同 motif 共享同一已识别单元、证据要求或已确认制品"
+      }
+    },
+    "ontology_relation_refs": [
+      "caseAddressesQuestion",
+      "questionDecomposesIntoUnit",
+      "unitUsesScope",
+      "unitHasHypothesis",
+      "unitHasCompetingExplanation",
+      "unitHasBlockingFactor",
+      "judgmentUnitRequiresEvidence",
+      "judgmentResolvesUnit"
+    ],
+    "purpose": "规定 User Intent、Scenario 与 Research Task Contract 如何组合成 Research Problem Graph， 并把未解决 frontier 增量编译为 Runtime Execution TaskGraph。它不重定义 Ontology 对象/关系，也不登记可执行 Node kind。\n",
+    "runtime_mapping": {
+      "compiler": "06_runtime/src/runtime/plan-compiler.ts",
+      "invalidation_policy": "01_semantic_knowledge/03_knowledge_graph/contracts/trace_policy.yaml",
+      "node_catalog": "06_runtime/src/runtime/node-catalog.ts",
+      "ontology_types": "01_semantic_knowledge/01_ontology/models",
+      "planner": "06_runtime/src/runtime/planner.ts",
+      "planner_contract": "02_scenario_task/contracts/research_planning_contract.yaml"
+    },
+    "runtime_projection": {
+      "frontier_state_values": [
+        "proposed",
+        "unresolved",
+        "active",
+        "resolved",
+        "blocked",
+        "indeterminate",
+        "invalidated",
+        "out_of_scope"
+      ],
+      "relation_values": [
+        "requires",
+        "informs",
+        "challenges",
+        "invalidates",
+        "aggregates",
+        "reuses"
+      ]
+    },
+    "schema_name": "research_problem_graph_contract",
+    "schema_version": "1.0.0",
+    "semantic_node_refs": [
+      "ResearchCase",
+      "ResearchScope",
+      "ResearchQuestion",
+      "JudgmentUnit",
+      "Hypothesis",
+      "CompetingExplanation",
+      "BlockingFactor",
+      "EvidenceRequirement",
+      "Judgment"
+    ],
     "status": "active"
   },
   "reportGeneration": {
@@ -5178,6 +5835,20 @@ export const DOMAIN_CATALOG = {
       "每个专业章节必须绑定可解析的 MethodApplication；框架、取证与裁决方法 ID 必须来自受治理方法目录和路由合同。",
       "MethodApplication 的最低证据角色未覆盖时只能为 provisional 或 blocked；不得把选中方法等同于已经执行。",
       "正式 Judgment 必须引用至少一个 execution_status=executed 且 gate_status=passed 的裁决 MethodApplication。"
+    ],
+    "evidence_role_values": [
+      "demand",
+      "supply",
+      "inventory",
+      "price",
+      "utilization",
+      "competition",
+      "business_model",
+      "financial",
+      "expectation",
+      "valuation",
+      "mechanism",
+      "risk"
     ],
     "lifecycle": [
       "ReportSpec 随 Task 创建并冻结到当前运行。",
@@ -6238,18 +6909,19 @@ export const DOMAIN_CATALOG = {
     "status": "active"
   },
   "sourceFingerprints": {
-    "01_semantic_knowledge/01_ontology/contracts/company_fundamental_semantics.yaml": "sha256:c1565f485e2bb27ab3aca5f045606473a4e685a0092b2e62bdc1d6449bb2228d",
+    "01_semantic_knowledge/01_ontology/contracts/company_fundamental_semantics.yaml": "sha256:3b14db90ef4a93932cfa1f85be4b4bbf486ee631f1c6522dd46f72c5aa7030b1",
     "01_semantic_knowledge/01_ontology/research_requirement_profiles.yaml": "sha256:ab8b454e5fb3b224b1cbfcd7c51e9f810d89bccb30cbf0da65a0da59b527a98e",
     "01_semantic_knowledge/02_dictionary/02_aliases.yaml": "sha256:fe608ab03371579f72ea30fe3dbfe2645aa53deece99ac60b57f991a54170be2",
     "01_semantic_knowledge/02_dictionary/04_ambiguity_rules.yaml": "sha256:c032dd333919e2ae867bd62f8dba64f40cc7876daf37dbb3770209388ce6c499",
     "01_semantic_knowledge/02_dictionary/05_deprecated_terms.yaml": "sha256:8a2a95e9bdecb2380565c3d91725ce21f9b8ae2994218c460270b92692412fb6",
     "01_semantic_knowledge/03_knowledge_graph/contracts/trace_policy.yaml": "sha256:8f010145c475ef8b047407100fed7362018d96dcb5af6a0dec1df1bb0c4ae2fe",
+    "02_scenario_task/00_problem_graph/contract.yaml": "sha256:69bc4bfe9f3e22999255ba4b11195c5908f2c8a3664424bc8b0264e110e42691",
     "02_scenario_task/01_intents/types.yaml": "sha256:407359fe66d35927110741eb28768b4683d4a86839091f0b58aaf42c0c0e3ddb",
     "02_scenario_task/02_scenarios/types.yaml": "sha256:55c9945a0113295a948b6ceac597d054abf5be2b5712d4200a80653c425840d5",
     "02_scenario_task/03_tasks/company_analysis.yaml": "sha256:943a4be9b53253001d01dfbd15deb3da88c545108bbb43bb61ec37781c46631e",
     "02_scenario_task/03_tasks/company_coverage.yaml": "sha256:5e793be9ba6682f18b7e36646f78285925eeb8b7799bd6f4f5600a63fdbbf994",
     "02_scenario_task/03_tasks/cycle_judgment.yaml": "sha256:c4f25acfe5d21c65d9331eab7c79dc4225490cb24d22b37c3032fb250ed358a5",
-    "02_scenario_task/03_tasks/earnings_update.yaml": "sha256:6f7ffed99bb877f82fd97c9125137d873437753cf3ef8f67355f690a469891ac",
+    "02_scenario_task/03_tasks/earnings_update.yaml": "sha256:caab75859147d8d11521f37cd86891720b4058c29524240a1dff9e0bbf55fdb9",
     "02_scenario_task/03_tasks/event_impact.yaml": "sha256:33fc55b113431e473baf7a1b6db13c9aee10cdea26508c2561954202f754da64",
     "02_scenario_task/03_tasks/registry.yaml": "sha256:074ca56b4e480330aabff021342046605e8429cb401cfed7337b35bd2e112d25",
     "02_scenario_task/03_tasks/technology_route_analysis.yaml": "sha256:cebb0e01ef065e8bf9cba957c04c699e394f0dd634e9bd83d2c1ff37d0425bc5",
@@ -6260,8 +6932,9 @@ export const DOMAIN_CATALOG = {
     "02_scenario_task/05_workflow_patterns/evidence_only.yaml": "sha256:97ff0dcdf3263c91cf3c758d9d62e7eadced8c5314f5a0963a2d89efe8e0aa27",
     "02_scenario_task/05_workflow_patterns/quick_research.yaml": "sha256:ef0153cd36dc5448718b708e143d3db606394f38bbe10571736e4d674da87af3",
     "02_scenario_task/05_workflow_patterns/registry.yaml": "sha256:d04e31d75ef7bd05a25ba4eb5fbf98dfac4c0d32fc6b038f39a99f91062c33d1",
-    "02_scenario_task/contracts/report_generation_contract.yaml": "sha256:43f208471a09803fb35d14b0d846ecf8f83017e6c7bc6d2e480da6f5cc079be6",
-    "02_scenario_task/contracts/research_planning_contract.yaml": "sha256:f66e9c4a1c7ad1c11dc223949459fe7e7138ce0442b0b7e730da0426438f21cf",
+    "02_scenario_task/contracts/judgment_reasoning_commit_contract.yaml": "sha256:269d03a1b00a57f53e151c76368a2d23304c0c32fc84f8125c3c011657ee3900",
+    "02_scenario_task/contracts/report_generation_contract.yaml": "sha256:65bb4e32fb85ad122ca838cbc6265b5eabf6228a3ce4bdcd1f58c555eafa0310",
+    "02_scenario_task/contracts/research_planning_contract.yaml": "sha256:1ff44b36407738700aff30a432102d2d7a4e4765d2dd504e5782754809d33005",
     "03_agent_capability/01_agents/registry.yaml": "sha256:79b065025409ad0289d889ba44bb2a8cefc9488a89fe36303479822366ae82c1",
     "03_agent_capability/02_skills/company_fundamental_research/SKILL.md": "sha256:1379932f50965c0d26429fb4d2bce488e01ae609f34b5358d5c22e5b7d78dc3b",
     "03_agent_capability/02_skills/earnings_update/SKILL.md": "sha256:e1415fe9ff72a5985009c5ada36e2994f8a4ea2ad1c13f7de4b901b94d091dc5",
@@ -6281,10 +6954,11 @@ export const DOMAIN_CATALOG = {
     "04_context_state/01_context/contract.yaml": "sha256:0235bf154457b9c11a391879abcab72186cfebd96f0aa447b5946005640d5f40",
     "04_context_state/02_state/contract.yaml": "sha256:084d3c39af954aad89caae5faae26d760a1c4c0e9b047db8fa8a93685c57bdfd",
     "04_context_state/02_state/event_catalog.yaml": "sha256:a840636bdbb2e32ae93923e600faa6256955be585bef48de15b1d6f430ac0021",
-    "04_context_state/02_state/lifecycle_contract.yaml": "sha256:508d305071f7f235c7b185b18c257f8fb49fbe0bfad61e5ee2bc67ad97ec2fcd",
+    "04_context_state/02_state/lifecycle_contract.yaml": "sha256:463c9e480dbe1a53abd840396610b14decc57d9d7c2523dca7e0298d963df2e6",
     "04_context_state/03_memory/contract.yaml": "sha256:c3110ea938d4d6aec4452c0bd46dd300f1338e2175bc95d30abc5f7bf1ab615f",
     "04_context_state/04_workspace/contract.yaml": "sha256:d242861e070bdc2269ff0f2693873c818e08e3948cd1135abebe34401bd7e746",
-    "05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml": "sha256:d1e01d4a37f879efc2a69a98ccf228f48649d8451a9eab178ce7c06e9cad2178",
+    "05_control_evaluation/01_rules/contracts/public_contract.yaml": "sha256:d5ccdbcd0d7a5315c54cdc85e8a1c191962b70cff27b051c106d2f3244015ed1",
+    "05_control_evaluation/01_rules/knowledge_promotion/knowledge_learning_contract.yaml": "sha256:131593c0d80b02c9d5f5f4b75f8f66fce53c80b093d679deddcc580be489cdfb",
     "05_control_evaluation/01_rules/policies/artifact_editing_policy.yaml": "sha256:40876c32d32a67b438dd1da7d8bdadec86bc47e05e21fe8e4a342019b811c4ed",
     "05_control_evaluation/01_rules/policies/asset_authority_matrix.yaml": "sha256:e6711f672820e7b1749ef66090d617244dd80f9cbfcb1b6c058bf656b550906d",
     "05_control_evaluation/01_rules/policies/capability_activation_policy.yaml": "sha256:a8dd337e1d98d88b8fb2a414e4dc9e3f695c7b78206e9f9a3222ac9738e0a81a",
@@ -6297,6 +6971,7 @@ export const DOMAIN_CATALOG = {
     "05_control_evaluation/05_evals/fixtures/gold-tasks.json": "sha256:6db24d32e69bdec78962854f5ecc7f0eeb08978f1c41435134e0b4cdf41672d7",
     "05_control_evaluation/05_evals/fixtures/live-canary-cases.json": "sha256:e3ac9b2185d5c1f39e739b04db00b1d05a0cbc76476dff8411fda8057ebb6abd",
     "05_control_evaluation/05_evals/fixtures/research-value-fixtures.json": "sha256:113de3b1b42b31acfc4808f37e6f2ef1a76d7c062674e9b9390df5d3d75d5fd1",
+    "05_control_evaluation/05_evals/protocols/report_quality_evaluation_contract.yaml": "sha256:28c21147acf3a02a18167426b70930836a281c530517b33184279093aaed6a6e",
     "05_control_evaluation/05_evals/registry.yaml": "sha256:cfb3dc90ea0ba71744a1496ea127f1ddc63803bda33eb427ef5e1a329c8849d3"
   },
   "tasks": {
@@ -7106,6 +7781,11 @@ export const DOMAIN_CATALOG = {
         ],
         "scenario_refs": [
           "CompanyResearch"
+        ],
+        "selection_priority": 120,
+        "suppresses_when_selected": [
+          "company_analysis",
+          "thesis_review"
         ],
         "unit_judgment_types": {
           "actual_quality": "state_measurement",

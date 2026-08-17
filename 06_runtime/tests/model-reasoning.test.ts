@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { Artifact, EvidenceFact, SourceReference, Task, TaskNode } from "@/src/contracts";
+import type { Task, TaskNode } from "@/src/contracts";
+import type { Artifact, EvidenceFact, SourceReference } from "@/src/contracts/evidence";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { requestBoundedResearchReasoning } from "@/src/research/model-reasoning";
 import { normalizeReportSpec } from "@/src/reporting/report-spec";

@@ -1,4 +1,5 @@
-import type { AgentId, Artifact, EvidenceFact, ReportSurfaceData, SourceReference, UiSurface } from "@/src/contracts";
+import type { AgentId, ReportSurfaceData, UiSurface } from "@/src/contracts";
+import type { Artifact, EvidenceFact, SourceReference } from "@/src/contracts/evidence";
 import { getAgent, TRUSTED_COMPONENTS } from "@/src/capabilities/registry";
 
 export interface VerificationResult {

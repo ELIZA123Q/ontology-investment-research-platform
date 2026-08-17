@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
+import type { Task } from "@/src/contracts";
 import type {
   ActionApplyResult, ActionContext, ActionExecution, ActionPreview, ActionPreviewRequest,
-  OntologyEdit, OntologyLink, OntologyObject, OntologyObjectRef, Task,
-} from "@/src/contracts";
+  OntologyEdit, OntologyLink, OntologyObject, OntologyObjectRef,
+} from "@/src/contracts/ontology";
 import { ontologyCatalog, type OntologyActionTypeDefinition } from "@/src/ontology/catalog";
 import { canRead } from "@/src/ontology/query-service";
 import { OntologyStore } from "@/src/ontology/store";
@@ -510,9 +511,9 @@ export class OntologyActionService {
       conversationId: context.conversationId, researchCaseId: caseRef.id, goal, intent: "update_judgment", status: "queued",
       budget: { maxModelCalls: 6, maxToolCalls: 12, maxCostUsd: 1.5 },
     });
-    this.runtime.createKnowledgeLock(task.id);
+    this.runtime.knowledge.createKnowledgeLock(task.id);
     this.runtime.addTaskNodes(materializeNodes(task.id, { ...plan, intent: "update_judgment" }, task.budget));
-    this.runtime.enqueueTask(task.id, "execute");
+    this.runtime.queue.enqueueTask(task.id, "execute");
     return [task.id];
   }
 

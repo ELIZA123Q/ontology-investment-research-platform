@@ -48,10 +48,10 @@ describe("AI-native frontend view models", () => {
     const store = makeStore();
     const conversation = store.createConversation("候选来源");
     const task = store.createTask({ conversationId: conversation.id, goal: "测试", intent: "full_research", status: "completed", budget: { maxModelCalls: 1, maxToolCalls: 1, maxCostUsd: 1 } });
-    const lock = store.createKnowledgeLock(task.id);
-    const mining = store.createMiningRun(task.id, "test/1");
-    const candidateRevision = store.putAssetRevision({ assetId: "candidate:private", kind: "method", scope: { kind: "global" }, status: "candidate", content: { title: "未发布候选" }, provenanceRefs: ["test"], supersedes: [] });
-    store.putCandidate({ miningRunId: mining.id, taskId: task.id, scope: { kind: "global" }, assetKind: "method", operation: "add", identityKey: "method:private", proposedRevisionId: candidateRevision.id, provenanceRefs: ["test"], runBaselineFingerprint: lock.fingerprint, currentBaselineFingerprint: store.currentBaselineFingerprint({ kind: "global" }), riskLevel: 1, confidence: .8, novelty: 1, conflicts: [], status: "proposed" });
+    const lock = store.knowledge.createKnowledgeLock(task.id);
+    const mining = store.knowledge.createMiningRun(task.id, "test/1");
+    const candidateRevision = store.knowledge.putAssetRevision({ assetId: "candidate:private", kind: "method", scope: { kind: "global" }, status: "candidate", content: { title: "未发布候选" }, provenanceRefs: ["test"], supersedes: [] });
+    store.knowledge.putCandidate({ miningRunId: mining.id, taskId: task.id, scope: { kind: "global" }, assetKind: "method", operation: "add", identityKey: "method:private", proposedRevisionId: candidateRevision.id, provenanceRefs: ["test"], runBaselineFingerprint: lock.fingerprint, currentBaselineFingerprint: store.knowledge.currentBaselineFingerprint({ kind: "global" }), riskLevel: 1, confidence: .8, novelty: 1, conflicts: [], status: "proposed" });
     const library = buildPublicLibraryView(store);
     expect(library.items.length).toBeGreaterThan(0);
     expect(library.items.every((item) => item.revision.status === "released" && item.revision.scope.kind === "global")).toBe(true);
@@ -76,7 +76,7 @@ describe("AI-native frontend view models", () => {
     const store = makeStore();
     const kernel = new AgentKernel(store);
     const conversation = store.createConversation("固定知识");
-    const accessible = store.listReleasedAssetRefs(conversation);
+    const accessible = store.knowledge.listReleasedAssetRefs(conversation);
     const submitted = kernel.submitGoal(conversation.id, "基于权威本体研究先进封装", undefined, { pinnedAssetRefs: [accessible[0]] });
     const event = store.listEvents(conversation.id).find((item) => item.taskId === submitted.task.id && item.type === "context.pinned");
     expect(event?.payload).toMatchObject({ assetRefs: [{ assetId: accessible[0].assetId }] });

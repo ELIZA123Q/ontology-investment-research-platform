@@ -1,4 +1,4 @@
-import type { FinancialModelData, NormalizedFinancialsData, ValuationAnalysisData } from "@/src/contracts";
+import type { FinancialModelData, NormalizedFinancialsData, ValuationAnalysisData } from "@/src/contracts/evidence";
 import { FINANCIAL_MODEL_RULES } from "@/src/research/generated/financial-model-rules";
 
 export interface FinancialContractResult {

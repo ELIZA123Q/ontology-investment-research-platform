@@ -1,0 +1,8 @@
+{
+  "name": "@investment/persistence-sqlite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@investment/domain": "0.1.0", "@investment/orchestrator": "0.1.0" }
+}

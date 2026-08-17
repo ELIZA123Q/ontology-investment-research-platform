@@ -1,5 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { ActionContext, ActionExecution, ApprovalRequest, Artifact, Conversation, OntologyObject, OntologyObjectRef, ResearchSignalCandidate, Task } from "@/src/contracts";
+import type { ApprovalRequest, Conversation, ResearchSignalCandidate, Task } from "@/src/contracts";
+import type { Artifact } from "@/src/contracts/evidence";
+import type { ActionContext, ActionExecution, OntologyObject, OntologyObjectRef } from "@/src/contracts/ontology";
 import { OntologyStore } from "@/src/ontology/store";
 import type { RuntimeStore } from "@/src/runtime/store";
 

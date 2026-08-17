@@ -1,4 +1,5 @@
-import type { EvidenceFact, JudgmentSurfaceData, ReportSectionKey, SourceReference, Task } from "@/src/contracts";
+import type { JudgmentSurfaceData, ReportSectionKey, Task } from "@/src/contracts";
+import type { EvidenceFact, SourceReference } from "@/src/contracts/evidence";
 import type { ModelProvider } from "@/src/providers/model-provider";
 import { ModelGateway } from "@/src/providers/model-gateway";
 import type { ProfessionalReportDraft } from "@/src/reporting/report-composer";

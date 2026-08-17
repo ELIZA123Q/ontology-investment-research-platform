@@ -65,10 +65,13 @@ describe("01-05 generated Runtime projections", () => {
       workspace: { workspaceId: `workspace:${submitted.task.id}`, resourceRefs: expect.any(Array) },
       memory: { refs: expect.any(Array) },
       knowledge: { assetRefs: expect.any(Array) },
+      ontology: { objects: expect.any(Array), paths: expect.any(Array), sourceVersionRefs: expect.any(Array) },
       capabilities: { agentId: "research-lead", assumedRoleIds: ["research_lead"] },
       policies: { policyRefs: expect.any(Array), permissionFilterResult: { decision: "allowed" } },
       permissionFilterResult: { decision: "allowed" },
     });
     expect(context.references.every((reference) => reference.reason && reference.freshnessAt)).toBe(true);
+    expect(context.ontology.objects.length).toBeGreaterThan(0);
+    expect(context.ontology.objects.some((object) => object.type === "ResearchCase")).toBe(true);
   });
 });

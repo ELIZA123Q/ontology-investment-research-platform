@@ -57,8 +57,8 @@ describe("financial data result adapter", () => {
       const kernel = new AgentKernel(store);
       const conversation = store.createConversation("公司财务");
       const submitted = kernel.submitGoal(conversation.id, "研究贵州茅台收入与盈利能力");
-      const artifact = kernel.ingestFinancialData(submitted.task.id, result());
-      const repeated = kernel.ingestFinancialData(submitted.task.id, result());
+      const artifact = kernel.ingestion.ingestFinancialData(submitted.task.id, result());
+      const repeated = kernel.ingestion.ingestFinancialData(submitted.task.id, result());
       const facts = (artifact.data as { facts: Array<{ id: string; ontologyFactRef?: string; metric: { basis: string; unit: string } }> }).facts;
       expect(repeated.id).toBe(artifact.id);
       expect(facts).toHaveLength(2);
@@ -84,7 +84,7 @@ describe("financial data result adapter", () => {
       const kernel = new AgentKernel(store);
       const conversation = store.createConversation("授权数据留痕");
       const submitted = kernel.submitGoal(conversation.id, "验证授权数据的私密冻结边界");
-      const artifact = kernel.ingestFinancialData(submitted.task.id, result({
+      const artifact = kernel.ingestion.ingestFinancialData(submitted.task.id, result({
         requestParameters: { ticker: "600519.SH", responseFingerprint: contentHash },
         permissionScope: "authorized_research_use",
         providerResponse: {
@@ -92,7 +92,7 @@ describe("financial data result adapter", () => {
           usageRestriction: "authorized_research_only_no_redistribution", riskDisclosure: "不得二次传播",
         },
       }));
-      expect(store.getConnectorResponseBlobMetadata(contentHash)).toMatchObject({
+      expect(store.connectorResponses.get(contentHash)).toMatchObject({
         fingerprint: contentHash, connectorId: "datayes-stock-finoper-mcp",
         permissionScope: "authorized_research_use", usageRestriction: "authorized_research_only_no_redistribution",
       });

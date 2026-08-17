@@ -88,6 +88,10 @@ motif_contract:
   edge_endpoint_rule: from 与 to 必须引用当前 motif 的 root 或 judgment_unit_roles.id
   relation_values: [requires, informs, challenges, invalidates, aggregates, reuses]
 
+runtime_projection:
+  frontier_state_values: [proposed, unresolved, active, resolved, blocked, indeterminate, invalidated, out_of_scope]
+  relation_values: [requires, informs, challenges, invalidates, aggregates, reuses]
+
 assembly_cycle:
   - normalize_request_and_scope
   - activate_one_or_more_task_motifs

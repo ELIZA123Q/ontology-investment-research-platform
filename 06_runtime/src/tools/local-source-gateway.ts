@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { SourceCandidate, SourceReference, SourceSnapshot } from "@/src/contracts";
+import type { SourceCandidate, SourceReference, SourceSnapshot } from "@/src/contracts/evidence";
 import { LocalSemanticGateway } from "@/src/semantic/local-gateway";
 import { ResearchProvenanceStore } from "@/src/semantic/provenance-store";
 

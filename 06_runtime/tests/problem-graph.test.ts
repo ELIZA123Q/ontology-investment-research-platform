@@ -43,10 +43,10 @@ describe("Research Problem Graph compilation", () => {
     const submitted = kernel.submitGoal(conversation.id, "研究行业周期、产业链约束、公司业绩与技术成熟度");
     kernel.decideApproval(submitted.approval!.id, "approved");
     expect(kernel.dispatchTask(submitted.task.id)).toBeGreaterThan(0);
-    const contextJob = store.claimNodeJob(3)!;
+    const contextJob = store.queue.claimNodeJob(3)!;
     kernel.executeTaskNode(contextJob.taskId, contextJob.nodeId);
-    store.finishNodeJob(contextJob.id);
-    const claimed = [store.claimNodeJob(3), store.claimNodeJob(3), store.claimNodeJob(3), store.claimNodeJob(3)].filter(Boolean);
+    store.queue.finishNodeJob(contextJob.id);
+    const claimed = [store.queue.claimNodeJob(3), store.queue.claimNodeJob(3), store.queue.claimNodeJob(3), store.queue.claimNodeJob(3)].filter(Boolean);
     expect(claimed).toHaveLength(3);
   });
 });

@@ -1,4 +1,5 @@
-import type { ArtifactKind, TaskNode } from "@/src/contracts";
+import type { TaskNode } from "@/src/contracts";
+import type { ArtifactKind } from "@/src/contracts/evidence";
 
 export interface ResearchNodeType {
   kind: string;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { FinancialModelData, NormalizedFinancialsData, ValuationAnalysisData } from "@/src/contracts";
+import type { FinancialModelData, NormalizedFinancialsData, ValuationAnalysisData } from "@/src/contracts/evidence";
 import { AGENTS, SKILLS } from "@/src/capabilities/registry";
 import { buildResearchProblemGraph } from "@/src/runtime/problem-graph";
-import { planFromProblemGraph } from "@/src/runtime/planner";
+import { COMPANY_COVERAGE_INITIAL_NODE_LIMIT, planFromProblemGraph } from "@/src/runtime/planner";
 import { consensusComparisonStatus, validateFinancialModel, validateValuationAnalysis } from "@/src/research/financial-model-contract";
 import { buildDeterministicFinancialModel } from "@/src/research/deterministic-financial-model";
 
@@ -53,6 +53,7 @@ describe("A 股基本面能力", () => {
     for (const kind of ["financial_normalization", "model_build_or_update", "model_audit", "valuation_analysis", "thesis_update", "independent_review"]) {
       expect(plan.nodes.some((node) => node.kind === kind)).toBe(true);
     }
+    expect(plan.nodes.length).toBeLessThanOrEqual(COMPANY_COVERAGE_INITIAL_NODE_LIMIT);
     expect(plan.nodes.filter((node) => node.kind === "financial_normalization" || node.kind === "model_build_or_update").every((node) => node.agent === "research-lead")).toBe(true);
   });
 

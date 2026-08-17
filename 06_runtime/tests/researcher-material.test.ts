@@ -45,8 +45,8 @@ describe("researcher material intake", () => {
     const kernel = new AgentKernel(store);
     const conversation = store.createConversation("研究员补充材料");
     const submitted = kernel.submitGoal(conversation.id, "研究先进封装需求和供给变化并形成报告");
-    kernel.ingestExternalSource(submitted.task.id, buildResearcherMaterialResult(material("issuer-a", "https://issuer-a.test/report.pdf", "终端需求同比改善")));
-    kernel.ingestExternalSource(submitted.task.id, buildResearcherMaterialResult(material("issuer-b", "https://issuer-b.test/report.pdf", "有效供给与产能利用率提升")));
+    kernel.ingestion.ingestExternalSource(submitted.task.id, buildResearcherMaterialResult(material("issuer-a", "https://issuer-a.test/report.pdf", "终端需求同比改善")));
+    kernel.ingestion.ingestExternalSource(submitted.task.id, buildResearcherMaterialResult(material("issuer-b", "https://issuer-b.test/report.pdf", "有效供给与产能利用率提升")));
     kernel.decideApproval(submitted.approval!.id, "approved");
     expect(kernel.executeTask(submitted.task.id).status).toBe("waiting_approval");
     expect(store.listPendingApprovals(conversation.id)[0].kind).toBe("evidence_confirmation");

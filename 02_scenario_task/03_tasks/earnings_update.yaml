@@ -41,6 +41,8 @@ graph_motif:
 capability_requirements: [earnings_update, financial_modeling, thesis_monitoring, independent_research_review]
 
 runtime_projection:
+  selection_priority: 120
+  suppresses_when_selected: [company_analysis, thesis_review]
   scenario_refs: [CompanyResearch]
   activation_terms: [业绩更新, 财报, 业绩快报, 业绩预告, 季报, 年报, 超预期, 低预期]
   unit_judgment_types:

@@ -14,10 +14,11 @@ CHANNELS = ROOT / "03_agent_capability/04_protocols/mcp/mcp_channels.yaml"
 PROFILES = ROOT / "01_semantic_knowledge/01_ontology/contracts/ontology_data_mapping_profiles.yaml"
 B03 = ROOT / "03_agent_capability/04_protocols/mcp/ops/B03_MCP通道注册.md"
 HTSC_MAPPER = ROOT / "06_runtime/src/tools/htsc-industry-sentiment-mapper.ts"
-RUNTIME_CONTRACTS = ROOT / "06_runtime/src/contracts.ts"
+RUNTIME_CONTRACTS = ROOT / "06_runtime/src/contracts/evidence.ts"
 RUNTIME_STORE = ROOT / "06_runtime/src/runtime/store.ts"
+PERSISTENCE = ROOT / "06_runtime/packages/persistence-sqlite/src/index.ts"
 FINANCIAL_ADAPTER = ROOT / "06_runtime/src/tools/financial-data-adapter.ts"
-KERNEL = ROOT / "06_runtime/src/runtime/kernel.ts"
+INGESTION = ROOT / "06_runtime/src/application/research-data-ingestion.ts"
 
 
 def unique(items: list[dict], field: str, label: str) -> set[str]:
@@ -71,13 +72,14 @@ def main() -> int:
     if '"authorized_research_use"' not in contracts:
         raise AssertionError("Runtime SourceSnapshot lacks authorized_research_use permission scope")
     store = RUNTIME_STORE.read_text(encoding="utf-8")
+    persistence = PERSISTENCE.read_text(encoding="utf-8")
     adapter = FINANCIAL_ADAPTER.read_text(encoding="utf-8")
-    kernel = KERNEL.read_text(encoding="utf-8")
-    if "CREATE TABLE IF NOT EXISTS connector_response_blobs" not in store or "getConnectorResponseBlobMetadata" not in store:
+    ingestion = INGESTION.read_text(encoding="utf-8")
+    if "CREATE TABLE IF NOT EXISTS connector_response_blobs" not in persistence or "class SqliteConnectorResponseRepository" not in persistence or "get(fingerprint:" not in persistence:
         raise AssertionError("Runtime lacks a private connector response vault with metadata-only access")
     if "providerResponse body does not match contentHash" not in adapter or "responseFingerprint" not in adapter:
         raise AssertionError("financial adapter does not bind raw provider response to its fingerprint")
-    if "putConnectorResponseBlob" not in kernel or "providerResponseRef" not in kernel:
+    if "connectorResponses.put" not in ingestion or "providerResponseRef" not in ingestion:
         raise AssertionError("financial ingestion does not freeze provider responses or project their safe reference")
 
     print(
