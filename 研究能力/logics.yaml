@@ -1,0 +1,49 @@
+schema_name: research_logic_registry
+schema_version: 1.0.0
+status: active
+logics:
+  material_ingestion:
+    version: 1.0.0
+    goal_types: [SourceDocument]
+    input_types: [ResearchRequest]
+    nodes:
+      - {id: normalize, capability_ref: normalize_request, dependencies: []}
+      - {id: ingest, capability_ref: ingest_material, dependencies: [normalize]}
+    completion_rule_refs: [source_document_goal_satisfied]
+    fallback_logic_refs: []
+  evidence_refresh:
+    version: 1.0.0
+    goal_types: [EvidenceAssessment]
+    input_types: [ResearchRequest]
+    nodes:
+      - {id: normalize, capability_ref: normalize_request, dependencies: []}
+      - {id: context, capability_ref: resolve_semantic_context, dependencies: [normalize]}
+      - {id: acquire, capability_ref: acquire_evidence, dependencies: [context], activate_rule_refs: [evidence_refresh_required]}
+      - {id: extract, capability_ref: extract_claims, dependencies: [acquire], activate_rule_refs: [evidence_refresh_required]}
+      - {id: facts, capability_ref: synthesize_facts, dependencies: [extract], activate_rule_refs: [evidence_refresh_required]}
+      - {id: conflicts, capability_ref: detect_conflicts, dependencies: [facts], activate_rule_refs: [evidence_refresh_required]}
+      - {id: conflict_followup, capability_ref: acquire_evidence, dependencies: [context, conflicts], activate_rule_refs: [conflict_followup_required]}
+      - {id: assess, capability_ref: evaluate_evidence, dependencies: [facts, conflicts, conflict_followup], activate_rule_refs: [evidence_refresh_required]}
+    completion_rule_refs: [evidence_goal_satisfied]
+    fallback_logic_refs: [material_ingestion]
+  complete_research:
+    version: 1.0.0
+    goal_types: [PublishedReport]
+    input_types: [ResearchRequest]
+    nodes:
+      - {id: normalize, capability_ref: normalize_request, dependencies: []}
+      - {id: context, capability_ref: resolve_semantic_context, dependencies: [normalize]}
+      - {id: acquire, capability_ref: acquire_evidence, dependencies: [context], activate_rule_refs: [evidence_refresh_required]}
+      - {id: extract, capability_ref: extract_claims, dependencies: [acquire], activate_rule_refs: [evidence_refresh_required]}
+      - {id: facts, capability_ref: synthesize_facts, dependencies: [extract], activate_rule_refs: [evidence_refresh_required]}
+      - {id: conflicts, capability_ref: detect_conflicts, dependencies: [facts], activate_rule_refs: [evidence_refresh_required]}
+      - {id: conflict_followup, capability_ref: acquire_evidence, dependencies: [context, conflicts], activate_rule_refs: [conflict_followup_required]}
+      - {id: assess, capability_ref: evaluate_evidence, dependencies: [facts, conflicts, conflict_followup], activate_rule_refs: [evidence_refresh_required]}
+      - {id: hypotheses, capability_ref: form_hypotheses, dependencies: [context, facts]}
+      - {id: reason, capability_ref: evaluate_reasoning, dependencies: [hypotheses, assess]}
+      - {id: judgment, capability_ref: form_judgment, dependencies: [hypotheses, assess, reason]}
+      - {id: draft, capability_ref: render_report, dependencies: [judgment]}
+      - {id: approval_request, capability_ref: request_publication_approval, dependencies: [draft]}
+      - {id: publish, capability_ref: publish_report, dependencies: [draft, approval_request], activate_rule_refs: [publication_requires_human_approval]}
+    completion_rule_refs: [published_report_goal_satisfied]
+    fallback_logic_refs: [evidence_refresh]

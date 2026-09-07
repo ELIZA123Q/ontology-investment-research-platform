@@ -1,0 +1,130 @@
+schema_name: executable_research_rule_registry
+schema_version: 1.0.0
+status: active
+description: 只有 when/then DSL 产生执行效果；description 仅供人阅读。
+rules:
+  route_material_ingestion:
+    version: 1.0.0
+    kind: routing
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 100
+    when: {equals: {path: request.mode, value: ingest_only}}
+    then: [{invoke_logic: material_ingestion}]
+    failure_handling: block
+  route_evidence_refresh:
+    version: 1.0.0
+    kind: routing
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 90
+    when: {equals: {path: request.mode, value: evidence_refresh}}
+    then: [{invoke_logic: evidence_refresh}]
+    failure_handling: block
+  route_complete_research:
+    version: 1.0.0
+    kind: routing
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 80
+    when: {in: {path: request.mode, values: [full_research, research_update]}}
+    then: [{invoke_logic: complete_research}]
+    failure_handling: block
+  evidence_refresh_required:
+    version: 1.0.0
+    kind: activation
+    evaluation_phase: planning
+    input_types: [SemanticContext]
+    priority: 100
+    when: {equals: {path: state.evidence_ready, value: false}}
+    then: [{invoke_capability: acquire_evidence}]
+    failure_handling: block
+  conflict_followup_required:
+    version: 1.0.0
+    kind: activation
+    evaluation_phase: planning
+    input_types: [EvidenceFact]
+    priority: 110
+    when: {equals: {path: state.conflict_detected, value: true}}
+    then: [{invoke_capability: acquire_evidence}]
+    failure_handling: preserve_both
+  formal_fact_gate:
+    version: 1.0.0
+    kind: validation
+    evaluation_phase: runtime
+    input_types: [EvidenceClaim]
+    priority: 100
+    when:
+      all:
+        - {compare: {path: evidence.source_document_count, operator: gte, value: 1}}
+        - {compare: {path: evidence.claim_count, operator: gte, value: 1}}
+        - {equals: {path: evidence.locators_complete, value: true}}
+    then: [{mark_goal_satisfied: formal_fact_admissible}]
+    failure_handling: keep_candidate
+  conflict_preservation:
+    version: 1.0.0
+    kind: blocking
+    evaluation_phase: runtime
+    input_types: [EvidenceFact]
+    priority: 100
+    when: {equals: {path: evidence.conflict_detected, value: true}}
+    then: [{invoke_capability: detect_conflicts}, {block: automatic_conflict_resolution}]
+    failure_handling: preserve_both
+  evidence_quality_cap:
+    version: 1.0.0
+    kind: scoring
+    evaluation_phase: runtime
+    input_types: [EvidenceAssessment]
+    priority: 90
+    when: {equals: {path: evidence.ready_for_directional_judgment, value: false}}
+    then: [{cap_judgment_level: J1}]
+    failure_handling: cap_judgment_level
+  formal_judgment_gate:
+    version: 1.0.0
+    kind: validation
+    evaluation_phase: runtime
+    input_types: [Hypothesis, EvidenceAssessment, RuleEvaluation]
+    priority: 100
+    when:
+      all:
+        - {equals: {path: evidence.lineage_complete, value: true}}
+        - {equals: {path: evidence.assessment_complete, value: true}}
+        - {compare: {path: reasoning.rule_evaluation_count, operator: gte, value: 1}}
+    then: [{mark_goal_satisfied: formal_judgment_admissible}]
+    failure_handling: keep_candidate
+  publication_requires_human_approval:
+    version: 1.0.0
+    kind: blocking
+    evaluation_phase: runtime
+    input_types: [DraftReport, ApprovalRecord]
+    priority: 100
+    when: {equals: {path: approval.status, value: approved}}
+    then: [{mark_goal_satisfied: publication_admissible}]
+    failure_handling: require_approval
+  source_document_goal_satisfied:
+    version: 1.0.0
+    kind: completion
+    evaluation_phase: runtime
+    input_types: [SourceDocument]
+    priority: 50
+    when: {compare: {path: graph.type_counts.SourceDocument, operator: gte, value: 1}}
+    then: [{mark_goal_satisfied: SourceDocument}]
+    failure_handling: continue
+  evidence_goal_satisfied:
+    version: 1.0.0
+    kind: completion
+    evaluation_phase: runtime
+    input_types: [EvidenceAssessment]
+    priority: 50
+    when: {compare: {path: graph.type_counts.EvidenceAssessment, operator: gte, value: 1}}
+    then: [{mark_goal_satisfied: EvidenceAssessment}]
+    failure_handling: continue
+  published_report_goal_satisfied:
+    version: 1.0.0
+    kind: completion
+    evaluation_phase: runtime
+    input_types: [PublishedReport]
+    priority: 50
+    when: {compare: {path: graph.type_counts.PublishedReport, operator: gte, value: 1}}
+    then: [{mark_goal_satisfied: PublishedReport}]
+    failure_handling: continue

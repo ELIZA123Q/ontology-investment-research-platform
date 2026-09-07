@@ -1,0 +1,173 @@
+schema_name: research_capability_registry
+schema_version: 1.0.0
+status: active
+capabilities:
+  normalize_request:
+    version: 1.0.0
+    input_types: [ResearchRequest]
+    output_types: [NormalizedRequest]
+    handler_ref: builtin.normalize_request
+    reads: [ResearchRequest]
+    writes: [NormalizedRequest]
+    idempotent: true
+    max_retries: 1
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: request
+  resolve_semantic_context:
+    version: 1.0.0
+    input_types: [NormalizedRequest]
+    output_types: [SemanticContext]
+    handler_ref: builtin.resolve_semantic_context
+    reads: [NormalizedRequest, semantic_ontology]
+    writes: [SemanticContext]
+    idempotent: true
+    max_retries: 1
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: design
+  ingest_material:
+    version: 1.0.0
+    input_types: [NormalizedRequest]
+    output_types: [SourceDocument]
+    handler_ref: builtin.ingest_material
+    reads: [NormalizedRequest]
+    writes: [SourceDocument]
+    idempotent: true
+    max_retries: 1
+    side_effects: false
+    parallel_safe: true
+    lifecycle_view: evidence
+  acquire_evidence:
+    version: 1.0.0
+    input_types: [SemanticContext]
+    output_types: [SourceDocument]
+    handler_ref: builtin.acquire_evidence
+    reads: [SemanticContext]
+    writes: [SourceDocument]
+    idempotent: true
+    max_retries: 2
+    side_effects: true
+    parallel_safe: true
+    lifecycle_view: evidence
+  extract_claims:
+    version: 1.0.0
+    input_types: [SourceDocument]
+    output_types: [EvidenceClaim]
+    handler_ref: builtin.extract_claims
+    reads: [SourceDocument]
+    writes: [EvidenceClaim]
+    idempotent: true
+    max_retries: 1
+    side_effects: false
+    parallel_safe: true
+    lifecycle_view: evidence
+  synthesize_facts:
+    version: 1.0.0
+    input_types: [EvidenceClaim]
+    output_types: [EvidenceFact]
+    handler_ref: builtin.synthesize_facts
+    reads: [EvidenceClaim]
+    writes: [EvidenceFact]
+    idempotent: true
+    max_retries: 1
+    side_effects: false
+    parallel_safe: true
+    lifecycle_view: evidence
+  detect_conflicts:
+    version: 1.0.0
+    input_types: [EvidenceFact]
+    output_types: [ConflictAssessment]
+    handler_ref: builtin.detect_conflicts
+    reads: [EvidenceFact]
+    writes: [ConflictAssessment]
+    idempotent: true
+    max_retries: 0
+    side_effects: false
+    parallel_safe: true
+    lifecycle_view: evidence
+  evaluate_evidence:
+    version: 1.0.0
+    input_types: [EvidenceFact]
+    output_types: [EvidenceAssessment]
+    handler_ref: builtin.evaluate_evidence
+    reads: [SourceDocument, EvidenceClaim, EvidenceFact, ConflictAssessment]
+    writes: [EvidenceAssessment]
+    idempotent: true
+    max_retries: 0
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: evidence
+  form_hypotheses:
+    version: 1.0.0
+    input_types: [EvidenceFact, SemanticContext]
+    output_types: [Hypothesis]
+    handler_ref: builtin.form_hypotheses
+    reads: [EvidenceFact, SemanticContext]
+    writes: [Hypothesis]
+    idempotent: true
+    max_retries: 0
+    side_effects: false
+    parallel_safe: true
+    lifecycle_view: reasoning
+  evaluate_reasoning:
+    version: 1.0.0
+    input_types: [Hypothesis, EvidenceAssessment]
+    output_types: [RuleEvaluation]
+    handler_ref: builtin.evaluate_reasoning
+    reads: [Hypothesis, EvidenceAssessment, RuleDefinition]
+    writes: [RuleEvaluation]
+    idempotent: true
+    max_retries: 0
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: reasoning
+  form_judgment:
+    version: 1.0.0
+    input_types: [Hypothesis, EvidenceAssessment, RuleEvaluation]
+    output_types: [Judgment]
+    handler_ref: builtin.form_judgment
+    reads: [Hypothesis, EvidenceAssessment, RuleEvaluation]
+    writes: [Judgment]
+    idempotent: true
+    max_retries: 0
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: reasoning
+  render_report:
+    version: 1.0.0
+    input_types: [Judgment]
+    output_types: [DraftReport]
+    handler_ref: builtin.render_report
+    reads: [Judgment, RuleEvaluation, EvidenceFact]
+    writes: [DraftReport]
+    idempotent: true
+    max_retries: 1
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: publication
+  request_publication_approval:
+    version: 1.0.0
+    input_types: [DraftReport]
+    output_types: [ApprovalRequest]
+    handler_ref: builtin.request_publication_approval
+    reads: [DraftReport]
+    writes: [ApprovalRequest]
+    idempotent: true
+    max_retries: 0
+    side_effects: false
+    parallel_safe: false
+    lifecycle_view: publication
+  publish_report:
+    version: 1.0.0
+    input_types: [DraftReport, ApprovalRecord]
+    output_types: [PublishedReport]
+    handler_ref: builtin.publish_report
+    reads: [DraftReport, ApprovalRecord]
+    writes: [PublishedReport]
+    idempotent: false
+    max_retries: 0
+    side_effects: true
+    parallel_safe: false
+    lifecycle_view: publication
+
