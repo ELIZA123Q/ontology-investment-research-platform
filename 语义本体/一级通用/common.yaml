@@ -1,0 +1,110 @@
+# 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
+schema_name: investment_research_semantic_common
+schema_version: 3.0.0
+status: active
+description: 严格语义本体公共合同；只定义命名空间、类型、继承、关系和语义约束。
+namespace:
+  prefix: ir
+  base_iri: ir://invest-ontology#
+  note: 类型本地标识与 base_iri 拼接形成稳定 IRI；领域扩展必须使用独立命名空间，不得改写本核心命名空间下的类型定义。
+object_type_inheritance:
+  declaration: 子类型通过 extends 保存唯一父类型引用；父类型可直接实例化，也可由子类型继承。
+  identity_rule: 同一现实主体只创建一个最具体类型实例；Company 实例同时满足 Organization 端点，不再创建重复 Organization 实例。
+  property_rule: 子类型继承父类型属性；同名属性不得重复定义为冲突类型。
+  endpoint_rule: 关系允许父类型作为端点时，其所有子类型实例均兼容该端点。
+  validation: extends 必须指向已存在对象类型，继承链不得形成环。
+shared_object_properties:
+  id:
+    type: string
+    required: true
+    description: 对象实例的稳定唯一标识。
+  description:
+    type: string
+    required: true
+    description: 对象含义或边界。
+  validFrom:
+    type: datetime
+    required: false
+    description: 对象开始有效的业务时间。
+  validTo:
+    type: datetime
+    required: false
+    description: 对象结束有效的业务时间。
+shared_relation_properties:
+  id:
+    type: string
+    required: true
+    description: 关系实例的稳定唯一标识。
+  sourceId:
+    type: object_ref
+    required: true
+    description: 起点对象。
+  targetId:
+    type: object_ref
+    required: true
+    description: 终点对象。
+  validFrom:
+    type: datetime
+    required: false
+    description: 关系开始有效的业务时间。
+  validTo:
+    type: datetime
+    required: false
+    description: 关系结束有效的业务时间。
+data_types:
+  scalar:
+  - string
+  - integer
+  - number
+  - boolean
+  - date
+  - datetime
+  - any
+  compound:
+  - array
+  - object
+  - enum
+  - object_ref
+  - semantic_ref
+common_enums:
+  cardinality:
+  - one_to_one
+  - one_to_many
+  - many_to_one
+  - many_to_many
+ontology_boundary:
+  allowed_sections:
+  - object_types
+  - relation_types
+  - object_type_extensions
+  - relation_type_extensions
+  - controlled_vocabularies
+  - semantic_constraints
+  - semantic_instances
+  forbidden_resource_kinds:
+  - action_types
+  - functions
+  - logic_flows
+  - rules
+  forbidden_runtime_types:
+  - SourceDocument
+  - EvidenceClaim
+  - EvidenceFact
+  - EvidenceAssessment
+  - EvidenceReadinessAssessment
+  - ResearchPlan
+  - ResearchScope
+  - ResearchQuestion
+  - JudgmentUnit
+  - Observation
+  - Event
+  - Hypothesis
+  - Signal
+  - Judgment
+  - MarketExpectation
+  - ExpectationGap
+  - AssetImpact
+  - Scenario
+  - RuleEvaluation
+  - ReasoningTrace
+  - ValidationRecord

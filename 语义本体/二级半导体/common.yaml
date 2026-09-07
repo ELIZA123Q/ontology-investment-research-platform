@@ -1,0 +1,64 @@
+# 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
+schema_name: semiconductor_semantic_common
+schema_version: 3.0.0
+status: active
+description: 半导体严格语义本体公共声明。
+depends_on:
+- ../一级通用/common.yaml
+- ../一级通用/semantic.yaml
+namespace:
+  prefix: ir-sc
+  base_iri: ir://invest-ontology/semiconductor#
+  note: 半导体领域扩展命名空间；仅可新增领域类型或通过 add_* 扩展端点，不得重定义一级 object_types / relation_types 本地标识。
+extension_governance:
+  must_not_redefine_platform_object_types: true
+  must_not_redefine_platform_relation_types: true
+  allowed_extension_modes:
+  - add_object_type
+  - add_relation_type
+  - object_type_extensions
+  - relation_type_extensions
+  - controlled_vocabularies
+domain_scope:
+  domain: semiconductor
+  scope_type: industry
+  scope_name: 核心半导体产业
+  included:
+  - 半导体研发、EDA、IP、设计与设计服务
+  - 半导体设备、关键子系统、零部件与材料
+  - 晶圆、掩模、前道制造、后道制造、封装与测试
+  - 逻辑、存储、模拟、分立器件、光电子、传感器与执行器
+  - 硅基、化合物半导体、特色工艺、先进封装和新型器件路线
+  - 下游应用、商业模式、地域暴露、政策与供应链韧性
+  adjacent_only:
+  - 显示面板
+  - 光伏电池与组件
+  - 印制电路板
+  - 电子整机制造
+  excluded:
+  - 具体公司、证券、工厂、产品型号或客户名单
+  - 实时股价、财务数值、订单、库存、价格、交期或良率读数
+  - 已发生事件、已确认观测、研究观点或投资结论
+  - 买卖建议、目标价、收益率预测或仓位建议
+  - 数据接口、运行配置、任务编排和系统部署信息
+naming_conventions:
+  machine_keys: snake_case
+  type_names: PascalCase
+  relation_names: lowerCamelCase
+  display_language: zh-CN
+  identifier_policy: YAML 中仅使用稳定的类型键、分类键、变量键和模板键；不得使用日期流水号、 bundle ID、对象实例 ID 或环境相关标识。
+controlled_vocabulary_contract:
+  value_required_fields:
+  - id
+  - name
+  - description
+  hierarchy_fields:
+  - parent_id
+  lifecycle: active
+  multi_classification_allowed: true
+  notes:
+  - 同一产品可同时包含逻辑、模拟或存储功能，分类不得强制互斥。
+  - 同一公司可同时承担多个商业角色，角色应描述业务事实而非公司标签。
+  - 技术路线与产品类别分离；采用进度、渗透率和成熟度属于推理变量。
+  - 同一分类轴内遵循最细粒度优先；跨轴可多选，同轴父子项不作为并列判断依据。
+  - 领域扩展字段使用 semiconductor 前缀，不得覆盖一级通用属性名。

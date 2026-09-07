@@ -1,0 +1,567 @@
+# 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
+schema_name: semiconductor_research_metric_catalog
+schema_version: 1.0.0
+status: active
+depends_on:
+- ../一级通用/semantic.yaml
+- semantic.yaml
+semantic_instances:
+- id: end_market_demand_strength
+  type: ResearchMetric
+  properties:
+    name: 终端需求强度
+    category: demand
+    definition: 终端行业、应用或工作负载对半导体功能和数量的需求强弱。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Application
+    - Industry
+    - Product
+- id: customer_capex_intensity
+  type: ResearchMetric
+  properties:
+    name: 客户资本开支强度
+    category: demand
+    definition: 下游客户为计算、通信、制造或其他系统建设配置资本的意愿与节奏。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Application
+    - Company
+    - Industry
+- id: order_visibility
+  type: ResearchMetric
+  properties:
+    name: 订单能见度
+    category: demand
+    definition: 订单、合同、排产和客户承诺对未来交付需求的可见程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Segment
+- id: adoption_penetration
+  type: ResearchMetric
+  properties:
+    name: 产品采用与渗透进展
+    category: demand
+    definition: 产品或技术从验证、导入到主流采用的推进程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - TechnologyRoute
+    - Application
+- id: design_win_visibility
+  type: ResearchMetric
+  properties:
+    name: Design Win能见度
+    category: commercialization
+    definition: 客户设计导入、定点和Design Win对未来订单和量产的可见程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Application
+- id: supply_availability
+  type: ResearchMetric
+  properties:
+    name: 供给可得性
+    category: supply
+    definition: 在目标时间和地域内获得合格产品、材料、设备或产能的难易程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - Material
+    - Segment
+    - ManufacturingFacility
+    - Region
+- id: capacity_tightness
+  type: ResearchMetric
+  properties:
+    name: 产能紧张度
+    category: supply
+    definition: 有效产能相对于可兑现需求的紧张程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - ManufacturingFacility
+    - Segment
+    - Product
+- id: capacity_expansion_progress
+  type: ResearchMetric
+  properties:
+    name: 产能扩张进展
+    category: supply
+    definition: 从投资、建设、设备搬入、认证到稳定量产的扩产推进程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - ManufacturingFacility
+    - Company
+    - Segment
+- id: supply_elasticity
+  type: ResearchMetric
+  properties:
+    name: 供给响应弹性
+    category: supply
+    definition: 供给体系面对需求或价格变化时扩大、切换或恢复供给的能力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Segment
+    - Product
+    - Material
+    - TechnologyRoute
+- id: bottleneck_dependency_concentration
+  type: ResearchMetric
+  properties:
+    name: 瓶颈依赖集中度
+    category: supply
+    definition: 产业链关键瓶颈环节、设备、材料或设施的供应集中和不可替代程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - Material
+    - ManufacturingFacility
+    - Segment
+- id: yield_maturity
+  type: ResearchMetric
+  properties:
+    name: 良率成熟度
+    category: manufacturing
+    definition: 工艺在目标规格和规模下稳定产出合格产品的成熟程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - ManufacturingFacility
+    - ProcessStep
+    - TechnologyRoute
+    - Product
+- id: process_capability
+  type: ResearchMetric
+  properties:
+    name: 制程能力
+    category: manufacturing
+    definition: 工艺持续满足尺寸、性能、功耗、可靠性和一致性要求的能力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - ProcessStep
+    - ManufacturingFacility
+    - TechnologyRoute
+- id: production_cycle_pressure
+  type: ResearchMetric
+  properties:
+    name: 生产与交付周期压力
+    category: manufacturing
+    definition: 从投料、制造、封装测试到交付的周期延长或压缩压力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - ProcessStep
+    - ManufacturingFacility
+    - Product
+    - Segment
+- id: quality_reliability
+  type: ResearchMetric
+  properties:
+    name: 质量与可靠性水平
+    category: manufacturing
+    definition: 产品在规定环境和寿命内持续满足功能与失效率要求的能力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - ProcessStep
+    - TechnologyRoute
+    - Company
+- id: inventory_cycle_position
+  type: ResearchMetric
+  properties:
+    name: 库存周期位置
+    category: inventory_cycle
+    definition: 产业链处于补库、正常、积累、去库或短缺阶段的综合状态。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - Product
+- id: inventory_buffer_capacity
+  type: ResearchMetric
+  properties:
+    name: 库存缓冲能力
+    category: inventory_cycle
+    definition: 现有库存吸收供给中断或需求波动的能力及可持续时间。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Material
+    - Segment
+- id: backlog_pressure
+  type: ResearchMetric
+  properties:
+    name: 未交付订单压力
+    category: inventory_cycle
+    definition: 已确认但尚未交付的订单对产能、交期和收入兑现形成的压力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Segment
+- id: product_price_pressure
+  type: ResearchMetric
+  properties:
+    name: 产品价格压力
+    category: economics
+    definition: 产品价格受到供需、竞争、结构和合同机制影响而上行或下行的压力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - Segment
+    - Company
+- id: input_cost_pressure
+  type: ResearchMetric
+  properties:
+    name: 投入成本压力
+    category: economics
+    definition: 材料、设备折旧、能源、人工、物流和合规成本对单位成本的压力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Material
+    - ManufacturingFacility
+- id: pricing_power
+  type: ResearchMetric
+  properties:
+    name: 定价与成本传导能力
+    category: economics
+    definition: 在不显著损失需求或份额的情况下调整价格并传递成本的能力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Segment
+- id: profit_pool_shift
+  type: ResearchMetric
+  properties:
+    name: 产业利润池迁移
+    category: economics
+    definition: 利润在设计、设备材料、制造、封装测试和系统环节之间重新分配的方向。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+- id: scaling_progress
+  type: ResearchMetric
+  properties:
+    name: 制程微缩与密度提升进展
+    category: technology
+    definition: 器件、互连和设计协同向更高密度、更优性能功耗推进的程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - TechnologyRoute
+    - ProcessStep
+    - Product
+- id: technology_maturity
+  type: ResearchMetric
+  properties:
+    name: 技术路线成熟度
+    category: technology
+    definition: 技术路线从研究、原型、验证、试产到规模量产的成熟阶段。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - TechnologyRoute
+    - Product
+    - ProcessStep
+- id: technology_competitiveness
+  type: ResearchMetric
+  properties:
+    name: 技术综合竞争力
+    category: technology
+    definition: 技术路线在性能、功耗、面积、成本、可靠性和生态上的综合优势。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - TechnologyRoute
+    - Product
+- id: technology_substitution_intensity
+  type: ResearchMetric
+  properties:
+    name: 技术替代强度
+    category: technology
+    definition: 新路线在明确应用范围内替代既有产品、材料、工艺或架构的强度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - TechnologyRoute
+    - Product
+    - Material
+    - ProcessStep
+- id: customer_qualification_progress
+  type: ResearchMetric
+  properties:
+    name: 客户认证进展
+    category: commercialization
+    definition: 产品、工艺或供应商通过客户测试、资格认证和设计导入的推进程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - TechnologyRoute
+    - Application
+- id: mass_production_readiness
+  type: ResearchMetric
+  properties:
+    name: 规模量产准备度
+    category: commercialization
+    definition: 产品或路线在产能、良率、供应、质量和交付方面满足规模量产的程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - TechnologyRoute
+    - ManufacturingFacility
+    - Company
+- id: localization_substitution_progress
+  type: ResearchMetric
+  properties:
+    name: 本地化与国产替代进展
+    category: commercialization
+    definition: 本地供应从可用样品、客户认证到稳定量产和重复采购的推进程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Material
+    - TechnologyRoute
+    - Region
+- id: competitive_intensity
+  type: ResearchMetric
+  properties:
+    name: 竞争强度
+    category: competition
+    definition: 现有参与者、替代路线和新进入者对价格、份额与利润的竞争压力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Product
+    - Company
+- id: customer_switching_cost
+  type: ResearchMetric
+  properties:
+    name: 客户切换成本
+    category: competition
+    definition: 客户更换芯片、供应商、工艺或技术路线所承担的验证、软件、质量和供应风险成本。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - TechnologyRoute
+    - Application
+    - Company
+- id: entry_barrier_strength
+  type: ResearchMetric
+  properties:
+    name: 进入壁垒强度
+    category: competition
+    definition: 技术、资本、知识产权、人才、客户认证和规模经济对新进入者的限制程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - TechnologyRoute
+- id: policy_support_strength
+  type: ResearchMetric
+  properties:
+    name: 产业政策支持强度
+    category: policy_resilience
+    definition: 财税、研发、融资、采购、人才和基础设施政策对产业能力建设的有效支持程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - ManufacturingFacility
+    - Region
+    - PolicyInstrument
+- id: export_control_intensity
+  type: ResearchMetric
+  properties:
+    name: 出口与技术管制强度
+    category: policy_resilience
+    definition: 产品、设备、材料、软件、技术和服务跨境流动受到限制的程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - Material
+    - TechnologyRoute
+    - Company
+    - Region
+    - PolicyInstrument
+- id: compliance_friction
+  type: ResearchMetric
+  properties:
+    name: 合规摩擦
+    category: policy_resilience
+    definition: 许可、审查、认证、环保、安全和贸易合规造成的时间、成本与不确定性。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Material
+    - ManufacturingFacility
+    - Region
+    - PolicyInstrument
+- id: supply_chain_resilience
+  type: ResearchMetric
+  properties:
+    name: 供应链韧性
+    category: policy_resilience
+    definition: 面对中断时通过库存、多供、地域分散、替代技术和恢复能力维持交付的能力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - Product
+    - Material
+    - ManufacturingFacility
+- id: regional_policy_exposure
+  type: ResearchMetric
+  properties:
+    name: 地域政策暴露
+    category: company
+    definition: 公司业务、产能、供应链和市场对特定地域政策和监管环境的暴露程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - ManufacturingFacility
+    - Region
+    - PolicyInstrument
+- id: value_chain_role_exposure
+  type: ResearchMetric
+  properties:
+    name: 公司价值链角色暴露度
+    category: company
+    definition: 公司收入、成本、产能和竞争力对特定产业链位置的依赖程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Segment
+    - Product
+- id: technology_route_exposure
+  type: ResearchMetric
+  properties:
+    name: 公司技术路线暴露度
+    category: company
+    definition: 公司产品、产能、研发和客户关系对某技术路线成功或受阻的敏感程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - TechnologyRoute
+    - Product
+    - ManufacturingFacility
+- id: execution_delivery_capability
+  type: ResearchMetric
+  properties:
+    name: 公司执行与交付能力
+    category: company
+    definition: 公司把需求、订单和技术机会转化为合格产品、按期交付和收入的能力。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - ManufacturingFacility
+- id: earnings_elasticity
+  type: ResearchMetric
+  properties:
+    name: 公司业绩弹性
+    category: company
+    definition: 需求、价格、利用率、产品组合和成本变化传导到收入、利润和现金流的敏感程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Segment
+- id: consensus_expectation_level
+  type: ResearchMetric
+  properties:
+    name: 市场一致预期水平
+    category: expectation
+    definition: 市场、管理层、研究者或价格对未来行业和公司状态的共同预期程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - Product
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+- id: expectation_gap
+  type: ResearchMetric
+  properties:
+    name: 预期差
+    category: expectation
+    definition: 证据支持的判断与当前市场、管理层或价格隐含预期之间的方向和幅度差异。
+    variableKind: derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - Product
+    - TechnologyRoute
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+- id: priced_in_degree
+  type: ResearchMetric
+  properties:
+    name: 市场预期反映程度
+    category: expectation
+    definition: 某一判断已被价格、估值、仓位和交易行为反映的程度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - Product
+    - TechnologyRoute
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+- id: counter_evidence_strength
+  type: ResearchMetric
+  properties:
+    name: 反证强度
+    category: expectation
+    definition: 削弱、竞争解释或阻断当前假设与传导链的证据强度。
+    variableKind: derived
+    anchorTypes:
+    - Industry
+    - Segment
+    - Company
+    - Product
+    - TechnologyRoute
+    - Asset
+    - FinancialInstrument
+    - TradingVenue
+    - Listing
+- id: semiconductor_content_intensity
+  type: ResearchMetric
+  properties:
+    name: 单位应用半导体价值量/含量强度
+    category: demand
+    definition: 单位终端、系统或工作负载带来的半导体功能与价值量强度。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Product
+    - ProcessStep
+    - TechnologyRoute
+- id: product_mix_structure
+  type: ResearchMetric
+  properties:
+    name: 产品组合结构
+    category: company
+    definition: 公司产品组合中高毛利、高增长、战略性和可持续产品的结构与占比。
+    variableKind: qualitative_or_derived
+    anchorTypes:
+    - Company
+    - Product
+    - Segment

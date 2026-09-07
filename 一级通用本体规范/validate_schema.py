@@ -15,6 +15,8 @@ except ImportError as exc:  # pragma: no cover - environment guard
 
 SPEC_DIR = Path(__file__).resolve().parent
 WORKSPACE = SPEC_DIR.parent
+sys.path.insert(0, str(WORKSPACE / "运行校验"))
+from authority_loader import load_authority_yaml  # noqa: E402
 SCHEMA_FILES = ("common.yaml", "semantic.yaml", "evidence.yaml", "reasoning.yaml")
 PSEUDO_RESOURCES = {
     "semantic_object",
@@ -26,7 +28,7 @@ PSEUDO_RESOURCES = {
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    data = load_authority_yaml(path)
     if not isinstance(data, dict):
         raise ValueError(f"{path}: YAML root must be a mapping")
     return data
@@ -765,4 +767,6 @@ class Validator:
 
 
 if __name__ == "__main__":
-    sys.exit(Validator().run())
+    from validate_semantic_foundation import main as validate_semantic_foundation
+
+    sys.exit(validate_semantic_foundation())
