@@ -1,0 +1,30 @@
+name: semantica-foundation
+
+on:
+  push:
+    branches: [main, codex/semantica-foundation]
+  pull_request:
+
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Provision locked dependencies
+        run: uv sync --frozen
+      - name: Run new runtime tests without network resolution
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          SEMANTICA_PROGRESS: "false"
+        run: uv run --frozen --offline pytest
+      - name: Run legacy and integration gates without network resolution
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          SEMANTICA_PROGRESS: "false"
+        run: uv run --frozen --offline python validate_project.py

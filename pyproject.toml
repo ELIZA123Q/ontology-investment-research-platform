@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ontology-investment-research-platform"
+version = "2.0.0a1"
+description = "投研语义本体、研究运行合同与基于 Semantica 的可追溯图运行时"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Proprietary; third-party components retain their original licenses" }
+dependencies = [
+  "pydantic>=2.11,<3",
+  "PyYAML>=6.0.2,<7",
+  "rdflib>=7.1,<8",
+  "semantica[shacl,tripletstore-oxigraph]==0.6.8",
+]
+
+[project.scripts]
+ir-platform = "ir_platform.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4,<9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ir_platform"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
