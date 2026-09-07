@@ -1,8 +1,20 @@
-# 基于本体的投研推理平台
+# 基于 Semantica 运行基座的投研平台
 
 把投研问题收成可验证、可反证、可复盘的判断：依据是什么、能说到多强、什么情况下要改。
 
-**v0.1**：目前完整样例主要在**半导体**（存储周期、管制与国产设备替代）。不是全行业自动投研产品。
+当前重构版把“本体”和“研究过程”彻底分开：本体只保存稳定领域语义；证据、推理、判断、任务与审计属于研究运行数据。Semantica 0.6.8 提供图存储、进程内图读模型和 provenance 基础设施，业务代码只通过本仓库的稳定适配接口使用它。
+
+目前完整样例主要在**半导体**（存储周期、管制与国产设备替代）。这仍不是全行业自动投研产品。
+
+## 三层权威边界
+
+| 层 | 唯一权威 | 包含 | 明确不包含 |
+|---|---|---|---|
+| 语义本体 | [`语义本体/`](语义本体/) | 实体、属性、稳定关系、分类、语义约束、46 个稳定指标定义 | 证据、计划、推理、判断、规则执行、审计 |
+| 研究运行合同 | [`研究运行合同/`](研究运行合同/) | Evidence、Judgment、ResearchPlan、Trace、双时态和 provenance 合同 | 领域类型定义 |
+| 研究规则 | [`研究规则/`](研究规则/) | 证据准入、J 等级、阻断、传播、表达权限与半导体研究配置 | 自动批准事实或判断 |
+
+嵌入式 Oxigraph 是新运行的图数据权威；Semantica `ContextGraph` 是从权威图重建的只读模型；YAML/CSV/Markdown 只用于导入、导出和人工审阅。旧本体路径保留一个兼容周期，但现在只包含弃用声明和新权威路径。
 
 ## 你怎么用
 
@@ -66,18 +78,22 @@
 | [`00_全局/`](00_全局/) | 定位与质量标准 |
 | [`01`](01_任务受理/)–[`05`](05_表达交付/) | 各步怎么做、交什么；**正式模板只在各阶段 `模板/` 下** |
 | [`知识库_02/03/04`](知识库_02框架/) | 怎么拆问题、怎么取证、怎么裁决 |
-| [`一级/二级本体规范`](一级通用本体规范/) | 概念与规则定义 |
+| [`语义本体/`](语义本体/) | 一级通用与二级半导体的严格语义权威 |
+| [`研究运行合同/`](研究运行合同/)、[`研究规则/`](研究规则/) | 证据、判断、审计模型与确定性规则 |
+| [`一级/二级本体规范`](一级通用本体规范/) | v1 只读兼容入口与历史说明文档 |
 | [`示例1/`](示例1/)、[`示例2/`](示例2/) | **正式完整样例**（以目录内当前 `run_manifest.yaml` 为准） |
 | [`运行校验/`](运行校验/)、[`评测集/`](评测集/) | 结构检查与评测 |
 
 不要把本地残留的 `输出模板/`、`*-基线*`、`*-重跑*`、`parent_run/` 等目录当作权威交付或模板来源；正式入口以上表为准。
 
 ```bash
-python3 validate_project.py
-python3 运行校验/validate_run.py 示例1
-python3 运行校验/validate_run.py 示例2
+uv sync --frozen --python 3.12
+uv run --frozen --offline ir-platform compile-ontology
+uv run --frozen --offline ir-platform import-run 示例1
+uv run --frozen --offline pytest
+uv run --frozen --offline python validate_project.py
 ```
 
 校验通过只说明写法与引用合规，**不代替**你对数据真伪和研究价值的判断。
 
-业务参数权威：`python3 运行校验/validate_parameter_authority.py`。覆盖率 100% 表示已登记参数只有一个权威源（见 [`00_全局/contracts/parameter_authority_matrix.yaml`](00_全局/contracts/parameter_authority_matrix.yaml)），**不是**「一切字段皆本体」。运行状态（阶段/质量门）仍属运行合同。
+业务参数权威：`python3 运行校验/validate_parameter_authority.py`。覆盖率 100% 表示已登记参数只有一个权威源（见 [`00_全局/contracts/parameter_authority_matrix.yaml`](00_全局/contracts/parameter_authority_matrix.yaml)），**不是**「一切字段皆本体」。详细架构、公共接口和迁移方式见 [`docs/semantica-foundation.md`](docs/semantica-foundation.md)。

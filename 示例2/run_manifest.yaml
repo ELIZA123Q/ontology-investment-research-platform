@@ -7,8 +7,8 @@ run_mode: fixture
 producer_id: fixture-producer-equipment_rerun
 versions:
   contract: 1.2.1
-  ontology: 2.1.0
-  ontology_reasoning: 2.1.0
+  ontology: 3.0.0
+  ontology_reasoning: 1.0.0
   kb02: 2.0.0
   kb03: 3.2.0
   kb04: 1.0.0
@@ -50,7 +50,7 @@ stages:
     - 03-美国管制与国产设备替代数据与证据准备-20260715-1.md
     - 03-美国管制与国产设备替代数据与证据快照-20260715-1
     - 03-美国管制与国产设备替代语义域与证据域实例清单-20260715-1.yaml
-    hash: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
+    hash: sha256:d850329c5a32a35c54a0fae57b44fbba28153467ca42f3c10b003411bfe5c20a
     source_hashes:
       stage_02: sha256:dd80887fac8251ad4ed11f677bba0409c8e1396feb6bcbf34f7adc01ba974217
     stage_status: complete
@@ -65,7 +65,7 @@ stages:
     - 04-美国管制与国产设备替代推理审计-20260715-1.yaml
     hash: sha256:c7a67e8a6aaafe448ca8bb31443514fb8edea66a3396e7a5126b8bd789dcd18f
     source_hashes:
-      stage_03: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
+      stage_03: sha256:d850329c5a32a35c54a0fae57b44fbba28153467ca42f3c10b003411bfe5c20a
     stage_status: complete
     validity_status: current
     attempt: 1

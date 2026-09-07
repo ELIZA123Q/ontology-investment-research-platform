@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 
 CHECKS = (
+    ("Semantica 新运行时", [sys.executable, "-m", "pytest"]),
     ("Markdown 用语", [sys.executable, "validate_markdown_language.py"]),
     ("规范覆盖矩阵", [sys.executable, "运行校验/validate_requirements_coverage.py"]),
     ("一级通用本体", [sys.executable, "一级通用本体规范/validate_schema.py"]),

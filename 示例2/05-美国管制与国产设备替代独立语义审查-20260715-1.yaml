@@ -13,7 +13,7 @@ inputs:
   public_contract_version: 1.2.1
   stage_hashes:
     stage_02: sha256:dd80887fac8251ad4ed11f677bba0409c8e1396feb6bcbf34f7adc01ba974217
-    stage_03: sha256:0a698c907dc0a32bfc17309a152e9d20db55f3476c5c6f96a227eecb72bbb73e
+    stage_03: sha256:d850329c5a32a35c54a0fae57b44fbba28153467ca42f3c10b003411bfe5c20a
     stage_04: sha256:c7a67e8a6aaafe448ca8bb31443514fb8edea66a3396e7a5126b8bd789dcd18f
     stage_05: sha256:9a506cbb550bdf02a78d0ccdcf16da268a40462c0668b9043b6a09996208a20d
 checks:
