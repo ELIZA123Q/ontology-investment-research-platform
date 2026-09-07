@@ -1,6 +1,6 @@
 # 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
 schema_name: semiconductor_semantic_common
-schema_version: 3.0.0
+schema_version: 4.0.0
 status: active
 description: 半导体严格语义本体公共声明。
 depends_on:

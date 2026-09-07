@@ -107,6 +107,11 @@ class SemanticOntologyCompiler:
                 statements.append(f"rdfs:comment {_literal(spec['description'])}@zh")
             if spec.get("extends"):
                 statements.append(f"rdfs:subClassOf {self._qname_for_type(str(spec['extends']))}")
+            if spec.get("equivalent_class"):
+                statements.append(f"owl:equivalentClass {spec['equivalent_class']}")
+            primary_key = spec.get("primary_key")
+            if primary_key:
+                statements.append(f"owl:hasKey ( ir:{_local(str(primary_key))} )")
             lines += self._statement(subject, statements)
             for prop_name, prop in sorted(self.registry.properties_for_type(name).items()):
                 property_ranges.setdefault(prop_name, set()).add(
@@ -122,11 +127,24 @@ class SemanticOntologyCompiler:
         for name, spec in sorted(self.registry.relation_types.items()):
             subject = self._qname_for_relation(name)
             statements = ["a owl:ObjectProperty", f"rdfs:label {_literal(spec.get('name', name))}@zh"]
+            if spec.get("symmetric"):
+                statements[0] = "a owl:ObjectProperty, owl:SymmetricProperty"
+            if spec.get("transitive"):
+                statements[0] += ", owl:TransitiveProperty"
+            if spec.get("inverse_of"):
+                statements.append(f"owl:inverseOf {self._qname_for_relation(str(spec['inverse_of']))}")
             if len(spec.get("source_types", [])) == 1:
                 statements.append(f"rdfs:domain {self._qname_for_type(spec['source_types'][0])}")
             if len(spec.get("target_types", [])) == 1:
                 statements.append(f"rdfs:range {self._qname_for_type(spec['target_types'][0])}")
             lines += self._statement(subject, statements)
+        for index, group in enumerate(self.registry.semantic_constraints.get("disjoint_type_sets", [])):
+            members = " ".join(self._qname_for_type(name) for name in sorted(group))
+            lines += [
+                f"ir:DisjointGroup{index + 1} a owl:AllDisjointClasses ;",
+                f"  owl:members ( {members} ) .",
+                "",
+            ]
         return "\n".join(lines).rstrip() + "\n"
 
     def _shacl(self) -> str:
@@ -149,6 +167,10 @@ class SemanticOntologyCompiler:
                 if allowed:
                     values = " ".join(_literal(value) for value in allowed)
                     block.append(f"    sh:in ( {values} )")
+                if prop.get("minimum") is not None:
+                    block.append(f"    sh:minInclusive {prop['minimum']}")
+                if prop.get("maximum") is not None:
+                    block.append(f"    sh:maxInclusive {prop['maximum']}")
                 separator = " ;\n".join(block)
                 lines.append(f"  sh:property [\n{separator}\n  ] ;")
             if "validFrom" in dict(properties) and "validTo" in dict(properties):
@@ -156,6 +178,19 @@ class SemanticOntologyCompiler:
                     "  sh:sparql [",
                     '    sh:message "validFrom 不得晚于 validTo"@zh ;',
                     '    sh:select """SELECT $this WHERE { $this ir:validFrom ?start ; ir:validTo ?end . FILTER (?start > ?end) }"""',
+                    "  ] ;",
+                ]
+            primary_key = spec.get("primary_key")
+            if primary_key:
+                key_path = f"ir:{_local(str(primary_key))}"
+                lines += [
+                    "  sh:sparql [",
+                    f'    sh:message "{name} 的 {primary_key} 必须唯一"@zh ;',
+                    '    sh:select """SELECT $this WHERE {',
+                    f"      $this {key_path} ?key .",
+                    f"      ?other a {qname} ; {key_path} ?key .",
+                    '      FILTER (?other != $this)',
+                    '    }"""',
                     "  ] ;",
                 ]
             lines[-1] = lines[-1][:-1] + "." if lines[-1].endswith(";") else lines[-1]
@@ -182,11 +217,26 @@ class SemanticOntologyCompiler:
                     lines.append("    sh:maxCount 1 ;")
                 lines[-1] = lines[-1][:-1]
                 lines += ["  ] .", ""]
+        lines += [
+            "ir:MetricUnitDimensionShape a sh:NodeShape ;",
+            "  sh:targetSubjectsOf ir:metricMeasuredIn ;",
+            "  sh:sparql [",
+            '    sh:message "指标量纲与单位量纲必须一致"@zh ;',
+            '    sh:select """SELECT $this WHERE {',
+            '      $this ir:metricQuantifies ?kind ; ir:metricMeasuredIn ?unit .',
+            '      ?kind ir:dimension ?expected .',
+            '      ?unit ir:dimension ?actual .',
+            '      FILTER (?expected != ?actual)',
+            '    }"""',
+            "  ] .",
+            "",
+        ]
         return "\n".join(lines).rstrip() + "\n"
 
     def _skos(self) -> str:
         lines = self._prefixes()
-        for vocabulary, raw in sorted(self.registry.controlled_vocabularies.items()):
+        vocabularies = self._all_vocabularies()
+        for vocabulary, raw in sorted(vocabularies.items()):
             scheme = f"irsc:vocab-{_local(vocabulary)}"
             lines += self._statement(
                 scheme,
@@ -212,6 +262,23 @@ class SemanticOntologyCompiler:
                     statements.append(f"skos:definition {_literal(value['description'])}@zh")
                 lines += self._statement(concept, statements)
         return "\n".join(lines).rstrip() + "\n"
+
+    def _all_vocabularies(self) -> dict[str, Any]:
+        vocabularies = self.registry.controlled_vocabularies
+        for type_name in sorted(self.registry.object_types):
+            for prop_name, prop in sorted(self.registry.properties_for_type(type_name).items()):
+                allowed = prop.get("allowed_values")
+                if not allowed:
+                    continue
+                vocabularies.setdefault(
+                    f"{type_name}.{prop_name}",
+                    {
+                        "values": [
+                            {"id": str(value), "name": str(value)} for value in allowed
+                        ]
+                    },
+                )
+        return vocabularies
 
     def _mapping(self) -> str:
         runtime_types: set[str] = set()

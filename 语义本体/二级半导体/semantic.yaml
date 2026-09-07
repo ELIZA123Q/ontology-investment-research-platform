@@ -1,5 +1,6 @@
 # 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
 schema_name: semiconductor_domain_semantic
+schema_version: 4.0.0
 status: active
 description: 半导体领域的语义对象扩展、稳定关系和受控分类体系。
 object_type_extensions:
@@ -11,7 +12,7 @@ object_type_extensions:
         required: false
         vocabulary_ref: controlled_vocabularies.industry_role
         description: 半导体产业中的稳定角色。
-  Segment:
+  IndustrySegment:
     description: 使用产业链角色分类描述设计、供给、制造、封测和需求端位置。
     properties:
       semiconductorSegmentRole:
@@ -95,6 +96,7 @@ object_types:
     id: TechnologyRoute
     name: 技术路线
     description: 可被稳定识别并跨产品、工序和材料复用的制程、器件架构、互连、封装或系统集成路线。 路线的采用进度、成熟度和替代强度属于推理域，不作为本对象的静态属性。
+    extends: Technology
     primary_key: id
     title_property: name
     validity: true
@@ -124,27 +126,16 @@ object_types:
     id: ManufacturingFacility
     name: 制造设施
     description: 具有独立位置、运营主体和工艺能力的半导体研发、制造、封装测试或关键投入品设施。
+    extends: Facility
     primary_key: id
     title_property: name
     validity: true
     properties:
-      name:
-        type: string
-        required: true
-        description: 设施名称。
-      aliases:
-        type: array
-        required: false
-        description: 设施别名。
       facilityCategory:
         type: enum
         required: true
         vocabulary_ref: controlled_vocabularies.facility_category
         description: 设施类别。
-      capabilityScope:
-        type: string
-        required: true
-        description: 设施可稳定提供的工艺或产出范围。
 relation_type_extensions:
   conceptMapsToObject:
     add_target_types:
@@ -192,7 +183,7 @@ relation_types:
     source_types:
     - TechnologyRoute
     target_types:
-    - Segment
+    - IndustrySegment
     - Product
     - ProcessStep
     direction: directed
@@ -274,34 +265,6 @@ relation_types:
         type: string
         required: true
         description: 材料在工序中的用途。
-  facilityOperatedBy:
-    id: facilityOperatedBy
-    name: 设施由组织运营
-    description: 制造设施由组织拥有、运营或控制。
-    source_types:
-    - ManufacturingFacility
-    target_types:
-    - Organization
-    direction: directed
-    cardinality: many_to_one
-    evidence_required: true
-    properties:
-      operationRole:
-        type: string
-        required: false
-        description: 所有、运营、合资或受托管理。
-  facilityLocatedIn:
-    id: facilityLocatedIn
-    name: 设施位于地区
-    description: 制造设施位于某一 Region。
-    source_types:
-    - ManufacturingFacility
-    target_types:
-    - Region
-    direction: directed
-    cardinality: many_to_one
-    evidence_required: true
-    properties: {}
   facilitySupportsProcess:
     id: facilitySupportsProcess
     name: 设施支持工序

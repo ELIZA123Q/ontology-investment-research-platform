@@ -55,7 +55,15 @@ class SemanticOntologyRegistry:
 
     @property
     def controlled_vocabularies(self) -> dict[str, Any]:
-        return deepcopy(self.domain.get("controlled_vocabularies", {}))
+        merged = deepcopy(self.core.get("controlled_vocabularies", {}))
+        merged.update(deepcopy(self.domain.get("controlled_vocabularies", {})))
+        return merged
+
+    @property
+    def semantic_constraints(self) -> dict[str, Any]:
+        merged = deepcopy(self.core.get("semantic_constraints", {}))
+        merged.update(deepcopy(self.domain.get("semantic_constraints", {})))
+        return merged
 
     @property
     def semantic_instances(self) -> list[dict[str, Any]]:
@@ -213,6 +221,15 @@ class SemanticOntologyRegistry:
             allowed = set(self.common.get("common_enums", {}).get("cardinality", []))
             if cardinality and cardinality not in allowed:
                 raise OntologyBoundaryError(f"关系 {relation_name} 基数非法: {cardinality}")
+            inverse = relation.get("inverse_of")
+            if inverse and inverse not in self._relations:
+                raise OntologyBoundaryError(f"关系 {relation_name} 的 inverse_of 不存在: {inverse}")
+            if relation.get("symmetric") and relation.get("direction") != "symmetric":
+                raise OntologyBoundaryError(f"对称关系 {relation_name} 必须声明 direction=symmetric")
+        for group in self.semantic_constraints.get("disjoint_type_sets", []):
+            unknown = set(group) - set(self._objects)
+            if unknown:
+                raise OntologyBoundaryError(f"互斥类型组含未知类型: {sorted(unknown)}")
         seen_metric_ids: set[str] = set()
         for metric in self.semantic_instances:
             if metric.get("type") != "ResearchMetric":

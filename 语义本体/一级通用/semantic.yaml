@@ -1,6 +1,6 @@
 # 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
 schema_name: investment_research_semantic_ontology
-schema_version: 3.0.0
+schema_version: 4.0.0
 status: active
 depends_on:
 - common.yaml
@@ -13,6 +13,7 @@ object_types:
     primary_key: id
     title_property: name
     validity: true
+    equivalent_class: skos:Concept
     properties:
       name:
         type: string
@@ -54,8 +55,8 @@ object_types:
         type: string
         required: false
         description: 产业分类层级。
-  Segment:
-    id: Segment
+  IndustrySegment:
+    id: IndustrySegment
     name: 产业链环节
     description: 产业链中具有相对稳定功能的位置。
     primary_key: id
@@ -121,6 +122,7 @@ object_types:
     id: Product
     name: 产品
     description: 被生产、使用、交易或交付的产品或产品类别。
+    extends: Offering
     primary_key: id
     title_property: name
     validity: true
@@ -399,14 +401,6 @@ object_types:
         type: boolean
         required: false
         description: 是否具备可转让或可交易属性。
-      issueJurisdictionRef:
-        type: object_ref
-        required: false
-        description: 发行或设立适用的 Region 引用。
-      denominationCurrencyRef:
-        type: object_ref
-        required: false
-        description: 计价货币引用，通常指向 assetClass=currency 的 Asset。
       instrumentStatus:
         type: enum
         required: false
@@ -613,10 +607,196 @@ object_types:
         type: string
         required: false
         description: 定量、定性或派生指标。
-      anchorTypes:
-        type: array
+  Person:
+    id: Person
+    name: 自然人
+    description: 可独立识别并在组织、资产、协议或治理上下文中承担角色的自然人。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 姓名或公开使用名称。}
+      aliases: {type: array, required: false, description: 别名或多语言名称。}
+  BusinessUnit:
+    id: BusinessUnit
+    name: 业务单元
+    description: 组织内部具有稳定边界、职能或披露口径的业务单元。
+    extends: Organization
+    primary_key: id
+    title_property: name
+    validity: true
+    properties: {}
+  Offering:
+    id: Offering
+    name: 产品或服务供给
+    description: 组织向市场提供并可形成商业关系的产品或服务上位类型。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 供给名称。}
+      aliases: {type: array, required: false, description: 供给别名。}
+      offeringCategory: {type: string, required: false, description: 通用供给分类。}
+  Service:
+    id: Service
+    name: 服务
+    description: 以持续、订阅、项目或交易方式交付的非实物供给。
+    extends: Offering
+    primary_key: id
+    title_property: name
+    validity: true
+    properties: {}
+  Market:
+    id: Market
+    name: 市场
+    description: 由供给、需求者、地域和交易边界共同定义的稳定商业市场。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 市场名称。}
+      marketType:
+        type: enum
         required: true
-        description: 允许锚定的稳定语义对象类型。
+        allowed_values: [product, service, geographic, end_market, capital_market, other]
+        description: 市场分类。
+  MarketSegment:
+    id: MarketSegment
+    name: 市场细分
+    description: 按客户、需求、价格带或用途形成的稳定市场子集，不表示产业链位置。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 市场细分名称。}
+      segmentationBasis: {type: string, required: true, description: 细分所采用的稳定口径。}
+  CommercialRelationship:
+    id: CommercialRelationship
+    name: 商业关系
+    description: 供应、客户、渠道、许可或合作关系的可版本化身份；交易金额和时点表现属于运行层。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 商业关系名称。}
+      relationshipType:
+        type: enum
+        required: true
+        allowed_values: [supplier, customer, channel, licensing, partnership, outsourcing, other]
+        description: 商业关系类型。
+  Agreement:
+    id: Agreement
+    name: 协议
+    description: 具有稳定身份、当事方和适用范围的合同、许可、框架协议或其他约定。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 协议名称。}
+      agreementType: {type: string, required: true, description: 协议的稳定类别。}
+      canonicalIdentifier: {type: string, required: false, description: 合同号或公开登记编号。}
+  OwnershipInterest:
+    id: OwnershipInterest
+    name: 所有权权益
+    description: 人或组织对组织、资产或金融工具拥有的经济权益或表决权安排。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 权益记录名称。}
+      interestType:
+        type: enum
+        required: true
+        allowed_values: [direct, indirect, beneficial, voting, economic, other]
+        description: 权益类型。
+      economicPercentage: {type: number, required: false, minimum: 0, maximum: 100, description: 经济权益比例。}
+      votingPercentage: {type: number, required: false, minimum: 0, maximum: 100, description: 表决权比例。}
+  ReportingStandard:
+    id: ReportingStandard
+    name: 报告准则
+    description: 会计、监管或统计报告采用的稳定准则体系。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 准则名称。}
+      standardCode: {type: string, required: true, description: 稳定准则代码。}
+  AccountingConcept:
+    id: AccountingConcept
+    name: 会计概念
+    description: 特定报告准则下可稳定引用的科目、披露概念或计算口径。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 会计概念名称。}
+      conceptCode: {type: string, required: false, description: 准则体系内代码。}
+      statementCategory:
+        type: enum
+        required: false
+        allowed_values: [income_statement, balance_sheet, cash_flow, equity, disclosure, non_gaap, other]
+        description: 所属报表或披露类别。
+  QuantityKind:
+    id: QuantityKind
+    name: 量纲概念
+    description: 收入、数量、比率、价格、产能等被测量内容的稳定语义。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 量纲概念名称。}
+      dimension: {type: string, required: true, description: 物理或经济量纲。}
+  UnitOfMeasure:
+    id: UnitOfMeasure
+    name: 计量单位
+    description: 用于表达数量、比例、价格或其他指标读数的标准单位。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 单位名称。}
+      symbol: {type: string, required: true, description: 单位符号。}
+      dimension: {type: string, required: true, description: 单位所属量纲。}
+  Currency:
+    id: Currency
+    name: 货币
+    description: 可作为金融工具计价单位的法定或约定货币。
+    extends: UnitOfMeasure
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      currencyCode: {type: string, required: true, description: ISO 4217 或其他稳定货币代码。}
+  Facility:
+    id: Facility
+    name: 经营设施
+    description: 具有稳定位置、运营主体和能力边界的工厂、矿山、仓储、门店、数据中心或其他经营设施。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 设施名称。}
+      facilityKind: {type: string, required: true, description: 通用设施类别。}
+      capabilityScope: {type: string, required: false, description: 设施可稳定提供的能力范围。}
+  Technology:
+    id: Technology
+    name: 技术
+    description: 可跨组织、供给和设施复用的稳定技术概念或技术体系。
+    primary_key: id
+    title_property: name
+    validity: true
+    properties:
+      name: {type: string, required: true, description: 技术名称。}
+      definition: {type: string, required: true, description: 技术边界。}
+  Jurisdiction:
+    id: Jurisdiction
+    name: 法域
+    description: 对注册、发行、监管、协议或交易具有法律管辖权的地区。
+    extends: Region
+    primary_key: id
+    title_property: name
+    validity: true
+    properties: {}
 relation_types:
   conceptBroaderThan:
     id: conceptBroaderThan
@@ -627,6 +807,7 @@ relation_types:
     target_types:
     - Concept
     direction: directed
+    transitive: true
     cardinality: many_to_many
     evidence_required: false
     properties: {}
@@ -639,6 +820,7 @@ relation_types:
     target_types:
     - Concept
     direction: symmetric
+    symmetric: true
     cardinality: many_to_many
     evidence_required: false
     properties:
@@ -671,7 +853,7 @@ relation_types:
     target_types:
     - Organization
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - Material
@@ -710,6 +892,7 @@ relation_types:
     target_types:
     - Industry
     direction: directed
+    transitive: true
     cardinality: many_to_one
     evidence_required: false
     properties: {}
@@ -722,15 +905,16 @@ relation_types:
     target_types:
     - Region
     direction: directed
+    transitive: true
     cardinality: many_to_one
     evidence_required: false
     properties: {}
-  segmentBelongsToIndustry:
-    id: segmentBelongsToIndustry
+  industrySegmentBelongsToIndustry:
+    id: industrySegmentBelongsToIndustry
     name: 环节归属产业
     description: 环节归属产业。
     source_types:
-    - Segment
+    - IndustrySegment
     target_types:
     - Industry
     direction: directed
@@ -753,14 +937,14 @@ relation_types:
         type: string
         required: false
         description: 公司在产业中的角色。
-  companyParticipatesInSegment:
-    id: companyParticipatesInSegment
+  companyParticipatesInIndustrySegment:
+    id: companyParticipatesInIndustrySegment
     name: 公司参与环节
     description: 公司参与某产业链环节。
     source_types:
     - Company
     target_types:
-    - Segment
+    - IndustrySegment
     direction: directed
     cardinality: many_to_many
     evidence_required: true
@@ -848,7 +1032,7 @@ relation_types:
     direction: directed
     cardinality: many_to_many
     evidence_required: true
-    derived_inverse: customerOf
+    derived: true
     properties:
       supplyScope:
         type: string
@@ -884,14 +1068,14 @@ relation_types:
         type: string
         required: false
         description: 生产或经营角色。
-  productBelongsToSegment:
-    id: productBelongsToSegment
+  offeringBelongsToIndustrySegment:
+    id: offeringBelongsToIndustrySegment
     name: 产品归属环节
     description: 产品归属某产业链环节。
     source_types:
-    - Product
+    - Offering
     target_types:
-    - Segment
+    - IndustrySegment
     direction: directed
     cardinality: many_to_many
     evidence_required: false
@@ -1007,7 +1191,7 @@ relation_types:
     target_types:
     - Organization
     - Industry
-    - Segment
+    - IndustrySegment
     - Product
     - Material
     - ProcessStep
@@ -1048,7 +1232,7 @@ relation_types:
     target_types:
     - Organization
     - Industry
-    - Segment
+    - IndustrySegment
     - Product
     - Material
     - ProcessStep
@@ -1139,7 +1323,7 @@ relation_types:
     source_types:
     - ProcessStep
     target_types:
-    - Segment
+    - IndustrySegment
     direction: directed
     cardinality: many_to_one
     evidence_required: false
@@ -1165,12 +1349,12 @@ relation_types:
     name: 上游关系
     description: 起点在稳定业务结构中位于终点上游。
     source_types:
-    - Segment
+    - IndustrySegment
     - Product
     - Material
     - ProcessStep
     target_types:
-    - Segment
+    - IndustrySegment
     - Product
     - Material
     - ProcessStep
@@ -1241,6 +1425,7 @@ relation_types:
     - Product
     - Material
     direction: symmetric
+    symmetric: true
     cardinality: many_to_many
     evidence_required: true
     properties:
@@ -1256,7 +1441,7 @@ relation_types:
     - Asset
     target_types:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - Material
@@ -1279,7 +1464,7 @@ relation_types:
     target_types:
     - Organization
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - Material
@@ -1411,7 +1596,7 @@ relation_types:
     - Asset
     - Organization
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - Material
@@ -1485,7 +1670,7 @@ relation_types:
     source_types:
     - FinancialInstrument
     target_types:
-    - Asset
+    - Currency
     direction: directed
     cardinality: many_to_one
     evidence_required: true
@@ -1499,6 +1684,7 @@ relation_types:
     target_types:
     - Listing
     direction: directed
+    inverse_of: listingListsAsset
     cardinality: many_to_many
     evidence_required: true
     properties: {}
@@ -1511,6 +1697,7 @@ relation_types:
     target_types:
     - FinancialInstrument
     direction: directed
+    inverse_of: assetListedVia
     cardinality: many_to_one
     evidence_required: true
     properties: {}
@@ -1571,11 +1758,12 @@ relation_types:
         description: 地区对交易场所的角色。
   rolePlayedBy:
     id: rolePlayedBy
-    name: 角色由组织承担
-    description: 角色承担记录由某个组织或其子类型公司承担。
+    name: 角色由主体承担
+    description: 角色承担记录由自然人、组织或其子类型公司承担。
     source_types:
     - RoleAssignment
     target_types:
+    - Person
     - Organization
     direction: directed
     cardinality: many_to_one
@@ -1593,6 +1781,9 @@ relation_types:
     - Listing
     - TradingVenue
     - PolicyInstrument
+    - CommercialRelationship
+    - Agreement
+    - OwnershipInterest
     direction: directed
     cardinality: many_to_one
     evidence_required: true
@@ -1614,9 +1805,26 @@ relation_types:
     - Material
     - ProcessStep
     - Industry
-    - Segment
+    - IndustrySegment
     - Application
     - Region
+    - Person
+    - BusinessUnit
+    - Offering
+    - Service
+    - Market
+    - MarketSegment
+    - CommercialRelationship
+    - Agreement
+    - OwnershipInterest
+    - AccountingConcept
+    - ReportingStandard
+    - QuantityKind
+    - UnitOfMeasure
+    - Currency
+    - Facility
+    - Technology
+    - Jurisdiction
     direction: directed
     cardinality: many_to_many
     evidence_required: true
@@ -1635,7 +1843,7 @@ relation_types:
     - Organization
     - Company
     - Industry
-    - Segment
+    - IndustrySegment
     - Product
     - Material
     - ProcessStep
@@ -1644,7 +1852,312 @@ relation_types:
     - PolicyInstrument
     - Asset
     - FinancialInstrument
+    - BusinessUnit
+    - Offering
+    - Service
+    - Market
+    - MarketSegment
+    - CommercialRelationship
+    - Agreement
+    - OwnershipInterest
+    - AccountingConcept
+    - QuantityKind
+    - UnitOfMeasure
+    - Currency
+    - Facility
+    - Technology
+    - Jurisdiction
     direction: directed
     cardinality: many_to_many
     evidence_required: false
     properties: {}
+  businessUnitPartOf:
+    id: businessUnitPartOf
+    name: 业务单元归属组织
+    description: 业务单元属于某个组织或上级业务单元。
+    source_types: [BusinessUnit]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  personAffiliatedWith:
+    id: personAffiliatedWith
+    name: 人员关联组织
+    description: 自然人与组织存在任职、治理、创始或其他稳定关联。
+    source_types: [Person]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      affiliationType: {type: string, required: true, description: 关联类型。}
+  offeringProvidedBy:
+    id: offeringProvidedBy
+    name: 供给由组织提供
+    description: 产品或服务由某个组织提供、生产或经营。
+    source_types: [Offering]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  offeringServesMarket:
+    id: offeringServesMarket
+    name: 供给服务市场
+    description: 产品或服务面向某个稳定市场或市场细分。
+    source_types: [Offering]
+    target_types: [Market, MarketSegment]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  marketSegmentOfMarket:
+    id: marketSegmentOfMarket
+    name: 市场细分归属市场
+    description: 市场细分属于某个上位市场。
+    source_types: [MarketSegment]
+    target_types: [Market]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  companyServesMarket:
+    id: companyServesMarket
+    name: 公司服务市场
+    description: 公司通过一个或多个供给参与某个市场。
+    source_types: [Company]
+    target_types: [Market, MarketSegment]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    derived: true
+    properties: {}
+  commercialRelationshipHasParty:
+    id: commercialRelationshipHasParty
+    name: 商业关系包含参与方
+    description: 商业关系具有明确组织参与方及其角色。
+    source_types: [CommercialRelationship]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      partyRole: {type: string, required: true, description: 参与方在关系中的角色。}
+  commercialRelationshipProvidesOffering:
+    id: commercialRelationshipProvidesOffering
+    name: 商业关系涉及供给
+    description: 商业关系涉及的产品或服务。
+    source_types: [CommercialRelationship]
+    target_types: [Offering]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  commercialRelationshipServesMarket:
+    id: commercialRelationshipServesMarket
+    name: 商业关系适用市场
+    description: 商业关系成立或服务的市场范围。
+    source_types: [CommercialRelationship]
+    target_types: [Market, MarketSegment]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  relationshipGovernedByAgreement:
+    id: relationshipGovernedByAgreement
+    name: 商业关系受协议约束
+    description: 商业关系由一个或多个协议定义或约束。
+    source_types: [CommercialRelationship]
+    target_types: [Agreement]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  agreementHasParty:
+    id: agreementHasParty
+    name: 协议包含当事方
+    description: 协议的一方为自然人或组织。
+    source_types: [Agreement]
+    target_types: [Person, Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties:
+      partyRole: {type: string, required: true, description: 当事方角色。}
+  ownershipInterestHeldBy:
+    id: ownershipInterestHeldBy
+    name: 权益由主体持有
+    description: 所有权权益由自然人或组织持有。
+    source_types: [OwnershipInterest]
+    target_types: [Person, Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  ownershipInterestIn:
+    id: ownershipInterestIn
+    name: 权益指向对象
+    description: 所有权权益指向组织、资产或金融工具。
+    source_types: [OwnershipInterest]
+    target_types: [Organization, Asset, FinancialInstrument]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  organizationControlsOrganization:
+    id: organizationControlsOrganization
+    name: 组织控制组织
+    description: 起点组织通过可追溯权益或协议控制目标组织。
+    source_types: [Organization]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    derived: true
+    properties: {}
+  accountingConceptDefinedBy:
+    id: accountingConceptDefinedBy
+    name: 会计概念由准则定义
+    description: 会计概念属于某个报告准则体系。
+    source_types: [AccountingConcept]
+    target_types: [ReportingStandard]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  metricMapsToAccountingConcept:
+    id: metricMapsToAccountingConcept
+    name: 指标映射会计概念
+    description: 研究指标映射到一个或多个会计科目或披露概念。
+    source_types: [ResearchMetric]
+    target_types: [AccountingConcept]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: false
+    properties: {}
+  metricQuantifies:
+    id: metricQuantifies
+    name: 指标衡量量纲
+    description: 研究指标衡量某类物理或经济数量。
+    source_types: [ResearchMetric]
+    target_types: [QuantityKind]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  metricMeasuredIn:
+    id: metricMeasuredIn
+    name: 指标使用单位
+    description: 研究指标默认使用某个计量单位或货币。
+    source_types: [ResearchMetric]
+    target_types: [UnitOfMeasure]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: false
+    properties: {}
+  facilityOperatedBy:
+    id: facilityOperatedBy
+    name: 设施由组织运营
+    description: 经营设施由组织或公司运营。
+    source_types: [Facility]
+    target_types: [Organization]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  facilityLocatedIn:
+    id: facilityLocatedIn
+    name: 设施位于地区
+    description: 设施位于某个地理地区或法域。
+    source_types: [Facility]
+    target_types: [Region]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+  facilitySupportsOffering:
+    id: facilitySupportsOffering
+    name: 设施支持供给
+    description: 设施具备生产或交付某项产品或服务的稳定能力。
+    source_types: [Facility]
+    target_types: [Offering]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  technologyUsedByOffering:
+    id: technologyUsedByOffering
+    name: 技术用于供给
+    description: 产品或服务使用某项技术。
+    source_types: [Technology]
+    target_types: [Offering]
+    direction: directed
+    cardinality: many_to_many
+    evidence_required: true
+    properties: {}
+  instrumentIssuedInJurisdiction:
+    id: instrumentIssuedInJurisdiction
+    name: 金融工具发行法域
+    description: 金融工具发行、设立或注册适用的法域。
+    source_types: [FinancialInstrument]
+    target_types: [Jurisdiction]
+    direction: directed
+    cardinality: many_to_one
+    evidence_required: true
+    properties: {}
+controlled_vocabularies:
+  organization_kind:
+    values:
+      - {id: government_agency, name: 政府机构}
+      - {id: regulator, name: 监管机构}
+      - {id: standards_body, name: 标准组织}
+      - {id: industry_association, name: 行业协会}
+      - {id: research_institution, name: 研究机构}
+      - {id: nonprofit, name: 非营利组织}
+      - {id: other, name: 其他组织}
+  market_type:
+    values:
+      - {id: product, name: 产品市场}
+      - {id: service, name: 服务市场}
+      - {id: geographic, name: 地域市场}
+      - {id: end_market, name: 终端市场}
+      - {id: capital_market, name: 资本市场}
+      - {id: other, name: 其他市场}
+  commercial_relationship_type:
+    values:
+      - {id: supplier, name: 供应}
+      - {id: customer, name: 客户}
+      - {id: channel, name: 渠道}
+      - {id: licensing, name: 许可}
+      - {id: partnership, name: 合作}
+      - {id: outsourcing, name: 外包}
+      - {id: other, name: 其他}
+  ownership_interest_type:
+    values:
+      - {id: direct, name: 直接权益}
+      - {id: indirect, name: 间接权益}
+      - {id: beneficial, name: 受益权益}
+      - {id: voting, name: 表决权}
+      - {id: economic, name: 经济权益}
+      - {id: other, name: 其他权益}
+  statement_category:
+    values:
+      - {id: income_statement, name: 利润表}
+      - {id: balance_sheet, name: 资产负债表}
+      - {id: cash_flow, name: 现金流量表}
+      - {id: equity, name: 权益变动}
+      - {id: disclosure, name: 附注披露}
+      - {id: non_gaap, name: 非准则指标}
+      - {id: other, name: 其他}
+semantic_constraints:
+  disjoint_type_sets:
+    - [Person, Organization]
+    - [IndustrySegment, MarketSegment]
+    - [Product, Service]
+  unique_identity:
+    mode: class_primary_key
+  metric_unit_dimension_match:
+    relation: metricMeasuredIn
+    source_dimension_relation: metricQuantifies
+    dimension_property: dimension

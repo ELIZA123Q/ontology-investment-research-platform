@@ -38,7 +38,7 @@ semantic_instances:
     anchorTypes:
     - Company
     - Product
-    - Segment
+    - IndustrySegment
 - id: adoption_penetration
   type: ResearchMetric
   properties:
@@ -71,7 +71,7 @@ semantic_instances:
     anchorTypes:
     - Product
     - Material
-    - Segment
+    - IndustrySegment
     - ManufacturingFacility
     - Region
 - id: capacity_tightness
@@ -83,7 +83,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - ManufacturingFacility
-    - Segment
+    - IndustrySegment
     - Product
 - id: capacity_expansion_progress
   type: ResearchMetric
@@ -95,7 +95,7 @@ semantic_instances:
     anchorTypes:
     - ManufacturingFacility
     - Company
-    - Segment
+    - IndustrySegment
 - id: supply_elasticity
   type: ResearchMetric
   properties:
@@ -104,7 +104,7 @@ semantic_instances:
     definition: 供给体系面对需求或价格变化时扩大、切换或恢复供给的能力。
     variableKind: qualitative_or_derived
     anchorTypes:
-    - Segment
+    - IndustrySegment
     - Product
     - Material
     - TechnologyRoute
@@ -119,7 +119,7 @@ semantic_instances:
     - Product
     - Material
     - ManufacturingFacility
-    - Segment
+    - IndustrySegment
 - id: yield_maturity
   type: ResearchMetric
   properties:
@@ -154,7 +154,7 @@ semantic_instances:
     - ProcessStep
     - ManufacturingFacility
     - Product
-    - Segment
+    - IndustrySegment
 - id: quality_reliability
   type: ResearchMetric
   properties:
@@ -176,7 +176,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
 - id: inventory_buffer_capacity
@@ -190,7 +190,7 @@ semantic_instances:
     - Company
     - Product
     - Material
-    - Segment
+    - IndustrySegment
 - id: backlog_pressure
   type: ResearchMetric
   properties:
@@ -201,7 +201,7 @@ semantic_instances:
     anchorTypes:
     - Company
     - Product
-    - Segment
+    - IndustrySegment
 - id: product_price_pressure
   type: ResearchMetric
   properties:
@@ -211,7 +211,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Product
-    - Segment
+    - IndustrySegment
     - Company
 - id: input_cost_pressure
   type: ResearchMetric
@@ -235,7 +235,7 @@ semantic_instances:
     anchorTypes:
     - Company
     - Product
-    - Segment
+    - IndustrySegment
 - id: profit_pool_shift
   type: ResearchMetric
   properties:
@@ -245,7 +245,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
 - id: scaling_progress
   type: ResearchMetric
@@ -337,7 +337,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Product
     - Company
 - id: customer_switching_cost
@@ -361,7 +361,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - TechnologyRoute
 - id: policy_support_strength
   type: ResearchMetric
@@ -372,7 +372,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - ManufacturingFacility
     - Region
@@ -414,7 +414,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - Material
@@ -440,7 +440,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Company
-    - Segment
+    - IndustrySegment
     - Product
 - id: technology_route_exposure
   type: ResearchMetric
@@ -475,7 +475,7 @@ semantic_instances:
     anchorTypes:
     - Company
     - Product
-    - Segment
+    - IndustrySegment
 - id: consensus_expectation_level
   type: ResearchMetric
   properties:
@@ -485,7 +485,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - Asset
@@ -501,7 +501,7 @@ semantic_instances:
     variableKind: derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - TechnologyRoute
@@ -518,7 +518,7 @@ semantic_instances:
     variableKind: qualitative_or_derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - TechnologyRoute
@@ -535,7 +535,7 @@ semantic_instances:
     variableKind: derived
     anchorTypes:
     - Industry
-    - Segment
+    - IndustrySegment
     - Company
     - Product
     - TechnologyRoute
@@ -564,4 +564,4 @@ semantic_instances:
     anchorTypes:
     - Company
     - Product
-    - Segment
+    - IndustrySegment
