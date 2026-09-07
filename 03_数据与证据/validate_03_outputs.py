@@ -535,7 +535,7 @@ def _validate_ontology_instances(view: dict[str, object], rows: dict[str, list[d
     allowed_object_types = set(split_refs(semantic_scope.get("object_type_refs")))
     allowed_relation_types = set(split_refs(semantic_scope.get("relation_type_refs")))
     allowed_profiles = set(split_refs(evidence_contract.get("evidence_profile_refs")))
-    formal_evidence = load_yaml_file(Path(__file__).resolve().parent.parent / "一级通用本体规范" / "evidence.yaml")
+    formal_evidence = load_yaml_file(Path(__file__).resolve().parent.parent / "研究运行合同" / "evidence.yaml")
 
     def enum_values(object_type: str, property_name: str) -> set[str]:
         values = formal_evidence["object_types"][object_type]["properties"][property_name].get("allowed_values", [])

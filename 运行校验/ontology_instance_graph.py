@@ -16,6 +16,8 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
+from authority_loader import load_authority_yaml
+
 
 GRAPH_SCHEMA_NAME = "ontology_business_instance_graph"
 GRAPH_SCHEMA_VERSION = "1.0.0"
@@ -705,7 +707,7 @@ def _load_ontology_catalog(*, include_domain: bool = True) -> tuple[set[str], se
             path = root / filename
             if not path.is_file():
                 continue
-            schema = yaml.safe_load(path.read_text(encoding="utf-8"))
+            schema = load_authority_yaml(path)
             object_definitions.update(schema.get("object_types", {}) or {})
             relation_definitions.update(schema.get("relation_types", {}) or {})
             object_types.update(str(item) for item in (schema.get("object_types", {}) or {}))

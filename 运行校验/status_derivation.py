@@ -27,12 +27,16 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
+from authority_loader import load_authority_yaml
 
-_REASONING_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "一级通用本体规范" / "reasoning.yaml"
-_EVIDENCE_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "一级通用本体规范" / "evidence.yaml"
-_REASONING_SCHEMA = yaml.safe_load(_REASONING_SCHEMA_PATH.read_text(encoding="utf-8"))
-_EVIDENCE_SCHEMA = yaml.safe_load(_EVIDENCE_SCHEMA_PATH.read_text(encoding="utf-8"))
-_THRESHOLD_POLICY = _REASONING_SCHEMA["rules"]["judgment_evidence_threshold"]["parameters"]
+
+_REASONING_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "研究运行合同" / "reasoning.yaml"
+_REASONING_RULE_PATH = Path(__file__).resolve().parent.parent / "研究规则" / "reasoning.yaml"
+_EVIDENCE_SCHEMA_PATH = Path(__file__).resolve().parent.parent / "研究运行合同" / "evidence.yaml"
+_REASONING_SCHEMA = load_authority_yaml(_REASONING_SCHEMA_PATH)
+_REASONING_RULES = load_authority_yaml(_REASONING_RULE_PATH)
+_EVIDENCE_SCHEMA = load_authority_yaml(_EVIDENCE_SCHEMA_PATH)
+_THRESHOLD_POLICY = _REASONING_RULES["rules"]["judgment_evidence_threshold"]["parameters"]
 
 STAGE_STATUSES = {"not_started", "in_progress", "complete", "blocked", "returned"}
 TASK_DISPOSITIONS = {
@@ -143,7 +147,7 @@ def canonical_path_readiness_status(value: Any) -> str:
 def evidence_profile_quality_floor(profile_id: str) -> str:
     """从二级 EvidenceProfile 实例读取质量下限；画像实例是权威源。"""
     profile_path = Path(__file__).resolve().parent.parent / "二级半导体领域本体规范" / "business_instances.yaml"
-    document = yaml.safe_load(profile_path.read_text(encoding="utf-8"))
+    document = load_authority_yaml(profile_path)
     graph = document.get("business_instance_graph") or {}
     for item in graph.get("objects") or []:
         if item.get("type") != "EvidenceProfile" or str(item.get("id")) != str(profile_id):

@@ -16,8 +16,8 @@ from validator_utils import load_yaml_file, split_refs
 ROOT = Path(__file__).resolve().parent.parent
 PUBLIC_CONTRACT_PATH = ROOT / "00_全局" / "contracts" / "public_contract.yaml"
 ROUTE_REGISTRY_PATH = ROOT / "00_全局" / "contracts" / "judgment_method_routes.yaml"
-ONTOLOGY_CONTRACT_PATH = ROOT / "一级通用本体规范" / "common.yaml"
-ONTOLOGY_REASONING_PATH = ROOT / "一级通用本体规范" / "reasoning.yaml"
+ONTOLOGY_CONTRACT_PATH = ROOT / "语义本体" / "一级通用" / "common.yaml"
+ONTOLOGY_REASONING_PATH = ROOT / "研究运行合同" / "reasoning.yaml"
 KB02_REGISTRY_PATH = ROOT / "知识库_02框架" / "00_framework_dependency_registry.yaml"
 KB03_REGISTRY_PATH = ROOT / "知识库_03取证" / "03_registry.yaml"
 

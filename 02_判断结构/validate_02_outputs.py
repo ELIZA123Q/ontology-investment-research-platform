@@ -379,11 +379,12 @@ def _validate_iteration_contract(view: dict[str, object]) -> None:
         fail("iteration_contract.routes 必须与公共闭环路由完全一致")
     if str(contract.get("convergence_contract_ref")) != "00_全局/contracts/public_contract.yaml#iteration_semantics":
         fail("iteration_contract.convergence_contract_ref 必须引用公共合同 iteration_semantics")
-    reasoning_schema = load_yaml_file(WORKSPACE / "一级通用本体规范" / "reasoning.yaml")
-    if contract["structural_revision_relation_ref"] not in reasoning_schema.get("relation_types", {}):
-        fail("iteration_contract 引用的推理修订关系未在一级正式本体定义")
-    if contract["structural_revision_action_ref"] not in reasoning_schema.get("action_types", {}):
-        fail("iteration_contract 引用的推理修订动作未在一级正式本体定义")
+    reasoning_contract = load_yaml_file(WORKSPACE / "研究运行合同" / "reasoning.yaml")
+    reasoning_rules = load_yaml_file(WORKSPACE / "研究规则" / "reasoning.yaml")
+    if contract["structural_revision_relation_ref"] not in reasoning_contract.get("relation_types", {}):
+        fail("iteration_contract 引用的推理修订关系未在研究运行合同定义")
+    if contract["structural_revision_action_ref"] not in reasoning_rules.get("action_types", {}):
+        fail("iteration_contract 引用的推理修订动作未在研究规则定义")
 
 
 def _validate_logic(logic_path: Path) -> tuple[dict[str, object], str]:

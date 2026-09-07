@@ -3,14 +3,14 @@ schema_version: 3.2.0
 updated_at: 2026-07-16
 
 # 本文件是方法说明与任务编排索引，不是业务参数权威。
-# 角色枚举、完备度↔Q、篮子角色对照一律回指一级本体规则参数。
+# 角色枚举、完备度↔Q、篮子角色对照一律回指研究运行合同与研究规则。
 ontology_authority_refs:
-  basket_roles: 一级通用本体规范/evidence.yaml#object_types.EvidenceBasket.properties.basketRole.allowed_values
-  quality_language_to_evidence_grades: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades
-  evidence_method_role_to_basket_role: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.evidence_method_role_to_basket_role
-  evidence_recipes: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.@type=EvidenceRecipe
-  source_profiles: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.@type=SourceProfile
-  proxy_indicators: 二级半导体领域本体规范/business_instances.yaml#business_instance_graph.objects.@type=ProxyIndicator
+  basket_roles: 研究运行合同/evidence.yaml#object_types.EvidenceBasket.properties.basketRole.allowed_values
+  quality_language_to_evidence_grades: 研究规则/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades
+  evidence_method_role_to_basket_role: 研究规则/reasoning.yaml#rules.judgment_evidence_threshold.parameters.evidence_method_role_to_basket_role
+  evidence_recipes: 研究规则/二级半导体/research_config.yaml#runtime_objects.@type=EvidenceRecipe
+  source_profiles: 研究规则/二级半导体/research_config.yaml#runtime_objects.@type=SourceProfile
+  proxy_indicators: 研究规则/二级半导体/research_config.yaml#runtime_objects.@type=ProxyIndicator
 
 # 所有证据必须先通过的共同有效性条件；不是可收集的证据角色。
 validity_preconditions:
@@ -55,19 +55,19 @@ quality_language:
   sufficient:
     label: 充分
     maximum_use: 明确判断（含明确支持与明确否定）
-    machine_evidence_grades_ref: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.sufficient
+    machine_evidence_grades_ref: 研究规则/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.sufficient
   limited:
     label: 受限
     maximum_use: 有条件判断
-    machine_evidence_grades_ref: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.limited
+    machine_evidence_grades_ref: 研究规则/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.limited
   observation:
     label: 观察
     maximum_use: 方向观察
-    machine_evidence_grades_ref: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.observation
+    machine_evidence_grades_ref: 研究规则/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.observation
   unusable:
     label: 不可用
     maximum_use: 暂不可判断
-    machine_evidence_grades_ref: 一级通用本体规范/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.unusable
+    machine_evidence_grades_ref: 研究规则/reasoning.yaml#rules.judgment_evidence_threshold.parameters.quality_language_to_evidence_grades.unusable
 
 # 04 命题支持状态对照（03 不填写）
 proposition_support_states_owned_by_04:

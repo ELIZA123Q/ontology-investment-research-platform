@@ -1,0 +1,26 @@
+schema_name: research_dependency_projection
+schema_version: 1.0.0
+task_id: "<任务标识>"
+run_id: "<运行标识>"
+source_02_context_hash: "sha256:<02 research context view hash>"
+
+# 这是运行控制投影，不属于语义本体。节点可以存进图，但不因此成为本体类型。
+nodes:
+  - object_ref: "EV-01"
+    runtime_type_ref: EvidenceClaim
+    stage: stage_03
+    content_hash: "sha256:<对象内容哈希>"
+    validity_status: current
+    critical: false
+  - object_ref: "OBS-01"
+    runtime_type_ref: Observation
+    stage: stage_03
+    content_hash: "sha256:<对象内容哈希>"
+    validity_status: current
+    critical: true
+
+edges:
+  - dependency_ref: "DEP-01"
+    upstream_ref: "EV-01"
+    downstream_ref: "OBS-01"
+    dependency_kind: evidence_to_observation

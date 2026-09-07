@@ -26,6 +26,7 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
+from authority_loader import load_authority_yaml
 from ontology_instance_graph import materialize_document
 from research_contract import task_view_hash
 
@@ -210,7 +211,7 @@ def _parse_datetime(value: Any, label: str) -> str:
 
 def load_yaml(path: str | Path) -> dict[str, Any]:
     file_path = Path(path)
-    value = yaml.safe_load(file_path.read_text(encoding="utf-8"))
+    value = load_authority_yaml(file_path)
     return _mapping(value, str(file_path))
 
 

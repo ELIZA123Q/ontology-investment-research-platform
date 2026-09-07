@@ -1,0 +1,74 @@
+schema_name: research_run_contract
+schema_version: 1.0.0
+status: active
+description: 研究运行、双时态、版本化和 provenance 的统一合同；所有内容均为应用运行数据，不属于本体。
+
+authority:
+  graph_data: embedded_oxigraph
+  process_read_model: semantica_context_graph
+  provenance_ledger: semantica_provenance_sqlite
+  review_formats: [yaml, csv, markdown]
+  rule: 新运行以 Oxigraph 为唯一图数据权威；ContextGraph、YAML、CSV 和 Markdown 均不得独立写入。
+
+runtime_object_contract:
+  required_fields: [id, type, properties, recorded_at, bundle_id]
+  temporal_fields:
+    valid_from: 现实世界中事实或判断开始成立的业务时间。
+    valid_until: 现实世界中事实或判断不再成立的业务时间；左闭右开。
+    recorded_at: 系统取得、生成或登记对象的时间。
+    invalidated_at: 系统确认该版本被撤回或替代的时间。
+  revision:
+    rule: 修订必须创建新 ID，并通过 supersedes 指向旧 ID；不得原位覆盖。
+    conflicts: 冲突版本并存，未经正式裁决不得静默选边。
+
+provenance_mapping:
+  entity_types:
+    - SourceDocument
+    - EvidenceClaim
+    - EvidenceFact
+    - Observation
+    - Judgment
+    - ReportClaim
+  entity_class: prov:Entity
+  activity_types:
+    - acquire
+    - extract
+    - normalize
+    - synthesize_fact
+    - evaluate_rule
+    - generate_report
+  activity_class: prov:Activity
+  agent_types: [source_organization, researcher, model, executable]
+  agent_class: prov:Agent
+  bundle_rule: 每次研究运行使用独立 named graph，并登记为 prov:Bundle。
+  lineage_requirement: 报告观点必须可反向追溯至 Judgment、RuleEvaluation、EvidenceFact、EvidenceClaim、SourceDocument 和原文位置。
+
+stage_contract:
+  "01":
+    role: task_intake
+    ontology_dependency: false
+  "02":
+    role: research_context_view
+    sections:
+      semantic_scope: 仅引用语义本体。
+      evidence_contract: 引用研究运行合同和证据规则。
+      reasoning_plan: 引用研究方法和研究规则。
+  "03":
+    role: evidence_runtime
+    objects: [SourceDocument, EvidenceClaim, EvidenceFact, Observation, EvidenceAssessment]
+  "04":
+    role: judgment_runtime
+    objects: [Hypothesis, Signal, RuleEvaluation, Judgment, ReasoningTrace]
+  "05":
+    role: delivery_projection
+    rule: ReportClaim 必须引用正式 Judgment；表达审计不得提升 Judgment 等级。
+
+legacy_compatibility:
+  accepted_versions:
+    task_view: [2.2.0]
+    evidence_manifest: [3.0.0]
+    reasoning_audit: [4.0.0]
+    run_manifest: [1.2.0]
+  import_policy: 只读导入并保留原文件及 SHA-256，不修改源目录。
+  export_policy: 从图中 LegacyArtifact 生成旧审阅格式，并校验原哈希。
+  authority_policy: 旧格式仅为导入、导出和人工审阅格式，不与 Oxigraph 并列为新运行权威。

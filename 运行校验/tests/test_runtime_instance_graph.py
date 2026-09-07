@@ -65,7 +65,7 @@ class RuntimeInstanceGraphTests(unittest.TestCase):
     def test_drivability_threshold_from_ontology(self) -> None:
         before = status.derive_constraint("Q4", "cleared", "ready").maximum_judgment_level
         self.assertEqual(before, "J4")
-        schema_path = ROOT / "一级通用本体规范" / "reasoning.yaml"
+        schema_path = ROOT / "研究规则" / "reasoning.yaml"
         schema = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
         caps = schema["rules"]["judgment_evidence_threshold"]["parameters"]["evidence_grade_caps"]
         original = caps["Q4"]
@@ -87,12 +87,12 @@ class RuntimeInstanceGraphTests(unittest.TestCase):
     def test_drivability_evidence_profile_instance(self) -> None:
         before = status.evidence_profile_quality_floor("demand_orders")
         self.assertIn(before, status.EVIDENCE_GRADES)
-        profile_path = ROOT / "二级半导体领域本体规范" / "business_instances.yaml"
+        profile_path = ROOT / "研究规则" / "二级半导体" / "research_config.yaml"
         original = profile_path.read_text(encoding="utf-8")
         document = yaml.safe_load(original)
         target = next(
             item
-            for item in document["business_instance_graph"]["objects"]
+            for item in document["runtime_objects"]
             if item.get("id") == "demand_orders" and item.get("type") == "EvidenceProfile"
         )
         target["properties"]["quality_floor"] = "Q1"

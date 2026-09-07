@@ -1,0 +1,1237 @@
+schema_name: research_reasoning_execution_rules
+schema_version: 1.0.0
+status: active
+description: reasoning 动作、函数、流程与确定性规则；不是语义本体。
+action_types:
+  DefineStateVariable:
+    id: DefineStateVariable
+    name: 定义状态变量
+    description: 定义可观察或可推导的变量口径。
+    target_types:
+    - StateVariable
+    parameters:
+    - name
+    - valueType
+    - unit
+    - measurementDefinition
+    - variableKind
+    - semanticRefs
+    preconditions:
+    - 语义锚点存在或适用范围明确
+    effects:
+    - create_StateVariable
+    outputs:
+    - StateVariable
+    rule_refs:
+    - semantic_anchor_required
+    function_ref: null
+    logic_refs: []
+    write_scope:
+    - StateVariable
+    - variableAnchoredOn
+  LinkEvidenceToReasoning:
+    id: LinkEvidenceToReasoning
+    name: 连接证据与推理
+    description: 在检查证据状态、新鲜度和目标类型后，创建证据到推理输入对象的支撑关系。
+    target_types:
+    - evidenceGroundsReasoning
+    parameters:
+    - evidenceRef
+    - reasoningRef
+    - groundingRole
+    - evaluationTime
+    preconditions:
+    - 证据有效、新鲜度允许且目标类型合法
+    effects:
+    - create_evidenceGroundsReasoning
+    outputs:
+    - relation_ref
+    rule_refs:
+    - no_direct_evidence_to_judgment
+    function_ref: null
+    logic_refs:
+    - FreshnessEvaluationLogic
+    - EvidenceGroundingLogic
+    write_scope:
+    - evidenceGroundsReasoning
+  ComputeDerivedObservation:
+    id: ComputeDerivedObservation
+    name: 计算派生观测
+    description: 按已声明口径计算派生变量在特定时点的观测值。
+    target_types:
+    - Observation
+    parameters:
+    - variableRef
+    - inputVariableRefs
+    - inputObservationRefs
+    - formula
+    - observedAt
+    - evidenceRefs
+    preconditions:
+    - 目标变量的 variableKind 为 derived，输入观测时间可比
+    effects:
+    - create_Observation
+    - create_observationOf
+    outputs:
+    - Observation
+    rule_refs:
+    - evidence_grounding_required
+    - time_alignment
+    function_ref: ComputeDerivedVariable
+    logic_refs: []
+    write_scope:
+    - Observation
+    - observationOf
+  RecordObservation:
+    id: RecordObservation
+    name: 记录观测
+    description: 记录变量在特定业务时间的读数或估算。
+    target_types:
+    - Observation
+    parameters:
+    - variableRef
+    - value
+    - unit
+    - observedAt
+    - valueStatus
+    - evidenceRefs
+    preconditions:
+    - 变量存在且证据可追溯
+    effects:
+    - create_Observation
+    - create_observationOf
+    outputs:
+    - Observation
+    rule_refs:
+    - evidence_grounding_required
+    - time_alignment
+    function_ref: null
+    logic_refs: []
+    write_scope:
+    - Observation
+    - observationOf
+  RegisterEvent:
+    id: RegisterEvent
+    name: 登记研究事件
+    description: 将有证据支撑的已发生事实登记为研究事件。
+    target_types:
+    - Event
+    parameters:
+    - name
+    - eventType
+    - occurredAt
+    - semanticRefs
+    - evidenceRefs
+    preconditions:
+    - 证据支撑已发生事实
+    effects:
+    - create_Event
+    - create_eventAnchoredOn
+    outputs:
+    - Event
+    rule_refs:
+    - evidence_grounding_required
+    - semantic_anchor_required
+    function_ref: null
+    logic_refs: []
+    write_scope:
+    - Event
+    - eventAnchoredOn
+  FormHypothesis:
+    id: FormHypothesis
+    name: 形成假设
+    description: 围绕有语义锚点的状态变量形成可证伪假设；已有证据不是创建候选假设的前置条件。
+    target_types:
+    - Hypothesis
+    parameters:
+    - statement
+    - variableRef
+    - direction
+    - timeHorizon
+    - conditions
+    - falsificationConditions
+    - basisRefs
+    - premiseStatements
+    preconditions:
+    - 状态变量及其语义锚点存在，方向、时间尺度和证伪条件完整
+    effects:
+    - create_Hypothesis
+    - create_hypothesisAbout
+    - create_hypothesisBasedOn_if_provided
+    outputs:
+    - Hypothesis
+    rule_refs:
+    - semantic_anchor_required
+    - hypothesis_falsifiability_required
+    - time_alignment
+    function_ref: null
+    logic_refs:
+    - HypothesisAdmissionLogic
+    write_scope:
+    - Hypothesis
+    - hypothesisAbout
+    - hypothesisBasedOn
+  RecordSignal:
+    id: RecordSignal
+    name: 记录信号
+    description: 记录对假设或判断产生作用的信号。
+    target_types:
+    - Signal
+    parameters:
+    - statement
+    - role
+    - strength
+    - observedAt
+    - targetRef
+    - evidenceRefs
+    preconditions:
+    - 目标存在且信号角色相容
+    effects:
+    - create_Signal
+    - create_signalEvaluates
+    outputs:
+    - Signal
+    rule_refs:
+    - signal_role_compatibility
+    - evidence_grounding_required
+    function_ref: null
+    logic_refs: []
+    write_scope:
+    - Signal
+    - signalEvaluates
+  EvaluateHypothesis:
+    id: EvaluateHypothesis
+    name: 评价假设
+    description: 汇总信号并检查证伪和阻断条件，生成本次规则评价；不得在原 Hypothesis 上写入不存在的状态字段。
+    target_types:
+    - RuleEvaluation
+    parameters:
+    - hypothesisRef
+    - signalRefs
+    - evidenceRefs
+    - ruleVersion
+    - evaluationTime
+    preconditions:
+    - 信号可追溯且时间可比
+    effects:
+    - create_RuleEvaluation
+    - create_ruleEvaluationTargets
+    outputs:
+    - RuleEvaluation
+    - hypothesisEvaluationCandidate
+    rule_refs:
+    - blocking_signal_precedence
+    - time_alignment
+    - rule_evaluation_trace_required
+    function_ref: AggregateSignals
+    logic_refs:
+    - HypothesisEvaluationLogic
+    write_scope:
+    - RuleEvaluation
+    - ruleEvaluationTargets
+  ApplyInferenceRule:
+    id: ApplyInferenceRule
+    name: 应用推理规则
+    description: 对输入对象检查规则条件，并把正式推理使用的结果实例化为 RuleEvaluation。
+    target_types:
+    - RuleEvaluation
+    parameters:
+    - ruleRef
+    - ruleVersion
+    - inputRefs
+    - targetRefs
+    - evidenceRefs
+    - evaluationTime
+    preconditions:
+    - 前提和所需证据齐备
+    effects:
+    - create_RuleEvaluation
+    - create_ruleEvaluationTargets_if_provided
+    outputs:
+    - RuleEvaluation
+    rule_refs:
+    - variable_propagation_inference
+    - rule_evaluation_trace_required
+    function_ref: EvaluateRuleCondition
+    logic_refs:
+    - RuleEvaluationLogic
+    write_scope:
+    - RuleEvaluation
+    - ruleEvaluationTargets
+  FormJudgment:
+    id: FormJudgment
+    name: 形成判断
+    description: 基于假设、信号和证据形成分级判断。
+    target_types:
+    - Judgment
+    parameters:
+    - hypothesisRefs
+    - signalRefs
+    - timeHorizon
+    - uncertainty
+    - investmentInterpretation
+    - interpretationBasis
+    - scenarioRef
+    preconditions:
+    - 假设已评价且证据门槛明确
+    effects:
+    - create_Judgment
+    - create_judgmentBasedOn
+    - create_judgmentUnderScenario_if_provided
+    outputs:
+    - Judgment
+    rule_refs:
+    - judgment_evidence_threshold
+    function_ref: CalculateConfidence
+    logic_refs:
+    - JudgmentFormationLogic
+    write_scope:
+    - Judgment
+    - judgmentBasedOn
+    - judgmentUnderScenario
+  RegisterExpectation:
+    id: RegisterExpectation
+    name: 登记市场预期
+    description: 保存特定截面的可追溯预期。
+    target_types:
+    - MarketExpectation
+    parameters:
+    - statement
+    - expectationType
+    - expectationOwner
+    - expectationBasis
+    - asOf
+    - timeHorizon
+    - expectedValue
+    - evidenceRefs
+    preconditions:
+    - 来源和截面明确
+    effects:
+    - create_MarketExpectation
+    - create_expectationAbout
+    outputs:
+    - MarketExpectation
+    rule_refs:
+    - evidence_grounding_required
+    - time_alignment
+    function_ref: null
+    logic_refs: []
+    write_scope:
+    - MarketExpectation
+    - expectationAbout
+  CompareWithExpectation:
+    id: CompareWithExpectation
+    name: 比较市场预期
+    description: 对齐口径和时间尺度后比较判断与预期。
+    target_types:
+    - ExpectationGap
+    parameters:
+    - judgmentRef
+    - expectationRef
+    - comparisonBasis
+    - asOf
+    - timeHorizon
+    preconditions:
+    - 对象和时间尺度可比
+    effects:
+    - create_ExpectationGap
+    - create_gapComparesJudgment
+    - create_gapComparesExpectation
+    outputs:
+    - ExpectationGap
+    rule_refs:
+    - time_alignment
+    function_ref: CompareExpectation
+    logic_refs:
+    - ExpectationGapLogic
+    write_scope:
+    - ExpectationGap
+    - gapComparesJudgment
+    - gapComparesExpectation
+  AssessAssetImpact:
+    id: AssessAssetImpact
+    name: 评估资产影响
+    description: 基于判断、预期差和定价状态形成资产影响或降级结果。
+    target_types:
+    - AssetImpact
+    parameters:
+    - judgmentRef
+    - assetRef
+    - expectationGapRef
+    - pricedInAssessment
+    - impactMechanism
+    - impactConfidence
+    - sensitivityVariableRefs
+    - riskSignalRefs
+    - scenarioRef
+    preconditions:
+    - 判断非 blocked、已比较预期、影响机制和置信度完整，情景与来源判断一致
+    effects:
+    - create_or_downgrade_AssetImpact
+    - create_impactDerivedFrom
+    - create_impactOnAsset
+    - create_impactReferencesGap
+    - create_impactUnderScenario_if_provided
+    outputs:
+    - AssetImpact
+    - downgradeReason
+    rule_refs:
+    - expectation_required_for_asset_impact
+    - blocking_signal_precedence
+    function_ref: null
+    logic_refs:
+    - AssetImpactLogic
+    write_scope:
+    - AssetImpact
+    - impactDerivedFrom
+    - impactOnAsset
+    - impactReferencesGap
+    - impactUnderScenario
+  ConstructScenario:
+    id: ConstructScenario
+    name: 构建情景
+    description: 组织假设、规则、触发条件和失效条件。
+    target_types:
+    - Scenario
+    parameters:
+    - name
+    - scenarioType
+    - hypothesisRefs
+    - ruleRefs
+    - triggerConditions
+    - invalidationConditions
+    preconditions:
+    - 路径可追溯且内部不矛盾
+    effects:
+    - create_Scenario
+    - create_scenarioIncludesHypothesis
+    outputs:
+    - Scenario
+    rule_refs: []
+    function_ref: null
+    logic_refs:
+    - ScenarioReasoningLogic
+    write_scope:
+    - Scenario
+    - scenarioIncludesHypothesis
+  ReviseReasoningObject:
+    id: ReviseReasoningObject
+    name: 修订推理对象
+    description: 以新对象版本替代同类型、同范围的旧对象，关闭旧对象有效期并保存替代关系，不覆盖旧对象或旧留痕。
+    target_types:
+    - Hypothesis
+    - Judgment
+    - Scenario
+    - MarketExpectation
+    - ExpectationGap
+    - AssetImpact
+    parameters:
+    - oldObjectRef
+    - newObjectRef
+    - revisionType
+    - revisionReason
+    - triggerRefs
+    - revisedAt
+    preconditions:
+    - 新旧对象均存在或新版对象可创建，新旧对象类型与适用范围一致，新旧标识不同，触发引用可追溯
+    effects:
+    - create_new_reasoning_object_version
+    - close_old_object_validTo
+    - create_reasoningSupersedes
+    outputs:
+    - newReasoningObject
+    - reasoningSupersedes
+    rule_refs:
+    - reasoning_revision_preserves_trace
+    - time_alignment
+    function_ref: null
+    logic_refs: []
+    write_scope:
+    - Hypothesis
+    - Judgment
+    - Scenario
+    - MarketExpectation
+    - ExpectationGap
+    - AssetImpact
+    - reasoningSupersedes
+  RecordReasoningTrace:
+    id: RecordReasoningTrace
+    name: 记录推理留痕
+    description: 保存一次判断从输入到输出的公开可复核路径。
+    target_types:
+    - ReasoningTrace
+    parameters:
+    - judgmentRef
+    - evaluatedAt
+    - inputRefs
+    - ruleEvaluationRefs
+    - steps
+    - ruleRefs
+    - functionRefs
+    - logicRefs
+    - outputRefs
+    - status
+    preconditions:
+    - 所有资源引用存在，步骤顺序明确
+    effects:
+    - create_ReasoningTrace
+    - create_traceForJudgment
+    - create_traceIncludesRuleEvaluation
+    outputs:
+    - ReasoningTrace
+    rule_refs:
+    - reasoning_trace_required
+    - rule_evaluation_trace_required
+    function_ref: null
+    logic_refs:
+    - ReasoningTraceLogic
+    write_scope:
+    - ReasoningTrace
+    - traceForJudgment
+    - traceIncludesRuleEvaluation
+  RecordValidation:
+    id: RecordValidation
+    name: 记录事后验证
+    description: 根据后续真实结果验证假设、判断或资产影响，并追加偏差与修订建议，不覆盖原始推理留痕。
+    target_types:
+    - ValidationRecord
+    parameters:
+    - targetRefs
+    - outcomeRefs
+    - traceRefs
+    - validatedAt
+    - originalClaimRef
+    - originalJudgmentAsOf
+    - predictionHorizon
+    - expectedSignals
+    - actualSignals
+    - result
+    - outcomeSummary
+    - errorType
+    - errorAttribution
+    - deviationReasons
+    - learningTargets
+    - revisionRequired
+    - revisionNotes
+    - nextCheckpoint
+    preconditions:
+    - 验证目标存在，后续结果时间不早于原判断，验证结果与依据完整
+    effects:
+    - create_ValidationRecord
+    - create_validationOf
+    - create_validationUsesOutcome_if_provided
+    - create_validationReferencesTrace_if_provided
+    outputs:
+    - ValidationRecord
+    rule_refs:
+    - validation_outcome_required
+    - validation_time_order
+    function_ref: null
+    logic_refs:
+    - ExPostValidationLogic
+    write_scope:
+    - ValidationRecord
+    - validationOf
+    - validationUsesOutcome
+    - validationReferencesTrace
+functions:
+  ComputeDerivedVariable:
+    id: ComputeDerivedVariable
+    name: 派生变量计算
+    description: 根据变量或观测及明确口径计算派生值。
+    inputs:
+    - variableRefs
+    - observationRefs
+    - formula
+    outputs:
+    - derivedValue
+    reads:
+    - StateVariable
+    - Observation
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  PropagateVariableImpact:
+    id: PropagateVariableImpact
+    name: 变量影响传播
+    description: 沿变量传导关系计算目标变量影响候选。
+    inputs:
+    - sourceVariableChange
+    - relationRefs
+    - conditions
+    outputs:
+    - targetVariableImpacts
+    reads:
+    - StateVariable
+    - variableInfluencesVariable
+    writes: []
+    deterministic: false
+    side_effects: false
+    version: 1.0.0
+  EvaluateRuleCondition:
+    id: EvaluateRuleCondition
+    name: 规则条件计算
+    description: 检查推理规则前提和条件。
+    inputs:
+    - ruleRef
+    - inputRefs
+    outputs:
+    - ruleEvaluation
+    reads:
+    - rule
+    - reasoning_object
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  AggregateSignals:
+    id: AggregateSignals
+    name: 信号聚合
+    description: 汇总支持、催化、跟踪、削弱和阻断信号。
+    inputs:
+    - signalRefs
+    - targetRef
+    outputs:
+    - signalAssessment
+    reads:
+    - Signal
+    - signalEvaluates
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  CalculateConfidence:
+    id: CalculateConfidence
+    name: 置信度计算
+    description: 根据证据、信号、反证和规则结果计算可解释置信度。
+    inputs:
+    - evidenceRefs
+    - signalRefs
+    - ruleEvaluations
+    outputs:
+    - confidence
+    - confidenceBasis
+    reads:
+    - reasoning_object
+    - evidence_object
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+  CompareExpectation:
+    id: CompareExpectation
+    name: 预期比较
+    description: 对齐口径和时间尺度后比较判断与预期。
+    inputs:
+    - Judgment
+    - MarketExpectation
+    outputs:
+    - expectationGapCandidate
+    reads:
+    - Judgment
+    - MarketExpectation
+    writes: []
+    deterministic: true
+    side_effects: false
+    version: 1.0.0
+logic_flows:
+  EvidenceGroundingLogic:
+    id: EvidenceGroundingLogic
+    name: 证据映射推理逻辑
+    description: 消费证据域的新鲜度评价，校验目标类型后建立推理域支撑关系。
+    inputs:
+    - evidenceRef
+    - reasoningRef
+    - groundingRole
+    - evaluationTime
+    steps:
+    - id: evaluate_freshness
+      uses:
+      - FreshnessEvaluationLogic
+    - id: validate_target
+      rule_refs:
+      - no_direct_evidence_to_judgment
+    - id: create_grounding
+      uses:
+      - evidenceGroundsReasoning
+    outputs:
+    - relation_ref
+    fallback: 证据过期、状态无效或目标不允许时拒绝连接。
+  EventToStateLogic:
+    id: EventToStateLogic
+    name: 事件到状态逻辑
+    description: 从有证据支撑的事件识别受影响变量和假设候选。
+    inputs:
+    - Event
+    - evidenceRefs
+    - semanticRefs
+    steps:
+    - id: validate_evidence
+      rule_refs:
+      - evidence_grounding_required
+    - id: validate_anchor
+      rule_refs:
+      - semantic_anchor_required
+    - id: form_state_hypothesis
+      rule_refs:
+      - event_to_state_inference
+      uses:
+      - eventAffectsVariable
+    outputs:
+    - stateChange
+    - Hypothesis
+    fallback: 证据不足时只保留 Event。
+  HypothesisAdmissionLogic:
+    id: HypothesisAdmissionLogic
+    name: 假设准入逻辑
+    description: 检查变量锚点、方向、时间尺度和证伪条件；有事件依据时可调用事件到状态推理，但不强制先有证据。
+    inputs:
+    - statement
+    - variableRef
+    - direction
+    - timeHorizon
+    - falsificationConditions
+    - basisRefs
+    - premiseStatements
+    steps:
+    - id: validate_anchor
+      rule_refs:
+      - semantic_anchor_required
+    - id: validate_falsifiability
+      rule_refs:
+      - hypothesis_falsifiability_required
+    - id: align_time
+      rule_refs:
+      - time_alignment
+    - id: classify_basis
+      uses:
+      - hypothesisBasedOn
+      - Hypothesis.premiseStatements
+    - id: optional_event_inference
+      rule_refs:
+      - event_to_state_inference
+      uses:
+      - EventToStateLogic
+    outputs:
+    - Hypothesis
+    - unresolvedBasis
+    fallback: 锚点或证伪条件不足时不创建 Hypothesis，只返回待补充项。
+  StatePropagationLogic:
+    id: StatePropagationLogic
+    name: 状态传导逻辑
+    description: 检查变量传导条件并计算方向和滞后。
+    inputs:
+    - sourceVariable
+    - relationRefs
+    - ruleRefs
+    steps:
+    - id: evaluate_conditions
+      function_ref: EvaluateRuleCondition
+      rule_refs:
+      - variable_propagation_inference
+    - id: propagate_impact
+      function_ref: PropagateVariableImpact
+    outputs:
+    - targetVariableImpacts
+    fallback: 条件不明时输出 uncertain。
+  HypothesisEvaluationLogic:
+    id: HypothesisEvaluationLogic
+    name: 假设评价逻辑
+    description: 汇总信号并按阻断优先原则形成一次规则评价；Hypothesis 本身保持不可变，评价结果供当前 Judgment 或后续修订使用。
+    inputs:
+    - Hypothesis
+    - signalRefs
+    - evidenceRefs
+    - ruleVersion
+    - evaluationTime
+    steps:
+    - id: aggregate_signals
+      function_ref: AggregateSignals
+    - id: apply_blocking
+      rule_refs:
+      - blocking_signal_precedence
+    - id: align_time
+      rule_refs:
+      - time_alignment
+    - id: record_evaluation
+      rule_refs:
+      - rule_evaluation_trace_required
+      uses:
+      - RuleEvaluation
+      - ruleEvaluationTargets
+    outputs:
+    - RuleEvaluation
+    - hypothesisEvaluationCandidate
+    fallback: 冲突未解时生成 blocked 或 not_matched 的 RuleEvaluation，并要求当前 Judgment 标记为 contested，不修改 Hypothesis。
+  JudgmentFormationLogic:
+    id: JudgmentFormationLogic
+    name: 判断形成逻辑
+    description: 检查证据门槛并形成分级判断。
+    inputs:
+    - hypothesisRefs
+    - signalRefs
+    - evidenceRefs
+    steps:
+    - id: check_competing_hypotheses
+      uses:
+      - hypothesisCompetesWith
+      - hypothesisContradicts
+    - id: check_threshold
+      rule_refs:
+      - judgment_evidence_threshold
+    - id: calculate_confidence
+      function_ref: CalculateConfidence
+    outputs:
+    - Judgment
+    fallback: 缺证时降为 observation 或 insufficient_evidence。
+  ExpectationGapLogic:
+    id: ExpectationGapLogic
+    name: 预期差逻辑
+    description: 对齐对象和时间后比较判断与预期。
+    inputs:
+    - Judgment
+    - MarketExpectation
+    steps:
+    - id: align_time
+      rule_refs:
+      - time_alignment
+    - id: compare
+      function_ref: CompareExpectation
+    outputs:
+    - ExpectationGap
+    fallback: 不可比时不形成正式差异。
+  AssetImpactLogic:
+    id: AssetImpactLogic
+    name: 资产影响逻辑
+    description: 检查阻断、预期和定价后形成资产影响。
+    inputs:
+    - Judgment
+    - ExpectationGap
+    - Asset
+    - scenarioRef
+    - impactMechanism
+    - impactConfidence
+    steps:
+    - id: check_blocking
+      rule_refs:
+      - blocking_signal_precedence
+    - id: require_expectation
+      rule_refs:
+      - expectation_required_for_asset_impact
+    - id: check_scenario_consistency
+      uses:
+      - judgmentUnderScenario
+      - impactUnderScenario
+    - id: describe_impact
+      uses:
+      - impactDerivedFrom
+      - impactOnAsset
+      - impactReferencesGap
+    outputs:
+    - AssetImpact
+    - downgradeReason
+    fallback: 无预期或已定价时降级。
+  ScenarioReasoningLogic:
+    id: ScenarioReasoningLogic
+    name: 情景推演逻辑
+    description: 组织可追溯的假设和规则路径。
+    inputs:
+    - hypothesisRefs
+    - ruleRefs
+    - triggerConditions
+    steps:
+    - id: order_path
+      uses:
+      - scenarioIncludesHypothesis
+    - id: set_invalidation
+      uses:
+      - Scenario.invalidationConditions
+    outputs:
+    - Scenario
+    fallback: 路径冲突时拒绝成型。
+  RuleEvaluationLogic:
+    id: RuleEvaluationLogic
+    name: 规则评价逻辑
+    description: 解析正式 Rule，校验输入和证据，计算条件并保存可由推理留痕引用的 RuleEvaluation。
+    inputs:
+    - ruleRef
+    - ruleVersion
+    - inputRefs
+    - targetRefs
+    - evidenceRefs
+    - evaluationTime
+    steps:
+    - id: validate_traceability
+      rule_refs:
+      - rule_evaluation_trace_required
+    - id: evaluate_conditions
+      function_ref: EvaluateRuleCondition
+    - id: record_targets
+      uses:
+      - ruleEvaluationTargets
+    outputs:
+    - RuleEvaluation
+    fallback: 输入、规则版本或证据引用不足时生成 error 状态评价，不允许相关判断进入正式输出。
+  ReasoningTraceLogic:
+    id: ReasoningTraceLogic
+    name: 推理留痕逻辑
+    description: 将本次推理使用的输入、Rule、Function、Logic 和输出组织为公开可复核记录。
+    inputs:
+    - judgmentRef
+    - inputRefs
+    - ruleEvaluationRefs
+    - steps
+    - ruleRefs
+    - functionRefs
+    - logicRefs
+    - outputRefs
+    steps:
+    - id: validate_references
+      rule_refs:
+      - reasoning_trace_required
+    - id: require_rule_evaluations
+      rule_refs:
+      - rule_evaluation_trace_required
+      uses:
+      - traceIncludesRuleEvaluation
+    - id: order_public_steps
+      uses:
+      - traceForJudgment
+    outputs:
+    - ReasoningTrace
+    fallback: 引用不完整时生成 partial 留痕，不得进入正式输出。
+  ExPostValidationLogic:
+    id: ExPostValidationLogic
+    name: 事后验证逻辑
+    description: 对齐原始推理时点与后续结果，分类兑现程度并形成修订建议，同时保持原始留痕不可变。
+    inputs:
+    - targetRefs
+    - outcomeRefs
+    - traceRefs
+    - validatedAt
+    - originalClaimRef
+    - originalJudgmentAsOf
+    - predictionHorizon
+    - expectedSignals
+    - actualSignals
+    - result
+    - errorType
+    - learningTargets
+    - revisionRequired
+    steps:
+    - id: validate_time_order
+      rule_refs:
+      - validation_time_order
+    - id: validate_outcome_basis
+      rule_refs:
+      - validation_outcome_required
+    - id: preserve_original_trace
+      uses:
+      - validationReferencesTrace
+    - id: record_target_and_outcome
+      uses:
+      - validationOf
+      - validationUsesOutcome
+    outputs:
+    - ValidationRecord
+    fallback: 结果不足时只允许 still_uncertain，并记录下一验证点。
+rules:
+  no_direct_evidence_to_judgment:
+    id: no_direct_evidence_to_judgment
+    name: 证据不得直达判断
+    description: 证据只能直接支撑允许的推理输入对象，不得直接支撑判断或资产影响。
+    rule_type: blocking
+    applies_to:
+    - evidenceGroundsReasoning
+    condition: targetType 属于 Observation、Event、MarketExpectation 或 Signal。
+    result: 允许创建支撑关系。
+    priority: 100
+    failure_handling: reject_grounding
+  event_to_state_inference:
+    id: event_to_state_inference
+    name: 事件到状态推理
+    description: 将有证据支撑的事件影响转化为状态变化和假设候选。
+    rule_type: inference
+    applies_to:
+    - Event
+    - eventAffectsVariable
+    - StateVariable
+    - Hypothesis
+    condition: Event 有有效证据和语义锚点，且 eventAffectsVariable 的机制与方向完整。
+    result: 产生状态变化和 Hypothesis 候选。
+    priority: 60
+    failure_handling: keep_event_only
+    version: 1.0.0
+    input_types:
+    - Event
+    - StateVariable
+    output_types:
+    - Hypothesis
+    required_evidence:
+    - EvidenceClaim
+    - EvidenceFact
+    counter_conditions:
+    - 事件未发生
+    - 影响机制不成立
+    time_lag: 由 eventAffectsVariable.timeLag 声明。
+  variable_propagation_inference:
+    id: variable_propagation_inference
+    name: 变量传导推理
+    description: 沿满足条件的变量传导关系形成目标变量影响候选。
+    rule_type: inference
+    applies_to:
+    - StateVariable
+    - Observation
+    - variableInfluencesVariable
+    condition: 源变量变化已有观测，传导条件满足，且不存在有效阻断条件。
+    result: 产生目标变量方向、滞后和影响候选。
+    priority: 60
+    failure_handling: no_propagation
+    version: 1.0.0
+    input_types:
+    - StateVariable
+    - Observation
+    output_types:
+    - StateVariable
+    required_evidence:
+    - EvidenceClaim
+    - EvidenceFact
+    counter_conditions:
+    - 传导条件不成立
+    - 存在有效阻断信号
+    time_lag: 由 variableInfluencesVariable.timeLag 声明。
+  semantic_anchor_required:
+    id: semantic_anchor_required
+    name: 语义锚点要求
+    description: 推理对象应关联稳定语义对象或明确适用范围。
+    rule_type: validation
+    applies_to:
+    - StateVariable
+    - Event
+    - Hypothesis
+    - Judgment
+    condition: 对象的 semanticRefs 非空，或 Hypothesis 通过 hypothesisAbout 指向具有 variableAnchoredOn 的 StateVariable，或存在明确宏观适用范围。
+    result: 允许进入后续推理。
+    priority: 70
+    failure_handling: keep_candidate
+  hypothesis_falsifiability_required:
+    id: hypothesis_falsifiability_required
+    name: 假设可证伪要求
+    description: 候选假设不强制已有验证证据，但必须具备变量锚点、方向、时间尺度和可观察的证伪条件。
+    rule_type: validation
+    applies_to:
+    - Hypothesis
+    - hypothesisAbout
+    condition: hypothesisAbout 指向有效 StateVariable，direction 和 timeHorizon 非空，falsificationConditions 至少一项。
+    result: 允许创建候选 Hypothesis。
+    priority: 90
+    failure_handling: return_missing_requirements
+  evidence_grounding_required:
+    id: evidence_grounding_required
+    name: 证据支撑要求
+    description: 动态事实、预期和信号必须有证据。
+    rule_type: validation
+    applies_to:
+    - Observation
+    - Event
+    - Signal
+    - MarketExpectation
+    condition: evidenceRefs 非空且证据状态允许使用。
+    result: 允许创建动态推理对象。
+    priority: 90
+    failure_handling: reject_or_downgrade
+  time_alignment:
+    id: time_alignment
+    name: 时间尺度对齐
+    description: 比较对象的业务时间和时间尺度必须可比。
+    rule_type: validation
+    applies_to:
+    - Observation
+    - Hypothesis
+    - Judgment
+    - MarketExpectation
+    condition: 业务时间、截面和 timeHorizon 可比较。
+    result: 允许比较或聚合。
+    priority: 80
+    failure_handling: split_or_stop_comparison
+  signal_role_compatibility:
+    id: signal_role_compatibility
+    name: 信号角色兼容
+    description: Signal.role 必须与 signalEvaluates.role 一致。
+    rule_type: validation
+    applies_to:
+    - Signal
+    - signalEvaluates
+    condition: 对象角色和关系角色相同且目标类型允许。
+    result: 允许创建信号关系。
+    priority: 80
+    failure_handling: reject_relation
+  blocking_signal_precedence:
+    id: blocking_signal_precedence
+    name: 阻断信号优先
+    description: 有效阻断信号优先于支持或催化信号。
+    rule_type: blocking
+    applies_to:
+    - Hypothesis
+    - Judgment
+    - AssetImpact
+    condition: 存在未失效且适用当前时间尺度的 block 信号。
+    result: 目标结论置为 blocked。
+    priority: 100
+    failure_handling: block_conclusion
+  judgment_evidence_threshold:
+    id: judgment_evidence_threshold
+    name: 判断证据门槛
+    description: 根据证据、信号、竞争解释和反证确定判断等级。
+    rule_type: scoring
+    applies_to:
+    - Judgment
+    condition: 输入链完整，并已检查支持、削弱、阻断、hypothesisCompetesWith、hypothesisContradicts 和未解决不确定性。
+    result: 产生 judgmentLevel、judgmentStatus、claimMode 和 confidence。
+    parameters:
+      evidence_grade_caps:
+        Q0: J0
+        Q1: J1
+        Q2: J2
+        Q3: J3
+        Q4: J4
+      counterevidence_caps:
+        cleared: J4
+        weakened: J2
+        contested: J1
+        decisive: J0
+        not_checked: J1
+        not_applicable: J4
+      path_readiness_caps:
+        ready: J4
+        restricted: J2
+        blocked: J0
+        not_applicable: J4
+      path_result_statuses:
+      - established
+      - partially_established
+      - weakened
+      - blocked
+      - insufficient_evidence
+      - contested
+      - not_applicable
+      quality_language_to_evidence_grades:
+        sufficient:
+        - Q3
+        - Q4
+        limited:
+        - Q2
+        observation:
+        - Q1
+        unusable:
+        - Q0
+      evidence_method_role_to_basket_role:
+        primary: primary_support
+        baseline: background_evidence
+        mechanism: cross_validation
+        cross_check: cross_validation
+        counter: counter_evidence
+      level_outputs:
+        J0:
+          evidence_permission: prohibited
+          allowed_04_output: insufficient
+          allowed_expression: 只说明缺口，不形成方向
+        J1:
+          evidence_permission: background_only
+          allowed_04_output: observation_only
+          allowed_expression: 只作事实观察或线索
+        J2:
+          evidence_permission: conditional_judgment
+          allowed_04_output: conditional_only
+          allowed_expression: 保留条件的方向判断
+        J3:
+          evidence_permission: directional_judgment
+          allowed_04_output: directional_only
+          allowed_expression: 方向判断或高概率判断
+        J4:
+          evidence_permission: core_judgment
+          allowed_04_output: full_reasoning_ready
+          allowed_expression: 在明确范围内形成确认判断
+    priority: 70
+    failure_handling: lower_level_and_confidence
+  expectation_required_for_asset_impact:
+    id: expectation_required_for_asset_impact
+    name: 资产影响必须比较预期
+    description: 未与可比预期比较时不得形成高置信资产影响。
+    rule_type: blocking
+    applies_to:
+    - AssetImpact
+    condition: AssetImpact 通过 impactReferencesGap 引用有效 ExpectationGap，时间尺度可比，impactMechanism 与 impactConfidence 完整，存在情景时与来源 Judgment 一致。
+    result: 允许形成资产影响。
+    priority: 100
+    failure_handling: output_fundamental_observation_only
+  reasoning_trace_required:
+    id: reasoning_trace_required
+    name: 推理链可追溯
+    description: 输入、规则、Function、关系和结论必须可追溯。
+    rule_type: validation
+    applies_to:
+    - Judgment
+    - ReasoningTrace
+    condition: 输入、公开步骤、Rule、Function、Logic 和输出引用完整，且存在 traceForJudgment。
+    result: 允许进入正式输出。
+    priority: 90
+    failure_handling: keep_internal_candidate
+  rule_evaluation_trace_required:
+    id: rule_evaluation_trace_required
+    name: 正式推理必须记录规则评价
+    description: 进入正式判断的规则使用结果必须保存 Rule、版本、输入、条件结果、证据和状态，并由 ReasoningTrace 引用。
+    rule_type: validation
+    applies_to:
+    - RuleEvaluation
+    - ReasoningTrace
+    - traceIncludesRuleEvaluation
+    condition: RuleEvaluation 的 ruleRef、ruleVersion、inputRefs、conditionResults、evidenceRefs 和 status 完整，且正式 ReasoningTrace 至少引用一项 RuleEvaluation。
+    result: 允许规则评价参与正式推理留痕。
+    priority: 95
+    failure_handling: keep_internal_candidate
+  reasoning_revision_preserves_trace:
+    id: reasoning_revision_preserves_trace
+    name: 推理修订保留原对象与留痕
+    description: 新证据或结构变化只能通过新版本替代旧推理对象，禁止覆盖旧对象及其当时的规则评价和推理留痕。
+    rule_type: validation
+    applies_to:
+    - Hypothesis
+    - Judgment
+    - Scenario
+    - MarketExpectation
+    - ExpectationGap
+    - AssetImpact
+    - reasoningSupersedes
+    - ReasoningTrace
+    condition: reasoningSupersedes 两端类型与适用范围一致、标识不同、时间顺序有效；旧对象 validTo 被关闭但内容及原始留痕不变；进入正式输出的新版 Judgment 具有自己的 RuleEvaluation 与 ReasoningTrace。
+    result: 允许新版对象成为当前有效版本，同时保留从新版到旧版的完整修订链。
+    priority: 100
+    failure_handling: reject_in_place_revision
+  validation_outcome_required:
+    id: validation_outcome_required
+    name: 事后验证结果依据要求
+    description: 已验证、部分验证或证伪必须有后续结果依据；仍不确定必须说明缺口或下一验证点。
+    rule_type: validation
+    applies_to:
+    - ValidationRecord
+    - validationUsesOutcome
+    condition: result 为 validated、partially_validated 或 falsified 时 outcomeRefs 非空；result 为 still_uncertain 时 outcomeSummary 或 nextCheckpoint
+      非空。
+    result: 允许记录事后验证。
+    priority: 100
+    failure_handling: downgrade_to_still_uncertain_or_reject
+  validation_time_order:
+    id: validation_time_order
+    name: 事后验证时间顺序
+    description: 后续结果不得早于原始判断或推理评估时点，事后信息不得回写覆盖原始留痕。
+    rule_type: blocking
+    applies_to:
+    - ValidationRecord
+    - ReasoningTrace
+    - validationUsesOutcome
+    condition: 结果业务时间不早于目标判断时点，validatedAt 不早于 ReasoningTrace.evaluatedAt，且原始 ReasoningTrace 不被修改。
+    result: 允许追加 ValidationRecord 和修订建议。
+    priority: 100
+    failure_handling: reject_validation

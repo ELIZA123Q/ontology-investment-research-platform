@@ -1,0 +1,3801 @@
+# 本文件由迁移工具生成；v2 启用后为对应域的机器权威。
+schema_name: semiconductor_research_runtime_config
+schema_version: 1.0.0
+status: active
+runtime_objects:
+- id: demand_orders
+  type: EvidenceProfile
+  properties:
+    id: demand_orders
+    name: 需求、资本开支与订单证据
+    supporting_evidence:
+    - 终端产品、系统部署、使用量、出货或利用率的实际数据
+    - 客户预算、资本开支指引、项目清单、招标和采购进度
+    - 订单覆盖期、排产、出货、交付和收入确认的连续记录
+    - 至少一个下游来源与一个供应链来源的交叉验证
+    counter_evidence:
+    - 终端销量、利用率或预算下修
+    - 订单取消、延迟拉货、重复下单或非约束性意向
+    - 渠道库存增加但终端需求未改善
+    - 资本开支投向与目标半导体需求无关
+    competing_explanations:
+    - 订单增长来自补库存而非终端需求
+    - 出货增长来自提前备货或价格促销
+    - 收入增长来自并表、汇率或会计确认而非量价改善
+    scope_checks:
+    - 终端与供应链口径一致
+    - 订单产品和地域一致
+    - 业务时间与交付窗口对齐
+    freshness_guidance: 订单和库存宜按月度或季度更新；资本开支在指引、预算或项目变化时更新。
+    minimum_requirements:
+    - 至少一条需求端证据
+    - 至少一条订单或交付证据
+    - 明确业务时间
+    downgrade_conditions:
+    - 仅有预测或管理层表态
+    - 缺少订单交付验证
+    - 证据超过一个主要行业周期
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 0
+- id: capacity_supply
+  type: EvidenceProfile
+  properties:
+    id: capacity_supply
+    name: 产能、供给与韧性证据
+    supporting_evidence:
+    - 有效产能、利用率、维护停机、产品切换和良率资料
+    - 扩产建设、设备搬入、试产、认证和量产阶段证据
+    - 交期、分配、供应中断、许可和物流记录
+    - 多供、替代供应、库存覆盖和恢复时间资料
+    - 关键设备、材料和子系统依赖的穿透分析
+    counter_evidence:
+    - 名义产能高但良率或产品结构不匹配
+    - 存在可快速切换的闲置产能
+    - 替代供应已认证并具备规模
+    - 表面多供实际共享同一上游或地域单点
+    competing_explanations:
+    - 交期延长来自物流或客户排产而非产能不足
+    - 扩产来自政策或战略储备而非需求确认
+    - 供应紧张来自短期停机而非结构性缺口
+    scope_checks:
+    - 名义产能与有效产能分离
+    - 设施和产品规格匹配
+    - 地域和许可范围一致
+    freshness_guidance: 供给中断和交期需事件级更新；扩产按建设和量产里程碑更新。
+    minimum_requirements:
+    - 产能或设施证据
+    - 交期或利用率证据
+    - 库存或替代供应检查
+    downgrade_conditions:
+    - 只有扩产公告
+    - 缺少良率认证
+    - 无法确认产品或地域范围
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 1
+- id: manufacturing_yield
+  type: EvidenceProfile
+  properties:
+    id: manufacturing_yield
+    name: 制造、良率、周期与可靠性证据
+    supporting_evidence:
+    - 跨批次良率、缺陷密度、返工、报废和过程能力资料
+    - 设备状态、工艺窗口、量测、材料一致性和统计过程控制
+    - 投料至出货的周期、在制品、排队和瓶颈工序资料
+    - 可靠性测试、认证、现场失效率、退货和失效分析
+    - 试产、爬坡和高量产阶段的可比记录
+    counter_evidence:
+    - 良率仅来自样品批次或不可比产品
+    - 良率提升伴随性能、可靠性或测试覆盖下降
+    - 周期缩短来自减少检验或推迟返工
+    - 客户退货、召回、参数漂移或重大质量事故
+    competing_explanations:
+    - 单位成本变化来自材料、折旧或产品组合而非良率
+    - 周期变化来自物流和客户验收而非制造
+    - 质量改善来自筛选加强而非制程改善
+    scope_checks:
+    - 产品和工艺代际一致
+    - 试产与量产阶段分离
+    - 良率和可靠性口径一致
+    freshness_guidance: 量产爬坡期宜按批次或月度更新；成熟工艺可按季度或重大异常更新。
+    minimum_requirements:
+    - 至少两个连续制造时点
+    - 质量或可靠性验证
+    - 对应工艺和产品范围
+    downgrade_conditions:
+    - 只有单点良率
+    - 缺少量产规模
+    - 缺少可靠性或客户验证
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 2
+- id: inventory_cycle
+  type: EvidenceProfile
+  properties:
+    id: inventory_cycle
+    name: 库存周期与缓冲证据
+    supporting_evidence:
+    - 供应商、渠道、客户和终端的多层库存
+    - 库存覆盖期、在途库存、安全库存和消耗速度
+    - 补库、去库、采购和出货之间的时间序列
+    - 库存规格、地域、质量和可替换性说明
+    counter_evidence:
+    - 账面库存不可用于目标产品或地域
+    - 新旧产品切换导致库存口径失真
+    - 委托加工、寄售和在途库存重复计算
+    - 终端需求与渠道出货显著背离
+    competing_explanations:
+    - 库存上升来自主动备货或供应风险管理
+    - 库存下降来自减产而非需求改善
+    - 补库来自新品切换而非行业复苏
+    scope_checks:
+    - 库存所有权清楚
+    - 产品规格匹配
+    - 多层库存不重复
+    - 业务时间一致
+    freshness_guidance: 周期变化较快时按月度更新，稳定阶段至少按季度更新。
+    minimum_requirements:
+    - 至少两个产业链层级
+    - 明确覆盖期或消耗速度
+    - 终端需求对照
+    downgrade_conditions:
+    - 仅有单家公司账面库存
+    - 缺少规格可用性
+    - 缺少时间序列
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 3
+- id: pricing_economics
+  type: EvidenceProfile
+  properties:
+    id: pricing_economics
+    name: 价格、成本、定价权与利润池证据
+    supporting_evidence:
+    - 报价、合同价、成交价和产品组合的可比变化
+    - 材料、折旧、能源、人工、物流和合规成本拆分
+    - 涨价或降价的实际兑现、客户流失和份额变化
+    - 各产业链环节收入、毛利、资本强度和现金流变化
+    - 合同调价、长协、最低采购和成本转嫁机制
+    counter_evidence:
+    - 挂牌价变化未体现在成交或财务结果
+    - 产品组合、汇率、并购或会计口径造成表观价格变化
+    - 成本上升被良率、生产率或设计优化抵消
+    - 涨价后需求或份额显著下降
+    competing_explanations:
+    - 毛利变化来自产品结构而非定价权
+    - 利润迁移来自周期错配或一次性项目
+    - 价格上涨来自短期供给事故而非结构性壁垒
+    scope_checks:
+    - 产品规格和合同周期一致
+    - 含税与币种口径一致
+    - 价格与数量分离
+    freshness_guidance: 价格和成本按合同或报价周期更新；利润池按报告期和周期阶段更新。
+    minimum_requirements:
+    - 成交或合同证据
+    - 成本或份额证据
+    - 竞争和需求影响检查
+    downgrade_conditions:
+    - 只有渠道报价
+    - 无成交验证
+    - 无法拆分产品组合或汇率影响
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 4
+- id: technology_route
+  type: EvidenceProfile
+  properties:
+    id: technology_route
+    name: 技术路线、微缩与替代证据
+    supporting_evidence:
+    - 权威路线图、标准、论文、专利和技术白皮书
+    - 同口径性能、功耗、面积、成本、可靠性和良率比较
+    - 原型、试产、客户验证、量产和生态成熟度证据
+    - 工艺、设备、材料、软件和供应链依赖
+    - 真实采用、替代范围、复购和份额迁移
+    counter_evidence:
+    - 只有实验室结果或不可比基准
+    - 性能提升以成本、功耗、可靠性或良率恶化为代价
+    - 缺少设计工具、软件、材料、设备或测试生态
+    - 新旧路线实际互补而非替代
+    competing_explanations:
+    - 性能提升来自产品规模或软件优化而非器件路线
+    - 采用增长来自补贴、稀缺或客户多供策略
+    - 传统路线继续改善并保持成本优势
+    scope_checks:
+    - 相同工作负载和成熟阶段
+    - 系统级与器件级指标分离
+    - 量产与原型分离
+    freshness_guidance: 按路线图、重大验证、试产和量产节点更新。
+    minimum_requirements:
+    - 技术依据
+    - 同口径比较
+    - 制造或客户验证
+    - 替代边界
+    downgrade_conditions:
+    - 仅有概念发布
+    - 无量产或客户验证
+    - 基准不可比
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 5
+- id: qualification_commercialization
+  type: EvidenceProfile
+  properties:
+    id: qualification_commercialization
+    name: 认证、采用、量产与本地替代证据
+    supporting_evidence:
+    - 送样、测试、资格认证、设计导入、定点和采购阶段记录
+    - 工艺冻结、产线认证、良率、质量和供应商准备
+    - 量产出货、重复采购、跨客户扩散和售后质量
+    - 本地替代产品的关键上游依赖、成本和规模能力
+    counter_evidence:
+    - 只有送样、意向或非约束性合作
+    - 认证范围不覆盖量产规格或目标客户
+    - 量产受制于良率、材料、设备、测试或质量
+    - 本地替代仍依赖同一受限核心投入
+    competing_explanations:
+    - 客户认证只用于议价或多供备份
+    - 小批量采购来自试验而非商业化
+    - 份额增长来自低价而非技术或供应优势
+    scope_checks:
+    - 客户和产品规格明确
+    - 认证阶段不混用
+    - 采购与量产时间对齐
+    freshness_guidance: 按认证、定点、量产和复购里程碑更新。
+    minimum_requirements:
+    - 至少一个客户验证节点
+    - 量产准备证据
+    - 采购或复购证据
+    downgrade_conditions:
+    - 只有公司自述
+    - 无客户或交付验证
+    - 仍停留在样品阶段
+    stage_vocabulary_ref: commercialization_stages
+    stage_guidance: 观察必须标明所处商业化阶段，不得将样品阶段等同于量产或复购。
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 6
+- id: competition_structure
+  type: EvidenceProfile
+  properties:
+    id: competition_structure
+    name: 竞争结构、切换成本与壁垒证据
+    supporting_evidence:
+    - 市场参与者、份额、产能、定价和产品差异化
+    - 客户认证周期、重新设计、软件迁移和可靠性责任
+    - 技术、资本、专利、人才、生态和规模经济门槛
+    - 招标、客户切换、新进入者量产和退出案例
+    counter_evidence:
+    - 市场规模扩大吸收新增供给
+    - 产品和客户分层使表面竞争者不可直接替代
+    - 新进入者只有规划产能而无认证和量产
+    - 接口标准化和多供认证降低切换成本
+    competing_explanations:
+    - 份额变化来自区域或产品组合差异
+    - 价格变化来自成本或周期而非竞争行为
+    - 高利润来自暂时供给约束而非长期壁垒
+    scope_checks:
+    - 市场边界一致
+    - 份额和产品口径一致
+    - 名义参与者与有效供给者分离
+    freshness_guidance: 按产品周期、重大扩产、招标、并购和价格行为更新。
+    minimum_requirements:
+    - 至少两类竞争主体
+    - 价格或份额证据
+    - 客户切换或进入壁垒证据
+    downgrade_conditions:
+    - 市场边界模糊
+    - 只有规划和宣传
+    - 无客户或量产验证
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 7
+- id: policy_trade
+  type: EvidenceProfile
+  properties:
+    id: policy_trade
+    name: 产业政策、贸易管制与合规证据
+    supporting_evidence:
+    - 政策、法律、规则、清单、许可和执法原文
+    - 适用产品、技术、性能、最终用途、主体和地域范围
+    - 预算、执行机构、项目清单、审批和处罚记录
+    - 企业合规流程、许可周期、拒绝率和实际交易变化
+    - 多边协调、豁免、过渡期和政策修订
+    counter_evidence:
+    - 政策尚未生效、预算未落实或执行主体不明确
+    - 目标对象不在适用范围或符合豁免许可
+    - 许可恢复、政策收窄、撤回或执法宽松
+    - 替代来源、库存或本地供应缓冲影响
+    competing_explanations:
+    - 产业变化来自周期、需求或技术路线而非政策
+    - 企业影响来自自身经营或客户结构
+    - 市场已提前交易政策预期
+    scope_checks:
+    - 引用正式版本
+    - 生效时间明确
+    - 产品性能和最终用途匹配
+    - 地域与主体匹配
+    freshness_guidance: 政策发布、解释、许可和执法变化时立即更新，并保留旧版本有效期。
+    minimum_requirements:
+    - 政策原文
+    - 适用范围分析
+    - 至少一条执行或企业影响证据
+    - 豁免检查
+    downgrade_conditions:
+    - 只有媒体转述
+    - 无法确认适用范围
+    - 政策未生效或缺少执行证据
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 8
+- id: company_exposure_execution
+  type: EvidenceProfile
+  properties:
+    id: company_exposure_execution
+    name: 公司暴露、执行与业绩弹性证据
+    supporting_evidence:
+    - 业务、产品、客户、地域和技术路线收入或利润结构
+    - 产能、良率、供应链、交付、质量、验收和收入确认
+    - 量、价、产品组合、利用率、成本、费用和资本开支拆分
+    - 经营现金流、营运资金和资本效率变化
+    - 公司披露与客户、供应商或行业数据交叉验证
+    - 客户集中度、单一客户订单波动与客户议价能力对暴露和执行的影响
+    counter_evidence:
+    - 相关业务占比或利润贡献低
+    - 公司同时暴露于受益和受损路线形成内部对冲
+    - 订单无法交付、验收或确认收入
+    - 折旧、费用、营运资金或资本开支抵消利润改善
+    - 客户集中但合同长期锁定或客户结构多元形成对冲
+    competing_explanations:
+    - 财务变化来自并购、汇率、税收或一次性项目
+    - 份额变化来自客户结构而非竞争力
+    - 行业景气改善但公司执行或产品组合落后
+    scope_checks:
+    - 业务分部与产业对象映射
+    - 财务和运营周期对齐
+    - 关联交易和并购影响剔除
+    freshness_guidance: 按财报、订单交付、产能和重大经营事件更新。
+    minimum_requirements:
+    - 业务暴露证据
+    - 执行交付证据
+    - 财务或现金流验证
+    - 至少一个竞争解释
+    downgrade_conditions:
+    - 只有公司标签
+    - 无业务贡献口径
+    - 只有订单无交付或财务验证
+    quality_floor: Q3
+  projection:
+    section: evidence_profiles
+    index: 9
+- id: market_expectations
+  type: EvidenceProfile
+  properties:
+    id: market_expectations
+    name: 市场预期、预期差与定价证据
+    supporting_evidence:
+    - 同期一致预期、管理层指引、研究者预期和价格隐含预期
+    - 估值、价格、成交、波动、持仓和资金流变化
+    - 预期修正的时间、方向、幅度和覆盖范围
+    - 事件窗口、基准收益和混杂事件排查
+    - 基本面判断与预期对象、口径和时间尺度的对应关系
+    counter_evidence:
+    - 预期样本少、陈旧或口径不一致
+    - 资产价格由宏观、风格、流动性或其他事件驱动
+    - 事件前已出现显著价格和预期调整
+    - 估值变化来自利率或风险偏好而非盈利预期
+    competing_explanations:
+    - 价格反应来自市场整体或行业轮动
+    - 文本预期与真实仓位或价格隐含预期不一致
+    - 基本面变化已被提前泄露或交易
+    scope_checks:
+    - 预期截面早于判断验证
+    - 对象和时间尺度一致
+    - 使用合适市场基准
+    freshness_guidance: 重大事件、财报、预期修正和显著价格变化时更新。
+    minimum_requirements:
+    - 至少一种明确预期基准
+    - 事件前预期截面
+    - 基本面比较
+    - 价格或估值验证
+    - 混杂事件检查
+    downgrade_conditions:
+    - 缺少事件前预期截面
+    - 不可比口径
+    - 只观察资产涨跌而无基本面比较
+    pre_event_cross_section_required: true
+    alignment_requirements:
+    - 同对象
+    - 同口径
+    - 同时间尺度
+    - 预期截面早于判断验证事件
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 10
+- id: counter_evidence
+  type: EvidenceProfile
+  properties:
+    id: counter_evidence
+    name: 反证与竞争解释证据
+    supporting_evidence:
+    - 直接否定核心前提的高可靠事实或观测
+    - 来自独立来源、同一业务时间和同一适用范围的相反证据
+    - 能解释同一现象的替代机制及其验证材料
+    - 历史回放中反复导致传导失效的条件
+    counter_evidence:
+    - 所谓反证与目标对象、时间或口径不一致
+    - 反证只影响幅度或节奏，不否定方向
+    - 多条反证实际来自同一原始来源
+    - 反证已经失效、被更正或被后续事实替代
+    competing_explanations:
+    - 周期、库存、价格、技术、竞争、政策和市场预期均可能解释同一现象
+    - 公司执行与行业方向可能分离
+    - 短期事件与长期结构变化可能同时存在
+    scope_checks:
+    - 明确反证作用对象
+    - 区分削弱和阻断
+    - 与支持证据使用同一比较口径
+    freshness_guidance: 每次判断形成、升级或出现新材料时重新扫描。
+    minimum_requirements:
+    - 至少一个主动寻找的竞争解释
+    - 明确证伪条件
+    - 记录未解决冲突
+    downgrade_conditions:
+    - 未进行反证搜索
+    - 反证来源不可追溯
+    - 无法判断反证作用范围
+    quality_floor: Q2
+  projection:
+    section: evidence_profiles
+    index: 11
+- id: demand_to_orders
+  type: PropagationTemplate
+  properties:
+    id: demand_to_orders
+    name: 终端需求向订单传导
+    source_variables:
+    - end_market_demand_strength
+    target_variables:
+    - order_visibility
+    intermediate_variables:
+    - adoption_penetration
+    - semiconductor_content_intensity
+    direction_mapping: 终端需求增强且采用扩大或单位应用半导体含量上升时，订单能见度通常改善。
+    time_lag: 数周至数个季度，取决于产品设计周期和客户库存。
+    applicable_conditions:
+    - 需求来自真实使用而非渠道囤货
+    - 产品已进入客户采购范围
+    supporting_evidence_requirements:
+    - 终端使用或出货
+    - 客户采购或排产
+    - 订单与交付交叉验证
+    weakening_conditions:
+    - 客户库存偏高
+    - 需求由促销或短期项目驱动
+    blocking_conditions:
+    - 客户取消项目
+    - 产品未通过认证
+    - 需求被替代路线满足
+    anchor_alignment: Application/Industry/Product
+    direction_logic: end_market_demand_strength上升 AND (adoption_penetration扩大 OR semiconductor_content_intensity上升) → order_visibility改善
+    evidence_profile_ref: demand_orders
+    default_competing_explanation: 订单增长可能来自渠道补库而非终端需求
+  projection:
+    section: propagation_templates
+    index: 0
+- id: capex_to_semiconductor_demand
+  type: PropagationTemplate
+  properties:
+    id: capex_to_semiconductor_demand
+    name: 客户资本开支向半导体需求传导
+    source_variables:
+    - customer_capex_intensity
+    target_variables:
+    - end_market_demand_strength
+    - order_visibility
+    intermediate_variables:
+    - adoption_penetration
+    direction_mapping: 客户资本开支增强并实际落地时，相关芯片和系统需求通常增强。
+    time_lag: 一至六个季度，视建设、采购和部署周期而定。
+    applicable_conditions:
+    - 资本开支明确用于相关系统
+    - 采购与项目进度可验证
+    supporting_evidence_requirements:
+    - 预算与项目清单
+    - 招标采购
+    - 系统部署或利用率
+    weakening_conditions:
+    - 资本开支主要用于土地建筑或非芯片环节
+    - 项目执行延迟
+    blocking_conditions:
+    - 预算取消
+    - 架构改变显著降低芯片用量
+    anchor_alignment: Application/Company
+    direction_logic: customer_capex_intensity落地时end_market_demand_strength和order_visibility增强
+    evidence_profile_ref: demand_orders
+    default_competing_explanation: 资本开支可能投向非半导体环节
+  projection:
+    section: propagation_templates
+    index: 1
+- id: adoption_to_volume
+  type: PropagationTemplate
+  properties:
+    id: adoption_to_volume
+    name: 产品采用向规模需求传导
+    source_variables:
+    - adoption_penetration
+    - customer_qualification_progress
+    target_variables:
+    - order_visibility
+    - mass_production_readiness
+    intermediate_variables:
+    - design_win_visibility
+    direction_mapping: 客户认证完成并进入主流采用时，订单和量产准备度通常提升。
+    time_lag: 一个产品验证周期至数个季度。
+    applicable_conditions:
+    - 认证对应实际采购项目
+    - 供应能力可支持量产
+    supporting_evidence_requirements:
+    - 认证阶段
+    - 定点或采购
+    - 量产与复购
+    weakening_conditions:
+    - 仅单一客户或小批量验证
+    - 产品成本仍高
+    blocking_conditions:
+    - 认证失败
+    - 质量事故
+    - 客户路线切换
+    anchor_alignment: Product/TechnologyRoute
+    direction_logic: 认证完成并进入主流采用时order_visibility和mass_production_readiness提升
+    evidence_profile_ref: qualification_commercialization
+    default_competing_explanation: 小批量验证不代表可持续放量
+  projection:
+    section: propagation_templates
+    index: 2
+- id: orders_to_capacity_pressure
+  type: PropagationTemplate
+  properties:
+    id: orders_to_capacity_pressure
+    name: 订单向产能压力传导
+    source_variables:
+    - order_visibility
+    target_variables:
+    - capacity_tightness
+    - backlog_pressure
+    intermediate_variables:
+    - inventory_cycle_position
+    direction_mapping: 高质量订单增长超过有效产能时，产能和未交付订单压力上升。
+    time_lag: 即期至两个季度。
+    applicable_conditions:
+    - 订单不可轻易取消
+    - 有效产能口径包含良率和切换损失
+    supporting_evidence_requirements:
+    - 订单覆盖期
+    - 排产
+    - 利用率与交期
+    weakening_conditions:
+    - 客户重复下单
+    - 库存可满足需求
+    blocking_conditions:
+    - 订单大规模取消
+    - 存在大量闲置可切换产能
+    anchor_alignment: Company/Product
+    direction_logic: 高质量订单超过有效产能时capacity_tightness和backlog_pressure上升
+    evidence_profile_ref: demand_orders
+    default_competing_explanation: 重复下单可能夸大真实需求
+  projection:
+    section: propagation_templates
+    index: 3
+- id: demand_to_upstream_inputs
+  type: PropagationTemplate
+  properties:
+    id: demand_to_upstream_inputs
+    name: 芯片需求向设备材料传导
+    source_variables:
+    - end_market_demand_strength
+    - capacity_expansion_progress
+    target_variables:
+    - order_visibility
+    intermediate_variables:
+    - capacity_tightness
+    - scaling_progress
+    - semiconductor_content_intensity
+    direction_mapping: 持续需求和扩产通常增加设备、材料、晶圆与专业服务需求。
+    time_lag: 材料较短，设备通常滞后一个至数个季度。
+    applicable_conditions:
+    - 扩产或工艺升级实际执行
+    - 设备材料与目标工艺匹配
+    supporting_evidence_requirements:
+    - 资本开支
+    - 设备搬入
+    - 材料消耗和供应商订单
+    weakening_conditions:
+    - 重复使用存量设备
+    - 单位材料消耗下降
+    blocking_conditions:
+    - 扩产取消
+    - 设备许可或供应中断
+    anchor_alignment: Industry/Segment
+    direction_logic: (end_market_demand_strength上升 OR semiconductor_content_intensity上升) AND capacity_expansion_progress推进
+      → 上游order_visibility上升
+    evidence_profile_ref: capacity_supply
+    default_competing_explanation: 扩产公告不等于设备材料订单
+  projection:
+    section: propagation_templates
+    index: 4
+- id: inventory_destocking
+  type: PropagationTemplate
+  properties:
+    id: inventory_destocking
+    name: 去库存向订单下行传导
+    source_variables:
+    - inventory_cycle_position
+    target_variables:
+    - order_visibility
+    - product_price_pressure
+    intermediate_variables:
+    - inventory_buffer_capacity
+    direction_mapping: 库存过高进入去库阶段时，订单和价格通常弱于终端需求。
+    time_lag: 一至四个季度。
+    applicable_conditions:
+    - 库存可用于满足当前需求
+    - 渠道和客户主动降低库存
+    supporting_evidence_requirements:
+    - 多层库存
+    - 采购缩减
+    - 出货与终端需求背离
+    weakening_conditions:
+    - 库存结构不匹配
+    - 新产品切换创造补库
+    blocking_conditions:
+    - 供给突然中断
+    - 终端需求快速超预期
+    anchor_alignment: Industry/Product
+    direction_logic: inventory_cycle_position进入去库时order_visibility和product_price_pressure走弱
+    evidence_profile_ref: inventory_cycle
+    default_competing_explanation: 去库可能来自主动风险管理而非需求崩溃
+  projection:
+    section: propagation_templates
+    index: 5
+- id: inventory_restocking
+  type: PropagationTemplate
+  properties:
+    id: inventory_restocking
+    name: 补库存向订单上行传导
+    source_variables:
+    - inventory_cycle_position
+    - end_market_demand_strength
+    target_variables:
+    - order_visibility
+    - capacity_tightness
+    intermediate_variables:
+    - inventory_buffer_capacity
+    direction_mapping: 低库存叠加需求稳定时，补库会放大短期订单和产能压力。
+    time_lag: 数周至两个季度。
+    applicable_conditions:
+    - 库存低于运营安全水平
+    - 需求未显著下修
+    supporting_evidence_requirements:
+    - 库存下降
+    - 采购恢复
+    - 供应商订单和交期
+    weakening_conditions:
+    - 补库仅发生在单一渠道
+    - 终端需求仍弱
+    blocking_conditions:
+    - 客户现金流紧张
+    - 产品即将被替代
+    anchor_alignment: Industry/Product
+    direction_logic: 低库存叠加稳定需求时order_visibility和capacity_tightness短期上升
+    evidence_profile_ref: inventory_cycle
+    default_competing_explanation: 补库可能仅发生在单一渠道
+  projection:
+    section: propagation_templates
+    index: 6
+- id: supply_constraint_to_price_delivery
+  type: PropagationTemplate
+  properties:
+    id: supply_constraint_to_price_delivery
+    name: 供给约束向价格交期传导
+    source_variables:
+    - supply_availability
+    - capacity_tightness
+    target_variables:
+    - product_price_pressure
+    - production_cycle_pressure
+    intermediate_variables:
+    - inventory_buffer_capacity
+    - pricing_power
+    direction_mapping: 供给可得性下降且库存不足时，交期和价格上行压力增强。
+    time_lag: 即期至数个季度。
+    applicable_conditions:
+    - 需求仍在
+    - 替代供应有限
+    - 库存不足
+    supporting_evidence_requirements:
+    - 产能与停产
+    - 交期
+    - 分配
+    - 成交价和库存
+    weakening_conditions:
+    - 合同锁价
+    - 下游主动削减需求
+    blocking_conditions:
+    - 替代供应已认证
+    - 库存足以覆盖冲击
+    anchor_alignment: Product/Material
+    direction_logic: supply_availability下降且capacity_tightness上升时价格和交期压力增强
+    evidence_profile_ref: capacity_supply
+    default_competing_explanation: 交期延长可能来自物流而非产能
+  projection:
+    section: propagation_templates
+    index: 7
+- id: inventory_buffer_absorption
+  type: PropagationTemplate
+  properties:
+    id: inventory_buffer_absorption
+    name: 库存对供应冲击的缓冲
+    source_variables:
+    - inventory_buffer_capacity
+    target_variables:
+    - production_cycle_pressure
+    - product_price_pressure
+    intermediate_variables:
+    - supply_availability
+    direction_mapping: 可用库存越充足，供应冲击向交期和价格传导越弱、越滞后。
+    time_lag: 取决于库存可覆盖时间和规格兼容性。
+    applicable_conditions:
+    - 库存真实可用
+    - 规格和质量满足生产
+    supporting_evidence_requirements:
+    - 库存覆盖期
+    - 在途库存
+    - 消耗速度
+    weakening_conditions:
+    - 库存集中在错误规格或地域
+    - 保质期受限
+    blocking_conditions:
+    - 库存不可用或冲击持续时间超过覆盖期
+    anchor_alignment: Company/Product
+    direction_logic: inventory_buffer_capacity充足时冲击向价格和交期传导减弱
+    evidence_profile_ref: inventory_cycle
+    default_competing_explanation: 账面库存可能规格不可用
+  projection:
+    section: propagation_templates
+    index: 8
+- id: capacity_expansion_to_supply_relief
+  type: PropagationTemplate
+  properties:
+    id: capacity_expansion_to_supply_relief
+    name: 扩产向供给缓解传导
+    source_variables:
+    - capacity_expansion_progress
+    - yield_maturity
+    target_variables:
+    - supply_availability
+    - capacity_tightness
+    intermediate_variables:
+    - customer_qualification_progress
+    direction_mapping: 扩产完成、良率成熟并通过认证后，有效供给增加并缓解产能紧张。
+    time_lag: 数个季度至数年。
+    applicable_conditions:
+    - 设备工艺匹配
+    - 良率稳定
+    - 客户认证完成
+    supporting_evidence_requirements:
+    - 建设与设备进度
+    - 试产良率
+    - 认证和量产出货
+    weakening_conditions:
+    - 需求同步上修
+    - 产品结构不匹配
+    blocking_conditions:
+    - 扩产延期
+    - 良率失败
+    - 认证未通过
+    anchor_alignment: ManufacturingFacility
+    direction_logic: 扩产完成且yield_maturity成熟后supply_availability改善
+    evidence_profile_ref: capacity_supply
+    default_competing_explanation: 名义扩产不等于有效供给
+  projection:
+    section: propagation_templates
+    index: 9
+- id: yield_to_effective_supply
+  type: PropagationTemplate
+  properties:
+    id: yield_to_effective_supply
+    name: 良率向有效供给与成本传导
+    source_variables:
+    - yield_maturity
+    - process_capability
+    target_variables:
+    - supply_availability
+    - input_cost_pressure
+    - mass_production_readiness
+    intermediate_variables: []
+    direction_mapping: 良率与制程能力改善通常增加有效供给、降低单位成本并提升量产准备度。
+    time_lag: 一个至多个工艺学习周期。
+    applicable_conditions:
+    - 投入和产品组合可比
+    - 质量可靠性未被牺牲
+    supporting_evidence_requirements:
+    - 良率趋势
+    - 报废返工
+    - 单位成本
+    - 可靠性
+    weakening_conditions:
+    - 产品组合变复杂
+    - 设备折旧或材料成本上升
+    blocking_conditions:
+    - 质量可靠性恶化
+    - 关键缺陷无法消除
+    anchor_alignment: ManufacturingFacility
+    direction_logic: yield_maturity和process_capability改善增加有效供给
+    evidence_profile_ref: manufacturing_yield
+    default_competing_explanation: 良率改善可能以可靠性为代价
+  projection:
+    section: propagation_templates
+    index: 10
+- id: process_complexity_to_equipment_materials
+  type: PropagationTemplate
+  properties:
+    id: process_complexity_to_equipment_materials
+    name: 工艺复杂度向设备材料强度传导
+    source_variables:
+    - scaling_progress
+    - process_capability
+    target_variables:
+    - customer_capex_intensity
+    - input_cost_pressure
+    intermediate_variables:
+    - technology_maturity
+    direction_mapping: 工艺步骤、层数和控制难度上升通常提高设备、材料和量测投入强度。
+    time_lag: 随技术开发和产能建设周期传导。
+    applicable_conditions:
+    - 新工艺确实增加关键步骤或控制要求
+    supporting_evidence_requirements:
+    - 工艺流程变化
+    - 设备清单
+    - 材料用量和资本强度
+    weakening_conditions:
+    - 步骤整合
+    - 生产率提升
+    - 单位面积成本下降
+    blocking_conditions:
+    - 路线取消
+    - 替代工艺显著简化流程
+    anchor_alignment: ProcessStep
+    direction_logic: scaling_progress提升增加设备和材料投入强度
+    evidence_profile_ref: technology_route
+    default_competing_explanation: 步骤整合可能抵消复杂度上升
+  projection:
+    section: propagation_templates
+    index: 11
+- id: scaling_to_yield_cost
+  type: PropagationTemplate
+  properties:
+    id: scaling_to_yield_cost
+    name: 制程微缩向良率与成本传导
+    source_variables:
+    - scaling_progress
+    target_variables:
+    - yield_maturity
+    - input_cost_pressure
+    - technology_competitiveness
+    intermediate_variables:
+    - process_capability
+    direction_mapping: 微缩初期通常增加工艺和良率压力，成熟后才可能形成性能功耗和密度优势。
+    time_lag: 数个技术和量产学习周期。
+    applicable_conditions:
+    - 比较同一产品和成熟阶段
+    - 设计与工艺协同
+    supporting_evidence_requirements:
+    - 架构与工艺进展
+    - 良率
+    - 性能功耗
+    - 成本
+    weakening_conditions:
+    - 先进封装或设计优化替代部分微缩收益
+    blocking_conditions:
+    - 经济性不成立
+    - 关键设备材料或量测不可得
+    anchor_alignment: TechnologyRoute
+    direction_logic: 微缩初期yield_maturity承压，成熟后technology_competitiveness改善
+    evidence_profile_ref: technology_route
+    default_competing_explanation: 先进封装可能替代部分微缩收益
+  projection:
+    section: propagation_templates
+    index: 12
+- id: advanced_packaging_to_inputs
+  type: PropagationTemplate
+  properties:
+    id: advanced_packaging_to_inputs
+    name: 先进封装向基板设备测试传导
+    source_variables:
+    - technology_maturity
+    - adoption_penetration
+    target_variables:
+    - order_visibility
+    - capacity_tightness
+    - input_cost_pressure
+    intermediate_variables:
+    - mass_production_readiness
+    - quality_reliability
+    direction_mapping: 先进封装采用提升通常增加高端基板、互连、封装设备和复杂测试需求。
+    time_lag: 认证至量产通常为数个季度。
+    applicable_conditions:
+    - 路线进入量产
+    - 封装价值量与复杂度确实提升
+    supporting_evidence_requirements:
+    - 封装设计
+    - 设备材料需求
+    - 产能和量产
+    weakening_conditions:
+    - 封装标准化降低单位投入
+    - 良率快速改善
+    blocking_conditions:
+    - 热、翘曲、可靠性或测试问题阻止量产
+    anchor_alignment: TechnologyRoute/Product
+    direction_logic: 先进封装量产推动基板设备和测试需求上升
+    evidence_profile_ref: technology_route
+    default_competing_explanation: 封装标准化可能降低单位投入
+  projection:
+    section: propagation_templates
+    index: 13
+- id: competitiveness_to_substitution
+  type: PropagationTemplate
+  properties:
+    id: competitiveness_to_substitution
+    name: 技术竞争力向替代传导
+    source_variables:
+    - technology_competitiveness
+    - technology_maturity
+    target_variables:
+    - technology_substitution_intensity
+    - adoption_penetration
+    intermediate_variables:
+    - customer_switching_cost
+    direction_mapping: 综合竞争力提升且切换成本可承受时，新路线替代强度和采用进展上升。
+    time_lag: 一个设计周期至数年。
+    applicable_conditions:
+    - 比较口径一致
+    - 供应和生态可用
+    supporting_evidence_requirements:
+    - 同口径性能成本
+    - 客户采用
+    - 量产与生态
+    weakening_conditions:
+    - 优势仅适用于窄场景
+    - 既有路线持续改进
+    blocking_conditions:
+    - 可靠性不达标
+    - 切换成本过高
+    - 供应不足
+    anchor_alignment: TechnologyRoute
+    direction_logic: technology_competitiveness提升推动technology_substitution_intensity上升
+    evidence_profile_ref: technology_route
+    default_competing_explanation: 新旧路线可能互补而非替代
+  projection:
+    section: propagation_templates
+    index: 14
+- id: qualification_to_mass_production
+  type: PropagationTemplate
+  properties:
+    id: qualification_to_mass_production
+    name: 客户认证向量产传导
+    source_variables:
+    - customer_qualification_progress
+    target_variables:
+    - mass_production_readiness
+    - order_visibility
+    intermediate_variables:
+    - design_win_visibility
+    - quality_reliability
+    direction_mapping: 认证通过并满足质量要求时，量产准备和订单能见度改善。
+    time_lag: 认证通过后数周至数个季度。
+    applicable_conditions:
+    - 认证覆盖量产规格
+    - 客户存在真实项目
+    supporting_evidence_requirements:
+    - 认证文件或客户确认
+    - 量产计划
+    - 采购与复购
+    weakening_conditions:
+    - 认证仅覆盖样品或单一规格
+    blocking_conditions:
+    - 可靠性失败
+    - 客户项目取消
+    anchor_alignment: Company/Product
+    direction_logic: customer_qualification_progress完成推动mass_production_readiness改善
+    evidence_profile_ref: qualification_commercialization
+    default_competing_explanation: 认证可能仅覆盖样品规格
+  projection:
+    section: propagation_templates
+    index: 15
+- id: localization_to_resilience
+  type: PropagationTemplate
+  properties:
+    id: localization_to_resilience
+    name: 本地替代向供应链韧性传导
+    source_variables:
+    - localization_substitution_progress
+    target_variables:
+    - supply_chain_resilience
+    - supply_availability
+    intermediate_variables:
+    - customer_qualification_progress
+    - mass_production_readiness
+    direction_mapping: 本地供应通过认证并稳定量产后，替代选择增加并提高供应链韧性。
+    time_lag: 数个认证和量产周期。
+    applicable_conditions:
+    - 关键上游不共享同一单点依赖
+    - 质量成本可接受
+    supporting_evidence_requirements:
+    - 认证
+    - 量产
+    - 复购
+    - 上游依赖穿透
+    weakening_conditions:
+    - 仅替代低端或非关键规格
+    - 仍依赖进口核心投入
+    blocking_conditions:
+    - 质量或良率不达标
+    - 供应规模不足
+    anchor_alignment: Company/Material
+    direction_logic: localization_substitution_progress推进提高supply_chain_resilience
+    evidence_profile_ref: qualification_commercialization
+    default_competing_explanation: 本地替代可能仍依赖进口核心环节
+  projection:
+    section: propagation_templates
+    index: 16
+- id: policy_support_to_capacity
+  type: PropagationTemplate
+  properties:
+    id: policy_support_to_capacity
+    name: 产业政策向投资产能传导
+    source_variables:
+    - policy_support_strength
+    target_variables:
+    - customer_capex_intensity
+    - capacity_expansion_progress
+    intermediate_variables:
+    - entry_barrier_strength
+    direction_mapping: 有预算、有执行主体的政策支持可降低投资约束并推动研发和产能建设。
+    time_lag: 数个季度至数年。
+    applicable_conditions:
+    - 预算落实
+    - 项目可执行
+    - 企业具备技术和人才
+    supporting_evidence_requirements:
+    - 政策原文
+    - 预算
+    - 项目清单
+    - 投资与建设进度
+    weakening_conditions:
+    - 资金分散
+    - 重复建设
+    - 需求不足
+    blocking_conditions:
+    - 政策未落地
+    - 项目取消
+    - 关键设备材料不可得
+    anchor_alignment: Region/Industry
+    direction_logic: policy_support_strength落实推动capacity_expansion_progress
+    evidence_profile_ref: policy_trade
+    default_competing_explanation: 政策资金可能分散或重复建设
+  projection:
+    section: propagation_templates
+    index: 17
+- id: export_control_to_supply
+  type: PropagationTemplate
+  properties:
+    id: export_control_to_supply
+    name: 出口管制向供给与合规传导
+    source_variables:
+    - export_control_intensity
+    target_variables:
+    - compliance_friction
+    - supply_availability
+    intermediate_variables:
+    - supply_chain_resilience
+    - localization_substitution_progress
+    direction_mapping: 管制范围和执行增强通常提高合规摩擦并降低受限对象的供给可得性。
+    time_lag: 即期政策冲击至数个替代周期。
+    applicable_conditions:
+    - 目标产品或技术落入适用范围
+    - 许可和执法实际约束交易
+    supporting_evidence_requirements:
+    - 政策原文
+    - 适用范围
+    - 许可执行
+    - 企业与供应链反馈
+    weakening_conditions:
+    - 许可豁免
+    - 库存缓冲
+    - 替代来源
+    blocking_conditions:
+    - 政策不适用
+    - 范围撤回
+    - 合格替代已规模供给
+    anchor_alignment: Region/Product
+    direction_logic: export_control_intensity增强降低supply_availability并提高compliance_friction
+    evidence_profile_ref: policy_trade
+    default_competing_explanation: 许可豁免或替代来源可缓冲冲击
+  projection:
+    section: propagation_templates
+    index: 18
+- id: competition_to_pricing_profit
+  type: PropagationTemplate
+  properties:
+    id: competition_to_pricing_profit
+    name: 竞争向定价与利润池传导
+    source_variables:
+    - competitive_intensity
+    target_variables:
+    - pricing_power
+    - product_price_pressure
+    - profit_pool_shift
+    intermediate_variables:
+    - customer_switching_cost
+    - entry_barrier_strength
+    direction_mapping: 竞争增强且切换成本下降时，定价能力减弱并压缩相关环节利润池。
+    time_lag: 一个报价或合同周期至数个季度。
+    applicable_conditions:
+    - 产品可比
+    - 客户可切换
+    - 新供给真实可用
+    supporting_evidence_requirements:
+    - 报价成交
+    - 份额
+    - 招标
+    - 产能与客户切换
+    weakening_conditions:
+    - 需求强劲吸收供给
+    - 产品分层明显
+    blocking_conditions:
+    - 关键产品不可替代
+    - 供应纪律增强
+    anchor_alignment: Industry/Product
+    direction_logic: competitive_intensity增强削弱pricing_power并压缩profit_pool_shift
+    evidence_profile_ref: competition_structure
+    default_competing_explanation: 需求增长可能吸收新增供给
+  projection:
+    section: propagation_templates
+    index: 19
+- id: exposure_execution_to_earnings
+  type: PropagationTemplate
+  properties:
+    id: exposure_execution_to_earnings
+    name: 公司暴露与执行向业绩传导
+    source_variables:
+    - value_chain_role_exposure
+    - technology_route_exposure
+    - execution_delivery_capability
+    target_variables:
+    - earnings_elasticity
+    intermediate_variables:
+    - pricing_power
+    - input_cost_pressure
+    - profit_pool_shift
+    direction_mapping: 只有相关业务暴露充分且公司能够交付时，行业和技术变化才形成可观察业绩弹性。
+    time_lag: 一个交付和收入确认周期至数个季度。
+    applicable_conditions:
+    - 业务贡献可识别
+    - 交付与收入确认条件明确
+    supporting_evidence_requirements:
+    - 业务结构
+    - 订单交付
+    - 价格成本
+    - 财务和现金流
+    weakening_conditions:
+    - 业务占比低
+    - 内部业务对冲
+    - 费用和折旧上升
+    blocking_conditions:
+    - 无法交付
+    - 质量事故
+    - 客户取消或收入无法确认
+    anchor_alignment: Company
+    direction_logic: 暴露充分且execution_delivery_capability足够时earnings_elasticity显现
+    evidence_profile_ref: company_exposure_execution
+    default_competing_explanation: 业务占比低或内部对冲削弱传导
+  projection:
+    section: propagation_templates
+    index: 20
+- id: fundamentals_to_expectation_gap
+  type: PropagationTemplate
+  properties:
+    id: fundamentals_to_expectation_gap
+    name: 基本面变化向预期差传导
+    source_variables:
+    - earnings_elasticity
+    - order_visibility
+    - technology_substitution_intensity
+    target_variables:
+    - expectation_gap
+    intermediate_variables:
+    - consensus_expectation_level
+    - counter_evidence_strength
+    direction_mapping: 证据支持的基本面变化与市场预期不一致时形成预期差。
+    time_lag: 取决于信息披露、验证和市场吸收速度。
+    applicable_conditions:
+    - 对象口径和时间尺度可比
+    - 基本面证据充分
+    supporting_evidence_requirements:
+    - 基本面证据
+    - 一致预期或价格隐含预期
+    - 反证检查
+    weakening_conditions:
+    - 预期来源陈旧或分歧大
+    - 基本面尚未验证
+    blocking_conditions:
+    - 判断已被市场充分预期
+    - 核心假设被阻断
+    anchor_alignment: Company/Industry
+    direction_logic: 基本面变化与consensus_expectation_level不一致时形成expectation_gap
+    evidence_profile_ref: market_expectations
+    default_competing_explanation: 预期口径不可比或事件已公开
+  projection:
+    section: propagation_templates
+    index: 21
+- id: expectation_gap_to_pricing
+  type: PropagationTemplate
+  properties:
+    id: expectation_gap_to_pricing
+    name: 预期差向定价反映传导
+    source_variables:
+    - expectation_gap
+    target_variables:
+    - priced_in_degree
+    intermediate_variables:
+    - consensus_expectation_level
+    - counter_evidence_strength
+    direction_mapping: 可验证预期差被新信息确认后，市场反映程度可能提高。
+    time_lag: 事件窗口至多个报告期。
+    applicable_conditions:
+    - 预期差真实且可比较
+    - 存在信息催化或持续验证
+    supporting_evidence_requirements:
+    - 预期修正
+    - 价格成交
+    - 估值和持仓变化
+    weakening_conditions:
+    - 宏观或其他事件主导价格
+    - 缺少催化
+    blocking_conditions:
+    - 已充分定价
+    - 反证阻断基本面判断
+    anchor_alignment: Asset/Company
+    direction_logic: 可验证expectation_gap确认后priced_in_degree可能提高
+    evidence_profile_ref: market_expectations
+    default_competing_explanation: 宏观或其他事件可能主导价格
+  projection:
+    section: propagation_templates
+    index: 22
+- id: supply_elasticity_to_price_persistence
+  type: PropagationTemplate
+  properties:
+    id: supply_elasticity_to_price_persistence
+    name: 供给弹性向价格持续性传导
+    source_variables:
+    - supply_elasticity
+    - capacity_tightness
+    target_variables:
+    - product_price_pressure
+    intermediate_variables:
+    - supply_availability
+    - pricing_power
+    direction_mapping: 供给弹性低且产能紧张时，价格压力更可能持续。
+    direction_logic: supply_elasticity低 AND capacity_tightness高 → product_price_pressure持续
+    anchor_alignment: Segment/Product/Material
+    evidence_profile_ref: capacity_supply
+    default_competing_explanation: 价格上涨可能来自短期事故而非结构性缺口
+    time_lag: 即期至数个季度。
+    applicable_conditions:
+    - 需求仍在
+    - 替代供应有限
+    supporting_evidence_requirements:
+    - 产能切换周期
+    - 交期
+    - 成交价
+    weakening_conditions:
+    - 可快速切换产能
+    - 库存缓冲充足
+    blocking_conditions:
+    - 替代供应已规模可用
+  projection:
+    section: propagation_templates
+    index: 23
+- id: design_win_to_order_pipeline
+  type: PropagationTemplate
+  properties:
+    id: design_win_to_order_pipeline
+    name: Design Win向订单管线传导
+    source_variables:
+    - design_win_visibility
+    - customer_qualification_progress
+    target_variables:
+    - order_visibility
+    - mass_production_readiness
+    intermediate_variables:
+    - adoption_penetration
+    direction_mapping: Design Win确认并进入试产或量产阶段时，订单和量产准备度改善。
+    direction_logic: design_win_visibility高 AND customer_qualification_progress推进 → order_visibility改善
+    anchor_alignment: Company/Product/Application
+    evidence_profile_ref: qualification_commercialization
+    default_competing_explanation: Design Win可能仅用于议价或多供备份
+    time_lag: 数周至数个季度。
+    applicable_conditions:
+    - Design Win覆盖量产规格
+    - 客户项目真实存在
+    supporting_evidence_requirements:
+    - Design Win确认
+    - 试产计划
+    - 采购意向
+    weakening_conditions:
+    - 仅单一客户
+    - 项目规模小
+    blocking_conditions:
+    - 客户项目取消
+    - 质量或认证失败
+  projection:
+    section: propagation_templates
+    index: 24
+- id: bottleneck_cascade_to_supply
+  type: PropagationTemplate
+  properties:
+    id: bottleneck_cascade_to_supply
+    name: 瓶颈依赖向供给传导
+    source_variables:
+    - bottleneck_dependency_concentration
+    target_variables:
+    - supply_availability
+    - capacity_tightness
+    intermediate_variables:
+    - supply_chain_resilience
+    direction_mapping: 瓶颈依赖集中度高时，单点冲击更易降低供给可得性。
+    direction_logic: bottleneck_dependency_concentration高 → supply_availability下降
+    anchor_alignment: Product/Material/ManufacturingFacility
+    evidence_profile_ref: capacity_supply
+    default_competing_explanation: 表面多供可能共享同一上游瓶颈
+    time_lag: 即期至数个季度。
+    applicable_conditions:
+    - 瓶颈环节不可替代
+    - 库存不足以覆盖
+    supporting_evidence_requirements:
+    - 瓶颈穿透分析
+    - 交期
+    - 替代认证状态
+    weakening_conditions:
+    - 库存缓冲
+    - 备用供应商已认证
+    blocking_conditions:
+    - 瓶颈可快速替代
+    - 冲击为短期
+  projection:
+    section: propagation_templates
+    index: 25
+- id: regional_policy_to_company_exposure
+  type: PropagationTemplate
+  properties:
+    id: regional_policy_to_company_exposure
+    name: 地域政策向公司暴露传导
+    source_variables:
+    - export_control_intensity
+    - policy_support_strength
+    target_variables:
+    - regional_policy_exposure
+    - compliance_friction
+    intermediate_variables:
+    - supply_chain_resilience
+    direction_mapping: 政策强度变化通过地域暴露影响公司合规和供给。
+    direction_logic: export_control_intensity上升 AND regional_policy_exposure高 → compliance_friction上升
+    anchor_alignment: Company/Region/PolicyInstrument
+    evidence_profile_ref: policy_trade
+    default_competing_explanation: 政策影响可能被市场提前交易
+    time_lag: 即期至数个替代周期。
+    applicable_conditions:
+    - 政策适用于目标地域和业务
+    - 执法实际约束
+    supporting_evidence_requirements:
+    - 政策原文
+    - 地域业务映射
+    - 许可执行
+    weakening_conditions:
+    - 业务地域分散
+    - 已有合规能力
+    blocking_conditions:
+    - 政策不适用
+    - 豁免或替代产地
+  projection:
+    section: propagation_templates
+    index: 26
+- id: product_mix_to_earnings_quality
+  type: PropagationTemplate
+  properties:
+    id: product_mix_to_earnings_quality
+    name: 产品组合结构向业绩传导
+    source_variables:
+    - product_mix_structure
+    - value_chain_role_exposure
+    target_variables:
+    - earnings_elasticity
+    intermediate_variables:
+    - pricing_power
+    - input_cost_pressure
+    direction_mapping: 产品组合结构改善且业务暴露充分时，业绩弹性改善。
+    direction_logic: product_mix_structure改善 AND value_chain_role_exposure充分 → earnings_elasticity改善
+    anchor_alignment: Company/Product
+    evidence_profile_ref: company_exposure_execution
+    default_competing_explanation: 财务变化可能来自并购、汇率或会计口径
+    time_lag: 一个至数个报告期。
+    applicable_conditions:
+    - 产品组合数据可拆分
+    - 业务贡献可识别
+    supporting_evidence_requirements:
+    - 分部收入毛利
+    - 产品结构
+    - 客户结构
+    weakening_conditions:
+    - 增长来自低毛利产品
+    - 费用折旧上升
+    blocking_conditions:
+    - 无法确认业务贡献
+    - 交付受阻
+  projection:
+    section: propagation_templates
+    index: 27
+- id: base
+  type: ScenarioTemplate
+  properties:
+    id: base
+    name: 基准情景
+    description: 需求、供给、技术和政策按当前可验证趋势推进，不假设额外冲击。
+    key_variable_conditions:
+      end_market_demand_strength: stable_or_moderate
+      supply_availability: normalizing
+      technology_maturity: gradual
+      competitive_intensity: normal
+      counter_evidence_strength: manageable
+    validation_points:
+    - 订单与终端需求一致
+    - 产能和良率按计划释放
+    - 技术认证按正常节奏推进
+    falsification_points:
+    - 需求或供给显著偏离
+    - 核心技术或政策条件发生结构性变化
+  projection:
+    section: scenario_templates
+    index: 0
+- id: upside
+  type: ScenarioTemplate
+  properties:
+    id: upside
+    name: 上行情景
+    description: 需求、采用或政策支持强于基准，供给和执行未形成同等强度阻断。
+    key_variable_conditions:
+      end_market_demand_strength: high
+      adoption_penetration: accelerating
+      order_visibility: improving
+      pricing_power: improving
+      execution_delivery_capability: sufficient
+    validation_points:
+    - 终端、订单和出货交叉增强
+    - 认证转为量产和复购
+    - 公司交付与利润池改善
+    falsification_points:
+    - 库存积压
+    - 供给快速释放
+    - 竞争压价
+    - 市场已充分定价
+  projection:
+    section: scenario_templates
+    index: 1
+- id: downside
+  type: ScenarioTemplate
+  properties:
+    id: downside
+    name: 下行情景
+    description: 需求、订单或采用弱于基准，库存、竞争和成本压力增强。
+    key_variable_conditions:
+      end_market_demand_strength: low
+      inventory_cycle_position: destocking
+      order_visibility: weakening
+      competitive_intensity: high
+      pricing_power: weakening
+    validation_points:
+    - 终端需求下修
+    - 订单取消或去库
+    - 价格与利用率承压
+    falsification_points:
+    - 需求快速恢复
+    - 供给纪律增强
+    - 新产品采用抵消旧产品下行
+  projection:
+    section: scenario_templates
+    index: 2
+- id: stress
+  type: ScenarioTemplate
+  properties:
+    id: stress
+    name: 压力情景
+    description: 供应中断、政策管制、重大质量事故或地域集中风险触发非线性冲击。
+    key_variable_conditions:
+      supply_availability: very_low
+      compliance_friction: very_high
+      supply_chain_resilience: low
+      inventory_buffer_capacity: insufficient
+      counter_evidence_strength: high
+    validation_points:
+    - 官方或一手中断证据
+    - 许可交付和价格同步恶化
+    - 库存与替代不足
+    falsification_points:
+    - 许可豁免
+    - 快速恢复
+    - 库存覆盖充分
+    - 合格替代规模供给
+  projection:
+    section: scenario_templates
+    index: 3
+- id: cycle_recovery
+  type: BusinessScenarioTag
+  properties:
+    id: cycle_recovery
+    name: 周期复苏
+    description: 终端需求恢复、库存去化完成、订单和产能利用率同步改善。
+    trigger_variables:
+    - end_market_demand_strength
+    - inventory_cycle_position
+    - order_visibility
+    key_templates:
+    - inventory_restocking
+    - demand_to_orders
+    - orders_to_capacity_pressure
+    validation_points:
+    - 终端出货改善
+    - 多层库存下降后补库
+    - 订单与利用率交叉验证
+    falsification_points:
+    - 终端需求未改善
+    - 补库后再次积压
+    - 供给快速释放
+    blocking_conditions:
+    - 客户取消项目
+    - 竞争压价抵消复苏
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 0
+- id: cycle_downturn
+  type: BusinessScenarioTag
+  properties:
+    id: cycle_downturn
+    name: 周期下行
+    description: 需求下修、库存积累、订单取消和价格承压。
+    trigger_variables:
+    - end_market_demand_strength
+    - inventory_cycle_position
+    - product_price_pressure
+    key_templates:
+    - inventory_destocking
+    - competition_to_pricing_profit
+    validation_points:
+    - 终端下修
+    - 订单取消
+    - 价格成交走弱
+    falsification_points:
+    - 需求快速恢复
+    - 供给纪律增强
+    blocking_conditions:
+    - 供给中断造成假性紧张
+    - 新产品抵消旧产品下行
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 1
+- id: supply_shock
+  type: BusinessScenarioTag
+  properties:
+    id: supply_shock
+    name: 供应冲击
+    description: 事故、停产、物流或原料问题导致供给可得性骤降。
+    trigger_variables:
+    - supply_availability
+    - bottleneck_dependency_concentration
+    key_templates:
+    - supply_constraint_to_price_delivery
+    - bottleneck_cascade_to_supply
+    validation_points:
+    - 官方或一手中断证据
+    - 交期同步恶化
+    falsification_points:
+    - 快速恢复
+    - 库存覆盖充分
+    blocking_conditions:
+    - 替代供应已认证
+    - 需求同步下修
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 2
+- id: overcapacity_expansion
+  type: BusinessScenarioTag
+  properties:
+    id: overcapacity_expansion
+    name: 扩产过剩
+    description: 大量扩产释放导致产能紧张缓解和价格压力。
+    trigger_variables:
+    - capacity_expansion_progress
+    - capacity_tightness
+    - supply_elasticity
+    key_templates:
+    - capacity_expansion_to_supply_relief
+    - supply_elasticity_to_price_persistence
+    validation_points:
+    - 有效产能释放
+    - 利用率下降
+    - 价格承压
+    falsification_points:
+    - 需求同步超预期
+    - 良率不达标延迟释放
+    blocking_conditions:
+    - 扩产延期
+    - 产品结构不匹配
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 3
+- id: technology_transition
+  type: BusinessScenarioTag
+  properties:
+    id: technology_transition
+    name: 技术切换
+    description: 新旧技术路线替代导致需求结构和设备材料需求迁移。
+    trigger_variables:
+    - technology_substitution_intensity
+    - technology_maturity
+    key_templates:
+    - competitiveness_to_substitution
+    - process_complexity_to_equipment_materials
+    validation_points:
+    - 客户采用证据
+    - 同口径性能成本比较
+    falsification_points:
+    - 新旧路线互补
+    - 切换成本过高
+    blocking_conditions:
+    - 可靠性不达标
+    - 生态不完整
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 4
+- id: domestic_substitution
+  type: BusinessScenarioTag
+  properties:
+    id: domestic_substitution
+    name: 国产替代
+    description: 本地供应从认证推进到稳定量产和复购。
+    trigger_variables:
+    - localization_substitution_progress
+    - customer_qualification_progress
+    key_templates:
+    - localization_to_resilience
+    - qualification_to_mass_production
+    validation_points:
+    - 认证完成
+    - 量产出货
+    - 复购
+    falsification_points:
+    - 仅送样
+    - 依赖进口核心环节
+    blocking_conditions:
+    - 质量或良率不达标
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 5
+- id: export_control_scenario
+  type: BusinessScenarioTag
+  properties:
+    id: export_control_scenario
+    name: 出口管制
+    description: 出口管制增强导致合规摩擦上升和受限供给下降。
+    trigger_variables:
+    - export_control_intensity
+    - regional_policy_exposure
+    key_templates:
+    - export_control_to_supply
+    - regional_policy_to_company_exposure
+    validation_points:
+    - 政策原文
+    - 许可执行
+    - 供应链反馈
+    falsification_points:
+    - 许可豁免
+    - 替代来源
+    blocking_conditions:
+    - 政策不适用
+    - 范围撤回
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 6
+- id: advanced_packaging_bottleneck
+  type: BusinessScenarioTag
+  properties:
+    id: advanced_packaging_bottleneck
+    name: 先进封装瓶颈
+    description: 2.5D/3D/混合键合等先进封装产能或基板材料成为产业链瓶颈。
+    trigger_variables:
+    - bottleneck_dependency_concentration
+    - capacity_tightness
+    key_templates:
+    - advanced_packaging_to_inputs
+    - bottleneck_cascade_to_supply
+    validation_points:
+    - 封装产能紧张
+    - ABF等基板交期延长
+    falsification_points:
+    - 封装产能快速释放
+    - 标准化降低需求
+    blocking_conditions:
+    - 热可靠性问题阻止量产
+    - 需求不及预期
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 7
+- id: inventory_correction
+  type: BusinessScenarioTag
+  properties:
+    id: inventory_correction
+    name: 库存修正
+    description: 产业链从错误库存水平向合理水平修正，订单短期波动。
+    trigger_variables:
+    - inventory_cycle_position
+    - inventory_buffer_capacity
+    key_templates:
+    - inventory_destocking
+    - inventory_restocking
+    - inventory_buffer_absorption
+    validation_points:
+    - 多层库存时间序列
+    - 采购与出货背离
+    falsification_points:
+    - 终端需求同步变化
+    - 供给中断干扰判断
+    blocking_conditions:
+    - 库存口径不可比
+    - 规格不可用
+    multi_select: true
+    mece_scope: non_exclusive
+    tag_usage: 场景标签可多选，用于提示相关变量、传导模板和证据检查，不要求互斥分类。
+  projection:
+    section: business_scenario_tags
+    index: 8
+- id: jlc_default_j0
+  type: JudgmentLevelCriterionTemplate
+  properties:
+    judgment_level: J0
+    applicable: true
+    minimum_source_authority: unknown
+    minimum_independent_source_groups: 0
+    counter_evidence_check: optional
+    alternative_explanation_check: optional
+    required_conditions:
+    - 关键证据缺失或路径阻断
+    template_scope: semiconductor_default
+    id: jlc_default_j0
+  projection:
+    section: judgment_level_criterion_templates
+    index: 0
+- id: jlc_default_j1
+  type: JudgmentLevelCriterionTemplate
+  properties:
+    judgment_level: J1
+    applicable: true
+    minimum_source_authority: indirect
+    minimum_independent_source_groups: 1
+    counter_evidence_check: optional
+    alternative_explanation_check: optional
+    required_conditions:
+    - 至少一项可追溯信号
+    template_scope: semiconductor_default
+    id: jlc_default_j1
+  projection:
+    section: judgment_level_criterion_templates
+    index: 1
+- id: jlc_default_j2
+  type: JudgmentLevelCriterionTemplate
+  properties:
+    judgment_level: J2
+    applicable: true
+    minimum_source_authority: informed_secondary
+    minimum_independent_source_groups: 1
+    counter_evidence_check: required
+    alternative_explanation_check: optional
+    required_conditions:
+    - 完成反证与竞争解释检查
+    template_scope: semiconductor_default
+    id: jlc_default_j2
+  projection:
+    section: judgment_level_criterion_templates
+    index: 2
+- id: jlc_default_j3
+  type: JudgmentLevelCriterionTemplate
+  properties:
+    judgment_level: J3
+    applicable: true
+    minimum_source_authority: authoritative_secondary
+    minimum_independent_source_groups: 2
+    counter_evidence_check: required
+    alternative_explanation_check: required
+    required_conditions: []
+    template_scope: semiconductor_default
+    id: jlc_default_j3
+  projection:
+    section: judgment_level_criterion_templates
+    index: 3
+- id: jlc_default_j4
+  type: JudgmentLevelCriterionTemplate
+  properties:
+    judgment_level: J4
+    applicable: false
+    minimum_source_authority: primary
+    minimum_independent_source_groups: 1
+    counter_evidence_check: required
+    alternative_explanation_check: required
+    required_conditions:
+    - 仅事实或当前状态允许确认
+    template_scope: semiconductor_default
+    id: jlc_default_j4
+  projection:
+    section: judgment_level_criterion_templates
+    index: 4
+- id: sp_company_disclosure
+  type: SourceProfile
+  properties:
+    id: sp_company_disclosure
+    sourceName: 公司法定披露与正式说明会
+    sourceTier: S2
+    sourceCategory: company_disclosure
+    authorityType: company_disclosure
+    typicalContentDomains:
+    - 财务
+    - 订单
+    - 产能
+    - 资本开支
+    - 管制影响
+    allowedClaimTypes:
+    - current_state
+    - historical_fact
+    - directional_outlook
+    forbiddenUse:
+    - 未经出处核对的转述当硬证据
+    methodologyTransparency: high
+    updateFrequency: 季度/事件
+    independenceGroup: issuer_primary
+    accessScopeDefault: public
+    defaultReliability: high
+    commonLimitations:
+    - 管理层展望偏乐观
+    - 口径可能调整
+    requiredLocatorLevel: page_or_timestamp
+  projection:
+    section: source_profiles
+    index: 0
+- id: sp_industry_association
+  type: SourceProfile
+  properties:
+    id: sp_industry_association
+    sourceName: 行业协会与官方统计
+    sourceTier: S3
+    sourceCategory: industry_provider
+    authorityType: industry_provider
+    typicalContentDomains:
+    - 出货
+    - 产能
+    - 价格
+    - 贸易
+    allowedClaimTypes:
+    - historical_fact
+    - current_state
+    - directional_outlook
+    forbiddenUse:
+    - 把协会预测直接写成确认结论
+    methodologyTransparency: medium
+    updateFrequency: 月度/季度
+    independenceGroup: association_stats
+    accessScopeDefault: licensed
+    defaultReliability: high
+    commonLimitations:
+    - 样本覆盖不全
+    - 修订滞后
+    requiredLocatorLevel: table_or_release_id
+  projection:
+    section: source_profiles
+    index: 1
+- id: sp_regulator_trade
+  type: SourceProfile
+  properties:
+    id: sp_regulator_trade
+    sourceName: 监管与贸易管制原文
+    sourceTier: S1
+    sourceCategory: official
+    authorityType: official
+    typicalContentDomains:
+    - 出口管制
+    - 实体清单
+    - 许可
+    - 执法
+    allowedClaimTypes:
+    - historical_fact
+    - current_state
+    forbiddenUse:
+    - 媒体转述代替监管原文
+    methodologyTransparency: high
+    updateFrequency: 事件驱动
+    independenceGroup: regulator_primary
+    accessScopeDefault: public
+    defaultReliability: high
+    commonLimitations:
+    - 适用范围需法律解读
+    - 生效时点需核对
+    requiredLocatorLevel: rule_section
+  projection:
+    section: source_profiles
+    index: 2
+- id: recipe_cycle_phase
+  type: EvidenceRecipe
+  properties:
+    id: recipe_cycle_phase
+    recipeName: 周期阶段判断取证配方
+    judgmentType: cycle_phase
+    strategyLibraryRef: 知识库_03取证/A_取证方法/A03_趋势与阶段取证.md
+    strategyVersion: 3.1.0
+    requiredBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: primary+baseline/cross_check 齐备且反证已检查
+    proxyRule: 允许有限代理，须披露且不得单独支撑 Q3+
+    downgradeRule: 缺直接数据最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 0
+- id: recipe_transmission_path
+  type: EvidenceRecipe
+  properties:
+    id: recipe_transmission_path
+    recipeName: 传导路径判断取证配方
+    judgmentType: transmission_path
+    strategyLibraryRef: 知识库_03取证/A_取证方法/A04_机制与传导取证.md
+    strategyVersion: 3.1.0
+    requiredBasketTypes:
+    - primary_support
+    - cross_validation
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 主证据+机制承接+反证检查
+    proxyRule: 机制节点可用受限代理
+    downgradeRule: 缺机制或反证则降为 conditional/Q2 及以下
+  projection:
+    section: evidence_recipes
+    index: 1
+- id: recipe_state_measurement
+  type: EvidenceRecipe
+  properties:
+    id: recipe_state_measurement
+    recipeName: 状态度量判断取证配方
+    judgmentType: state_measurement
+    strategyLibraryRef: 知识库_03取证/A_取证方法/A02_状态度量取证.md
+    strategyVersion: 3.1.0
+    requiredBasketTypes:
+    - primary_support
+    - background_evidence
+    - counter_evidence
+    mandatoryBasketTypes:
+    - primary_support
+    - counter_evidence
+    counterBasketTypes:
+    - counter_evidence
+    minimumPassRule: 主证据+基准+反证
+    proxyRule: 无直接读数时登记 ProxyIndicator
+    downgradeRule: 仅代理时最高 observation/Q1
+  projection:
+    section: evidence_recipes
+    index: 2
+- id: proxy_spot_price_for_inventory
+  type: ProxyIndicator
+  properties:
+    id: proxy_spot_price_for_inventory
+    proxyIndicatorName: 现货价格走势代理库存周期位置
+    proxyFor: inventory_cycle_position
+    targetStateVariableId: inventory_cycle_position
+    proxyLogic: 在直接库存天数不可得时，用现货价与合约价相对强弱间接观察去库存/补库方向
+    validConditions:
+    - 价格口径连续可比
+    - 无重大规格切换
+    - 同步有至少一个需求或出货旁证
+    invalidConditions:
+    - 价格波动主要由成本或汇率驱动
+    - 样本仅覆盖单一渠道且不可复核
+    confidenceDiscount: 相对直接库存证据至少下调一档完备度
+    cannotReplace:
+    - 厂商库存天数原表
+    - 渠道库存审计数据
+    requiredDisclosure: 04/05 必须写明使用了价格代理库存，且不得写成确认库存位置
+  projection:
+    section: proxy_indicators
+    index: 0
+runtime_relations:
+- id: REL-end_market_demand_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: end_market_demand_strength
+  targetId: demand_orders
+  properties: {}
+- id: REL-customer_capex_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: customer_capex_intensity
+  targetId: demand_orders
+  properties: {}
+- id: REL-order_visibility-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: order_visibility
+  targetId: demand_orders
+  properties: {}
+- id: REL-adoption_penetration-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: adoption_penetration
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-design_win_visibility-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: design_win_visibility
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-supply_availability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: supply_availability
+  targetId: capacity_supply
+  properties: {}
+- id: REL-capacity_tightness-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: capacity_tightness
+  targetId: capacity_supply
+  properties: {}
+- id: REL-capacity_expansion_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: capacity_expansion_progress
+  targetId: capacity_supply
+  properties: {}
+- id: REL-supply_elasticity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: supply_elasticity
+  targetId: capacity_supply
+  properties: {}
+- id: REL-bottleneck_dependency_concentration-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: bottleneck_dependency_concentration
+  targetId: capacity_supply
+  properties: {}
+- id: REL-yield_maturity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: yield_maturity
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-process_capability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: process_capability
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-production_cycle_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: production_cycle_pressure
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-quality_reliability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: quality_reliability
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-inventory_cycle_position-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: inventory_cycle_position
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-inventory_buffer_capacity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: inventory_buffer_capacity
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-backlog_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: backlog_pressure
+  targetId: demand_orders
+  properties: {}
+- id: REL-product_price_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: product_price_pressure
+  targetId: pricing_economics
+  properties: {}
+- id: REL-input_cost_pressure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: input_cost_pressure
+  targetId: pricing_economics
+  properties: {}
+- id: REL-pricing_power-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: pricing_power
+  targetId: pricing_economics
+  properties: {}
+- id: REL-profit_pool_shift-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: profit_pool_shift
+  targetId: pricing_economics
+  properties: {}
+- id: REL-scaling_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: scaling_progress
+  targetId: technology_route
+  properties: {}
+- id: REL-technology_maturity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_maturity
+  targetId: technology_route
+  properties: {}
+- id: REL-technology_competitiveness-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_competitiveness
+  targetId: technology_route
+  properties: {}
+- id: REL-technology_substitution_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_substitution_intensity
+  targetId: technology_route
+  properties: {}
+- id: REL-customer_qualification_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: customer_qualification_progress
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-mass_production_readiness-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: mass_production_readiness
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-localization_substitution_progress-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: localization_substitution_progress
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-competitive_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: competitive_intensity
+  targetId: competition_structure
+  properties: {}
+- id: REL-customer_switching_cost-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: customer_switching_cost
+  targetId: competition_structure
+  properties: {}
+- id: REL-entry_barrier_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: entry_barrier_strength
+  targetId: competition_structure
+  properties: {}
+- id: REL-policy_support_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: policy_support_strength
+  targetId: policy_trade
+  properties: {}
+- id: REL-export_control_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: export_control_intensity
+  targetId: policy_trade
+  properties: {}
+- id: REL-compliance_friction-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: compliance_friction
+  targetId: policy_trade
+  properties: {}
+- id: REL-supply_chain_resilience-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: supply_chain_resilience
+  targetId: capacity_supply
+  properties: {}
+- id: REL-regional_policy_exposure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: regional_policy_exposure
+  targetId: policy_trade
+  properties: {}
+- id: REL-value_chain_role_exposure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: value_chain_role_exposure
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-technology_route_exposure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: technology_route_exposure
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-execution_delivery_capability-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: execution_delivery_capability
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-earnings_elasticity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: earnings_elasticity
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-consensus_expectation_level-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: consensus_expectation_level
+  targetId: market_expectations
+  properties: {}
+- id: REL-expectation_gap-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: expectation_gap
+  targetId: market_expectations
+  properties: {}
+- id: REL-priced_in_degree-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: priced_in_degree
+  targetId: market_expectations
+  properties: {}
+- id: REL-counter_evidence_strength-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: counter_evidence_strength
+  targetId: counter_evidence
+  properties: {}
+- id: REL-semiconductor_content_intensity-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: semiconductor_content_intensity
+  targetId: demand_orders
+  properties: {}
+- id: REL-product_mix_structure-PROFILE
+  type: stateVariableUsesEvidenceProfile
+  sourceId: product_mix_structure
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-demand_to_orders-source-end_market_demand_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_orders
+  targetId: end_market_demand_strength
+  properties:
+    role: source
+- id: REL-demand_to_orders-intermediate-adoption_penetration
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_orders
+  targetId: adoption_penetration
+  properties:
+    role: intermediate
+- id: REL-demand_to_orders-intermediate-semiconductor_content_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_orders
+  targetId: semiconductor_content_intensity
+  properties:
+    role: intermediate
+- id: REL-demand_to_orders-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: demand_to_orders
+  targetId: order_visibility
+  properties: {}
+- id: REL-demand_to_orders-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: demand_to_orders
+  targetId: demand_orders
+  properties: {}
+- id: REL-capex_to_semiconductor_demand-source-customer_capex_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: capex_to_semiconductor_demand
+  targetId: customer_capex_intensity
+  properties:
+    role: source
+- id: REL-capex_to_semiconductor_demand-intermediate-adoption_penetration
+  type: propagationTemplateUsesSourceVariable
+  sourceId: capex_to_semiconductor_demand
+  targetId: adoption_penetration
+  properties:
+    role: intermediate
+- id: REL-capex_to_semiconductor_demand-target-end_market_demand_strength
+  type: propagationTemplateProducesVariable
+  sourceId: capex_to_semiconductor_demand
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-capex_to_semiconductor_demand-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: capex_to_semiconductor_demand
+  targetId: order_visibility
+  properties: {}
+- id: REL-capex_to_semiconductor_demand-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: capex_to_semiconductor_demand
+  targetId: demand_orders
+  properties: {}
+- id: REL-adoption_to_volume-source-adoption_penetration
+  type: propagationTemplateUsesSourceVariable
+  sourceId: adoption_to_volume
+  targetId: adoption_penetration
+  properties:
+    role: source
+- id: REL-adoption_to_volume-source-customer_qualification_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: adoption_to_volume
+  targetId: customer_qualification_progress
+  properties:
+    role: source
+- id: REL-adoption_to_volume-intermediate-design_win_visibility
+  type: propagationTemplateUsesSourceVariable
+  sourceId: adoption_to_volume
+  targetId: design_win_visibility
+  properties:
+    role: intermediate
+- id: REL-adoption_to_volume-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: adoption_to_volume
+  targetId: order_visibility
+  properties: {}
+- id: REL-adoption_to_volume-target-mass_production_readiness
+  type: propagationTemplateProducesVariable
+  sourceId: adoption_to_volume
+  targetId: mass_production_readiness
+  properties: {}
+- id: REL-adoption_to_volume-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: adoption_to_volume
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-orders_to_capacity_pressure-source-order_visibility
+  type: propagationTemplateUsesSourceVariable
+  sourceId: orders_to_capacity_pressure
+  targetId: order_visibility
+  properties:
+    role: source
+- id: REL-orders_to_capacity_pressure-intermediate-inventory_cycle_position
+  type: propagationTemplateUsesSourceVariable
+  sourceId: orders_to_capacity_pressure
+  targetId: inventory_cycle_position
+  properties:
+    role: intermediate
+- id: REL-orders_to_capacity_pressure-target-capacity_tightness
+  type: propagationTemplateProducesVariable
+  sourceId: orders_to_capacity_pressure
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-orders_to_capacity_pressure-target-backlog_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: orders_to_capacity_pressure
+  targetId: backlog_pressure
+  properties: {}
+- id: REL-orders_to_capacity_pressure-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: orders_to_capacity_pressure
+  targetId: demand_orders
+  properties: {}
+- id: REL-demand_to_upstream_inputs-source-end_market_demand_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_upstream_inputs
+  targetId: end_market_demand_strength
+  properties:
+    role: source
+- id: REL-demand_to_upstream_inputs-source-capacity_expansion_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_upstream_inputs
+  targetId: capacity_expansion_progress
+  properties:
+    role: source
+- id: REL-demand_to_upstream_inputs-intermediate-capacity_tightness
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_upstream_inputs
+  targetId: capacity_tightness
+  properties:
+    role: intermediate
+- id: REL-demand_to_upstream_inputs-intermediate-scaling_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_upstream_inputs
+  targetId: scaling_progress
+  properties:
+    role: intermediate
+- id: REL-demand_to_upstream_inputs-intermediate-semiconductor_content_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: demand_to_upstream_inputs
+  targetId: semiconductor_content_intensity
+  properties:
+    role: intermediate
+- id: REL-demand_to_upstream_inputs-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: demand_to_upstream_inputs
+  targetId: order_visibility
+  properties: {}
+- id: REL-demand_to_upstream_inputs-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: demand_to_upstream_inputs
+  targetId: capacity_supply
+  properties: {}
+- id: REL-inventory_destocking-source-inventory_cycle_position
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_destocking
+  targetId: inventory_cycle_position
+  properties:
+    role: source
+- id: REL-inventory_destocking-intermediate-inventory_buffer_capacity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_destocking
+  targetId: inventory_buffer_capacity
+  properties:
+    role: intermediate
+- id: REL-inventory_destocking-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: inventory_destocking
+  targetId: order_visibility
+  properties: {}
+- id: REL-inventory_destocking-target-product_price_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: inventory_destocking
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-inventory_destocking-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: inventory_destocking
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-inventory_restocking-source-inventory_cycle_position
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_restocking
+  targetId: inventory_cycle_position
+  properties:
+    role: source
+- id: REL-inventory_restocking-source-end_market_demand_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_restocking
+  targetId: end_market_demand_strength
+  properties:
+    role: source
+- id: REL-inventory_restocking-intermediate-inventory_buffer_capacity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_restocking
+  targetId: inventory_buffer_capacity
+  properties:
+    role: intermediate
+- id: REL-inventory_restocking-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: inventory_restocking
+  targetId: order_visibility
+  properties: {}
+- id: REL-inventory_restocking-target-capacity_tightness
+  type: propagationTemplateProducesVariable
+  sourceId: inventory_restocking
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-inventory_restocking-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: inventory_restocking
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-supply_constraint_to_price_delivery-source-supply_availability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_constraint_to_price_delivery
+  targetId: supply_availability
+  properties:
+    role: source
+- id: REL-supply_constraint_to_price_delivery-source-capacity_tightness
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_constraint_to_price_delivery
+  targetId: capacity_tightness
+  properties:
+    role: source
+- id: REL-supply_constraint_to_price_delivery-intermediate-inventory_buffer_capacity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_constraint_to_price_delivery
+  targetId: inventory_buffer_capacity
+  properties:
+    role: intermediate
+- id: REL-supply_constraint_to_price_delivery-intermediate-pricing_power
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_constraint_to_price_delivery
+  targetId: pricing_power
+  properties:
+    role: intermediate
+- id: REL-supply_constraint_to_price_delivery-target-product_price_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: supply_constraint_to_price_delivery
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-supply_constraint_to_price_delivery-target-production_cycle_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: supply_constraint_to_price_delivery
+  targetId: production_cycle_pressure
+  properties: {}
+- id: REL-supply_constraint_to_price_delivery-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: supply_constraint_to_price_delivery
+  targetId: capacity_supply
+  properties: {}
+- id: REL-inventory_buffer_absorption-source-inventory_buffer_capacity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_buffer_absorption
+  targetId: inventory_buffer_capacity
+  properties:
+    role: source
+- id: REL-inventory_buffer_absorption-intermediate-supply_availability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: inventory_buffer_absorption
+  targetId: supply_availability
+  properties:
+    role: intermediate
+- id: REL-inventory_buffer_absorption-target-production_cycle_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: inventory_buffer_absorption
+  targetId: production_cycle_pressure
+  properties: {}
+- id: REL-inventory_buffer_absorption-target-product_price_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: inventory_buffer_absorption
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-inventory_buffer_absorption-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: inventory_buffer_absorption
+  targetId: inventory_cycle
+  properties: {}
+- id: REL-capacity_expansion_to_supply_relief-source-capacity_expansion_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: capacity_expansion_to_supply_relief
+  targetId: capacity_expansion_progress
+  properties:
+    role: source
+- id: REL-capacity_expansion_to_supply_relief-source-yield_maturity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: capacity_expansion_to_supply_relief
+  targetId: yield_maturity
+  properties:
+    role: source
+- id: REL-capacity_expansion_to_supply_relief-intermediate-customer_qualification_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: capacity_expansion_to_supply_relief
+  targetId: customer_qualification_progress
+  properties:
+    role: intermediate
+- id: REL-capacity_expansion_to_supply_relief-target-supply_availability
+  type: propagationTemplateProducesVariable
+  sourceId: capacity_expansion_to_supply_relief
+  targetId: supply_availability
+  properties: {}
+- id: REL-capacity_expansion_to_supply_relief-target-capacity_tightness
+  type: propagationTemplateProducesVariable
+  sourceId: capacity_expansion_to_supply_relief
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-capacity_expansion_to_supply_relief-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: capacity_expansion_to_supply_relief
+  targetId: capacity_supply
+  properties: {}
+- id: REL-yield_to_effective_supply-source-yield_maturity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: yield_to_effective_supply
+  targetId: yield_maturity
+  properties:
+    role: source
+- id: REL-yield_to_effective_supply-source-process_capability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: yield_to_effective_supply
+  targetId: process_capability
+  properties:
+    role: source
+- id: REL-yield_to_effective_supply-target-supply_availability
+  type: propagationTemplateProducesVariable
+  sourceId: yield_to_effective_supply
+  targetId: supply_availability
+  properties: {}
+- id: REL-yield_to_effective_supply-target-input_cost_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: yield_to_effective_supply
+  targetId: input_cost_pressure
+  properties: {}
+- id: REL-yield_to_effective_supply-target-mass_production_readiness
+  type: propagationTemplateProducesVariable
+  sourceId: yield_to_effective_supply
+  targetId: mass_production_readiness
+  properties: {}
+- id: REL-yield_to_effective_supply-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: yield_to_effective_supply
+  targetId: manufacturing_yield
+  properties: {}
+- id: REL-process_complexity_to_equipment_materials-source-scaling_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: process_complexity_to_equipment_materials
+  targetId: scaling_progress
+  properties:
+    role: source
+- id: REL-process_complexity_to_equipment_materials-source-process_capability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: process_complexity_to_equipment_materials
+  targetId: process_capability
+  properties:
+    role: source
+- id: REL-process_complexity_to_equipment_materials-intermediate-technology_maturity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: process_complexity_to_equipment_materials
+  targetId: technology_maturity
+  properties:
+    role: intermediate
+- id: REL-process_complexity_to_equipment_materials-target-customer_capex_intensity
+  type: propagationTemplateProducesVariable
+  sourceId: process_complexity_to_equipment_materials
+  targetId: customer_capex_intensity
+  properties: {}
+- id: REL-process_complexity_to_equipment_materials-target-input_cost_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: process_complexity_to_equipment_materials
+  targetId: input_cost_pressure
+  properties: {}
+- id: REL-process_complexity_to_equipment_materials-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: process_complexity_to_equipment_materials
+  targetId: technology_route
+  properties: {}
+- id: REL-scaling_to_yield_cost-source-scaling_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: scaling_to_yield_cost
+  targetId: scaling_progress
+  properties:
+    role: source
+- id: REL-scaling_to_yield_cost-intermediate-process_capability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: scaling_to_yield_cost
+  targetId: process_capability
+  properties:
+    role: intermediate
+- id: REL-scaling_to_yield_cost-target-yield_maturity
+  type: propagationTemplateProducesVariable
+  sourceId: scaling_to_yield_cost
+  targetId: yield_maturity
+  properties: {}
+- id: REL-scaling_to_yield_cost-target-input_cost_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: scaling_to_yield_cost
+  targetId: input_cost_pressure
+  properties: {}
+- id: REL-scaling_to_yield_cost-target-technology_competitiveness
+  type: propagationTemplateProducesVariable
+  sourceId: scaling_to_yield_cost
+  targetId: technology_competitiveness
+  properties: {}
+- id: REL-scaling_to_yield_cost-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: scaling_to_yield_cost
+  targetId: technology_route
+  properties: {}
+- id: REL-advanced_packaging_to_inputs-source-technology_maturity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: technology_maturity
+  properties:
+    role: source
+- id: REL-advanced_packaging_to_inputs-source-adoption_penetration
+  type: propagationTemplateUsesSourceVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: adoption_penetration
+  properties:
+    role: source
+- id: REL-advanced_packaging_to_inputs-intermediate-mass_production_readiness
+  type: propagationTemplateUsesSourceVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: mass_production_readiness
+  properties:
+    role: intermediate
+- id: REL-advanced_packaging_to_inputs-intermediate-quality_reliability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: quality_reliability
+  properties:
+    role: intermediate
+- id: REL-advanced_packaging_to_inputs-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: order_visibility
+  properties: {}
+- id: REL-advanced_packaging_to_inputs-target-capacity_tightness
+  type: propagationTemplateProducesVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-advanced_packaging_to_inputs-target-input_cost_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: advanced_packaging_to_inputs
+  targetId: input_cost_pressure
+  properties: {}
+- id: REL-advanced_packaging_to_inputs-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: advanced_packaging_to_inputs
+  targetId: technology_route
+  properties: {}
+- id: REL-competitiveness_to_substitution-source-technology_competitiveness
+  type: propagationTemplateUsesSourceVariable
+  sourceId: competitiveness_to_substitution
+  targetId: technology_competitiveness
+  properties:
+    role: source
+- id: REL-competitiveness_to_substitution-source-technology_maturity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: competitiveness_to_substitution
+  targetId: technology_maturity
+  properties:
+    role: source
+- id: REL-competitiveness_to_substitution-intermediate-customer_switching_cost
+  type: propagationTemplateUsesSourceVariable
+  sourceId: competitiveness_to_substitution
+  targetId: customer_switching_cost
+  properties:
+    role: intermediate
+- id: REL-competitiveness_to_substitution-target-technology_substitution_intensity
+  type: propagationTemplateProducesVariable
+  sourceId: competitiveness_to_substitution
+  targetId: technology_substitution_intensity
+  properties: {}
+- id: REL-competitiveness_to_substitution-target-adoption_penetration
+  type: propagationTemplateProducesVariable
+  sourceId: competitiveness_to_substitution
+  targetId: adoption_penetration
+  properties: {}
+- id: REL-competitiveness_to_substitution-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: competitiveness_to_substitution
+  targetId: technology_route
+  properties: {}
+- id: REL-qualification_to_mass_production-source-customer_qualification_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: qualification_to_mass_production
+  targetId: customer_qualification_progress
+  properties:
+    role: source
+- id: REL-qualification_to_mass_production-intermediate-design_win_visibility
+  type: propagationTemplateUsesSourceVariable
+  sourceId: qualification_to_mass_production
+  targetId: design_win_visibility
+  properties:
+    role: intermediate
+- id: REL-qualification_to_mass_production-intermediate-quality_reliability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: qualification_to_mass_production
+  targetId: quality_reliability
+  properties:
+    role: intermediate
+- id: REL-qualification_to_mass_production-target-mass_production_readiness
+  type: propagationTemplateProducesVariable
+  sourceId: qualification_to_mass_production
+  targetId: mass_production_readiness
+  properties: {}
+- id: REL-qualification_to_mass_production-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: qualification_to_mass_production
+  targetId: order_visibility
+  properties: {}
+- id: REL-qualification_to_mass_production-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: qualification_to_mass_production
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-localization_to_resilience-source-localization_substitution_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: localization_to_resilience
+  targetId: localization_substitution_progress
+  properties:
+    role: source
+- id: REL-localization_to_resilience-intermediate-customer_qualification_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: localization_to_resilience
+  targetId: customer_qualification_progress
+  properties:
+    role: intermediate
+- id: REL-localization_to_resilience-intermediate-mass_production_readiness
+  type: propagationTemplateUsesSourceVariable
+  sourceId: localization_to_resilience
+  targetId: mass_production_readiness
+  properties:
+    role: intermediate
+- id: REL-localization_to_resilience-target-supply_chain_resilience
+  type: propagationTemplateProducesVariable
+  sourceId: localization_to_resilience
+  targetId: supply_chain_resilience
+  properties: {}
+- id: REL-localization_to_resilience-target-supply_availability
+  type: propagationTemplateProducesVariable
+  sourceId: localization_to_resilience
+  targetId: supply_availability
+  properties: {}
+- id: REL-localization_to_resilience-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: localization_to_resilience
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-policy_support_to_capacity-source-policy_support_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: policy_support_to_capacity
+  targetId: policy_support_strength
+  properties:
+    role: source
+- id: REL-policy_support_to_capacity-intermediate-entry_barrier_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: policy_support_to_capacity
+  targetId: entry_barrier_strength
+  properties:
+    role: intermediate
+- id: REL-policy_support_to_capacity-target-customer_capex_intensity
+  type: propagationTemplateProducesVariable
+  sourceId: policy_support_to_capacity
+  targetId: customer_capex_intensity
+  properties: {}
+- id: REL-policy_support_to_capacity-target-capacity_expansion_progress
+  type: propagationTemplateProducesVariable
+  sourceId: policy_support_to_capacity
+  targetId: capacity_expansion_progress
+  properties: {}
+- id: REL-policy_support_to_capacity-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: policy_support_to_capacity
+  targetId: policy_trade
+  properties: {}
+- id: REL-export_control_to_supply-source-export_control_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: export_control_to_supply
+  targetId: export_control_intensity
+  properties:
+    role: source
+- id: REL-export_control_to_supply-intermediate-supply_chain_resilience
+  type: propagationTemplateUsesSourceVariable
+  sourceId: export_control_to_supply
+  targetId: supply_chain_resilience
+  properties:
+    role: intermediate
+- id: REL-export_control_to_supply-intermediate-localization_substitution_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: export_control_to_supply
+  targetId: localization_substitution_progress
+  properties:
+    role: intermediate
+- id: REL-export_control_to_supply-target-compliance_friction
+  type: propagationTemplateProducesVariable
+  sourceId: export_control_to_supply
+  targetId: compliance_friction
+  properties: {}
+- id: REL-export_control_to_supply-target-supply_availability
+  type: propagationTemplateProducesVariable
+  sourceId: export_control_to_supply
+  targetId: supply_availability
+  properties: {}
+- id: REL-export_control_to_supply-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: export_control_to_supply
+  targetId: policy_trade
+  properties: {}
+- id: REL-competition_to_pricing_profit-source-competitive_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: competition_to_pricing_profit
+  targetId: competitive_intensity
+  properties:
+    role: source
+- id: REL-competition_to_pricing_profit-intermediate-customer_switching_cost
+  type: propagationTemplateUsesSourceVariable
+  sourceId: competition_to_pricing_profit
+  targetId: customer_switching_cost
+  properties:
+    role: intermediate
+- id: REL-competition_to_pricing_profit-intermediate-entry_barrier_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: competition_to_pricing_profit
+  targetId: entry_barrier_strength
+  properties:
+    role: intermediate
+- id: REL-competition_to_pricing_profit-target-pricing_power
+  type: propagationTemplateProducesVariable
+  sourceId: competition_to_pricing_profit
+  targetId: pricing_power
+  properties: {}
+- id: REL-competition_to_pricing_profit-target-product_price_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: competition_to_pricing_profit
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-competition_to_pricing_profit-target-profit_pool_shift
+  type: propagationTemplateProducesVariable
+  sourceId: competition_to_pricing_profit
+  targetId: profit_pool_shift
+  properties: {}
+- id: REL-competition_to_pricing_profit-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: competition_to_pricing_profit
+  targetId: competition_structure
+  properties: {}
+- id: REL-exposure_execution_to_earnings-source-value_chain_role_exposure
+  type: propagationTemplateUsesSourceVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: value_chain_role_exposure
+  properties:
+    role: source
+- id: REL-exposure_execution_to_earnings-source-technology_route_exposure
+  type: propagationTemplateUsesSourceVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: technology_route_exposure
+  properties:
+    role: source
+- id: REL-exposure_execution_to_earnings-source-execution_delivery_capability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: execution_delivery_capability
+  properties:
+    role: source
+- id: REL-exposure_execution_to_earnings-intermediate-pricing_power
+  type: propagationTemplateUsesSourceVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: pricing_power
+  properties:
+    role: intermediate
+- id: REL-exposure_execution_to_earnings-intermediate-input_cost_pressure
+  type: propagationTemplateUsesSourceVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: input_cost_pressure
+  properties:
+    role: intermediate
+- id: REL-exposure_execution_to_earnings-intermediate-profit_pool_shift
+  type: propagationTemplateUsesSourceVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: profit_pool_shift
+  properties:
+    role: intermediate
+- id: REL-exposure_execution_to_earnings-target-earnings_elasticity
+  type: propagationTemplateProducesVariable
+  sourceId: exposure_execution_to_earnings
+  targetId: earnings_elasticity
+  properties: {}
+- id: REL-exposure_execution_to_earnings-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: exposure_execution_to_earnings
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-fundamentals_to_expectation_gap-source-earnings_elasticity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: fundamentals_to_expectation_gap
+  targetId: earnings_elasticity
+  properties:
+    role: source
+- id: REL-fundamentals_to_expectation_gap-source-order_visibility
+  type: propagationTemplateUsesSourceVariable
+  sourceId: fundamentals_to_expectation_gap
+  targetId: order_visibility
+  properties:
+    role: source
+- id: REL-fundamentals_to_expectation_gap-source-technology_substitution_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: fundamentals_to_expectation_gap
+  targetId: technology_substitution_intensity
+  properties:
+    role: source
+- id: REL-fundamentals_to_expectation_gap-intermediate-consensus_expectation_level
+  type: propagationTemplateUsesSourceVariable
+  sourceId: fundamentals_to_expectation_gap
+  targetId: consensus_expectation_level
+  properties:
+    role: intermediate
+- id: REL-fundamentals_to_expectation_gap-intermediate-counter_evidence_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: fundamentals_to_expectation_gap
+  targetId: counter_evidence_strength
+  properties:
+    role: intermediate
+- id: REL-fundamentals_to_expectation_gap-target-expectation_gap
+  type: propagationTemplateProducesVariable
+  sourceId: fundamentals_to_expectation_gap
+  targetId: expectation_gap
+  properties: {}
+- id: REL-fundamentals_to_expectation_gap-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: fundamentals_to_expectation_gap
+  targetId: market_expectations
+  properties: {}
+- id: REL-expectation_gap_to_pricing-source-expectation_gap
+  type: propagationTemplateUsesSourceVariable
+  sourceId: expectation_gap_to_pricing
+  targetId: expectation_gap
+  properties:
+    role: source
+- id: REL-expectation_gap_to_pricing-intermediate-consensus_expectation_level
+  type: propagationTemplateUsesSourceVariable
+  sourceId: expectation_gap_to_pricing
+  targetId: consensus_expectation_level
+  properties:
+    role: intermediate
+- id: REL-expectation_gap_to_pricing-intermediate-counter_evidence_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: expectation_gap_to_pricing
+  targetId: counter_evidence_strength
+  properties:
+    role: intermediate
+- id: REL-expectation_gap_to_pricing-target-priced_in_degree
+  type: propagationTemplateProducesVariable
+  sourceId: expectation_gap_to_pricing
+  targetId: priced_in_degree
+  properties: {}
+- id: REL-expectation_gap_to_pricing-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: expectation_gap_to_pricing
+  targetId: market_expectations
+  properties: {}
+- id: REL-supply_elasticity_to_price_persistence-source-supply_elasticity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_elasticity_to_price_persistence
+  targetId: supply_elasticity
+  properties:
+    role: source
+- id: REL-supply_elasticity_to_price_persistence-source-capacity_tightness
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_elasticity_to_price_persistence
+  targetId: capacity_tightness
+  properties:
+    role: source
+- id: REL-supply_elasticity_to_price_persistence-intermediate-supply_availability
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_elasticity_to_price_persistence
+  targetId: supply_availability
+  properties:
+    role: intermediate
+- id: REL-supply_elasticity_to_price_persistence-intermediate-pricing_power
+  type: propagationTemplateUsesSourceVariable
+  sourceId: supply_elasticity_to_price_persistence
+  targetId: pricing_power
+  properties:
+    role: intermediate
+- id: REL-supply_elasticity_to_price_persistence-target-product_price_pressure
+  type: propagationTemplateProducesVariable
+  sourceId: supply_elasticity_to_price_persistence
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-supply_elasticity_to_price_persistence-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: supply_elasticity_to_price_persistence
+  targetId: capacity_supply
+  properties: {}
+- id: REL-design_win_to_order_pipeline-source-design_win_visibility
+  type: propagationTemplateUsesSourceVariable
+  sourceId: design_win_to_order_pipeline
+  targetId: design_win_visibility
+  properties:
+    role: source
+- id: REL-design_win_to_order_pipeline-source-customer_qualification_progress
+  type: propagationTemplateUsesSourceVariable
+  sourceId: design_win_to_order_pipeline
+  targetId: customer_qualification_progress
+  properties:
+    role: source
+- id: REL-design_win_to_order_pipeline-intermediate-adoption_penetration
+  type: propagationTemplateUsesSourceVariable
+  sourceId: design_win_to_order_pipeline
+  targetId: adoption_penetration
+  properties:
+    role: intermediate
+- id: REL-design_win_to_order_pipeline-target-order_visibility
+  type: propagationTemplateProducesVariable
+  sourceId: design_win_to_order_pipeline
+  targetId: order_visibility
+  properties: {}
+- id: REL-design_win_to_order_pipeline-target-mass_production_readiness
+  type: propagationTemplateProducesVariable
+  sourceId: design_win_to_order_pipeline
+  targetId: mass_production_readiness
+  properties: {}
+- id: REL-design_win_to_order_pipeline-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: design_win_to_order_pipeline
+  targetId: qualification_commercialization
+  properties: {}
+- id: REL-bottleneck_cascade_to_supply-source-bottleneck_dependency_concentration
+  type: propagationTemplateUsesSourceVariable
+  sourceId: bottleneck_cascade_to_supply
+  targetId: bottleneck_dependency_concentration
+  properties:
+    role: source
+- id: REL-bottleneck_cascade_to_supply-intermediate-supply_chain_resilience
+  type: propagationTemplateUsesSourceVariable
+  sourceId: bottleneck_cascade_to_supply
+  targetId: supply_chain_resilience
+  properties:
+    role: intermediate
+- id: REL-bottleneck_cascade_to_supply-target-supply_availability
+  type: propagationTemplateProducesVariable
+  sourceId: bottleneck_cascade_to_supply
+  targetId: supply_availability
+  properties: {}
+- id: REL-bottleneck_cascade_to_supply-target-capacity_tightness
+  type: propagationTemplateProducesVariable
+  sourceId: bottleneck_cascade_to_supply
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-bottleneck_cascade_to_supply-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: bottleneck_cascade_to_supply
+  targetId: capacity_supply
+  properties: {}
+- id: REL-regional_policy_to_company_exposure-source-export_control_intensity
+  type: propagationTemplateUsesSourceVariable
+  sourceId: regional_policy_to_company_exposure
+  targetId: export_control_intensity
+  properties:
+    role: source
+- id: REL-regional_policy_to_company_exposure-source-policy_support_strength
+  type: propagationTemplateUsesSourceVariable
+  sourceId: regional_policy_to_company_exposure
+  targetId: policy_support_strength
+  properties:
+    role: source
+- id: REL-regional_policy_to_company_exposure-intermediate-supply_chain_resilience
+  type: propagationTemplateUsesSourceVariable
+  sourceId: regional_policy_to_company_exposure
+  targetId: supply_chain_resilience
+  properties:
+    role: intermediate
+- id: REL-regional_policy_to_company_exposure-target-regional_policy_exposure
+  type: propagationTemplateProducesVariable
+  sourceId: regional_policy_to_company_exposure
+  targetId: regional_policy_exposure
+  properties: {}
+- id: REL-regional_policy_to_company_exposure-target-compliance_friction
+  type: propagationTemplateProducesVariable
+  sourceId: regional_policy_to_company_exposure
+  targetId: compliance_friction
+  properties: {}
+- id: REL-regional_policy_to_company_exposure-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: regional_policy_to_company_exposure
+  targetId: policy_trade
+  properties: {}
+- id: REL-product_mix_to_earnings_quality-source-product_mix_structure
+  type: propagationTemplateUsesSourceVariable
+  sourceId: product_mix_to_earnings_quality
+  targetId: product_mix_structure
+  properties:
+    role: source
+- id: REL-product_mix_to_earnings_quality-source-value_chain_role_exposure
+  type: propagationTemplateUsesSourceVariable
+  sourceId: product_mix_to_earnings_quality
+  targetId: value_chain_role_exposure
+  properties:
+    role: source
+- id: REL-product_mix_to_earnings_quality-intermediate-pricing_power
+  type: propagationTemplateUsesSourceVariable
+  sourceId: product_mix_to_earnings_quality
+  targetId: pricing_power
+  properties:
+    role: intermediate
+- id: REL-product_mix_to_earnings_quality-intermediate-input_cost_pressure
+  type: propagationTemplateUsesSourceVariable
+  sourceId: product_mix_to_earnings_quality
+  targetId: input_cost_pressure
+  properties:
+    role: intermediate
+- id: REL-product_mix_to_earnings_quality-target-earnings_elasticity
+  type: propagationTemplateProducesVariable
+  sourceId: product_mix_to_earnings_quality
+  targetId: earnings_elasticity
+  properties: {}
+- id: REL-product_mix_to_earnings_quality-PROFILE
+  type: propagationTemplateUsesEvidenceProfile
+  sourceId: product_mix_to_earnings_quality
+  targetId: company_exposure_execution
+  properties: {}
+- id: REL-base-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-base-VARIABLE-supply_availability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: supply_availability
+  properties: {}
+- id: REL-base-VARIABLE-technology_maturity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: technology_maturity
+  properties: {}
+- id: REL-base-VARIABLE-competitive_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: competitive_intensity
+  properties: {}
+- id: REL-base-VARIABLE-counter_evidence_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: base
+  targetId: counter_evidence_strength
+  properties: {}
+- id: REL-upside-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-upside-VARIABLE-adoption_penetration
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: adoption_penetration
+  properties: {}
+- id: REL-upside-VARIABLE-order_visibility
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: order_visibility
+  properties: {}
+- id: REL-upside-VARIABLE-pricing_power
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: pricing_power
+  properties: {}
+- id: REL-upside-VARIABLE-execution_delivery_capability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: upside
+  targetId: execution_delivery_capability
+  properties: {}
+- id: REL-downside-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-downside-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-downside-VARIABLE-order_visibility
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: order_visibility
+  properties: {}
+- id: REL-downside-VARIABLE-competitive_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: competitive_intensity
+  properties: {}
+- id: REL-downside-VARIABLE-pricing_power
+  type: scenarioTemplateConstrainsVariable
+  sourceId: downside
+  targetId: pricing_power
+  properties: {}
+- id: REL-stress-VARIABLE-supply_availability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: supply_availability
+  properties: {}
+- id: REL-stress-VARIABLE-compliance_friction
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: compliance_friction
+  properties: {}
+- id: REL-stress-VARIABLE-supply_chain_resilience
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: supply_chain_resilience
+  properties: {}
+- id: REL-stress-VARIABLE-inventory_buffer_capacity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: inventory_buffer_capacity
+  properties: {}
+- id: REL-stress-VARIABLE-counter_evidence_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: stress
+  targetId: counter_evidence_strength
+  properties: {}
+- id: REL-cycle_recovery-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_recovery
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-cycle_recovery-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_recovery
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-cycle_recovery-VARIABLE-order_visibility
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_recovery
+  targetId: order_visibility
+  properties: {}
+- id: REL-cycle_downturn-VARIABLE-end_market_demand_strength
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_downturn
+  targetId: end_market_demand_strength
+  properties: {}
+- id: REL-cycle_downturn-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_downturn
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-cycle_downturn-VARIABLE-product_price_pressure
+  type: scenarioTemplateConstrainsVariable
+  sourceId: cycle_downturn
+  targetId: product_price_pressure
+  properties: {}
+- id: REL-supply_shock-VARIABLE-supply_availability
+  type: scenarioTemplateConstrainsVariable
+  sourceId: supply_shock
+  targetId: supply_availability
+  properties: {}
+- id: REL-supply_shock-VARIABLE-bottleneck_dependency_concentration
+  type: scenarioTemplateConstrainsVariable
+  sourceId: supply_shock
+  targetId: bottleneck_dependency_concentration
+  properties: {}
+- id: REL-overcapacity_expansion-VARIABLE-capacity_expansion_progress
+  type: scenarioTemplateConstrainsVariable
+  sourceId: overcapacity_expansion
+  targetId: capacity_expansion_progress
+  properties: {}
+- id: REL-overcapacity_expansion-VARIABLE-capacity_tightness
+  type: scenarioTemplateConstrainsVariable
+  sourceId: overcapacity_expansion
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-overcapacity_expansion-VARIABLE-supply_elasticity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: overcapacity_expansion
+  targetId: supply_elasticity
+  properties: {}
+- id: REL-technology_transition-VARIABLE-technology_substitution_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: technology_transition
+  targetId: technology_substitution_intensity
+  properties: {}
+- id: REL-technology_transition-VARIABLE-technology_maturity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: technology_transition
+  targetId: technology_maturity
+  properties: {}
+- id: REL-domestic_substitution-VARIABLE-localization_substitution_progress
+  type: scenarioTemplateConstrainsVariable
+  sourceId: domestic_substitution
+  targetId: localization_substitution_progress
+  properties: {}
+- id: REL-domestic_substitution-VARIABLE-customer_qualification_progress
+  type: scenarioTemplateConstrainsVariable
+  sourceId: domestic_substitution
+  targetId: customer_qualification_progress
+  properties: {}
+- id: REL-export_control_scenario-VARIABLE-export_control_intensity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: export_control_scenario
+  targetId: export_control_intensity
+  properties: {}
+- id: REL-export_control_scenario-VARIABLE-regional_policy_exposure
+  type: scenarioTemplateConstrainsVariable
+  sourceId: export_control_scenario
+  targetId: regional_policy_exposure
+  properties: {}
+- id: REL-advanced_packaging_bottleneck-VARIABLE-bottleneck_dependency_concentration
+  type: scenarioTemplateConstrainsVariable
+  sourceId: advanced_packaging_bottleneck
+  targetId: bottleneck_dependency_concentration
+  properties: {}
+- id: REL-advanced_packaging_bottleneck-VARIABLE-capacity_tightness
+  type: scenarioTemplateConstrainsVariable
+  sourceId: advanced_packaging_bottleneck
+  targetId: capacity_tightness
+  properties: {}
+- id: REL-inventory_correction-VARIABLE-inventory_cycle_position
+  type: scenarioTemplateConstrainsVariable
+  sourceId: inventory_correction
+  targetId: inventory_cycle_position
+  properties: {}
+- id: REL-inventory_correction-VARIABLE-inventory_buffer_capacity
+  type: scenarioTemplateConstrainsVariable
+  sourceId: inventory_correction
+  targetId: inventory_buffer_capacity
+  properties: {}
+metric_runtime_bindings:
+- metric_ref: end_market_demand_strength
+  properties:
+    id: end_market_demand_strength
+    decision_use: 判断需求变化是否具备产业链传导基础。
+    observation_guidance: 综合终端销量、使用量、系统部署、出货和行业景气，而非单一预测。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 终端销量下修、设备利用不足、预算削减或需求前置透支。
+    variable_role: primary_judgment_variable
+- metric_ref: customer_capex_intensity
+  properties:
+    id: customer_capex_intensity
+    decision_use: 判断系统建设需求能否转化为芯片、设备和基础设施订单。
+    observation_guidance: 观察预算、指引、项目启动、招标和实际采购的共同方向。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 预算延后、项目取消、利用率偏低或资本开支结构转向非半导体项目。
+    variable_role: primary_judgment_variable
+- metric_ref: order_visibility
+  properties:
+    id: order_visibility
+    decision_use: 区分短期询单、渠道补库和可兑现需求。
+    observation_guidance: 同时检查订单覆盖期、取消条款、重复下单和交付排期。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 订单取消、重复下单、渠道囤货或客户延迟拉货。
+    variable_role: primary_judgment_variable
+- metric_ref: adoption_penetration
+  properties:
+    id: adoption_penetration
+    decision_use: 判断新产品需求是概念验证还是可持续放量。
+    observation_guidance: 区分测试、定点、量产、复购和跨客户扩散阶段。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 认证延期、客户撤回、质量问题、替代路线增强或复购不足。
+    variable_role: primary_judgment_variable
+- metric_ref: design_win_visibility
+  properties:
+    id: design_win_visibility
+    decision_use: 区分概念合作、样品验证和可兑现的商业化进展。
+    variable_role: primary_judgment_variable
+    observation_guidance: 按商业化阶段区分概念、样品、认证、Design Win、试产、量产和复购。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 仅有意向合作、Design Win未覆盖量产规格或客户未启动项目。
+- metric_ref: supply_availability
+  properties:
+    id: supply_availability
+    decision_use: 判断需求能否被满足以及瓶颈是否真实存在。
+    observation_guidance: 联合观察产能、良率、交期、分配、许可、物流和替代供应。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 闲置产能、库存充足、替代供应可用、交期缩短或许可恢复。
+    variable_role: primary_judgment_variable
+- metric_ref: capacity_tightness
+  properties:
+    id: capacity_tightness
+    decision_use: 判断是否存在扩产、涨价、排队或需求外溢条件。
+    observation_guidance: 使用有效产能而非名义产能，并考虑良率、产品切换和维护停机。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 产线利用不足、可快速切换产能、良率改善或需求重复计算。
+    variable_role: primary_judgment_variable
+- metric_ref: capacity_expansion_progress
+  properties:
+    id: capacity_expansion_progress
+    decision_use: 判断新增供给何时、以何种质量释放。
+    observation_guidance: 分阶段记录建设、设备安装、试产、良率爬坡和客户认证。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 项目延期、设备或人才短缺、良率不足、客户认证失败或资本约束。
+    variable_role: intermediate_variable
+- metric_ref: supply_elasticity
+  properties:
+    id: supply_elasticity
+    decision_use: 判断供需缺口的持续时间和价格压力是否可延续。
+    observation_guidance: 考虑建设周期、设备通用性、产品切换、良率、认证和替代供应。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 产能可快速切换、标准化程度高、替代供应成熟或需求短暂。
+    variable_role: intermediate_variable
+- metric_ref: bottleneck_dependency_concentration
+  properties:
+    id: bottleneck_dependency_concentration
+    decision_use: 判断单点瓶颈是否会放大供给冲击和价格传导。
+    variable_role: intermediate_variable
+    observation_guidance: 穿透关键设备、材料、封装基板、测试产能和地域单点依赖。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 表面多供但共享同一上游、替代路线已认证或库存可缓冲。
+- metric_ref: yield_maturity
+  properties:
+    id: yield_maturity
+    decision_use: 判断名义产能能否转化为有效供给和经济性。
+    observation_guidance: 观察良率趋势、缺陷密度、返工、报废、跨批次稳定性和客户质量反馈。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 良率波动、关键缺陷、跨厂复制失败、可靠性不达标或成本不可接受。
+    variable_role: intermediate_variable
+- metric_ref: process_capability
+  properties:
+    id: process_capability
+    decision_use: 判断技术路线是否具备稳定制造基础。
+    observation_guidance: 联合考察过程窗口、量测、设备匹配、材料控制和统计稳定性。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 过程窗口狭窄、量测不足、设备漂移、材料波动或无法规模复制。
+    variable_role: intermediate_variable
+- metric_ref: production_cycle_pressure
+  properties:
+    id: production_cycle_pressure
+    decision_use: 判断供应紧张、在制品堆积和交付风险。
+    observation_guidance: 区分制造周期、排队时间、返工、物流和客户验收造成的延迟。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 周期恢复、加急能力充足、在制品下降或瓶颈工序解除。
+    variable_role: intermediate_variable
+- metric_ref: quality_reliability
+  properties:
+    id: quality_reliability
+    decision_use: 判断产品能否通过认证、维持量产和避免召回损失。
+    observation_guidance: 观察认证、失效率、退货、召回、可靠性测试和失效分析结果。
+    evidence_profile_ref: manufacturing_yield
+    counter_evidence_guidance: 现场失效、客户退货、认证未通过、参数漂移或重大质量事故。
+    variable_role: intermediate_variable
+- metric_ref: inventory_cycle_position
+  properties:
+    id: inventory_cycle_position
+    decision_use: 区分真实终端需求与库存行为造成的订单波动。
+    observation_guidance: 对齐供应商、渠道、客户和终端多层库存及业务时间。
+    evidence_profile_ref: inventory_cycle
+    counter_evidence_guidance: 不同层级库存方向相反、渠道重复下单或终端需求与出货背离。
+    variable_role: primary_judgment_variable
+- metric_ref: inventory_buffer_capacity
+  properties:
+    id: inventory_buffer_capacity
+    decision_use: 判断冲击是否立即传导以及传导强度。
+    observation_guidance: 结合可用库存、保质期、规格兼容性、在途库存和安全库存政策。
+    evidence_profile_ref: inventory_cycle
+    counter_evidence_guidance: 库存不可替换、规格不匹配、质量受限、消耗加快或数据仅为账面库存。
+    variable_role: intermediate_variable
+- metric_ref: backlog_pressure
+  properties:
+    id: backlog_pressure
+    decision_use: 判断未来交付强度与取消风险。
+    observation_guidance: 检查订单质量、覆盖期、取消权、客户集中度和历史转化率。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 大量可取消订单、重复预订、客户延迟验收或历史转化率偏低。
+    variable_role: intermediate_variable
+- metric_ref: product_price_pressure
+  properties:
+    id: product_price_pressure
+    decision_use: 判断收入、份额和利润池变化的价格渠道。
+    observation_guidance: 区分挂牌价、合同价、成交价、产品组合和一次性调整。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 产品结构变化、折扣未兑现、长期合同锁价或价格变化由汇率造成。
+    variable_role: primary_judgment_variable
+- metric_ref: input_cost_pressure
+  properties:
+    id: input_cost_pressure
+    decision_use: 判断价格变化是否能转化为利润改善或恶化。
+    observation_guidance: 区分单位用量、采购价、良率、折旧和产品组合的共同影响。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 成本被效率提升抵消、合同转嫁、原料占比低或会计确认滞后。
+    variable_role: intermediate_variable
+- metric_ref: pricing_power
+  properties:
+    id: pricing_power
+    decision_use: 判断供给紧张或成本上升的价值分配结果。
+    observation_guidance: 观察合同、替代难度、客户集中度、涨价兑现和份额变化。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 客户议价强、替代品充足、涨价后丢失份额或合同限制调价。
+    variable_role: intermediate_variable
+- metric_ref: profit_pool_shift
+  properties:
+    id: profit_pool_shift
+    decision_use: 防止把行业增长直接等同于所有环节盈利改善。
+    observation_guidance: 综合价格、成本、利用率、份额、资本强度和议价关系。
+    evidence_profile_ref: pricing_economics
+    counter_evidence_guidance: 会计周期错配、补贴、一次性收益或不同环节产能释放造成的临时变化。
+    variable_role: intermediate_variable
+- metric_ref: scaling_progress
+  properties:
+    id: scaling_progress
+    decision_use: 判断先进工艺需求、设备材料强度和成本复杂度变化。
+    observation_guidance: 观察架构、工艺模块、设计规则、良率、量产和经济性共同进展。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 良率不足、成本失控、设计收益有限、量测或材料瓶颈。
+    variable_role: intermediate_variable
+- metric_ref: technology_maturity
+  properties:
+    id: technology_maturity
+    decision_use: 区分概念突破与可投资、可交付的产业能力。
+    observation_guidance: 同时检查性能、可靠性、可制造性、成本、生态和量产证据。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 仅有实验室结果、缺少客户验证、成本过高或供应生态不完整。
+    variable_role: primary_judgment_variable
+- metric_ref: technology_competitiveness
+  properties:
+    id: technology_competitiveness
+    decision_use: 判断技术是否具备采用和替代基础。
+    observation_guidance: 使用同口径、同工作负载和同成熟阶段的比较。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 基准不可比、牺牲可靠性或成本、软件生态不足、量产条件不同。
+    variable_role: intermediate_variable
+- metric_ref: technology_substitution_intensity
+  properties:
+    id: technology_substitution_intensity
+    decision_use: 判断需求结构、设备材料需求和公司暴露的迁移方向。
+    observation_guidance: 区分局部互补、增量采用和存量替代，并检查切换成本。
+    evidence_profile_ref: technology_route
+    counter_evidence_guidance: 两条路线实际互补、客户迁移成本高、供应不足或性能优势只适用于窄场景。
+    variable_role: intermediate_variable
+- metric_ref: customer_qualification_progress
+  properties:
+    id: customer_qualification_progress
+    decision_use: 判断技术或国产替代能否从样品转化为订单。
+    observation_guidance: 区分送样、测试、通过认证、定点、量产和复购。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 认证延期、规格变更、质量问题、客户未下单或仅有非约束性意向。
+    variable_role: primary_judgment_variable
+- metric_ref: mass_production_readiness
+  properties:
+    id: mass_production_readiness
+    decision_use: 判断商业化是否具备兑现基础。
+    observation_guidance: 检查工艺冻结、产线认证、良率、供应商、测试和交付能力。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 产能未就绪、良率波动、供应商未认证、质量或测试瓶颈。
+    variable_role: intermediate_variable
+- metric_ref: localization_substitution_progress
+  properties:
+    id: localization_substitution_progress
+    decision_use: 判断替代路线是否真正降低外部依赖并形成商业份额。
+    observation_guidance: 同时检查性能、成本、良率、认证、复购和供应规模。
+    evidence_profile_ref: qualification_commercialization
+    counter_evidence_guidance: 仅完成送样、依赖进口核心环节、成本或良率不足、客户未重复采购。
+    variable_role: intermediate_variable
+- metric_ref: competitive_intensity
+  properties:
+    id: competitive_intensity
+    decision_use: 判断需求增长能否转化为盈利和份额改善。
+    observation_guidance: 观察价格行为、产能进入、客户切换、份额和差异化。
+    evidence_profile_ref: competition_structure
+    counter_evidence_guidance: 市场分层明显、产品不可替代、供给纪律增强或需求增长吸收新增供给。
+    variable_role: primary_judgment_variable
+- metric_ref: customer_switching_cost
+  properties:
+    id: customer_switching_cost
+    decision_use: 判断份额稳定性、定价能力和替代速度。
+    observation_guidance: 检查认证周期、重新设计、软件迁移、可靠性责任和多供策略。
+    evidence_profile_ref: competition_structure
+    counter_evidence_guidance: 标准化接口、兼容性高、已有双供认证或客户主动降低依赖。
+    variable_role: intermediate_variable
+- metric_ref: entry_barrier_strength
+  properties:
+    id: entry_barrier_strength
+    decision_use: 判断高利润是否可持续以及新增供给速度。
+    observation_guidance: 区分技术可得性、资金投入、学习曲线、生态和监管限制。
+    evidence_profile_ref: competition_structure
+    counter_evidence_guidance: 技术标准化、设备材料可得、政策补贴、人才流动或客户主动扶持新供应商。
+    variable_role: intermediate_variable
+- metric_ref: policy_support_strength
+  properties:
+    id: policy_support_strength
+    decision_use: 判断政策是否能转化为投资、需求、技术和产能结果。
+    observation_guidance: 区分政策发布、预算落实、项目执行、验收和持续性。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 缺少预算、执行延期、地方差异、附加条件过强或政策退出。
+    variable_role: primary_judgment_variable
+- metric_ref: export_control_intensity
+  properties:
+    id: export_control_intensity
+    decision_use: 判断市场准入、供给可得性和技术协作的约束。
+    observation_guidance: 检查适用对象、性能门槛、最终用途、许可、豁免、执法和多边协调。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 存在许可、豁免、替代来源、范围缩窄、执行宽松或政策撤回。
+    variable_role: primary_judgment_variable
+- metric_ref: compliance_friction
+  properties:
+    id: compliance_friction
+    decision_use: 判断政策影响是否通过交期、成本或市场准入实际传导。
+    observation_guidance: 观察审批周期、拒绝率、文件要求、审计、整改和替代流程。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 流程标准化、审批恢复、企业已有合规能力或政策不适用于目标对象。
+    variable_role: intermediate_variable
+- metric_ref: supply_chain_resilience
+  properties:
+    id: supply_chain_resilience
+    decision_use: 判断单点风险是否会升级为持续产业冲击。
+    observation_guidance: 检查关键层级的真实多供、库存可替换性、恢复时间和依赖穿透。
+    evidence_profile_ref: capacity_supply
+    counter_evidence_guidance: 表面多供但共享单一上游、库存不可替换、替代品未认证或地域高度集中。
+    variable_role: intermediate_variable
+- metric_ref: regional_policy_exposure
+  properties:
+    id: regional_policy_exposure
+    decision_use: 将地域政策变化映射到公司层面的合规、供给和市场准入影响。
+    variable_role: company_mapping_variable
+    observation_guidance: 综合生产、销售、采购、技术和资本布局的地域分布与政策适用范围。
+    evidence_profile_ref: policy_trade
+    counter_evidence_guidance: 政策不适用、业务地域分散、已有合规能力或替代产地可切换。
+- metric_ref: value_chain_role_exposure
+  properties:
+    id: value_chain_role_exposure
+    decision_use: 将行业变化映射到公司经营，而不直接从行业跳到资产。
+    observation_guidance: 综合业务结构、产能、客户、供应商和利润贡献，而非只看公司标签。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 相关业务占比低、利润贡献弱、内部对冲、合同保护或收入确认滞后。
+    variable_role: company_mapping_variable
+- metric_ref: technology_route_exposure
+  properties:
+    id: technology_route_exposure
+    decision_use: 判断技术替代对不同公司角色的差异化影响。
+    observation_guidance: 同时检查受益路线、被替代路线、研发选择权和产能可切换性。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 公司具备多路线布局、相关业务占比低、产能可切换或客户采用未发生。
+    variable_role: company_mapping_variable
+- metric_ref: execution_delivery_capability
+  properties:
+    id: execution_delivery_capability
+    decision_use: 防止把订单或行业景气直接等同于业绩兑现。
+    observation_guidance: 检查产能、良率、供应、质量、人员、项目管理、验收和收入确认。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 交付延期、良率不足、供应受限、验收失败、客户集中或收入确认受阻。
+    variable_role: company_mapping_variable
+- metric_ref: earnings_elasticity
+  properties:
+    id: earnings_elasticity
+    decision_use: 判断产业变量变化对公司经营结果的幅度与方向。
+    observation_guidance: 拆分量、价、结构、利用率、成本、费用、资本开支和营运资金渠道。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 固定合同、业务对冲、费用投入、折旧上升、营运资金占用或会计确认滞后。
+    variable_role: company_mapping_variable
+- metric_ref: consensus_expectation_level
+  properties:
+    id: consensus_expectation_level
+    decision_use: 建立基本面判断与市场已知信息的比较基准。
+    observation_guidance: 对齐对象、时间尺度、口径和预期来源，保留分歧。
+    evidence_profile_ref: market_expectations
+    counter_evidence_guidance: 预期来源陈旧、样本偏少、不同口径混用或价格隐含信息与文本预期不一致。
+    variable_role: market_variable
+- metric_ref: expectation_gap
+  properties:
+    id: expectation_gap
+    decision_use: 判断基本面变化是否提供新增信息，而非重复市场共识。
+    observation_guidance: 必须先对齐对象、业务时间、情景和度量口径再比较。
+    evidence_profile_ref: market_expectations
+    counter_evidence_guidance: 预期口径不可比、事件已公开、资产已提前反应或基本面证据不足。
+    variable_role: market_variable
+- metric_ref: priced_in_degree
+  properties:
+    id: priced_in_degree
+    decision_use: 约束从基本面判断到资产影响的升级。
+    observation_guidance: 结合事件前后表现、估值变化、成交、持仓和一致预期修正。
+    evidence_profile_ref: market_expectations
+    counter_evidence_guidance: 市场波动由其他事件驱动、窗口过短、基准错误或拥挤指标失真。
+    variable_role: market_variable
+- metric_ref: counter_evidence_strength
+  properties:
+    id: counter_evidence_strength
+    decision_use: 决定判断维持、降级、争议或阻断。
+    observation_guidance: 比较反证的可靠性、独立性、时效、相关性和是否命中核心前提。
+    evidence_profile_ref: counter_evidence
+    counter_evidence_guidance: 所谓反证可能口径不一致、时间错配、仅影响幅度而非方向，或缺少独立来源。
+    variable_role: counter_variable
+- metric_ref: semiconductor_content_intensity
+  properties:
+    id: semiconductor_content_intensity
+    decision_use: 判断终端量变化与单机/单系统半导体价值量变化如何共同传导至订单与上游需求。
+    variable_role: intermediate_variable
+    observation_guidance: 结合终端出货量、单机芯片用量、封装复杂度、材料体系和化合物半导体替代情况评估。
+    evidence_profile_ref: demand_orders
+    counter_evidence_guidance: 先进封装或异构集成降低单位算力半导体价值量、材料替代或设计优化抵消。
+- metric_ref: product_mix_structure
+  properties:
+    id: product_mix_structure
+    decision_use: 判断行业景气能否通过产品组合结构转化为可观察业绩弹性。
+    variable_role: company_mapping_variable
+    observation_guidance: 拆分收入、毛利和增长贡献，区分结构性产品与周期性或一次性产品。
+    evidence_profile_ref: company_exposure_execution
+    counter_evidence_guidance: 增长来自低毛利产品、老旧产品或不可持续的一次性项目。

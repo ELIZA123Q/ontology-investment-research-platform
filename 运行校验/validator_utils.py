@@ -12,6 +12,7 @@ from typing import Any, Iterable
 
 import yaml
 
+from authority_loader import load_authority_yaml
 from ontology_instance_graph import materialize_document
 
 
@@ -87,6 +88,8 @@ def load_yaml_file(path: str | Path) -> Any:
     data = load_yaml_text(read_text(path), str(path))
     if data is None:
         fail(f"{path} 为空")
+    if isinstance(data, dict) and data.get("authority_targets"):
+        data = load_authority_yaml(path)
     return materialize_document(data)
 
 

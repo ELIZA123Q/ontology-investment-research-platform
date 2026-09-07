@@ -1,0 +1,44 @@
+schema_name: research_rule_execution_policy
+schema_version: 1.0.0
+status: active
+description: 研究规则执行器的授权边界和迁移策略。
+
+executors:
+  structural_validation:
+    engine: SHACL
+    status: active
+  evidence_quality:
+    engine: deterministic_python
+    status: active
+  judgment_level_cap:
+    engine: deterministic_python
+    status: active
+  blocking_and_expression_permissions:
+    engine: deterministic_python
+    status: active
+  semantica_rete:
+    engine: semantica_rete
+    status: parity_required
+  semantica_datalog:
+    engine: semantica_datalog
+    status: parity_required
+  semantica_sparql:
+    engine: oxigraph_sparql
+    status: query_only
+
+switch_policy:
+  - 每条规则必须先通过与现行确定性 Python 结果完全一致的契约测试。
+  - 切换以单条规则和固定版本为单位，不允许整包自动替换。
+  - 任何差异均保留 Python 执行器为权威，并生成失败的 RuleEvaluation。
+
+decision_boundary:
+  judgment_model: investment_research_Judgment
+  semantica_decision_allowed_uses: [publish, upgrade_schema, accept_change]
+  prohibited: 禁止用 Semantica 通用 Decision 替代投研 Judgment。
+
+automation_prohibitions:
+  - 自动本体生成写回
+  - 自动冲突裁决
+  - LLM 自动形成正式 EvidenceFact
+  - LLM 自动形成正式 Judgment
+  - GraphRAG、相似度、中心性或链接预测直接提升结论等级

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验主要业务参数只有一个本体权威源，并输出参数归属覆盖率。"""
+"""校验主要业务参数在语义、运行合同与研究规则中只有一个权威源。"""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 
 import yaml
+
+from authority_loader import load_authority_yaml
 
 from ontology_instance_graph import (
     expand_judgment_nested_parameters,
@@ -147,7 +149,7 @@ def main() -> int:
             errors.append(f"{path.relative_to(ROOT)}: {exc}")
 
     domain_dir = ROOT / "二级半导体领域本体规范"
-    domain_doc = yaml.safe_load((domain_dir / "business_instances.yaml").read_text(encoding="utf-8"))
+    domain_doc = load_authority_yaml(domain_dir / "business_instances.yaml")
     try:
         graph = validate_instance_graph(domain_doc["business_instance_graph"])
         coverage["domain_instances"] = len(graph.get("objects", []))
@@ -181,7 +183,7 @@ def main() -> int:
             "judgment_level_criterion_templates",
         },
     }.items():
-        schema = yaml.safe_load((domain_dir / filename).read_text(encoding="utf-8"))
+        schema = load_authority_yaml(domain_dir / filename)
         duplicated = sorted(forbidden & set(schema))
         if duplicated or schema.get("business_instance_graph_ref") != "business_instances.yaml":
             errors.append(f"{filename} registry 未完全迁出: {duplicated}")
@@ -273,8 +275,9 @@ def main() -> int:
         if len(entries) < 8:
             errors.append("parameter_authority_matrix.parameters 条目过少")
         allowed_kinds = {
-            "formal_ontology_instance",
-            "ontology_rule_param",
+            "semantic_ontology_instance",
+            "research_rule_config",
+            "research_runtime_contract",
             "knowledge_base_ref",
             "runtime_contract",
         }
@@ -305,9 +308,8 @@ def main() -> int:
                 f"parameter_authority_matrix 缺少已有权威项登记: {missing_matrix}"
             )
         ownership = raw_contract.get("ownership") or {}
-        formal_owned = set(ownership.get("formal_ontology") or [])
-        required_formal = {
-            "state_variables",
+        rule_owned = set(ownership.get("research_rules") or [])
+        required_rules = {
             "evidence_profiles",
             "propagation_templates",
             "scenario_templates",
@@ -317,11 +319,14 @@ def main() -> int:
             "source_profiles",
             "proxy_indicators",
         }
-        missing_formal = sorted(required_formal - formal_owned)
-        if missing_formal:
+        missing_rules = sorted(required_rules - rule_owned)
+        if missing_rules:
             errors.append(
-                f"public_contract.ownership.formal_ontology 缺少: {missing_formal}"
+                f"public_contract.ownership.research_rules 缺少: {missing_rules}"
             )
+        semantic_owned = set(ownership.get("semantic_ontology") or [])
+        if "research_metrics" not in semantic_owned:
+            errors.append("public_contract.ownership.semantic_ontology 缺少 research_metrics")
         public_owned = set(ownership.get("public_contract") or [])
         if "judgment_method_routes" not in public_owned:
             errors.append(
@@ -396,9 +401,9 @@ def main() -> int:
         print(f"- 参数归属覆盖率未达 100%: {coverage_rate:.2%} ({owned}/{required})")
         return 1
     print(
-        "PARAMETER_AUTHORITY_PASS: 02 任务参数、03/04 运行实例、12 个证据画像、46 个状态变量、"
+        "PARAMETER_AUTHORITY_PASS: 02 任务参数、03/04 运行实例、12 个证据画像、46 个稳定指标定义、"
         "28 个传导模板、4 个情景模板、9 个情景标签、5 个 J 门槛模板、取证配方/来源画像/代理指标"
-        "及判断门槛均由本体单一驱动。"
+        "及判断门槛均由分层权威单一驱动。"
     )
     print(f"PARAMETER_OWNERSHIP_COVERAGE: {coverage_rate:.2%} ({owned}/{required})")
     return 0

@@ -26,6 +26,7 @@ from ontology_instance_graph import (  # noqa: E402
     validate_instance_graph,
 )
 from snapshot_layout_03 import snapshot_csv_path  # noqa: E402
+from authority_loader import load_authority_yaml  # noqa: E402
 
 
 # 04 审计中由正式推理本体承载的列表段。
@@ -97,7 +98,7 @@ def _catalog() -> tuple[set[str], set[str]]:
                 path = ROOT / root_name / filename
                 if not path.is_file():
                     continue
-                schema = yaml.safe_load(path.read_text(encoding="utf-8"))
+                schema = load_authority_yaml(path)
                 objects.update(schema.get("object_types", {}) or {})
                 relations.update(schema.get("relation_types", {}) or {})
         _FORMAL_OBJECT_TYPES = objects
