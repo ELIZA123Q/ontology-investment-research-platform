@@ -1,0 +1,258 @@
+registry_type: evidence_method_registry
+schema_version: 3.2.0
+updated_at: 2026-07-16
+
+# 本文件是方法说明与任务编排索引，不是业务参数权威。
+# 本文件只提供方法标签和阅读索引；机器规则只在受限 DSL 权威中维护。
+ontology_authority_refs:
+  executable_rules: 研究规则/rules.yaml
+  evidence_contract: 研究运行合同/evidence.yaml
+  evidence_recipes: 研究方法/半导体/research-catalog.yaml#runtime_objects.@type=EvidenceRecipe
+  source_profiles: 研究方法/半导体/research-catalog.yaml#runtime_objects.@type=SourceProfile
+  proxy_indicators: 研究方法/半导体/research-catalog.yaml#runtime_objects.@type=ProxyIndicator
+
+# 所有证据必须先通过的共同有效性条件；不是可收集的证据角色。
+validity_preconditions:
+  - id: traceable
+    label: 可追溯
+  - id: permission_ok
+    label: 权限合法
+  - id: object_match
+    label: 对象匹配
+  - id: business_time_match
+    label: 业务时间匹配
+  - id: definition_unit_match
+    label: 定义与单位匹配
+  - id: version_clear
+    label: 版本明确
+
+# 方法侧五类角色（说明用）。机器权威映射见 ontology_authority_refs.evidence_method_role_to_basket_role。
+evidence_roles:
+  primary:
+    label: 主证据
+    question: 是否直接回答当前问题
+    basket_role_ref: primary_support
+  baseline:
+    label: 比较基准
+    question: 相对前期、历史、同业或正常区间处于哪里
+    basket_role_ref: background_evidence
+  mechanism:
+    label: 机制或承接
+    question: 变化怎样传导、由谁承接、哪里可能阻断
+    basket_role_ref: cross_validation
+  cross_check:
+    label: 独立交叉验证
+    question: 不同生产链的材料是否给出相容结果
+    basket_role_ref: cross_validation
+  counter:
+    label: 反证与限制
+    question: 哪些反向、阻断候选或竞争解释材料需要移交 04
+    basket_role_ref: counter_evidence
+
+# 研究员完备度用语（说明用）。机器 Q 档映射权威在本体规则参数，此处仅投影。
+quality_language:
+  sufficient:
+    label: 充分
+    maximum_use: 明确判断（含明确支持与明确否定）
+    machine_evidence_grades_ref: 研究规则/rules.yaml#rules.evidence_quality_cap
+  limited:
+    label: 受限
+    maximum_use: 有条件判断
+    machine_evidence_grades_ref: 研究规则/rules.yaml#rules.evidence_quality_cap
+  observation:
+    label: 观察
+    maximum_use: 方向观察
+    machine_evidence_grades_ref: 研究规则/rules.yaml#rules.evidence_quality_cap
+  unusable:
+    label: 不可用
+    maximum_use: 暂不可判断
+    machine_evidence_grades_ref: 研究规则/rules.yaml#rules.evidence_quality_cap
+
+# 04 命题支持状态对照（03 不填写）
+proposition_support_states_owned_by_04:
+  - support
+  - partial_support
+  - weaken
+  - contested
+  - block
+  - overturn
+  - pending
+
+judgment_types:
+  state_measurement:
+    method: A02
+    required_roles: [primary, baseline, counter]
+    optional_roles: [cross_check]
+    formal_a08: false
+    auto_add: []
+    max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_state_measurement
+  trend_direction:
+    method: A03
+    required_roles: [primary, baseline, cross_check, counter]
+    optional_roles: []
+    formal_a08: true
+    auto_add: []
+    requires_methods: [A02]
+    max_completeness_without_direct_data: observation
+  cycle_phase:
+    method: A03
+    required_roles: [primary, baseline, cross_check, counter]
+    optional_roles: [mechanism]
+    formal_a08: true
+    auto_add: []
+    requires_methods: [A02]
+    max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_cycle_phase
+  mechanism_validation:
+    method: A04
+    required_roles: [primary, mechanism, cross_check, counter]
+    optional_roles: [baseline]
+    formal_a08: true
+    auto_add: [A01]
+    max_completeness_without_direct_data: observation
+  causal_attribution:
+    method: A04
+    required_roles: [primary, mechanism, cross_check, counter]
+    optional_roles: [baseline]
+    formal_a08: true
+    auto_add: [A01]
+    max_completeness_without_direct_data: observation
+  transmission_path:
+    method: A04
+    required_roles: [primary, mechanism, counter]
+    optional_roles: [cross_check]
+    formal_a08: true
+    auto_add: [A01]
+    max_completeness_without_direct_data: observation
+    evidence_recipe_ref: recipe_transmission_path
+  object_differentiation:
+    method: A05
+    required_roles: [primary, baseline, mechanism, counter]
+    optional_roles: [cross_check]
+    formal_a08: true
+    auto_add: []
+    forbidden_without: [unified_comparison_scope]
+    max_completeness_without_direct_data: observation
+  impact_realization:
+    method: A06
+    required_roles: [primary, mechanism, baseline, counter]
+    optional_roles: [cross_check]
+    formal_a08: true
+    auto_add: []
+    forbidden_without: [financial_baseline, critical_financial_bridge]
+    max_completeness_without_direct_data: observation
+  expectation_gap:
+    method: A07
+    required_roles: [primary, baseline, cross_check, counter]
+    optional_roles: []
+    formal_a08: true
+    auto_add: []
+    forbidden_without: [pre_event_consensus_vintage]
+    max_completeness_without_direct_data: observation
+  valuation_impact:
+    method: A07
+    required_roles: [primary, baseline, cross_check, counter]
+    optional_roles: [mechanism]
+    formal_a08: true
+    auto_add: []
+    forbidden_without: [valuation_baseline]
+    max_completeness_without_direct_data: observation
+
+methods:
+  A01:
+    name: 事实状态取证
+    file: A01_事实确认.md
+    mode: auxiliary
+    required_roles: [primary, counter]
+    use_when: 关键事实、政策、项目、交易、认证或关系需要状态材料
+    counter_mode: lightweight
+  A02:
+    name: 状态测量取证
+    file: A02_状态变量测量.md
+    mode: primary
+    required_roles: [primary, baseline, counter]
+    counter_mode: lightweight
+  A03:
+    name: 趋势与阶段证据准备
+    file: A03_趋势与阶段判断.md
+    mode: primary
+    required_roles: [primary, baseline, cross_check, counter]
+    requires_methods: [A02]
+    counter_mode: formal_a08
+  A04:
+    name: 路径分段取证
+    file: A04_机制传导验证.md
+    mode: primary
+    required_roles: [primary, mechanism, counter]
+    auto_add_when:
+      - when: start_fact_unconfirmed
+        add: [A01]
+    follow_on_methods:
+      - when: target_involves_revenue_profit_or_cash
+        add: [A06]
+    counter_mode: formal_a08
+  A05:
+    name: 可比性与暴露证据准备
+    file: A05_对象分化比较.md
+    mode: primary
+    required_roles: [primary, baseline, mechanism, counter]
+    forbidden_without: [unified_comparison_scope]
+    follow_on_methods:
+      - when: target_involves_revenue_profit_or_cash
+        add: [A06]
+    counter_mode: formal_a08
+  A06:
+    name: 财务桥输入与测算证据
+    file: A06_财务影响测算.md
+    mode: auxiliary
+    required_roles: [primary, mechanism, baseline, counter]
+    use_when: 目标涉及收入、利润、现金流或资产负债表
+    forbidden_without: [financial_baseline, critical_financial_bridge]
+    counter_mode: formal_a08
+  A07:
+    name: 事前预期与定价证据准备
+    file: A07_市场预期与定价.md
+    mode: primary
+    required_roles: [primary, baseline, cross_check, counter]
+    forbidden_without: [pre_event_consensus_vintage]
+    counter_mode: formal_a08
+  A08:
+    name: 反向证据扫描
+    file: A08_反证与竞争解释.md
+    mode: add_on
+    required_roles: [counter]
+    use_when: A03—A07 及正式财务/比较命题；A01/A02 仅轻量反向检查
+    counter_mode: self
+  A09:
+    name: 代理指标校准
+    file: A09_代理指标.md
+    mode: add_on
+    required_roles: [cross_check, counter]
+    use_when: 直接数据不可得、明显滞后、权限受限或结构上不可观测
+    max_completeness_as_core_substitute: limited
+    counter_mode: lightweight
+
+dependency_rules:
+  A03_requires_A02: 没有合格 A02 测量，不得调用 A03
+  A04_auto_A01: 起点事实未确认时，自动增加 A01
+  A05_requires_unified_scope: 比较变量未统一口径时，不得形成排序证据包
+  A06_auto_on_financials: 目标涉及收入、利润、现金流时自动调用 A06
+  A07_requires_vintage: 没有事前共识 vintage 时不得形成预期差证据包，完备度最高观察或不可用
+  A09_no_sufficient_as_core: A09 作为核心替代时不得达到充分
+
+source_guides:
+  principles: B00_来源选择与使用边界.md
+  general: B01_通用来源速查.md
+  semiconductor: B02_半导体来源速查.md
+
+runtime_references:
+  operations:
+    - OPS_通用真实来源查询与回退手册.md
+    - OPS_半导体真实来源查询与口径手册.md
+    - OPS_地缘规则与冲击查询手册.md
+
+runtime_mapping:
+  library_recipe_id: 引用本登记中 A01—A09 的稳定方法 ID。
+  library_basket_ids: 使用 primary|baseline|mechanism|cross_check|counter 方法角色。
+  rule: Q0—Q4 由规则执行结果派生，不在人工方法卡中直接填写。

@@ -1,9 +1,0 @@
-# v2 兼容入口：只读。正式定义请修改 authority_targets。
-schema_name: ontology_semantic
-schema_version: 1.1.0
-status: deprecated_read_only
-description: v1 semantic 合并视图；稳定语义和语义治理动作已分离。
-depends_on: [common.yaml]
-authority_targets:
-- ../语义本体/一级通用/semantic.yaml
-- ../研究规则/semantic_governance.yaml

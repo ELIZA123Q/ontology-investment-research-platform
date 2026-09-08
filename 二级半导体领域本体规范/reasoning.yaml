@@ -1,8 +1,0 @@
-# v2 兼容入口：只读。领域推理策略不再属于本体。
-schema_name: semiconductor_domain_reasoning
-schema_version: 1.0.0
-status: deprecated_read_only
-description: 半导体事件词表、推理扩展与约束的兼容入口。
-depends_on: [common.yaml, semantic.yaml, evidence.yaml, ../一级通用本体规范/reasoning.yaml]
-authority_targets:
-- ../研究规则/二级半导体/reasoning_policy.yaml

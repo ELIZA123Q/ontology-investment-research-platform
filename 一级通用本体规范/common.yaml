@@ -1,9 +1,0 @@
-# v2 兼容入口：只读。正式定义请修改 authority_targets，勿在此复制枚举或规则。
-schema_name: ontology_common
-schema_version: 2.1.0
-status: deprecated_read_only
-description: v1 公共合同兼容入口；语义公共约束与研究运行公共合同已经分离。
-compatibility_shape: v1_common
-authority_targets:
-- ../语义本体/一级通用/common.yaml
-- ../研究运行合同/common.yaml
