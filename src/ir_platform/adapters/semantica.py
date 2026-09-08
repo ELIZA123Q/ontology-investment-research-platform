@@ -9,12 +9,14 @@ from urllib.parse import quote
 
 # 架构约束：整个项目只有本模块可以导入 semantica.*。
 from semantica.context import ContextGraph
+from semantica.pipeline import ExecutionEngine, PipelineBuilder
 from semantica.provenance import ProvenanceManager
 from semantica.semantic_extract import Triplet
 from semantica.triplet_store import OxigraphStore
 
 from ir_platform.runtime.models import GraphBundle, RuntimeEntity, RuntimeRelation
 from ir_platform.runtime.repository import ResearchGraphRepository
+from ir_platform.planning.models import ExecutionNode
 
 
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
@@ -312,3 +314,37 @@ class SemanticaResearchGraphRepository(ResearchGraphRepository):
         if isinstance(result, list):
             return result
         return []
+
+
+class SemanticaPipelineAdapter:
+    """把当前就绪节点映射为一次可丢弃的 Semantica Pipeline 执行层。"""
+
+    def __init__(self, *, max_workers: int = 4) -> None:
+        self.max_workers = max_workers
+
+    def execute_layer(self, calls: list[tuple[ExecutionNode, Any]]) -> dict[str, Any]:
+        if not calls:
+            return {}
+        builder = PipelineBuilder()
+        for node, handler in calls:
+            builder.add_step(
+                node.id,
+                node.capability_ref,
+                handler=lambda _data, _handler=handler, _node_id=node.id, **_options: {
+                    _node_id: _handler()
+                },
+                parallel_safe=node.parallel_safe,
+            )
+        builder.set_parallelism(min(self.max_workers, len(calls)))
+        pipeline = builder.build(name=f"research-layer:{id(calls)}")
+        result = ExecutionEngine({"max_workers": self.max_workers}).execute_pipeline(
+            pipeline, data={}
+        )
+        if not result.success:
+            raise RuntimeError("; ".join(result.errors) or "Semantica pipeline 执行失败")
+        outputs: dict[str, Any] = {}
+        for step in pipeline.steps:
+            if not isinstance(step.result, dict) or step.name not in step.result:
+                raise RuntimeError(f"Semantica 节点 {step.name} 未返回约定结果")
+            outputs[step.name] = step.result[step.name]
+        return outputs

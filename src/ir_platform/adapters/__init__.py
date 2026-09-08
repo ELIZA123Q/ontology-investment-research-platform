@@ -1,3 +1,3 @@
-from .semantica import SemanticaResearchGraphRepository
+from .semantica import SemanticaPipelineAdapter, SemanticaResearchGraphRepository
 
-__all__ = ["SemanticaResearchGraphRepository"]
+__all__ = ["SemanticaPipelineAdapter", "SemanticaResearchGraphRepository"]
