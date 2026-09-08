@@ -1,0 +1,26 @@
+bundle_id: EXEC-MEM-CYCLE-20260715-1
+title: 存储芯片周期研究
+overall_judgment_level: J2
+publish_status: PUBLISHABLE
+judgments:
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-01
+  judgment_level: J2
+  statement: 存储行业仍受供给约束，但 HBM、服务器 DRAM 与 NAND 已进入内部高位分化，不能生成统一的高位消化阶段标签。
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-02
+  judgment_level: J2
+  statement: AI 服务器和 HBM 需求支持结构性偏紧方向
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-03
+  judgment_level: J1
+  statement: HBM 晶圆和封装挤占支持通用 DRAM 供给约束解释
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-04
+  judgment_level: J2
+  statement: 企业级 SSD 支撑 NAND 上行但消费端形成削弱
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-05
+  judgment_level: J2
+  statement: 服务器 DRAM 涨价斜率放缓且部分美国 CSP 库存累积，只支持服务器 DRAM 高位消化观察。
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-06
+  judgment_level: J1
+  statement: 2027H2 至 2028 只能作为条件式缓解窗口
+- id: EXEC-MEM-CYCLE-20260715-1:J-RUN-07
+  judgment_level: J0
+  statement: 不能确认三类产品统一结束日
