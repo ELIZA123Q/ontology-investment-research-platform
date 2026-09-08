@@ -21,6 +21,12 @@ definition_resources:
     required_fields: [id, version, kind, input_types, priority, when, then, failure_handling]
 
 runtime_objects:
+  ResearchRequest:
+    description: 用户或系统提交的研究目标、范围和运行模式。
+  NormalizedRequest:
+    description: 经确定性规范化的任务输入。
+  SemanticContext:
+    description: 当次任务对语义类型、关系和词表的引用。
   PlanProposal:
     description: AI 或确定性规划器提出的非权威计划候选。
   ExecutionPlan:
@@ -35,6 +41,8 @@ runtime_objects:
     description: 节点的一次执行结果；失败和重试不得覆盖。
   CapabilityResult:
     description: 能力执行产生的候选或正式运行对象引用。
+  ApprovalRequest:
+    description: 发布节点创建的人工审批请求。
   ApprovalRecord:
     description: 人工对正式发布请求作出的批准或拒绝。
 
@@ -55,3 +63,9 @@ execution_invariants:
   - PublishedReport 必须依赖 status=approved 的人工 ApprovalRecord。
   - 收敛由完成规则、阻断规则和目标满足决定，不得使用固定步骤数或循环次数。
 
+provenance:
+  entities: [SourceDocument, EvidenceClaim, EvidenceFact, Observation, Judgment, ReportClaim, PublishedReport]
+  activities: [acquire, extract, normalize, synthesize_fact, evaluate_rule, execute_capability, generate_report]
+  agents: [source_organization, researcher, model, executable]
+  bundle_rule: 每次研究运行使用独立 prov:Bundle。
+  lineage_requirement: 报告观点必须可反向追溯到 Judgment、RuleEvaluation、EvidenceFact、EvidenceClaim、SourceDocument 和原文位置。

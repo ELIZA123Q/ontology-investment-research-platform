@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 from .models import RuleEvaluationRecord, RuntimeEntity
@@ -62,29 +62,39 @@ class ResearchStateService:
 class RuleExecutionService:
     """执行确定性领域规则，并把结果作为运行记录和 provenance 保存。"""
 
-    def __init__(self, repository: ResearchGraphRepository) -> None:
+    def __init__(self, repository: ResearchGraphRepository, rule_registry: Any | None = None) -> None:
         self.repository = repository
+        if rule_registry is None:
+            from ir_platform.rules import RuleRegistry
+
+            rule_registry = RuleRegistry()
+        self.rule_registry = rule_registry
 
     def evaluate(
         self,
         *,
         bundle_id: str,
-        rule_id: str,
-        rule_version: str,
-        inputs: dict[str, Any],
-        evaluator: Callable[[dict[str, Any]], tuple[bool, dict[str, Any]]],
+        rule_ref: str,
+        context: dict[str, Any],
         input_refs: list[str] | None = None,
         evidence_refs: list[str] | None = None,
     ) -> RuntimeEntity:
-        matched, result = evaluator(inputs)
+        from ir_platform.rules import RuleEvaluator
+
+        rule = self.rule_registry.resolve(rule_ref)
+        evaluation = RuleEvaluator().evaluate(rule, context)
         record = RuleEvaluationRecord(
-            rule_id=rule_id,
-            rule_version=rule_version,
-            matched=matched,
-            status="matched" if matched else "not_matched",
+            rule_id=rule.id,
+            rule_version=rule.version,
+            matched=evaluation.matched,
+            status="matched" if evaluation.matched else "not_matched",
             input_refs=input_refs or [],
             evidence_refs=evidence_refs or [],
-            result=result,
+            result={
+                "actions": evaluation.actions,
+                "failure_handling": evaluation.failure_handling,
+                "context_keys": sorted(context),
+            },
         )
         entity = RuntimeEntity(
             id=f"rule-evaluation:{uuid4()}",
@@ -96,8 +106,8 @@ class RuleExecutionService:
         self.repository.add_entity(entity)
         self.repository.record_provenance(
             entity,
-            activity_id=f"evaluate:{rule_id}:{rule_version}",
-            source=f"rule:{rule_id}@{rule_version}",
+            activity_id=f"evaluate:{rule.id}:{rule.version}",
+            source=f"rule:{rule.id}@{rule.version}",
             used_entities=(input_refs or []) + (evidence_refs or []),
         )
         return entity
