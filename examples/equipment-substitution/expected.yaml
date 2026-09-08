@@ -2,6 +2,10 @@ bundle_id: EXEC-USCTRL-CNSEMI-EQP-20260715-1
 title: 美国管制与国产设备替代研究
 overall_judgment_level: J2
 publish_status: PUBLISHABLE
+judgment_boundary_count: 4
+judgment_boundary_sha256: 55f575113034d5cef9b958ed588d38eb47988170c3399f65ecf0b74b46e365a1
+evidence_gap_count: 4
+evidence_gap_sha256: 09ac4e6111896f22e16f5be3496e207765c639d6fd17154de4a54ae2a40bb470
 judgments:
 - id: EXEC-USCTRL-CNSEMI-EQP-20260715-1:J-RUN-01
   judgment_level: J4

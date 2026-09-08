@@ -34,7 +34,7 @@ SOFTWARE.
 | PyOxigraph | 由 `semantica[tripletstore-oxigraph]` 锁定 | 嵌入式 RDF 权威图 | 发行包元数据 |
 | pySHACL | 由 `semantica[shacl]` 锁定 | SHACL 结构校验 | 发行包元数据 |
 | Pydantic | `>=2.11,<3` | 研究运行合同 | 发行包元数据 |
-| PyYAML | `>=6.0.2,<7` | 权威 YAML 与兼容格式 | 发行包元数据 |
+| PyYAML | `>=6.0.2,<7` | 本体、规则、能力与 Logic 配置 | 发行包元数据 |
 | RDFLib | `>=7.1,<8` | RDF 编译产物与测试 | 发行包元数据 |
 
 所有传递依赖保留各自许可证；版本、来源和哈希以 `uv.lock` 与安装发行包中的许可证文件为准。

@@ -2,6 +2,10 @@ bundle_id: EXEC-MEM-CYCLE-20260715-1
 title: 存储芯片周期研究
 overall_judgment_level: J2
 publish_status: PUBLISHABLE
+judgment_boundary_count: 7
+judgment_boundary_sha256: 226179f8c75ac9dea1a1ae828c508134907098276c589c4dca311802ba91e5fa
+evidence_gap_count: 7
+evidence_gap_sha256: 07ec8bbbbb8d69aa8b28bf4ca2075fcc09cfe3c40c7a80a1a16d8b1fafe7b5c8
 judgments:
 - id: EXEC-MEM-CYCLE-20260715-1:J-RUN-01
   judgment_level: J2

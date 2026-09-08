@@ -77,11 +77,10 @@ def test_deterministic_rule_execution_creates_runtime_record(tmp_path: Path) -> 
     repository = SemanticaResearchGraphRepository(tmp_path)
     record = RuleExecutionService(repository).evaluate(
         bundle_id="run",
-        rule_id="evidence-cap",
-        rule_version="1",
-        inputs={"grade": "Q1"},
-        evaluator=lambda inputs: (inputs["grade"] == "Q1", {"maximum_judgment_level": "J1"}),
+        rule_ref="evidence_quality_cap",
+        context={"evidence": {"ready_for_directional_judgment": False}},
     )
     assert record.type == "RuleEvaluation"
-    assert record.properties["result"]["maximum_judgment_level"] == "J1"
+    assert record.properties["matched"] is True
+    assert record.properties["result"]["actions"] == [{"cap_judgment_level": "J1"}]
     repository.close()

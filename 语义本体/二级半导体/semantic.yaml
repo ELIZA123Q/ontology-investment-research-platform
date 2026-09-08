@@ -1280,7 +1280,3 @@ semantic_constraints:
   statement: 领域扩展不得覆盖一级 segmentRole、materialCategory、processRole、applicationCategory 属性名。
 - id: facility_use_specialized_relations
   statement: ManufacturingFacility 的稳定结构优先使用 facility* 专门关系，不使用 upstreamOf 泛化表达。
-schema_version: 3.0.0
-depends_on:
-- common.yaml
-- ../../一级通用/semantic.yaml

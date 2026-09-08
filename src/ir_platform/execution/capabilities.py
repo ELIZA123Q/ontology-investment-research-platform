@@ -35,6 +35,8 @@ class CapabilityRegistry:
     def register(self, handler_ref: str, handler: CapabilityHandler) -> None:
         if not handler_ref or handler_ref.startswith("builtin."):
             raise ValueError("自定义处理器必须使用非 builtin 的稳定 handler_ref")
+        if handler_ref in self._handlers:
+            raise ValueError(f"处理器已注册: {handler_ref}")
         self._handlers[handler_ref] = handler
 
     def resolve(self, capability_id: str) -> tuple[CapabilityDefinition, CapabilityHandler]:
@@ -71,4 +73,3 @@ class CapabilityRegistry:
             payload.setdefault("bundle_id", call.bundle_id)
             result.append(RuntimeEntity.model_validate(payload))
         return result
-

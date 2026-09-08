@@ -71,10 +71,21 @@ class LogicRegistry(_YamlRegistry[LogicDefinition]):
                     raise ValueError(f"Logic {logic.id}/{node.id} 含未知依赖: {sorted(unknown_deps)}")
                 for rule_ref in node.activate_rule_refs:
                     rules.resolve(rule_ref)
+            self._validate_acyclic(logic)
             for rule_ref in logic.completion_rule_refs:
                 rules.resolve(rule_ref)
             for fallback in logic.fallback_logic_refs:
                 self.resolve(fallback)
+
+    @staticmethod
+    def _validate_acyclic(logic: LogicDefinition) -> None:
+        dependencies = {node.id: set(node.dependencies) for node in logic.nodes}
+        remaining = set(dependencies)
+        while remaining:
+            ready = {node_id for node_id in remaining if not (dependencies[node_id] & remaining)}
+            if not ready:
+                raise ValueError(f"Logic {logic.id} 依赖形成循环")
+            remaining -= ready
 
 
 class RuleRegistry(_YamlRegistry[RuleDefinition]):
@@ -89,4 +100,3 @@ class RuleRegistry(_YamlRegistry[RuleDefinition]):
             (item for item in self._items.values() if item.kind == kind),
             key=lambda item: (-item.priority, item.id),
         )
-

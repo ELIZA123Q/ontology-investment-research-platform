@@ -39,6 +39,8 @@ runtime_objects:
     description: 节点之间的输入输出或控制依赖。
   ExecutionAttempt:
     description: 节点的一次执行结果；失败和重试不得覆盖。
+  ExecutionBlock:
+    description: 节点因输入缺失或激活规则不成立而停止的审计记录。
   CapabilityResult:
     description: 能力执行产生的候选或正式运行对象引用。
   ApprovalRequest:

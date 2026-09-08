@@ -288,30 +288,6 @@ class SemanticOntologyCompiler:
             if path.is_file():
                 document = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
                 runtime_types.update(str(item) for item in (document.get("object_types") or {}))
-        legacy_type_mappings = {
-            name: {
-                "iri": self.registry.type_iri(name),
-                "node_type": name,
-                "layer": "semantic_ontology",
-            }
-            for name in sorted(self.registry.object_types)
-        }
-        legacy_type_mappings.update(
-            {
-                name: {
-                    "iri": f"ir://invest-ontology/runtime#type/{name}",
-                    "node_type": name,
-                    "layer": "research_runtime",
-                }
-                for name in sorted(runtime_types)
-            }
-        )
-        legacy_type_mappings["StateVariable"] = {
-            "iri": self.registry.type_iri("ResearchMetric"),
-            "node_type": "ResearchMetric",
-            "layer": "semantic_ontology",
-            "migration": "稳定定义迁为 ResearchMetric；读数、方向和判断迁为运行对象",
-        }
         payload = {
             "schema_version": "1.0.0",
             "base_iri": self.registry.base_iri,
@@ -320,7 +296,13 @@ class SemanticOntologyCompiler:
                 name: {"iri": self.registry.type_iri(name), "node_type": name}
                 for name in sorted(self.registry.object_types)
             },
-            "legacy_type_mappings": legacy_type_mappings,
+            "runtime_object_types": {
+                name: {
+                    "iri": f"ir://invest-ontology/runtime#type/{name}",
+                    "node_type": name,
+                }
+                for name in sorted(runtime_types)
+            },
             "relation_types": {
                 name: {
                     "iri": self.registry.relation_iri(name),

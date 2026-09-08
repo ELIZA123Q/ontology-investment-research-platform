@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -65,3 +65,26 @@ class RuleDefinition(BaseModel):
     then: list[dict[str, Any]]
     failure_handling: str
     description: str | None = None
+
+    RESULT_OPERATORS: ClassVar[set[str]] = {
+        "invoke_logic",
+        "invoke_capability",
+        "block",
+        "cap_judgment_level",
+        "require_approval",
+        "mark_goal_satisfied",
+    }
+
+    @model_validator(mode="after")
+    def validate_machine_actions(self) -> "RuleDefinition":
+        if not self.input_types:
+            raise ValueError("Rule.input_types 不得为空")
+        if not self.then:
+            raise ValueError("Rule.then 不得为空")
+        for action in self.then:
+            if len(action) != 1:
+                raise ValueError("每个规则结果必须只有一个操作符")
+            operator = next(iter(action))
+            if operator not in self.RESULT_OPERATORS:
+                raise ValueError(f"不允许的规则结果: {operator}")
+        return self

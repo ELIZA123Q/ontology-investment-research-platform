@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from ir_platform.validation import _architecture_violations
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -25,3 +27,7 @@ def test_only_adapter_imports_semantica() -> None:
             if any(module == "semantica" or module.startswith("semantica.") for module in modules):
                 violations.append(str(path.relative_to(ROOT)))
     assert violations == []
+
+
+def test_no_fixed_execution_chain_or_removed_compatibility_api() -> None:
+    assert _architecture_violations(ROOT) == []
