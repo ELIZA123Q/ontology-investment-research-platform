@@ -6,12 +6,13 @@
 
 ## 从任务到执行
 
-1. `ResearchPlanningService.propose()` 根据任务与当前图状态选择登记过的 Logic，并可接收 AI 产生的受限计划提案。
-2. `ExecutionPlanCompiler.compile()` 校验能力版本、类型契约、依赖无环、写权限、正式事实与判断门槛、发布审批和目标可达性。
-3. 编译结果是不可变 `ExecutionPlan`；调整产生带 `supersedes` 的 `PlanRevision`。
-4. `ResearchOrchestrator` 从权威图恢复已完成节点，执行所有依赖满足的节点，并在节点边界重新评价运行规则。
-5. `SemanticaPipelineAdapter` 把当次就绪层映射为一次性 Pipeline；恢复依据始终是 Oxigraph 中的计划、尝试、结果与审批记录。
-6. 完成由 Logic 的完成规则和目标类型共同确定，不依赖固定步骤数。
+1. `ResearchMethodRegistry` 先解析任务显式声明的判断类型、取证方法、分析框架和领域目录；未声明时保持为空，不根据标题关键词擅自套框架。
+2. `ResearchPlanningService.propose()` 根据任务与当前图状态选择登记过的 Logic，并可接收 AI 产生的受限计划提案；已解析的方法引用写入计划上下文和语义上下文节点。
+3. `ExecutionPlanCompiler.compile()` 校验能力版本、类型契约、依赖无环、写权限、正式事实与判断门槛、发布审批和目标可达性。
+4. 编译结果是不可变 `ExecutionPlan`；调整产生带 `supersedes` 的 `PlanRevision`。
+5. `ResearchOrchestrator` 从权威图恢复已完成节点，执行所有依赖满足的节点，并在节点边界重新评价运行规则。
+6. `SemanticaPipelineAdapter` 把当次就绪层映射为一次性 Pipeline；恢复依据始终是 Oxigraph 中的计划、尝试、结果与审批记录。
+7. 完成由 Logic 的完成规则和目标类型共同确定，不依赖固定步骤数。
 
 无证据、已有合格证据、存在冲突和只做资料入库，会编译成不同节点数量和依赖的 DAG。多个安全节点可并行，证据不足则触发补证或判断等级上限。
 

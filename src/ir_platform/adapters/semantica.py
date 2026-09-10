@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import json
 import gc
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import quote
+
+# Semantica 的可选向量依赖会加载 ONNX Runtime；离线运行关闭遥测，避免在仓库
+# 根目录生成 `:memory:.ses` 临时会话文件。
+os.environ.setdefault("ORT_DISABLE_TELEMETRY", "1")
 
 # 架构约束：整个项目只有本模块可以导入 semantica.*。
 from semantica.context import ContextGraph

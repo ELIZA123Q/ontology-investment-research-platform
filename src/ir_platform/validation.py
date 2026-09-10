@@ -9,6 +9,8 @@ from typing import Any
 import yaml
 
 from ir_platform.adapters import SemanticaResearchGraphRepository
+from ir_platform.execution import FinancialDataSourceRegistry
+from ir_platform.methodology import ResearchMethodRegistry
 from ir_platform.ontology import SemanticOntologyCompiler, SemanticOntologyRegistry
 from ir_platform.rules import CapabilityDefinitionRegistry, LogicRegistry, RuleRegistry
 from ir_platform.runtime import ResearchGraphArchiveService
@@ -35,6 +37,8 @@ def validate_project(root: str | Path = ROOT) -> dict[str, Any]:
     capabilities = CapabilityDefinitionRegistry(project / "研究能力" / "capabilities.yaml")
     logics = LogicRegistry(project / "研究能力" / "logics.yaml")
     rules = RuleRegistry(project / "研究规则" / "rules.yaml")
+    data_sources = FinancialDataSourceRegistry(project / "研究能力" / "data_sources.yaml")
+    methods = ResearchMethodRegistry(project / "研究方法")
     logics.validate_references(capabilities, rules)
 
     violations = _architecture_violations(project)
@@ -122,6 +126,10 @@ def validate_project(root: str | Path = ROOT) -> dict[str, Any]:
         "capabilities": len(capabilities.all()),
         "logics": len(logics.all()),
         "rules": len(rules.all()),
+        "default_financial_data_source": data_sources.default().id,
+        "evidence_methods": len(methods.methods),
+        "reasoning_methods": len(methods.reasoning_methods),
+        "research_frameworks": len(methods.frameworks),
         "examples": examples,
     }
 
@@ -137,7 +145,7 @@ def _architecture_violations(root: Path) -> list[str]:
         root / "研究方法",
     ]
     for scan_root in scan_roots:
-        for path in sorted(item for item in scan_root.rglob("*") if item.suffix in {".py", ".yaml", ".yml"}):
+        for path in sorted(item for item in scan_root.rglob("*") if item.suffix in {".py", ".yaml", ".yml", ".md"}):
             content = path.read_text(encoding="utf-8")
             for token in FORBIDDEN_SOURCE_TOKENS:
                 if token in content:

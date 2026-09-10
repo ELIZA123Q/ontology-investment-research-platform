@@ -1,0 +1,54 @@
+schema_name: external_financial_data_source_registry
+schema_version: 1.0.0
+status: active
+default_source: akshare_mcp
+forbidden_source_ids: [wind_mcp]
+
+sources:
+  akshare_mcp:
+    version: 0.1.0
+    protocol: mcp
+    transport: stdio
+    repository: https://github.com/xiaozhozho/akshare-mcp
+    revision: 9b6a22b6d83cce2a996a5072743bb06686040ce0
+    command: uvx
+    args:
+      - --with
+      - mcp<2
+      - --from
+      - git+https://github.com/xiaozhozho/akshare-mcp.git@9b6a22b6d83cce2a996a5072743bb06686040ce0
+      - akshare-mcp
+    credentials_required: false
+    markets: [A股]
+    capabilities:
+      - A股行情与基本面
+      - 港股与美股
+      - 指数与行业成分
+      - 宏观经济
+      - 基金债券期货期权
+      - 外汇与商品
+    preferred_tools:
+      - akshare_discover
+      - akshare_stock_fundamental
+      - akshare_stock_a
+      - akshare_stock_board_flow
+      - akshare_index
+      - akshare_macro
+    upstream_sources: [AKShare及其标识的原始公开来源]
+    restrictions:
+      - 免费公开接口可能变更、限频或延迟，失败必须返回结构化 EvidenceGap。
+      - 动态 AKShare 函数接口可能随上游变化；调用前必须通过 akshare_discover 解析当前方法。
+      - 资金流、情绪、预测和衍生排名属于软指标，不得直接提升 Judgment 等级。
+      - MCP 返回值是候选数据；正式 EvidenceFact 必须保存原始来源、口径、日期和定位。
+
+fallback_order:
+  - exchange_or_company_filing
+  - government_or_regulator
+  - issuer_investor_relations
+  - public_web_source
+
+formal_fact_policy:
+  mcp_role: discovery_and_retrieval
+  direct_formalization_allowed: false
+  required_fields: [original_source, source_url, locator, as_of_date, metric_definition]
+  conflict_policy: preserve_both_and_request_primary_source

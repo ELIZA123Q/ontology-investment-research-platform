@@ -1,0 +1,36 @@
+registry_type: reasoning_method_registry
+schema_version: 1.0.0
+status: active
+description: 判断类型到推理方法正文的稳定索引；只决定应读取哪些方法，不产生执行顺序或机器裁决。
+
+common_refs: [R00, R00-COUNTER, R00-REVISION]
+
+methods:
+  R00: {name: 裁决总则, file: A00_裁决总则.md}
+  R00-PATH: {name: 路径与阻断协议, file: A00-附录1_路径与阻断协议.md}
+  R00-COUNTER: {name: 反证与竞争解释协议, file: A00-附录2_反证与竞争解释协议.md}
+  R00-REVISION: {name: 改判与版本协议, file: A00-附录3_改判与版本协议.md}
+  R00-ERRORS: {name: 通用认知错误与误用索引, file: A00-附录4_通用认知错误与误用索引.md}
+  R01: {name: 状态判断, file: A01_状态判断.md}
+  R02: {name: 趋势判断, file: A02_趋势判断.md}
+  R03: {name: 阶段判断, file: A03_阶段判断.md}
+  R04: {name: 机制判断, file: A04_机制判断.md}
+  R05: {name: 归因判断, file: A05_归因判断.md}
+  R06: {name: 传导判断, file: A06_传导判断.md}
+  R07: {name: 分化判断, file: A07_分化判断.md}
+  R08: {name: 影响判断, file: A08_影响判断.md}
+  R09: {name: 预期差判断, file: A09_预期差判断.md}
+  R10: {name: 投资命题裁决, file: A10_投资命题裁决.md}
+
+judgment_type_mapping:
+  state_measurement: [R01]
+  trend_direction: [R02]
+  cycle_phase: [R03]
+  mechanism_validation: [R04, R00-PATH]
+  causal_attribution: [R05]
+  transmission_path: [R06, R00-PATH]
+  object_differentiation: [R07]
+  impact_realization: [R08]
+  expectation_gap: [R09]
+  valuation_impact: [R08]
+  investment_thesis: [R10]

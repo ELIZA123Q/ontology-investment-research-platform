@@ -4,7 +4,7 @@ updated_at: 2026-07-16
 
 # 本文件是方法说明与任务编排索引，不是业务参数权威。
 # 本文件只提供方法标签和阅读索引；机器规则只在受限 DSL 权威中维护。
-ontology_authority_refs:
+authority_refs:
   executable_rules: 研究规则/rules.yaml
   evidence_contract: 研究运行合同/evidence.yaml
   evidence_recipes: 研究方法/半导体/research-catalog.yaml#runtime_objects.@type=EvidenceRecipe
@@ -26,7 +26,7 @@ validity_preconditions:
   - id: version_clear
     label: 版本明确
 
-# 方法侧五类角色（说明用）。机器权威映射见 ontology_authority_refs.evidence_method_role_to_basket_role。
+# 方法侧五类角色只用于提出证据篮子；准入和等级仍由机器规则裁决。
 evidence_roles:
   primary:
     label: 主证据
@@ -68,8 +68,8 @@ quality_language:
     maximum_use: 暂不可判断
     machine_evidence_grades_ref: 研究规则/rules.yaml#rules.evidence_quality_cap
 
-# 04 命题支持状态对照（03 不填写）
-proposition_support_states_owned_by_04:
+# 命题支持状态对照；由推理能力生成，不由取证能力填写。
+proposition_support_states:
   - support
   - partial_support
   - weaken

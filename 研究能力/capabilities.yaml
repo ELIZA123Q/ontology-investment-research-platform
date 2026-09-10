@@ -19,7 +19,7 @@ capabilities:
     input_types: [NormalizedRequest]
     output_types: [SemanticContext]
     handler_ref: builtin.resolve_semantic_context
-    reads: [NormalizedRequest, semantic_ontology]
+    reads: [NormalizedRequest, semantic_ontology, research_method_registry, framework_registry]
     writes: [SemanticContext]
     idempotent: true
     max_retries: 1
@@ -170,4 +170,3 @@ capabilities:
     side_effects: true
     parallel_safe: false
     lifecycle_view: publication
-

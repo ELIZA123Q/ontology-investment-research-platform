@@ -19,6 +19,18 @@ definition_resources:
   RuleDefinition:
     authority: 研究规则/rules.yaml
     required_fields: [id, version, kind, input_types, priority, when, then, failure_handling]
+  FinancialDataSourceDefinition:
+    authority: 研究能力/data_sources.yaml
+    required_fields: [id, version, protocol, transport, repository, revision, command, args, credentials_required, markets, capabilities, restrictions]
+  ResearchMethodDefinition:
+    authority: 研究方法/取证/method-registry.yaml
+    required_fields: [id, file, mode, required_roles]
+  ReasoningMethodDefinition:
+    authority: 研究方法/推理/method-registry.yaml
+    required_fields: [id, file]
+  FrameworkDefinition:
+    authority: 研究方法/框架/00_framework_dependency_registry.yaml
+    required_fields: [id, layer, entry_requires, output_gates, downstream_unlocks, boundary_handoffs]
 
 runtime_objects:
   ResearchRequest:
@@ -58,11 +70,14 @@ view_rule: 生命周期视图只用于展示和筛选，不参与依赖、顺序
 
 execution_invariants:
   - AI 提案只能引用已登记 Capability、Logic 和 Rule。
+  - 任务声明的判断类型、取证方法、分析框架和领域目录必须通过 ResearchMethodRegistry 解析；不得发明方法或依靠关键词静默套用框架。
   - 编译器必须拒绝未知能力、循环依赖、输入不可满足、越权写入和不可达目标。
   - 计划和修订一经写入不可修改；状态从 ExecutionAttempt 和 ApprovalRecord 重建。
   - 只有 idempotent=true 的能力允许自动重试，且不得超过 max_retries。
   - 正式 EvidenceFact 和 Judgment 只能由获得相应写权限的确定性能力创建。
   - PublishedReport 必须依赖 status=approved 的人工 ApprovalRecord。
+  - 金融取数能力必须使用 data_sources.yaml 登记的默认源或显式批准的替代源；禁用源不得解析。
+  - 外部金融数据 MCP 只产生候选数据，缺少原始来源、定位、业务时间和指标口径时不得形成正式 EvidenceFact。
   - 收敛由完成规则、阻断规则和目标满足决定，不得使用固定步骤数或循环次数。
 
 provenance:
