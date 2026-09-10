@@ -19,7 +19,7 @@ python ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github
   --path . \
   --name ontology-investment-research
 
-~/.codex/skills/ontology-investment-research/scripts/bootstrap.sh
+bash ~/.codex/skills/ontology-investment-research/scripts/bootstrap.sh
 ```
 
 安装当前开发分支进行体验时，在安装命令末尾增加：
@@ -51,13 +51,13 @@ AkShare MCP 工具。
 ```bash
 git clone https://github.com/ELIZA123Q/ontology-investment-research-platform.git
 cd ontology-investment-research-platform
-./scripts/bootstrap.sh
-./scripts/demo.sh
+bash scripts/bootstrap.sh
+bash scripts/demo.sh
 ```
 
 在 Codex 中打开仓库后，可选择 `.codex/agents/investment-research.toml` 定义的
 `investment_research` Agent。该 Agent 已携带固定版本的 AkShare MCP 配置；日常命令统一通过
-`./scripts/ir-platform.sh` 调用。
+`bash scripts/ir-platform.sh` 调用。
 
 ## 它怎样工作
 
@@ -88,17 +88,17 @@ ResearchRequest + 当前图状态
 仓库提供了一套不访问外部网络、停在人工审批门槛的演示：
 
 ```bash
-./scripts/doctor.sh
-./scripts/demo.sh
+bash scripts/doctor.sh
+bash scripts/demo.sh
 ```
 
 真实任务可从 [`examples/quickstart`](examples/quickstart/) 复制三个输入文件：
 
 ```bash
-./scripts/ir-platform.sh --runtime-dir .runtime \
+bash scripts/ir-platform.sh --runtime-dir .runtime \
   plan request.yaml --state initial-state.yaml
 
-./scripts/ir-platform.sh --runtime-dir .runtime \
+bash scripts/ir-platform.sh --runtime-dir .runtime \
   run PLAN_ID BUNDLE_ID --context runtime-context.yaml
 ```
 
@@ -106,10 +106,10 @@ ResearchRequest + 当前图状态
 才执行：
 
 ```bash
-./scripts/ir-platform.sh --runtime-dir .runtime \
+bash scripts/ir-platform.sh --runtime-dir .runtime \
   approve BUNDLE_ID APPROVAL_REQUEST_ID --approver RESEARCHER_ID
 
-./scripts/ir-platform.sh --runtime-dir .runtime \
+bash scripts/ir-platform.sh --runtime-dir .runtime \
   run PLAN_ID BUNDLE_ID --context runtime-context.yaml
 ```
 

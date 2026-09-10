@@ -11,8 +11,8 @@ license: Proprietary; third-party components retain their original licenses
 ## 开始前
 
 1. 将本文件所在目录记为 `SKILL_ROOT`。
-2. 若 `SKILL_ROOT/.venv/bin/ir-platform` 不存在，运行 `SKILL_ROOT/scripts/bootstrap.sh`。首次安装需要网络下载锁定依赖；不得静默安装到系统 Python。
-3. 新环境或仓库升级后运行 `SKILL_ROOT/scripts/doctor.sh`。失败时先修复安装或配置，不得绕过验证继续形成正式判断。
+2. 若 `SKILL_ROOT/.venv/bin/ir-platform` 不存在，运行 `bash SKILL_ROOT/scripts/bootstrap.sh`。首次安装需要网络下载锁定依赖；不得静默安装到系统 Python。
+3. 新环境或仓库升级后运行 `bash SKILL_ROOT/scripts/doctor.sh`。失败时先修复安装或配置，不得绕过验证继续形成正式判断。
 
 ## 选择运行目标
 

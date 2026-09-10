@@ -6,8 +6,8 @@
 ## 首次安装
 
 ```bash
-$SKILL_ROOT/scripts/bootstrap.sh
-$SKILL_ROOT/scripts/doctor.sh
+bash "$SKILL_ROOT/scripts/bootstrap.sh"
+bash "$SKILL_ROOT/scripts/doctor.sh"
 ```
 
 安装脚本只安装锁文件中固定的依赖。自检会验证 Skill 元数据、研究配置、本体编译、
@@ -48,10 +48,10 @@ available_types: []
 ## 编译和运行 DAG
 
 ```bash
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime \
   plan request.yaml --state state.yaml
 
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime \
   run PLAN_ID BUNDLE_ID --context runtime-context.yaml
 ```
 
@@ -63,10 +63,10 @@ $SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
 批准，再继续同一计划：
 
 ```bash
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime \
   approve BUNDLE_ID APPROVAL_REQUEST_ID --approver RESEARCHER_ID
 
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime \
   run PLAN_ID BUNDLE_ID --context runtime-context.yaml
 ```
 
@@ -75,10 +75,10 @@ $SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
 ## 查询、追溯与归档
 
 ```bash
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime trace OBJECT_ID
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime trace OBJECT_ID
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime \
   state-at --bundle-id BUNDLE_ID --recorded-at 2026-09-10T09:00:00+08:00
-$SKILL_ROOT/scripts/ir-platform.sh --runtime-dir .runtime \
+bash "$SKILL_ROOT/scripts/ir-platform.sh" --runtime-dir .runtime \
   export-bundle BUNDLE_ID research-bundle.trig
 ```
 

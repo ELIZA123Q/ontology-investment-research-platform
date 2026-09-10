@@ -6,7 +6,7 @@ SKILL_ROOT="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
 CLI="$SKILL_ROOT/.venv/bin/ir-platform"
 
 if [[ ! -x "$CLI" ]]; then
-  echo "尚未安装运行环境，请先执行 $SKILL_ROOT/scripts/bootstrap.sh" >&2
+  echo "尚未安装运行环境，请先执行 bash $SKILL_ROOT/scripts/bootstrap.sh" >&2
   exit 2
 fi
 
