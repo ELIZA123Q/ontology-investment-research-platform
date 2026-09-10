@@ -2,7 +2,7 @@ name: dynamic-research-dag
 
 on:
   push:
-    branches: [main, codex/dynamic-research-dag]
+    branches: [main, codex/dynamic-research-dag, codex/github-installable-skill]
   pull_request:
 
 jobs:
@@ -28,3 +28,15 @@ jobs:
           TRANSFORMERS_OFFLINE: "1"
           SEMANTICA_PROGRESS: "false"
         run: uv run --frozen --offline ir-platform validate
+      - name: Validate installable Skill distribution
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          SEMANTICA_PROGRESS: "false"
+        run: uv run --frozen --offline python scripts/doctor.py
+      - name: Run the approval-gated quickstart
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+          SEMANTICA_PROGRESS: "false"
+        run: uv run --frozen --offline python scripts/run_demo.py

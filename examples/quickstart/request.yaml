@@ -1,0 +1,7 @@
+id: request:quickstart
+bundle_id: quickstart
+mode: full_research
+title: 未来一个月示例行业的基本面与预期差研究
+methodology:
+  judgment_types: [trend_direction, expectation_gap]
+  framework_refs: [BF-SD-01, BF-EG-01]

@@ -16,6 +16,10 @@ dependencies = [
   "semantica[shacl,tripletstore-oxigraph]==0.6.8",
 ]
 
+[project.urls]
+Repository = "https://github.com/ELIZA123Q/ontology-investment-research-platform"
+Documentation = "https://github.com/ELIZA123Q/ontology-investment-research-platform#readme"
+
 [project.scripts]
 ir-platform = "ir_platform.cli:main"
 

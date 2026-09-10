@@ -1,0 +1,56 @@
+recorded_at: 2026-09-10T09:00:00+08:00
+evidence:
+  conflict_detected: false
+reasoning:
+  rule_evaluation_count: 1
+node_outputs:
+  acquire:
+    - id: source:quickstart:1
+      type: SourceDocument
+      properties:
+        title: 快速开始演示来源
+        source_url: https://example.com/research-source
+        publisher: Example Publisher
+  extract:
+    - id: claim:quickstart:1
+      type: EvidenceClaim
+      properties:
+        statement: 示例行业指标较前期改善
+        locator: source:quickstart:1#observation-1
+  facts:
+    - id: fact:quickstart:1
+      type: EvidenceFact
+      properties:
+        statement: 经演示规则准入的事实
+        valid_time: 2026-09-01
+        conflict_detected: false
+  assess:
+    - id: assessment:quickstart:1
+      type: EvidenceAssessment
+      properties:
+        assessment_status: complete
+        lineage_complete: true
+        ready_for_directional_judgment: true
+  hypotheses:
+    - id: hypothesis:quickstart:1
+      type: Hypothesis
+      properties:
+        statement: 示例行业短期趋势改善
+  reason:
+    - id: domain-rule-result:quickstart:1
+      type: RuleEvaluation
+      properties:
+        rule_id: demo-directional-evaluation
+        matched: true
+  judgment:
+    - id: judgment:quickstart:1
+      type: Judgment
+      properties:
+        statement: 在示例条件成立时，行业趋势偏改善
+        judgment_level: J2
+  draft:
+    - id: draft:quickstart:1
+      type: DraftReport
+      properties:
+        title: 快速开始演示报告
+        overall_judgment_level: J2

@@ -1,0 +1,6 @@
+interface:
+  display_name: "本体驱动投资研究"
+  short_description: "用动态规则、证据图和人工审批完成可追溯投研"
+  default_prompt: "使用 $ontology-investment-research 研究这个主题，保存阶段结果并输出等待审批的报告。"
+policy:
+  allow_implicit_invocation: true
