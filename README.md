@@ -17,7 +17,8 @@
 python ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
   --repo ELIZA123Q/ontology-investment-research-platform \
   --path . \
-  --name ontology-investment-research
+  --name ontology-investment-research \
+  --method download
 
 bash ~/.codex/skills/ontology-investment-research/scripts/bootstrap.sh
 ```
