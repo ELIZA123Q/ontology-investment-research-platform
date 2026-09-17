@@ -1,0 +1,6 @@
+interface:
+  display_name: "A股权益研究载体比较"
+  short_description: "在A10投资命题后统一比较ETF、个股选择与混合研究载体"
+  default_prompt: "使用 $touyan-quanyi-juece-bijiao 比较这项A股投资命题更适合ETF、选股还是混合研究载体。"
+policy:
+  allow_implicit_invocation: true

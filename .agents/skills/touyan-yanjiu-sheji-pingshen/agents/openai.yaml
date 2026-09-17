@@ -1,0 +1,6 @@
+interface:
+  display_name: "研究设计评审"
+  short_description: "取证前检查研究问题、假设、证据方案和停止条件是否足够清楚"
+  default_prompt: "使用 $touyan-yanjiu-sheji-pingshen 审查这份研究设计能否进入取证。"
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,60 @@
+schema_name: personal_research_principle_registry
+schema_version: 1.0.0
+status: active
+principles:
+  PR-001:
+    lineage_id: PR-001
+    version: 1
+    supersedes: null
+    status: candidate
+    proposition: 完整A股权益研究以有信息截面、验证窗口和失效条件的可证伪投资命题为终点。
+    applicability: 完整权益研究及研究更新；不代替事实核验或形成买卖、仓位和择时指令。
+    market_scope: A_share
+    modes: [full_research, research_update]
+    falsifiers: [无法确定可观察的验证与失效信号时，退回研究问题而非强行形成命题]
+    source_refs:
+      - {kind: user_instruction, ref: 本任务已确认方案《建立你的A股权益投研方法论》}
+      - {kind: file, ref: 研究方法/推理/A10_投资命题裁决.md}
+    confirmation: null
+  PR-002:
+    lineage_id: PR-002
+    version: 1
+    supersedes: null
+    status: candidate
+    proposition: 权益宏观先分别研判经济走向、政策立场、实体信用与A股边际资金，再判断目标相关性。
+    applicability: 宏观会影响目标行业、风格或风险边界的A股权益研究；三轴低相关时止于筛查。
+    market_scope: A_share
+    modes: [full_research, research_update]
+    falsifiers: [三轴背离或资金证据仅有单一软指标时，不得形成单向宽松判断]
+    source_refs:
+      - {kind: user_instruction, ref: 本任务前置已确认方案《新增权益宏观研判Skill》}
+      - {kind: file, ref: .agents/skills/touyan-quanyi-hongguan-yanpan/SKILL.md}
+    confirmation: null
+  PR-003:
+    lineage_id: PR-003
+    version: 1
+    supersedes: null
+    status: candidate
+    proposition: 每项综合研究先找主要矛盾和可区分的竞争解释，再裁剪最小必要方法链。
+    applicability: 行业、主题或公司综合研究；不把单次研究样例直接提升为稳定个人偏好。
+    market_scope: A_share
+    modes: [full_research, research_update]
+    falsifiers: [若主要矛盾无法对应可观察的区分信号，应重写研究设计]
+    source_refs:
+      - {kind: file, ref: research_outputs/a-share-semiconductor-2026h1/research-design.md}
+      - {kind: file, ref: research_outputs/a-share-innovative-drugs-one-month-2026-09-08/research-design.md}
+    confirmation: null
+  PR-004:
+    lineage_id: PR-004
+    version: 1
+    supersedes: null
+    status: candidate
+    proposition: 宏观与产业判断必须经过机制和公司兑现证据，才可进入市场预期差与投资命题裁决。
+    applicability: 研究含跨层传导或预期定价推论时；与既有框架门槛并行，不新设结论等级。
+    market_scope: A_share
+    modes: [full_research, research_update]
+    falsifiers: [缺少关键中介或公司兑现证据时，停止跨层推断]
+    source_refs:
+      - {kind: user_instruction, ref: 本任务已确认方案《建立你的A股权益投研方法论》}
+      - {kind: file, ref: 研究方法/框架/00_framework_dependency_registry.yaml}
+    confirmation: null

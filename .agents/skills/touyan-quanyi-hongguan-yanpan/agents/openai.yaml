@@ -1,0 +1,6 @@
+interface:
+  display_name: "权益宏观研判"
+  short_description: "用经济、政策与双层资金三问研判A股权益环境"
+  default_prompt: "使用 $touyan-quanyi-hongguan-yanpan 对这项A股权益研究执行宏观三问筛查并给出行业与风格影响。"
+policy:
+  allow_implicit_invocation: true

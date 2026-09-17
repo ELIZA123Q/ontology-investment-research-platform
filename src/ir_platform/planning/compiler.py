@@ -146,16 +146,106 @@ class ExecutionPlanCompiler:
 
     def _validate_formal_gates(self, proposal: PlanProposal, nodes: dict[str, object]) -> None:
         capability_by_node = {node_id: getattr(node, "capability_ref") for node_id, node in nodes.items()}
+        methodology = proposal.context.get("methodology") or {}
+        if methodology.get("research_design_required"):
+            design_nodes = [
+                node_id for node_id, capability_ref in capability_by_node.items()
+                if capability_ref == "form_research_design"
+            ]
+            if len(design_nodes) != 1 or "resolve_semantic_context" not in {
+                capability_by_node[item] for item in self._ancestors(design_nodes[0], nodes)
+            }:
+                raise PlanCompilationError("研究任务缺少语义上下文后的研究设计")
+            if methodology.get("equity_report_contract") and list(capability_by_node.values()).count("publish_report") != 1:
+                raise PlanCompilationError("A股完整权益研究缺少本次人工审批后的发布节点")
+            if methodology.get("macro_context_required"):
+                macro_nodes = [
+                    node_id for node_id, capability_ref in capability_by_node.items()
+                    if capability_ref == "form_macro_context"
+                ]
+                if len(macro_nodes) != 1:
+                    raise PlanCompilationError("A股完整权益研究缺少宏观三问研判节点")
+                macro_ancestors = {capability_by_node[item] for item in self._ancestors(macro_nodes[0], nodes)}
+                if "form_research_design" not in macro_ancestors:
+                    raise PlanCompilationError("宏观三问研判必须在研究设计后形成")
+            if methodology.get("final_artifact_validation_required"):
+                handoff_nodes = [
+                    node_id for node_id, capability_ref in capability_by_node.items()
+                    if capability_ref == "package_evidence_handoff"
+                ]
+                validation_nodes = [
+                    node_id for node_id, capability_ref in capability_by_node.items()
+                    if capability_ref == "validate_final_artifact"
+                ]
+                if len(handoff_nodes) != 1 or len(validation_nodes) != 1:
+                    raise PlanCompilationError("A股完整权益研究缺少证据交接或独立成品验证")
+                handoff_ancestors = {
+                    capability_by_node[item] for item in self._ancestors(handoff_nodes[0], nodes)
+                }
+                if "form_research_design" not in handoff_ancestors:
+                    raise PlanCompilationError("证据交接必须承接研究设计")
+                if "EvidenceAssessment" not in proposal.initial_types and "evaluate_evidence" not in handoff_ancestors:
+                    raise PlanCompilationError("证据交接缺少证据评价")
+                validation_ancestors = {
+                    capability_by_node[item] for item in self._ancestors(validation_nodes[0], nodes)
+                }
+                if not {"render_report", "form_macro_context", "package_evidence_handoff"}.issubset(
+                    validation_ancestors
+                ):
+                    raise PlanCompilationError("独立成品验证缺少报告、宏观上下文或证据交接")
+            for node_id, capability_ref in capability_by_node.items():
+                if capability_ref in {"acquire_evidence", "form_hypotheses", "form_equity_hypotheses", "render_report"}:
+                    if design_nodes[0] not in self._ancestors(node_id, nodes):
+                        raise PlanCompilationError("A股完整权益研究须先完成研究设计")
+        causal_required = bool(methodology.get("causal_identification_required"))
+        causal_nodes = [
+            node_id for node_id, capability_ref in capability_by_node.items()
+            if capability_ref == "evaluate_causality"
+        ]
+        causal_judgment_nodes = [
+            node_id for node_id, capability_ref in capability_by_node.items()
+            if capability_ref == "form_causal_judgment"
+        ]
+        ordinary_judgment_nodes = [
+            node_id for node_id, capability_ref in capability_by_node.items()
+            if capability_ref == "form_judgment"
+        ]
+        causal_runtime_required = causal_required and proposal.logic_ref in {"complete_research", "complete_equity_research"}
+        if causal_runtime_required:
+            if len(causal_nodes) != 1 or len(causal_judgment_nodes) != 1 or ordinary_judgment_nodes:
+                raise PlanCompilationError("因果研究必须使用独立因果评估与因果判断节点")
+            causal_ancestors = {
+                capability_by_node[item] for item in self._ancestors(causal_nodes[0], nodes)
+            }
+            causal_required_ancestors = {"form_research_design"}
+            if "EvidenceAssessment" not in proposal.initial_types:
+                causal_required_ancestors.add("evaluate_evidence")
+            if not causal_required_ancestors.issubset(causal_ancestors):
+                raise PlanCompilationError("因果评估缺少设计、假设或证据评价")
+            if not {"form_hypotheses", "form_equity_hypotheses"}.intersection(causal_ancestors):
+                raise PlanCompilationError("因果评估缺少假设形成门槛")
+            judgment_ancestors = {
+                capability_by_node[item]
+                for item in self._ancestors(causal_judgment_nodes[0], nodes)
+            }
+            if not {"evaluate_causality", "evaluate_reasoning"}.issubset(judgment_ancestors):
+                raise PlanCompilationError("因果判断缺少因果评估或规则评价")
+        elif causal_nodes or causal_judgment_nodes:
+            raise PlanCompilationError("非因果研究不得加入因果识别节点")
         for node_id, capability_ref in capability_by_node.items():
             ancestors = {capability_by_node[item] for item in self._ancestors(node_id, nodes)}
-            if capability_ref == "form_judgment":
-                required = {"evaluate_reasoning", "form_hypotheses"}
+            if capability_ref in {"form_judgment", "form_causal_judgment"}:
+                required = {"evaluate_reasoning"}
                 if "EvidenceAssessment" not in proposal.initial_types:
                     required.add("evaluate_evidence")
                 if not required.issubset(ancestors):
-                    raise PlanCompilationError("正式判断缺少证据、假设或规则评价门槛")
+                    raise PlanCompilationError("正式判断缺少证据或规则评价门槛")
+                if not {"form_hypotheses", "form_equity_hypotheses"}.intersection(ancestors):
+                    raise PlanCompilationError("正式判断缺少假设形成门槛")
             if capability_ref == "publish_report":
                 if "request_publication_approval" not in ancestors:
                     raise PlanCompilationError("发布节点缺少人工审批请求")
                 if "ApprovalRecord" not in proposal.awaitable_types:
                     raise PlanCompilationError("发布计划必须声明等待人工 ApprovalRecord")
+                if methodology.get("final_artifact_validation_required") and "validate_final_artifact" not in ancestors:
+                    raise PlanCompilationError("发布节点缺少独立成品验证")

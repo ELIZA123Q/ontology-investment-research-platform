@@ -1,0 +1,230 @@
+schema_name: public_research_source_index
+schema_version: 1.0.0
+status: active
+description: 只索引稳定来源族、正式入口与查询手册；不保存动态事实、当前数值或研究结论。
+
+sources:
+  - id: cninfo-disclosures
+    producer: 深圳证券信息有限公司（巨潮资讯网）
+    source_roles: [primary, baseline, mechanism, counter]
+    markets: [A股]
+    domains: [general]
+    official_entry_url: https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+    access_scope: public
+    update_cadence: 事件级与法定报告期
+    independence_group: issuer_primary_by_issuer_and_document_lineage
+    required_locator_level: 公告编号加页码或表格
+    known_limitations: [同一公告的交易所页和公司镜像不构成独立来源, 动态查询入口可能调整]
+    fallback_refs: [sse-disclosures, szse-disclosures, bse-disclosures]
+    last_verified: 2026-09-15
+
+  - id: sse-disclosures
+    producer: 上海证券交易所
+    source_roles: [primary, baseline, mechanism, counter]
+    markets: [A股]
+    domains: [general]
+    official_entry_url: https://www.sse.com.cn/assortment/stock/list/info/announcement/
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+    access_scope: public
+    update_cadence: 事件级与法定报告期
+    independence_group: issuer_primary_by_issuer_and_document_lineage
+    required_locator_level: 公告编号加页码或表格
+    known_limitations: [同一发行人的同一公告仍属于发行人原始披露链, 页面查询依赖脚本]
+    fallback_refs: [cninfo-disclosures]
+    last_verified: 2026-09-15
+
+  - id: szse-disclosures
+    producer: 深圳证券交易所
+    source_roles: [primary, baseline, mechanism, counter]
+    markets: [A股]
+    domains: [general]
+    official_entry_url: https://www.szse.cn/disclosure/notice/company/index.html
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+    access_scope: public
+    update_cadence: 事件级与法定报告期
+    independence_group: issuer_primary_by_issuer_and_document_lineage
+    required_locator_level: 公告编号加页码或表格
+    known_limitations: [交易所公告与巨潮中的同一文件不能重复计为独立来源]
+    fallback_refs: [cninfo-disclosures]
+    last_verified: 2026-09-15
+
+  - id: bse-disclosures
+    producer: 北京证券交易所
+    source_roles: [primary, baseline, mechanism, counter]
+    markets: [A股]
+    domains: [general]
+    official_entry_url: https://www.bse.cn/disclosure/announcement.html
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+    access_scope: public
+    update_cadence: 事件级与法定报告期
+    independence_group: issuer_primary_by_issuer_and_document_lineage
+    required_locator_level: 公告编号加页码或表格
+    known_limitations: [跨市场公司名称和证券代码须先消歧]
+    fallback_refs: [cninfo-disclosures]
+    last_verified: 2026-09-15
+
+  - id: akshare-market-retrieval
+    producer: AKShare及其标识的原始公开来源
+    source_roles: [baseline, discovery]
+    markets: [A股, global]
+    domains: [general]
+    official_entry_url: https://github.com/xiaozhozho/akshare-mcp
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-10
+    access_scope: public
+    update_cadence: 交易日或上游更新频率
+    independence_group: upstream_market_data
+    required_locator_level: 上游来源加函数、参数、字段与日期区间
+    known_limitations: [聚合接口只用于发现和候选取数, 正式事实须保留真实上游来源与查询参数]
+    fallback_refs: []
+    last_verified: 2026-09-15
+
+  - id: nbs-national-data
+    producer: 国家统计局
+    source_roles: [primary, baseline, counter]
+    markets: [中国, A股]
+    domains: [general, semiconductor]
+    official_entry_url: https://data.stats.gov.cn/easyquery.htm?cn=A01
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-02
+    access_scope: public
+    update_cadence: 月度、季度与年度
+    independence_group: china_official_statistics
+    required_locator_level: 指标名、地区、频率、期间、单位与查询时间
+    known_limitations: [累计与当月不可混用, 初值和修订值须区分]
+    fallback_refs: [miit-electronics-operation]
+    last_verified: 2026-09-15
+
+  - id: china-customs-statistics
+    producer: 中华人民共和国海关总署
+    source_roles: [primary, baseline, cross_check, counter]
+    markets: [中国, global, A股]
+    domains: [general, semiconductor]
+    official_entry_url: https://stats.customs.gov.cn/
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-03
+    access_scope: public
+    update_cadence: 月度
+    independence_group: china_customs_primary
+    required_locator_level: 商品编码、流向、伙伴、期间、金额或数量及查询时间
+    known_limitations: [商品编码不等于行业分类, 出口目的地不等于最终消费地]
+    fallback_refs: []
+    last_verified: 2026-09-15
+
+  - id: miit-electronics-operation
+    producer: 中华人民共和国工业和信息化部
+    source_roles: [primary, baseline, cross_check, counter]
+    markets: [中国, A股]
+    domains: [general, semiconductor]
+    official_entry_url: https://www.miit.gov.cn/gxsj/tjfx/dzxx/index.html
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-06
+    access_scope: public
+    update_cadence: 月度累计
+    independence_group: china_official_industry_statistics
+    required_locator_level: 发布标题、发布日期、统计范围、指标段落与注释
+    known_limitations: [电子信息制造业范围宽于半导体, 集成电路产量不是销售额或国产化率]
+    fallback_refs: [nbs-national-data]
+    last_verified: 2026-09-15
+
+  - id: wsts-historical-billings
+    producer: World Semiconductor Trade Statistics
+    source_roles: [primary, baseline, cross_check, counter]
+    markets: [global, A股]
+    domains: [semiconductor]
+    official_entry_url: https://www.wsts.org/67/Historical-Billings-Report
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-01
+    access_scope: mixed
+    update_cadence: 月度
+    independence_group: wsts_industry_statistics
+    required_locator_level: 文件名、版本、月份、地区、类别及原值或三月移动平均
+    known_limitations: [免费文件主要提供总量和地区, WSTS与SIA月度数字通常属于同一数据链]
+    fallback_refs: [sia-market-data]
+    last_verified: 2026-09-15
+
+  - id: sia-market-data
+    producer: Semiconductor Industry Association
+    source_roles: [baseline, cross_check, counter]
+    markets: [global, A股]
+    domains: [semiconductor]
+    official_entry_url: https://www.semiconductors.org/data-resources/market-data/
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-01
+    access_scope: mixed
+    update_cadence: 月度
+    independence_group: wsts_industry_statistics
+    required_locator_level: 发布标题、月份、地区、数值及WSTS数据说明
+    known_limitations: [与WSTS通常同源, 公开发布粒度低于授权数据]
+    fallback_refs: [wsts-historical-billings]
+    last_verified: 2026-09-15
+
+  - id: semi-equipment-billings
+    producer: SEMI
+    source_roles: [primary, baseline, mechanism, cross_check, counter]
+    markets: [global, A股]
+    domains: [semiconductor]
+    official_entry_url: https://www.semi.org/en/products-services/market-data/equipment/billings-report
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-02
+    access_scope: mixed
+    update_cadence: 月度与季度
+    independence_group: semi_equipment_statistics
+    required_locator_level: 报告名、期间、地区、设备范围、金额及三月移动平均标记
+    known_limitations: [公开发布通常缺少详细地区和设备类别, billings不是订单或晶圆厂有效产能]
+    fallback_refs: [seaj-equipment-statistics]
+    last_verified: 2026-09-15
+
+  - id: seaj-equipment-statistics
+    producer: Semiconductor Equipment Association of Japan
+    source_roles: [baseline, cross_check, counter]
+    markets: [global, A股]
+    domains: [semiconductor]
+    official_entry_url: https://www.seaj.or.jp/english/statistics/
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-02
+    access_scope: public
+    update_cadence: 月度
+    independence_group: seaj_equipment_statistics
+    required_locator_level: 表名、期间、设备范围、金额、币种与三月移动平均标记
+    known_limitations: [日本制设备范围不代表全球全部设备市场]
+    fallback_refs: [semi-equipment-billings]
+    last_verified: 2026-09-15
+
+  - id: tsmc-investor-results
+    producer: Taiwan Semiconductor Manufacturing Company Limited
+    source_roles: [primary, baseline, mechanism, cross_check, counter]
+    markets: [global, A股]
+    domains: [semiconductor]
+    official_entry_url: https://investor.tsmc.com/english
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-03
+    access_scope: public
+    update_cadence: 月度、季度与事件级
+    independence_group: tsmc_issuer_primary
+    required_locator_level: 报告或电话会名称、页码或时间戳、期间、币种和指标定义
+    known_limitations: [公司财年和自然时间须对齐, 指引不得写成实际值]
+    fallback_refs: []
+    last_verified: 2026-09-15
+
+  - id: hkex-listed-company-news
+    producer: 香港交易及结算所有限公司
+    source_roles: [primary, baseline, mechanism, counter]
+    markets: [港股, global, A股]
+    domains: [general, semiconductor]
+    official_entry_url: https://www1.hkexnews.hk/search/titlesearch.xhtml?lang=zh
+    query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-06
+    access_scope: public
+    update_cadence: 事件级与法定报告期
+    independence_group: issuer_primary_by_issuer_and_document_lineage
+    required_locator_level: 公告标题、发布日期、页码或表格及报告期
+    known_limitations: [同一发行人的A股和H股同一报告不能重复计为独立来源]
+    fallback_refs: []
+    last_verified: 2026-09-15
+
+  - id: csindex-semiconductor-931865
+    producer: 中证指数有限公司
+    source_roles: [primary, baseline, cross_check]
+    markets: [A股]
+    domains: [semiconductor]
+    official_entry_url: https://www.csindex.com.cn/#/indices/family/detail?indexCode=931865
+    query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-10
+    access_scope: public
+    update_cadence: 交易日与半年度调样
+    independence_group: csindex_index_primary
+    required_locator_level: 指数代码、文件日期、样本生效日、样本或权重字段
+    known_limitations: [指数样本是可投资代理而非全部A股半导体公司, 事实表与样本清单可能有不同更新日]
+    fallback_refs: [akshare-market-retrieval]
+    last_verified: 2026-09-15

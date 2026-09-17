@@ -1,5 +1,5 @@
 schema_name: executable_research_rule_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
 description: 只有 when/then DSL 产生执行效果；description 仅供人阅读。
 rules:
@@ -21,14 +21,78 @@ rules:
     when: {equals: {path: request.mode, value: evidence_refresh}}
     then: [{invoke_logic: evidence_refresh}]
     failure_handling: block
+  route_decision_comparison:
+    version: 1.0.0
+    kind: routing
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 95
+    when: {equals: {path: request.mode, value: decision_comparison}}
+    then: [{invoke_logic: decision_comparison}]
+    failure_handling: block
+  route_strategic_research:
+    version: 1.0.0
+    kind: routing
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 82
+    when: {equals: {path: request.mode, value: strategic_research}}
+    then: [{invoke_logic: complete_research}]
+    failure_handling: block
   route_complete_research:
     version: 1.0.0
     kind: routing
     evaluation_phase: planning
     input_types: [ResearchRequest]
     priority: 80
-    when: {in: {path: request.mode, values: [full_research, research_update]}}
+    when:
+      all:
+        - {in: {path: request.mode, values: [full_research, research_update]}}
+        - not:
+            all:
+              - {equals: {path: request.asset_class, value: equity}}
+              - {equals: {path: request.market_scope, value: A_share}}
     then: [{invoke_logic: complete_research}]
+    failure_handling: block
+  route_complete_equity_research:
+    version: 1.0.0
+    kind: routing
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 85
+    when:
+      all:
+        - {in: {path: request.mode, values: [full_research, research_update]}}
+        - {equals: {path: request.asset_class, value: equity}}
+        - {equals: {path: request.market_scope, value: A_share}}
+    then: [{invoke_logic: complete_equity_research}]
+    failure_handling: block
+  research_design_required:
+    version: 1.0.0
+    kind: activation
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 105
+    when: {equals: {path: methodology.research_design_required, value: true}}
+    then: [{invoke_capability: form_research_design}]
+    failure_handling: block
+  causal_identification_required:
+    version: 1.0.0
+    kind: activation
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 104
+    when: {equals: {path: methodology.causal_identification_required, value: true}}
+    then: [{invoke_capability: evaluate_causality}]
+    failure_handling: block
+  non_causal_judgment_required:
+    version: 1.0.0
+    kind: activation
+    evaluation_phase: planning
+    input_types: [ResearchRequest]
+    priority: 103
+    when: {equals: {path: methodology.causal_identification_required, value: false}}
+    then: [{invoke_capability: form_judgment}]
     failure_handling: block
   evidence_refresh_required:
     version: 1.0.0
@@ -92,6 +156,18 @@ rules:
         - {compare: {path: reasoning.rule_evaluation_count, operator: gte, value: 1}}
     then: [{mark_goal_satisfied: formal_judgment_admissible}]
     failure_handling: keep_candidate
+  formal_causal_judgment_gate:
+    version: 1.0.0
+    kind: validation
+    evaluation_phase: runtime
+    input_types: [CausalAssessment]
+    priority: 101
+    when:
+      all:
+        - {equals: {path: methodology.causal_identification_required, value: true}}
+        - {compare: {path: graph.type_counts.CausalAssessment, operator: gte, value: 1}}
+    then: [{mark_goal_satisfied: formal_causal_judgment_admissible}]
+    failure_handling: keep_candidate
   publication_requires_human_approval:
     version: 1.0.0
     kind: blocking
@@ -118,6 +194,15 @@ rules:
     priority: 50
     when: {compare: {path: graph.type_counts.EvidenceAssessment, operator: gte, value: 1}}
     then: [{mark_goal_satisfied: EvidenceAssessment}]
+    failure_handling: continue
+  decision_comparison_goal_satisfied:
+    version: 1.0.0
+    kind: completion
+    evaluation_phase: runtime
+    input_types: [DecisionComparison]
+    priority: 50
+    when: {compare: {path: graph.type_counts.DecisionComparison, operator: gte, value: 1}}
+    then: [{mark_goal_satisfied: DecisionComparison}]
     failure_handling: continue
   published_report_goal_satisfied:
     version: 1.0.0

@@ -1,0 +1,6 @@
+interface:
+  display_name: "论证与语言编辑"
+  short_description: "检查战略研究表达是否清晰、可证伪，并严格贴合证据边界"
+  default_prompt: "使用 $touyan-lunzheng-yuyan-bianji 对这份战略研究成品做论证和语言边界编辑。"
+policy:
+  allow_implicit_invocation: true

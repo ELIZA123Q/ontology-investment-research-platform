@@ -1,0 +1,108 @@
+schema_name: bank_research_method_catalog
+schema_version: 1.0.0
+status: candidate
+domain: bank
+updated_at: 2026-09-15
+purpose: A股银行、银行指数和银行ETF研究的领域扩展目录；只登记证据剖面、框架入口和停止条件，不保存当期事实或交易建议。
+
+framework_refs:
+  primary:
+    - IF-BANK-01
+  upstream:
+    - BF-MF-01
+    - BF-PI-01
+    - BF-EF-01
+  downstream:
+    - BF-FQ-01
+    - BF-EE-01
+    - BF-FS-01
+    - BF-EG-01
+    - BF-VA-01
+
+source_playbooks:
+  - ref: 研究方法/取证/B03_银行业来源速查.md
+    role: bank_primary_source_routing
+
+research_routes:
+  repricing_path:
+    question: 资产与负债重定价如何影响净息差和净利息收入。
+    framework_gate: IF-BANK-01.repricing_path
+    primary_sources:
+      - 发行人年报、半年报、季报和临时公告
+      - 人民银行利率、贷款市场报价利率和金融统计
+      - 同期可比银行披露
+    minimum_observations:
+      - 生息资产平均余额与收益率
+      - 计息负债平均余额与成本率
+      - 贷款、存款和投资资产结构
+      - 资产与负债重定价时滞或替代观测
+    stop_conditions:
+      - 缺少资产或负债任一侧实现收益成本
+      - 平均余额与期末余额被混用且无法校正
+  asset_quality_path:
+    question: 表观资产质量变化是真迁徙改善还是分母、处置或拨备效应。
+    framework_gate: IF-BANK-01.asset_quality_path
+    primary_sources:
+      - 发行人资产质量披露
+      - 监管或行业官方数据
+      - 可比银行同期披露
+    minimum_observations:
+      - 不良、关注、逾期和重组分层
+      - 核销、转让、清收和减值
+      - 行业、区域或产品暴露
+    stop_conditions:
+      - 只有不良率而没有迁徙或处置证据
+      - 暴露只能由地区或行业标签代理
+  capital_dividend_capacity:
+    question: 利润、RWA、资本和母公司可分配利润是否支持现金分红兑现。
+    framework_gate: IF-BANK-01.capital_dividend_capacity
+    primary_sources:
+      - 发行人资本充足率和利润分配披露
+      - 股东大会和分红实施公告
+      - 当期监管资本要求
+    minimum_observations:
+      - 核心一级资本充足率、RWA和RWA密度
+      - 归母利润、母公司可分配利润和实际现金支付
+      - 当期监管、章程和资本工具约束
+    stop_conditions:
+      - 缺少RWA或核心一级资本口径
+      - 缺少母公司可分配利润或实际支付阶段
+  exposure_sensitivity:
+    question: 区域、地产、城投或零售暴露能否穿透到利润、资本或估值风险。
+    framework_gate: IF-BANK-01.exposure_sensitivity
+    primary_sources:
+      - 发行人分层暴露与资产质量披露
+      - 地方财政、地产销售、行业官方统计
+      - 同区域或同类型银行交叉披露
+    minimum_observations:
+      - 借款主体、资产类型、风险承担方、地域和表内外范围
+      - 损失率、抵押担保、迁徙和缓冲
+      - 资本与拨备承受力
+    stop_conditions:
+      - 用地方宏观指标直接替代真实银行暴露
+      - 只能观察直接暴露但声称总风险可控
+  vehicle_comparison_candidate:
+    question: 银行业命题更适合 ETF、个股选择还是混合载体承接。
+    framework_gate: IF-BANK-01.vehicle_comparison_candidate
+    handoff_skill: touyan-quanyi-juece-bijiao
+    primary_sources:
+      - 指数样本与权重
+      - ETF招募说明书、定期报告和公告
+      - 候选银行同口径经营与估值分散度
+    minimum_observations:
+      - ETF覆盖与集中度
+      - 个股经营、风险和估值分散度
+      - 事前市场预期或定价基线
+    stop_conditions:
+      - 指数规则或权重不可复现
+      - 个股差异无法区别于披露差异或共同宏观beta
+
+maintenance:
+  validation_status: pending_two_tasks
+  upgrade_requires:
+    - 至少一个银行业成立案例
+    - 至少一个高迷惑性失败案例
+  forbidden_updates:
+    - 当期阈值
+    - 个股排名
+    - 买卖、仓位、目标价或择时

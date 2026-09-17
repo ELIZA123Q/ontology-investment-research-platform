@@ -20,13 +20,14 @@ layers:
   company_realization:
     assets: [BF-BM-01, BF-FQ-01, BF-EE-01, BF-CG-01, BF-CA-01]
   market_pricing:
-    assets: [BF-FS-01, BF-EG-01, BF-RS-01, BF-VA-01]
+    assets: [BF-EF-01, BF-FS-01, BF-EG-01, BF-RS-01, BF-VA-01]
 
 # 可独立进入的问题入口；其高级输出仍受各自 output_gates 约束。
 graph_roots:
   - BF-IC-01
   - BF-MF-01
   - BF-PI-01
+  - BF-EF-01
   - BF-SD-01
   - BF-VT-01
   - BF-BM-01
@@ -40,6 +41,7 @@ graph_roots:
   - IF-PKG-01
   - IF-EQP-01
   - IF-MAT-01
+  - IF-BANK-01
 
 frameworks:
   BF-IC-01:
@@ -75,6 +77,25 @@ frameworks:
     downstream_unlocks: [BF-SD-01, BF-VT-01]
     boundary_handoffs:
       company_earnings_realization: BF-EE-01
+
+  BF-EF-01:
+    layer: market_pricing
+    entry_requires: [judgment_unit, market_scope_and_vintage]
+    output_gates:
+      market_funding_state:
+        requires: [funding_source_and_use_map, net_equity_supply_map]
+        minimum_evidence: [multi_channel_fund_flow_or_balance, equity_supply_and_liquidity_cross_check]
+      industry_style_exposure:
+        requires: [market_funding_state, exposure_mechanism]
+        minimum_evidence: [cross_sectional_flow_or_holding, breadth_and_timing_confirmation]
+    quality_gates:
+      soft_indicator_cap:
+        requires: [balance_or_net_supply_evidence]
+        on_failure: cap_at_J1_and_keep_channel_specific
+    downstream_unlocks: [BF-EG-01, BF-RS-01, BF-VA-01]
+    boundary_handoffs:
+      expectation_and_pricing_state: BF-EG-01
+      valuation_effect: BF-VA-01
 
   BF-PI-01:
     layer: mechanism
@@ -316,6 +337,29 @@ frameworks:
     boundary_handoffs: {}
 
 industry_overlays:
+  IF-BANK-01:
+    layer: company_realization
+    entry_requires: [judgment_unit, bank_scope_and_reporting_basis]
+    output_gates:
+      repricing_path:
+        requires: [asset_liability_scope, repricing_clock_definition]
+        minimum_evidence: [issuer_asset_liability_yield_cost, structure_and_timing_cross_check]
+      asset_quality_path:
+        requires: [loan_book_scope, migration_and_disposal_definition]
+        minimum_evidence: [npl_special_mention_overdue_or_restructured, writeoff_transfer_and_provision]
+      capital_dividend_capacity:
+        requires: [capital_scope, distribution_stage_definition]
+        minimum_evidence: [cet1_rwa_and_parent_distributable_profit, current_regulatory_or_articles_constraint]
+      exposure_sensitivity:
+        requires: [exposure_scope, loss_buffer_definition]
+        minimum_evidence: [issuer_segment_exposure, loss_rate_buffer_or_migration_cross_check]
+      vehicle_comparison_candidate:
+        requires: [bank_dispersion_evidence, index_or_etf_scope]
+        minimum_evidence: [same_basis_bank_dispersion, index_weight_rule_and_tracking_evidence]
+    downstream_unlocks: [BF-EE-01, BF-FS-01, BF-EG-01, BF-VA-01]
+    boundary_handoffs:
+      decision_vehicle_comparison: touyan-quanyi-juece-bijiao
+
   IF-SC-01:
     layer: mechanism
     entry_requires: [judgment_unit, semiconductor_segment_scope]

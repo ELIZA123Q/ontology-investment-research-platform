@@ -1,0 +1,59 @@
+causal_design:
+  causal_question: 全球半导体销售与设备billings改善是否直接造成A股半导体代表公司2026H1财务改善？
+  cause_a: 全球半导体销售与设备billings改善
+  outcome_b: A股半导体代表公司财务改善
+  unit_of_analysis: 产业链环节与代表公司半年度
+  scope: 931865市场代理边界内的公开行业测量及六家产业链代表公司
+  business_window: 2025H1—2026H1，行业相邻变量延伸至2026Q2
+  lag_hypothesis: 行业需求或设备支出应先于公司收入、利润与现金流兑现至少一个业务确认窗口
+  causal_estimand: 行业景气改善相对于未改善反事实对代表公司财务指标的边际贡献
+  counterfactual: 在产品结构、公司执行、低基数和供给条件相近但未经历行业景气改善时的公司财务结果
+  candidate_structures:
+    - relationship: forward_a_to_b
+      statement: 全球销售与设备支出改善通过订单、价格和产能利用率推动代表公司财务改善。
+      directed_edges: [行业需求改善→订单或价格, 订单或价格→收入利润现金流]
+      observable_predictions: [行业指标领先公司兑现, 高景气暴露公司改善更明显, 订单或利用率中介先出现]
+      falsifier: 公司改善先于行业变化，或高低暴露公司没有预期分化。
+    - relationship: reverse_b_to_a
+      statement: 代表公司扩产、出货或会计确认变化反映并推动行业统计改善。
+      directed_edges: [公司出货与确认→行业销售或设备billings]
+      observable_predictions: [公司指标领先行业汇总, 大型样本公司贡献可解释行业变化]
+      falsifier: 行业变化稳定领先公司经营中介。
+    - relationship: common_cause
+      statement: AI需求、低基数、库存周期或供给扩张同时影响行业指标与公司财务。
+      directed_edges: [共同原因→行业指标, 共同原因→公司财务]
+      observable_predictions: [控制共同原因后行业与公司共变减弱, 传统终端与AI暴露对象明显分化]
+      falsifier: 控制共同原因后仍存在稳定领先关系、机制中介和暴露梯度。
+  confounders: [AI需求结构, 传统终端疲弱, 低基数, 库存周期, 供给扩张, 非经常损益, 公司执行差异]
+  confounder_search: 分别检查共同因素对WSTS或SEMI测量与公司收入、扣非利润、现金流、毛利率和存货的影响。
+  mediators: [订单, 产品价格, 出货量, 产能利用率, 客户验证, 收入确认]
+  colliders: [按已披露且增长显著的代表公司选择样本]
+  identification_strategy: descriptive_only
+  identification_assumptions: [行业与公司指标口径可映射到同一作用窗口, 代表公司选择不会被误当成无偏总体]
+  evidence_tasks:
+    - task_ref: causal-task:temporality
+      diagnostic_type: temporality
+      target_structure: forward_a_to_b与reverse_b_to_a
+      question: 行业指标与公司经营中介谁先变化，时滞是否符合业务确认？
+      evidence_roles: [primary, baseline, counter]
+    - task_ref: causal-task:mechanism
+      diagnostic_type: mechanism
+      target_structure: forward_a_to_b
+      question: 订单、价格、出货和利用率中介是否按顺序出现？
+      evidence_roles: [primary, mechanism, counter]
+    - task_ref: causal-task:exposure
+      diagnostic_type: exposure_contrast
+      target_structure: forward_a_to_b
+      question: 高行业景气暴露公司是否相对低暴露公司出现更大改善？
+      evidence_roles: [baseline, cross_check, counter]
+    - task_ref: causal-task:reverse
+      diagnostic_type: reverse_direction
+      target_structure: reverse_b_to_a
+      question: 公司变化是否稳定领先并能解释行业汇总变化？
+      evidence_roles: [primary, counter]
+    - task_ref: causal-task:common
+      diagnostic_type: common_cause
+      target_structure: common_cause
+      question: AI结构、低基数、库存和供给因素能否同时解释行业与公司变化？
+      evidence_roles: [baseline, mechanism, cross_check, counter]
+  downgrade_if_missing: 缺少可比暴露组、经营中介时序或反事实时，最高为consistent_only。

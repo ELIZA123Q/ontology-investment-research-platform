@@ -1,0 +1,187 @@
+schema_name: analyst_lens_registry
+schema_version: 1.0.0
+role: candidate_explanations_only
+description: >-
+  有日期的原始材料所支持的研究假设；不得作为正式事实、判断、投票或分析师当前建议。
+lenses:
+  AL-GSW-01:
+    author: 高善文
+    source:
+      id: primary
+      title: 去杠杆之争
+      publisher: 安信证券
+      published_on: '2018-07'
+      locator: 第1页内容提要、第4—8页部门杠杆与资产周转率、第11—20页去杠杆路径
+      url: https://pfile.essence.com.cn/data/00/36/CgcKWFs7XhKAUYaeAA0BWusV1Ts690.pdf
+    related_primary_sources:
+      - id: context-1
+        title: 守得云开见月明
+        publisher: 安信证券
+        published_on: '2021-01-14'
+        locator: 第1—6页疫情冲击、预防性储蓄及居民资金去向
+        url: https://www.zhiyanbao.cn/index/partFile/1/eastmoney/2021-12/1_220.pdf
+        contribution: 相邻的居民行为与资金配置案例，不是对2018年去杠杆命题的独立验证。
+    proposition: >-
+      宏观杠杆的总量表象需要拆成部门和主体结构；财政与金融去杠杆路径不同，
+      对融资、需求和风险分布的作用也不同。
+    theoretical_structure:
+      - claim: 将债务与GDP之比拆到资产负债率、资产周转率和增加值率，避免把分母变化误认成新增举债。
+        source_refs: [primary]
+      - claim: 区分地方融资平台、国有企业、民营企业及行业资产负债表，判断约束落在谁身上。
+        source_refs: [primary]
+      - claim: 分别追踪财政调整和金融信用收缩的实施方式，再观察融资可得性与真实需求。
+        source_refs: [primary]
+    research_operationalization: >-
+      研究者据此核对主体债务、周转率、融资价格与可得性、投资和现金流；
+      这些是本项目的可证伪检验设计，不是作者对今天A股的判断。
+    attribution_boundary: >-
+      2018年的主体分布和政策效果只代表当时；2021年居民预防性储蓄报告提供相邻渠道，
+      不得与2018年企业去杠杆路径拼成一个已验证的统一结论。
+    applicable_markets: [A_share]
+    applicable_horizons: [medium, long]
+    applicability: 中国信用与资产负债表传导显著的周期性行业；必须重做当期主体分层。
+    framework_refs: [BF-MF-01]
+    observable_predictions:
+      - 若约束集中在特定主体，融资可得性、投资和现金流压力应呈主体及行业分化。
+      - 若总杠杆变化主要来自周转率，同期企业资产负债率未必同向变化。
+    falsifiers:
+      - 主体融资可得性与资产负债表差异没有解释力，需求和现金流同步变化。
+    invalidation_conditions:
+      - 债务统计口径或融资制度变化使原有主体分层失去可比性。
+      - 缺少可核对的主体与用途分层证据时，停止用该视角推断权益影响。
+  AL-ZJT-01:
+    author: 周金涛
+    source:
+      id: primary
+      title: 过程与系统：周期的真实义
+      publisher: 中信建投证券
+      published_on: '2016-03-14'
+      locator: 第1页周期系统定位、第1—2页库存周期和价格、库存的阶段传导
+      url: https://xqdoc.imedao.com/153df48e25610673fdbc38ee.pdf
+    related_primary_sources:
+      - id: context-1
+        title: 康波中的价格波动
+        publisher: 中信建投证券
+        published_on: '2015-09-16'
+        locator: 第1页摘要及第6—15页长波与商品价格机制
+        url: https://xqdoc.imedao.com/15fa624a63c4d53fd0fddfec.pdf
+        contribution: 展开长波价格、工业化和较短周期的层次；其商品结论不能直接搬到A股。
+      - id: context-2
+        title: 康波理论及宏观对冲框架学术报告
+        publisher: 南开大学国际经济研究所
+        published_on: '2015-04-15'
+        locator: 2015年4月12日讲座记录中周期嵌套、资产范围与理论限制
+        url: https://nkiie.nankai.edu.cn/2015/0415/c11876a127309/page.htm
+        contribution: 一手讲座记录补充多周期及适用边界，并指出长波仍主要是统计规律。
+    proposition: >-
+      周期研究不是单一宏观指标预测，而是经济、技术、社会与制度共同构成的系统过程；
+      长波与中周期、库存周期的位置会改变同一短期信号的含义。
+    theoretical_structure:
+      - claim: 将技术、社会与制度纳入周期系统；工业化和长期价格背景另见商品研究。
+        source_refs: [primary, context-1]
+      - claim: 在长波背景下区分投资、房地产与库存等不同尺度，考察共振或背离及其阶段顺序。
+        source_refs: [primary, context-2]
+      - claim: 对具体阶段查价格、库存、需求和投资的传导，区分价格先修复与实体量的确认。
+        source_refs: [primary]
+    research_operationalization: >-
+      本项目只把周期位置转为有反证的情景树，要求价格—库存—需求等序列核验；
+      “情景树”和停止条件是项目的风险控制，不归因为作者原文。
+    attribution_boundary: >-
+      作者在2014—2016年的具体年份预测是历史观点；长波仍有统计规律强于严密因果证明的争议。
+      原文商品与黄金分析不能直接作为A股指数或个股价格预测。
+    applicable_markets: [A_share]
+    applicable_horizons: [long]
+    applicability: 全球需求、工业化、产能及库存变化重要的长期行业情景；不适用于一个月方向或个股择时。
+    framework_refs: [BF-MF-01, BF-SD-01]
+    observable_predictions:
+      - 若所提出的阶段路径成立，价格与库存的先后变化应逐步传到需求、生产和投资，而非只出现价格共振。
+    falsifiers:
+      - 价格、库存、需求和投资长期缺少预期顺序，或非周期性结构因素更能解释变化。
+    invalidation_conditions:
+      - 研究期限不足以观察跨周期传导。
+      - 制度或产业结构突变使历史周期映射失去稳定性。
+  AL-GL-01:
+    author: 郭磊
+    source:
+      id: primary
+      title: 经济趋势和融资环境仍是定价的双坐标
+      publisher: 广发证券
+      published_on: '2020-09-06'
+      locator: 报告摘要及经济趋势、融资环境双坐标讨论
+      url: https://pdf.dfcfw.com/pdf/H3_AP202009071408685465_1.pdf
+    related_primary_sources:
+      - id: context-1
+        title: 货币供给增速若触顶会影响后续经济修复吗
+        publisher: 广发证券
+        published_on: '2020-09-13'
+        locator: 第1—2页融资供求双向关系与经济分项驱动
+        url: https://img3.gelonghui.com/pdf/697ec-e79429bc-7f89-475d-8271-d50057731e64.pdf
+        contribution: 限定信用领先经济的经验规律，补充融资供给与需求的双向作用。
+    proposition: >-
+      经济趋势与融资环境是资产定价的两个坐标；名义增长关联盈利，资金成本和风险关联贴现，
+      两者背离时市场解释不能只沿一条轴线展开。
+    theoretical_structure:
+      - claim: 分开观察增长与盈利预期、融资与风险贴现，不把二者简单合成流动性指标。
+        source_refs: [primary]
+      - claim: 融资环境同时受政策供给和实体融资需求影响；社融与经济的领先关系并非恒定。
+        source_refs: [context-1]
+      - claim: BCI经营及融资子指标是原报告所用的历史影子指标，相关性不是因果证明或唯一口径。
+        source_refs: [primary]
+    research_operationalization: >-
+      本项目将双坐标用于提出盈利改善但估值受压等竞争情景，另以官方增长、信用和资金渠道核对；
+      BCI只可作候选代理量，不能单独提高结论等级。
+    attribution_boundary: 2020年疫情恢复及BCI—指数相关性是样本期观察，不代表当前A股定价规律仍同样有效。
+    applicable_markets: [A_share]
+    applicable_horizons: [short, medium]
+    applicability: 经济与资金条件可能背离的A股市场及行业风格研究；不替代盈利和估值核验。
+    framework_refs: [BF-MF-01, BF-EG-01]
+    observable_predictions:
+      - 若增长和融资坐标背离，盈利敏感与资金、贴现率敏感风格应出现可解释的分化。
+    falsifiers:
+      - 经口径和时滞校正后，两坐标不能解释分化，或产业与市场结构变量解释力更强。
+    invalidation_conditions:
+      - 经济或融资指标只有单一、不可复核的代理量。
+      - 市场结构或政策冲击主导而双坐标缺乏增量解释力。
+  AL-ZYD-01:
+    author: 张忆东
+    source:
+      id: primary
+      title: 春水泛滥，A股和港股的春季行情继续
+      publisher: 兴业证券
+      published_on: '2019-02-18'
+      locator: 第1—2页MOVE框架、第8—12页政策、信用、盈利和资本市场结构的阶段性讨论
+      url: https://img3.gelonghui.com/pdf/31052-7ad80883-621a-4eab-bab1-b3f822a9ac8d.pdf
+    related_primary_sources:
+      - id: context-1
+        title: 第一财经《首席对策》专访张忆东
+        publisher: 第一财经
+        published_on: '2018-12-15'
+        locator: 对话中关于边际政策、信用传导、长短资金与结构性机会的回答
+        url: https://www.yicai.com/news/100080271.html
+        contribution: 作者本人明确区分边际政策改善与基本面反转，并说明资金期限的差异。
+    proposition: >-
+      权益市场的阶段判断应同时检视货币与信用、海外约束、估值和经济预期；
+      政策与资金驱动的重定价可能早于盈利验证，结构性机会还取决于资金性质和市场制度。
+    theoretical_structure:
+      - claim: MOVE分别检查Money、Oversea、Value、Economy，避免把单一政策或上涨概括成全面牛市。
+        source_refs: [primary]
+      - claim: 分清货币宽松、信用传导、经济企稳和盈利兑现的时滞，政策底不等于盈利底。
+        source_refs: [primary, context-1]
+      - claim: 区分长钱与短钱及其投资期限；市场制度变化是另一个结构性条件。
+        source_refs: [primary, context-1]
+    research_operationalization: >-
+      本项目将其用于政策—实体信用—权益资金—盈利的阶段性竞争解释；对行业与风格映射时
+      另查官方政策执行、净资金供需和企业盈利，不采用报告中的2019年交易建议。
+    attribution_boundary: MOVE和阶段性分析来自2018—2019年的具体策略；不能继承当时的估值底、行情节奏或品种判断。
+    applicable_markets: [A_share]
+    applicable_horizons: [short, medium]
+    applicability: 政策和资金敏感的权益行业或风格研究；原报告的2019年行情观点不代表当前建议。
+    framework_refs: [BF-PI-01, BF-EF-01, BF-EG-01]
+    observable_predictions:
+      - 若先出现政策和资金驱动的重定价，盈利验证应滞后且行业间分化。
+      - 若行情要从估值修复转向盈利驱动，应看到相应的盈利和现金流证据改善。
+    falsifiers:
+      - 盈利先行且足以独立解释重定价，政策和资金变量没有增量解释力。
+    invalidation_conditions:
+      - 只观察到价格或成交放大，没有独立的政策执行、资金供需或盈利证据。
+      - 市场机制变化使原有资金与估值传导关系失效。

@@ -1,0 +1,9 @@
+evidence_ready: false
+conflict_detected: false
+available_types: []
+known_constraints:
+  - 短期价格方向具有高噪声，正式判断等级上限预设为J1。
+  - 免费AkShare MCP用于发现和取得公开行情；正式基本面事实仍回溯至指数公司、监管机构和法定披露。
+  - 预测起点使用最近完整交易日2026-09-07收盘数据。
+  - 20个交易日窗口跨越中秋节与国庆节休市，终点按2026年上交所休市安排确定为2026-10-13。
+

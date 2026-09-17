@@ -1,0 +1,34 @@
+id: request:a-share-semiconductor-2026h1
+bundle_id: research:a-share-semiconductor-2026h1
+mode: full_research
+title: A股半导体行业近半年基本面变化研究
+question: 截至2026-09-08，A股半导体行业基本面相较约半年前发生了哪些可验证变化？
+decision_use: 行业基本面跟踪与后续公司研究优先级设定，不直接生成买卖建议
+research_window:
+  start: 2026-03-08
+  end: 2026-09-08
+comparison_basis:
+  primary: 2026H1_vs_2025H1
+  sequential: 2025Q4_to_2026Q2_where_available
+scope:
+  market: A股上市及A+H两地上市的中国半导体公司
+  chain_segments:
+    - 芯片设计与特色存储
+    - AI加速芯片
+    - 晶圆制造
+    - 半导体设备
+    - 半导体材料
+    - 封装测试
+  metrics:
+    - 营业收入
+    - 扣非归母净利润
+    - 毛利率
+    - 经营活动现金流
+    - 存货与应收
+    - 需求结构与产能利用
+exclusions:
+  - 股价表现与短期交易信号
+  - 估值目标与个股买卖建议
+  - 未经正式披露验证的市场传闻
+information_cutoff: 2026-09-08T23:59:59+08:00
+

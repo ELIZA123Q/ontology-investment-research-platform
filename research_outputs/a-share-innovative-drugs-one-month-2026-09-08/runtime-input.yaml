@@ -1,0 +1,383 @@
+recorded_at: 2026-09-08T06:45:00Z
+node_outputs:
+  normalize:
+    - id: normalized:a-share-innovative-drugs-one-month-2026-09-08
+      type: NormalizedRequest
+      properties:
+        question: A股创新药板块在2026-09-08至2026-10-13约20个交易日内上涨是否为基准情景？
+        mode: full_research
+        information_cutoff: 2026-09-07T15:00:00+08:00
+        target_proxy: 159992
+        benchmark: 000300
+        maximum_judgment_level: J1
+  context:
+    - id: context:a-share-innovative-drugs-one-month-2026-09-08
+      type: SemanticContext
+      properties:
+        semantic_types: [Organization, Industry, IndustrySegment, Product, Market, Policy, FinancialInstrument, ResearchMetric]
+        industry: 创新药
+        market: A股
+        reference_index: 931152
+        tradable_proxy: 159992
+        metric_scope: [price_return, relative_return, realized_volatility, trading_volume, revenue, adjusted_net_profit, operating_cash_flow, valuation]
+        framework_refs: [A00, A00-附录2, BF-FQ-01, BF-EG-01, BF-RS-01, BF-VA-01]
+  acquire:
+    - id: source:akshare-mcp-159992-20260907
+      type: SourceDocument
+      properties:
+        title: 银华中证创新药产业ETF历史日线
+        publisher: AkShare MCP（底层接口：新浪行情）
+        publication_date: 2026-09-07
+        retrieval_date: 2026-09-08
+        url: https://github.com/xiaozhozho/akshare-mcp
+        method: fund_etf_hist_sina
+        parameters: {symbol: sz159992, max_rows: 5000}
+        source_grade: D1
+    - id: source:akshare-mcp-000300-20260907
+      type: SourceDocument
+      properties:
+        title: 沪深300指数历史日线
+        publisher: AkShare MCP（底层接口：新浪行情）
+        publication_date: 2026-09-07
+        retrieval_date: 2026-09-08
+        url: https://github.com/xiaozhozho/akshare-mcp
+        method: stock_zh_index_daily
+        parameters: {symbol: sh000300, max_rows: 7000}
+        source_grade: D1
+    - id: source:csindex-931152-factsheet-20260831
+      type: SourceDocument
+      properties:
+        title: 中证创新药产业指数事实表
+        publisher: 中证指数有限公司
+        publication_date: 2026-08-31
+        url: https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/931152factsheet.pdf
+        source_grade: S1
+    - id: source:csindex-931152-methodology
+      type: SourceDocument
+      properties:
+        title: 中证创新药产业指数编制方案
+        publisher: 中证指数有限公司
+        publication_date: 2023-12-08
+        url: https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/20231208180434-931152_Index_Methodology_cn.pdf
+        source_grade: S1
+    - id: source:sse-biomed-h1-2026
+      type: SourceDocument
+      properties:
+        title: 动能向新，结构向优，业绩向好——沪市公司2026年半年报业绩综述
+        publisher: 上海证券交易所
+        publication_date: 2026-08-30
+        url: https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20260830_10830362.shtml
+        source_grade: G1
+    - id: source:hengrui-h1-2026
+      type: SourceDocument
+      properties:
+        title: 江苏恒瑞医药股份有限公司2026年半年度报告摘要
+        publisher: 上海证券交易所法定披露文件（新浪镜像）
+        publication_date: 2026-08-20
+        url: https://file.finance.sina.com.cn/211.154.219.97:9494/MRGG/CNSESH_STOCK/2026/2026-8/2026-08-20/12506904.PDF
+        source_grade: S2
+    - id: source:beigene-h1-2026
+      type: SourceDocument
+      properties:
+        title: 百济神州有限公司2026年半年度报告
+        publisher: 上海证券交易所法定披露文件（公开文本镜像）
+        publication_date: 2026-08-27
+        url: https://stock.stockstar.com/notice/SN2026082600049959.shtml
+        source_grade: S2
+    - id: source:junshi-h1-2026
+      type: SourceDocument
+      properties:
+        title: 上海君实生物医药科技股份有限公司2026年半年度报告
+        publisher: 上海证券交易所法定披露文件（公开文本镜像）
+        publication_date: 2026-08-27
+        url: https://stock.stockstar.com/notice/SN2026082600050029.shtml
+        source_grade: S2
+    - id: source:betta-h1-2026
+      type: SourceDocument
+      properties:
+        title: 贝达药业股份有限公司2026年半年度报告
+        publisher: 巨潮资讯
+        publication_date: 2026-08-21
+        url: https://static.cninfo.com.cn/finalpage/2026-08-21/1225487673.PDF
+        source_grade: S1
+    - id: source:nhsa-catalog-plan-2026
+      type: SourceDocument
+      properties:
+        title: 2026年国家医保药品目录及商业健康保险创新药品目录调整工作方案
+        publisher: 国家医疗保障局
+        publication_date: 2026-05-31
+        url: https://www.nhsa.gov.cn/module/download/downfile.jsp?classid=0&filename=3b083334e4be44eca9e8837179e2b204.pdf
+        source_grade: G1
+    - id: source:nhsa-formal-review-2026
+      type: SourceDocument
+      properties:
+        title: 通过2026年医保及商保创新药目录调整形式审查的申报药品名单公告
+        publisher: 国家医疗保障局
+        publication_date: 2026-07-14
+        url: https://www.nhsa.gov.cn/art/2026/7/14/art_109_21421.html
+        source_grade: G1
+    - id: source:sse-calendar-2026
+      type: SourceDocument
+      properties:
+        title: 上海证券交易所2026年休市安排
+        publisher: 上海证券交易所
+        publication_date: 2025-12-22
+        url: https://www.sse.com.cn/disclosure/dealinstruc/closed/
+        source_grade: G1
+    - id: source:esmo-congress-2026
+      type: SourceDocument
+      properties:
+        title: ESMO Congress 2026 meeting calendar
+        publisher: European Society for Medical Oncology
+        publication_date: 2026-01-01
+        url: https://www.esmo.org/meeting-calendar/
+        source_grade: G1
+  extract:
+    - id: claim:etf-market-state
+      type: EvidenceClaim
+      properties:
+        source_id: source:akshare-mcp-159992-20260907
+        locator: 2020-04-10至2026-09-07日线；本地确定性统计
+        claim: 159992于2026-09-07收0.841元；近20/60/120/250日收益分别为-8.49%/+14.27%/+4.73%/-11.84%，20日年化波动32.82%，近20日成交量为前20日的0.77倍。
+    - id: claim:benchmark-market-state
+      type: EvidenceClaim
+      properties:
+        source_id: source:akshare-mcp-000300-20260907
+        locator: 截至2026-09-07日线；本地确定性统计
+        claim: 沪深300近20/60/120/250日收益分别为-2.70%/-4.23%/-2.07%/+2.75%，20日年化波动15.59%。
+    - id: claim:historical-regime
+      type: EvidenceClaim
+      properties:
+        source_id: source:akshare-mcp-159992-20260907
+        locator: 1556个交易日滚动窗口，重叠观测；条件为20日下跌、60日上涨且收盘低于20日均线
+        claim: 历史相似状态共有161个重叠观测，随后20日上涨比例39.1%，中位收益-2.18%，均值-1.29%，四分位区间约-5.88%至+2.21%。
+    - id: claim:index-definition-valuation
+      type: EvidenceClaim
+      properties:
+        source_id: source:csindex-931152-factsheet-20260831
+        locator: PDF第1至2页
+        claim: 指数选取不超过50只创新药研发代表证券；2026-08-31含50只样本，滚动市盈率28.43倍、市净率3.56倍、股息率1.19%，最大单一权重13.45%，前十大权重合计47.92%。
+    - id: claim:index-official-return
+      type: EvidenceClaim
+      properties:
+        source_id: source:csindex-931152-factsheet-20260831
+        locator: PDF第1页收益率表
+        claim: 截至2026-08-31，931152近1个月/3个月/年初至今/1年收益为+0.72%/+10.30%/+0.95%/-11.58%。
+    - id: claim:sector-commercialization
+      type: EvidenceClaim
+      properties:
+        source_id: source:sse-biomed-h1-2026
+        locator: 生物医药创新成果兑现与创新药出海段
+        claim: 2026H1沪市公司有7项1类新药获批，多笔大额对外授权推进；百济神州百悦泽上半年全球销售额161亿元、同比增长29%。
+    - id: claim:hengrui-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:hengrui-h1-2026
+        locator: PDF第2页主要财务数据
+        claim: 恒瑞医药2026H1收入154.56亿元、同比-1.94%，归母净利润44.65亿元、同比+0.34%，扣非净利润37.30亿元、同比-12.71%，经营现金流19.87亿元、同比-53.80%。
+    - id: claim:beigene-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:beigene-h1-2026
+        locator: 主要会计数据表
+        claim: 百济神州2026H1收入222.20亿元、同比+26.84%，归母净利润32.71亿元、同比+627.15%，经营现金流44.39亿元、同比+172.06%。
+    - id: claim:junshi-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:junshi-h1-2026
+        locator: 主要会计数据表
+        claim: 君实生物2026H1收入16.96亿元、同比+45.18%，归母净利润0.22亿元转正，但扣非净利润仍亏2.03亿元、经营现金流仍净流出0.69亿元。
+    - id: claim:betta-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:betta-h1-2026
+        locator: PDF第6至7页主要会计数据和非经常性损益
+        claim: 贝达药业2026H1收入19.76亿元、同比+14.12%，归母净利润同比+115.97%，但扣非净利润仅+6.70%、经营现金流-7.33%，非经常性损益约0.99亿元。
+    - id: claim:nhsa-calendar
+      type: EvidenceClaim
+      properties:
+        source_id: source:nhsa-catalog-plan-2026
+        locator: PDF第5至7页工作程序
+        claim: 2026年目录谈判/竞价/价格协商安排在8至9月，目录调整结果安排在10至11月公布。
+    - id: claim:nhsa-formal-review
+      type: EvidenceClaim
+      properties:
+        source_id: source:nhsa-formal-review-2026
+        locator: 最终形式审查结果与重要提示
+        claim: 601个药品通过基本医保形式审查、58个通过商保创新药目录形式审查；通过形式审查不等于纳入目录。
+    - id: claim:holiday-calendar
+      type: EvidenceClaim
+      properties:
+        source_id: source:sse-calendar-2026
+        locator: 2026年休市安排
+        claim: 中秋节9月25日至27日休市，国庆节10月1日至7日休市，据此20个交易日预测窗口结束于10月13日。
+    - id: claim:esmo-outside-window
+      type: EvidenceClaim
+      properties:
+        source_id: source:esmo-congress-2026
+        locator: ESMO Congress 2026
+        claim: ESMO Congress 2026于2026-10-23开始，晚于本研究预测窗口。
+  facts:
+    - id: fact:short-term-price-weakened
+      type: EvidenceFact
+      valid_from: 2026-08-10T00:00:00+08:00
+      valid_until: 2026-09-08T00:00:00+08:00
+      properties:
+        claim_refs: [claim:etf-market-state, claim:benchmark-market-state]
+        statement: 创新药ETF近20日绝对回撤8.49%，跑输沪深300约5.79个百分点，且成交量环比缩减。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:medium-term-relative-strength
+      type: EvidenceFact
+      valid_from: 2026-06-01T00:00:00+08:00
+      valid_until: 2026-09-08T00:00:00+08:00
+      properties:
+        claim_refs: [claim:etf-market-state, claim:benchmark-market-state, claim:index-official-return]
+        statement: 创新药中期仍有相对强势：ETF近60日上涨14.27%，同期沪深300下跌4.23%；但不同截止日与区间定义下短期收益读数不一致。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:historical-regime-not-supportive
+      type: EvidenceFact
+      valid_from: 2020-04-10T00:00:00+08:00
+      valid_until: 2026-09-08T00:00:00+08:00
+      properties:
+        claim_refs: [claim:historical-regime]
+        statement: 在159992历史中，与当前短弱中强且低于20日均线相似的价格状态，后续20日上涨比例不足四成；该统计为重叠样本描述，不是独立同分布概率估计。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:index-valuation-concentration
+      type: EvidenceFact
+      valid_from: 2026-08-31T00:00:00+08:00
+      properties:
+        claim_refs: [claim:index-definition-valuation]
+        statement: 931152当前约28.43倍滚动市盈率，前十大权重约47.92%，指数表现对少数龙头和研发服务公司敏感。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:fundamentals-improved-but-dispersed
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00+08:00
+      valid_until: 2026-07-01T00:00:00+08:00
+      properties:
+        claim_refs: [claim:sector-commercialization, claim:hengrui-h1, claim:beigene-h1, claim:junshi-h1, claim:betta-h1]
+        statement: 创新药商业化和出海兑现总体改善，但龙头间收入、扣非利润和现金流差异显著，尚非全板块同步高质量增长。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:no-confirmed-broad-catalyst-inside-window
+      type: EvidenceFact
+      valid_from: 2026-09-08T00:00:00+08:00
+      valid_until: 2026-10-14T00:00:00+08:00
+      properties:
+        claim_refs: [claim:nhsa-calendar, claim:nhsa-formal-review, claim:esmo-outside-window, claim:holiday-calendar]
+        statement: 预测窗口内医保谈判预期存在，但结果尚未公布且形式审查不代表准入；ESMO大会在窗口结束后，未发现覆盖指数层面的已确认强催化。
+        fact_status: admitted
+        conflict_detected: false
+  conflicts:
+    - id: conflict-assessment:a-share-innovative-drugs-one-month-2026-09-08
+      type: ConflictAssessment
+      properties:
+        status: complete
+        conflict_detected: true
+        retained_scope_difference:
+          - 中证指数事实表截至8月31日的日历月收益为+0.72%，AkShare MCP截至9月7日的159992滚动20日收益为-8.49%；两者标的、截止日和窗口口径不同，均保留且不得互相覆盖。
+          - 创新药基本面总体改善与恒瑞扣非利润、现金流下滑及君实扣非亏损并存，解释为公司分化而非数据冲突。
+        resolution_policy: preserve_both_and_scope
+  assess:
+    - id: evidence-assessment:a-share-innovative-drugs-one-month-2026-09-08
+      type: EvidenceAssessment
+      properties:
+        assessment_status: complete
+        lineage_complete: true
+        ready_for_directional_judgment: false
+        completeness_score: 76
+        maximum_judgment_level: J1
+        source_document_count: 13
+        source_grades: [G1, S1, S2, D1]
+        limitations:
+          - 一个月价格预测不可由半年报和政策时间表充分识别。
+          - 历史条件统计使用重叠窗口、单只ETF未复权收盘价，存在制度、成分与估值状态变化。
+          - 未取得覆盖全部50只成分股的一致预期盈利修订和机构持仓数据。
+          - 临床、审批和授权事件可能在窗口内突发，无法提前验证。
+  hypotheses:
+    - id: hypothesis:H1-earnings-broad-support
+      type: Hypothesis
+      properties:
+        statement: 2026H1创新药商业化和盈利兑现已形成足以推动全板块未来一个月上涨的广泛支撑。
+        status: partially_supported
+        evidence_refs: [fact:fundamentals-improved-but-dispersed, fact:index-valuation-concentration]
+    - id: hypothesis:H2-structural-divergence
+      type: Hypothesis
+      properties:
+        statement: 创新药基本面改善具有明显公司分化，指数短期结果依赖少数权重股。
+        status: supported
+        evidence_refs: [fact:fundamentals-improved-but-dispersed, fact:index-valuation-concentration]
+    - id: hypothesis:H3-short-term-overpricing
+      type: Hypothesis
+      properties:
+        statement: 中期相对强势已计入较多利好，近期转弱和缩量使未来20日上涨胜率不足50%。
+        status: supported
+        evidence_refs: [fact:short-term-price-weakened, fact:medium-term-relative-strength, fact:historical-regime-not-supportive]
+    - id: hypothesis:H4-confirmed-catalyst
+      type: Hypothesis
+      properties:
+        statement: 未来20个交易日内存在已公开、时间明确且可广泛驱动指数的强催化。
+        status: rejected
+        evidence_refs: [fact:no-confirmed-broad-catalyst-inside-window]
+  reason:
+    - id: reasoning-evaluation:fundamentals-vs-price
+      type: RuleEvaluation
+      properties:
+        rule_ref: A00/事实到判断边界
+        matched: true
+        conclusion: 半年报可支持产业兑现改善，但不能单独证明未来20日价格上涨。
+    - id: reasoning-evaluation:counterevidence
+      type: RuleEvaluation
+      properties:
+        rule_ref: A00-附录2/强反证优先
+        matched: true
+        conclusion: 恒瑞扣非与现金流走弱、君实和贝达盈利质量限制、近期价格与成交转弱均削弱看涨解释。
+    - id: reasoning-evaluation:expectation-gap
+      type: RuleEvaluation
+      properties:
+        rule_ref: BF-EG-01/预期差
+        matched: true
+        conclusion: 当前缺少一致预期修订数据，不能证明基本面利好尚未被定价；只能用中期相对强势作为“部分计价”的代理。
+    - id: reasoning-evaluation:short-horizon-cap
+      type: RuleEvaluation
+      properties:
+        rule_ref: evidence_quality_cap@1.0.0
+        matched: true
+        conclusion: 方向证据不完备，正式判断上限为J1。
+  judgment:
+    - id: judgment:a-share-innovative-drugs-one-month-2026-09-08
+      type: Judgment
+      valid_from: 2026-09-08T00:00:00+08:00
+      valid_until: 2026-10-14T00:00:00+08:00
+      properties:
+        judgment_level: J1
+        confidence: low_to_medium
+        statement: 未来约20个交易日，A股创新药上涨不是当前基准情景；更合理的判断是震荡偏弱，上涨概率粗略落在40%至45%。产业基本面中期改善仍在，但近期价格转弱、成交缩量、权重股盈利质量分化，且窗口内缺少已确认的广谱催化。
+        evidence_assessment_ref: evidence-assessment:a-share-innovative-drugs-one-month-2026-09-08
+        conditions:
+          - 预测代理为159992，起点为2026-09-07收盘0.841元，终点为2026-10-13。
+          - 概率区间是证据加权判断，不是模型精确概率或收益承诺。
+          - 若医保谈判、重大临床或授权事件在窗口内提前公开，需立即重估。
+        upgrade_condition: 159992收复并连续3个交易日站稳20日均线0.883元附近，同时5日均量高于此前20日均量，且至少一项覆盖主要权重股的正向正式催化公开。
+        downgrade_condition: 159992跌破近60日最大回撤对应低位并放量，或主要权重股出现临床、监管、授权回款或业绩负面事件。
+        invalidation_condition: 信息截面之后出现重大医保、临床、BD或监管结果，或指数成分发生实质调整。
+  draft:
+    - id: draft-report:a-share-innovative-drugs-one-month-2026-09-08
+      type: DraftReport
+      properties:
+        title: 创新药未来一个月会上涨吗？
+        path: research_outputs/a-share-innovative-drugs-one-month-2026-09-08/draft-report.md
+        status: awaiting_human_approval
+        judgment_ref: judgment:a-share-innovative-drugs-one-month-2026-09-08
+        summary: 基准情景为震荡偏弱，上涨概率约40%至45%；中期基本面改善不足以覆盖短期价格、成交和催化约束。
+  approval_request:
+    - id: approval-request:a-share-innovative-drugs-one-month-2026-09-08
+      type: ApprovalRequest
+      properties:
+        status: pending
+        requested_for: draft-report:a-share-innovative-drugs-one-month-2026-09-08
+        reason: 短期市场方向报告包含正式投资判断，AI不得自行发布，需独立人工ApprovalRecord。
+

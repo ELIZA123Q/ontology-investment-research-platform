@@ -1,0 +1,109 @@
+{
+  "bundle_id": "research:a-share-innovative-drugs-one-month-2026-09-08",
+  "plan_id": "plan:request:a-share-innovative-drugs-one-month-2026-09-08:r1",
+  "logic_ref": "complete_research@1.0.0",
+  "selection_rule": "route_complete_research@1.0.0",
+  "status": "awaiting_input",
+  "completed_nodes": [
+    "normalize",
+    "context",
+    "acquire",
+    "extract",
+    "facts",
+    "conflicts",
+    "hypotheses",
+    "assess",
+    "reason",
+    "judgment",
+    "draft",
+    "approval_request"
+  ],
+  "waiting_node": "publish",
+  "waiting_for_types": ["ApprovalRecord"],
+  "failed_nodes": [],
+  "formal_gates": {
+    "formal_fact_gate": "passed",
+    "formal_judgment_gate": "passed_at_J1",
+    "evidence_quality_cap": "triggered_J1",
+    "publication_requires_human_approval": "waiting"
+  },
+  "approval": {
+    "request_id": "approval-request:a-share-innovative-drugs-one-month-2026-09-08",
+    "status": "pending",
+    "approval_record": null
+  },
+  "judgment": {
+    "id": "judgment:a-share-innovative-drugs-one-month-2026-09-08",
+    "level": "J1",
+    "confidence": "low_to_medium",
+    "direction": "震荡偏弱",
+    "estimated_up_probability": "40%-45%",
+    "evidence_completeness": 76
+  },
+  "graph": {
+    "authority": "embedded Oxigraph",
+    "entities": 108,
+    "relations": 210,
+    "source_documents": 13,
+    "evidence_claims": 14,
+    "evidence_facts": 6,
+    "hypotheses": 4,
+    "judgments": 1,
+    "draft_reports": 1,
+    "approval_requests": 1,
+    "approval_records": 0,
+    "published_reports": 0
+  },
+  "lineage": {
+    "target": "draft-report:a-share-innovative-drugs-one-month-2026-09-08",
+    "reachable_entities": 95,
+    "reachable_relations": 193,
+    "includes": [
+      "DraftReport",
+      "Judgment",
+      "RuleEvaluation",
+      "Hypothesis",
+      "EvidenceAssessment",
+      "EvidenceFact",
+      "EvidenceClaim",
+      "SourceDocument",
+      "ExecutionPlan",
+      "ExecutionNode",
+      "ExecutionAttempt"
+    ]
+  },
+  "recovery_test": {
+    "archive": "research-bundle.trig",
+    "recovered_entities": 108,
+    "recovered_relations": 210,
+    "status": "passed"
+  },
+  "bitemporal_replay_test": {
+    "cutoff_before_evidence": "plan and rule audit visible; SourceDocument and Judgment not visible",
+    "cutoff_after_evidence": "SourceDocument and Judgment visible",
+    "status": "passed"
+  },
+  "post_cutoff_monitor": {
+    "observation_date": "2026-09-08",
+    "target_close": 0.849,
+    "target_return_since_cutoff_pct": 0.95,
+    "target_ma20": 0.8793,
+    "target_ret_20d_pct": -7.92,
+    "target_ret_60d_pct": 15.98,
+    "matched_regime_next_20d_positive_pct": 39.1,
+    "plan_revision_triggered": false,
+    "judgment_changed": false,
+    "record": "market-refresh-2026-09-08.md"
+  },
+  "offline_project_validation": {
+    "status": "passed",
+    "tests_passed": 25,
+    "semantic_types": 40,
+    "semantic_relations": 87,
+    "metrics": 46,
+    "capabilities": 14,
+    "logics": 3,
+    "rules": 13,
+    "default_financial_data_source": "akshare_mcp"
+  }
+}

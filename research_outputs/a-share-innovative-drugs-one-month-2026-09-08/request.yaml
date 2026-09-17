@@ -1,0 +1,33 @@
+id: request:a-share-innovative-drugs-one-month-2026-09-08
+bundle_id: research:a-share-innovative-drugs-one-month-2026-09-08
+mode: full_research
+title: A股创新药未来一个月方向研究
+question: 截至2026-09-08，A股创新药板块在未来约20个交易日内上涨的可能性是否高于下跌或横盘？
+decision_use: 短期行业配置观察，不构成个股交易指令或收益承诺
+forecast_window:
+  information_cutoff: 2026-09-07T15:00:00+08:00
+  start: 2026-09-08
+  end: 2026-10-13
+  trading_sessions: 20
+target:
+  semantic_scope: A股创新药产业
+  reference_index: 中证创新药产业指数
+  reference_index_code: "931152"
+  tradable_proxy: 银华中证创新药产业ETF
+  tradable_proxy_code: "159992"
+  benchmark: 沪深300
+  benchmark_code: "000300"
+outcome_definition:
+  absolute: 159992在预测窗口末收盘价高于2026-09-07收盘价0.841元
+  relative: 同期收益率高于沪深300
+research_questions:
+  - 2026年上半年创新药商业化和盈利兑现是否形成广泛基本面支撑？
+  - 当前估值和近中期价格状态是否已经计入主要利好？
+  - 未来20个交易日内有哪些可验证催化或反证？
+  - 历史相似价格状态下的前瞻分布是否支持上涨为基准情景？
+exclusions:
+  - 对单一临床试验结果或审批结果作无证据预测
+  - 将BD潜在总金额视为已实现收入或现金
+  - 将技术信号直接升级为高等级投资判断
+  - 个股目标价、仓位指令与确定性涨跌承诺
+

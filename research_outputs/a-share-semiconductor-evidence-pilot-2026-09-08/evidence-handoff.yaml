@@ -1,0 +1,788 @@
+evidence_handoff:
+  information_cutoff: 2026-09-08T23:59:59+08:00
+  task_refs:
+    - task:universe
+    - task:global-cycle
+    - task:equipment
+    - task:foundry
+    - task:a-share-realization
+    - task:quality-counter
+
+  sources:
+    - id: source:csi-931865-factsheet-20260831
+      producer: 中证指数有限公司
+      title: 中证半导体产业指数事实表（2026年8月31日）
+      source_type: direct_measurement
+      source_roles: [primary, baseline, cross_check, counter]
+      publication_date: 2026-08-31
+      captured_at: 2026-09-15T10:00:00+08:00
+      original_url: https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/indices/detail/files/zh_CN/931865factsheet.pdf
+      access_method: 中证指数官方事实表 PDF
+      version_or_period: "2026-08-31"
+      independence_group: index:csi-931865
+      query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-10
+
+    - id: source:wsts-july-2026
+      producer: World Semiconductor Trade Statistics
+      title: Historical Billings Report, July 2026
+      source_type: direct_measurement
+      source_roles: [primary, baseline, cross_check, counter]
+      publication_date: 2026-09-01
+      captured_at: 2026-09-15T10:10:00+08:00
+      original_url: https://www.wsts.org/67/Historical-Billings-Report
+      access_method: 官方页面下载免费 XLSX，核对 Monthly Data 与 3MMA 工作表
+      version_or_period: July 2026
+      independence_group: statistics:wsts
+      query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-01
+
+    - id: source:miit-electronics-h1-2026
+      producer: 中华人民共和国工业和信息化部
+      title: 2026年上半年电子信息制造业运行情况
+      source_type: official_primary
+      source_roles: [primary, baseline, cross_check, counter]
+      publication_date: 2026-07-31
+      captured_at: 2026-09-15T10:20:00+08:00
+      original_url: https://www.miit.gov.cn/jgsj/yxj/xxfb/art/2026/art_bf554117789c490fad07ec9827f98acd.html
+      access_method: 工信部官方 HTML 发布页
+      version_or_period: 2026H1
+      independence_group: statistics:miit-electronics
+      query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-06
+
+    - id: source:miit-sector-meeting-20260821
+      producer: 中华人民共和国工业和信息化部
+      title: 2026年三季度电子信息制造业行业运行分析座谈会
+      source_type: official_primary
+      source_roles: [mechanism, counter]
+      publication_date: 2026-08-21
+      captured_at: 2026-09-15T10:25:00+08:00
+      original_url: https://www.miit.gov.cn/gyhxxhb/jgsj/dzxxsnew/xyyx/art/2026/art_161606cd6d814731bbf772b48a3f5de3.html
+      access_method: 工信部官方 HTML 发布页
+      version_or_period: 2026Q3 meeting
+      independence_group: policy:miit-electronics-meeting
+      query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-06
+
+    - id: source:semi-q2-2026
+      producer: SEMI
+      title: Global Semiconductor Equipment Billings Increased 23% Year-Over-Year in Q2 2026
+      source_type: direct_measurement
+      source_roles: [primary, baseline, mechanism, counter]
+      publication_date: 2026-09-03
+      captured_at: 2026-09-15T10:30:00+08:00
+      original_url: https://www.semi.org/en/semi-press-release/global-semiconductor-equipment-billings-increased-23-percent-year-over-year-in-q2-2026-semi-reports
+      access_method: SEMI 官方季度发布 HTML
+      version_or_period: 2026Q2
+      independence_group: statistics:semi-seaj-equipment
+      query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-02
+
+    - id: source:tsmc-q2-2026
+      producer: Taiwan Semiconductor Manufacturing Company Limited
+      title: TSMC 2Q26 Results and Transcript
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-07-16
+      captured_at: 2026-09-15T10:40:00+08:00
+      original_url: https://investor.tsmc.com/english/encrypt/files/encrypt_file/reports/2026-08/3e494f0c14dd0890f897aa044415e21d93486cc4/TSMC%202Q26%20Transcript.pdf
+      access_method: 发行人投资者关系季度结果页内的演讲实录 PDF
+      version_or_period: 2026Q2
+      independence_group: issuer:tsmc-q2-2026
+      query_playbook_ref: OPS_半导体真实来源查询与口径手册.md#QP-SEMI-03
+
+    - id: source:smic-h1-2026
+      producer: Semiconductor Manufacturing International Corporation
+      title: 中芯国际2026年半年度报告
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-27
+      captured_at: 2026-09-15T10:50:00+08:00
+      original_url: https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0827/2026082701015.pdf
+      access_method: 香港交易所发行人公告 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:smic-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-06
+
+    - id: source:naura-h1-2026
+      producer: 北方华创科技集团股份有限公司
+      title: 北方华创2026年半年度报告
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-26
+      captured_at: 2026-09-15T11:00:00+08:00
+      original_url: https://static.cninfo.com.cn/finalpage/2026-08-26/1225501903.PDF
+      access_method: 巨潮资讯法定披露 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:naura-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+
+    - id: source:amec-h1-2026
+      producer: 中微半导体设备（上海）股份有限公司
+      title: 中微公司2026年半年度报告摘要
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-20
+      captured_at: 2026-09-15T11:05:00+08:00
+      original_url: https://static.cninfo.com.cn/finalpage/2026-08-20/1225482915.PDF
+      access_method: 巨潮资讯法定披露 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:amec-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+
+    - id: source:gigadevice-h1-2026
+      producer: 兆易创新科技集团股份有限公司
+      title: 兆易创新2026年半年度报告
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-19
+      captured_at: 2026-09-15T11:10:00+08:00
+      original_url: https://static.cninfo.com.cn/finalpage/2026-08-19/1225480384.PDF
+      access_method: 巨潮资讯法定披露 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:gigadevice-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+
+    - id: source:cambricon-h1-2026
+      producer: 中科寒武纪科技股份有限公司
+      title: 寒武纪2026年半年度报告
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-08
+      captured_at: 2026-09-15T11:15:00+08:00
+      original_url: https://static.cninfo.com.cn/finalpage/2026-08-08/1225464969.PDF
+      access_method: 巨潮资讯法定披露 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:cambricon-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+
+    - id: source:jcet-h1-2026
+      producer: 江苏长电科技股份有限公司
+      title: 长电科技2026年半年度报告
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-21
+      captured_at: 2026-09-15T11:20:00+08:00
+      original_url: https://static.cninfo.com.cn/finalpage/2026-08-21/1225487900.PDF
+      access_method: 巨潮资讯法定披露 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:jcet-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+
+    - id: source:anjimicro-h1-2026
+      producer: 安集微电子科技（上海）股份有限公司
+      title: 安集科技2026年半年度报告
+      source_type: issuer_disclosure
+      source_roles: [primary, baseline, mechanism, cross_check, counter]
+      publication_date: 2026-08-27
+      captured_at: 2026-09-15T11:25:00+08:00
+      original_url: https://static.cninfo.com.cn/finalpage/2026-08-27/1225513853.PDF
+      access_method: 巨潮资讯法定披露 PDF
+      version_or_period: 2026H1
+      independence_group: issuer:anjimicro-h1-2026
+      query_playbook_ref: OPS_通用真实来源查询与回退手册.md#QP-GEN-04
+
+  claims:
+    - id: claim:universe-definition
+      task_ref: task:universe
+      statement: 中证半导体产业指数选取不超过40只业务涉及半导体材料、设备和应用等领域的证券作为样本。
+      source_ref: source:csi-931865-factsheet-20260831
+      locator: PDF第1页/指数简介与选样方法
+      business_time: "2026-08-31"
+      scope: 中证半导体产业指数（931865）
+      metric_definition: 官方指数选样范围
+      unit: not_applicable
+      claim_kind: hard_fact
+      numeric: false
+    - id: claim:universe-count
+      task_ref: task:universe
+      statement: 2026年8月31日事实表记录样本数为40只。
+      source_ref: source:csi-931865-factsheet-20260831
+      locator: PDF第1页/指数信息/样本数字段
+      business_time: "2026-08-31"
+      scope: 中证半导体产业指数（931865）
+      metric_definition: 事实表披露的当期指数样本数
+      unit: 只证券
+      claim_kind: hard_fact
+      numeric: true
+
+    - id: claim:wsts-q1-2026
+      task_ref: task:global-cycle
+      statement: WSTS免费历史表中2026Q1全球半导体销售额合计为3049.18931亿美元。
+      source_ref: source:wsts-july-2026
+      locator: XLSX/Monthly Data/第250行 Worldwide/B:D列求和
+      business_time: 2026Q1
+      scope: WSTS worldwide semiconductor billings
+      metric_definition: 各月全球半导体销售额原值合计
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:wsts-q2-2026
+      task_ref: task:global-cycle
+      statement: WSTS免费历史表中2026Q2全球半导体销售额合计为4137.29924亿美元。
+      source_ref: source:wsts-july-2026
+      locator: XLSX/Monthly Data/第250行 Worldwide/E:G列求和
+      business_time: 2026Q2
+      scope: WSTS worldwide semiconductor billings
+      metric_definition: 各月全球半导体销售额原值合计
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:wsts-q2-2025
+      task_ref: task:global-cycle
+      statement: WSTS免费历史表中2025Q2全球半导体销售额合计为1803.51776亿美元。
+      source_ref: source:wsts-july-2026
+      locator: XLSX/Monthly Data/第244行 Worldwide/E:G列求和
+      business_time: 2025Q2
+      scope: WSTS worldwide semiconductor billings
+      metric_definition: 各月全球半导体销售额原值合计
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:wsts-july-3mma-2026
+      task_ref: task:global-cycle
+      statement: WSTS 2026年7月全球销售额三月移动平均为1468.03277亿美元。
+      source_ref: source:wsts-july-2026
+      locator: XLSX/3MMA/第250行 Worldwide/H列 July
+      business_time: 2026-07
+      scope: WSTS worldwide semiconductor billings
+      metric_definition: 全球半导体销售额三月移动平均
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:wsts-july-3mma-2025
+      task_ref: task:global-cycle
+      statement: WSTS 2025年7月全球销售额三月移动平均为624.52967亿美元。
+      source_ref: source:wsts-july-2026
+      locator: XLSX/3MMA/第244行 Worldwide/H列 July
+      business_time: 2025-07
+      scope: WSTS worldwide semiconductor billings
+      metric_definition: 全球半导体销售额三月移动平均
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:miit-ic-output-growth
+      task_ref: task:global-cycle
+      statement: 2026年上半年中国规模以上电子信息制造业集成电路产量同比增长23.1%。
+      source_ref: source:miit-electronics-h1-2026
+      locator: HTML/生产情况段/集成电路产量字段
+      business_time: 2026H1
+      scope: 中国规模以上电子信息制造业
+      metric_definition: 集成电路实物产量同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:miit-mobile-export-growth
+      task_ref: task:global-cycle
+      statement: 2026年上半年中国手机出口量同比下降4.3%。
+      source_ref: source:miit-electronics-h1-2026
+      locator: HTML/出口情况段/手机出口量字段
+      business_time: 2026H1
+      scope: 中国电子信息制造业出口
+      metric_definition: 手机出口数量同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:miit-structural-divergence
+      task_ref: task:global-cycle
+      statement: 工信部行业座谈会记录行业存在结构分化和传统产品消费低迷问题。
+      source_ref: source:miit-sector-meeting-20260821
+      locator: HTML/行业运行问题段
+      business_time: 2026Q3截至2026-08-21
+      scope: 中国电子信息制造业
+      metric_definition: 主管部门座谈会记录的行业问题
+      unit: not_applicable
+      claim_kind: context
+      numeric: false
+
+    - id: claim:semi-q2-billings
+      task_ref: task:equipment
+      statement: SEMI披露2026Q2全球半导体设备计费额为405.3亿美元。
+      source_ref: source:semi-q2-2026
+      locator: HTML/Q2 2026 billings table/Global row
+      business_time: 2026Q2
+      scope: SEMI与SEAJ成员报送的全球半导体设备计费
+      metric_definition: 半导体设备billings，不等于订单或产能
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:semi-q2-yoy
+      task_ref: task:equipment
+      statement: 2026Q2全球半导体设备计费同比增长23%。
+      source_ref: source:semi-q2-2026
+      locator: HTML/标题与Q2 2026 billings table/Year-over-Year字段
+      business_time: 2026Q2
+      scope: SEMI与SEAJ成员报送的全球半导体设备计费
+      metric_definition: 设备billings相对2025Q2的变化
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:semi-q2-qoq
+      task_ref: task:equipment
+      statement: 2026Q2全球半导体设备计费环比增长11%。
+      source_ref: source:semi-q2-2026
+      locator: HTML/Q2 2026 billings table/Quarter-over-Quarter字段
+      business_time: 2026Q2
+      scope: SEMI与SEAJ成员报送的全球半导体设备计费
+      metric_definition: 设备billings相对2026Q1的变化
+      unit: '%环比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:naura-revenue-growth
+      task_ref: task:equipment
+      statement: 北方华创2026H1营业收入同比增长24.90%。
+      source_ref: source:naura-h1-2026
+      locator: PDF/主要会计数据和财务指标/营业收入行
+      business_time: 2026H1 vs 2025H1
+      scope: 北方华创合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:naura-deducted-profit-growth
+      task_ref: task:equipment
+      statement: 北方华创2026H1扣非归母净利润同比增长5.02%。
+      source_ref: source:naura-h1-2026
+      locator: PDF/主要会计数据和财务指标/扣非归母净利润行
+      business_time: 2026H1 vs 2025H1
+      scope: 北方华创合并报表
+      metric_definition: 扣除非经常性损益的归母净利润同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:amec-revenue-growth
+      task_ref: task:equipment
+      statement: 中微公司2026H1营业收入同比增长34.89%。
+      source_ref: source:amec-h1-2026
+      locator: PDF/主要会计数据和财务指标/营业收入行
+      business_time: 2026H1 vs 2025H1
+      scope: 中微公司合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:amec-deducted-profit-growth
+      task_ref: task:equipment
+      statement: 中微公司2026H1扣非归母净利润同比增长108.36%。
+      source_ref: source:amec-h1-2026
+      locator: PDF/主要会计数据和财务指标/扣非归母净利润行
+      business_time: 2026H1 vs 2025H1
+      scope: 中微公司合并报表
+      metric_definition: 扣除非经常性损益的归母净利润同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+
+    - id: claim:tsmc-revenue
+      task_ref: task:foundry
+      statement: TSMC 2026Q2美元口径营业收入为402.0亿美元。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/revenue paragraph
+      business_time: 2026Q2
+      scope: TSMC consolidated
+      metric_definition: 公司披露的季度营业收入美元换算口径
+      unit: USD 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-gross-margin
+      task_ref: task:foundry
+      statement: TSMC 2026Q2毛利率为67.7%。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/gross margin paragraph
+      business_time: 2026Q2
+      scope: TSMC consolidated
+      metric_definition: 季度毛利润除以季度营业收入
+      unit: '%'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-hpc-share
+      task_ref: task:foundry
+      statement: TSMC 2026Q2 HPC收入占比为66%。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/HPC revenue paragraph
+      business_time: 2026Q2
+      scope: TSMC wafer revenue by platform
+      metric_definition: HPC平台占晶圆收入比例
+      unit: '%占比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-hpc-qoq
+      task_ref: task:foundry
+      statement: TSMC 2026Q2 HPC平台收入季环比增长20%。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/HPC revenue paragraph
+      business_time: 2026Q2 vs 2026Q1
+      scope: TSMC wafer revenue by platform
+      metric_definition: HPC平台晶圆收入季环比增速
+      unit: '%环比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-smartphone-share
+      task_ref: task:foundry
+      statement: TSMC 2026Q2智能手机平台收入占比为22%。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/smartphone revenue paragraph
+      business_time: 2026Q2
+      scope: TSMC wafer revenue by platform
+      metric_definition: 智能手机平台占晶圆收入比例
+      unit: '%占比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-smartphone-qoq
+      task_ref: task:foundry
+      statement: TSMC 2026Q2智能手机平台收入季环比下降4%。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/smartphone revenue paragraph
+      business_time: 2026Q2 vs 2026Q1
+      scope: TSMC wafer revenue by platform
+      metric_definition: 智能手机平台晶圆收入季环比增速
+      unit: '%环比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-inventory-days
+      task_ref: task:foundry
+      statement: TSMC 2026Q2库存周转天数为87天。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/balance sheet paragraph
+      business_time: 2026Q2
+      scope: TSMC consolidated
+      metric_definition: 公司披露的inventory days
+      unit: 天
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:tsmc-inventory-days-qoq
+      task_ref: task:foundry
+      statement: TSMC 2026Q2库存周转天数较前季增加7天。
+      source_ref: source:tsmc-q2-2026
+      locator: 2Q26 Transcript PDF第3页/balance sheet paragraph
+      business_time: 2026Q2 vs 2026Q1
+      scope: TSMC consolidated
+      metric_definition: 公司披露的inventory days季环比变化
+      unit: 天
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:smic-revenue-growth
+      task_ref: task:foundry
+      statement: 中芯国际2026H1营业收入同比增长23.7%。
+      source_ref: source:smic-h1-2026
+      locator: PDF第6页/主要财务指标/收入行
+      business_time: 2026H1 vs 2025H1
+      scope: 中芯国际合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:smic-adjusted-profit-growth
+      task_ref: task:foundry
+      statement: 中芯国际2026H1调整后归母净利润同比增长63.2%。
+      source_ref: source:smic-h1-2026
+      locator: PDF第6页/主要财务指标/调整后归母利润行
+      business_time: 2026H1 vs 2025H1
+      scope: 中芯国际合并报表
+      metric_definition: 公司定义的调整后归母净利润同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+
+    - id: claim:gigadevice-revenue-growth
+      task_ref: task:a-share-realization
+      statement: 兆易创新2026H1营业收入同比增长178.67%。
+      source_ref: source:gigadevice-h1-2026
+      locator: PDF/主要会计数据和财务指标/营业收入行
+      business_time: 2026H1 vs 2025H1
+      scope: 兆易创新合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:gigadevice-deducted-profit-growth
+      task_ref: task:a-share-realization
+      statement: 兆易创新2026H1扣非归母净利润同比增长796.9%。
+      source_ref: source:gigadevice-h1-2026
+      locator: PDF/主要会计数据和财务指标/扣非归母净利润行
+      business_time: 2026H1 vs 2025H1
+      scope: 兆易创新合并报表
+      metric_definition: 扣除非经常性损益的归母净利润同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:cambricon-revenue-growth
+      task_ref: task:a-share-realization
+      statement: 寒武纪2026H1营业收入同比增长108.13%。
+      source_ref: source:cambricon-h1-2026
+      locator: PDF/主要会计数据和财务指标/营业收入行
+      business_time: 2026H1 vs 2025H1
+      scope: 寒武纪合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:jcet-revenue-growth
+      task_ref: task:a-share-realization
+      statement: 长电科技2026H1营业收入同比增长5.0%。
+      source_ref: source:jcet-h1-2026
+      locator: PDF/经营情况摘要/营业收入字段
+      business_time: 2026H1 vs 2025H1
+      scope: 长电科技合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:anjimicro-revenue-growth
+      task_ref: task:a-share-realization
+      statement: 安集科技2026H1营业收入同比增长33.72%。
+      source_ref: source:anjimicro-h1-2026
+      locator: PDF第33页/主要经营情况/营业收入字段
+      business_time: 2026H1 vs 2025H1
+      scope: 安集科技合并报表
+      metric_definition: 营业收入同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+
+    - id: claim:naura-gross-margin-change
+      task_ref: task:quality-counter
+      statement: 北方华创2026H1毛利率同比下降2.10个百分点。
+      source_ref: source:naura-h1-2026
+      locator: PDF/主营业务分析/毛利率变动字段
+      business_time: 2026H1 vs 2025H1
+      scope: 北方华创合并报表
+      metric_definition: 综合毛利率同比变化
+      unit: 百分点
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:gigadevice-inventory-change
+      task_ref: task:quality-counter
+      statement: 兆易创新2026年6月末存货较2025年末增长36.47%。
+      source_ref: source:gigadevice-h1-2026
+      locator: PDF/资产负债表项目变动/存货行
+      business_time: 2026-06-30 vs 2025-12-31
+      scope: 兆易创新合并报表
+      metric_definition: 期末存货较期初变动率
+      unit: '%较期初'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:gigadevice-nonrecurring
+      task_ref: task:quality-counter
+      statement: 兆易创新2026H1非经常性损益约为19.74亿元。
+      source_ref: source:gigadevice-h1-2026
+      locator: PDF/非经常性损益项目和金额/合计行
+      business_time: 2026H1
+      scope: 兆易创新合并报表
+      metric_definition: 公司披露的非经常性损益合计
+      unit: CNY 亿元
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:cambricon-ocf-growth
+      task_ref: task:quality-counter
+      statement: 寒武纪2026H1经营活动产生的现金流量净额同比下降65.83%。
+      source_ref: source:cambricon-h1-2026
+      locator: PDF/主要会计数据和财务指标/经营活动现金流净额行
+      business_time: 2026H1 vs 2025H1
+      scope: 寒武纪合并现金流量表
+      metric_definition: 经营活动产生的现金流量净额同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:jcet-ocf-growth
+      task_ref: task:quality-counter
+      statement: 长电科技2026H1经营活动现金流净额同比增长26.7%。
+      source_ref: source:jcet-h1-2026
+      locator: PDF/经营情况摘要/经营现金流字段
+      business_time: 2026H1 vs 2025H1
+      scope: 长电科技合并现金流量表
+      metric_definition: 经营活动产生的现金流量净额同比增速
+      unit: '%同比'
+      claim_kind: hard_fact
+      numeric: true
+    - id: claim:anjimicro-gross-margin-change
+      task_ref: task:quality-counter
+      statement: 安集科技2026H1毛利率同比下降约0.77个百分点。
+      source_ref: source:anjimicro-h1-2026
+      locator: PDF第33页/主要经营情况/毛利率字段
+      business_time: 2026H1 vs 2025H1
+      scope: 安集科技合并报表
+      metric_definition: 综合毛利率同比变化
+      unit: 百分点
+      claim_kind: hard_fact
+      numeric: true
+
+  observations:
+    - id: observation:wsts-quarterly-series
+      claim_refs: [claim:wsts-q1-2026, claim:wsts-q2-2026, claim:wsts-q2-2025]
+      metric: WSTS worldwide quarterly billings
+      value: 2025Q2=1803.51776; 2026Q1=3049.18931; 2026Q2=4137.29924
+      unit: USD 亿元
+      business_time: 2025Q2, 2026Q1, 2026Q2
+      scope: WSTS worldwide semiconductor billings
+    - id: observation:a-share-segment-coverage
+      claim_refs: [claim:naura-revenue-growth, claim:amec-revenue-growth, claim:smic-revenue-growth, claim:gigadevice-revenue-growth, claim:cambricon-revenue-growth, claim:jcet-revenue-growth, claim:anjimicro-revenue-growth]
+      metric: 试点公司产业链覆盖
+      value: 设备、制造、设计与存储、AI芯片、封测、材料
+      unit: not_applicable
+      business_time: 2026H1
+      scope: 本试点使用的七家公司披露
+
+  calculations:
+    - id: calculation:wsts-q2-qoq
+      input_refs: [claim:wsts-q1-2026, claim:wsts-q2-2026]
+      formula: (4137.29924 / 3049.18931 - 1) * 100
+      result: 35.69
+      unit: '%环比'
+    - id: calculation:wsts-q2-yoy
+      input_refs: [claim:wsts-q2-2025, claim:wsts-q2-2026]
+      formula: (4137.29924 / 1803.51776 - 1) * 100
+      result: 129.40
+      unit: '%同比'
+    - id: calculation:wsts-july-3mma-yoy
+      input_refs: [claim:wsts-july-3mma-2025, claim:wsts-july-3mma-2026]
+      formula: (1468.03277 / 624.52967 - 1) * 100
+      result: 135.06
+      unit: '%同比'
+
+  coverage_by_role:
+    task:universe:
+      primary: partial
+      baseline: covered
+      cross_check: partial
+      counter: covered
+    task:global-cycle:
+      primary: covered
+      baseline: covered
+      mechanism: covered
+      cross_check: covered
+      counter: covered
+    task:equipment:
+      primary: covered
+      baseline: covered
+      mechanism: covered
+      cross_check: covered
+      counter: covered
+    task:foundry:
+      primary: covered
+      baseline: covered
+      mechanism: covered
+      cross_check: covered
+      counter: covered
+    task:a-share-realization:
+      primary: partial
+      baseline: covered
+      mechanism: covered
+      cross_check: covered
+      counter: covered
+    task:quality-counter:
+      primary: covered
+      baseline: covered
+      cross_check: partial
+      counter: covered
+
+  source_independence_groups:
+    index:csi-931865: [source:csi-931865-factsheet-20260831]
+    statistics:wsts: [source:wsts-july-2026]
+    statistics:miit-electronics: [source:miit-electronics-h1-2026]
+    policy:miit-electronics-meeting: [source:miit-sector-meeting-20260821]
+    statistics:semi-seaj-equipment: [source:semi-q2-2026]
+    issuer:tsmc-q2-2026: [source:tsmc-q2-2026]
+    issuer:smic-h1-2026: [source:smic-h1-2026]
+    issuer:naura-h1-2026: [source:naura-h1-2026]
+    issuer:amec-h1-2026: [source:amec-h1-2026]
+    issuer:gigadevice-h1-2026: [source:gigadevice-h1-2026]
+    issuer:cambricon-h1-2026: [source:cambricon-h1-2026]
+    issuer:jcet-h1-2026: [source:jcet-h1-2026]
+    issuer:anjimicro-h1-2026: [source:anjimicro-h1-2026]
+
+  conflicts:
+    - id: conflict:wsts-semi-scope
+      claim_refs: [claim:wsts-q2-2026, claim:semi-q2-billings]
+      status: explained
+      explanation: WSTS测量半导体销售额，SEMI测量设备billings，二者不是同一指标，不做数值直接对比。
+    - id: conflict:miit-wsts-scope
+      claim_refs: [claim:wsts-q2-2026, claim:miit-ic-output-growth]
+      status: explained
+      explanation: WSTS是全球销售金额，工信部是中国规上企业实物产量，只用于跨口径方向核对。
+
+  counter_searches:
+    - id: counter:universe
+      task_ref: task:universe
+      query: 931865 历史生效样本全量清单 调样公告 截至2026-09-08
+      scope: 中证指数官方指数页、事实表、样本与调样公告
+      searched_source_refs: [source:csi-931865-factsheet-20260831]
+      result: 已确认40只样本及前十权重页；本次记录范围内未取得截面日全量历史生效样本文件。
+      captured_at: 2026-09-15T12:00:00+08:00
+    - id: counter:global-cycle
+      task_ref: task:global-cycle
+      query: 传统终端疲弱 手机出口下降 库存恶化 半导体2026H1
+      scope: WSTS、工信部与发行人截面前发布
+      searched_source_refs: [source:wsts-july-2026, source:miit-electronics-h1-2026, source:miit-sector-meeting-20260821, source:tsmc-q2-2026]
+      result: 找到手机出口量下降、传统产品消费低迷和智能手机平台环比下降等反向记录。
+      captured_at: 2026-09-15T12:05:00+08:00
+    - id: counter:equipment
+      task_ref: task:equipment
+      query: equipment billings decline overcapacity margin pressure 2026Q2 semiconductor
+      scope: SEMI官方发布与A股设备公司2026H1披露
+      searched_source_refs: [source:semi-q2-2026, source:naura-h1-2026, source:amec-h1-2026]
+      result: 未在SEMI总量中发现同向下降；找到北方华创收入与扣非利润增速不匹配、毛利率下降的质量约束。
+      captured_at: 2026-09-15T12:10:00+08:00
+    - id: counter:foundry
+      task_ref: task:foundry
+      query: foundry smartphone weakness inventory days capacity expansion 2026Q2
+      scope: TSMC与中芯国际截面前季度和半年披露
+      searched_source_refs: [source:tsmc-q2-2026, source:smic-h1-2026]
+      result: 找到TSMC智能手机收入环比下降及库存天数上升；未把它们外推为全行业总体。
+      captured_at: 2026-09-15T12:15:00+08:00
+    - id: counter:a-share-realization
+      task_ref: task:a-share-realization
+      query: 2026H1 低基数 并表 非经常损益 半导体 存货 应收
+      scope: 六个产业链环节发行人法定披露
+      searched_source_refs: [source:naura-h1-2026, source:amec-h1-2026, source:gigadevice-h1-2026, source:cambricon-h1-2026, source:jcet-h1-2026, source:anjimicro-h1-2026]
+      result: 找到非经常性损益、存货上升、毛利率下降与经营现金流走弱等竞争解释；没有建立全40只样本的无偏聚合。
+      captured_at: 2026-09-15T12:20:00+08:00
+    - id: counter:quality-counter
+      task_ref: task:quality-counter
+      query: 收入利润增长但毛利率现金流存货应收恶化 2026H1
+      scope: 试点发行人半年报财务质量字段
+      searched_source_refs: [source:naura-h1-2026, source:gigadevice-h1-2026, source:cambricon-h1-2026, source:jcet-h1-2026, source:anjimicro-h1-2026]
+      result: 支持和反向现象同时存在；保留公司层差异并记录应收口径未全。
+      captured_at: 2026-09-15T12:25:00+08:00
+
+  gaps:
+    - id: gap:historical-constituents
+      task_ref: task:universe
+      gap_type: trace_missing
+      required_role: primary
+      description: 未取得可回放至2026-09-08的931865全40只历史生效样本清单及生效日文件。
+      attempts: [查看官方指数页, 核对2026-08-31事实表, 查询调样和样本公告入口]
+      impact: 可固定指数代理定义和样本数，但不能对全40只逐一统计或声称覆盖完整截点样本。
+    - id: gap:universe-cross-check
+      task_ref: task:universe
+      gap_type: trace_missing
+      required_role: cross_check
+      description: 未取得与官方历史生效清单同日的独立重建结果。
+      attempts: [检查来源索引的AKShare回退入口, 保留官方事实表为唯一总体边界]
+      impact: 指数样本边界只有一个生产者链路，无法做全量成分交叉核验。
+    - id: gap:a-share-full-sample
+      task_ref: task:a-share-realization
+      gap_type: scope_mismatch
+      required_role: primary
+      description: 公司证据是六个产业链环节的代表性披露，不是931865全40只样本的固定样本聚合。
+      attempts: [统一使用2026H1对2025H1, 按设备制造设计存储AI封测材料选取代表公司, 限定公司证据只做兑现和机制核验]
+      impact: 不得把代表公司的收入、利润或现金流表现写成全部A股半导体公司的无偏总体。
+    - id: gap:receivables-standardization
+      task_ref: task:quality-counter
+      gap_type: field_unavailable
+      required_role: cross_check
+      description: 本试点未完成所有代表公司应收账款、应收票据及合同资产的统一重分类。
+      attempts: [查看资产负债表项目变动, 检查经营现金流与存货变化, 不对未统一字段做横向合并]
+      impact: 现金转换反证可用，但不能给出公司间可比的应收周转结论。
+    - id: gap:semi-paid-detail
+      task_ref: task:equipment
+      gap_type: access_denied
+      required_role: cross_check
+      description: SEMI付费设备数据库的7个地区和22个设备细分不在本轮免费公开访问范围。
+      attempts: [核对SEMI公开季度发布, 查看Equipment Market Data Subscription粒度说明, 用北方华创和中微公司披露做发行人层交叉]
+      impact: 可证明全球设备总量，但不能从公开数据拆分地区和设备类别的具体贡献。
+
+  completeness: limited
+  stop_decision:
+    continue_research: false
+    reason: 已覆盖行业测量、公司兑现、下游或相邻变量及六个反证查询；剩余缺口需要官方历史样本文件、全40只财务抽取或付费细分数据，不适合用更多弱来源替代。
+    upgrade_evidence_needed:
+      - 931865截面日全40只历史生效样本清单及调样文件
+      - 全40只样本的2026H1统一财务字段和可比口径
+      - SEMI设备地区和类别细分（如获得许可）

@@ -1,0 +1,110 @@
+{
+  "bundle_id": "research:a-share-semiconductor-2026h1",
+  "plan_id": "plan:request:a-share-semiconductor-2026h1:r1",
+  "logic_ref": "complete_research@1.0.0",
+  "selection_rule": "route_complete_research@1.0.0",
+  "status": "completed",
+  "completed_nodes": [
+    "normalize",
+    "context",
+    "acquire",
+    "extract",
+    "facts",
+    "conflicts",
+    "hypotheses",
+    "assess",
+    "reason",
+    "judgment",
+    "draft",
+    "approval_request",
+    "publish"
+  ],
+  "waiting_node": null,
+  "waiting_for_types": [],
+  "failed_nodes": [],
+  "formal_gates": {
+    "formal_fact_gate": "passed",
+    "formal_judgment_gate": "passed",
+    "evidence_quality_cap": "not_triggered",
+    "publication_requires_human_approval": "passed"
+  },
+  "approval": {
+    "id": "approval:31ad7cd6-ee7c-4e7d-98fd-556d02fb95e6",
+    "status": "approved",
+    "approver_id": "user:luyao",
+    "approver_type": "human"
+  },
+  "judgment": {
+    "id": "judgment:a-share-semiconductor-2026h1",
+    "level": "J2",
+    "confidence": "medium",
+    "evidence_completeness": 81
+  },
+  "graph": {
+    "authority": "embedded Oxigraph",
+    "entities": 120,
+    "relations": 194,
+    "context_graph_nodes": 120,
+    "context_graph_edges": 194,
+    "source_documents": 12,
+    "evidence_claims": 12,
+    "evidence_facts": 8,
+    "hypotheses": 4,
+    "judgments": 1,
+    "draft_reports": 1,
+    "published_reports": 1
+  },
+  "lineage": {
+    "target": "published-report:a-share-semiconductor-2026h1",
+    "reachable_entities": 108,
+    "reachable_relations": 181,
+    "includes": [
+      "PublishedReport",
+      "ApprovalRecord",
+      "DraftReport",
+      "Judgment",
+      "RuleEvaluation",
+      "Hypothesis",
+      "EvidenceAssessment",
+      "EvidenceFact",
+      "EvidenceClaim",
+      "SourceDocument",
+      "EvidenceGap",
+      "ExecutionPlan",
+      "ExecutionNode",
+      "ExecutionAttempt"
+    ]
+  },
+  "recovery_test": {
+    "process_restart": "passed",
+    "recovered_entities": 107,
+    "recovered_relations": 179
+  },
+  "bitemporal_replay_test": {
+    "cutoff_before_evidence": "no SourceDocument or Judgment visible",
+    "cutoff_after_evidence": "SourceDocument and Judgment visible",
+    "status": "passed"
+  },
+  "offline_project_validation": {
+    "status": "passed",
+    "tests_passed": 25,
+    "semantic_types": 40,
+    "semantic_relations": 87,
+    "metrics": 46,
+    "capabilities": 14,
+    "logics": 3,
+    "rules": 13,
+    "existing_examples_validated": 2
+  },
+  "financial_data_source_policy": {
+    "status": "active_for_future_runs",
+    "default_source": "akshare_mcp",
+    "protocol": "mcp",
+    "credentials_required": false,
+    "repository": "https://github.com/xiaozhozho/akshare-mcp",
+    "revision": "9b6a22b6d83cce2a996a5072743bb06686040ce0",
+    "compatibility_constraint": "mcp<2",
+    "startup_smoke_test": "passed",
+    "formal_fact_rule": "MCP is discovery/retrieval only; formal facts require original-source lineage."
+  }
+}

@@ -1,5 +1,5 @@
 schema_name: research_reasoning_runtime_contract
-schema_version: 2.0.0
+schema_version: 2.1.0
 status: active
 description: 假设、规则评价、判断和报告的应用数据合同；均不是语义本体。
 
@@ -13,6 +13,18 @@ object_types:
   RuleEvaluation:
     purpose: 对固定版本机器规则的一次不可变评价。
     required_properties: [rule_id, rule_version, matched, result]
+  CausalDesign:
+    purpose: 取证前冻结因果变量、方向候选、反事实、时滞与识别任务。
+    required_properties: [causal_question, cause_a, outcome_b, unit_of_analysis, business_window, causal_estimand, counterfactual, candidate_structures, identification_strategy, evidence_tasks]
+  CausalAssessment:
+    purpose: 对正向、反向、共同原因和反馈结构进行分层裁决，并限定正式表达。
+    required_properties: [design_ref, relationship_conclusion, causal_status, diagnostics, claim_language_level, conclusion_statement]
+  MacroContext:
+    purpose: A股权益研究的宏观三问筛查或深度研判上下文，不直接形成个股、仓位或择时结论。
+    required_properties: [as_of, horizon, mode, economic_direction, policy_stance, funding_conditions, regime_synthesis, stop_conditions, monitoring_triggers, downstream_handoffs]
+  EvidenceHandoff:
+    purpose: 公开取证向研究推理交接的结构化证据包，记录来源、主张、计算、缺口、反证查询和停止条件。
+    required_properties: [information_cutoff, task_refs, sources, claims, observations, calculations, coverage_by_role, source_independence_groups, conflicts, counter_searches, gaps, completeness, stop_decision]
   Judgment:
     purpose: 通过证据和规则门槛后的正式投研判断。
     required_properties: [statement, judgment_level, evidence_refs, rule_evaluation_refs, limitations]
@@ -25,6 +37,9 @@ object_types:
   AssetImpact:
     purpose: 正式判断对资产假设、现金流或估值输入的映射结果。
     required_properties: [asset_ref, judgment_refs, impact_boundary]
+  DecisionComparison:
+    purpose: 在 A10 投资命题裁决后，对 ETF、个股选择或混合研究载体进行同口径比较；不产生交易、仓位、目标价或择时指令。
+    required_properties: [information_cutoff, a10_thesis_ref, a10_thesis_status, decision_question, comparison_scope, preferred_vehicle, selection_edge, candidate_ranking, report_boundary]
   ReasoningTrace:
     purpose: 从输入、规则到输出的追加式推理审计。
     required_properties: [input_refs, rule_evaluation_refs, output_refs]
@@ -34,6 +49,9 @@ object_types:
   DraftReport:
     purpose: 尚未获得人工发布批准的报告草稿。
     required_properties: [judgment_refs]
+  FinalArtifactValidation:
+    purpose: 独立成品验证记录，覆盖数字、证据边界、逻辑反证、报告边界、语言和问题回答完整性。
+    required_properties: [artifact_ref, validator_role, independent_from_production, verdict, checks, findings, question_coverage, calculation_audit, counterevidence_audit, unverified_items]
   ReportClaim:
     purpose: 报告中的一条表达观点，必须引用正式 Judgment。
     required_properties: [statement, judgment_ref]
@@ -45,13 +63,21 @@ relation_types:
   factGroundsHypothesis: {source: EvidenceFact, target: Hypothesis}
   factGroundsRuleEvaluation: {source: EvidenceFact, target: RuleEvaluation}
   ruleEvaluationSupportsJudgment: {source: RuleEvaluation, target: Judgment}
+  causalDesignGuidesAssessment: {source: CausalDesign, target: CausalAssessment}
+  evidenceGroundsCausalAssessment: {source: EvidenceFact, target: CausalAssessment}
+  causalAssessmentSupportsJudgment: {source: CausalAssessment, target: Judgment}
   factGroundsJudgment: {source: EvidenceFact, target: Judgment}
   judgmentRealizesAssetImpact: {source: Judgment, target: AssetImpact}
+  judgmentGuidesDecisionComparison: {source: Judgment, target: DecisionComparison}
   judgmentExpressedAsClaim: {source: Judgment, target: ReportClaim}
   reportContainsClaim: {source: PublishedReport, target: ReportClaim}
 
 invariants:
   - AI 只能生成候选 Hypothesis、候选主张或计划提案，不能直接生成正式 EvidenceFact、Judgment 或 PublishedReport。
   - Judgment 等级不得超过证据质量规则给出的上限。
+  - 因果 Judgment 必须引用同一研究包中的 CausalAssessment，并继承其 relationship_conclusion、causal_status 与 claim_language_level。
+  - 未启用因果流程的正式 Judgment 不得使用“导致、造成、主要由”等强因果表达。
   - ReportClaim 必须逐条连接正式 Judgment，且不得扩大范围、确定性或时效。
+  - DecisionComparison 必须引用同一研究包中已裁决的 A10 Judgment；命题未形成、阻断、过期或需重写时只能输出 insufficient。
+  - DecisionComparison 不得输出买卖、仓位、目标价、收益承诺、下单执行或择时点。
   - 正式发布必须引用 status=approved 且 approver_type=human 的 ApprovalRecord。

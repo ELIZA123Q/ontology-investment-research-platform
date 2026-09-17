@@ -47,6 +47,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = commands.add_parser("run", help="执行或恢复已持久化的动态计划")
     run_parser.add_argument("plan_id")
     run_parser.add_argument("bundle_id")
+    run_parser.add_argument("--node-outputs", help="YAML/JSON 文件：按节点 ID 提供实际研究设计或报告输出")
 
     approval_parser = commands.add_parser("approve", help="人工批准发布请求")
     approval_parser.add_argument("bundle_id")
@@ -105,7 +106,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             if entity is None or entity.type not in {"ExecutionPlan", "PlanRevision"}:
                 raise ValueError("动态计划不存在")
             plan = ExecutionPlan.model_validate(entity.properties)
-            summary = ResearchOrchestrator(repository).resume(plan, bundle_id=args.bundle_id)
+            outputs = _document(args.node_outputs) if args.node_outputs else None
+            summary = ResearchOrchestrator(repository).resume(
+                plan,
+                bundle_id=args.bundle_id,
+                runtime_context={"node_outputs": outputs} if outputs is not None else None,
+            )
             print(json.dumps(summary.__dict__, ensure_ascii=False))
         elif args.command == "approve":
             approval = ApprovalService(repository).approve(

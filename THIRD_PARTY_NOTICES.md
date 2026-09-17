@@ -1,5 +1,7 @@
 # 第三方组件声明
 
+本项目原创部分采用 [Apache-2.0](LICENSE)；下列依赖保留各自许可证。历史研究中引用的交易所、监管机构、公司公告、市场数据和分析师材料也不因被引用而自动纳入本项目授权；公开再分发前须按[发布检查](docs/public-release-checklist.md)逐项确认。
+
 本项目通过 Python 依赖使用 [Semantica 0.6.8](https://github.com/semantica-agi/semantica)，不复制、不 fork、也不修改其源代码。完整解析结果见 `uv.lock`；直接依赖与启用的 extra 见 `pyproject.toml`。
 
 ## Semantica 0.6.8

@@ -1,5 +1,5 @@
 schema_name: research_logic_registry
-schema_version: 1.0.0
+schema_version: 1.1.0
 status: active
 logics:
   material_ingestion:
@@ -26,24 +26,64 @@ logics:
       - {id: assess, capability_ref: evaluate_evidence, dependencies: [facts, conflicts, conflict_followup], activate_rule_refs: [evidence_refresh_required]}
     completion_rule_refs: [evidence_goal_satisfied]
     fallback_logic_refs: [material_ingestion]
+  decision_comparison:
+    version: 1.0.0
+    goal_types: [DecisionComparison]
+    input_types: [ResearchRequest]
+    nodes:
+      - {id: normalize, capability_ref: normalize_request, dependencies: []}
+      - {id: context, capability_ref: resolve_semantic_context, dependencies: [normalize]}
+      - {id: decision_comparison, capability_ref: form_decision_comparison, dependencies: [context]}
+    completion_rule_refs: [decision_comparison_goal_satisfied]
+    fallback_logic_refs: []
   complete_research:
+    version: 1.1.0
+    goal_types: [PublishedReport]
+    input_types: [ResearchRequest]
+    nodes:
+      - {id: normalize, capability_ref: normalize_request, dependencies: []}
+      - {id: context, capability_ref: resolve_semantic_context, dependencies: [normalize]}
+      - {id: design, capability_ref: form_research_design, dependencies: [context], activate_rule_refs: [research_design_required]}
+      - {id: acquire, capability_ref: acquire_evidence, dependencies: [context, design], activate_rule_refs: [evidence_refresh_required]}
+      - {id: extract, capability_ref: extract_claims, dependencies: [acquire], activate_rule_refs: [evidence_refresh_required]}
+      - {id: facts, capability_ref: synthesize_facts, dependencies: [extract], activate_rule_refs: [evidence_refresh_required]}
+      - {id: conflicts, capability_ref: detect_conflicts, dependencies: [facts], activate_rule_refs: [evidence_refresh_required]}
+      - {id: conflict_followup, capability_ref: acquire_evidence, dependencies: [context, design, conflicts], activate_rule_refs: [conflict_followup_required]}
+      - {id: assess, capability_ref: evaluate_evidence, dependencies: [facts, conflicts, conflict_followup], activate_rule_refs: [evidence_refresh_required]}
+      - {id: hypotheses, capability_ref: form_hypotheses, dependencies: [context, design, facts]}
+      - {id: reason, capability_ref: evaluate_reasoning, dependencies: [hypotheses, assess]}
+      - {id: causality, capability_ref: evaluate_causality, dependencies: [design, hypotheses, assess], activate_rule_refs: [causal_identification_required]}
+      - {id: judgment, capability_ref: form_judgment, dependencies: [hypotheses, assess, reason], activate_rule_refs: [non_causal_judgment_required]}
+      - {id: causal_judgment, capability_ref: form_causal_judgment, dependencies: [hypotheses, assess, reason, causality], activate_rule_refs: [causal_identification_required]}
+      - {id: draft, capability_ref: render_report, dependencies: [judgment, causal_judgment, design]}
+      - {id: approval_request, capability_ref: request_publication_approval, dependencies: [draft]}
+      - {id: publish, capability_ref: publish_report, dependencies: [draft, approval_request], activate_rule_refs: [publication_requires_human_approval]}
+    completion_rule_refs: [published_report_goal_satisfied]
+    fallback_logic_refs: [evidence_refresh]
+  complete_equity_research:
     version: 1.0.0
     goal_types: [PublishedReport]
     input_types: [ResearchRequest]
     nodes:
       - {id: normalize, capability_ref: normalize_request, dependencies: []}
       - {id: context, capability_ref: resolve_semantic_context, dependencies: [normalize]}
-      - {id: acquire, capability_ref: acquire_evidence, dependencies: [context], activate_rule_refs: [evidence_refresh_required]}
+      - {id: design, capability_ref: form_research_design, dependencies: [context], activate_rule_refs: [research_design_required]}
+      - {id: macro, capability_ref: form_macro_context, dependencies: [design]}
+      - {id: acquire, capability_ref: acquire_evidence, dependencies: [context, design, macro], activate_rule_refs: [evidence_refresh_required]}
       - {id: extract, capability_ref: extract_claims, dependencies: [acquire], activate_rule_refs: [evidence_refresh_required]}
       - {id: facts, capability_ref: synthesize_facts, dependencies: [extract], activate_rule_refs: [evidence_refresh_required]}
       - {id: conflicts, capability_ref: detect_conflicts, dependencies: [facts], activate_rule_refs: [evidence_refresh_required]}
-      - {id: conflict_followup, capability_ref: acquire_evidence, dependencies: [context, conflicts], activate_rule_refs: [conflict_followup_required]}
+      - {id: conflict_followup, capability_ref: acquire_evidence, dependencies: [context, design, conflicts], activate_rule_refs: [conflict_followup_required]}
       - {id: assess, capability_ref: evaluate_evidence, dependencies: [facts, conflicts, conflict_followup], activate_rule_refs: [evidence_refresh_required]}
-      - {id: hypotheses, capability_ref: form_hypotheses, dependencies: [context, facts]}
+      - {id: evidence_handoff, capability_ref: package_evidence_handoff, dependencies: [design, macro, assess]}
+      - {id: hypotheses, capability_ref: form_equity_hypotheses, dependencies: [context, design, macro, facts, evidence_handoff]}
       - {id: reason, capability_ref: evaluate_reasoning, dependencies: [hypotheses, assess]}
-      - {id: judgment, capability_ref: form_judgment, dependencies: [hypotheses, assess, reason]}
-      - {id: draft, capability_ref: render_report, dependencies: [judgment]}
-      - {id: approval_request, capability_ref: request_publication_approval, dependencies: [draft]}
-      - {id: publish, capability_ref: publish_report, dependencies: [draft, approval_request], activate_rule_refs: [publication_requires_human_approval]}
+      - {id: causality, capability_ref: evaluate_causality, dependencies: [design, hypotheses, assess], activate_rule_refs: [causal_identification_required]}
+      - {id: judgment, capability_ref: form_judgment, dependencies: [hypotheses, assess, reason], activate_rule_refs: [non_causal_judgment_required]}
+      - {id: causal_judgment, capability_ref: form_causal_judgment, dependencies: [hypotheses, assess, reason, causality], activate_rule_refs: [causal_identification_required]}
+      - {id: draft, capability_ref: render_report, dependencies: [judgment, causal_judgment, design, macro, evidence_handoff]}
+      - {id: final_validation, capability_ref: validate_final_artifact, dependencies: [draft, judgment, causal_judgment, macro, evidence_handoff]}
+      - {id: approval_request, capability_ref: request_publication_approval, dependencies: [draft, final_validation]}
+      - {id: publish, capability_ref: publish_report, dependencies: [draft, final_validation, approval_request], activate_rule_refs: [publication_requires_human_approval]}
     completion_rule_refs: [published_report_goal_satisfied]
     fallback_logic_refs: [evidence_refresh]

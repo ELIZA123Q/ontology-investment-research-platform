@@ -30,6 +30,46 @@ def test_four_graph_states_compile_to_different_dags() -> None:
     assert {node.capability_ref for node in plans[3].nodes} == {"normalize_request", "ingest_material"}
 
 
+def test_strategic_research_routes_to_generic_chain_without_equity_macro() -> None:
+    proposal = ResearchPlanningService().propose(
+        {
+            "id": "strategy-router",
+            "mode": "strategic_research",
+            "information_cutoff": "2026-09-08",
+            "decision_use": "产业进入策略",
+            "question": "某技术路线是否值得进入？",
+        },
+        {"evidence_ready": True, "available_types": ["EvidenceFact", "EvidenceAssessment"]},
+    )
+    plan = ExecutionPlanCompiler().compile(proposal)
+    capabilities = {node.capability_ref for node in plan.nodes}
+    assert proposal.logic_ref == "complete_research"
+    assert proposal.context["methodology"]["research_design_required"] is True
+    assert "form_research_design" in capabilities
+    assert "form_macro_context" not in capabilities
+    assert "package_evidence_handoff" not in capabilities
+
+
+def test_a_share_equity_still_routes_to_equity_chain() -> None:
+    proposal = ResearchPlanningService().propose(
+        {
+            "id": "equity-router",
+            "mode": "full_research",
+            "asset_class": "equity",
+            "market_scope": "A_share",
+            "information_cutoff": "2026-09-08",
+            "decision_use": "行业研究",
+            "question": "行业预期差在哪里？",
+        },
+        {"evidence_ready": True, "available_types": ["EvidenceFact", "EvidenceAssessment"]},
+    )
+    plan = ExecutionPlanCompiler().compile(proposal)
+    assert proposal.logic_ref == "complete_equity_research"
+    assert {"form_macro_context", "package_evidence_handoff", "validate_final_artifact"} <= {
+        node.capability_ref for node in plan.nodes
+    }
+
+
 def test_restricted_rule_dsl_rejects_code_and_supports_graph_patterns() -> None:
     evaluator = RuleEvaluator()
     rule = RuleRegistry().resolve("source_document_goal_satisfied")

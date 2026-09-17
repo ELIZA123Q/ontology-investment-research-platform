@@ -1,0 +1,6 @@
+interface:
+  display_name: "战略研究总控"
+  short_description: "为非A股权益或资产类别未明确的战略研究做入口分流与方法编排"
+  default_prompt: "使用 $touyan-zhanlue-yanjiu-zongkong 为这项战略研究识别类型、边界、方法链和停止条件。"
+policy:
+  allow_implicit_invocation: true

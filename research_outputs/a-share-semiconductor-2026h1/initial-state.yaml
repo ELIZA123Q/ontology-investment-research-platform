@@ -1,0 +1,7 @@
+evidence_ready: false
+conflict_detected: false
+available_types: []
+known_constraints:
+  - Wind API key unavailable; full-universe index fundamentals cannot be retrieved from Wind in this run.
+  - Public official sources are used as the fallback evidence route.
+

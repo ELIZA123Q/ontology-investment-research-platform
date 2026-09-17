@@ -1,0 +1,118 @@
+schema_name: public_evidence_query_ledger
+schema_version: 1.0.0
+run_id: a-share-semiconductor-evidence-pilot-2026-09-08
+research_question: 截至2026-09-08，A股半导体行业近半年基本面发生了哪些可验证变化？
+information_cutoff: 2026-09-08T23:59:59+08:00
+retrieved_at: 2026-09-15T12:30:00+08:00
+retrospective_rule: 实际取得时间可晚于历史截面，但只有发布日不晚于截面的原文可产生正式主张。
+source_index_ref: 研究方法/取证/source-index.yaml
+playbooks:
+  - 研究方法/取证/OPS_通用真实来源查询与回退手册.md
+  - 研究方法/取证/OPS_半导体真实来源查询与口径手册.md
+
+tasks:
+  - task_ref: task:universe
+    frozen_scope:
+      object: 中证半导体产业指数931865
+      region: A股
+      business_time: 2026-09-08历史截面
+      metric: 生效样本、样本数、选样定义
+      unit: 只证券与指数权重
+    support_queries:
+      - 931865 factsheet 2026-08-31 sample count methodology
+    counter_queries:
+      - 931865 历史生效样本全量清单 调样公告
+    included_source_refs: [source:csi-931865-factsheet-20260831]
+    result: partial
+    gap_refs: [gap:historical-constituents, gap:universe-cross-check]
+
+  - task_ref: task:global-cycle
+    frozen_scope:
+      object: 全球半导体销售额与中国集成电路产量
+      region: global and China
+      business_time: 2025Q2, 2026Q1, 2026Q2, 2026-07, 2026H1
+      metric: WSTS billings original and 3MMA; MIIT physical output
+      unit: USD 亿元, %同比, %环比
+    support_queries:
+      - WSTS Historical Billings Report July 2026 free xlsx
+      - 工信部 2026年上半年 电子信息制造业 集成电路产量
+    counter_queries:
+      - 传统终端疲弱 手机出口下降 库存恶化
+    included_source_refs: [source:wsts-july-2026, source:miit-electronics-h1-2026, source:miit-sector-meeting-20260821, source:tsmc-q2-2026]
+    result: covered
+
+  - task_ref: task:equipment
+    frozen_scope:
+      object: 全球半导体设备计费及A股设备代表公司
+      region: global and A股
+      business_time: 2026Q2 and 2026H1
+      metric: billings, revenue growth, deducted profit growth, gross margin change
+      unit: USD 亿元, %同比, %环比, 百分点
+    support_queries:
+      - SEMI equipment billings Q2 2026 official
+      - 北方华创 中微公司 2026 半年报
+    counter_queries:
+      - equipment overcapacity margin pressure billings decline 2026Q2
+    included_source_refs: [source:semi-q2-2026, source:naura-h1-2026, source:amec-h1-2026]
+    result: covered_with_paid_granularity_gap
+    gap_refs: [gap:semi-paid-detail]
+
+  - task_ref: task:foundry
+    frozen_scope:
+      object: TSMC and SMIC foundry disclosures
+      region: global and China
+      business_time: 2026Q2 and 2026H1
+      metric: revenue, gross margin, platform mix, inventory days, adjusted profit
+      unit: USD 亿元, %, %同比, 天
+    support_queries:
+      - TSMC 2Q26 results transcript revenue HPC smartphone inventory
+      - SMIC 2026 interim report revenue adjusted profit
+    counter_queries:
+      - foundry smartphone weakness inventory days capacity expansion 2026Q2
+    included_source_refs: [source:tsmc-q2-2026, source:smic-h1-2026]
+    result: covered
+
+  - task_ref: task:a-share-realization
+    frozen_scope:
+      object: 设备、制造、设计存储、AI芯片、封测、材料代表公司
+      region: A股发行人及中芯国际H股同一发行人披露
+      business_time: 2026H1 vs 2025H1
+      metric: revenue and adjusted or deducted profit
+      unit: %同比
+    support_queries:
+      - 公司名 2026年半年报 营业收入 扣非归母
+    counter_queries:
+      - 低基数 并表 非经常损益 存货 应收
+    included_source_refs: [source:smic-h1-2026, source:naura-h1-2026, source:amec-h1-2026, source:gigadevice-h1-2026, source:cambricon-h1-2026, source:jcet-h1-2026, source:anjimicro-h1-2026]
+    result: partial_representative_sample
+    gap_refs: [gap:a-share-full-sample]
+
+  - task_ref: task:quality-counter
+    frozen_scope:
+      object: 上述代表公司2026H1财务质量字段
+      region: issuer filings
+      business_time: 2026H1 vs 2025H1; 2026-06-30 vs 2025-12-31
+      metric: gross margin, operating cash flow, inventory, receivables, nonrecurring items
+      unit: 百分点, %同比, %较期初, CNY 亿元
+    support_queries:
+      - 经营现金流净额 毛利率 存货 应收 非经常性损益
+    counter_queries:
+      - 收入利润增长但现金流或存货恶化
+    included_source_refs: [source:naura-h1-2026, source:gigadevice-h1-2026, source:cambricon-h1-2026, source:jcet-h1-2026, source:anjimicro-h1-2026]
+    result: partial
+    gap_refs: [gap:receivables-standardization]
+
+exclusions:
+  - item: 搜索结果摘要与AI摘要
+    reason: 只用于发现入口，未产生任何正式主张。
+  - item: 媒体对公司公告或WSTS/SEMI数据的转述
+    reason: 真实生产者链未变，不增加独立性。
+  - item: 2026-09-09及之后发布的材料
+    reason: 晚于信息截面，拒绝进入证据交接。
+  - item: 原报告中81/100的人工精确分数
+    reason: 新合同只允许sufficient、limited、observation、unusable四档完备度。
+
+stop_decision:
+  continue_research: false
+  reason: 公开且可复核的主源已覆盖三类证据和反证；剩余问题是全量历史样本、统一抽取工作量和付费粒度，无法由更多弱来源解决。
+  handoff_ref: evidence-handoff.yaml

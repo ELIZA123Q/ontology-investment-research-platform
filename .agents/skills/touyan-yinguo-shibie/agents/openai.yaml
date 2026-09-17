@@ -1,0 +1,6 @@
+interface:
+  display_name: "投研因果识别"
+  short_description: "区分正向、反向、共同原因与双向关系，并约束因果表达"
+  default_prompt: "使用 $touyan-yinguo-shibie 为这个投研因果问题生成可检验设计并裁决因果方向。"
+policy:
+  allow_implicit_invocation: true

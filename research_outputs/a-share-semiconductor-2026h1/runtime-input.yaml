@@ -1,0 +1,361 @@
+recorded_at: 2026-09-08T02:30:00Z
+node_outputs:
+  normalize:
+    - id: normalized:a-share-semiconductor-2026h1
+      type: NormalizedRequest
+      properties:
+        question: 截至2026-09-08，A股半导体行业近半年是否发生可验证的基本面变化？
+        mode: full_research
+        valid_window: [2026-03-08, 2026-09-08]
+        comparison: 2026H1_vs_2025H1
+  context:
+    - id: context:a-share-semiconductor-2026h1
+      type: SemanticContext
+      properties:
+        semantic_types: [Organization, Industry, IndustrySegment, Product, Service, Market, Facility, Technology, ResearchMetric]
+        industry: 半导体
+        market: A股
+        metric_scope: [revenue, adjusted_net_profit, gross_margin, operating_cash_flow, inventory, receivables]
+        framework_refs: [BF-SD, BF-FQ, BF-EE, A00]
+  acquire:
+    - id: source:miit-electronic-h1-2026
+      type: SourceDocument
+      properties:
+        title: 2026年上半年电子信息制造业运行情况
+        publisher: 工业和信息化部
+        publication_date: 2026-07-31
+        url: https://www.miit.gov.cn/jgsj/yxj/xxfb/art/2026/art_bf554117789c490fad07ec9827f98acd.html
+        source_grade: G1
+    - id: source:miit-software-h1-2026
+      type: SourceDocument
+      properties:
+        title: 2026年上半年软件业运行情况
+        publisher: 工业和信息化部
+        publication_date: 2026-07-31
+        url: https://wap.miit.gov.cn/jgsj/yxj/xxfb/art/2026/art_d9504b5e12ef4fce9c86de1d1d0548f9.html
+        source_grade: G1
+    - id: source:miit-sector-meeting-q3-2026
+      type: SourceDocument
+      properties:
+        title: 2026年三季度电子信息制造业行业运行分析座谈会
+        publisher: 工业和信息化部
+        publication_date: 2026-08-21
+        url: https://www.miit.gov.cn/gyhxxhb/jgsj/dzxxsnew/xyyx/art/2026/art_161606cd6d814731bbf772b48a3f5de3.html
+        source_grade: G1
+    - id: source:miit-digital-h1-2026
+      type: SourceDocument
+      properties:
+        title: 2026年上半年数字产业运行情况
+        publisher: 工业和信息化部
+        publication_date: 2026-08-26
+        url: https://www.miit.gov.cn/xwfb/gxdt/sjdt/art/2026/art_cc4b160e38094e8cbf2131dc322a9d43.html
+        source_grade: G1
+    - id: source:smic-h1-2026
+      type: SourceDocument
+      properties:
+        title: 中芯国际2026年半年度报告
+        publisher: 香港交易所
+        publication_date: 2026-08-27
+        url: https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0827/2026082701015.pdf
+        source_grade: S1
+    - id: source:smic-q2-2026
+      type: SourceDocument
+      properties:
+        title: SMIC Reports Unaudited Results for the Three Months Ended June 30, 2026
+        publisher: 香港交易所
+        publication_date: 2026-08-13
+        url: https://www1.hkexnews.hk/listedco/listconews/sehk/2026/0813/2026081300353.pdf
+        source_grade: S1
+    - id: source:naura-h1-2026
+      type: SourceDocument
+      properties:
+        title: 北方华创2026年半年度报告
+        publisher: 巨潮资讯
+        publication_date: 2026-08-26
+        url: https://static.cninfo.com.cn/finalpage/2026-08-26/1225501903.PDF
+        source_grade: S1
+    - id: source:amec-h1-2026
+      type: SourceDocument
+      properties:
+        title: 中微公司2026年半年度报告摘要
+        publisher: 巨潮资讯
+        publication_date: 2026-08-20
+        url: https://static.cninfo.com.cn/finalpage/2026-08-20/1225482915.PDF
+        source_grade: S1
+    - id: source:gigadevice-h1-2026
+      type: SourceDocument
+      properties:
+        title: 兆易创新2026年半年度报告
+        publisher: 巨潮资讯
+        publication_date: 2026-08-19
+        url: https://static.cninfo.com.cn/finalpage/2026-08-19/1225480384.PDF
+        source_grade: S1
+    - id: source:cambricon-h1-2026
+      type: SourceDocument
+      properties:
+        title: 寒武纪2026年半年度报告
+        publisher: 巨潮资讯
+        publication_date: 2026-08-08
+        url: https://static.cninfo.com.cn/finalpage/2026-08-08/1225464969.PDF
+        source_grade: S1
+    - id: source:jcet-h1-2026
+      type: SourceDocument
+      properties:
+        title: 长电科技2026年半年度报告
+        publisher: 巨潮资讯
+        publication_date: 2026-08-21
+        url: https://static.cninfo.com.cn/finalpage/2026-08-21/1225487900.PDF
+        source_grade: S1
+    - id: source:anjimicro-h1-2026
+      type: SourceDocument
+      properties:
+        title: 安集科技2026年半年度报告
+        publisher: 巨潮资讯
+        publication_date: 2026-08-27
+        url: https://static.cninfo.com.cn/finalpage/2026-08-27/1225513853.PDF
+        source_grade: S1
+  extract:
+    - id: claim:miit-output
+      type: EvidenceClaim
+      properties:
+        source_id: source:miit-electronic-h1-2026
+        locator: 行业数据段/主要产品产量与效益
+        claim: 2026H1集成电路产量同比增长23.1%，电子信息制造业增加值同比增长14.8%。
+    - id: claim:miit-design
+      type: EvidenceClaim
+      properties:
+        source_id: source:miit-software-h1-2026
+        locator: 分领域运行情况/集成电路设计
+        claim: 2026H1集成电路设计收入同比增长20.1%。
+    - id: claim:miit-divergence
+      type: EvidenceClaim
+      properties:
+        source_id: source:miit-sector-meeting-q3-2026
+        locator: 行业运行问题段
+        claim: 行业仍存在结构分化和传统产品消费低迷。
+    - id: claim:miit-compute
+      type: EvidenceClaim
+      properties:
+        source_id: source:miit-digital-h1-2026
+        locator: 数字产业主要指标/智能算力
+        claim: 2026H1智能算力规模同比增长177%，集成电路和电子材料为利润重要贡献领域。
+    - id: claim:smic-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:smic-h1-2026
+        locator: PDF第6页主要财务指标
+        claim: 中芯国际2026H1收入同比增长23.7%、调整后归母利润增长63.2%、经营现金流增长252.7%。
+    - id: claim:smic-quarterly
+      type: EvidenceClaim
+      properties:
+        source_id: source:smic-q2-2026
+        locator: PDF第1页及第4页季度摘要
+        claim: 中芯国际2026Q2收入环比增长20.0%，毛利率25.3%，较2026Q1提升5.2个百分点。
+    - id: claim:naura-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:naura-h1-2026
+        locator: PDF主要会计数据与主营业务分析
+        claim: 北方华创2026H1收入增长24.90%、扣非利润增长5.02%、经营现金流转正，毛利率下降2.10个百分点。
+    - id: claim:amec-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:amec-h1-2026
+        locator: PDF主要财务数据
+        claim: 中微公司2026H1收入增长34.89%、扣非利润增长108.36%、经营现金流增长237.39%。
+    - id: claim:gigadevice-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:gigadevice-h1-2026
+        locator: PDF主要财务指标与资产负债表变动
+        claim: 兆易创新2026H1收入增长178.67%、扣非利润增长796.9%、经营现金流增长531.47%，存货较年初增长36.47%。
+    - id: claim:cambricon-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:cambricon-h1-2026
+        locator: PDF主要财务指标与现金流分析
+        claim: 寒武纪2026H1收入和扣非利润翻倍以上，但经营现金流同比下降65.83%。
+    - id: claim:jcet-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:jcet-h1-2026
+        locator: PDF经营情况摘要
+        claim: 长电科技2026H1收入增长5.0%、调整后净利润增长84.7%、经营现金流增长26.7%。
+    - id: claim:anjimicro-h1
+      type: EvidenceClaim
+      properties:
+        source_id: source:anjimicro-h1-2026
+        locator: PDF第33页主要经营情况
+        claim: 安集科技2026H1收入增长33.72%、扣非利润增长19.35%、经营现金流增长30.68%。
+  facts:
+    - id: fact:industry-output-up
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:miit-output, claim:miit-design]
+        statement: 2026H1集成电路产量和设计收入分别同比增长23.1%和20.1%。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:industry-demand-divergence
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      properties:
+        claim_refs: [claim:miit-divergence, claim:miit-compute]
+        statement: AI算力相关需求强，而传统消费电子仍偏弱，行业呈结构分化。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:smic-earnings-improved
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:smic-h1, claim:smic-quarterly]
+        statement: 中芯国际H1收入、调整后利润和现金流改善，且Q2收入与毛利率环比加速。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:equipment-improved-with-margin-divergence
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:naura-h1, claim:amec-h1]
+        statement: 设备环节收入和现金流改善，但利润弹性及毛利率表现分化。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:design-memory-strong-with-inventory-risk
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:gigadevice-h1]
+        statement: 特色存储/设计环节代表公司增长强劲，同时存货上升且非经常损益较大。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:ai-chip-profit-cash-divergence
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:cambricon-h1]
+        statement: AI芯片代表公司收入和利润高增，但现金转换走弱。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:packaging-efficiency-improved
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:jcet-h1]
+        statement: 封测代表公司收入温和增长、调整后利润和经营现金流改善。
+        fact_status: admitted
+        conflict_detected: false
+    - id: fact:materials-revenue-cash-improved
+      type: EvidenceFact
+      valid_from: 2026-01-01T00:00:00Z
+      valid_until: 2026-07-01T00:00:00Z
+      properties:
+        claim_refs: [claim:anjimicro-h1]
+        statement: 半导体材料代表公司收入、扣非利润和经营现金流改善，但毛利率略降。
+        fact_status: admitted
+        conflict_detected: false
+  conflicts:
+    - id: conflict-assessment:a-share-semiconductor-2026h1
+      type: ConflictAssessment
+      properties:
+        status: complete
+        conflict_detected: false
+        retained_scope_difference:
+          - 工信部电子信息制造业与数字产业统计范围不同，绝对金额不合并。
+        resolution_policy: preserve_scopes
+  assess:
+    - id: evidence-assessment:a-share-semiconductor-2026h1
+      type: EvidenceAssessment
+      properties:
+        assessment_status: complete
+        lineage_complete: true
+        ready_for_directional_judgment: true
+        completeness_score: 81
+        maximum_judgment_level: J2
+        source_document_count: 12
+        source_grades: [G1, S1]
+        limitations:
+          - Wind全行业固定样本聚合因AUTH_ERROR缺失。
+          - 代表性样本存在龙头偏差。
+          - 除中芯国际外季度连续序列有限。
+  hypotheses:
+    - id: hypothesis:H1-earnings-realization
+      type: Hypothesis
+      properties:
+        statement: 行业改善已从预期扩展到收入、扣非利润和部分经营现金流兑现。
+        status: supported
+        evidence_refs: [fact:industry-output-up, fact:smic-earnings-improved, fact:equipment-improved-with-margin-divergence, fact:materials-revenue-cash-improved, fact:packaging-efficiency-improved]
+    - id: hypothesis:H2-structural-not-broad
+      type: Hypothesis
+      properties:
+        statement: 改善由AI算力、特色存储、制造景气和国产替代驱动，而非传统需求全面复苏。
+        status: supported
+        evidence_refs: [fact:industry-demand-divergence, fact:design-memory-strong-with-inventory-risk, fact:ai-chip-profit-cash-divergence]
+    - id: hypothesis:H3-quality-divergence
+      type: Hypothesis
+      properties:
+        statement: 行业内盈利质量、毛利率、库存和现金转换显著分化。
+        status: supported
+        evidence_refs: [fact:equipment-improved-with-margin-divergence, fact:design-memory-strong-with-inventory-risk, fact:ai-chip-profit-cash-divergence]
+    - id: hypothesis:H4-accounting-only
+      type: Hypothesis
+      properties:
+        statement: 高增速完全由低基数、并表或非经常损益造成。
+        status: partially_rejected
+        evidence_refs: [fact:smic-earnings-improved, fact:materials-revenue-cash-improved, fact:packaging-efficiency-improved]
+  reason:
+    - id: reasoning-evaluation:mechanism
+      type: RuleEvaluation
+      properties:
+        rule_ref: A00/机制闭环
+        matched: true
+        conclusion: 需求结构变化能够通过制造量价、国产设备材料导入与封测结构传导至财务结果。
+    - id: reasoning-evaluation:counterevidence
+      type: RuleEvaluation
+      properties:
+        rule_ref: A00-附录2/竞争解释
+        matched: true
+        conclusion: 低基数和非经常损益只能解释部分利润增速，不能解释多个环节的收入、扣非利润和现金流共振。
+    - id: reasoning-evaluation:scope
+      type: RuleEvaluation
+      properties:
+        rule_ref: BF-EE/范围边界
+        matched: true
+        conclusion: 样本不能冒充A股全行业总体，行业结论等级上限为J2。
+  judgment:
+    - id: judgment:a-share-semiconductor-2026h1
+      type: Judgment
+      valid_from: 2026-09-08T00:00:00+08:00
+      properties:
+        judgment_level: J2
+        confidence: medium
+        statement: A股半导体行业近半年出现实质性基本面改善，已扩展到收入、扣非利润及部分经营现金流兑现；但改善主要由AI/算力、特色存储、晶圆制造景气和国产替代驱动，传统消费电子仍弱，盈利质量显著分化，不能表述为全行业同步高景气。
+        evidence_assessment_ref: evidence-assessment:a-share-semiconductor-2026h1
+        conditions:
+          - 结论仅覆盖截至2026-09-08已披露信息。
+          - 不包含Wind全行业固定样本聚合。
+          - 不构成个股买卖或收益率判断。
+        upgrade_condition: 连续两个季度的固定全样本收入、扣非利润和经营现金流中位数为正，且库存及应收强度不恶化。
+        downgrade_condition: 制造端ASP/利用率回落，或多数样本库存应收持续快于收入。
+  draft:
+    - id: draft-report:a-share-semiconductor-2026h1
+      type: DraftReport
+      properties:
+        title: A股半导体行业近半年基本面变化
+        path: research_outputs/a-share-semiconductor-2026h1/draft-report.md
+        status: awaiting_human_approval
+        judgment_ref: judgment:a-share-semiconductor-2026h1
+        summary: 行业发生结构性改善并进入部分业绩兑现，但不是全行业同步复苏。
+  approval_request:
+    - id: approval-request:a-share-semiconductor-2026h1
+      type: ApprovalRequest
+      properties:
+        status: pending
+        requested_for: draft-report:a-share-semiconductor-2026h1
+        reason: AI不能自行将研究草稿发布为正式报告，需独立人工审批。
+

@@ -1,0 +1,41 @@
+causal_assessment:
+  design_ref: causal-design.yaml#causal_design
+  relationship_conclusion: association_only
+  causal_status: consistent_only
+  diagnostics:
+    - diagnostic_type: temporality
+      status: inconclusive
+      evidence_refs: [claim:wsts-q1-2026, claim:wsts-q2-2026]
+      independent_source_groups: [statistics:wsts]
+      explanation: 行业季度测量与公司半年报窗口重叠，现有证据没有形成可区分方向的领先序列。
+    - diagnostic_type: mechanism
+      status: inconclusive
+      evidence_refs: [claim:semi-q2-billings, claim:tsmc-hpc-share]
+      independent_source_groups: [statistics:semi-seaj-equipment, issuer:tsmc-q2-2026]
+      explanation: 设备billings与HPC结构说明相邻机制环境，但未连接到六家A股公司的订单、利用率和确认链。
+    - diagnostic_type: exposure_contrast
+      status: inconclusive
+      evidence_refs: [claim:naura-revenue-growth, claim:cambricon-revenue-growth]
+      independent_source_groups: [issuer:naura-h1-2026, issuer:cambricon-h1-2026]
+      explanation: 代表公司跨环节且选择机制不同，尚无预先定义的高低暴露可比组。
+    - diagnostic_type: reverse_direction
+      status: inconclusive
+      evidence_refs: [claim:wsts-q2-2026]
+      independent_source_groups: [statistics:wsts]
+      explanation: 未取得公司变化对全球行业汇总贡献的可比数据，不能确认或排除B→A。
+    - diagnostic_type: common_cause
+      status: inconclusive
+      evidence_refs: [claim:miit-mobile-export-growth, claim:gigadevice-inventory-change]
+      independent_source_groups: [statistics:miit-electronics, issuer:gigadevice-h1-2026]
+      explanation: 传统终端疲弱、AI结构、库存、低基数和非经常损益均可能同时作用，现有材料不足以分别控制。
+  identification_assumptions_status: not_tested
+  independent_source_groups: [statistics:wsts, statistics:semi-seaj-equipment, statistics:miit-electronics]
+  effect_estimate: null
+  decisive_evidence_refs: [claim:wsts-q2-2026, claim:naura-revenue-growth, claim:gigadevice-inventory-change]
+  unresolved_alternatives: [reverse_b_to_a, common_cause, multiple_company_specific_causes]
+  limitations:
+    - 代表公司不是931865全体样本的无偏总体。
+    - 缺少统一频率的经营中介、预定义暴露组和反事实比较。
+    - 收入、扣非利润、现金流、毛利率和库存变化不能合成为单一结果变量。
+  claim_language_level: association_only
+  conclusion_statement: 全球销售、设备billings与部分A股代表公司财务指标同期共变；现有证据只支持相关或变化一致，因果方向尚未识别。

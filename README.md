@@ -1,5 +1,7 @@
 # 动态规则驱动投研平台
 
+这是一个可复现的投研方法与图运行项目，不是自动选股或交易系统。第一次接触项目，建议先阅读[目录导览](docs/repository-layout.md)，再运行下方的校验命令；想了解研究方法，从[研究方法入口](研究方法/README.md)开始；想看可运行样例，从[examples](examples/README.md)开始。
+
 本项目以 Semantica 0.6.8 为图运行基座，将投研语义、研究规则和执行能力分成三个独立权威：
 
 - **语义本体**定义世界中有什么：公司、人员、治理、产品与服务、市场、商业关系、财务口径、单位币种、设施技术、法域，以及半导体领域语义。
@@ -17,8 +19,12 @@
 | [研究规则](研究规则/rules.yaml) | 可执行受限 DSL 规则 |
 | [研究能力](研究能力/) | Capability、Logic 和报告模板 |
 | [研究方法](研究方法/) | 分析框架、取证手册、推理方法和半导体指南 |
+| [.agents/skills](.agents/skills/) | A股权益宏观专项与完整研究总控入口 |
 | [examples](examples/) | 两套可装载 TriG 研究图与报告投影 |
 | [src/ir_platform](src/ir_platform/) | 编译、规划、执行、图仓储、追溯与 CLI |
+| [research_outputs](research_outputs/) | 历史研究运行记录；与稳定验收样例分开 |
+| [docs](docs/) | 架构、数据源、目录与公开发布说明 |
+| [tests](tests/) | 自动化验证 |
 
 生命周期视图仍可显示为“任务、设计、证据、推理、发布”，但它们只用于界面分组，不参与执行顺序或回退控制。
 
@@ -30,6 +36,7 @@
 uv sync --frozen
 uv run --frozen --offline ir-platform validate
 uv run --frozen --offline ir-platform compile-ontology
+uv run --frozen --offline pytest
 ```
 
 创建计划时提供任务 YAML；可选状态 YAML 用于描述当前图中已有证据或冲突：
@@ -48,6 +55,8 @@ uv run --frozen --offline ir-platform --runtime-dir .runtime approve BUNDLE_ID A
 ```
 
 计划只能引用登记过的 Capability、Logic 和 Rule。未知能力、循环依赖、类型不匹配、越权写入和绕过人工发布审批的提案都会被拒绝。节点失败时，只有声明为幂等的能力会按配置重试。
+
+完整A股权益研究或更新须在请求中显式声明 `asset_class: equity` 和 `market_scope: A_share`。规划器会在取证与假设形成前加入 `ResearchDesign` 节点；个人原则档案中的候选条目不会自动启用。运行时必须提供有内容的研究设计，完整权益报告还须呈现 A10 投资命题结构。可通过 `run --node-outputs outputs.yaml` 按节点 ID 提供实际输出；未提供时流程在设计节点停止，不会凭标题或占位内容生成观点。设计字段和报告字段见[总控协议](.agents/skills/touyan-quanyi-yanjiu-zongkong/references/research-design-protocol.md)，个人原则及复盘治理见[个人方法论](研究方法/个人方法论/README.md)。旧请求与材料入库、证据刷新不受此要求影响。
 
 ## 图归档与查询
 
@@ -69,3 +78,7 @@ TriG 是可移植归档格式；装载后 Oxigraph 仍是运行权威。报告 M
 - 业务代码不得直接导入 Semantica；只有适配模块可以使用其具体类。
 
 完整设计见 [动态运行架构](docs/dynamic-research-runtime.md)。
+
+## 开源与使用边界
+
+项目原创代码、配置与文档按 [Apache-2.0](LICENSE) 授权；依赖及第三方材料仍遵循各自许可与使用条件，见[第三方声明](THIRD_PARTY_NOTICES.md)。研究报告及样例仅展示方法和当时的信息截面，不构成最新事实、投资建议或自动发布结果。公开镜像或二次分发前，请先完成[发布检查](docs/public-release-checklist.md)。贡献方式见[参与指南](CONTRIBUTING.md)。
