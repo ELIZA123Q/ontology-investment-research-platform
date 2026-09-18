@@ -1,6 +1,11 @@
 interface:
   display_name: "战略研究总控"
+<<<<<<< Updated upstream
   short_description: "为非A股权益或资产类别未明确的战略研究做入口分流与方法编排"
   default_prompt: "使用 $touyan-zhanlue-yanjiu-zongkong 为这项战略研究识别类型、边界、方法链和停止条件。"
+=======
+  short_description: "按项目01—05链路组织高质量战略研究，可确认范围深度但不得降级为资料整理"
+  default_prompt: "使用 $touyan-zhanlue-yanjiu-zongkong 为这项战略研究固定口径、判断链路和CEO报告成品标准。"
+>>>>>>> Stashed changes
 policy:
   allow_implicit_invocation: true

@@ -1,0 +1,6 @@
+interface:
+  display_name: "证据 MCP 通道"
+  short_description: "为03取证阶段选择金融数据/MCP通道，并记录来源与字段血缘"
+  default_prompt: "使用 $touyan-zhengju-mcp-qudao 为这次03取证选择数据通道、获取材料并完成留痕。"
+policy:
+  allow_implicit_invocation: true

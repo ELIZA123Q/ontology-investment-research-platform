@@ -1,0 +1,47 @@
+schema_version: "1.0"
+name: touyan-research-agent
+description: 投研判断工作台的唯一 Agent 入口，按 01—05 主链调用所有项目 Skill。
+
+skill_contract:
+  registry_is_exhaustive: true
+  no_orphan_skills: true
+  rule: .agents/skills 下每个含 SKILL.md 的 Skill 都必须在本文件登记，并写清触发阶段与职责边界。
+
+workflow:
+  - stage: "01"
+    purpose: 固定对象、读者、用途、范围、前瞻窗口和交付深度。
+    required_skills:
+      - touyan-zhanlue-yanjiu-zongkong
+  - stage: "02"
+    purpose: 拆主问题、竞争解释、关键变量和候选因果链。
+    required_skills:
+      - touyan-zhanlue-yanjiu-zongkong
+  - stage: "03"
+    purpose: 选择证据通道、获取材料、记录来源和字段血缘。
+    required_skills:
+      - touyan-zhengju-mcp-qudao
+  - stage: "04"
+    purpose: 确认判断强度、限制、反证和改判条件。
+    required_skills:
+      - touyan-zhanlue-yanjiu-zongkong
+  - stage: "05"
+    purpose: 把已批准判断写成正式投研或战略表达。
+    required_skills:
+      - touyan-lunzheng-yuyan-bianji
+
+skills:
+  - name: touyan-zhanlue-yanjiu-zongkong
+    path: .agents/skills/touyan-zhanlue-yanjiu-zongkong/SKILL.md
+    owns: 战略研究总控、01—04 链路约束、CEO 战略问题的方法路由。
+    does_not_own: 03 数据通道选择、05 成稿语言润色。
+    required_when: 任务属于战略研究、CEO/业务负责人/战略委员会阅读，或需要形成战略判断。
+  - name: touyan-zhengju-mcp-qudao
+    path: .agents/skills/touyan-zhengju-mcp-qudao/SKILL.md
+    owns: 03 取证阶段的 MCP 通道选择、数据获取口径、调用留痕。
+    does_not_own: 判断强度裁决、战略建议、报告写作。
+    required_when: 03 阶段需要金融数据、公告、财务、行情、宏观、政策或研报材料。
+  - name: touyan-lunzheng-yuyan-bianji
+    path: .agents/skills/touyan-lunzheng-yuyan-bianji/SKILL.md
+    owns: 05 表达阶段的论证、语言编辑、CEO 战略报告成稿质量。
+    does_not_own: 取证、补造事实、补造未经 04 批准的判断。
+    required_when: 需要交付正式投研报告、战略报告、CEO 报告或对最终表达做质量审查。

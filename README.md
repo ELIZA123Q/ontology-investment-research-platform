@@ -56,6 +56,7 @@ uv run --frozen --offline ir-platform --runtime-dir .runtime approve BUNDLE_ID A
 
 计划只能引用登记过的 Capability、Logic 和 Rule。未知能力、循环依赖、类型不匹配、越权写入和绕过人工发布审批的提案都会被拒绝。节点失败时，只有声明为幂等的能力会按配置重试。
 
+<<<<<<< Updated upstream
 完整A股权益研究或更新须在请求中显式声明 `asset_class: equity` 和 `market_scope: A_share`。规划器会在取证与假设形成前加入 `ResearchDesign` 节点；个人原则档案中的候选条目不会自动启用。运行时必须提供有内容的研究设计，完整权益报告还须呈现 A10 投资命题结构。可通过 `run --node-outputs outputs.yaml` 按节点 ID 提供实际输出；未提供时流程在设计节点停止，不会凭标题或占位内容生成观点。设计字段和报告字段见[总控协议](.agents/skills/touyan-quanyi-yanjiu-zongkong/references/research-design-protocol.md)，个人原则及复盘治理见[个人方法论](研究方法/个人方法论/README.md)。旧请求与材料入库、证据刷新不受此要求影响。
 
 ## 图归档与查询
@@ -82,3 +83,16 @@ TriG 是可移植归档格式；装载后 Oxigraph 仍是运行权威。报告 M
 ## 开源与使用边界
 
 项目原创代码、配置与文档按 [Apache-2.0](LICENSE) 授权；依赖及第三方材料仍遵循各自许可与使用条件，见[第三方声明](THIRD_PARTY_NOTICES.md)。研究报告及样例仅展示方法和当时的信息截面，不构成最新事实、投资建议或自动发布结果。公开镜像或二次分发前，请先完成[发布检查](docs/public-release-checklist.md)。贡献方式见[参与指南](CONTRIBUTING.md)。
+=======
+### Agent 与 Skill
+
+项目只保留一个 Agent 入口：`.agents/agent.yaml`。所有项目 Skill 必须放在 `.agents/skills/`，并在 `agent.yaml` 中登记职责、触发阶段和边界。
+
+新增或移除 Skill 后运行：
+
+```bash
+python3 governance/03_校验/validate_agent_skill_registry.py
+```
+
+新增/移除 MCP 数据通道时，同步更新 `.agents/skills/touyan-zhengju-mcp-qudao/SKILL.md`、`methods/03_取证/B03_MCP通道注册.md`、`OPS_MCP查询快速参考.md` 和 `03_registry.yaml`。
+>>>>>>> Stashed changes
