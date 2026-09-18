@@ -9,12 +9,6 @@
 3. 不提交密钥、个人数据、付费数据原文、未经许可的研报全文或本地运行缓存；新增来源只保留可追溯的引用与必要的短摘要。
 4. 区分候选研究判断与正式判断。任何正式发布仍须遵守项目原有的证据上限和人工审批规则。
 
-<<<<<<< Updated upstream
-除非贡献者在提交时明确另作说明，提交到本项目的原创贡献按仓库 [Apache-2.0](LICENSE) 许可处理。第三方内容仍依其原始权利条件处理，不能因进入本仓库而自动改授权。公开分享之前请完成[发布检查](docs/public-release-checklist.md)。
-=======
-本机启动前复制 `runtime/.env.example` 为 `runtime/.env.local`。不要提交 API Key、`.env.local`、
-SQLite 数据库或 `instances/00_本机运行` 下的运行导出。
-
 ## Agent 与 Skill
 
 项目只维护一个 Agent 入口：`.agents/agent.yaml`。
@@ -26,29 +20,15 @@ SQLite 数据库或 `instances/00_本机运行` 下的运行导出。
 ## 必过检查
 
 ```bash
-python3 governance/03_校验/validate_project.py
-python3 governance/03_校验/validate_v3_samples.py
-npm --prefix runtime run typecheck
-npm --prefix runtime test
-npm --prefix runtime run build
+uv run --frozen --offline pytest
+uv run --frozen --offline ir-platform validate
+python3 governance/03_校验/validate_agent_skill_registry.py
 ```
-
-可选本地检查：
-
-```bash
-npm --prefix runtime run lint
-python3 -m pip install ruff && ruff check governance/03_校验 runtime/engine
-```
-
-废弃关系名守卫（`validate_deprecated_terms.py`）已挂入 `validate_project.py` 主链路，无需单独再跑。
-
-`PROJECT_ENGINEERING_PASS` 只表示合同、代码、样例、真实工作台冻结夹具和 mock 协议烟测通过；
-它不表示正式 R/U/delta/S/C 或研究可靠率已经验证。
 
 ## 变更边界
 
-- 公共字段、ID、跨阶段引用先改 `governance/02_合同/public_contract.yaml`，再同步 Runtime、校验器和样例。
-- `semantic_fixture`、`workbench_export`、`formal_pack` 必须使用各自校验入口，不得互相冒充。
-- Runtime 的多步写路径应使用事务；外部网络调用不得在数据库写事务内执行。
+- 公共字段、ID、跨阶段引用先改权威合同或规则，再同步实现、校验器和样例。
 - 新增正式规则时必须登记唯一权威和执行面；未实现规则不得写成已重算挡门。
->>>>>>> Stashed changes
+- 本地运行缓存、`.runtime/`、`.venv/`、构建产物和 API Key 不得提交。
+
+除非贡献者在提交时明确另作说明，提交到本项目的原创贡献按仓库 [Apache-2.0](LICENSE) 许可处理。第三方内容仍依其原始权利条件处理，不能因进入本仓库而自动改授权。公开分享之前请完成[发布检查](docs/public-release-checklist.md)。

@@ -1,11 +1,6 @@
 interface:
   display_name: "论证与语言编辑"
-<<<<<<< Updated upstream
-  short_description: "检查战略研究表达是否清晰、可证伪，并严格贴合证据边界"
-  default_prompt: "使用 $touyan-lunzheng-yuyan-bianji 对这份战略研究成品做论证和语言边界编辑。"
-=======
-  short_description: "按项目05表达标准编辑投研和战略报告；CEO报告强制使用05F模板"
-  default_prompt: "使用 $touyan-lunzheng-yuyan-bianji 按项目05表达标准审查和改写这份报告。"
->>>>>>> Stashed changes
+  short_description: "按项目05标准编辑投研和战略报告，检查论证、语言和证据边界"
+  default_prompt: "使用 $touyan-lunzheng-yuyan-bianji 按项目05表达标准审查、降级越界表达并改写这份报告。"
 policy:
   allow_implicit_invocation: true

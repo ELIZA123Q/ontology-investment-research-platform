@@ -5,6 +5,9 @@ __pycache__/
 .runtime/
 .pytest_cache/
 *.py[cod]
+node_modules/
+**/.vite/
+**/.next_bak_*/
 dist/
 build/
 :memory:.ses

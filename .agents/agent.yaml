@@ -1,47 +1,84 @@
 schema_version: "1.0"
 name: touyan-research-agent
-description: 投研判断工作台的唯一 Agent 入口，按 01—05 主链调用所有项目 Skill。
+description: 投研判断工作台的唯一 Agent 入口，按任务类型调用全部项目 Skill，并禁止 Skill 游离在 Agent 之外。
 
 skill_contract:
   registry_is_exhaustive: true
   no_orphan_skills: true
-  rule: .agents/skills 下每个含 SKILL.md 的 Skill 都必须在本文件登记，并写清触发阶段与职责边界。
+  rule: .agents/skills 下每个含 SKILL.md 的 Skill 都必须在本文件登记，并写清触发阶段、职责边界和不负责事项。
 
 workflow:
-  - stage: "01"
-    purpose: 固定对象、读者、用途、范围、前瞻窗口和交付深度。
+  - stage: intake
+    purpose: 识别任务是否为明确 A 股权益完整研究、通用战略研究、证据刷新、因果任务或成稿编辑。
     required_skills:
       - touyan-zhanlue-yanjiu-zongkong
-  - stage: "02"
-    purpose: 拆主问题、竞争解释、关键变量和候选因果链。
+      - touyan-quanyi-yanjiu-zongkong
+  - stage: design
+    purpose: 固定研究问题、读者、用途、范围、信息截面、关键矛盾、竞争假设、证据方案和停止条件。
     required_skills:
-      - touyan-zhanlue-yanjiu-zongkong
-  - stage: "03"
-    purpose: 选择证据通道、获取材料、记录来源和字段血缘。
+      - touyan-yanjiu-sheji-pingshen
+      - touyan-yinguo-shibie
+      - touyan-quanyi-hongguan-yanpan
+  - stage: evidence
+    purpose: 执行公开证据调研，必要时选择 MCP/数据通道，并交付可复核 evidence_handoff。
     required_skills:
+      - touyan-gongkai-zhengju-diaoyan
       - touyan-zhengju-mcp-qudao
-  - stage: "04"
-    purpose: 确认判断强度、限制、反证和改判条件。
+  - stage: judgment
+    purpose: 形成或约束战略判断、因果判断、A10 投资命题和权益载体比较。
     required_skills:
       - touyan-zhanlue-yanjiu-zongkong
-  - stage: "05"
-    purpose: 把已批准判断写成正式投研或战略表达。
+      - touyan-quanyi-yanjiu-zongkong
+      - touyan-yinguo-shibie
+      - touyan-quanyi-juece-bijiao
+  - stage: expression
+    purpose: 将已批准判断写成正式投研或战略表达，不新增事实或抬高判断。
     required_skills:
       - touyan-lunzheng-yuyan-bianji
 
 skills:
   - name: touyan-zhanlue-yanjiu-zongkong
     path: .agents/skills/touyan-zhanlue-yanjiu-zongkong/SKILL.md
-    owns: 战略研究总控、01—04 链路约束、CEO 战略问题的方法路由。
-    does_not_own: 03 数据通道选择、05 成稿语言润色。
-    required_when: 任务属于战略研究、CEO/业务负责人/战略委员会阅读，或需要形成战略判断。
+    owns: 非明确 A 股权益完整研究的战略研究总控、01/02/04 链路约束、CEO 战略问题的方法路由。
+    does_not_own: 明确 A 股权益完整研究编排、03 数据通道选择、05 成稿语言润色。
+    required_when: 任务属于通用战略研究、CEO/业务负责人/战略委员会阅读，或资产类别/市场范围尚未固定。
+  - name: touyan-quanyi-yanjiu-zongkong
+    path: .agents/skills/touyan-quanyi-yanjiu-zongkong/SKILL.md
+    owns: 明确 A 股权益完整研究或研究更新的研究设计、跨层交接、A10 投资命题约束。
+    does_not_own: 纯证据刷新、纯宏观专题、公开取证执行、买卖仓位目标价或择时。
+    required_when: 请求明确为 asset_class=equity、market_scope=A_share 且 mode=full_research 或 research_update。
+  - name: touyan-yanjiu-sheji-pingshen
+    path: .agents/skills/touyan-yanjiu-sheji-pingshen/SKILL.md
+    owns: 取证前研究设计评审，裁决设计是否 pass、needs_revision 或 block。
+    does_not_own: 补写事实、执行取证、形成判断或报告表达。
+    required_when: 完整研究或研究更新进入取证前。
+  - name: touyan-yinguo-shibie
+    path: .agents/skills/touyan-yinguo-shibie/SKILL.md
+    owns: 机制验证、因果归因、传导路径和影响兑现的 CausalDesign 与 CausalAssessment。
+    does_not_own: 公开取证、行业规则、投资判断、目标价或最终报告。
+    required_when: judgment_types 包含 mechanism_validation、causal_attribution、transmission_path 或 impact_realization。
+  - name: touyan-gongkai-zhengju-diaoyan
+    path: .agents/skills/touyan-gongkai-zhengju-diaoyan/SKILL.md
+    owns: 跨行业公开证据调研、原文获取、口径核对、反证检索和 evidence_handoff。
+    does_not_own: 判断等级裁决、投资命题形成、交易建议、MCP 通道规则维护。
+    required_when: 需要为研究设计执行公开证据调研或证据刷新。
   - name: touyan-zhengju-mcp-qudao
     path: .agents/skills/touyan-zhengju-mcp-qudao/SKILL.md
-    owns: 03 取证阶段的 MCP 通道选择、数据获取口径、调用留痕。
-    does_not_own: 判断强度裁决、战略建议、报告写作。
-    required_when: 03 阶段需要金融数据、公告、财务、行情、宏观、政策或研报材料。
+    owns: 03 取证阶段的 MCP/金融数据通道选择、调用参数、来源和字段血缘留痕。
+    does_not_own: 完整证据交接、判断强度裁决、战略建议、报告写作。
+    required_when: 取证需要金融数据、公告、财务、行情、宏观、政策、基金、指数或研报数据通道。
+  - name: touyan-quanyi-hongguan-yanpan
+    path: .agents/skills/touyan-quanyi-hongguan-yanpan/SKILL.md
+    owns: A 股权益研究中的经济走向、政策立场、实体资金和市场资金三问筛查/深度研判。
+    does_not_own: 纯宏观专题、非 A 股市场、公司利润直接推断、个股买卖仓位或择时。
+    required_when: A 股权益研究需要宏观、政策、流动性、信用或资金面对结论的影响判断。
+  - name: touyan-quanyi-juece-bijiao
+    path: .agents/skills/touyan-quanyi-juece-bijiao/SKILL.md
+    owns: A10 投资命题之后的 ETF、个股选择或混合研究载体比较。
+    does_not_own: A10 命题形成、自动下单、仓位、目标价、收益承诺或择时。
+    required_when: 已有 A10 结论后，需要比较 A 股权益研究载体承接能力。
   - name: touyan-lunzheng-yuyan-bianji
     path: .agents/skills/touyan-lunzheng-yuyan-bianji/SKILL.md
-    owns: 05 表达阶段的论证、语言编辑、CEO 战略报告成稿质量。
-    does_not_own: 取证、补造事实、补造未经 04 批准的判断。
+    owns: 05 表达阶段的论证、语言编辑、CEO 战略报告成稿质量和越界表达降级。
+    does_not_own: 取证、补造事实、改变判断等级、补造未经 04 或 A10 批准的判断。
     required_when: 需要交付正式投研报告、战略报告、CEO 报告或对最终表达做质量审查。
