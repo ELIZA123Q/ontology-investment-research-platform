@@ -2,6 +2,8 @@ schema_name: ontology_model_registry
 schema_version: 1.0.0
 status: active
 fingerprint_algorithm: sha256_over_ordered_repository_path_and_raw_bytes
+compatible_release: 3.1.0
+compatible_release_note: 增加 Episode 与影响链条对象；保持 Ontology 3.0 schema 兼容。
 model_files:
   - models/semantic.yaml
   - models/state_event.yaml

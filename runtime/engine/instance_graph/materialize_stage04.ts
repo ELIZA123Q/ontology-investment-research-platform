@@ -91,6 +91,9 @@ export function materializeStage04(
     addObjects(stageJson.rule_evaluations, "RuleEvaluation", ["rule_evaluation_id", "id"], "rule_evaluations");
     addObjects(stageJson.market_expectations, "MarketExpectation", ["id"], "market_expectations");
     addObjects(stageJson.expectation_gaps, "ExpectationGap", ["id"], "expectation_gaps");
+    addObjects(stageJson.business_impacts, "BusinessImpact", ["id"], "business_impacts");
+    addObjects(stageJson.financial_impacts, "FinancialImpact", ["id"], "financial_impacts");
+    addObjects(stageJson.estimate_revisions, "EstimateRevision", ["id"], "estimate_revisions");
     addObjects(stageJson.asset_impacts, "AssetImpact", ["id"], "asset_impacts");
     for (const gap of (Array.isArray(stageJson.expectation_gaps) ? stageJson.expectation_gaps as any[] : [])) {
       const gapId = String(gap.id || "");
@@ -114,6 +117,45 @@ export function materializeStage04(
         });
       }
     }
+    for (const impact of (Array.isArray(stageJson.business_impacts) ? stageJson.business_impacts as any[] : [])) {
+      const impactId = String(impact.id || "");
+      if (!impactId) continue;
+      for (const judgmentId of impact.source_judgment_refs || []) {
+        slice.relations.push({
+          id: `REL-${impactId}-JUDGMENT-${judgmentId}`,
+          type: "businessImpactFromJudgment",
+          sourceId: impactId,
+          targetId: String(judgmentId),
+          properties: {},
+        });
+      }
+    }
+    for (const impact of (Array.isArray(stageJson.financial_impacts) ? stageJson.financial_impacts as any[] : [])) {
+      const impactId = String(impact.id || "");
+      if (!impactId) continue;
+      for (const businessImpactId of impact.business_impact_refs || []) {
+        slice.relations.push({
+          id: `REL-${impactId}-BUSINESS-${businessImpactId}`,
+          type: "financialImpactFromBusinessImpact",
+          sourceId: impactId,
+          targetId: String(businessImpactId),
+          properties: {},
+        });
+      }
+    }
+    for (const revision of (Array.isArray(stageJson.estimate_revisions) ? stageJson.estimate_revisions as any[] : [])) {
+      const revisionId = String(revision.id || "");
+      if (!revisionId) continue;
+      for (const financialImpactId of revision.financial_impact_refs || revision.basis_refs || []) {
+        slice.relations.push({
+          id: `REL-${revisionId}-FINANCIAL-${financialImpactId}`,
+          type: "estimateRevisionFromFinancialImpact",
+          sourceId: revisionId,
+          targetId: String(financialImpactId),
+          properties: {},
+        });
+      }
+    }
     for (const impact of (Array.isArray(stageJson.asset_impacts) ? stageJson.asset_impacts as any[] : [])) {
       const impactId = String(impact.id || "");
       if (!impactId) continue;
@@ -123,6 +165,24 @@ export function materializeStage04(
           type: "assetImpactBasedOnJudgment",
           sourceId: impactId,
           targetId: String(judgmentId),
+          properties: {},
+        });
+      }
+      for (const financialImpactId of impact.financial_impact_refs || []) {
+        slice.relations.push({
+          id: `REL-${impactId}-FINANCIAL-${financialImpactId}`,
+          type: "assetImpactFromFinancialImpact",
+          sourceId: impactId,
+          targetId: String(financialImpactId),
+          properties: {},
+        });
+      }
+      for (const estimateRevisionId of impact.estimate_revision_refs || []) {
+        slice.relations.push({
+          id: `REL-${impactId}-ESTIMATE-${estimateRevisionId}`,
+          type: "assetImpactUsesEstimateRevision",
+          sourceId: impactId,
+          targetId: String(estimateRevisionId),
           properties: {},
         });
       }
@@ -230,4 +290,3 @@ export function materializeStage04(
       }
     }
 }
-

@@ -28,7 +28,7 @@ export function queryEvidenceImpact(
   evidenceId: string,
 ): EvidenceImpactQueryResult {
   const evidence = graph.objects.find((object) => object.id === evidenceId);
-  if (!evidence || !["EvidenceFact", "EvidenceClaim", "SourceDocument"].includes(evidence.type)) {
+  if (!evidence || !["EvidenceFact", "EvidenceClaim", "Episode", "SourceDocument"].includes(evidence.type)) {
     throw new Error("查询起点必须是当前实例图中的来源、证据陈述或证据事实");
   }
   const traces = traceReachableDownstream(graph, [evidenceId]);

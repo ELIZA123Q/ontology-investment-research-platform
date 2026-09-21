@@ -126,8 +126,15 @@ function validateSemanticClosure(graph: BusinessInstanceGraph, objects: Map<stri
     if (object.type === "EvidenceClaim" && !outgoing(object.id, "claimCitesSource").length) {
       throw new Error(`${object.id} 缺少 claimCitesSource，原始陈述无法追溯`);
     }
+    if (object.type === "Episode" && !outgoing(object.id, "episodeDerivedFromSource").length) {
+      throw new Error(`${object.id} 缺少 episodeDerivedFromSource，信息片段无法追溯来源`);
+    }
     if (object.type === "EvidenceFact" && !outgoing(object.id, "factDerivedFromClaim").length) {
       throw new Error(`${object.id} 缺少 factDerivedFromClaim，归一事实无原文血缘`);
+    }
+    if (object.type === "StateChange") {
+      if (!outgoing(object.id, "stateChangeFromObservation").length) throw new Error(`${object.id} 缺少 stateChangeFromObservation`);
+      if (!outgoing(object.id, "stateChangeToObservation").length) throw new Error(`${object.id} 缺少 stateChangeToObservation`);
     }
     if (object.type === "Signal") {
       if (!outgoing(object.id, "signalGroundedByFact").length) throw new Error(`${object.id} 缺少 signalGroundedByFact`);

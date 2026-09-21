@@ -609,7 +609,8 @@ export function materializeStageIntoGraph(
     );
     for (const [index, source] of ((stageJson.sources as any[]) || []).entries()) {
       const id = String(source.source_id || source.source_key || source.id || `SD-${index + 1}`);
-      sourceByKey.set(String(source.source_key || id), { ...source, id });
+      const episodeId = `EP-${id}`;
+      sourceByKey.set(String(source.source_key || id), { ...source, id, episodeId });
       slice.objects.push({
         id,
         type: "SourceDocument",
@@ -621,6 +622,25 @@ export function materializeStageIntoGraph(
           source_tier: source.source_tier,
         },
         projection: { section: "sources", index },
+      });
+      slice.objects.push({
+        id: episodeId,
+        type: "Episode",
+        properties: {
+          title: `${source.title || id} · capture`,
+          episode_type: "document_capture",
+          captured_at: source.captured_at || source.retrieved_at || source.published_at,
+          locator: source.locator || null,
+          content_hash: source.content_hash || null,
+        },
+        projection: { section: "source_episodes", index },
+      });
+      slice.relations.push({
+        id: `REL-${episodeId}-SOURCE-${id}`,
+        type: "episodeDerivedFromSource",
+        sourceId: episodeId,
+        targetId: id,
+        properties: {},
       });
     }
     for (const [index, draft] of ((stageJson.evidence_drafts as any[]) || []).entries()) {
@@ -684,6 +704,7 @@ export function materializeStageIntoGraph(
         });
         slice.relations.push(
           { id: `REL-${claimId}-SOURCE`, type: "claimCitesSource", sourceId: claimId, targetId: source.id, properties: {} },
+          { id: `REL-${claimId}-EPISODE-${source.episodeId}`, type: "claimSupportedByEpisode", sourceId: claimId, targetId: source.episodeId, properties: {} },
           { id: `REL-${evidenceId}-${claimId}`, type: "factDerivedFromClaim", sourceId: evidenceId, targetId: claimId, properties: {} },
         );
       }

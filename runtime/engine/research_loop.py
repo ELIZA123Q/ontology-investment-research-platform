@@ -123,6 +123,7 @@ BINDING_FIELDS = {
 
 OBJECT_LAYER = {
     "SourceDocument": 0,
+    "Episode": 0,
     "EvidenceClaim": 0,
     "EvidenceFact": 0,
     "EvidenceAssessment": 0,
@@ -136,6 +137,9 @@ OBJECT_LAYER = {
     "RuleEvaluation": 3,
     "Judgment": 4,
     "ExpectationGap": 5,
+    "BusinessImpact": 5,
+    "FinancialImpact": 5,
+    "EstimateRevision": 5,
     "AssetImpact": 5,
     "ReasoningTrace": 5,
     "ValidationRecord": 5,
@@ -147,6 +151,7 @@ SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 OBJECT_STAGE_RULES = {
     "SourceDocument": {"stage_03"},
+    "Episode": {"stage_03"},
     "EvidenceClaim": {"stage_03"},
     "EvidenceFact": {"stage_03"},
     "EvidenceAssessment": {"stage_03"},
@@ -160,6 +165,9 @@ OBJECT_STAGE_RULES = {
     "RuleEvaluation": {"stage_04"},
     "Judgment": {"stage_04"},
     "ExpectationGap": {"stage_04"},
+    "BusinessImpact": {"stage_04"},
+    "FinancialImpact": {"stage_04"},
+    "EstimateRevision": {"stage_04"},
     "AssetImpact": {"stage_04"},
     "ReasoningTrace": {"stage_04"},
     "ValidationRecord": {"stage_04"},
@@ -782,7 +790,7 @@ def _affected_subsets(stale_objects: Iterable[Mapping[str, Any]]) -> dict[str, l
             result["rule_evaluation_refs"].append(ref)
         elif object_type == "Judgment":
             result["judgment_refs"].append(ref)
-        elif object_type in {"ExpectationGap", "AssetImpact"}:
+        elif object_type in {"ExpectationGap", "BusinessImpact", "FinancialImpact", "EstimateRevision", "AssetImpact"}:
             result["pricing_reasoning_refs"].append(ref)
         elif object_type == "ReportClaim":
             result["report_claim_refs"].append(ref)

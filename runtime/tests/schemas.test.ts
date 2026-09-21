@@ -22,6 +22,7 @@ import { validateReasoningTraceBindings } from "@/engine/reasoning_trace";
 import { applyDeterministicRuleEvaluations } from "@/engine/semantic_execution";
 import { emptyGraph, materializeStageIntoGraph } from "@/engine/instance_graph";
 import { validateRuntimeGraph } from "@/engine/graph_contract";
+import type { BusinessInstanceGraph } from "@/engine/instance_graph";
 
 function application(status: MethodApplication["status"], stage: MethodApplication["provenance"]["stage"]): MethodApplication {
   return {
@@ -44,6 +45,50 @@ function application(status: MethodApplication["status"], stage: MethodApplicati
     provenance: { stage, source_application_id: stage === "stage_02" ? null : "MA-01", actor: "runtime-test", recorded_at: status === "executed" ? "2026-07-18T08:00:00Z" : null },
     alternatives: [],
   };
+}
+
+function minimalReasoningGraph(extra: Partial<BusinessInstanceGraph> & { traceNodeRefs?: string[] } = {}): BusinessInstanceGraph {
+  const cutoff = "2026-07-18T08:00:00Z";
+  const graph: BusinessInstanceGraph = {
+    schema_name: "ontology_business_instance_graph",
+    schema_version: "1.0.0",
+    authority: "test",
+    objects: [
+      { id: "SCOPE-1", type: "ResearchScope", properties: { label: "测试范围", dimensions: { domain: "semiconductor" } } },
+      { id: "JU-1", type: "JudgmentUnit", properties: { statement: "库存是否改善", judgment_type: "state_measurement", scope_ref: "SCOPE-1" } },
+      { id: "SD-1", type: "SourceDocument", properties: { title: "来源", uri: "fixture://source", published_at: cutoff, source_tier: "S1" } },
+      { id: "CL-1", type: "EvidenceClaim", properties: { statement: "库存下降", locator: "p1", extracted_at: cutoff, cutoff_at: cutoff } },
+      { id: "EV-1", type: "EvidenceFact", properties: { statement: "库存下降", subject_ref: "OBJ-1", time_basis: "quarter", scope_ref: "SCOPE-1", observed_at: cutoff, valid_from: cutoff, valid_to: null, published_at: cutoff, cutoff_at: cutoff } },
+      { id: "SIG-1", type: "Signal", properties: { statement: "库存下降支持改善假设", role: "support" } },
+      { id: "H-1", type: "Hypothesis", properties: { statement: "库存改善", falsification_conditions: ["后续披露库存上升"], time_horizon: "当期" } },
+      { id: "RE-1", type: "RuleEvaluation", properties: { rule_ref: "judgment_evidence_threshold", input_refs: ["EV-1"], condition_results: [{ condition_id: "c1", outcome: "pass" }], result: "pass" } },
+      { id: "MA-1", type: "MethodApplication", properties: { application_id: "MA-1", method_id: "kb04:A01", method_version: "1.0.0", status: "executed" } },
+      { id: "J-1", type: "Judgment", properties: { statement: "库存改善", level: "J1", confidence: "low", decision_status: "supported", conflict_status: "none", not_judgeable_reason: null, scope_ref: "SCOPE-1", cutoff_at: cutoff, conditions: ["仅限样例"], invalidation_conditions: ["后续披露反向"] } },
+      { id: "RT-1", type: "ReasoningTrace", properties: { judgment_ref: "J-1", node_refs: ["JU-1", "EV-1", "SIG-1", "H-1", "RE-1", "MA-1", "J-1", ...(extra.traceNodeRefs || [])], created_at: cutoff } },
+      ...(extra.objects || []),
+    ],
+    relations: [
+      { id: "r-ju-scope", type: "unitUsesScope", sourceId: "JU-1", targetId: "SCOPE-1", properties: {} },
+      { id: "r-claim-source", type: "claimCitesSource", sourceId: "CL-1", targetId: "SD-1", properties: {} },
+      { id: "r-fact-claim", type: "factDerivedFromClaim", sourceId: "EV-1", targetId: "CL-1", properties: {} },
+      { id: "r-sig-fact", type: "signalGroundedByFact", sourceId: "SIG-1", targetId: "EV-1", properties: { role: "support" } },
+      { id: "r-sig-h", type: "signalEvaluatesHypothesis", sourceId: "SIG-1", targetId: "H-1", properties: {} },
+      { id: "r-ju-h", type: "unitHasHypothesis", sourceId: "JU-1", targetId: "H-1", properties: { role: "primary" } },
+      { id: "r-j-h", type: "judgmentBasedOnHypothesis", sourceId: "J-1", targetId: "H-1", properties: {} },
+      { id: "r-j-re", type: "judgmentHasRuleEvaluation", sourceId: "J-1", targetId: "RE-1", properties: {} },
+      { id: "r-j-ju", type: "judgmentResolvesUnit", sourceId: "J-1", targetId: "JU-1", properties: {} },
+      { id: "r-ma-ju", type: "runtimeMethodApplicationTargets", sourceId: "MA-1", targetId: "JU-1", properties: {} },
+      { id: "r-j-ma", type: "runtimeJudgmentUsesMethodApplication", sourceId: "J-1", targetId: "MA-1", properties: {} },
+      { id: "r-rt-j", type: "reasoningTraceForJudgment", sourceId: "RT-1", targetId: "J-1", properties: {} },
+      { id: "r-rt-ju", type: "traceIncludesNode", sourceId: "RT-1", targetId: "JU-1", properties: { sequence: 1 } },
+      { id: "r-rt-ev", type: "traceIncludesNode", sourceId: "RT-1", targetId: "EV-1", properties: { sequence: 2 } },
+      { id: "r-rt-sig", type: "traceIncludesNode", sourceId: "RT-1", targetId: "SIG-1", properties: { sequence: 3 } },
+      { id: "r-rt-h", type: "traceIncludesNode", sourceId: "RT-1", targetId: "H-1", properties: { sequence: 4 } },
+      { id: "r-rt-re", type: "traceIncludesNode", sourceId: "RT-1", targetId: "RE-1", properties: { sequence: 5 } },
+      ...(extra.relations || []),
+    ],
+  };
+  return graph;
 }
 
 describe("stage contracts", () => {
@@ -627,6 +672,86 @@ describe("stage contracts", () => {
     expect(graph.relations.filter((relation) => relation.type === "scopeIncludesObject")
       .map((relation) => relation.targetId))
       .toEqual(expect.arrayContaining(["product:HBM", "ValueChainSegment:wafer_fab"]));
+    expect(() => validateRuntimeGraph(graph)).not.toThrow();
+  });
+
+  it("accepts Episode provenance while keeping direct claim-source compatibility", () => {
+    expect(() => validateRuntimeGraph(minimalReasoningGraph())).not.toThrow();
+    expect(() => validateRuntimeGraph(minimalReasoningGraph({
+      objects: [
+        { id: "EP-1", type: "Episode", properties: { title: "来源截取", episode_type: "document_capture", captured_at: "2026-07-18T08:00:00Z", locator: "p1", content_hash: null } },
+      ],
+      relations: [
+        { id: "r-ep-source", type: "episodeDerivedFromSource", sourceId: "EP-1", targetId: "SD-1", properties: {} },
+        { id: "r-claim-ep", type: "claimSupportedByEpisode", sourceId: "CL-1", targetId: "EP-1", properties: {} },
+      ],
+    }))).not.toThrow();
+  });
+
+  it("requires StateChange to bind comparable before and after observations", () => {
+    const cutoff = "2026-07-18T08:00:00Z";
+    const stateObjects = [
+      { id: "SV-STATE", type: "StateVariable", properties: { name: "库存状态", category: "operations", definition: "库存状态", variable_kind: "observed", anchors: ["inventory"] } },
+      { id: "OBS-BEFORE", type: "Observation", properties: { label: "库存高位", value: { level: "high" }, observed_at: "2026-06-30T08:00:00Z", valid_from: "2026-06-30T08:00:00Z", valid_to: null, published_at: cutoff, cutoff_at: cutoff } },
+      { id: "OBS-AFTER", type: "Observation", properties: { label: "库存正常", value: { level: "normal" }, observed_at: cutoff, valid_from: cutoff, valid_to: null, published_at: cutoff, cutoff_at: cutoff } },
+      { id: "SC-1", type: "StateChange", properties: { statement: "库存由高位转为正常", direction: "transition", effective_at: cutoff, cutoff_at: cutoff } },
+    ];
+    const stateRelations = [
+      { id: "r-before-of", type: "observationOf", sourceId: "OBS-BEFORE", targetId: "SV-STATE", properties: {} },
+      { id: "r-after-of", type: "observationOf", sourceId: "OBS-AFTER", targetId: "SV-STATE", properties: {} },
+      { id: "r-change-of", type: "stateChangeOf", sourceId: "SC-1", targetId: "SV-STATE", properties: {} },
+    ];
+    expect(() => validateRuntimeGraph(minimalReasoningGraph({ objects: stateObjects, relations: stateRelations })))
+      .toThrow(/stateChangeFromObservation/);
+    expect(() => validateRuntimeGraph(minimalReasoningGraph({
+      objects: stateObjects,
+      relations: [
+        ...stateRelations,
+        { id: "r-change-from", type: "stateChangeFromObservation", sourceId: "SC-1", targetId: "OBS-BEFORE", properties: {} },
+        { id: "r-change-to", type: "stateChangeToObservation", sourceId: "SC-1", targetId: "OBS-AFTER", properties: {} },
+      ],
+    }))).not.toThrow();
+  });
+
+  it("allows BusinessImpact → FinancialImpact → EstimateRevision → AssetImpact in ReasoningTrace", () => {
+    const impactObjects = [
+      { id: "BI-1", type: "BusinessImpact", properties: { statement: "价格韧性改善", source_judgment_refs: ["J-1"], target_object_ref: "OBJ-1", impact_driver: "price", direction: "positive", time_horizon: "FY2026", conditions: ["仅限样例"] } },
+      { id: "FI-1", type: "FinancialImpact", properties: { statement: "毛利率改善", financial_metric: "gross_margin", direction: "positive", time_horizon: "FY2026", basis_refs: ["BI-1"], conditions: ["价格传导成立"] } },
+      { id: "ER-1", type: "EstimateRevision", properties: { statement: "EPS 预测上修", revision_type: "eps", direction: "up", horizon: "FY2026", prior_value: null, revised_value: null, basis_refs: ["FI-1"] } },
+      { id: "AI-1", type: "AssetImpact", properties: { statement: "盈利预期形成正向资产影响", source_judgment_refs: ["J-1"], target_object_ref: "OBJ-1", impact_channel: "valuation_multiple", direction: "positive", time_horizon: "FY2026", conditions: ["预测修正成立"], limitations: [] } },
+    ];
+    const impactRelations = [
+      { id: "r-bi-j", type: "businessImpactFromJudgment", sourceId: "BI-1", targetId: "J-1", properties: {} },
+      { id: "r-fi-bi", type: "financialImpactFromBusinessImpact", sourceId: "FI-1", targetId: "BI-1", properties: {} },
+      { id: "r-er-fi", type: "estimateRevisionFromFinancialImpact", sourceId: "ER-1", targetId: "FI-1", properties: {} },
+      { id: "r-ai-fi", type: "assetImpactFromFinancialImpact", sourceId: "AI-1", targetId: "FI-1", properties: {} },
+      { id: "r-ai-er", type: "assetImpactUsesEstimateRevision", sourceId: "AI-1", targetId: "ER-1", properties: {} },
+      { id: "r-ai-j", type: "assetImpactBasedOnJudgment", sourceId: "AI-1", targetId: "J-1", properties: {} },
+      { id: "r-rt-bi", type: "traceIncludesNode", sourceId: "RT-1", targetId: "BI-1", properties: { sequence: 6 } },
+      { id: "r-rt-fi", type: "traceIncludesNode", sourceId: "RT-1", targetId: "FI-1", properties: { sequence: 7 } },
+      { id: "r-rt-er", type: "traceIncludesNode", sourceId: "RT-1", targetId: "ER-1", properties: { sequence: 8 } },
+      { id: "r-rt-ai", type: "traceIncludesNode", sourceId: "RT-1", targetId: "AI-1", properties: { sequence: 9 } },
+    ];
+    expect(() => validateRuntimeGraph(minimalReasoningGraph({ objects: impactObjects, relations: impactRelations }))).not.toThrow();
+  });
+
+  it("keeps block-role signals distinct from BlockingFactor nodes", () => {
+    const graph = minimalReasoningGraph({
+      traceNodeRefs: ["SIG-BLOCK", "BF-1"],
+      objects: [
+        { id: "SIG-BLOCK", type: "Signal", properties: { statement: "口径冲突形成阻断信号", role: "block" } },
+        { id: "BF-1", type: "BlockingFactor", properties: { statement: "方法适用性受限", effect: "method_block" } },
+      ],
+      relations: [
+        { id: "r-block-sig-fact", type: "signalGroundedByFact", sourceId: "SIG-BLOCK", targetId: "EV-1", properties: { role: "block" } },
+        { id: "r-block-sig-h", type: "signalEvaluatesHypothesis", sourceId: "SIG-BLOCK", targetId: "H-1", properties: {} },
+        { id: "r-bf-unit", type: "blockingFactorForUnit", sourceId: "BF-1", targetId: "JU-1", properties: {} },
+        { id: "r-rt-sig-block", type: "traceIncludesNode", sourceId: "RT-1", targetId: "SIG-BLOCK", properties: { sequence: 6 } },
+        { id: "r-rt-bf", type: "traceIncludesNode", sourceId: "RT-1", targetId: "BF-1", properties: { sequence: 7 } },
+      ],
+    });
+    expect(graph.objects.find((object) => object.id === "SIG-BLOCK")?.type).toBe("Signal");
+    expect(graph.objects.find((object) => object.id === "BF-1")?.type).toBe("BlockingFactor");
     expect(() => validateRuntimeGraph(graph)).not.toThrow();
   });
 });

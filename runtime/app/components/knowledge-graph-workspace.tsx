@@ -83,7 +83,7 @@ export function knowledgeGraphGroupId(node: ResearchGraphNode, mode: KnowledgeGr
     if (type === "ResearchQuestion") return "question";
     if (type === "JudgmentUnit") return "unit";
     if (type === "Judgment") return "judgment";
-    if (mode === "research" && ["EvidenceFact", "EvidenceClaim", "EvidenceRequirement", "EvidenceAssessment", "EvidenceBasket", "SourceDocument"].includes(type)) return "reasoning";
+    if (mode === "research" && ["EvidenceFact", "EvidenceClaim", "EvidenceRequirement", "EvidenceAssessment", "EvidenceBasket", "SourceDocument", "Episode"].includes(type)) return "reasoning";
     return "reasoning";
   }
   if (mode === "ontology") {

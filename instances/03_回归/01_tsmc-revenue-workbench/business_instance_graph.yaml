@@ -552,6 +552,28 @@ business_instance_graph:
       projection:
         section: sources
         index: 1
+    - id: EP-CONTROLLED-01
+      type: Episode
+      properties:
+        title: TSMC December 2024 Revenue Report capture
+        episode_type: document_capture
+        captured_at: 2026-07-20T03:31:24.660Z
+        locator: December 2024 Revenue Report paragraph
+        content_hash: 0cf6a2408c5ce940daa20760f8036a45442e5854267da1fedaac6583f63be798
+      projection:
+        section: source_episodes
+        index: 0
+    - id: EP-CONTROLLED-02
+      type: Episode
+      properties:
+        title: TSMC 2024 Fourth Quarter Earnings Release capture
+        episode_type: document_capture
+        captured_at: 2026-07-20T03:27:24.706Z
+        locator: Earnings release, second paragraph
+        content_hash: e53bd0898138cc1f73f8e4f88f5ac9fdf21c7dd2d24446c0bafdef756015e1f1
+      projection:
+        section: source_episodes
+        index: 1
     - id: EV-CONTROLLED-01
       type: EvidenceFact
       properties:
@@ -1071,6 +1093,10 @@ business_instance_graph:
           - MA-TSMC-REV-EVID-02
           - MA-TSMC-REV-ADJ-02
           - J-CONTROLLED-02
+          - BI-CONTROLLED-02
+          - FI-CONTROLLED-02
+          - ER-CONTROLLED-02
+          - AI-CONTROLLED-02
           - RE-SYS-J-CONTROLLED-02-EVIDENCE-SCOPE-TIME-ALIGNMENT
           - RE-SYS-J-CONTROLLED-02-NO-DIRECT-EVIDENCE-TO-JUDGMENT
           - RE-SYS-J-CONTROLLED-02-JUDGMENT-REFERENCE-INTEGRITY
@@ -1089,6 +1115,10 @@ business_instance_graph:
           - MA-TSMC-REV-EVID-02
           - MA-TSMC-REV-ADJ-02
           - J-CONTROLLED-02
+          - BI-CONTROLLED-02
+          - FI-CONTROLLED-02
+          - ER-CONTROLLED-02
+          - AI-CONTROLLED-02
           - RE-SYS-J-CONTROLLED-02-EVIDENCE-SCOPE-TIME-ALIGNMENT
           - RE-SYS-J-CONTROLLED-02-NO-DIRECT-EVIDENCE-TO-JUDGMENT
           - RE-SYS-J-CONTROLLED-02-JUDGMENT-REFERENCE-INTEGRITY
@@ -1193,6 +1223,74 @@ business_instance_graph:
       projection:
         section: judgments
         index: 1
+    - id: BI-CONTROLLED-02
+      type: BusinessImpact
+      properties:
+        statement: Q4名义同比高于全年同比仅形成增长节奏观察，尚不足以单独确认持续业务影响。
+        source_judgment_refs:
+          - J-CONTROLLED-02
+        target_object_ref: task_local:tsmc_revenue
+        impact_driver: demand
+        direction: indeterminate
+        time_horizon: 截至研究截止时点的历史方向观察
+        conditions:
+          - 不外推未来趋势、增长质量或需求持续性
+      projection:
+        section: business_impacts
+        index: 0
+    - id: FI-CONTROLLED-02
+      type: FinancialImpact
+      properties:
+        statement: 当前证据不足以从营收节奏观察推导利润率、EPS或现金流影响。
+        financial_metric: mixed
+        direction: indeterminate
+        time_horizon: 截至研究截止时点的历史方向观察
+        basis_refs:
+          - BI-CONTROLLED-02
+        business_impact_refs:
+          - BI-CONTROLLED-02
+        conditions:
+          - 需要更多财务和经营证据
+      projection:
+        section: financial_impacts
+        index: 0
+    - id: ER-CONTROLLED-02
+      type: EstimateRevision
+      properties:
+        statement: 不形成预测修正；保留后续复核。
+        revision_type: mixed
+        direction: indeterminate
+        horizon: 截至研究截止时点的历史方向观察
+        prior_value: null
+        revised_value: null
+        basis_refs:
+          - FI-CONTROLLED-02
+        financial_impact_refs:
+          - FI-CONTROLLED-02
+      projection:
+        section: estimate_revisions
+        index: 0
+    - id: AI-CONTROLLED-02
+      type: AssetImpact
+      properties:
+        statement: 不形成可发布资产影响，只记录影响链条被证据上限阻断。
+        source_judgment_refs:
+          - J-CONTROLLED-02
+        target_object_ref: task_local:tsmc_revenue
+        impact_channel: mixed
+        direction: indeterminate
+        time_horizon: 截至研究截止时点的历史方向观察
+        conditions:
+          - 需要独立来源和盈利传导证据
+        financial_impact_refs:
+          - FI-CONTROLLED-02
+        estimate_revision_refs:
+          - ER-CONTROLLED-02
+        limitations:
+          - 当前J1判断不能支持估值或资产结论
+      projection:
+        section: asset_impacts
+        index: 0
   relations:
     - id: RUNTIME-MA-TSMC-REV-STRUCT-01-TARGET-JU-01
       type: runtimeMethodApplicationTargets
@@ -1240,10 +1338,25 @@ business_instance_graph:
       sourceId: JU-02
       targetId: RS-TSMC-REVENUE-2024
       properties: {}
+    - id: REL-EP-CONTROLLED-01-SOURCE
+      type: episodeDerivedFromSource
+      sourceId: EP-CONTROLLED-01
+      targetId: 2d5e70da-cd5b-46d9-8891-509e1f5948bb
+      properties: {}
+    - id: REL-EP-CONTROLLED-02-SOURCE
+      type: episodeDerivedFromSource
+      sourceId: EP-CONTROLLED-02
+      targetId: 93d383ac-5023-471a-bd41-29c3833c8667
+      properties: {}
     - id: REL-CL-EV-CONTROLLED-01-1-SOURCE
       type: claimCitesSource
       sourceId: CL-EV-CONTROLLED-01-1
       targetId: 2d5e70da-cd5b-46d9-8891-509e1f5948bb
+      properties: {}
+    - id: REL-CL-EV-CONTROLLED-01-1-EPISODE
+      type: claimSupportedByEpisode
+      sourceId: CL-EV-CONTROLLED-01-1
+      targetId: EP-CONTROLLED-01
       properties: {}
     - id: REL-EV-CONTROLLED-01-CL-EV-CONTROLLED-01-1
       type: factDerivedFromClaim
@@ -1254,6 +1367,11 @@ business_instance_graph:
       type: claimCitesSource
       sourceId: CL-EV-CONTROLLED-02-1
       targetId: 93d383ac-5023-471a-bd41-29c3833c8667
+      properties: {}
+    - id: REL-CL-EV-CONTROLLED-02-1-EPISODE
+      type: claimSupportedByEpisode
+      sourceId: CL-EV-CONTROLLED-02-1
+      targetId: EP-CONTROLLED-02
       properties: {}
     - id: REL-EV-CONTROLLED-02-CL-EV-CONTROLLED-02-1
       type: factDerivedFromClaim
@@ -1406,6 +1524,36 @@ business_instance_graph:
       targetId: MA-TSMC-REV-ADJ-02
       properties:
         authority: public_contract_1.3
+    - id: REL-BI-CONTROLLED-02-JUDGMENT-J-CONTROLLED-02
+      type: businessImpactFromJudgment
+      sourceId: BI-CONTROLLED-02
+      targetId: J-CONTROLLED-02
+      properties: {}
+    - id: REL-FI-CONTROLLED-02-BUSINESS-BI-CONTROLLED-02
+      type: financialImpactFromBusinessImpact
+      sourceId: FI-CONTROLLED-02
+      targetId: BI-CONTROLLED-02
+      properties: {}
+    - id: REL-ER-CONTROLLED-02-FINANCIAL-FI-CONTROLLED-02
+      type: estimateRevisionFromFinancialImpact
+      sourceId: ER-CONTROLLED-02
+      targetId: FI-CONTROLLED-02
+      properties: {}
+    - id: REL-AI-CONTROLLED-02-FINANCIAL-FI-CONTROLLED-02
+      type: assetImpactFromFinancialImpact
+      sourceId: AI-CONTROLLED-02
+      targetId: FI-CONTROLLED-02
+      properties: {}
+    - id: REL-AI-CONTROLLED-02-ESTIMATE-ER-CONTROLLED-02
+      type: assetImpactUsesEstimateRevision
+      sourceId: AI-CONTROLLED-02
+      targetId: ER-CONTROLLED-02
+      properties: {}
+    - id: REL-AI-CONTROLLED-02-JUDGMENT-J-CONTROLLED-02
+      type: assetImpactBasedOnJudgment
+      sourceId: AI-CONTROLLED-02
+      targetId: J-CONTROLLED-02
+      properties: {}
     - id: REL-RT-CONTROLLED-01-JUDGMENT-J-CONTROLLED-01
       type: reasoningTraceForJudgment
       sourceId: RT-CONTROLLED-01
@@ -1512,6 +1660,30 @@ business_instance_graph:
       targetId: SIG-CONTROLLED-02
       properties:
         sequence: 6
+    - id: REL-RT-CONTROLLED-02-NODE-7-BI-CONTROLLED-02
+      type: traceIncludesNode
+      sourceId: RT-CONTROLLED-02
+      targetId: BI-CONTROLLED-02
+      properties:
+        sequence: 7
+    - id: REL-RT-CONTROLLED-02-NODE-8-FI-CONTROLLED-02
+      type: traceIncludesNode
+      sourceId: RT-CONTROLLED-02
+      targetId: FI-CONTROLLED-02
+      properties:
+        sequence: 8
+    - id: REL-RT-CONTROLLED-02-NODE-9-ER-CONTROLLED-02
+      type: traceIncludesNode
+      sourceId: RT-CONTROLLED-02
+      targetId: ER-CONTROLLED-02
+      properties:
+        sequence: 9
+    - id: REL-RT-CONTROLLED-02-NODE-10-AI-CONTROLLED-02
+      type: traceIncludesNode
+      sourceId: RT-CONTROLLED-02
+      targetId: AI-CONTROLLED-02
+      properties:
+        sequence: 10
     - id: REL-RT-CONTROLLED-02-NODE-11-RE-SYS-J-CONTROLLED-02-EVIDENCE-SCOPE-TIME-ALIGNMENT
       type: traceIncludesNode
       sourceId: RT-CONTROLLED-02

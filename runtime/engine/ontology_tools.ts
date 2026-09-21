@@ -415,7 +415,7 @@ export function ontologyContextForPrompt(
     const ju = focusUnits.size
       ? { objects: juAll.objects.filter((o) => focusUnits.has(o.id)).slice(0, 20) }
       : { objects: juAll.objects.slice(0, 20) };
-    const claims = queryObjectSet(loaded.graph, { type: ["EvidenceClaim", "EvidenceFact", "SourceDocument"], limit: 20 });
+    const claims = queryObjectSet(loaded.graph, { type: ["EvidenceClaim", "EvidenceFact", "Episode", "SourceDocument"], limit: 20 });
     const judgments = queryObjectSet(loaded.graph, { type: "Judgment", limit: 20 });
     const methodApplications = queryObjectSet(loaded.graph, { type: "MethodApplication", limit: 40 });
     lines.push(`JudgmentUnit: ${ju.objects.map((o) => o.id).join(", ") || "(无)"}`);

@@ -936,8 +936,10 @@ def validate_instance_graph(
                     )
     semantic_requirements = {
         "JudgmentUnit": ("unitUsesScope",),
+        "Episode": ("episodeDerivedFromSource",),
         "EvidenceClaim": ("claimCitesSource",),
         "EvidenceFact": ("factDerivedFromClaim",),
+        "StateChange": ("stateChangeFromObservation", "stateChangeToObservation"),
         "Signal": ("signalGroundedByFact", "signalEvaluatesHypothesis"),
         "Judgment": (
             "judgmentBasedOnHypothesis", "judgmentHasRuleEvaluation",

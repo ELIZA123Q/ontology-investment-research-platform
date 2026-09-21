@@ -44,9 +44,10 @@ type RuleEvaluation = {
 };
 
 const RESEARCH_PROCESS_TYPES = new Set([
-  "ResearchQuestion", "JudgmentUnit", "EvidenceRequirement", "SourceDocument", "EvidenceClaim",
+  "ResearchQuestion", "JudgmentUnit", "EvidenceRequirement", "SourceDocument", "Episode", "EvidenceClaim",
   "EvidenceFact", "EvidenceAssessment", "EvidenceBasket", "Signal", "Hypothesis",
-  "CompetingExplanation", "BlockingFactor", "RuleEvaluation", "Judgment", "ReasoningTrace",
+  "CompetingExplanation", "BlockingFactor", "RuleEvaluation", "Judgment", "BusinessImpact",
+  "FinancialImpact", "EstimateRevision", "AssetImpact", "ReasoningTrace",
   "MethodApplication", "ResearchPath", "ActionProposal", "ActionExecution",
 ]);
 

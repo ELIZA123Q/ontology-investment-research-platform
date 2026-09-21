@@ -371,7 +371,8 @@ def _validate_iteration_audit(audit: dict[str, object], audit_path: Path) -> Non
         fail("reasoning_revision_register 必须为列表")
     seen: set[str] = set()
     allowed_types = {
-        "Hypothesis", "Judgment", "Scenario", "MarketExpectation", "ExpectationGap", "AssetImpact"
+        "Hypothesis", "Judgment", "Scenario", "MarketExpectation", "ExpectationGap",
+        "BusinessImpact", "FinancialImpact", "EstimateRevision", "AssetImpact"
     }
     for index, item in enumerate(revisions, 1):
         if not isinstance(item, dict):

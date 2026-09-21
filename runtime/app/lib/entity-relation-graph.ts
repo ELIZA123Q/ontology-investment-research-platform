@@ -7,6 +7,7 @@ const PROCESS_TYPES = new Set([
   "JudgmentUnit",
   "Judgment",
   "EvidenceFact",
+  "Episode",
   "EvidenceClaim",
   "EvidenceRequirement",
   "EvidenceAssessment",
@@ -17,6 +18,10 @@ const PROCESS_TYPES = new Set([
   "CompetingExplanation",
   "RuleEvaluation",
   "ReasoningTrace",
+  "BusinessImpact",
+  "FinancialImpact",
+  "EstimateRevision",
+  "AssetImpact",
   "MethodApplication",
   "ResearchScope",
   "ResearchPath",
@@ -60,12 +65,12 @@ const ENTITY_LAYER_TYPES: Record<EntityNetworkLayer, Set<string>> = {
     "ManufacturingFacility", "Technology", "Region", "Material", "ProcessStep", "Asset",
   ]),
   evidence: new Set([
-    "SourceDocument", "EvidenceClaim", "EvidenceFact", "EvidenceAssessment", "EvidenceBasket",
+    "SourceDocument", "Episode", "EvidenceClaim", "EvidenceFact", "EvidenceAssessment", "EvidenceBasket",
     "EvidenceRequirement", "Signal", "BlockingFactor",
   ]),
   reasoning: new Set([
     "ResearchQuestion", "JudgmentUnit", "ResearchScope", "Hypothesis", "CompetingExplanation",
-    "RuleEvaluation", "Judgment",
+    "RuleEvaluation", "Judgment", "BusinessImpact", "FinancialImpact", "EstimateRevision", "AssetImpact",
   ]),
   technical: new Set(["MethodApplication", "ReasoningTrace"]),
 };
@@ -88,6 +93,10 @@ const DISPLAY_ORDER = [
   "Asset",
   "Hypothesis",
   "Judgment",
+  "BusinessImpact",
+  "FinancialImpact",
+  "EstimateRevision",
+  "AssetImpact",
 ];
 
 export type EntityRelationGraphStats = {
@@ -314,6 +323,7 @@ export function buildBusinessEntityGraph(loaded: GraphLoadResult) {
 
 const REASONING_TYPES = new Set([
   "ResearchQuestion", "JudgmentUnit", "Signal", "Hypothesis", "CompetingExplanation", "BlockingFactor", "Judgment",
+  "BusinessImpact", "FinancialImpact", "EstimateRevision", "AssetImpact",
 ]);
 
 const REASONING_COLUMNS: Record<string, number> = {
@@ -324,6 +334,10 @@ const REASONING_COLUMNS: Record<string, number> = {
   BlockingFactor: 2,
   Hypothesis: 3,
   Judgment: 4,
+  BusinessImpact: 5,
+  FinancialImpact: 6,
+  EstimateRevision: 7,
+  AssetImpact: 8,
 };
 
 function reasoningTone(type: string, properties: Record<string, unknown> = {}): ResearchGraphNode["tone"] {
@@ -331,6 +345,7 @@ function reasoningTone(type: string, properties: Record<string, unknown> = {}): 
   if (["weaken", "counter", "contested"].includes(role)) return "weaken";
   if (["block", "blocked", "fail"].includes(role) || type === "BlockingFactor") return "danger";
   if (["support", "supported", "pass"].includes(role) || type === "Judgment") return "support";
+  if (["BusinessImpact", "FinancialImpact", "EstimateRevision", "AssetImpact"].includes(type)) return "support";
   return type === "ResearchQuestion" || type === "Hypothesis" ? "inherited" : "neutral";
 }
 
@@ -418,7 +433,7 @@ export function buildReasoningPathGraph(loaded: GraphLoadResult) {
     const role = String(relation.properties?.role || "");
     const tone = role === "weaken" || role === "counter" ? "weaken" as const
       : role === "block" || relation.type.includes("Blocking") || relation.type.includes("blocking") ? "danger" as const
-        : ["signalEvaluatesHypothesis", "judgmentBasedOnHypothesis"].includes(relation.type) ? "support" as const : "inherited" as const;
+        : ["signalEvaluatesHypothesis", "judgmentBasedOnHypothesis", "businessImpactFromJudgment", "financialImpactFromBusinessImpact", "estimateRevisionFromFinancialImpact", "assetImpactFromFinancialImpact", "assetImpactUsesEstimateRevision"].includes(relation.type) ? "support" as const : "inherited" as const;
     edges.push({
       id: relation.id,
       source,

@@ -210,8 +210,10 @@ def validate_workbench_package(run_dir: str | Path) -> list[str]:
             outgoing.setdefault((str(relation.get("sourceId")), str(relation.get("type"))), []).append(relation)
         semantic_requirements = {
             "JudgmentUnit": ("unitUsesScope",),
+            "Episode": ("episodeDerivedFromSource",),
             "EvidenceClaim": ("claimCitesSource",),
             "EvidenceFact": ("factDerivedFromClaim",),
+            "StateChange": ("stateChangeFromObservation", "stateChangeToObservation"),
             "Signal": ("signalGroundedByFact", "signalEvaluatesHypothesis"),
             "Judgment": ("judgmentBasedOnHypothesis", "judgmentHasRuleEvaluation", "judgmentResolvesUnit", "runtimeJudgmentUsesMethodApplication"),
             "ReasoningTrace": ("reasoningTraceForJudgment", "traceIncludesNode"),

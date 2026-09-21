@@ -376,6 +376,7 @@ stale_propagation:
 # ReportClaim 是 04/05 发布投影，不扩展一级正式本体。
 object_validity_propagation:
   formal_object_types:
+    - Episode
     - EvidenceClaim
     - EvidenceFact
     - EvidenceAssessment
@@ -389,9 +390,13 @@ object_validity_propagation:
     - Judgment
     - ReasoningTrace
     - ExpectationGap
+    - BusinessImpact
+    - FinancialImpact
+    - EstimateRevision
     - AssetImpact
   runtime_projection_types: [ReportClaim, Expression, MethodApplication]
   dependency_order:
+    - [Episode, EvidenceClaim]
     - [EvidenceClaim_or_EvidenceFact, EvidenceAssessment_or_EvidenceBasket_or_MethodApplication_or_Observation_or_Event_or_Signal_or_MarketExpectation]
     - [Observation_or_Event_or_Signal, Hypothesis]
     - [Hypothesis, RuleEvaluation]
@@ -399,6 +404,10 @@ object_validity_propagation:
     - [MethodApplication, Judgment]
     - [Judgment, ReasoningTrace_or_Expression]
     - [Judgment, ExpectationGap_or_AssetImpact]
+    - [Judgment, BusinessImpact]
+    - [BusinessImpact, FinancialImpact]
+    - [FinancialImpact, EstimateRevision_or_AssetImpact]
+    - [EstimateRevision, AssetImpact]
     - [MarketExpectation, ExpectationGap]
     - [ExpectationGap_or_AssetImpact, ReportClaim]
   authority_rule: 每条依赖必须引用正式本体 Relation；只有 ReportClaim 边允许 stageProjection。
@@ -411,6 +420,7 @@ incremental_update_contract:
   dependency_types: [basket_membership, method_input, signal_input, hypothesis_input, rule_input, method_support, judgment_dependency, trace_projection, expression_projection]
   object_actions: [maintain, stale, revalidate, recompute, supersede]
   stage_by_object:
+    Episode: '03'
     EvidenceAssessment: '03'
     EvidenceBasket: '03'
     evidence_MethodApplication: '03'
@@ -420,6 +430,10 @@ incremental_update_contract:
     adjudication_MethodApplication: '04'
     Judgment: '04'
     ReasoningTrace: '04'
+    BusinessImpact: '04'
+    FinancialImpact: '04'
+    EstimateRevision: '04'
+    AssetImpact: '04'
     Expression: '05'
   rules:
     - changed_roots 记录新增、修订或失效的事实根；新增事实本身是 current，不自动列入 stale。
