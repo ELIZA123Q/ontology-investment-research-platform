@@ -179,3 +179,163 @@ routes:
       - { name: WSTS, domain: wsts.org, tier: S3, authority_type: industry_provider }
       - { name: SIA, domain: semiconductors.org, tier: S3, authority_type: industry_provider }
     query_terms: [downside, slowdown, inventory increase, delay, cancellation, weak demand]
+
+  - id: innovative_drug_domain_seed
+    domains: [innovative_drug]
+    evidence_profile_ids: [clinical_evidence, regulatory_status, reimbursement_access, commercialization, competitive_context]
+    judgment_types: [state_measurement, mechanism_validation, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [创新药, 临床, 审批, 医保, 处方, clinical, approval, reimbursement, prescription]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: NMPA, domain: nmpa.gov.cn, tier: S1, authority_type: official }
+      - { name: CDE, domain: cde.org.cn, tier: S1, authority_type: official }
+      - { name: NHSA, domain: nhsa.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [临床结果, 审批状态, 医保目录, 销售, 竞品]
+
+  - id: securities_domain_seed
+    domains: [securities]
+    evidence_profile_ids: [market_activity, margin_financing, underwriting_cycle, business_mix_profit]
+    judgment_types: [state_measurement, cycle_phase, causal_attribution, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [证券, 成交额, 两融, 投行, 自营, brokerage, underwriting, margin financing]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-stock-mkt-mcp, datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: SSE, domain: sse.com.cn, tier: S1, authority_type: official }
+      - { name: SZSE, domain: szse.cn, tier: S1, authority_type: official }
+      - { name: CSRC, domain: csrc.gov.cn, tier: S1, authority_type: official }
+      - { name: SAC, domain: sac.net.cn, tier: S2, authority_type: industry_provider }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [成交额, 两融余额, IPO, 承销, 分部收入, 自营]
+
+  - id: banking_domain_seed
+    domains: [banking]
+    evidence_profile_ids: [net_interest_margin, asset_quality_migration, provision_capital, loan_demand_structure]
+    judgment_types: [state_measurement, causal_attribution, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [银行, 净息差, 不良, 关注贷款, 拨备, 资本, NIM, NPL, provision, capital]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-macro, datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: PBOC, domain: pbc.gov.cn, tier: S1, authority_type: official }
+      - { name: NFRA, domain: nfra.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [净息差, 存款成本, 资产质量, 不良生成率, 拨备覆盖率, 核心一级资本]
+
+  - id: insurance_domain_seed
+    domains: [insurance]
+    evidence_profile_ids: [life_new_business, pnc_underwriting, investment_return, solvency_capital]
+    judgment_types: [state_measurement, causal_attribution, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [保险, 保费, NBV, 综合成本率, 投资收益, 偿付能力, premium, solvency]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: NFRA, domain: nfra.gov.cn, tier: S1, authority_type: official }
+      - { name: IAMAC, domain: iamac.org.cn, tier: S3, authority_type: industry_provider }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [月度保费, 新业务价值, 综合成本率, 投资收益率, 偿付能力]
+
+  - id: real_estate_chain_domain_seed
+    domains: [real_estate_chain]
+    evidence_profile_ids: [policy_financing, sales_inventory, construction_completion, developer_credit_cashflow]
+    judgment_types: [state_measurement, cycle_phase, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [地产, 销售, 库存, 开工, 竣工, 回款, 信用, real estate, completion]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-macro, datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: NBS, domain: stats.gov.cn, tier: S1, authority_type: official }
+      - { name: MOHURD, domain: mohurd.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [销售面积, 库存, 新开工, 竣工, 销售回款, 有息负债]
+
+  - id: consumer_retail_domain_seed
+    domains: [consumer_retail]
+    evidence_profile_ids: [terminal_demand, channel_inventory, pricing_brand_power, financial_quality]
+    judgment_types: [state_measurement, object_differentiation, causal_attribution, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [消费, 零售, 动销, 渠道库存, 折扣, 复购, GMV, retail, channel inventory]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-macro, datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: NBS, domain: stats.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+      - { name: JD, domain: jd.com, tier: S4, authority_type: public_secondary }
+    query_terms: [社零, 动销, 渠道库存, 折扣率, 毛利率, 经营现金流]
+
+  - id: internet_platform_domain_seed
+    domains: [internet_platform]
+    evidence_profile_ids: [user_engagement, monetization_efficiency, regulatory_boundary, profit_realization]
+    judgment_types: [state_measurement, mechanism_validation, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [平台, 用户, 广告, GMV, 游戏版号, 云服务, monetization, eCPM]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: SEC, domain: sec.gov, tier: S1, authority_type: official }
+      - { name: HKEXnews, domain: hkexnews.hk, tier: S1, authority_type: official }
+      - { name: NPPA, domain: nppa.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [MAU, DAU, 广告收入, eCPM, GMV, 游戏流水, 分部利润]
+
+  - id: new_energy_power_equipment_domain_seed
+    domains: [new_energy_power_equipment]
+    evidence_profile_ids: [demand_tender_installation, supply_inventory_capacity, pricing_margin, delivery_cashflow]
+    judgment_types: [state_measurement, cycle_phase, mechanism_validation, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [新能源, 光伏, 储能, 风电, 电网设备, 招标, 中标, 价格, PV, storage, grid]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-macro, datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: NEA, domain: nea.gov.cn, tier: S1, authority_type: official }
+      - { name: NDRC, domain: ndrc.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [装机, 招标, 中标, 成交价, 开工率, 毛利率, 经营现金流]
+
+  - id: utilities_power_domain_seed
+    domains: [utilities_power]
+    evidence_profile_ids: [power_demand_utilization, tariff_mechanism, fuel_cost, cashflow_debt]
+    judgment_types: [state_measurement, mechanism_validation, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [电力, 用电量, 利用小时, 电价, 煤价, 容量电价, 绿电, utility, tariff]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-macro, datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: NEA, domain: nea.gov.cn, tier: S1, authority_type: official }
+      - { name: NDRC, domain: ndrc.gov.cn, tier: S1, authority_type: official }
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+    query_terms: [全社会用电量, 利用小时, 上网电价, 容量电价, 燃料成本, 经营现金流]
+
+  - id: defense_industry_domain_seed
+    domains: [defense_industry]
+    evidence_profile_ids: [public_order, backlog_liability_evidence, delivery_acceptance, capacity_supply_chain]
+    judgment_types: [state_measurement, mechanism_validation, transmission_path, impact_realization]
+    evidence_roles: [support, counter, context, boundary]
+    match_terms: [军工, 订单, 合同负债, 交付, 验收, 募投, 产能, defense, backlog]
+    preferred_channels: [mcp, public_web]
+    mcp_channels: [datayes-stock-finoper-mcp]
+    query_card_refs:
+      - methods/03_取证/B04_非半导体行业来源速查.md#行业来源与误用边界
+    producers:
+      - { name: CNINFO, domain: cninfo.com.cn, tier: S1, authority_type: official }
+      - { name: SSE, domain: sse.com.cn, tier: S1, authority_type: official }
+      - { name: SZSE, domain: szse.cn, tier: S1, authority_type: official }
+    query_terms: [重大合同, 合同负债, 交付验收, 募投进度, 存货, 应收账款]

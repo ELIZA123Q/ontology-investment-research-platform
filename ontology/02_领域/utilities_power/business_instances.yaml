@@ -1,0 +1,135 @@
+schema_name: utilities_power_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 电价机制或燃料成本变化能否传导为电力运营利润改善
+  second_round_scenarios:
+    - id: utilities_capacity_tariff_mechanism
+      name: 容量电价机制
+      focus: 容量电价覆盖范围、适用电量和结算节奏是否改善火电现金流稳定性。
+      required_profiles: [tariff_mechanism, power_demand_utilization, cashflow_debt]
+      stop_if_missing: [政策适用范围, 结算电量, 现金流或收入确认]
+      non_inference_rules: [容量电价政策不得直接推出利润改善, 装机规模不得替代适用电量]
+    - id: utilities_green_power_consumption_premium
+      name: 新能源消纳与绿电溢价
+      focus: 消纳率、绿电交易、补贴回款和限电风险是否影响新能源运营收益。
+      required_profiles: [power_demand_utilization, tariff_mechanism, cashflow_debt]
+      stop_if_missing: [消纳率, 交易电价, 补贴或回款]
+      non_inference_rules: [装机增长不得直接推出收入增长, 绿电交易规模不得直接推出溢价兑现]
+  objects:
+    - id: power_demand_utilization
+      type: EvidenceProfile
+      properties:
+        name: 用电需求与利用小时证据
+        supporting_evidence: [全社会用电量, 分行业用电, 发电量, 利用小时, 负荷曲线]
+        counter_evidence: [工业需求弱, 来水或风光资源波动, 装机扩张摊薄利用小时]
+        competing_explanations: [发电量增长来自装机增加而非利用率提升]
+        scope_checks: [火电水电风光核电分离, 发电量与上网电量分离, 区域电网分离]
+        freshness_guidance: 用电和发电量可月度更新，利润兑现按季度验证。
+        minimum_requirements: [用电或发电数据, 利用小时, 电源类型]
+        downgrade_conditions: [只看装机, 不看利用小时和上网量]
+        quality_floor: Q3
+    - id: tariff_mechanism
+      type: EvidenceProfile
+      properties:
+        name: 电价与市场化机制证据
+        supporting_evidence: [上网电价, 长协比例, 现货电价, 容量电价, 绿电交易]
+        counter_evidence: [市场化折价, 电价传导不充分, 补贴拖欠, 电量结构变化]
+        competing_explanations: [电价上升来自短期供需紧张, 不代表长期机制改善]
+        scope_checks: [基准价交易价结算价分离, 电量和电价匹配, 区域政策一致]
+        freshness_guidance: 政策事件级更新，结算价和交易电量按月季验证。
+        minimum_requirements: [电价机制, 适用电量, 生效时间]
+        downgrade_conditions: [只看政策标题, 不看结算和适用范围]
+        quality_floor: Q3
+    - id: fuel_cost
+      type: EvidenceProfile
+      properties:
+        name: 燃料与运营成本证据
+        supporting_evidence: [煤价, 气价, 长协煤比例, 运费, 单位燃料成本]
+        counter_evidence: [现货煤价回升, 长协履约不足, 汇率或运费上升, 检修成本增加]
+        competing_explanations: [成本下降来自库存成本滞后或会计口径, 不是采购成本改善]
+        scope_checks: [现货长协分离, 入炉煤价与市场报价分离, 库存周期一致]
+        freshness_guidance: 燃料价格高频观察，入炉成本和毛利按报告期验证。
+        minimum_requirements: [燃料价格, 采购结构, 单位成本或毛利]
+        downgrade_conditions: [只看市场煤价, 不看长协和库存成本]
+        quality_floor: Q3
+    - id: cashflow_debt
+      type: EvidenceProfile
+      properties:
+        name: 现金流与负债约束证据
+        supporting_evidence: [经营现金流, 应收补贴, 资本开支, 资产负债率, 利息支出]
+        counter_evidence: [补贴拖欠, 资本开支扩张, 利息负担上升, 应收账款增加]
+        competing_explanations: [利润改善来自补贴确认或减值转回, 现金流未同步改善]
+        scope_checks: [经营现金与融资现金分离, 补贴确认与回款分离, 项目和集团分离]
+        freshness_guidance: 现金流和负债按报告期更新，补贴回款需事件级记录。
+        minimum_requirements: [经营现金流, 资本开支, 负债或利息]
+        downgrade_conditions: [只看净利润, 不看现金流和资本开支]
+        quality_floor: Q2
+    - id: utilization_state
+      type: StateVariable
+      properties:
+        name: 利用小时状态
+        category: volume
+        observation_dimensions: [发电量, 上网电量, 利用小时, 负荷, 来水风光资源]
+        valid_scope: 按电源类型和区域判断。
+    - id: tariff_state
+      type: StateVariable
+      properties:
+        name: 电价机制状态
+        category: pricing
+        observation_dimensions: [基准价, 市场化交易价, 容量电价, 绿电溢价]
+        valid_scope: 政策适用范围和结算电量必须明确。
+    - id: cost_pass_through
+      type: StateVariable
+      properties:
+        name: 成本传导状态
+        category: cost
+        observation_dimensions: [燃料成本, 长协比例, 电价传导, 库存滞后]
+        valid_scope: 市场价格与公司入炉成本不能混用。
+    - id: cash_yield_state
+      type: StateVariable
+      properties:
+        name: 现金回报状态
+        category: cashflow
+        observation_dimensions: [经营现金流, 资本开支, 分红, 杠杆, 补贴回款]
+        valid_scope: 公用事业判断需关注现金回报而非单期利润。
+    - id: tariff_to_profit
+      type: PropagationTemplate
+      properties:
+        name: 电价机制到利润改善传导
+        path: [tariff_mechanism, tariff_state, cost_pass_through, cashflow_debt]
+        lag_guidance: 电价政策到结算和财务体现需跨结算周期。
+        blocking_conditions: [适用电量有限, 燃料成本上升, 补贴拖欠, 折旧或财务费用上升]
+        non_inference_rules: [政策发布不得直接推出利润改善, 现货电价不得直接代表公司结算价]
+    - id: cost_to_cash_realization
+      type: PropagationTemplate
+      properties:
+        name: 燃料成本下降到现金流兑现传导
+        path: [fuel_cost, cost_pass_through, cashflow_debt, cash_yield_state]
+        lag_guidance: 市场煤价到入炉成本和现金流存在库存与长协滞后。
+        blocking_conditions: [长协履约不足, 利用小时下降, 电价下行, 资本开支上升]
+        non_inference_rules: [煤价下降不得直接推出利润改善, 装机增长不得直接推出现金回报改善]
+    - id: utilization_hours
+      type: ProxyIndicator
+      properties:
+        name: 利用小时
+        target_state: utilization_state
+        usable_when: 电源类型、区域和装机口径一致。
+        misuse_risks: [装机扩张摊薄, 来水风光资源扰动, 上网消纳限制]
+    - id: benchmark_coal_price
+      type: ProxyIndicator
+      properties:
+        name: 市场煤价
+        target_state: cost_pass_through
+        usable_when: 能与长协比例、库存和入炉煤价对齐。
+        misuse_risks: [市场价不等于入炉成本, 库存滞后, 运输和热值差异]

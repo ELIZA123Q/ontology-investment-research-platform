@@ -1,0 +1,371 @@
+document_type: multi_domain_pressure_case_set
+schema_version: 1.0.0
+status: draft_domain_seed_cases
+ontology_extension_allowed: false
+industry_framework_allowed: false
+evidence_policy:
+  public_sources_only: true
+  must_quote_verify: true
+  must_keep_counter_evidence: true
+  source_quick_ref: ../../methods/03_取证/B04_非半导体行业来源速查.md
+cases:
+  - case_id: SD-PT-DRUG-001
+    domain_label: innovative_drug
+    ontology_package: ../../ontology/02_领域/innovative_drug
+    question: 单个已获批创新药在获批后 12 个月内是否进入商业化兑现阶段？
+    seed_scenario: 创新药获批后能否形成商业化兑现
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [clinical_evidence, regulatory_status, reimbursement_access, commercialization, competitive_context]
+    must_block_if_missing: [标签范围, 支付限制或价格, 处方或销售验证]
+    success_criteria:
+      - 获批、医保准入和销售兑现分层表达
+      - 不把获批事件直接写成收入改善
+      - 至少保留一条竞品或支付约束反证
+  - case_id: SD-PT-SEC-001
+    domain_label: securities
+    ontology_package: ../../ontology/02_领域/securities
+    question: A股市场活跃度改善是否已经能传导到证券公司经纪和利润弹性？
+    seed_scenario: 市场活跃度改善能否传导为证券公司经营改善
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [market_activity, margin_financing, underwriting_cycle, business_mix_profit]
+    must_block_if_missing: [佣金率或分部收入, 自营扰动, 成本或减值]
+    success_criteria:
+      - 指数、成交、两融、投行和公司利润分开
+      - 行业活跃度不直接落到单家公司利润
+      - 至少检查佣金率下行或自营亏损反证
+  - case_id: SD-PT-BANK-001
+    domain_label: banking
+    ontology_package: ../../ontology/02_领域/banking
+    question: 银行净息差压力是否已被资产质量和拨备改善抵消？
+    seed_scenario: 净息差变化能否传导为银行利润改善
+    judgment_types_expected: [state_measurement, causal_attribution, impact_realization]
+    required_evidence_profiles: [net_interest_margin, asset_quality_migration, provision_capital, loan_demand_structure]
+    must_block_if_missing: [资产负债重定价, 关注或逾期指标, 拨备和资本约束]
+    success_criteria:
+      - 息差、信用成本和资本约束分别判断
+      - 不良率稳定不直接写成风险下降
+      - 至少检查贷款结构和拨备释放反证
+  - case_id: SD-PT-NEPE-001
+    domain_label: new_energy_power_equipment
+    ontology_package: ../../ontology/02_领域/new_energy_power_equipment
+    question: 光伏或储能链价格企稳是否已进入企业盈利修复阶段？
+    seed_scenario: 价格企稳能否传导为新能源设备企业盈利修复
+    judgment_types_expected: [cycle_phase, transmission_path, impact_realization]
+    required_evidence_profiles: [demand_tender_installation, supply_inventory_capacity, pricing_margin, delivery_cashflow]
+    must_block_if_missing: [成交价或合同价, 库存和开工率, 公司毛利或现金流]
+    success_criteria:
+      - 报价、成交价、毛利和现金流分开
+      - 中标不直接写成收入兑现
+      - 至少检查成本同步上升或低价长单反证
+  - case_id: SD-PT-RE-001
+    domain_label: real_estate_chain
+    ontology_package: ../../ontology/02_领域/real_estate_chain
+    question: 地产政策放松是否已传导到销售、开工和地产链需求？
+    seed_scenario: 地产政策放松能否传导为销售、开工和地产链兑现
+    judgment_types_expected: [transmission_path, cycle_phase, impact_realization]
+    required_evidence_profiles: [policy_financing, sales_inventory, construction_completion, developer_credit_cashflow]
+    must_block_if_missing: [政策执行口径, 成交量价库存, 开工或竣工, 回款和信用]
+    success_criteria:
+      - 政策发布、成交改善和开工改善分层
+      - 竣工改善不直接写成建材新增需求
+      - 至少检查库存高企或信用压力反证
+  - case_id: SD-PT-CONS-001
+    domain_label: consumer_retail
+    ontology_package: ../../ontology/02_领域/consumer_retail
+    question: 渠道销售改善是否代表消费品牌真实动销和利润质量改善？
+    seed_scenario: 渠道销售改善能否传导为消费品牌真实收入质量改善
+    judgment_types_expected: [state_measurement, object_differentiation, impact_realization]
+    required_evidence_profiles: [terminal_demand, channel_inventory, pricing_brand_power, financial_quality]
+    must_block_if_missing: [终端动销, 渠道库存, 折扣率, 费用和现金流]
+    success_criteria:
+      - 发货、GMV、净收入和现金流分开
+      - 大促战报不直接写成长期需求
+      - 至少检查压货、折扣扩大或退货反证
+  - case_id: SD-PT-INET-001
+    domain_label: internet_platform
+    ontology_package: ../../ontology/02_领域/internet_platform
+    question: 单一平台业务线的用户或交易改善是否足以支撑收入与利润兑现？
+    seed_scenario: 平台用户或交易改善能否传导为收入与利润兑现
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [user_engagement, monetization_efficiency, regulatory_boundary, profit_realization]
+    must_block_if_missing: [业务线口径, 变现率, 费用或补贴, 分部利润]
+    success_criteria:
+      - 每次只验证广告、电商、游戏、云等单一业务线
+      - 用户或GMV不直接推出收入和利润
+      - 至少检查补贴、监管或费用反证
+  - case_id: SD-PT-UTIL-001
+    domain_label: utilities_power
+    ontology_package: ../../ontology/02_领域/utilities_power
+    question: 电价机制或燃料成本变化是否能改善电力运营利润和现金回报？
+    seed_scenario: 电价机制或燃料成本变化能否传导为电力运营利润改善
+    judgment_types_expected: [mechanism_validation, transmission_path, impact_realization]
+    required_evidence_profiles: [power_demand_utilization, tariff_mechanism, fuel_cost, cashflow_debt]
+    must_block_if_missing: [结算电价, 利用小时, 入炉成本, 经营现金流]
+    success_criteria:
+      - 电源类型、区域和电价机制分开
+      - 市场煤价不直接等于公司燃料成本
+      - 至少检查补贴拖欠或资本开支反证
+  - case_id: SD-PT-INS-001
+    domain_label: insurance
+    ontology_package: ../../ontology/02_领域/insurance
+    question: 保费增长是否真正传导为保险公司价值、承保和利润改善？
+    seed_scenario: 保费增长能否传导为保险公司价值与利润改善
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [life_new_business, pnc_underwriting, investment_return, solvency_capital]
+    must_block_if_missing: [NBV或价值率, 综合成本率, 投资收益和资产配置, 偿付能力]
+    success_criteria:
+      - 寿险、财险和投资端分开
+      - 原保费不直接写成价值增长
+      - 至少检查低价值产品或投资波动反证
+  - case_id: SD-PT-DEF-001
+    domain_label: defense_industry
+    ontology_package: ../../ontology/02_领域/defense_industry
+    question: 公开订单或合同负债是否足以支持军工子行业收入兑现判断？
+    seed_scenario: 公开订单或合同负债能否支撑军工收入兑现判断
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [public_order, backlog_liability_evidence, delivery_acceptance, capacity_supply_chain]
+    must_block_if_missing: [合同约束性, 交付或验收, 收入确认, 现金流]
+    success_criteria:
+      - 公开证据不足时默认弱判断或停判
+      - 订单、合同负债、交付、收入和回款分开
+      - 至少检查交付延期或现金流弱反证
+  - case_id: SD-PT-DRUG-002
+    domain_label: innovative_drug
+    ontology_package: ../../ontology/02_领域/innovative_drug
+    question: 创新药关键临床读出是否足以提高申报或获批概率？
+    seed_scenario: 临床读出到审批概率
+    judgment_types_expected: [state_measurement, mechanism_validation, transmission_path]
+    required_evidence_profiles: [clinical_evidence, regulatory_status, competitive_context]
+    must_block_if_missing: [完整临床终点, 安全性数据, 适应症和标签范围]
+    success_criteria:
+      - 临床疗效、安全性和监管路径分开
+      - 不把积极读出直接写成获批
+      - 至少检查对照不可比或安全性反证
+  - case_id: SD-PT-DRUG-003
+    domain_label: innovative_drug
+    ontology_package: ../../ontology/02_领域/innovative_drug
+    question: 医保谈判降价后，创新药能否通过放量抵消价格压力？
+    seed_scenario: 医保谈判降价后量价兑现
+    judgment_types_expected: [transmission_path, impact_realization]
+    required_evidence_profiles: [reimbursement_access, commercialization, competitive_context]
+    must_block_if_missing: [支付限制, 降价幅度, 处方或销售验证]
+    success_criteria:
+      - 医保纳入、降价、处方和收入确认分开
+      - 不把进医保直接写成收入改善
+      - 至少检查竞品、限制人群或价格压力反证
+  - case_id: SD-PT-SEC-002
+    domain_label: securities
+    ontology_package: ../../ontology/02_领域/securities
+    question: 投行业务周期是否已从项目受理传导到发行和收入确认？
+    seed_scenario: 投行业务周期修复
+    judgment_types_expected: [cycle_phase, transmission_path, impact_realization]
+    required_evidence_profiles: [underwriting_cycle, business_mix_profit]
+    must_block_if_missing: [发行完成规模, 费率或收入确认, 项目归属]
+    success_criteria:
+      - 受理、过会、注册、发行和收入确认分开
+      - 不把项目数量直接写成投行收入
+      - 至少检查费率下行或审核收紧反证
+  - case_id: SD-PT-SEC-003
+    domain_label: securities
+    ontology_package: ../../ontology/02_领域/securities
+    question: 自营收益波动是否掩盖证券公司主业经营质量？
+    seed_scenario: 自营收益扰动与经营质量分离
+    judgment_types_expected: [causal_attribution, object_differentiation, impact_realization]
+    required_evidence_profiles: [market_activity, margin_financing, business_mix_profit]
+    must_block_if_missing: [自营敞口, 分部收入, 减值或成本]
+    success_criteria:
+      - 自营、公允价值、经纪投行和资管分开
+      - 不把净利润改善直接写成主业改善
+      - 至少检查自营亏损或一次性收益反证
+  - case_id: SD-PT-BANK-002
+    domain_label: banking
+    ontology_package: ../../ontology/02_领域/banking
+    question: 地产和城投暴露是否正在传导为银行资产质量压力？
+    seed_scenario: 地产和城投暴露到资产质量
+    judgment_types_expected: [state_measurement, causal_attribution, impact_realization]
+    required_evidence_profiles: [asset_quality_migration, provision_capital, loan_demand_structure]
+    must_block_if_missing: [重点行业暴露, 关注或逾期迁徙, 拨备和核销]
+    success_criteria:
+      - 行业暴露、迁徙、拨备和资本分别判断
+      - 不把不良率稳定直接写成风险下降
+      - 至少检查展期重组或核销节奏反证
+  - case_id: SD-PT-BANK-003
+    domain_label: banking
+    ontology_package: ../../ontology/02_领域/banking
+    question: 存款成本下行是否已经传导为银行净息差修复？
+    seed_scenario: 存款成本下行到息差修复
+    judgment_types_expected: [mechanism_validation, transmission_path, impact_realization]
+    required_evidence_profiles: [net_interest_margin, loan_demand_structure, provision_capital]
+    must_block_if_missing: [存款结构, 资产收益率, 重定价周期]
+    success_criteria:
+      - 负债成本和资产收益率双边验证
+      - 不把挂牌利率下调直接写成息差修复
+      - 至少检查存款定期化或资产端下行反证
+  - case_id: SD-PT-NEPE-002
+    domain_label: new_energy_power_equipment
+    ontology_package: ../../ontology/02_领域/new_energy_power_equipment
+    question: 海外贸易壁垒是否会削弱新能源设备企业订单和利润兑现？
+    seed_scenario: 海外贸易壁垒
+    judgment_types_expected: [mechanism_validation, transmission_path, impact_realization]
+    required_evidence_profiles: [demand_tender_installation, pricing_margin, delivery_cashflow]
+    must_block_if_missing: [规则原文, 适用产品和地区, 公司收入暴露]
+    success_criteria:
+      - 政策范围、产品口径和公司暴露分开
+      - 不把贸易规则直接写成公司受损
+      - 至少检查转口、本地化或价格转嫁反证
+  - case_id: SD-PT-NEPE-003
+    domain_label: new_energy_power_equipment
+    ontology_package: ../../ontology/02_领域/new_energy_power_equipment
+    question: 电网设备订单是否已经进入交付、验收和回款阶段？
+    seed_scenario: 电网设备订单到交付回款
+    judgment_types_expected: [transmission_path, impact_realization]
+    required_evidence_profiles: [demand_tender_installation, delivery_cashflow, pricing_margin]
+    must_block_if_missing: [中标金额, 交付验收, 应收或现金流]
+    success_criteria:
+      - 中标、交付、验收、收入和回款分开
+      - 不把订单直接写成收入或现金流
+      - 至少检查延期、应收恶化或低价中标反证
+  - case_id: SD-PT-RE-002
+    domain_label: real_estate_chain
+    ontology_package: ../../ontology/02_领域/real_estate_chain
+    question: 销售和融资改善是否足以支持房企信用修复？
+    seed_scenario: 房企信用修复
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [policy_financing, sales_inventory, developer_credit_cashflow]
+    must_block_if_missing: [销售回款, 到期债务, 融资现金流]
+    success_criteria:
+      - 销售额、回款、债务和融资现金流分开
+      - 不把展期直接写成信用修复
+      - 至少检查受限资金或债务集中到期反证
+  - case_id: SD-PT-RE-003
+    domain_label: real_estate_chain
+    ontology_package: ../../ontology/02_领域/real_estate_chain
+    question: 竣工改善是否真正传导到家居建材订单和收入兑现？
+    seed_scenario: 竣工链到家居建材兑现
+    judgment_types_expected: [transmission_path, impact_realization]
+    required_evidence_profiles: [construction_completion, sales_inventory, developer_credit_cashflow]
+    must_block_if_missing: [竣工口径, 家居建材订单, 回款或渠道库存]
+    success_criteria:
+      - 竣工、交付、家居订单和渠道库存分开
+      - 不把保交楼直接写成新增需求
+      - 至少检查前置装修或渠道库存反证
+  - case_id: SD-PT-CONS-002
+    domain_label: consumer_retail
+    ontology_package: ../../ontology/02_领域/consumer_retail
+    question: 消费品牌渠道库存是否已从高位转入健康状态？
+    seed_scenario: 渠道库存出清
+    judgment_types_expected: [state_measurement, cycle_phase, impact_realization]
+    required_evidence_profiles: [terminal_demand, channel_inventory, financial_quality]
+    must_block_if_missing: [渠道库存, 折扣率, 回款或退货]
+    success_criteria:
+      - 库存、库龄、折扣和回款分开
+      - 不把库存下降直接写成需求改善
+      - 至少检查退货、低价清库存或压货反证
+  - case_id: SD-PT-CONS-003
+    domain_label: consumer_retail
+    ontology_package: ../../ontology/02_领域/consumer_retail
+    question: 消费品牌提价是否已经损伤终端动销和复购？
+    seed_scenario: 提价是否损伤动销
+    judgment_types_expected: [object_differentiation, causal_attribution, impact_realization]
+    required_evidence_profiles: [terminal_demand, pricing_brand_power, financial_quality]
+    must_block_if_missing: [成交价, 销量或复购, 折扣和费用]
+    success_criteria:
+      - 标价、成交价、销量和复购分开
+      - 不把均价提升直接写成定价权
+      - 至少检查产品结构和促销费用反证
+  - case_id: SD-PT-INET-002
+    domain_label: internet_platform
+    ontology_package: ../../ontology/02_领域/internet_platform
+    question: 广告预算恢复是否已经传导为平台广告收入和利润改善？
+    seed_scenario: 广告预算恢复
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [user_engagement, monetization_efficiency, regulatory_boundary, profit_realization]
+    must_block_if_missing: [业务线收入, eCPM或加载率, 广告主预算线索]
+    success_criteria:
+      - 用户、广告库存、eCPM和收入分开
+      - 不把流量增长直接写成广告收入改善
+      - 至少检查加载率、预算结构或监管反证
+  - case_id: SD-PT-INET-003
+    domain_label: internet_platform
+    ontology_package: ../../ontology/02_领域/internet_platform
+    question: 游戏版号是否已经传导到流水、递延收入和利润兑现？
+    seed_scenario: 游戏版号到流水和利润兑现
+    judgment_types_expected: [transmission_path, impact_realization]
+    required_evidence_profiles: [regulatory_boundary, user_engagement, monetization_efficiency, profit_realization]
+    must_block_if_missing: [版号和上线时间, 流水或递延收入, 买量费用]
+    success_criteria:
+      - 版号、上线、流水、递延收入和费用分开
+      - 不把取得版号直接写成利润改善
+      - 至少检查买量费用或用户留存反证
+  - case_id: SD-PT-UTIL-002
+    domain_label: utilities_power
+    ontology_package: ../../ontology/02_领域/utilities_power
+    question: 容量电价机制是否能改善火电企业现金流稳定性？
+    seed_scenario: 容量电价机制
+    judgment_types_expected: [mechanism_validation, transmission_path, impact_realization]
+    required_evidence_profiles: [tariff_mechanism, power_demand_utilization, cashflow_debt]
+    must_block_if_missing: [政策适用范围, 结算电量, 现金流或收入确认]
+    success_criteria:
+      - 适用范围、结算电量和现金流分开
+      - 不把容量电价政策直接写成利润改善
+      - 至少检查燃料成本或资本开支反证
+  - case_id: SD-PT-UTIL-003
+    domain_label: utilities_power
+    ontology_package: ../../ontology/02_领域/utilities_power
+    question: 新能源消纳改善和绿电溢价是否能传导为运营收益提升？
+    seed_scenario: 新能源消纳与绿电溢价
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [power_demand_utilization, tariff_mechanism, cashflow_debt]
+    must_block_if_missing: [消纳率, 交易电价, 补贴或回款]
+    success_criteria:
+      - 装机、上网电量、消纳率和交易电价分开
+      - 不把装机增长直接写成收入增长
+      - 至少检查限电、补贴拖欠或交易折价反证
+  - case_id: SD-PT-INS-002
+    domain_label: insurance
+    ontology_package: ../../ontology/02_领域/insurance
+    question: 寿险渠道改革是否已经改善 NBV、价值率和代理人产能？
+    seed_scenario: 寿险 NBV 与渠道改革
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [life_new_business, solvency_capital]
+    must_block_if_missing: [NBV或价值率, 渠道结构, 退保或继续率]
+    success_criteria:
+      - 保费、NBV、价值率和渠道产能分开
+      - 不把代理人数量回升直接写成价值改善
+      - 至少检查低价值产品或退保反证
+  - case_id: SD-PT-INS-003
+    domain_label: insurance
+    ontology_package: ../../ontology/02_领域/insurance
+    question: 财险综合成本率改善是否能抵御大灾赔付扰动？
+    seed_scenario: 财险综合成本率与大灾扰动
+    judgment_types_expected: [state_measurement, causal_attribution, impact_realization]
+    required_evidence_profiles: [pnc_underwriting, investment_return, solvency_capital]
+    must_block_if_missing: [综合成本率, 赔付拆分, 大灾或准备金影响]
+    success_criteria:
+      - 赔付率、费用率、准备金和大灾影响分开
+      - 不把单季低赔付直接写成承保质量改善
+      - 至少检查准备金释放或大灾反证
+  - case_id: SD-PT-DEF-002
+    domain_label: defense_industry
+    ontology_package: ../../ontology/02_领域/defense_industry
+    question: 合同负债是否已经传导到军工公司收入确认？
+    seed_scenario: 合同负债到收入确认
+    judgment_types_expected: [state_measurement, transmission_path, impact_realization]
+    required_evidence_profiles: [public_order, backlog_liability_evidence, delivery_acceptance]
+    must_block_if_missing: [业务线归属, 交付或验收, 收入确认]
+    success_criteria:
+      - 合同负债、存货、交付和收入确认分开
+      - 不把合同负债直接写成收入
+      - 至少检查业务归属不明或交付延期反证
+  - case_id: SD-PT-DEF-003
+    domain_label: defense_industry
+    ontology_package: ../../ontology/02_领域/defense_industry
+    question: 募投产能建设是否已经形成军工交付能力改善？
+    seed_scenario: 募投产能到交付能力
+    judgment_types_expected: [mechanism_validation, transmission_path, impact_realization]
+    required_evidence_profiles: [capacity_supply_chain, delivery_acceptance, backlog_liability_evidence]
+    must_block_if_missing: [募投进度, 认证或量产节点, 交付验证]
+    success_criteria:
+      - 募投建设、认证、量产和交付分开
+      - 不把扩产规划直接写成交付能力
+      - 至少检查认证延迟、外协瓶颈或供应链反证

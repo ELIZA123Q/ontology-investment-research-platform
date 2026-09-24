@@ -1,0 +1,135 @@
+schema_name: real_estate_chain_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 地产政策放松能否传导为销售、开工和地产链兑现
+  second_round_scenarios:
+    - id: real_estate_developer_credit_repair
+      name: 房企信用修复
+      focus: 销售回款、债务展期、融资恢复和资产减值是否支撑信用修复。
+      required_profiles: [policy_financing, sales_inventory, developer_credit_cashflow]
+      stop_if_missing: [销售回款, 到期债务, 融资现金流]
+      non_inference_rules: [销售改善不得直接推出信用修复, 展期不得直接视为偿债能力改善]
+    - id: real_estate_completion_to_home_building_materials
+      name: 竣工链到家居建材兑现
+      focus: 竣工和交付改善是否能传导到家居、建材和渠道订单。
+      required_profiles: [construction_completion, sales_inventory, developer_credit_cashflow]
+      stop_if_missing: [竣工口径, 家居建材订单, 回款或渠道库存]
+      non_inference_rules: [竣工改善不得直接推出新增需求, 保交楼不得等同地产链全面复苏]
+  objects:
+    - id: policy_financing
+      type: EvidenceProfile
+      properties:
+        name: 政策与融资条件证据
+        supporting_evidence: [限购限贷调整, 房贷利率, 首付比例, 融资支持, 城中村或收储政策]
+        counter_evidence: [政策落地范围窄, 银行执行慢, 居民预期弱, 开发商融资仍受限]
+        competing_explanations: [政策改善成交情绪但不改变供给信用风险, 局部城市政策不能外推全国]
+        scope_checks: [城市能级一致, 新房二手房分离, 政策发布与执行分离]
+        freshness_guidance: 政策事件级更新，执行效果需用成交和按揭数据复核。
+        minimum_requirements: [政策原文, 适用城市或人群, 生效时间]
+        downgrade_conditions: [只有媒体解读, 无执行口径, 把发布当成成交改善]
+        quality_floor: Q3
+    - id: sales_inventory
+      type: EvidenceProfile
+      properties:
+        name: 销售、库存与去化证据
+        supporting_evidence: [新房成交, 二手房成交, 推盘量, 去化率, 库存和去化周期]
+        counter_evidence: [成交靠降价, 高库存未降, 二手房挂牌增加, 退房或认购转化弱]
+        competing_explanations: [成交改善来自集中推盘或季节性, 价格下调换量]
+        scope_checks: [认购签约网签分离, 面积金额套数分离, 城市和能级分离]
+        freshness_guidance: 成交和库存可周月跟踪，收入确认和回款按报告期验证。
+        minimum_requirements: [成交量价, 库存, 去化周期]
+        downgrade_conditions: [只看单周成交, 不看价格和库存]
+        quality_floor: Q3
+    - id: construction_completion
+      type: EvidenceProfile
+      properties:
+        name: 开工、施工与竣工证据
+        supporting_evidence: [新开工面积, 施工面积, 竣工面积, 保交楼进度, 建材订单]
+        counter_evidence: [拿地弱, 新开工继续下滑, 竣工高峰不可持续, 施工资金不足]
+        competing_explanations: [竣工改善来自保交楼存量项目, 不代表新开工复苏]
+        scope_checks: [开工施工竣工分离, 商品房保障房分离, 面积和金额口径分离]
+        freshness_guidance: 开工和竣工按月度跟踪，建材和家居兑现按订单和财报验证。
+        minimum_requirements: [开工或竣工数据, 资金或订单验证, 时间序列]
+        downgrade_conditions: [把竣工当开工, 把保交楼当地产链全面复苏]
+        quality_floor: Q3
+    - id: developer_credit_cashflow
+      type: EvidenceProfile
+      properties:
+        name: 房企信用与现金流证据
+        supporting_evidence: [销售回款, 有息负债, 到期债务, 融资现金流, 资产减值]
+        counter_evidence: [展期增加, 债务违约, 回款受限, 土储减值, 少数项目热销掩盖整体压力]
+        competing_explanations: [现金流改善来自资产处置或债务展期, 不是经营修复]
+        scope_checks: [集团与项目公司分离, 权益销售与全口径分离, 经营现金和融资现金分离]
+        freshness_guidance: 信用事件需事件级更新，现金流和负债按报告期更新。
+        minimum_requirements: [销售回款, 债务期限, 现金流]
+        downgrade_conditions: [只看销售额, 不看回款和债务压力]
+        quality_floor: Q2
+    - id: policy_execution_state
+      type: StateVariable
+      properties:
+        name: 政策执行状态
+        category: policy
+        observation_dimensions: [发布, 执行, 银行落地, 居民响应]
+        valid_scope: 城市和人群范围不得外推。
+    - id: sales_recovery
+      type: StateVariable
+      properties:
+        name: 销售修复状态
+        category: demand
+        observation_dimensions: [成交量, 成交价, 去化率, 库存, 推盘]
+        valid_scope: 新房和二手房分开判断。
+    - id: construction_cycle
+      type: StateVariable
+      properties:
+        name: 开工竣工周期状态
+        category: construction
+        observation_dimensions: [拿地, 开工, 施工, 竣工, 交付]
+        valid_scope: 竣工改善不能直接代表新开工改善。
+    - id: credit_cashflow_state
+      type: StateVariable
+      properties:
+        name: 信用与现金流状态
+        category: credit
+        observation_dimensions: [回款, 债务到期, 融资渠道, 减值, 受限资金]
+        valid_scope: 销售改善需落到回款和债务偿付能力。
+    - id: policy_to_sales_realization
+      type: PropagationTemplate
+      properties:
+        name: 政策放松到销售修复传导
+        path: [policy_financing, policy_execution_state, sales_inventory, sales_recovery]
+        lag_guidance: 政策发布到银行执行和居民成交存在滞后，需用成交量价验证。
+        blocking_conditions: [居民收入预期弱, 库存高企, 房价继续下行, 银行执行慢]
+        non_inference_rules: [政策发布不得直接推出销售修复, 成交量改善不得忽略价格和库存]
+    - id: sales_to_chain_cashflow
+      type: PropagationTemplate
+      properties:
+        name: 销售到地产链与现金流兑现传导
+        path: [sales_recovery, construction_completion, developer_credit_cashflow, credit_cashflow_state]
+        lag_guidance: 销售到开工、建材订单、竣工和回款跨多个节点，需要分阶段验证。
+        blocking_conditions: [拿地不足, 开工弱, 回款受限, 房企信用压力]
+        non_inference_rules: [销售额不得直接推出开工, 竣工不得直接推出建材新增需求]
+    - id: weekly_transaction_area
+      type: ProxyIndicator
+      properties:
+        name: 周度成交面积
+        target_state: sales_recovery
+        usable_when: 城市样本稳定且能区分新房二手房。
+        misuse_risks: [单周波动, 推盘节奏影响, 以量换价]
+    - id: completed_area
+      type: ProxyIndicator
+      properties:
+        name: 竣工面积
+        target_state: construction_cycle
+        usable_when: 可确认商品房、保障房和保交楼口径。
+        misuse_risks: [保交楼造成短期高峰, 与新开工和建材新增需求错位]

@@ -1,0 +1,135 @@
+schema_name: consumer_retail_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 渠道销售改善能否传导为消费品牌真实收入质量改善
+  second_round_scenarios:
+    - id: consumer_channel_inventory_clearance
+      name: 渠道库存出清
+      focus: 库存、库龄、折扣和经销商回款是否支持渠道恢复健康。
+      required_profiles: [terminal_demand, channel_inventory, financial_quality]
+      stop_if_missing: [渠道库存, 折扣率, 回款或退货]
+      non_inference_rules: [库存下降不得直接推出需求改善, 发货改善不得替代终端动销]
+    - id: consumer_price_increase_demand_damage
+      name: 提价是否损伤动销
+      focus: 提价后成交价、销量、折扣、费用和复购是否显示品牌定价权。
+      required_profiles: [terminal_demand, pricing_brand_power, financial_quality]
+      stop_if_missing: [成交价, 销量或复购, 折扣和费用]
+      non_inference_rules: [标价提升不得直接推出定价权, 均价提升不得忽略产品结构]
+  objects:
+    - id: terminal_demand
+      type: EvidenceProfile
+      properties:
+        name: 终端需求与动销证据
+        supporting_evidence: [POS销售, 电商成交, 客流转化, 复购率, 消费者价格]
+        counter_evidence: [大促透支, 退货率上升, 客单价下滑, 私域或平台样本偏差]
+        competing_explanations: [补贴驱动成交, 低价清库存, 短期事件营销带来一次性拉动]
+        scope_checks: [发货与动销分离, 线上线下分离, GMV与净销售分离]
+        freshness_guidance: 动销可月度或大促节点更新，财务兑现按报告期验证。
+        minimum_requirements: [终端销量或销售额, 价格, 时间序列]
+        downgrade_conditions: [只有公司发货, 只有大促战报, 无退货或价格口径]
+        quality_floor: Q3
+    - id: channel_inventory
+      type: EvidenceProfile
+      properties:
+        name: 渠道库存与经销商质量证据
+        supporting_evidence: [渠道库存, 库龄, 经销商回款, 订货会, 折扣率]
+        counter_evidence: [压货, 库龄拉长, 经销商退货, 折扣扩大]
+        competing_explanations: [收入增长来自渠道囤货, 不是终端需求改善]
+        scope_checks: [厂商库存与渠道库存分离, 总仓与终端库存分离, 正价与折扣渠道分离]
+        freshness_guidance: 库存和折扣在季末、大促后和新品切换时重点更新。
+        minimum_requirements: [库存水平, 库龄或折扣, 回款或退货]
+        downgrade_conditions: [只看收入, 不看库存和折扣]
+        quality_floor: Q3
+    - id: pricing_brand_power
+      type: EvidenceProfile
+      properties:
+        name: 价格体系与品牌力证据
+        supporting_evidence: [均价, 折扣率, 高端产品占比, 复购, 会员留存]
+        counter_evidence: [折扣扩大, 高端系列滞销, 新品失败, 费用投放换增长]
+        competing_explanations: [均价提升来自产品组合而非提价能力, 品牌声量来自投放]
+        scope_checks: [标价成交价分离, 产品结构一致, 新老品分离]
+        freshness_guidance: 价格体系需结合大促、渠道和新品周期更新。
+        minimum_requirements: [成交价或折扣, 产品结构, 费用投放]
+        downgrade_conditions: [只看标价, 不看折扣和费用]
+        quality_floor: Q3
+    - id: financial_quality
+      type: EvidenceProfile
+      properties:
+        name: 收入质量与利润兑现证据
+        supporting_evidence: [收入, 毛利率, 销售费用率, 应收或合同负债, 经营现金流]
+        counter_evidence: [费用率上升, 毛利下降, 应收增加, 现金流弱于利润]
+        competing_explanations: [增长来自渠道铺货或并表, 利润来自费用递延]
+        scope_checks: [收入确认与发货分离, 常规销售与促销分离, 主品牌与其他业务分离]
+        freshness_guidance: 财务质量按报告期更新，促销节点后需检查退货和折扣。
+        minimum_requirements: [收入, 毛利, 费用, 现金流或应收]
+        downgrade_conditions: [只看收入增速, 不看利润和现金流质量]
+        quality_floor: Q2
+    - id: demand_momentum
+      type: StateVariable
+      properties:
+        name: 终端需求动能
+        category: demand
+        observation_dimensions: [销量, 均价, 客流, 复购, 退货]
+        valid_scope: 大促或单平台战报不得外推长期需求。
+    - id: inventory_health
+      type: StateVariable
+      properties:
+        name: 渠道库存健康度
+        category: channel
+        observation_dimensions: [库存覆盖, 库龄, 折扣, 经销商回款]
+        valid_scope: 库存健康是收入质量前置约束。
+    - id: brand_pricing_power
+      type: StateVariable
+      properties:
+        name: 品牌定价权
+        category: brand
+        observation_dimensions: [成交价, 折扣率, 高端占比, 会员留存]
+        valid_scope: 需扣除费用投放和产品结构影响。
+    - id: profit_quality
+      type: StateVariable
+      properties:
+        name: 利润与现金质量
+        category: profitability
+        observation_dimensions: [毛利率, 费用率, 应收, 存货, 经营现金流]
+        valid_scope: 收入增长需经毛利和现金流复核。
+    - id: terminal_to_revenue_quality
+      type: PropagationTemplate
+      properties:
+        name: 终端动销到收入质量传导
+        path: [terminal_demand, demand_momentum, channel_inventory, financial_quality]
+        lag_guidance: 终端动销先于财务确认，需观察渠道库存和退货。
+        blocking_conditions: [渠道压货, 折扣扩大, 退货增加, 费用投放过高]
+        non_inference_rules: [GMV不得直接等同收入, 发货不得直接等同真实需求]
+    - id: pricing_to_margin_realization
+      type: PropagationTemplate
+      properties:
+        name: 定价权到毛利兑现传导
+        path: [pricing_brand_power, brand_pricing_power, financial_quality, profit_quality]
+        lag_guidance: 成交价和折扣变化需在毛利率和费用率中验证。
+        blocking_conditions: [折扣扩大, 成本上涨, 费用投放增加, 产品结构恶化]
+        non_inference_rules: [标价提升不得直接推出定价权, 收入高增不得直接推出品牌力提升]
+    - id: gross_merchandise_value
+      type: ProxyIndicator
+      properties:
+        name: 电商GMV
+        target_state: demand_momentum
+        usable_when: 可获得退款、折扣、平台和统计周期口径。
+        misuse_risks: [GMV不等于净收入, 大促透支, 平台样本偏差]
+    - id: channel_discount_rate
+      type: ProxyIndicator
+      properties:
+        name: 渠道折扣率
+        target_state: brand_pricing_power
+        usable_when: 产品、渠道和促销周期可比。
+        misuse_risks: [清库存折扣, 新品旧品混合, 短期促销扰动]

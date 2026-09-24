@@ -52,7 +52,6 @@ describe("source_coverage", () => {
         source_ids: ["SRC-1"],
         judgment_unit_ids: ["JU-1"],
       }],
-      boundSourceIds: new Set(["SRC-1"]),
       requirements: [{
         id: "ER-1",
         requirement: "产能",

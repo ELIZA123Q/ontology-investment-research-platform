@@ -642,6 +642,8 @@ describe("evidence_auto_supplement", () => {
       coverage_gap_count: 1,
       coverage_rate: 0,
       verification_rate: 0,
+      missing_core_types: [],
+      authority_coverage: [],
     };
     const brief = buildSupplementBrief({
       coverage,

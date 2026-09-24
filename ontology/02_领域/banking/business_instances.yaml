@@ -1,0 +1,135 @@
+schema_name: banking_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 净息差变化能否传导为银行利润改善
+  second_round_scenarios:
+    - id: banking_real_estate_lgfv_exposure_to_asset_quality
+      name: 地产和城投暴露到资产质量
+      focus: 重点行业暴露是否已经传导到关注、逾期、不良、拨备和资本压力。
+      required_profiles: [asset_quality_migration, provision_capital, loan_demand_structure]
+      stop_if_missing: [重点行业暴露, 关注或逾期迁徙, 拨备和核销]
+      non_inference_rules: [不良率稳定不得直接推出风险下降, 展期重组不得当作风险消失]
+    - id: banking_deposit_cost_to_nim_repair
+      name: 存款成本下行到息差修复
+      focus: 存款挂牌利率、结构变化和重定价节奏能否真正改善净息差。
+      required_profiles: [net_interest_margin, loan_demand_structure, provision_capital]
+      stop_if_missing: [存款结构, 资产收益率, 重定价周期]
+      non_inference_rules: [存款利率下调不得直接推出息差修复, 负债成本下降不得忽略资产收益率]
+  objects:
+    - id: net_interest_margin
+      type: EvidenceProfile
+      properties:
+        name: 净息差证据
+        supporting_evidence: [生息资产收益率, 计息负债成本, 贷款重定价, 存款结构, 同业负债成本]
+        counter_evidence: [存款定期化, 贷款利率下行更快, 高收益资产收缩, 同业负债压力]
+        competing_explanations: [息差短期改善来自资产结构或一次性重定价, 非核心负债扰动]
+        scope_checks: [期初期末与日均口径分离, 母行与集团口径分离, 贷款与投资资产分离]
+        freshness_guidance: 息差按季度验证，利率政策变化后需检查资产和负债重定价节奏。
+        minimum_requirements: [资产收益率, 负债成本, 重定价口径]
+        downgrade_conditions: [只看挂牌利率, 不拆资产负债结构, 缺少季度财报验证]
+        quality_floor: Q2
+    - id: asset_quality_migration
+      type: EvidenceProfile
+      properties:
+        name: 资产质量迁徙证据
+        supporting_evidence: [不良率, 关注率, 逾期率, 不良生成率, 核销和回收, 行业暴露]
+        counter_evidence: [关注贷款上升, 逾期先行恶化, 展期或重组增加, 房地产或地方债风险暴露]
+        competing_explanations: [不良率稳定来自核销加快, 风险延后暴露而非真正改善]
+        scope_checks: [公司贷款零售贷款分离, 生成与余额分离, 风险分类口径一致]
+        freshness_guidance: 资产质量具有滞后性，至少跨两个报告期观察迁徙。
+        minimum_requirements: [不良率, 关注或逾期指标, 拨备或核销数据]
+        downgrade_conditions: [只看不良率, 未看先行指标, 未拆重点行业风险]
+        quality_floor: Q2
+    - id: provision_capital
+      type: EvidenceProfile
+      properties:
+        name: 拨备与资本约束证据
+        supporting_evidence: [拨备覆盖率, 拨贷比, 信用成本, 核心一级资本充足率, 风险加权资产]
+        counter_evidence: [资本补充压力, 信用成本上升, 风险权重上升, 分红与资本消耗冲突]
+        competing_explanations: [利润改善来自少提拨备, 资本充足来自资产收缩而非内生增长]
+        scope_checks: [监管口径一致, 核心一级与资本充足率分离, RWA变化与业务扩张对齐]
+        freshness_guidance: 资本和拨备按报告期更新，重大监管要求变化时事件级更新。
+        minimum_requirements: [拨备覆盖, 信用成本, 核心一级资本]
+        downgrade_conditions: [只看净利润, 未检查拨备和资本消耗]
+        quality_floor: Q2
+    - id: loan_demand_structure
+      type: EvidenceProfile
+      properties:
+        name: 信贷需求与结构证据
+        supporting_evidence: [新增贷款, 贷款投向, 按揭和对公结构, 票据占比, 区域和行业分布]
+        counter_evidence: [票据冲量, 低收益资产占比上升, 风险行业扩张, 早偿压力]
+        competing_explanations: [规模增长来自政策投放或低收益票据, 不是高质量信贷需求]
+        scope_checks: [余额与新增分离, 对公零售分离, 量与收益率分离]
+        freshness_guidance: 信贷结构月度可观察，收益和风险兑现按季度确认。
+        minimum_requirements: [贷款规模, 结构, 收益率或风险线索]
+        downgrade_conditions: [只看贷款总量, 未拆投向和收益率]
+        quality_floor: Q3
+    - id: nim_trend
+      type: StateVariable
+      properties:
+        name: 净息差趋势
+        category: profitability
+        observation_dimensions: [资产收益率, 负债成本, 重定价周期, 存款结构]
+        valid_scope: 不同银行资产负债结构差异大，不得简单套用行业平均。
+    - id: asset_quality
+      type: StateVariable
+      properties:
+        name: 资产质量状态
+        category: risk
+        observation_dimensions: [不良率, 关注率, 逾期率, 生成率, 核销回收]
+        valid_scope: 资产质量判断必须考虑滞后和风险分类变化。
+    - id: credit_cost
+      type: StateVariable
+      properties:
+        name: 信用成本状态
+        category: provision
+        observation_dimensions: [拨备计提, 核销, 回收, 覆盖率, 拨贷比]
+        valid_scope: 少提拨备不能直接解释为盈利质量改善。
+    - id: capital_constraint
+      type: StateVariable
+      properties:
+        name: 资本约束状态
+        category: capital
+        observation_dimensions: [核心一级资本, RWA, 内生资本, 分红, 再融资]
+        valid_scope: 资本充足率改善需区分利润留存和资产收缩。
+    - id: nim_to_profit_realization
+      type: PropagationTemplate
+      properties:
+        name: 息差到利润兑现传导
+        path: [net_interest_margin, nim_trend, credit_cost, provision_capital]
+        lag_guidance: 息差变化可先出现，利润兑现需等待净利息收入、拨备和税费验证。
+        blocking_conditions: [资产质量恶化, 信用成本上升, 资本不足, 规模收缩]
+        non_inference_rules: [政策降息不得直接推出银行息差改善, 少提拨备不得直接推出经营改善]
+    - id: loan_growth_to_asset_quality
+      type: PropagationTemplate
+      properties:
+        name: 信贷扩张到资产质量传导
+        path: [loan_demand_structure, asset_quality_migration, asset_quality, provision_capital]
+        lag_guidance: 信贷投放到风险暴露存在滞后，需跨报告期跟踪迁徙。
+        blocking_conditions: [票据冲量, 风险行业集中, 展期重组增加, 拨备不足]
+        non_inference_rules: [贷款增长不得直接推出利润增长, 不良率稳定不得自动代表风险下降]
+    - id: deposit_cost
+      type: ProxyIndicator
+      properties:
+        name: 存款成本率
+        target_state: nim_trend
+        usable_when: 能区分活期、定期、对公和零售存款结构。
+        misuse_risks: [只看挂牌利率, 忽略存款定期化, 忽略同业负债]
+    - id: nonperforming_generation_rate
+      type: ProxyIndicator
+      properties:
+        name: 不良生成率
+        target_state: asset_quality
+        usable_when: 核销、回收和期初期末口径可复核。
+        misuse_risks: [核销节奏影响生成率, 单季波动过度外推]

@@ -52,4 +52,4 @@
 
 ## 维护者附录（研究员可跳过）
 
-文件结构：A01–A09 取证方法、B00–B03 来源速查、OPS_* 查询手册。校验：`python3 methods/03_取证/validate_03.py`。
+文件结构：A01–A09 取证方法、B00–B04 来源速查、OPS_* 查询手册。校验：`python3 methods/03_取证/validate_03.py`。

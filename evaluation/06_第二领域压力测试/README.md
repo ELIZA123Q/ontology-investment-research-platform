@@ -21,3 +21,9 @@
 ## 建议模板
 
 复制 [`case_template.yaml`](case_template.yaml) 填一题即可。跑通后把结论摘要写入 `evaluation/05_决策日志/`。
+
+候选领域与推荐切入题目见 [`候选领域池`](候选领域池.md)。每个行业的第一轮可执行样例见 [`行业压力测试样例`](行业压力测试样例.yaml)。领域沉淀的权威入口见 [`../../ontology/02_领域`](../../ontology/02_领域)。
+
+## 二轮场景校验
+
+运行 [`validate_domain_seed_cases.py`](validate_domain_seed_cases.py) 检查非半导体行业是否仍保持 `draft domain seed` 边界、每个行业是否至少有 3 个压力测试场景、场景是否绑定证据画像和停判条件。

@@ -1,0 +1,135 @@
+schema_name: new_energy_power_equipment_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 价格企稳能否传导为新能源设备企业盈利修复
+  second_round_scenarios:
+    - id: nepe_overseas_trade_barrier_impact
+      name: 海外贸易壁垒
+      focus: 关税、反倾销、准入规则和本地化要求如何影响订单、价格和利润。
+      required_profiles: [demand_tender_installation, pricing_margin, delivery_cashflow]
+      stop_if_missing: [规则原文, 适用产品和地区, 公司收入暴露]
+      non_inference_rules: [贸易规则发布不得直接推出公司受损, 海外需求强不得忽略准入和关税成本]
+    - id: nepe_grid_equipment_order_delivery_cash
+      name: 电网设备订单到交付回款
+      focus: 电网招标、中标、交付、验收和回款是否形成财务兑现。
+      required_profiles: [demand_tender_installation, delivery_cashflow, pricing_margin]
+      stop_if_missing: [中标金额, 交付验收, 应收或现金流]
+      non_inference_rules: [中标不得直接推出收入, 出货不得直接推出现金流]
+  objects:
+    - id: demand_tender_installation
+      type: EvidenceProfile
+      properties:
+        name: 需求、招标与装机证据
+        supporting_evidence: [装机规划, 招标量, 中标结果, 并网数据, 客户资本开支]
+        counter_evidence: [招标延期, 并网不及预期, 客户削减资本开支, 政策补贴退坡]
+        competing_explanations: [招标提前释放透支后续需求, 中标来自低价抢单]
+        scope_checks: [光伏储能风电电网分离, 招标量与交付量分离, 国内与海外分离]
+        freshness_guidance: 招标和价格可月度更新，收入和现金流按报告期验证。
+        minimum_requirements: [需求端数据, 招标或订单证据, 交付或并网线索]
+        downgrade_conditions: [只有政策目标, 无招标或交付验证]
+        quality_floor: Q3
+    - id: supply_inventory_capacity
+      type: EvidenceProfile
+      properties:
+        name: 供给、库存与产能证据
+        supporting_evidence: [有效产能, 开工率, 库存覆盖, 新增产能, 停产或退出]
+        counter_evidence: [名义产能仍扩张, 渠道库存高企, 开工率未改善, 低效产能未退出]
+        competing_explanations: [短期检修造成供给收缩, 价格反弹来自季节性备货]
+        scope_checks: [名义产能与有效产能分离, 产品规格一致, 产业链环节一致]
+        freshness_guidance: 供给和库存宜按月度或季度更新，产能退出需确认不可逆程度。
+        minimum_requirements: [产能, 开工率或库存, 产品规格]
+        downgrade_conditions: [只有扩产公告, 不区分有效产能和库存]
+        quality_floor: Q3
+    - id: pricing_margin
+      type: EvidenceProfile
+      properties:
+        name: 价格、成本与毛利证据
+        supporting_evidence: [成交价, 合同价, 原材料成本, 单位盈利, 毛利率]
+        counter_evidence: [报价未成交, 成本同步上升, 产品结构恶化, 海外费用或关税上升]
+        competing_explanations: [毛利改善来自产品结构或汇率, 不是行业价格修复]
+        scope_checks: [报价与成交分离, 含税币种一致, 产品代际和功率规格一致]
+        freshness_guidance: 价格按报价和合同周期更新，毛利按报告期验证。
+        minimum_requirements: [价格证据, 成本证据, 公司毛利验证]
+        downgrade_conditions: [只有渠道报价, 无成交或财务验证]
+        quality_floor: Q2
+    - id: delivery_cashflow
+      type: EvidenceProfile
+      properties:
+        name: 交付、收入与现金流证据
+        supporting_evidence: [出货量, 交付验收, 收入确认, 应收账款, 经营现金流]
+        counter_evidence: [出货未验收, 应收上升, 回款变慢, 质保或减值压力]
+        competing_explanations: [收入增长来自低毛利抢单, 现金流改善来自票据或一次性回款]
+        scope_checks: [出货与收入确认分离, 订单和验收周期一致, 内外销口径分离]
+        freshness_guidance: 交付和验收按项目节点更新，现金流按报告期验证。
+        minimum_requirements: [订单或出货, 验收或收入确认, 回款或现金流]
+        downgrade_conditions: [只看订单金额, 缺少验收和回款]
+        quality_floor: Q3
+    - id: demand_state
+      type: StateVariable
+      properties:
+        name: 需求与招标状态
+        category: demand
+        observation_dimensions: [招标量, 中标价, 装机并网, 客户资本开支]
+        valid_scope: 必须按光伏、储能、风电、电网设备子链拆分。
+    - id: supply_clearance
+      type: StateVariable
+      properties:
+        name: 供给出清状态
+        category: supply
+        observation_dimensions: [有效产能, 开工率, 库存, 产能退出]
+        valid_scope: 单一价格反弹不能定义出清。
+    - id: margin_repair
+      type: StateVariable
+      properties:
+        name: 盈利修复状态
+        category: profitability
+        observation_dimensions: [价格, 成本, 毛利率, 产品结构, 汇率]
+        valid_scope: 需要公司财务验证，不能只用行业报价。
+    - id: cash_conversion
+      type: StateVariable
+      properties:
+        name: 回款与现金转化状态
+        category: cashflow
+        observation_dimensions: [验收, 应收账款, 存货, 经营现金流]
+        valid_scope: 订单和收入改善不等于现金流改善。
+    - id: price_to_margin_repair
+      type: PropagationTemplate
+      properties:
+        name: 价格企稳到盈利修复传导
+        path: [supply_inventory_capacity, pricing_margin, margin_repair]
+        lag_guidance: 价格先于毛利，但需考虑合同周期、库存成本和产品结构。
+        blocking_conditions: [成本同步上升, 旧库存减值, 低价长单, 海外贸易费用上升]
+        non_inference_rules: [价格反弹不得直接推出利润改善, 名义产能减少不得直接推出供给出清]
+    - id: tender_to_cash_realization
+      type: PropagationTemplate
+      properties:
+        name: 招标订单到现金流兑现传导
+        path: [demand_tender_installation, delivery_cashflow, cash_conversion]
+        lag_guidance: 招标到交付、验收、回款存在项目周期，需分节点验证。
+        blocking_conditions: [中标未签约, 交付延期, 验收慢, 应收恶化]
+        non_inference_rules: [中标不得等同收入, 出货不得等同现金流]
+    - id: utilization_rate
+      type: ProxyIndicator
+      properties:
+        name: 开工率
+        target_state: supply_clearance
+        usable_when: 产能基数、产品规格和统计范围稳定。
+        misuse_risks: [检修季节性, 低效产能未退出, 名义产能口径失真]
+    - id: winning_bid_price
+      type: ProxyIndicator
+      properties:
+        name: 中标价格
+        target_state: margin_repair
+        usable_when: 项目规格、交付区域和付款条件可比。
+        misuse_risks: [中标价不等于成交毛利, 低价抢单, 条款差异]

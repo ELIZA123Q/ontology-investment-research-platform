@@ -41,5 +41,5 @@
 - 01/02/03/04/05 生成默认门槛现已统一为 `high_quality_pass`（见各 `stageXX_documents.ts` / `stage01_contract.ts`）；02→03 交接门（stage2_review.ts）与正式导出门（formal_pack_export.ts:84）均要求 hq，二门合一。
 - **关键修复（死代码陷阱）**：审批/校验实际走 `stage2_review.ts` 的 `validateStage02ForApproval`，其 `SELF_ASSESSMENT_CODES` 曾把 `quality_status` 排除（过滤掉质量报错）→ 已改为仅 `["cannot_enter_03"]`，让 quality_status 真正阻断 02 交接。
 - 发布前按钮判定 `buildFormalDeliveryGate`（researcher-stage-output.ts）带 `allStagesHighQualityPass` 入参，未达 hq 时按钮隐藏 + StageExceptionNotice 列具体阶段，与 exportFormalPack 真实规则对齐。
-- 若 §7.2 检查失败仍会 `downgradeIfHighQualityFails` 降级并 fail-fast 阻断（低质量不会放行到下一阶段）。旧 minimum_pass 历史产物重审/重生成会被新门拦下（符合预期）。
+- 若 §7.2 检查失败仍会 `downgradeIfHighQualityFails` 降级并 fail-fast 阻断（低质量不会进入下一阶段）。旧 minimum_pass 历史产物重审/重生成会被新规则拦下（符合预期）。
 - 全量测试：`93 files / 561 tests passed`。代码改动需 `npm run prod:rebuild`（或重启 dev）后 UI 生效。

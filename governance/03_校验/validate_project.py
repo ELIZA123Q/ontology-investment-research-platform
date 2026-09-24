@@ -60,6 +60,7 @@ CHECKS = (
     ("研究价值评测协议烟测（mock，不代表研究质量）", [sys.executable, "evaluation/03_执行/tests/test_eval_runtime.py"]),
     ("研究员体验前瞻队列合同", [sys.executable, "evaluation/03_执行/validate_experience_cohort.py"]),
     ("研究员体验前瞻队列负向回归", [sys.executable, "evaluation/03_执行/tests/test_experience_cohort.py"]),
+    ("第二领域种子场景", [sys.executable, "evaluation/06_第二领域压力测试/validate_domain_seed_cases.py"]),
     ("Ontology 3.0 双样例", [sys.executable, "governance/03_校验/validate_v3_samples.py"]),
     ("Ontology 3.0 样例负向回归", [sys.executable, "governance/03_校验/tests/test_v3_samples.py"]),
     ("Runtime TypeScript 类型检查", ["npm", "--prefix", "runtime", "run", "typecheck"]),

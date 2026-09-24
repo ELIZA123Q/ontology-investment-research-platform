@@ -1,0 +1,135 @@
+schema_name: securities_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 市场活跃度改善能否传导为证券公司经营改善
+  second_round_scenarios:
+    - id: securities_underwriting_cycle_recovery
+      name: 投行业务周期修复
+      focus: IPO、再融资和债券承销从受理到发行和收入确认的真实修复。
+      required_profiles: [underwriting_cycle, business_mix_profit]
+      stop_if_missing: [发行完成规模, 费率或收入确认, 项目归属]
+      non_inference_rules: [受理项目不得当作发行收入, 数量增长不得替代规模和费率]
+    - id: securities_proprietary_noise_separation
+      name: 自营收益扰动与经营质量分离
+      focus: 市场波动带来的自营收益是否掩盖经纪、投行和资管主业趋势。
+      required_profiles: [market_activity, margin_financing, business_mix_profit]
+      stop_if_missing: [自营敞口, 分部收入, 减值或成本]
+      non_inference_rules: [净利润改善不得直接推出经营质量改善, 自营浮盈不得视为可持续主业]
+  objects:
+    - id: market_activity
+      type: EvidenceProfile
+      properties:
+        name: 市场活跃度证据
+        supporting_evidence: [成交额, 换手率, 投资者账户活跃, 连续时间序列]
+        counter_evidence: [成交集中于少数主题, 佣金率继续下行, 活跃度不可持续]
+        competing_explanations: [指数上涨带来短期交易, 结构性行情未覆盖经纪收入基础]
+        scope_checks: [A股与港股分离, 股票与基金债券分离, 日均与累计口径分离]
+        freshness_guidance: 市场活跃度可高频观察，但公司业绩兑现通常按季度验证。
+        minimum_requirements: [成交额, 换手率或账户活跃, 连续时间序列]
+        downgrade_conditions: [只有指数涨跌, 缺少成交口径, 时间窗口过短]
+        quality_floor: Q3
+    - id: margin_financing
+      type: EvidenceProfile
+      properties:
+        name: 两融业务证据
+        supporting_evidence: [两融余额, 融资买入额, 利差, 担保比例或风险指标]
+        counter_evidence: [余额上升但利差下降, 信用风险上升, 高集中度标的回撤]
+        competing_explanations: [短期杠杆交易抬升余额, 存量客户迁移而非新增需求]
+        scope_checks: [融资融券分离, 余额与发生额分离, 公司份额与行业总量分离]
+        freshness_guidance: 行业余额可日频，利差和风险暴露需公司披露确认。
+        minimum_requirements: [两融余额, 利差或费率, 风险约束]
+        downgrade_conditions: [只看两融余额, 未检查风险和利差]
+        quality_floor: Q3
+    - id: underwriting_cycle
+      type: EvidenceProfile
+      properties:
+        name: 投行业务证据
+        supporting_evidence: [IPO家数, 再融资规模, 债券承销规模, 承销费率, 项目储备]
+        counter_evidence: [审核收紧, 发行节奏放缓, 费率下降, 大项目集中于少数头部机构]
+        competing_explanations: [项目数量增加但规模小, 债券承销替代权益承销]
+        scope_checks: [IPO再融资债券分离, 受理审核发行上市阶段分离]
+        freshness_guidance: 政策和审核节奏变化需事件级更新，收入按项目完成和财务确认更新。
+        minimum_requirements: [发行阶段, 规模, 费率或收入确认线索]
+        downgrade_conditions: [把受理当发行, 只看数量不看规模费率]
+        quality_floor: Q3
+    - id: business_mix_profit
+      type: EvidenceProfile
+      properties:
+        name: 分部经营与利润兑现证据
+        supporting_evidence: [分部收入, 手续费率, 自营收益, 成本率, 减值和净利润]
+        counter_evidence: [自营掩盖主业疲弱, 费用刚性, 信用减值上升, 一次性收益]
+        competing_explanations: [利润改善来自市场浮盈而非经营条线, 并表或会计口径变化]
+        scope_checks: [经纪投行资管自营分离, 行业总量与公司份额分离]
+        freshness_guidance: 公司分部财务按报告期更新，市场变量不得替代公司财务。
+        minimum_requirements: [公司分部数据, 成本和减值, 自营拆分]
+        downgrade_conditions: [缺少公司分部, 用行业景气直接推公司利润]
+        quality_floor: Q2
+    - id: brokerage_revenue
+      type: StateVariable
+      properties:
+        name: 经纪业务收入弹性
+        category: revenue
+        observation_dimensions: [成交额, 佣金率, 客户结构, 产品结构]
+        valid_scope: 行业活跃度只能先形成行业线索，落到公司需份额和费率。
+    - id: margin_financing_balance
+      type: StateVariable
+      properties:
+        name: 两融业务状态
+        category: credit_business
+        observation_dimensions: [余额, 利差, 担保比例, 风险集中度]
+        valid_scope: 两融规模不能脱离利差和风险判断。
+    - id: underwriting_pipeline
+      type: StateVariable
+      properties:
+        name: 投行项目兑现状态
+        category: investment_banking
+        observation_dimensions: [受理, 过会, 注册, 发行, 收入确认]
+        valid_scope: 项目阶段不同，结论强度不同。
+    - id: proprietary_exposure
+      type: StateVariable
+      properties:
+        name: 自营收益扰动状态
+        category: market_exposure
+        observation_dimensions: [权益敞口, 固收敞口, 公允价值变动, 对冲情况]
+        valid_scope: 自营收益不得替代经营性业务趋势。
+    - id: activity_to_brokerage_revenue
+      type: PropagationTemplate
+      properties:
+        name: 市场活跃度到经纪收入传导
+        path: [market_activity, brokerage_revenue, business_mix_profit]
+        lag_guidance: 市场数据先于公司财报，至少需要季度分部数据验证。
+        blocking_conditions: [佣金率下行, 客户结构弱, 成本上升, 公司份额下降]
+        non_inference_rules: [指数上涨不得直接推出经纪收入改善, 行业成交不得直接推出单家公司利润]
+    - id: capital_market_to_profit_realization
+      type: PropagationTemplate
+      properties:
+        name: 资本市场业务到利润兑现传导
+        path: [underwriting_cycle, underwriting_pipeline, proprietary_exposure, business_mix_profit]
+        lag_guidance: 投行项目需从受理到发行收入确认；自营按报告期确认且波动性高。
+        blocking_conditions: [发行暂停或放缓, 费率下行, 自营亏损, 减值上升]
+        non_inference_rules: [受理项目不得当作投行收入, 自营浮盈不得当作经常性经营改善]
+    - id: daily_turnover
+      type: ProxyIndicator
+      properties:
+        name: 日均成交额
+        target_state: brokerage_revenue
+        usable_when: 市场、证券类别和统计窗口一致。
+        misuse_risks: [无法代表佣金率, 无法代表公司份额, 易受短期行情扰动]
+    - id: ipo_acceptance_count
+      type: ProxyIndicator
+      properties:
+        name: IPO受理或过会数量
+        target_state: underwriting_pipeline
+        usable_when: 明确所处阶段并能跟踪发行完成。
+        misuse_risks: [受理不等于发行, 数量不等于规模, 项目归属不等于收入确认]

@@ -1,0 +1,147 @@
+schema_name: innovative_drug_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 创新药获批后能否形成商业化兑现
+  second_round_scenarios:
+    - id: drug_clinical_readout_to_regulatory_probability
+      name: 临床读出到审批概率
+      focus: 临床终点、安全性、适应症范围和监管沟通是否足以支持申报或获批概率改善。
+      required_profiles: [clinical_evidence, regulatory_status, competitive_context]
+      stop_if_missing: [完整临床终点, 安全性数据, 适应症和标签范围]
+      non_inference_rules: [临床读出积极不得直接推出获批, 统计显著不得直接推出商业价值]
+    - id: drug_nrdl_price_to_volume_realization
+      name: 医保谈判降价后量价兑现
+      focus: 医保纳入和降价后是否通过准入、处方和收入确认形成量价平衡。
+      required_profiles: [reimbursement_access, commercialization, competitive_context]
+      stop_if_missing: [支付限制, 降价幅度, 处方或销售验证]
+      non_inference_rules: [医保纳入不得直接推出收入改善, 进院数量不得直接推出处方放量]
+  objects:
+    - id: clinical_evidence
+      type: EvidenceProfile
+      properties:
+        name: 临床证据质量
+        supporting_evidence: [试验方案, 关键终点结果, 样本入排标准, 安全性数据, 对照组口径]
+        counter_evidence: [终点未达成, 安全性风险突出, 亚组样本过小, 真实世界疗效不一致]
+        competing_explanations: [疗效来自患者筛选, 统计显著但临床意义有限, 对照方案弱化]
+        scope_checks: [适应症一致, 患者线数一致, 终点定义一致, 随访时间一致]
+        freshness_guidance: 关键读出、论文发表、监管采纳和标签写入应分阶段更新。
+        minimum_requirements: [试验设计, 关键终点, 样本范围, 安全性, 对照口径]
+        downgrade_conditions: [只有新闻稿, 缺少安全性, 终点或适应症不可比]
+        quality_floor: Q2
+    - id: regulatory_status
+      type: EvidenceProfile
+      properties:
+        name: 审批阶段证据
+        supporting_evidence: [CDE受理信息, NMPA批准文件, 药品标签, 上市后要求]
+        counter_evidence: [补充资料要求, 审评暂停, 标签范围窄于预期, 附条件批准限制]
+        competing_explanations: [受理只是流程推进, 获批范围不覆盖核心商业人群]
+        scope_checks: [药品名称一致, 适应症一致, 批准时间与生效时间分离]
+        freshness_guidance: 受理、审评、获批、标签更新和上市后要求均应事件级更新。
+        minimum_requirements: [监管文件, 适应症范围, 批准或受理时间]
+        downgrade_conditions: [把受理当获批, 缺少标签范围, 用媒体转述替代监管文件]
+        quality_floor: Q2
+    - id: reimbursement_access
+      type: EvidenceProfile
+      properties:
+        name: 支付与医院准入证据
+        supporting_evidence: [医保目录, 支付限制, 谈判价格, 地方执行, 医院采购或准入]
+        counter_evidence: [医保限制人群窄, 价格降幅过大, 进院慢, 替代药支付优势更强]
+        competing_explanations: [医保纳入改善可及性但压低单价, 医院准入来自试点而非广泛放量]
+        scope_checks: [支付人群与获批标签一致, 价格口径一致, 执行时间一致]
+        freshness_guidance: 医保谈判、目录生效、地方执行和医院采购应分开更新。
+        minimum_requirements: [医保或支付状态, 价格或限制, 生效时间]
+        downgrade_conditions: [只知道纳入, 不知道限制或价格, 缺少医院端验证]
+        quality_floor: Q3
+    - id: commercialization
+      type: EvidenceProfile
+      properties:
+        name: 商业化兑现证据
+        supporting_evidence: [销售额, 处方量, 准入医院数, 渠道库存, 公司分产品披露]
+        counter_evidence: [发货高于处方, 退货或渠道压货, 同类竞品放量更快, 推广费用显著上升]
+        competing_explanations: [收入增长来自并表或价格调整, 放量来自短期渠道备货]
+        scope_checks: [发货与终端处方分离, 收入口径与产品口径一致, 时间窗口覆盖医保执行后]
+        freshness_guidance: 商业化爬坡期宜按季度跟踪，重大准入变化后需要重新验证。
+        minimum_requirements: [销售或处方证据, 准入或渠道证据, 公司披露]
+        downgrade_conditions: [只有管理层展望, 无销售验证, 无法区分单品贡献]
+        quality_floor: Q3
+    - id: competitive_context
+      type: EvidenceProfile
+      properties:
+        name: 竞品与治疗地位证据
+        supporting_evidence: [竞品标签, 疗效安全性对比, 指南推荐, 价格和渠道条件]
+        counter_evidence: [同适应症竞品更优, 新疗法改变治疗路径, 指南推荐弱于预期]
+        competing_explanations: [市场扩容掩盖份额下降, 短期缺货导致临时放量]
+        scope_checks: [同线治疗比较, 同患者人群比较, 同支付约束比较]
+        freshness_guidance: 竞品读出、获批、医保和指南变化均会触发重算。
+        minimum_requirements: [至少一个直接竞品, 疗效安全性或支付对照, 治疗路径定位]
+        downgrade_conditions: [只列竞品名称, 未比较标签和患者范围]
+        quality_floor: Q3
+    - id: drug_regulatory_stage
+      type: StateVariable
+      properties:
+        name: 药品审批阶段
+        category: regulatory
+        observation_dimensions: [受理, 审评, 获批, 标签范围, 上市后要求]
+        valid_scope: 单药品和单适应症，不得推广到全管线。
+    - id: clinical_strength
+      type: StateVariable
+      properties:
+        name: 临床证据强度
+        category: clinical
+        observation_dimensions: [疗效, 安全性, 统计显著性, 临床意义, 对照可比性]
+        valid_scope: 仅对指定适应症和患者范围有效。
+    - id: access_readiness
+      type: StateVariable
+      properties:
+        name: 支付与准入可及性
+        category: access
+        observation_dimensions: [医保状态, 支付限制, 医院准入, 指南地位, 价格]
+        valid_scope: 区分全国医保、地方执行和医院采购。
+    - id: drug_sales_ramp
+      type: StateVariable
+      properties:
+        name: 创新药销售放量
+        category: commercialization
+        observation_dimensions: [处方量, 销售额, 准入医院, 渠道库存, 推广费用]
+        valid_scope: 不得由获批事件直接推断。
+    - id: approval_to_access_realization
+      type: PropagationTemplate
+      properties:
+        name: 获批到支付准入传导
+        path: [regulatory_status, drug_regulatory_stage, reimbursement_access, access_readiness]
+        lag_guidance: 获批到医保和医院准入通常跨多个季度，需按政策和采购节点验证。
+        blocking_conditions: [标签范围过窄, 未进医保或限制严格, 医院准入慢, 价格压力过大]
+        non_inference_rules: [获批不得直接推出销售放量, 医保纳入不得直接推出利润改善]
+    - id: access_to_sales_realization
+      type: PropagationTemplate
+      properties:
+        name: 准入到商业化兑现传导
+        path: [access_readiness, competitive_context, commercialization, drug_sales_ramp]
+        lag_guidance: 准入后需等待处方、渠道和收入确认材料形成闭环。
+        blocking_conditions: [竞品更优, 推广费用过高, 渠道压货, 真实处方低于发货]
+        non_inference_rules: [处方线索不得直接替代收入确认, 管理层展望不得替代销售验证]
+    - id: prescription_volume
+      type: ProxyIndicator
+      properties:
+        name: 处方量
+        target_state: drug_sales_ramp
+        usable_when: 样本来源、覆盖医院和时间窗口稳定。
+        misuse_risks: [样本医院偏差, 处方不等于收入, 渠道库存扰动]
+    - id: hospital_access_count
+      type: ProxyIndicator
+      properties:
+        name: 医院准入数量
+        target_state: access_readiness
+        usable_when: 可确认准入医院级别、采购状态和执行时间。
+        misuse_risks: [进院不等于真实处方, 试点医院不能外推全国]

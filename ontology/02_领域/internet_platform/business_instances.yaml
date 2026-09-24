@@ -1,0 +1,135 @@
+schema_name: internet_platform_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 平台用户或交易改善能否传导为收入与利润兑现
+  second_round_scenarios:
+    - id: internet_ad_budget_recovery
+      name: 广告预算恢复
+      focus: 广告主预算、库存、eCPM、加载率和收入是否形成同向恢复。
+      required_profiles: [user_engagement, monetization_efficiency, regulatory_boundary, profit_realization]
+      stop_if_missing: [业务线收入, eCPM或加载率, 广告主预算线索]
+      non_inference_rules: [用户增长不得直接推出广告收入, eCPM上行不得忽略加载率和体验约束]
+    - id: internet_game_license_to_grossing_profit
+      name: 游戏版号到流水和利润兑现
+      focus: 版号、上线、流水、递延收入、买量费用和分部利润的传导。
+      required_profiles: [regulatory_boundary, user_engagement, monetization_efficiency, profit_realization]
+      stop_if_missing: [版号和上线时间, 流水或递延收入, 买量费用]
+      non_inference_rules: [取得版号不得直接推出收入, 流水不得直接推出利润]
+  objects:
+    - id: user_engagement
+      type: EvidenceProfile
+      properties:
+        name: 用户规模与质量证据
+        supporting_evidence: [MAU或DAU, 使用时长, 留存率, 付费率, 用户获取成本]
+        counter_evidence: [低质量拉新, 留存下降, 获客成本上升, 监管限制使用场景]
+        competing_explanations: [补贴带来短期活跃, 内容或活动周期造成一次性峰值]
+        scope_checks: [活跃用户与付费用户分离, 国内海外分离, 主站与新业务分离]
+        freshness_guidance: 用户指标按月或季度更新，需结合收入和成本验证质量。
+        minimum_requirements: [用户规模, 质量指标, 成本或留存]
+        downgrade_conditions: [只看MAU, 不看留存和变现]
+        quality_floor: Q3
+    - id: monetization_efficiency
+      type: EvidenceProfile
+      properties:
+        name: 变现效率证据
+        supporting_evidence: [广告加载率, eCPM, 佣金率, ARPU, 付费转化率]
+        counter_evidence: [广告主预算弱, 抽佣率下降, 补贴增加, 用户体验约束]
+        competing_explanations: [收入增长来自流量增长而非变现效率, 高ARPU来自小样本高价值用户]
+        scope_checks: [广告电商游戏云服务分离, 总收入与净收入分离, 流量与价格分离]
+        freshness_guidance: 变现指标需按业务线和财报周期验证。
+        minimum_requirements: [业务线口径, 变现率或价格, 流量或交易基础]
+        downgrade_conditions: [用GMV或用户数直接推收入, 不拆业务线]
+        quality_floor: Q3
+    - id: regulatory_boundary
+      type: EvidenceProfile
+      properties:
+        name: 监管与业务边界证据
+        supporting_evidence: [监管规则, 版号或许可, 数据合规, 平台治理要求]
+        counter_evidence: [新规限制商业化, 罚款或整改, 业务资质未获批]
+        competing_explanations: [监管缓和改善估值情绪但尚未改变收入边界]
+        scope_checks: [发布与生效分离, 国内海外分离, 业务线适用范围明确]
+        freshness_guidance: 监管事件级更新，业务影响需用产品供给和财务验证。
+        minimum_requirements: [监管原文或许可, 适用范围, 生效时间]
+        downgrade_conditions: [只有传闻或解读, 未确认适用业务]
+        quality_floor: Q3
+    - id: profit_realization
+      type: EvidenceProfile
+      properties:
+        name: 利润兑现与费用效率证据
+        supporting_evidence: [分部收入, 毛利率, 销售研发费用, 补贴, 经营利润]
+        counter_evidence: [补贴换增长, 云或新业务亏损扩大, 内容成本上升, 一次性收益]
+        competing_explanations: [利润改善来自裁员或费用收缩, 不是收入质量改善]
+        scope_checks: [分部收入和集团收入分离, non-GAAP与GAAP分离, 一次性项目剔除]
+        freshness_guidance: 利润兑现按报告期更新，降本效果需观察收入韧性。
+        minimum_requirements: [分部收入, 成本费用, 利润或现金流]
+        downgrade_conditions: [只看用户或GMV, 不看费用和分部利润]
+        quality_floor: Q2
+    - id: engagement_quality
+      type: StateVariable
+      properties:
+        name: 用户质量状态
+        category: user
+        observation_dimensions: [活跃, 留存, 时长, 付费, 获客成本]
+        valid_scope: 单次活动峰值不得外推用户质量。
+    - id: transaction_or_inventory
+      type: StateVariable
+      properties:
+        name: 交易或广告库存状态
+        category: business_volume
+        observation_dimensions: [GMV, 广告库存, 游戏流水, 云用量, 商户供给]
+        valid_scope: 每次研究必须限定单一业务线。
+    - id: monetization_rate
+      type: StateVariable
+      properties:
+        name: 变现效率状态
+        category: monetization
+        observation_dimensions: [佣金率, eCPM, ARPU, 付费率, 折扣补贴]
+        valid_scope: 用户和GMV不能绕过变现效率直接推收入。
+    - id: margin_efficiency
+      type: StateVariable
+      properties:
+        name: 利润率与费用效率
+        category: profitability
+        observation_dimensions: [毛利率, 销售费用, 研发费用, 补贴, 分部利润]
+        valid_scope: 需要分部财务支持。
+    - id: user_to_revenue_realization
+      type: PropagationTemplate
+      properties:
+        name: 用户质量到收入兑现传导
+        path: [user_engagement, engagement_quality, monetization_efficiency, monetization_rate]
+        lag_guidance: 用户改善到收入需经过付费、广告或交易转化验证。
+        blocking_conditions: [获客成本高, 留存低, 变现率下降, 监管限制]
+        non_inference_rules: [用户数不得直接推出收入, GMV不得直接推出利润]
+    - id: revenue_to_profit_realization
+      type: PropagationTemplate
+      properties:
+        name: 收入到利润兑现传导
+        path: [monetization_rate, regulatory_boundary, profit_realization, margin_efficiency]
+        lag_guidance: 收入改善到利润需观察补贴、内容成本、云成本和研发费用。
+        blocking_conditions: [补贴加大, 内容成本上升, 监管整改, 新业务亏损]
+        non_inference_rules: [收入增长不得直接推出利润改善, 降本不得直接代表业务质量改善]
+    - id: gross_merchandise_value
+      type: ProxyIndicator
+      properties:
+        name: GMV
+        target_state: transaction_or_inventory
+        usable_when: 订单取消、退款、佣金率和业务线口径可得。
+        misuse_risks: [GMV不等于净收入, 补贴扰动, 退货取消影响]
+    - id: effective_cpm
+      type: ProxyIndicator
+      properties:
+        name: eCPM
+        target_state: monetization_rate
+        usable_when: 广告库存、行业预算和加载率口径一致。
+        misuse_risks: [广告主结构变化, 加载率损伤用户体验, 短期预算波动]

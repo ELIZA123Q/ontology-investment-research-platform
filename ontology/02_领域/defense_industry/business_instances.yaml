@@ -1,0 +1,136 @@
+schema_name: defense_industry_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+evidence_mode: public_evidence_conservative
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 公开订单或合同负债能否支撑军工收入兑现判断
+  second_round_scenarios:
+    - id: defense_contract_liability_to_revenue
+      name: 合同负债到收入确认
+      focus: 合同负债、存货、交付验收和收入确认是否形成兑现闭环。
+      required_profiles: [public_order, backlog_liability_evidence, delivery_acceptance]
+      stop_if_missing: [业务线归属, 交付或验收, 收入确认]
+      non_inference_rules: [合同负债不得直接推出收入, 收入确认不得直接推出现金流]
+    - id: defense_fundraising_capacity_to_delivery
+      name: 募投产能到交付能力
+      focus: 募投进度、认证、产能爬坡和供应链瓶颈是否支持交付改善。
+      required_profiles: [capacity_supply_chain, delivery_acceptance, backlog_liability_evidence]
+      stop_if_missing: [募投进度, 认证或量产节点, 交付验证]
+      non_inference_rules: [扩产规划不得直接推出交付能力, 产能建成不得直接推出收入兑现]
+  objects:
+    - id: public_order
+      type: EvidenceProfile
+      properties:
+        name: 公开订单与合同证据
+        supporting_evidence: [中标公告, 重大合同公告, 关联交易公告, 客户或项目范围, 金额和期限]
+        counter_evidence: [订单未签约, 金额未披露, 非约束性意向, 客户或产品范围不明]
+        competing_explanations: [订单属于存量续约, 低毛利配套, 或只代表阶段性采购]
+        scope_checks: [军品民品分离, 主机配套分离, 订单金额与收入确认分离]
+        freshness_guidance: 公开订单按事件更新，未披露细节默认降低结论强度。
+        minimum_requirements: [公告或合同, 金额或范围, 时间]
+        downgrade_conditions: [只有传闻, 无约束性合同, 无产品和交付范围]
+        quality_floor: Q3
+    - id: backlog_liability_evidence
+      type: EvidenceProfile
+      properties:
+        name: 合同负债与订单积压证据
+        supporting_evidence: [合同负债, 预收款, 存货, 在产品, 分部收入递延]
+        counter_evidence: [合同负债下降, 存货积压, 预收款不可对应目标业务, 减值增加]
+        competing_explanations: [合同负债来自民品或其他业务, 存货增长来自交付受阻]
+        scope_checks: [集团与分部口径分离, 合同负债与在手订单分离, 业务线对应]
+        freshness_guidance: 合同负债按报告期更新，必须结合交付和收入确认。
+        minimum_requirements: [合同负债或预收款, 业务口径, 报告期对比]
+        downgrade_conditions: [只看合同负债总额, 无法对应目标产品]
+        quality_floor: Q3
+    - id: delivery_acceptance
+      type: EvidenceProfile
+      properties:
+        name: 交付、验收与收入确认证据
+        supporting_evidence: [交付节点, 验收记录或披露, 收入确认, 存货转销, 应收账款]
+        counter_evidence: [交付延期, 验收不明确, 应收上升, 现金流弱, 质量或返修问题]
+        competing_explanations: [收入增长来自会计确认节奏, 不是新增需求或交付能力提升]
+        scope_checks: [生产交付验收收入分离, 项目周期一致, 军品保密缺口留痕]
+        freshness_guidance: 交付和验收信息少时默认只到弱判断，待财报验证。
+        minimum_requirements: [交付或验收线索, 收入确认, 应收或现金流]
+        downgrade_conditions: [只有订单无交付, 只有收入无回款]
+        quality_floor: Q3
+    - id: capacity_supply_chain
+      type: EvidenceProfile
+      properties:
+        name: 产能与供应链保障证据
+        supporting_evidence: [产线建设, 募投进度, 关键原材料, 外协配套, 产能利用率]
+        counter_evidence: [关键材料受限, 募投延期, 外协瓶颈, 质量认证未完成]
+        competing_explanations: [产能扩张来自远期储备, 短期不形成收入]
+        scope_checks: [名义产能与有效产能分离, 军品认证和量产阶段分离]
+        freshness_guidance: 募投、认证和投产节点需事件级更新。
+        minimum_requirements: [产能节点, 认证或客户要求, 供应链约束]
+        downgrade_conditions: [只有扩产规划, 无认证和交付验证]
+        quality_floor: Q3
+    - id: order_visibility
+      type: StateVariable
+      properties:
+        name: 订单可见度
+        category: demand
+        observation_dimensions: [公告订单, 合同负债, 预收款, 项目周期]
+        valid_scope: 未公开细节时默认降低结论强度。
+    - id: delivery_realization
+      type: StateVariable
+      properties:
+        name: 交付兑现状态
+        category: delivery
+        observation_dimensions: [生产, 交付, 验收, 收入确认, 回款]
+        valid_scope: 订单和收入之间必须经过交付验收。
+    - id: backlog_liability
+      type: StateVariable
+      properties:
+        name: 合同负债状态
+        category: backlog
+        observation_dimensions: [合同负债, 预收款, 存货, 在产品]
+        valid_scope: 需确认业务线归属，不能用总额替代目标产品。
+    - id: cash_collection
+      type: StateVariable
+      properties:
+        name: 回款与现金状态
+        category: cashflow
+        observation_dimensions: [应收账款, 经营现金流, 票据, 坏账或减值]
+        valid_scope: 军工收入兑现必须检查现金转化。
+    - id: order_to_revenue_realization
+      type: PropagationTemplate
+      properties:
+        name: 订单到收入兑现传导
+        path: [public_order, backlog_liability, delivery_acceptance, delivery_realization]
+        lag_guidance: 军工订单到交付验收和收入确认可能跨年度，公开信息不足时保守停判。
+        blocking_conditions: [交付延迟, 验收不明确, 产品范围不明, 现金流弱]
+        non_inference_rules: [订单不得直接推出收入, 合同负债不得直接推出利润]
+    - id: capacity_to_delivery_realization
+      type: PropagationTemplate
+      properties:
+        name: 产能建设到交付能力传导
+        path: [capacity_supply_chain, order_visibility, delivery_realization, cash_collection]
+        lag_guidance: 产能建设需经过认证、量产、交付和回款验证。
+        blocking_conditions: [认证延迟, 外协瓶颈, 原材料受限, 募投延期]
+        non_inference_rules: [扩产规划不得直接推出交付改善, 收入确认不得直接推出现金流改善]
+    - id: contract_liability
+      type: ProxyIndicator
+      properties:
+        name: 合同负债
+        target_state: backlog_liability
+        usable_when: 可与业务线、客户和历史收入确认节奏对应。
+        misuse_risks: [业务归属不明, 预收不等于交付, 季节性和项目节奏扰动]
+    - id: inventory_work_in_process
+      type: ProxyIndicator
+      properties:
+        name: 在产品和存货
+        target_state: delivery_realization
+        usable_when: 能判断存货结构、订单覆盖和减值风险。
+        misuse_risks: [存货增长可能代表交付受阻, 不能单独视为需求改善]

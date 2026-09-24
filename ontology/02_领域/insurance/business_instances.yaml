@@ -1,0 +1,135 @@
+schema_name: insurance_domain_business_instances
+schema_version: 0.2.0
+status: draft_domain_seed
+domain_maturity: seed_for_case_validation
+depends_on:
+  - ../../01_通用/models/semantic.yaml
+  - ../../01_通用/models/state_event.yaml
+  - ../../01_通用/models/evidence.yaml
+  - ../../01_通用/models/judgment.yaml
+  - ../../01_通用/models/scenario.yaml
+business_instance_graph:
+  schema_name: ontology_business_instance_graph
+  schema_version: 1.0.0
+  authority: business_parameters
+  seed_scenario: 保费增长能否传导为保险公司价值与利润改善
+  second_round_scenarios:
+    - id: insurance_life_nbv_channel_reform
+      name: 寿险 NBV 与渠道改革
+      focus: 个险或银保渠道改革是否改善新业务价值、价值率和代理人产能。
+      required_profiles: [life_new_business, solvency_capital]
+      stop_if_missing: [NBV或价值率, 渠道结构, 退保或继续率]
+      non_inference_rules: [原保费增长不得直接推出NBV改善, 渠道人力回升不得直接推出产能改善]
+    - id: insurance_pnc_catastrophe_combined_ratio
+      name: 财险综合成本率与大灾扰动
+      focus: 财险保费增长是否伴随赔付率、费用率和大灾风险的真实承保质量变化。
+      required_profiles: [pnc_underwriting, investment_return, solvency_capital]
+      stop_if_missing: [综合成本率, 赔付拆分, 大灾或准备金影响]
+      non_inference_rules: [保费增长不得直接推出承保利润, 单季低赔付不得直接代表长期质量改善]
+  objects:
+    - id: life_new_business
+      type: EvidenceProfile
+      properties:
+        name: 寿险新业务质量证据
+        supporting_evidence: [新单保费, 新业务价值, 价值率, 代理人产能, 产品期限结构]
+        counter_evidence: [趸交或短期产品占比上升, 价值率下降, 代理人脱落, 退保上升]
+        competing_explanations: [保费增长来自低价值储蓄险, 银保冲量而非长期价值改善]
+        scope_checks: [首年保费与续期分离, 个险银保分离, 保费与NBV分离]
+        freshness_guidance: 月度保费只能做线索，NBV和价值率需报告期验证。
+        minimum_requirements: [新单保费, NBV或价值率, 渠道结构]
+        downgrade_conditions: [只看原保费, 不看期限和价值率]
+        quality_floor: Q2
+    - id: pnc_underwriting
+      type: EvidenceProfile
+      properties:
+        name: 财险承保质量证据
+        supporting_evidence: [综合成本率, 赔付率, 费用率, 车险非车险结构, 大灾赔付]
+        counter_evidence: [费用率上升, 赔付恶化, 保费增长来自低质量业务, 大灾风险上升]
+        competing_explanations: [承保利润改善来自准备金释放或一次性低赔付]
+        scope_checks: [车险非车险分离, 保费规模与承保利润分离, 当期赔付与准备金分离]
+        freshness_guidance: 财险保费月度可跟踪，承保质量按报告期和重大灾害事件更新。
+        minimum_requirements: [保费结构, 综合成本率, 赔付或费用拆分]
+        downgrade_conditions: [只看保费增速, 不看综合成本率]
+        quality_floor: Q2
+    - id: investment_return
+      type: EvidenceProfile
+      properties:
+        name: 投资收益与资产负债匹配证据
+        supporting_evidence: [总投资收益率, 净投资收益率, 权益敞口, 久期匹配, 利率环境]
+        counter_evidence: [权益市场下跌, 利率下行再配置压力, 信用风险暴露, 浮亏扩大]
+        competing_explanations: [利润改善来自交易性收益, 不是经常性投资能力]
+        scope_checks: [总投资与净投资分离, 会计分类分离, 资产端与负债成本匹配]
+        freshness_guidance: 投资收益按报告期更新，重大市场波动需事件级重算。
+        minimum_requirements: [投资收益率, 资产配置, 负债成本或久期]
+        downgrade_conditions: [只看权益市场, 不看资产负债匹配]
+        quality_floor: Q3
+    - id: solvency_capital
+      type: EvidenceProfile
+      properties:
+        name: 偿付能力与资本约束证据
+        supporting_evidence: [核心偿付能力, 综合偿付能力, 风险综合评级, 分红和资本补充]
+        counter_evidence: [偿付能力下降, 资本补充压力, 监管评级下调, 业务扩张消耗资本]
+        competing_explanations: [偿付改善来自业务收缩或资产风险下降, 不是盈利能力提升]
+        scope_checks: [核心与综合偿付能力分离, 集团与子公司分离, 监管口径一致]
+        freshness_guidance: 偿付能力按季度或监管披露更新。
+        minimum_requirements: [核心偿付, 综合偿付, 评级或资本计划]
+        downgrade_conditions: [只看利润, 不看资本和偿付能力]
+        quality_floor: Q2
+    - id: life_value_growth
+      type: StateVariable
+      properties:
+        name: 寿险价值增长状态
+        category: life_insurance
+        observation_dimensions: [新单, NBV, 价值率, 渠道, 退保]
+        valid_scope: 原保费不能替代新业务价值。
+    - id: underwriting_quality
+      type: StateVariable
+      properties:
+        name: 财险承保质量
+        category: pnc_insurance
+        observation_dimensions: [综合成本率, 赔付率, 费用率, 业务结构]
+        valid_scope: 保费增长需通过承保质量验证。
+    - id: asset_liability_match
+      type: StateVariable
+      properties:
+        name: 资产负债匹配状态
+        category: investment
+        observation_dimensions: [久期, 收益率, 权益敞口, 负债成本]
+        valid_scope: 投资端判断需区分经常性和交易性收益。
+    - id: solvency_buffer
+      type: StateVariable
+      properties:
+        name: 偿付能力缓冲
+        category: capital
+        observation_dimensions: [核心偿付, 综合偿付, 资本补充, 风险评级]
+        valid_scope: 资本约束决定业务扩张可持续性。
+    - id: premium_to_value_realization
+      type: PropagationTemplate
+      properties:
+        name: 保费增长到价值兑现传导
+        path: [life_new_business, life_value_growth, solvency_capital, solvency_buffer]
+        lag_guidance: 月度保费到NBV和利润需等报告期价值率、退保和费用验证。
+        blocking_conditions: [低价值产品占比高, 退保上升, 代理人产能弱, 资本消耗高]
+        non_inference_rules: [原保费增长不得直接推出价值增长, 银保冲量不得直接推出长期价值改善]
+    - id: underwriting_to_profit_realization
+      type: PropagationTemplate
+      properties:
+        name: 承保与投资到利润兑现传导
+        path: [pnc_underwriting, underwriting_quality, investment_return, asset_liability_match]
+        lag_guidance: 承保结果和投资收益均需报告期验证，且受准备金和市场波动影响。
+        blocking_conditions: [赔付恶化, 准备金不足, 权益回撤, 利率再配置压力]
+        non_inference_rules: [保费增速不得直接推出利润, 权益市场上涨不得直接推出投资能力改善]
+    - id: monthly_premium_income
+      type: ProxyIndicator
+      properties:
+        name: 月度原保费
+        target_state: life_value_growth
+        usable_when: 可拆险种、渠道、期限和新单续期。
+        misuse_risks: [不能代表NBV, 低价值产品冲量, 季节性和节奏扰动]
+    - id: combined_ratio
+      type: ProxyIndicator
+      properties:
+        name: 综合成本率
+        target_state: underwriting_quality
+        usable_when: 能拆赔付率、费用率和准备金因素。
+        misuse_risks: [准备金释放, 大灾扰动, 车险非车险混合]
